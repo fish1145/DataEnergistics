@@ -40,4 +40,21 @@ public interface TrinityMinimumSeedScheduler {
                                                             Map<AEKey, BigInteger> maximumInputs,
                                                             int maxStates,
                                                             TrinityPlanningControl control);
+
+    /**
+     * Finds the minimum true prefix seed for a fixed firing vector after the global external objective has been fixed.
+     * External injections may use any exact distribution whose total does not exceed {@code externalTotal}; unused
+     * units can then be added without affecting executability.
+     *
+     * @param externalTotal exact global external-input budget
+     */
+    TrinityAlgorithmResult<TrinityMinimumSeedSchedule> findWithinExternalTotal(
+                                                                               Map<TrinityPatternVariant, BigInteger> firings,
+                                                                               Set<AEKey> externalKeys,
+                                                                               Set<AEKey> seedableKeys,
+                                                                               Map<AEKey, BigInteger> minimumInputs,
+                                                                               Map<AEKey, BigInteger> maximumInputs,
+                                                                               BigInteger externalTotal,
+                                                                               int maxStates,
+                                                                               TrinityPlanningControl control);
 }

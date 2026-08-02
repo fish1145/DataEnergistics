@@ -10,8 +10,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMipCyclePlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMixedIntegerCycleSolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.selector.TrinityPlanningAttemptSelector;
@@ -30,25 +30,26 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Selection implementation that keeps every general fallback behind the shared three-state opportunity boundary.
+ * Selection implementation that keeps the single joint-cycle fallback behind the shared three-state opportunity
+ * boundary.
  */
 final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
 
     private final TrinityDeterministicCycleSequence deterministicCycleSequence;
     private final TrinityDeterministicCyclePlanner deterministicCyclePlanner;
     private final TrinityDeterministicComponentPlanner deterministicComponentPlanner;
-    private final TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver;
+    private final TrinityJointCyclePlanner jointCyclePlanner;
     private final TrinityPlanningAttemptSelector planningAttemptSelector;
 
     TrinityCyclePlanSelectorImpl(TrinityDeterministicCycleSequence deterministicCycleSequence,
                                  TrinityDeterministicCyclePlanner deterministicCyclePlanner,
                                  TrinityDeterministicComponentPlanner deterministicComponentPlanner,
-                                 TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver,
+                                 TrinityJointCyclePlanner jointCyclePlanner,
                                  TrinityPlanningAttemptSelector planningAttemptSelector) {
         this.deterministicCycleSequence = deterministicCycleSequence;
         this.deterministicCyclePlanner = deterministicCyclePlanner;
         this.deterministicComponentPlanner = deterministicComponentPlanner;
-        this.mixedIntegerCycleSolver = mixedIntegerCycleSolver;
+        this.jointCyclePlanner = jointCyclePlanner;
         this.planningAttemptSelector = planningAttemptSelector;
     }
 
@@ -107,28 +108,28 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
         return this.planningAttemptSelector.select(
                 deterministic,
                 plan -> fromDeterministic(component.index(), plan, componentNanos),
-                () -> solveMixedInteger(component, demand, inventory, producible, maxStates, control, componentNanos));
+                () -> planJointCycle(component, demand, inventory, producible, maxStates, control, componentNanos));
     }
 
-    private TrinityAlgorithmResult<TrinityCycleSelection> solveMixedInteger(
-                                                                            TrinityStronglyConnectedComponent component,
-                                                                            TrinityCycleDemand demand,
-                                                                            Map<AEKey, BigInteger> available,
-                                                                            Set<AEKey> producibleInputs,
-                                                                            int maxStates,
-                                                                            TrinityPlanningControl control,
-                                                                            long componentNanos) {
-        TrinityAlgorithmResult<TrinityMipCyclePlan> mip = this.mixedIntegerCycleSolver.solve(
+    private TrinityAlgorithmResult<TrinityCycleSelection> planJointCycle(
+                                                                         TrinityStronglyConnectedComponent component,
+                                                                         TrinityCycleDemand demand,
+                                                                         Map<AEKey, BigInteger> available,
+                                                                         Set<AEKey> producibleInputs,
+                                                                         int maxStates,
+                                                                         TrinityPlanningControl control,
+                                                                         long componentNanos) {
+        TrinityAlgorithmResult<TrinityJointCyclePlan> joint = this.jointCyclePlanner.plan(
                 component,
                 demand,
                 available,
                 producibleInputs,
                 maxStates,
                 control);
-        if (!mip.successful()) {
-            return TrinityAlgorithmResult.failure(mip.diagnostic());
+        if (!joint.successful()) {
+            return TrinityAlgorithmResult.failure(joint.diagnostic());
         }
-        TrinityMipCyclePlan plan = mip.value();
+        TrinityJointCyclePlan plan = joint.value();
         return TrinityAlgorithmResult.success(new TrinityCycleSelection(
                 component.index(),
                 plan.schedule().batches(),
@@ -136,7 +137,7 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
                 maximumAmounts(plan.minimumSeed(), plan.externalInputs()),
                 plan.initialInputs(),
                 plan.netChange(),
-                plan.schedule().statesVisited(),
+                plan.searchStates(),
                 Math.addExact(componentNanos, plan.solverNanos())));
     }
 
@@ -153,9 +154,9 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
     }
 
     private static TrinityCycleSelection fromDeterministic(
-                                                            int componentIndex,
-                                                            TrinityDeterministicComponentPlan plan,
-                                                            long componentNanos) {
+                                                           int componentIndex,
+                                                           TrinityDeterministicComponentPlan plan,
+                                                           long componentNanos) {
         return new TrinityCycleSelection(
                 componentIndex,
                 plan.schedule().batches(),
@@ -168,8 +169,8 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
     }
 
     private static Optional<ScalarDemand> scalarDemand(
-                                                        TrinityStronglyConnectedComponent component,
-                                                        TrinityCycleDemand demand) {
+                                                       TrinityStronglyConnectedComponent component,
+                                                       TrinityCycleDemand demand) {
         if (demand.requiredNetChangeLowerBounds().size() != 1) {
             return Optional.empty();
         }

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip;
+package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
@@ -19,6 +19,8 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.ojalgo.optimisation.integer.IntegerStrategy;
 
 import java.math.BigDecimal;
@@ -35,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class TrinityMixedIntegerCycleSolverTest {
+public final class TrinityJointCyclePlannerTest {
 
     @BeforeAll
     static void bootstrapRegistries() {
@@ -51,7 +53,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> TrinityMixedIntegerCycleSolverImpl.diagnosticStates(diagnostic));
+                () -> TrinityJointCyclePlannerImpl.diagnosticStates(diagnostic));
     }
 
     @Test
@@ -67,7 +69,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 amounts(a, BigInteger.ONE, fuel, BigInteger.TWO),
                 amounts(a, BigInteger.valueOf(3L)));
 
-        TrinityMipCyclePlan plan = solve(
+        TrinityJointCyclePlan plan = solve(
                 component(a, slow, fast),
                 a,
                 BigInteger.TEN,
@@ -80,32 +82,76 @@ public final class TrinityMixedIntegerCycleSolverTest {
         assertEquals(BigInteger.TEN, plan.externalInputs().get(fuel));
         assertEquals(BigInteger.ONE, plan.minimumSeed().get(a));
         assertEquals(BigInteger.TEN, plan.netChange().get(a));
-        assertTrue(plan.solverPasses() >= 3);
+        assertTrue(plan.solverPasses() > 0);
     }
 
-    @Test
-    void exactPrefixSeedParticipatesInRouteSelectionBeforeStableIdentity() {
+    @ParameterizedTest
+    @CsvSource({
+            "1, seed",
+            "1000000, seed",
+            "1, avoidable_external",
+            "1000000, avoidable_external",
+            "1, required_external",
+            "1000000, required_external"
+    })
+    void trueObjectivesAndExternalPrefixCutsDoNotEnumerateQuantity(long requestedAmount, String routeMode) {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
-        TrinityPatternVariant identityFirstButHighSeed = variant(
-                "a-high-seed",
-                amounts(a, BigInteger.TEN),
-                amounts(a, BigInteger.valueOf(11L)));
-        TrinityPatternVariant identitySecondButLowSeed = variant(
-                "b-low-seed",
+        AEKey b = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey catalyst = AEItemKey.of(Items.BUCKET);
+        boolean directNeedsExternal = !routeMode.equals("seed");
+        boolean cycleNeedsExternal = routeMode.equals("required_external");
+        TrinityPatternVariant direct = variant(
+                "a-direct",
+                directNeedsExternal ?
+                        amounts(a, BigInteger.TWO, catalyst, BigInteger.ONE) : amounts(a, BigInteger.TWO),
+                directNeedsExternal ?
+                        amounts(a, BigInteger.valueOf(3L), catalyst, BigInteger.ONE) :
+                        amounts(a, BigInteger.valueOf(3L)));
+        TrinityPatternVariant aToB = variant(
+                "b-a-to-b",
                 amounts(a, BigInteger.ONE),
-                amounts(a, BigInteger.TWO));
+                amounts(b, BigInteger.ONE));
+        TrinityPatternVariant bToA = variant(
+                "c-b-to-a",
+                cycleNeedsExternal ?
+                        amounts(b, BigInteger.ONE, catalyst, BigInteger.ONE) : amounts(b, BigInteger.ONE),
+                cycleNeedsExternal ?
+                        amounts(a, BigInteger.TWO, catalyst, BigInteger.ONE) : amounts(a, BigInteger.TWO));
+        TrinityStronglyConnectedComponent component = new TrinityStronglyConnectedComponent(
+                0,
+                List.of(a, b),
+                true,
+                List.of(direct, aToB, bToA),
+                List.of(),
+                List.of());
+        BigInteger requested = BigInteger.valueOf(requestedAmount);
+        Map<AEKey, BigInteger> available = directNeedsExternal || cycleNeedsExternal ?
+                Map.of(a, BigInteger.TWO, catalyst, BigInteger.ONE) : Map.of(a, BigInteger.TWO);
 
-        TrinityMipCyclePlan plan = solve(
-                component(a, identityFirstButHighSeed, identitySecondButLowSeed),
+        TrinityAlgorithmResult<TrinityJointCyclePlan> result = solve(
+                component,
                 a,
-                BigInteger.ONE,
+                requested,
                 CraftingQuantityMode.NET_NEW,
-                Map.of(a, BigInteger.TEN),
-                100)
-                .value();
+                available,
+                1000);
+        assertTrue(result.successful(), () -> result.diagnostic().toString());
+        TrinityJointCyclePlan plan = result.value();
 
-        assertEquals(Map.of(identitySecondButLowSeed, BigInteger.ONE), plan.firings());
+        Map<TrinityPatternVariant, BigInteger> expected = routeMode.equals("avoidable_external") ?
+                Map.of(aToB, requested, bToA, requested) :
+                requested.equals(BigInteger.ONE) ?
+                        Map.of(aToB, BigInteger.ONE, bToA, BigInteger.ONE) :
+                        Map.of(
+                                direct, requested.subtract(BigInteger.ONE),
+                                aToB, BigInteger.ONE,
+                                bToA, BigInteger.ONE);
+        assertEquals(expected, plan.firings(), plan::toString);
+        assertEquals(
+                cycleNeedsExternal ? Map.of(catalyst, BigInteger.ONE) : Map.of(),
+                plan.externalInputs());
         assertEquals(BigInteger.ONE, plan.minimumSeed().get(a));
+        assertTrue(plan.searchStates() <= 64, () -> "compressed states=" + plan.searchStates());
     }
 
     @Test
@@ -120,7 +166,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 amounts(a, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
 
-        TrinityMipCyclePlan plan = solve(
+        TrinityJointCyclePlan plan = solve(
                 component(a, first, second),
                 a,
                 BigInteger.valueOf(3L),
@@ -133,30 +179,6 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
-    void externalObjectiveIncludesAZeroNetCatalystPrefix() {
-        AEKey a = AEItemKey.of(Items.IRON_INGOT);
-        AEKey bucket = AEItemKey.of(Items.BUCKET);
-        TrinityPatternVariant catalytic = variant(
-                "catalytic",
-                amounts(a, BigInteger.ONE, bucket, BigInteger.ONE),
-                amounts(a, BigInteger.TWO, bucket, BigInteger.ONE));
-
-        TrinityMipCyclePlan plan = solve(
-                component(a, catalytic),
-                a,
-                BigInteger.valueOf(100L),
-                CraftingQuantityMode.NET_NEW,
-                Map.of(a, BigInteger.ONE, bucket, BigInteger.ONE),
-                100)
-                .value();
-
-        assertEquals(BigInteger.ONE, plan.externalInputs().get(bucket));
-        assertEquals(BigInteger.ONE, plan.minimumSeed().get(a));
-        assertEquals(BigInteger.valueOf(100L), plan.firings().get(catalytic));
-        assertTrue(plan.schedule().statesVisited() <= 2);
-    }
-
-    @Test
     void producibleBoundaryInputsAreDemandsInsteadOfCurrentInventoryCaps() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         AEKey fuel = AEItemKey.of(Items.COAL);
@@ -165,7 +187,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 amounts(a, BigInteger.ONE, fuel, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
 
-        TrinityAlgorithmResult<TrinityMipCyclePlan> result = TrinityMixedIntegerCycleSolver.create().solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> result = TrinityJointCyclePlanner.create().plan(
                 component(a, fuelled),
                 a,
                 BigInteger.valueOf(100L),
@@ -191,7 +213,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 amounts(a, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
 
-        TrinityMipCyclePlan plan = solve(
+        TrinityJointCyclePlan plan = solve(
                 component(a, multiply),
                 a,
                 BigInteger.valueOf(5L),
@@ -230,7 +252,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 Map.of(a, BigInteger.ONE, b, BigInteger.valueOf(3L)),
                 Map.of(b, BigInteger.valueOf(3L)));
 
-        TrinityAlgorithmResult<TrinityMipCyclePlan> result = TrinityMixedIntegerCycleSolver.create().solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> result = TrinityJointCyclePlanner.create().plan(
                 component,
                 demand,
                 Map.of(a, BigInteger.ONE),
@@ -238,13 +260,53 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 TrinityPlanningControl.create(() -> false, () -> 0L, 1_000_000_000L));
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
-        TrinityMipCyclePlan plan = result.value();
+        TrinityJointCyclePlan plan = result.value();
         assertEquals(Map.of(aToB, BigInteger.TWO, bToA, BigInteger.ONE), plan.firings());
         assertEquals(Map.of(a, BigInteger.ONE), plan.initialInputs());
         assertEquals(Map.of(b, BigInteger.valueOf(3L)), plan.netChange());
         assertEquals(
                 Map.of(a, BigInteger.ONE, b, BigInteger.valueOf(3L)),
                 plan.schedule().finalBalances());
+    }
+
+    @Test
+    void radixModelSolvesLongMaxDemandWithoutNarrowingExactTotals() {
+        AEKey a = AEItemKey.of(Items.IRON_INGOT);
+        AEKey b = AEItemKey.of(Items.GOLD_INGOT);
+        TrinityPatternVariant aToB = variant(
+                "a-to-b",
+                amounts(a, BigInteger.ONE),
+                amounts(b, BigInteger.TWO));
+        TrinityPatternVariant bToA = variant(
+                "b-to-a",
+                amounts(b, BigInteger.ONE),
+                amounts(a, BigInteger.TWO));
+        TrinityStronglyConnectedComponent component = new TrinityStronglyConnectedComponent(
+                0,
+                List.of(a, b),
+                true,
+                List.of(aToB, bToA),
+                List.of(),
+                List.of());
+        BigInteger target = BigInteger.valueOf(Long.MAX_VALUE);
+        TrinityCycleDemand demand = new TrinityCycleDemand(Map.of(), Map.of(a, target));
+
+        TrinityAlgorithmResult<TrinityJointCyclePlan> result = TrinityJointCyclePlanner.create().plan(
+                component,
+                demand,
+                Map.of(b, BigInteger.ONE),
+                1000,
+                TrinityPlanningControl.create(() -> false, () -> 0L, Long.MAX_VALUE));
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString() + result.diagnostic().metadata());
+        TrinityJointCyclePlan plan = result.value();
+        BigInteger aToBFirings = target.subtract(BigInteger.ONE).divide(BigInteger.valueOf(3L));
+        BigInteger bToAFirings = aToBFirings.multiply(BigInteger.TWO).add(BigInteger.ONE);
+        assertEquals(Map.of(aToB, aToBFirings, bToA, bToAFirings), plan.firings());
+        assertEquals(Map.of(b, BigInteger.ONE), plan.minimumSeed());
+        assertEquals(Map.of(b, BigInteger.ONE), plan.initialInputs());
+        assertEquals(Map.of(a, target.add(BigInteger.ONE), b, BigInteger.ONE.negate()), plan.netChange());
+        assertEquals(Map.of(a, target.add(BigInteger.ONE)), plan.schedule().finalBalances());
     }
 
     @Test
@@ -259,7 +321,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 Map.of(),
                 Map.of(target, BigInteger.ONE));
 
-        TrinityAlgorithmResult<TrinityMipCyclePlan> result = TrinityMixedIntegerCycleSolver.create().solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> result = TrinityJointCyclePlanner.create().plan(
                 component(a, growthWithBoundaryOutput),
                 demand,
                 Map.of(a, BigInteger.ONE),
@@ -267,7 +329,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 TrinityPlanningControl.create(() -> false, () -> 0L, 1_000_000_000L));
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
-        TrinityMipCyclePlan plan = result.value();
+        TrinityJointCyclePlan plan = result.value();
         assertEquals(Map.of(growthWithBoundaryOutput, BigInteger.ONE), plan.firings());
         assertEquals(Map.of(a, BigInteger.ONE), plan.minimumSeed());
         assertEquals(Map.of(a, BigInteger.ONE), plan.initialInputs());
@@ -283,14 +345,14 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 "fuelled",
                 amounts(a, BigInteger.ONE, fuel, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
-        TrinityAlgorithmResult<TrinityMipCyclePlan> infeasible = solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> infeasible = solve(
                 component(a, fuelled),
                 a,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(a, BigInteger.ONE),
                 100);
-        TrinityAlgorithmResult<TrinityMipCyclePlan> cancelled = TrinityMixedIntegerCycleSolver.create().solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> cancelled = TrinityJointCyclePlanner.create().plan(
                 component(a, fuelled),
                 a,
                 BigInteger.ONE,
@@ -299,7 +361,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 100,
                 TrinityPlanningControl.create(() -> true, () -> 0L, 1L));
         AtomicLong clock = new AtomicLong();
-        TrinityAlgorithmResult<TrinityMipCyclePlan> timedOut = TrinityMixedIntegerCycleSolver.create().solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> timedOut = TrinityJointCyclePlanner.create().plan(
                 component(a, fuelled),
                 a,
                 BigInteger.ONE,
@@ -315,7 +377,7 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 "b-low-seed",
                 amounts(a, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
-        TrinityAlgorithmResult<TrinityMipCyclePlan> limited = solve(
+        TrinityAlgorithmResult<TrinityJointCyclePlan> limited = solve(
                 component(a, highSeed, lowSeed),
                 a,
                 BigInteger.ONE,
@@ -370,13 +432,13 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
-    void mipValueRejectsForgedConservation() {
+    void jointPlanRejectsForgedConservation() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         TrinityPatternVariant multiply = variant(
                 "multiply",
                 amounts(a, BigInteger.ONE),
                 amounts(a, BigInteger.TWO));
-        TrinityMipCyclePlan valid = solve(
+        TrinityJointCyclePlan valid = solve(
                 component(a, multiply),
                 a,
                 BigInteger.ONE,
@@ -385,32 +447,33 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 100)
                 .value();
 
-        assertThrows(IllegalArgumentException.class, () -> new TrinityMipCyclePlan(
+        assertThrows(IllegalArgumentException.class, () -> new TrinityJointCyclePlan(
                 valid.firings(),
                 valid.externalInputs(),
                 valid.minimumSeed(),
                 valid.initialInputs(),
                 Map.of(a, BigInteger.TWO),
                 valid.schedule(),
+                valid.searchStates(),
                 valid.solverPasses(),
                 valid.solverNanos()));
     }
 
-    private static TrinityAlgorithmResult<TrinityMipCyclePlan> solve(
-                                                                     TrinityStronglyConnectedComponent component,
-                                                                     AEKey target,
-                                                                     BigInteger amount,
-                                                                     CraftingQuantityMode mode,
-                                                                     Map<AEKey, BigInteger> available,
-                                                                     int maxStates) {
-        return TrinityMixedIntegerCycleSolver.create().solve(
+    private static TrinityAlgorithmResult<TrinityJointCyclePlan> solve(
+                                                                       TrinityStronglyConnectedComponent component,
+                                                                       AEKey target,
+                                                                       BigInteger amount,
+                                                                       CraftingQuantityMode mode,
+                                                                       Map<AEKey, BigInteger> available,
+                                                                       int maxStates) {
+        return TrinityJointCyclePlanner.create().plan(
                 component,
                 target,
                 amount,
                 mode,
                 available,
                 maxStates,
-                TrinityPlanningControl.create(() -> false, () -> 0L, 1_000_000_000L));
+                TrinityPlanningControl.create(() -> false, () -> 0L, Long.MAX_VALUE));
     }
 
     private static TrinityStronglyConnectedComponent component(

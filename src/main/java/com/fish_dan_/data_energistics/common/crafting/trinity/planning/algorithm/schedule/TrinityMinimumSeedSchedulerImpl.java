@@ -41,6 +41,53 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
                                                                    Map<AEKey, BigInteger> maximumInputs,
                                                                    int maxStates,
                                                                    TrinityPlanningControl control) {
+        return search(
+                firings,
+                externalKeys,
+                seedableKeys,
+                minimumInputs,
+                maximumInputs,
+                null,
+                false,
+                maxStates,
+                control);
+    }
+
+    @Override
+    public TrinityAlgorithmResult<TrinityMinimumSeedSchedule> findWithinExternalTotal(
+                                                                                      Map<TrinityPatternVariant, BigInteger> firings,
+                                                                                      Set<AEKey> externalKeys,
+                                                                                      Set<AEKey> seedableKeys,
+                                                                                      Map<AEKey, BigInteger> minimumInputs,
+                                                                                      Map<AEKey, BigInteger> maximumInputs,
+                                                                                      BigInteger externalTotal,
+                                                                                      int maxStates,
+                                                                                      TrinityPlanningControl control) {
+        if (externalTotal == null || externalTotal.signum() < 0) {
+            throw new IllegalArgumentException("A Trinity fixed external total cannot be negative or null");
+        }
+        return search(
+                firings,
+                externalKeys,
+                seedableKeys,
+                minimumInputs,
+                maximumInputs,
+                externalTotal,
+                true,
+                maxStates,
+                control);
+    }
+
+    private TrinityAlgorithmResult<TrinityMinimumSeedSchedule> search(
+                                                                      Map<TrinityPatternVariant, BigInteger> firings,
+                                                                      Set<AEKey> externalKeys,
+                                                                      Set<AEKey> seedableKeys,
+                                                                      Map<AEKey, BigInteger> minimumInputs,
+                                                                      Map<AEKey, BigInteger> maximumInputs,
+                                                                      BigInteger externalLimit,
+                                                                      boolean seedFirst,
+                                                                      int maxStates,
+                                                                      TrinityPlanningControl control) {
         if (firings == null || firings.isEmpty() || externalKeys == null || seedableKeys == null ||
                 minimumInputs == null || maximumInputs == null || maxStates <= 0 || control == null) {
             throw new IllegalArgumentException(
@@ -65,11 +112,23 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
         List<BigInteger> seed = categoryVector(keys, minimumInputs, seedableKeys);
         BigInteger externalUnits = external.stream().reduce(BigInteger.ZERO, BigInteger::add);
         BigInteger seedUnits = seed.stream().reduce(BigInteger.ZERO, BigInteger::add);
+        if (externalLimit != null && externalUnits.compareTo(externalLimit) > 0) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
+                    NO_EXECUTABLE_ORDER_KEY,
+                    Map.of("states", "0"));
+        }
 
-        Comparator<SearchNode> ordering = Comparator
-                .comparing(SearchNode::externalUnits)
-                .thenComparing(SearchNode::seedUnits)
-                .thenComparingInt(node -> node.batches().size())
+        Comparator<SearchNode> ordering = seedFirst ? Comparator
+                .comparing(SearchNode::seedUnits)
+                .thenComparing(SearchNode::externalUnits) :
+                Comparator
+                        .comparing(SearchNode::externalUnits)
+                        .thenComparing(SearchNode::seedUnits);
+        // Costs stay authoritative; within one cost layer, depth-first expansion follows compressed maximum batches.
+        ordering = ordering
+                .thenComparing(Comparator.comparingInt(
+                        (SearchNode node) -> node.batches().size()).reversed())
                 .thenComparingLong(SearchNode::sequence);
         PriorityQueue<SearchNode> pending = new PriorityQueue<>(ordering);
         long sequence = 0L;
@@ -162,6 +221,9 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
                     continue;
                 }
                 SeedInjection required = injection.orElseThrow();
+                if (externalLimit != null && required.externalUnits().compareTo(externalLimit) > 0) {
+                    continue;
+                }
                 BigInteger injectedSafe = TrinityCompressedSchedulerImpl.maximumSafeBatch(
                         variant,
                         count,

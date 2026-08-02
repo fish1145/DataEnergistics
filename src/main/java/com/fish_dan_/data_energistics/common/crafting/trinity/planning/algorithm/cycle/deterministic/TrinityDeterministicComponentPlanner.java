@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability.TrinityDeterministicApplicability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.firing.TrinityDeterministicFiringCalculator;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.proof.TrinityDeterministicProofAssembler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityShiftedFiringOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
@@ -24,10 +27,11 @@ public interface TrinityDeterministicComponentPlanner {
      */
     static TrinityDeterministicComponentPlanner create() {
         return new TrinityDeterministicComponentPlannerImpl(
-                TrinityDeterministicCycleSequence.create(),
-                TrinityShiftedFiringOptimizer.create(),
-                TrinityMinimumSeedScheduler.create(),
-                TrinityDeterministicRepeatScheduler.create());
+                TrinityDeterministicApplicability.create(TrinityDeterministicCycleSequence.create()),
+                TrinityDeterministicFiringCalculator.create(TrinityShiftedFiringOptimizer.create()),
+                TrinityDeterministicProofAssembler.create(
+                        TrinityMinimumSeedScheduler.create(),
+                        TrinityDeterministicRepeatScheduler.create()));
     }
 
     /**

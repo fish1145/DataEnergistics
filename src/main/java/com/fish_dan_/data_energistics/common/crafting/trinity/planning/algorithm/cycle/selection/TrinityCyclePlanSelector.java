@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMixedIntegerCycleSolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.selector.TrinityPlanningAttemptSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
@@ -17,19 +17,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Owns the ordered scalar, deterministic-component and general-MIP cycle selection policy.
+ * Owns the ordered scalar, deterministic-component and authoritative joint-cycle selection policy.
  */
 public interface TrinityCyclePlanSelector {
 
     /**
-     * @return selector composed from exact deterministic and MIP implementations
+     * @return selector composed from exact deterministic and joint-cycle implementations
      */
     static TrinityCyclePlanSelector create() {
         return new TrinityCyclePlanSelectorImpl(
                 TrinityDeterministicCycleSequence.create(),
                 TrinityDeterministicCyclePlanner.create(),
                 TrinityDeterministicComponentPlanner.create(),
-                TrinityMixedIntegerCycleSolver.create(),
+                TrinityJointCyclePlanner.create(),
                 TrinityPlanningAttemptSelector.create());
     }
 

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip;
+package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Exact multi-route SCC result after sequential MIP objectives and compressed reachability validation.
+ * Exact multi-route SCC result after joint objective selection and compressed reachability validation.
  *
  * @param firings        exact integer firing vector
  * @param externalInputs minimal boundary inputs under the first lexicographic objective
@@ -19,27 +19,30 @@ import java.util.Map;
  * @param initialInputs  external inputs plus seed/final-total contribution reserved before execution
  * @param netChange      exact signed effect of all firings
  * @param schedule       compressed executable proof
+ * @param searchStates   total firing-box and compressed-schedule states used to prove the result
  * @param solverPasses   completed ojAlgo optimisation passes
  * @param solverNanos    measured time spent in ojAlgo
  */
-public record TrinityMipCyclePlan(
-                                  Map<TrinityPatternVariant, BigInteger> firings,
-                                  Map<AEKey, BigInteger> externalInputs,
-                                  Map<AEKey, BigInteger> minimumSeed,
-                                  Map<AEKey, BigInteger> initialInputs,
-                                  Map<AEKey, BigInteger> netChange,
-                                  TrinityCompressedSchedule schedule,
-                                  int solverPasses,
-                                  long solverNanos) {
+public record TrinityJointCyclePlan(
+                                    Map<TrinityPatternVariant, BigInteger> firings,
+                                    Map<AEKey, BigInteger> externalInputs,
+                                    Map<AEKey, BigInteger> minimumSeed,
+                                    Map<AEKey, BigInteger> initialInputs,
+                                    Map<AEKey, BigInteger> netChange,
+                                    TrinityCompressedSchedule schedule,
+                                    int searchStates,
+                                    int solverPasses,
+                                    long solverNanos) {
 
     /**
      * Copies the result and repeats all final BigInteger conservation checks.
      */
-    public TrinityMipCyclePlan {
+    public TrinityJointCyclePlan {
         if (firings == null || firings.isEmpty() || externalInputs == null || minimumSeed == null ||
-                initialInputs == null || netChange == null || schedule == null || solverPasses < 3 ||
+                initialInputs == null || netChange == null || schedule == null || searchStates <= 0 ||
+                solverPasses <= 0 ||
                 solverNanos < 0L) {
-            throw new IllegalArgumentException("A Trinity MIP cycle plan requires complete exact accounting");
+            throw new IllegalArgumentException("A Trinity joint cycle plan requires complete exact accounting");
         }
         firings = copyPositiveFirings(firings);
         externalInputs = copyPositiveAmounts(externalInputs);
@@ -47,14 +50,14 @@ public record TrinityMipCyclePlan(
         initialInputs = copyPositiveAmounts(initialInputs);
         netChange = copySignedNonZero(netChange);
         if (!schedule.aggregateFirings().equals(firings)) {
-            throw new IllegalArgumentException("A Trinity MIP schedule must match its firing vector");
+            throw new IllegalArgumentException("A Trinity joint cycle schedule must match its firing vector");
         }
         LinkedHashMap<AEKey, BigInteger> calculatedNet = new LinkedHashMap<>();
         firings.forEach((variant, count) -> variant.netChange().forEach(
                 (key, amount) -> calculatedNet.merge(key, amount.multiply(count), BigInteger::add)));
         calculatedNet.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
         if (!calculatedNet.equals(netChange)) {
-            throw new IllegalArgumentException("A Trinity MIP net change must equal its firing vector");
+            throw new IllegalArgumentException("A Trinity joint cycle net change must equal its firing vector");
         }
         for (Map.Entry<AEKey, BigInteger> external : externalInputs.entrySet()) {
             requireIncluded(initialInputs, external.getKey(), external.getValue(), "external input");
@@ -65,11 +68,11 @@ public record TrinityMipCyclePlan(
         LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(initialInputs);
         netChange.forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
         if (finalBalances.values().stream().anyMatch(amount -> amount.signum() < 0)) {
-            throw new IllegalArgumentException("A Trinity MIP final balance cannot be negative");
+            throw new IllegalArgumentException("A Trinity joint cycle final balance cannot be negative");
         }
         finalBalances.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
         if (!finalBalances.equals(schedule.finalBalances())) {
-            throw new IllegalArgumentException("A Trinity MIP schedule must conserve its final balances");
+            throw new IllegalArgumentException("A Trinity joint cycle schedule must conserve its final balances");
         }
     }
 
@@ -78,7 +81,7 @@ public record TrinityMipCyclePlan(
                                         BigInteger amount,
                                         String role) {
         if (initialInputs.getOrDefault(key, BigInteger.ZERO).compareTo(amount) < 0) {
-            throw new IllegalArgumentException("A Trinity MIP initial input must include every " + role);
+            throw new IllegalArgumentException("A Trinity joint cycle initial input must include every " + role);
         }
     }
 
@@ -87,7 +90,7 @@ public record TrinityMipCyclePlan(
         LinkedHashMap<TrinityPatternVariant, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((variant, amount) -> {
             if (variant == null || amount == null || amount.signum() <= 0) {
-                throw new IllegalArgumentException("A Trinity MIP firing count must be positive");
+                throw new IllegalArgumentException("A Trinity joint cycle firing count must be positive");
             }
             copied.put(variant, amount);
         });
@@ -98,7 +101,7 @@ public record TrinityMipCyclePlan(
         LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
             if (key == null || amount == null || amount.signum() <= 0) {
-                throw new IllegalArgumentException("A Trinity MIP amount must be positive");
+                throw new IllegalArgumentException("A Trinity joint cycle amount must be positive");
             }
             copied.put(key, amount);
         });
@@ -109,7 +112,7 @@ public record TrinityMipCyclePlan(
         LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
             if (key == null || amount == null || amount.signum() == 0) {
-                throw new IllegalArgumentException("A Trinity MIP net amount must be non-zero");
+                throw new IllegalArgumentException("A Trinity joint cycle net amount must be non-zero");
             }
             copied.put(key, amount);
         });

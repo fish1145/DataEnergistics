@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.assembly.TrinityGraphPlanAssembler;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.demand.TrinityGraphDemandAggregator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
@@ -30,8 +32,8 @@ public interface TrinityGraphPlanner {
                 TrinityPatternVariantExpander.create(),
                 TrinityGraphTopologyAnalyzer.create(),
                 TrinityAcyclicDemandPropagator.create(),
-                TrinityCyclePlanSelector.create(),
-                TrinityPlanByteEstimator.create());
+                TrinityGraphDemandAggregator.create(TrinityCyclePlanSelector.create()),
+                TrinityGraphPlanAssembler.create(TrinityPlanByteEstimator.create()));
     }
 
     /**

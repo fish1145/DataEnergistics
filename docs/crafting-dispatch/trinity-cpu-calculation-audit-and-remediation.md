@@ -218,12 +218,12 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
 | --- | --- | --- | --- |
 | C-001 | graph snapshot、扩展计划、schema 2 | 已完成 | 计划不持有 decoded pattern、阶段聚合、schema 1/2 恢复测试 |
-| C-002 | Tarjan、闭式循环、Trinity planner | 已完成 | 自增殖、多步增殖、MIP、seed 前缀和真实 CPU 紧凑执行测试 |
+| C-002 | Tarjan、闭式循环、Trinity planner | 已完成 | 自增殖、多步增殖、多路线 MIP、完整正 `long` 请求域、seed 前缀和真实 CPU 紧凑执行测试 |
 | C-003 | DAG 批量传播、revision 图缓存 | 已完成 | 同 tick 失效、大数量状态计数与 `long` 溢出测试 |
 | C-007 | 已有 pattern-sort dirty flag Mixin | 已完成 | 重复读取不会重复排序 |
 | C-004 | working inventory、completion buffer | 已完成 | 封存、异常重试、部分接收和 standalone 精确交付测试 |
 | C-005 | ready queue、反向索引、retry queue | 已完成 | 无关 key 不唤醒、队列去重和独立退避测试 |
-| C-006 | schema 2 | 已完成 | cycle/借料/封存重载与 schema 1 兼容测试 |
+| C-006 | schema 4 | 已完成 | cycle/借料/封存/声明输出重载与 schema 1/2/3 兼容测试 |
 | C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
@@ -234,13 +234,13 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 | C-015 | 剩余量重规划结果处置协议 | 已完成 | 同 revision 异常与预留竞态退避重试、语义拒绝等待新 revision 的直接状态机测试 |
 | C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
-| C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中与超 `long` 数值 identity 直接契约测试 |
+| C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中、ordinary/radix 精确窗口与 `Long.MAX_VALUE` 直接契约测试 |
 
 ## 5. 风险与控制
 
 | 风险 | 控制 |
 | --- | --- |
-| MIP 数值解不精确 | `BigInteger` 二次验证，失败即拒绝 |
+| MIP 数值解不精确 | 精确窗口内使用 ordinary model，超出窗口使用整数 digit/carry radix model；两者都经 `BigInteger` 二次验证，失败即拒绝 |
 | 任意 Petri net 搜索失控 | SCC/variant/time/state 四重上限 |
 | 异步线程访问世界 | 只传不可变值对象，服务器线程二次校验 |
 | 动态借料复制或误退款 | RESERVED/COMMITTED/RELEASED 所有权状态 |
@@ -260,6 +260,7 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 - `A -> 2A`；
 - `A -> B -> 2A`；
 - 多路线 SCC 和确定性 tie-break；
+- `Long.MAX_VALUE` 请求、radix digit/carry 解码和 `BigInteger` 守恒回放；
 - 非生产 SCC、无 seed、MIP 超时、SCC/variant/search 上限；
 - `NET_NEW` 与 `FINAL_TOTAL`；
 - 非循环终点复用已库存循环中间料，串并联 SCC 的 final-balance 传播，同 SCC 多轴与 cyclic-owned 环外输出；
