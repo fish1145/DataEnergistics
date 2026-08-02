@@ -18,6 +18,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import appeng.api.stacks.AEKey;
 import com.mojang.serialization.Codec;
 
 import java.util.UUID;
@@ -64,6 +65,14 @@ public final class ModDataComponents {
             () -> DataComponentType.<CompoundTag>builder()
                     .persistent(CompoundTag.CODEC)
                     .networkSynchronized(ByteBufCodecs.COMPOUND_TAG)
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<AEKey>> ORDER_PACKAGE_TARGET = DATA_COMPONENT_TYPES.register(
+            "order_package_target",
+            () -> DataComponentType.<AEKey>builder()
+                    .persistent(AEKey.CODEC)
+                    .networkSynchronized(AEKey.STREAM_CODEC)
+                    .cacheEncoding()
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> REDSTONE_TUNING_MODE = DATA_COMPONENT_TYPES.register(

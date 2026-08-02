@@ -1,4 +1,6 @@
 {
+	"item.data_energistics.order_package": "订单包裹",
+	"tooltip.data_energistics.order_package.target": "目标：%s",
 	"itemGroup.data_energistics": "数据能源",
 	"itemGroup.data_energistics.multiblock": "数据能源：多方块",
 	"dimension.data_energistics.meteorite_cluster": "陨石集群",
