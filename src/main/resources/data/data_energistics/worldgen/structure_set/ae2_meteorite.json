@@ -7,7 +7,7 @@
 	},
 	"structures": [
 		{
-			"structure": "ae2:meteorite",
+			"structure": "data_energistics:ae2_meteorite",
 			"weight": 1
 		}
 	]
