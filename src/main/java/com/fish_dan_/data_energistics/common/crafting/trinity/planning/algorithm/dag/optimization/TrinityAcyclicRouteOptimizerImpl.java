@@ -39,6 +39,13 @@ import java.util.concurrent.TimeUnit;
  */
 final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptimizer {
 
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
+    private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
+    private static final String INSUFFICIENT_INPUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.insufficient_input";
+    private static final String INEXACT_RESULT_KEY = "gui.data_energistics.trinity_planning.diagnostic.inexact_result";
+    private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
+
     private final TrinityIntegerResultVerifier integerVerifier;
     private final TrinityExactConservationVerifier conservationVerifier;
 
@@ -176,19 +183,19 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
             if (control.cancellationRequested()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Trinity uniform binding optimization was cancelled",
+                        CANCELLED_KEY,
                         Map.of("states", Integer.toString(budget.used())));
             }
             if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Trinity uniform binding optimization exhausted its shared deadline",
+                        TIMEOUT_KEY,
                         Map.of("states", Integer.toString(budget.used())));
             }
             if (!budget.consume()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        "Trinity uniform binding optimization reached its state limit",
+                        SEARCH_LIMIT_KEY,
                         Map.of("states", Integer.toString(budget.used())));
             }
 
@@ -209,7 +216,7 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         if (remainingFirings.signum() > 0) {
             return failure(
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                    "Available Trinity substitutions cannot satisfy the requested firing count",
+                    INSUFFICIENT_INPUT_KEY,
                     Map.of(
                             "requiredFirings", requiredFirings.toString(),
                             "availableFirings", requiredFirings.subtract(remainingFirings).toString()));
@@ -244,19 +251,19 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    "Trinity acyclic route optimization was cancelled",
+                    CANCELLED_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
         if (control.deadlineExceeded()) {
             return failure(
                     TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                    "Trinity acyclic route optimization exhausted its deadline",
+                    TIMEOUT_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
         if (!budget.consume()) {
             return failure(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                    "Trinity acyclic route optimization reached its state limit",
+                    SEARCH_LIMIT_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
 
@@ -275,25 +282,25 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    "Trinity acyclic route optimization was cancelled",
+                    CANCELLED_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
         if (!result.getState().isOptimal()) {
             if (control.deadlineExceeded() || result.getState().isFeasible()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Trinity acyclic route optimization did not prove an optimum",
+                        TIMEOUT_KEY,
                         Map.of("state", result.getState().name()));
             }
             if (result.getState() == Optimisation.State.INFEASIBLE) {
                 return failure(
                         TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        "No acyclic Trinity route satisfies the available inventory",
+                        INSUFFICIENT_INPUT_KEY,
                         Map.of("state", result.getState().name()));
             }
             return failure(
                     TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
-                    "ojAlgo did not return a valid bounded acyclic result",
+                    INEXACT_RESULT_KEY,
                     Map.of("state", result.getState().name()));
         }
 
@@ -573,7 +580,7 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                 if (present.compareTo(required) < 0) {
                     return failure(
                             TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
-                            "An optimized Trinity DAG firing vector has no executable prefix",
+                            NO_EXECUTABLE_ORDER_KEY,
                             Map.of(
                                     "key", input.getKey().toString(),
                                     "required", required.toString(),
@@ -628,7 +635,7 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                                                               BigInteger required) {
         return failure(
                 TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                "Trinity planning inventory cannot satisfy an uncraftable input",
+                INSUFFICIENT_INPUT_KEY,
                 Map.of(
                         "key", key.toString(),
                         "required", required.toString(),
@@ -638,17 +645,17 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
     private static <T> TrinityAlgorithmResult<T> inexact(String constraint, String value) {
         return failure(
                 TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
-                "An integral ojAlgo result violates exact Trinity acyclic constraints",
+                INEXACT_RESULT_KEY,
                 Map.of("constraint", constraint, "value", value));
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 

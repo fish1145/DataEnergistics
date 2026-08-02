@@ -16,10 +16,10 @@ public final class TrinityPlanningAttemptSelectorTest {
     @Test
     void selectsOnlyProofFallsBackOnlyForStructuralMissAndPreservesTerminalFailure() {
         TrinityPlanningAttemptSelector selector = TrinityPlanningAttemptSelector.create();
-        TrinityPlanningDiagnostic notApplicable = TrinityPlanningDiagnostic.of(
+        TrinityPlanningDiagnostic notApplicable = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.UNSUPPORTED_PATTERN,
                 "The opportunity cannot prove this graph");
-        TrinityPlanningDiagnostic terminal = TrinityPlanningDiagnostic.of(
+        TrinityPlanningDiagnostic terminal = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                 "The shared planning deadline was exhausted");
         AtomicInteger fallbackCalls = new AtomicInteger();

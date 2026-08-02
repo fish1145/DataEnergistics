@@ -35,7 +35,7 @@ final class TrinityIntegerResultVerifierImpl implements TrinityIntegerResultVeri
             if (value == null || !integralityTolerance.isZero(displacement.doubleValue())) {
                 return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                         TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
-                        Component.literal("ojAlgo returned a non-integral Trinity firing value"),
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.inexact_result"),
                         Map.of(
                                 "index", Integer.toString(index),
                                 "value", value == null ? "null" : value.toPlainString())));

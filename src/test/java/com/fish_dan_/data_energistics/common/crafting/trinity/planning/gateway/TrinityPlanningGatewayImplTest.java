@@ -114,7 +114,7 @@ public final class TrinityPlanningGatewayImplTest {
                 TimeUnit.SECONDS.toNanos(1L),
                 false);
         ICraftingPlan simulation = ae2Plan(true);
-        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.of(
+        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
                 "No productive cycle reaches the target");
 
@@ -174,7 +174,7 @@ public final class TrinityPlanningGatewayImplTest {
                 5L,
                 false,
                 clock::get);
-        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.of(
+        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
                 "unsupported by Trinity");
         CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
@@ -336,7 +336,7 @@ public final class TrinityPlanningGatewayImplTest {
 
     @Test
     void diagnosedPlanRejectsExecutableAe2Delegate() {
-        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.of(
+        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
                 "diagnostic");
         assertThrows(IllegalArgumentException.class,

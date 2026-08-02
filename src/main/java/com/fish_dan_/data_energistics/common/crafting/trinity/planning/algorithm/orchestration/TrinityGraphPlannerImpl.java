@@ -52,6 +52,14 @@ import java.util.Set;
  */
 final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
 
+    private static final String ARITHMETIC_OVERFLOW_KEY = "gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow";
+    private static final String TARGET_ABSENT_KEY = "gui.data_energistics.trinity_planning.diagnostic.target_absent";
+    private static final String INTERNAL_ERROR_KEY = "gui.data_energistics.trinity_planning.diagnostic.internal_error";
+    private static final String INSUFFICIENT_INPUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.insufficient_input";
+    private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
+
     private final TrinityPatternVariantExpander variantExpander;
     private final TrinityGraphTopologyAnalyzer topologyAnalyzer;
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
@@ -95,7 +103,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         } catch (ArithmeticException exception) {
             return failure(
                     TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
-                    "A Trinity plan cannot be represented by an exact AE2 long boundary",
+                    ARITHMETIC_OVERFLOW_KEY,
                     Map.of("reason", exception.getClass().getSimpleName()));
         }
     }
@@ -135,7 +143,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         if (targetComponent == null) {
             return failure(
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                    "The requested key is absent from the Trinity crafting graph",
+                    TARGET_ABSENT_KEY,
                     Map.of("target", target.toString()));
         }
 
@@ -362,7 +370,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     .anyMatch(amount -> amount.signum() > 0)) {
                 return failure(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "A Trinity boundary-output demand outlived its cyclic owner",
+                        INTERNAL_ERROR_KEY,
                         Map.of());
             }
             for (Map.Entry<AEKey, BigInteger> remaining : this.demand.entrySet()) {
@@ -531,7 +539,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             if (inputComponent != component.index()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "A Trinity cycle input producer violates condensation order",
+                        INTERNAL_ERROR_KEY,
                         Map.of("key", key.toString()));
             }
             BigInteger missing = required.subtract(reserveFromInventory(key, required));
@@ -597,7 +605,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                 if (ownerPosition >= outputPosition) {
                     return failure(
                             TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                            "A Trinity feedback transition owner violates condensation order",
+                            INTERNAL_ERROR_KEY,
                             Map.of("key", key.toString()));
                 }
                 this.cycleOutputDemands
@@ -771,7 +779,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             if (stages.isEmpty()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        "A Trinity plan requires at least one executable crafting stage",
+                        INSUFFICIENT_INPUT_KEY,
                         Map.of("target", this.target.toString()));
             }
             return TrinityAlgorithmResult.success(new PlanAssembly(
@@ -790,14 +798,14 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         private <T> TrinityAlgorithmResult<T> insufficient(AEKey key, BigInteger amount) {
             return failure(
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                    "Trinity planning cannot satisfy an upstream input",
+                    INSUFFICIENT_INPUT_KEY,
                     Map.of("key", key.toString(), "required", amount.toString()));
         }
 
         private <T> TrinityAlgorithmResult<T> routeSearchLimit() {
             return failure(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                    "Trinity mixed-route search reached the configured state limit",
+                    SEARCH_LIMIT_KEY,
                     Map.of(
                             "limit", Integer.toString(this.routeSearchBudget.limit()),
                             "states", Integer.toString(this.routeSearchBudget.used())));
@@ -961,24 +969,24 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     private static <T> TrinityAlgorithmResult<T> cancelled() {
         return failure(
                 TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                "Trinity graph planning was cancelled",
+                CANCELLED_KEY,
                 Map.of());
     }
 
     private static <T> TrinityAlgorithmResult<T> deadlineExceeded() {
         return failure(
                 TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                "Trinity graph planning exhausted its shared deadline",
+                TIMEOUT_KEY,
                 Map.of("phase", "graph"));
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 

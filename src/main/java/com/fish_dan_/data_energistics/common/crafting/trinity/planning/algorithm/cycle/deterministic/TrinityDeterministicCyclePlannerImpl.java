@@ -52,7 +52,7 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         if (targetEffect.signum() <= 0) {
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
-                    Component.literal("The deterministic Trinity cycle has no positive target effect"),
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.no_productive_cycle"),
                     Map.of("target_effect", targetEffect.toString())));
         }
 

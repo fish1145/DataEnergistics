@@ -101,7 +101,8 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                 trinityFuture = CompletableFuture.completedFuture(new CompletedPlanningAttempt(
                         TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                                 TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL,
-                                Component.literal("Trinity planner queue is full; using the AE2 calculation"),
+                                Component.translatable(
+                                        "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full_ae2"),
                                 Map.of("reason", exception.getClass().getSimpleName()))),
                         trinityStartedNanos));
             }
@@ -135,7 +136,8 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             Data_Energistics.LOGGER.warn("Trinity planner queue rejected a continuation calculation", exception);
             return CompletableFuture.completedFuture(TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL,
-                    Component.literal("Trinity planner queue is full; remaining work will wait for another revision"),
+                    Component.translatable(
+                            "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full_replan"),
                     Map.of("reason", exception.getClass().getSimpleName()))));
         }
     }
@@ -252,21 +254,21 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                 trinityFailure = exception.getCause();
                 Data_Energistics.LOGGER.error("Trinity planning calculation failed; falling back to AE2",
                         trinityFailure);
-                diagnostic = TrinityPlanningDiagnostic.of(
+                diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "Trinity planning failed internally; using the AE2 calculation");
+                        "gui.data_energistics.trinity_planning.diagnostic.internal_error_ae2");
             } catch (CancellationException exception) {
                 trinityFailure = exception;
-                diagnostic = TrinityPlanningDiagnostic.of(
+                diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Trinity planning was cancelled; using the AE2 calculation");
+                        "gui.data_energistics.trinity_planning.diagnostic.cancelled_ae2");
             } catch (RuntimeException exception) {
                 trinityFailure = exception;
                 Data_Energistics.LOGGER.error("Trinity planning returned an invalid result; falling back to AE2",
                         exception);
-                diagnostic = TrinityPlanningDiagnostic.of(
+                diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "Trinity planning returned an invalid result; using the AE2 calculation");
+                        "gui.data_energistics.trinity_planning.diagnostic.invalid_result_ae2");
             }
 
             try {
@@ -356,9 +358,9 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
         private CompletedPlanningAttempt timedOutAttempt() {
             return new CompletedPlanningAttempt(
-                    TrinityPlanningAttempt.failure(TrinityPlanningDiagnostic.of(
+                    TrinityPlanningAttempt.failure(TrinityPlanningDiagnostic.ofTranslationKey(
                             TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                            "Trinity planning exceeded its configured budget; using the AE2 calculation")),
+                            "gui.data_energistics.trinity_planning.diagnostic.timeout_ae2")),
                     this.nanoClock.getAsLong());
         }
 

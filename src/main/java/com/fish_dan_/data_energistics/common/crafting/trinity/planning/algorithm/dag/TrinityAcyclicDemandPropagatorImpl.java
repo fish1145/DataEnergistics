@@ -58,7 +58,7 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
         if (targetComponent == null) {
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                    Component.literal("The requested key is absent from the Trinity acyclic graph"),
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.target_absent"),
                     Map.of("key", target.toString())));
         }
         List<Integer> reachableComponents = reachablePredecessors(topology, targetComponent);
@@ -71,7 +71,7 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
             if (component.cyclic()) {
                 return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                         TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
-                        Component.literal("A cyclic demand reached the acyclic Trinity propagator"),
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cyclic_demand"),
                         Map.of("component", Integer.toString(component.index()))));
             }
         }
@@ -129,7 +129,7 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
                 if (candidates.isEmpty()) {
                     return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                             TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                            Component.literal("Trinity planning inventory cannot satisfy an uncraftable input"),
+                            Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
                             Map.of(
                                     "key", key.toString(),
                                     "required", required.max(BigInteger.ZERO).toString(),
@@ -288,11 +288,11 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
         return switch (state) {
             case CANCELLED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    Component.literal("Trinity acyclic propagation was cancelled"),
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cancelled"),
                     Map.of("phase", "dag")));
             case DEADLINE_EXCEEDED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                    Component.literal("Trinity acyclic propagation exhausted its shared deadline"),
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.timeout"),
                     Map.of("phase", "dag")));
             case RUNNING -> throw new IllegalArgumentException("A running Trinity propagation is not stopped");
         };

@@ -239,8 +239,9 @@ public final class TrinityDataCoreHostUiGameTest {
                 0.0F,
                 0L);
         cpuList.setValue(new TrinityCpuListStatus(List.of(unlimited)), false);
-        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_processor_count").getText());
-        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_storage_amount").getText());
+        Component unlimitedText = Component.translatable("gui.data_energistics.trinity.unlimited");
+        assertComponent(unlimitedText, label(modularUI, "trinity_cpu_status_7_processor_count").getText());
+        assertComponent(unlimitedText, label(modularUI, "trinity_cpu_status_7_storage_amount").getText());
         cpuList.setValue(new TrinityCpuListStatus(List.of(busy, idle)), false);
 
         assertTrue(cpuList.activateCpu(5));

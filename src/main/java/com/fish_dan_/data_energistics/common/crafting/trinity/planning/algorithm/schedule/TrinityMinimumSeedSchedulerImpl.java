@@ -28,6 +28,10 @@ import java.util.Set;
  */
 final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedScheduler {
 
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
+    private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
+
     @Override
     public TrinityAlgorithmResult<TrinityMinimumSeedSchedule> find(
                                                                    Map<TrinityPatternVariant, BigInteger> firings,
@@ -84,13 +88,13 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
             if (control.cancellationRequested()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Trinity minimum-seed scheduling was cancelled",
+                        CANCELLED_KEY,
                         Map.of("states", Integer.toString(statesVisited)));
             }
             if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        "Trinity minimum-seed scheduling exhausted its time budget",
+                        SEARCH_LIMIT_KEY,
                         Map.of("reason", "timeout", "states", Integer.toString(statesVisited)));
             }
 
@@ -111,7 +115,7 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
             if (statesVisited >= maxStates) {
                 return failure(
                         TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        "Trinity minimum-seed scheduling exceeded its state limit",
+                        SEARCH_LIMIT_KEY,
                         Map.of(
                                 "limit", Integer.toString(maxStates),
                                 "states", Integer.toString(statesVisited)));
@@ -183,7 +187,7 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
         }
         return failure(
                 TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
-                "No seed-bounded executable order exists for the Trinity firing vector",
+                NO_EXECUTABLE_ORDER_KEY,
                 Map.of("states", Integer.toString(statesVisited)));
     }
 
@@ -349,11 +353,11 @@ final class TrinityMinimumSeedSchedulerImpl implements TrinityMinimumSeedSchedul
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 

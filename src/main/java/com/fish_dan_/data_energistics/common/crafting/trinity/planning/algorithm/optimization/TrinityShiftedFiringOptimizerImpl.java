@@ -34,6 +34,11 @@ import java.util.concurrent.TimeUnit;
 final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOptimizer {
 
     private static final BigInteger ZERO = BigInteger.ZERO;
+    private static final String UNSUPPORTED_PATTERN_KEY = "gui.data_energistics.trinity_planning.diagnostic.unsupported_pattern";
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
+    private static final String NO_INTEGER_SOLUTION_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution";
+    private static final String INEXACT_RESULT_KEY = "gui.data_energistics.trinity_planning.diagnostic.inexact_result";
 
     private final TrinityIntegerResultVerifier integerVerifier;
 
@@ -55,13 +60,13 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         }
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
         if (producibleInputs.stream().anyMatch(internalKeys::contains)) {
-            return notApplicable("A predecessor can supply an internal shifted-cycle key");
+            return notApplicable(UNSUPPORTED_PATTERN_KEY);
         }
         List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
         if (!firingUpperBound.keySet().containsAll(variants) || variants.stream()
                 .anyMatch(variant -> firingUpperBound.get(variant) == null ||
                         firingUpperBound.get(variant).signum() < 0)) {
-            return notApplicable("The shifted-cycle structural firing bounds are incomplete");
+            return notApplicable(UNSUPPORTED_PATTERN_KEY);
         }
         Set<AEKey> externalCostKeys = externalReserveKeys(variants, internalKeys, demand);
         LinkedHashSet<AEKey> finiteExternal = new LinkedHashSet<>();
@@ -72,7 +77,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         for (TrinityPatternVariant variant : variants) {
             for (AEKey key : externalCostKeys) {
                 if (variant.netChange().getOrDefault(key, ZERO).signum() > 0) {
-                    return notApplicable("A shifted-cycle variant can produce an external reserve key");
+                    return notApplicable(UNSUPPORTED_PATTERN_KEY);
                 }
             }
         }
@@ -163,13 +168,13 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    "Shifted Trinity firing optimization was cancelled",
+                    CANCELLED_KEY,
                     Map.of("passes", Integer.toString(passNumber - 1)));
         }
         if (control.deadlineExceeded()) {
             return failure(
                     TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                    "Shifted Trinity firing optimization exhausted its deadline",
+                    TIMEOUT_KEY,
                     Map.of("passes", Integer.toString(passNumber - 1)));
         }
         ModelData data = createModel(context, pass);
@@ -179,12 +184,12 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
             if (control.deadlineExceeded() || result.getState().isFeasible()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Shifted Trinity firing optimization did not prove an optimum",
+                        TIMEOUT_KEY,
                         Map.of("passes", Integer.toString(passNumber), "state", result.getState().name()));
             }
             return failure(
                     TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
-                    "Shifted Trinity firing optimization has no integer solution",
+                    NO_INTEGER_SOLUTION_KEY,
                     Map.of("passes", Integer.toString(passNumber), "state", result.getState().name()));
         }
 
@@ -412,22 +417,22 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     private static <T> TrinityAlgorithmResult<T> inexact(String constraint, String value) {
         return failure(
                 TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
-                "A shifted ojAlgo result violates exact Trinity constraints",
+                INEXACT_RESULT_KEY,
                 Map.of("constraint", constraint, "value", value));
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 
     private static <T> TrinityPlanningAttempt<T> notApplicable(String detail) {
-        return notApplicable(TrinityPlanningDiagnostic.of(
+        return notApplicable(TrinityPlanningDiagnostic.ofTranslationKey(
                 TrinityPlanningDiagnosticCode.UNSUPPORTED_PATTERN,
                 detail));
     }

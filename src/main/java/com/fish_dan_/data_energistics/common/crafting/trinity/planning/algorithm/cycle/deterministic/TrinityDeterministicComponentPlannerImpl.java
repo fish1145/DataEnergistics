@@ -39,6 +39,11 @@ import java.util.Set;
 final class TrinityDeterministicComponentPlannerImpl implements TrinityDeterministicComponentPlanner {
 
     private static final BigInteger ZERO = BigInteger.ZERO;
+    private static final String UNSUPPORTED_PATTERN_KEY = "gui.data_energistics.trinity_planning.diagnostic.unsupported_pattern";
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
+    private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
+    private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
 
     private final TrinityDeterministicCycleSequence cycleSequence;
     private final TrinityShiftedFiringOptimizer firingOptimizer;
@@ -88,7 +93,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             }
             Optional<ResidualTopology> topology = ResidualTopology.create(component, reservoir);
             if (topology.isEmpty()) {
-                return notApplicable("A productive Trinity basis has an ambiguous residual route");
+                return notApplicable(UNSUPPORTED_PATTERN_KEY);
             }
             TrinityAlgorithmResult<Candidate> attempted = solveCandidate(
                     component,
@@ -112,11 +117,11 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             return TrinityPlanningAttempt.notApplicable(attempted.diagnostic());
         }
         if (candidates.isEmpty()) {
-            return notApplicable("No unique productive Trinity component basis was proved");
+            return notApplicable(UNSUPPORTED_PATTERN_KEY);
         }
         TrinityFiringVector firstVector = candidates.getFirst().objective().identity();
         if (candidates.stream().anyMatch(candidate -> !candidate.objective().identity().equals(firstVector))) {
-            return notApplicable("Productive Trinity bases disagree on the complete firing identity");
+            return notApplicable(UNSUPPORTED_PATTERN_KEY);
         }
         candidates.sort(Candidate.ORDER);
         return TrinityPlanningAttempt.provedOptimal(candidates.getFirst().plan());
@@ -136,16 +141,16 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         Map<AEKey, BigInteger> primitiveNet = netChange(primitiveFirings);
         BigInteger reservoirEffect = primitiveNet.getOrDefault(reservoir, ZERO);
         if (reservoirEffect.signum() <= 0) {
-            return unsupported("The deterministic Trinity basis is not productive");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
         for (AEKey key : component.keys()) {
             if (!key.equals(reservoir) && primitiveNet.getOrDefault(key, ZERO).signum() != 0) {
-                return unsupported("The deterministic Trinity basis did not isolate one reservoir");
+                return unsupported(UNSUPPORTED_PATTERN_KEY);
             }
         }
         for (AEKey demanded : demand.requiredNetChangeLowerBounds().keySet()) {
             if (primitiveNet.getOrDefault(demanded, ZERO).signum() < 0) {
-                return unsupported("A deterministic Trinity basis consumes another demanded output");
+                return unsupported(UNSUPPORTED_PATTERN_KEY);
             }
         }
 
@@ -169,7 +174,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             }
             residual = solvedResidual.value();
             if (hasPositiveEffectOnPrimitiveAxis(residual.netChange(), primitiveNet)) {
-                return unsupported("Residual Trinity work changes a productive basis axis in both directions");
+                return unsupported(UNSUPPORTED_PATTERN_KEY);
             }
 
             Map<AEKey, BigInteger> combinedNet = addSigned(
@@ -177,7 +182,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                     residual.netChange());
             BigInteger jump = requiredRepetitionJump(combinedNet, netLowerBounds, primitiveNet);
             if (jump.signum() < 0) {
-                return unsupported("A deterministic Trinity basis cannot repair a remaining balance deficit");
+                return unsupported(UNSUPPORTED_PATTERN_KEY);
             }
             if (jump.signum() == 0) {
                 break;
@@ -187,7 +192,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         if (residual == null || !satisfies(
                 addSigned(multiplySigned(primitiveNet, repetitions), residual.netChange()),
                 netLowerBounds)) {
-            return unsupported("The deterministic Trinity balance did not converge within its graph bound");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
 
         LinkedHashMap<TrinityPatternVariant, BigInteger> baselineFirings = aggregateRepeated(
@@ -195,7 +200,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 repetitions,
                 residual.firings());
         if (baselineFirings.isEmpty()) {
-            return unsupported("A deterministic Trinity component produced no work");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
         TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimized = this.firingOptimizer.optimize(
                 component,
@@ -210,7 +215,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         Map<TrinityPatternVariant, BigInteger> firings = optimized.value();
         Map<AEKey, BigInteger> totalNet = netChange(firings);
         if (!satisfies(totalNet, netLowerBounds)) {
-            return unsupported("A deterministic Trinity component failed an exact net lower bound");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
 
         CycleDecomposition decomposition = decompose(
@@ -224,7 +229,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 totalNet);
         applyRequiredPrefix(decomposition.prefixOrder(), initialInputs);
         if (exceedsAvailable(initialInputs, available, producibleInputs)) {
-            return unsupported("The deterministic Trinity prefix requires unavailable inputs");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
         LinkedHashMap<AEKey, BigInteger> cycleStart = simulate(
                 initialInputs,
@@ -248,7 +253,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         }
         mergeRequiredCycleStart(initialInputs, cycleStart, normalized.value().initialBalances());
         if (exceedsAvailable(initialInputs, available, producibleInputs)) {
-            return unsupported("The normalized Trinity cycle requires unavailable inputs");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
 
         TrinityAlgorithmResult<TrinityCompressedSchedule> scheduled = schedule(
@@ -279,14 +284,14 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 component.cycleVariants(),
                 component.keys());
         if (!sum(minimumSeed).equals(provenSeedLowerBound)) {
-            return unsupported("The compressed Trinity order did not attain the proven seed lower bound");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
         BigInteger externalTotal = sumExternal(initialInputs, component.keys());
         if (!externalTotal.equals(minimumExternalReserve(
                 component,
                 demand,
                 totalNet))) {
-            return unsupported("The compressed Trinity order requires an unmodelled external prefix reserve");
+            return unsupported(UNSUPPORTED_PATTERN_KEY);
         }
         TrinityDeterministicComponentPlan plan = new TrinityDeterministicComponentPlan(
                 firings,
@@ -464,7 +469,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         if (!hasInputs(balances, requiredAtStart(firing))) {
             return failure(
                     TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
-                    "A deterministic Trinity residual batch is not executable",
+                    NO_EXECUTABLE_ORDER_KEY,
                     Map.of("variant", firing.variant().patternIdentity().publicationEncoding()));
         }
         apply(firing, balances);
@@ -887,11 +892,11 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         return state == StopState.CANCELLED ?
                 failure(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Trinity deterministic component planning was cancelled",
+                        CANCELLED_KEY,
                         Map.of()) :
                 failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Trinity deterministic component planning exhausted its deadline",
+                        TIMEOUT_KEY,
                         Map.of("phase", "deterministic_component"));
     }
 
@@ -909,17 +914,17 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     private static <T> TrinityAlgorithmResult<T> searchLimit(int limit, int states) {
         return failure(
                 TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                "Trinity deterministic component planning exceeded its state limit",
+                SEARCH_LIMIT_KEY,
                 Map.of("limit", Integer.toString(limit), "states", Integer.toString(states)));
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 
@@ -1052,7 +1057,7 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             });
             for (AEKey key : requirements.keySet()) {
                 if (this.ambiguousOutputs.contains(key) || !this.producerByKey.containsKey(key)) {
-                    return unsupported("A demanded Trinity residual output has no unique producer");
+                    return unsupported(UNSUPPORTED_PATTERN_KEY);
                 }
             }
 

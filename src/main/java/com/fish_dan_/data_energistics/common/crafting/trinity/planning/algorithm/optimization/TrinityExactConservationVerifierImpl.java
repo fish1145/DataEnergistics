@@ -99,7 +99,7 @@ final class TrinityExactConservationVerifierImpl implements TrinityExactConserva
     private static <T> TrinityAlgorithmResult<T> inexact(String constraint, String value) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
-                Component.literal("An integral ojAlgo result violates exact Trinity constraints"),
+                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.inexact_result"),
                 Map.of("constraint", constraint, "value", value)));
     }
 }

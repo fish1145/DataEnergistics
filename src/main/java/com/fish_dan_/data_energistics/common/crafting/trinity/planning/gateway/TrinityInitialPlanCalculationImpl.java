@@ -90,7 +90,7 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
         } catch (ArithmeticException exception) {
             return TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
-                    Component.literal("The exact Trinity shortage exceeds an AE2 long boundary"),
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow"),
                     Map.of("reason", exception.getClass().getSimpleName())));
         }
     }

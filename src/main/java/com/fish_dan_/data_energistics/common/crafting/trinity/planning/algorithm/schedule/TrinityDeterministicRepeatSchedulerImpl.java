@@ -22,6 +22,10 @@ import java.util.Map;
  */
 final class TrinityDeterministicRepeatSchedulerImpl implements TrinityDeterministicRepeatScheduler {
 
+    private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
+    private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
+    private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
+
     @Override
     public TrinityAlgorithmResult<TrinityCompressedSchedule> schedule(
                                                                       List<TrinityVariantFiring> oneCycleOrder,
@@ -43,19 +47,19 @@ final class TrinityDeterministicRepeatSchedulerImpl implements TrinityDeterminis
             if (control.cancellationRequested()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Trinity deterministic repeat scheduling was cancelled",
+                        CANCELLED_KEY,
                         Map.of("states", Integer.toString(statesVisited)));
             }
             if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        "Trinity deterministic repeat scheduling exhausted its time budget",
+                        SEARCH_LIMIT_KEY,
                         Map.of("reason", "timeout", "states", Integer.toString(statesVisited)));
             }
             if (statesVisited >= maxStates) {
                 return failure(
                         TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        "Trinity deterministic repeat scheduling exceeded its state limit",
+                        SEARCH_LIMIT_KEY,
                         Map.of(
                                 "limit", Integer.toString(maxStates),
                                 "states", Integer.toString(statesVisited)));
@@ -65,7 +69,7 @@ final class TrinityDeterministicRepeatSchedulerImpl implements TrinityDeterminis
             if (selected.cycles().signum() <= 0) {
                 return failure(
                         TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
-                        "No exact cycle rotation is executable from the current Trinity balances",
+                        NO_EXECUTABLE_ORDER_KEY,
                         Map.of("states", Integer.toString(statesVisited)));
             }
             applyRotation(cycle, selected, balances, batches);
@@ -219,11 +223,11 @@ final class TrinityDeterministicRepeatSchedulerImpl implements TrinityDeterminis
 
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         String translationKey,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                Component.translatable(translationKey),
                 metadata));
     }
 

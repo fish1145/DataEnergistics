@@ -127,12 +127,16 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
     }
 
     private List<Component> tooltipLines() {
-        String capacity = this.value.unlimited() ? "MAX" : this.value.amountCapacity().toString();
-        String stored = this.value.totalAmount() + "/" + capacity;
+        Component capacity = this.value.unlimited() ?
+                Component.translatable("gui.data_energistics.trinity.unlimited") :
+                Component.literal(this.value.amountCapacity().toString());
+        Component stored = Component.literal(this.value.totalAmount() + "/").append(capacity);
         return List.of(
                 exactAmountLine("gui.ae2.Items", this.value.itemAmount().toString()),
                 exactAmountLine("gui.ae2.Fluids", this.value.fluidAmount().toString()),
-                Component.literal("Other AEKey: " + this.value.otherKeyAmount()).withStyle(ChatFormatting.GRAY),
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.storage_other_keys",
+                        this.value.otherKeyAmount()).withStyle(ChatFormatting.GRAY),
                 Component.translatable("screen.data_energistics.trinity_data_core.storage_amount", stored)
                         .withStyle(ChatFormatting.GRAY));
     }

@@ -41,7 +41,7 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
             if (total.compareTo(limit) > 0) {
                 return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                         TrinityPlanningDiagnosticCode.VARIANT_LIMIT,
-                        Component.literal("Trinity binding variants exceed the configured limit"),
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.variant_limit"),
                         Map.of(
                                 "limit", Integer.toString(maxVariants),
                                 "required", total.toString(),

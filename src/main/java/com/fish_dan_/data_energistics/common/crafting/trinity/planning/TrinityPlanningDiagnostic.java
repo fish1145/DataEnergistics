@@ -59,13 +59,28 @@ public record TrinityPlanningDiagnostic(
     }
 
     /**
-     * Creates a diagnostic without structured details.
+     * Creates a player-visible diagnostic whose message is resolved through the active language.
      *
-     * @param code   stable reason
-     * @param detail player-facing detail
+     * @param code           stable reason
+     * @param translationKey player-facing translation key
      * @return immutable diagnostic
      */
-    public static TrinityPlanningDiagnostic of(TrinityPlanningDiagnosticCode code, String detail) {
+    public static TrinityPlanningDiagnostic ofTranslationKey(TrinityPlanningDiagnosticCode code,
+                                                              String translationKey) {
+        if (translationKey == null || translationKey.isBlank()) {
+            throw new IllegalArgumentException("A Trinity planning diagnostic requires a translation key");
+        }
+        return new TrinityPlanningDiagnostic(code, Component.translatable(translationKey), Map.of());
+    }
+
+    /**
+     * Creates an exact literal diagnostic for tests and non-player-facing internal boundaries.
+     *
+     * @param code   stable reason
+     * @param detail non-localized detail
+     * @return immutable diagnostic
+     */
+    public static TrinityPlanningDiagnostic ofLiteral(TrinityPlanningDiagnosticCode code, String detail) {
         if (detail == null || detail.isBlank()) {
             throw new IllegalArgumentException("A Trinity planning diagnostic requires a detail");
         }

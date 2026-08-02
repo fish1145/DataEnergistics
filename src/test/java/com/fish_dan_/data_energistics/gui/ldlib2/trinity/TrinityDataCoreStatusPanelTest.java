@@ -82,10 +82,16 @@ final class TrinityDataCoreStatusPanelTest {
         TrinityDataCoreStorageStatus status = storageStatus(true);
 
         assertEquals(
-                Component.translatable("screen.data_energistics.trinity_data_core.storage_types", "3/MAX"),
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.storage_types",
+                        Component.literal("3/")
+                                .append(Component.translatable("gui.data_energistics.trinity.unlimited"))),
                 TrinityDataCoreStoragePanel.typesLine(status));
         assertEquals(
-                Component.translatable("screen.data_energistics.trinity_data_core.storage_amount", "1.5K/MAX"),
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.storage_amount",
+                        Component.literal("1.5K/")
+                                .append(Component.translatable("gui.data_energistics.trinity.unlimited"))),
                 TrinityDataCoreStoragePanel.amountLine(status));
     }
 

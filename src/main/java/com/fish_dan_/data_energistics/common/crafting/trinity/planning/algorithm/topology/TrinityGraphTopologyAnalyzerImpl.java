@@ -53,7 +53,7 @@ final class TrinityGraphTopologyAnalyzerImpl implements TrinityGraphTopologyAnal
             if (component.size() > maxSccKeys) {
                 return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                         TrinityPlanningDiagnosticCode.SCC_KEY_LIMIT,
-                        Component.literal("Trinity strongly connected component exceeds the configured key limit"),
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.scc_key_limit"),
                         Map.of(
                                 "limit", Integer.toString(maxSccKeys),
                                 "required", Integer.toString(component.size()))));
