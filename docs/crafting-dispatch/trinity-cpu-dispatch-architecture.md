@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 至 Phase 5 尚未实现
+- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 的 provider publication identity 与容量协议基础已实现，公平切片、唯一 commit 边界及 Phase 4 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -106,7 +106,7 @@ Access Hatch 选举和物理租约仍保留 owning grid 语义。inactive、未�
 
 | 阶段 | 当前缺口 | 优先级 |
 | --- | --- | --- |
-| Phase 3 | provider/target 稳定身份、只读容量快照、公平切片、唯一同步 commit 边界及 addon 容量适配 | P1 |
+| Phase 3 | provider publication identity、容量值类型与编译期协议已实现；惰性快照、公平切片、唯一同步 commit 边界及 addon 容量适配待实现 | P1 |
 | Phase 4 | worker mailbox、bounded proposal queue、provider shard、machine reservation、generation/stale 校验 | P2 |
 | Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
@@ -133,7 +133,8 @@ common.crafting.trinity
 └─ status         菜单同步 DTO
 ```
 
-Phase 3 至 Phase 5 实施时只新增 `dispatch.capacity`、`dispatch.proposal` 和 `dispatch.governor` 等明确职责包，不把新逻辑
+Phase 3 至 Phase 5 实施时只新增 `dispatch.provider`、`dispatch.capacity`、`dispatch.commit`、`dispatch.async` 和
+`dispatch.governor` 等明确职责包，不把新逻辑
 继续堆入 `CraftingServiceMixin` 或 `TrinityDataCoreCpuLogic`。
 
 ## 6. 总体架构
@@ -161,7 +162,7 @@ flowchart LR
 4. proposal 进入有界队列，防止异步规划无限领先于服务器提交。
 5. 服务器线程重新验证代次、容量、阻挡、锁定、输入、能源和等待输出。
 6. 服务器线程执行真实派发并只提交实际成功的账本变更。
-7. 自适应 Governor 根据 TPS、队列和失败率调整并行度、物理调用额度和批次上限。
+7. 自适应 Governor 根据 TPS、队列和失败率调整物理调用额度、提交时间、Actor permit、provider quantum、队列高水位和退避。
 
 ## 7. 线程模型
 
@@ -719,12 +720,13 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 区分 Blocking、Lock、No Capacity 和普通拒绝；
 - 引入网格物理调用和服务器提交时间预算。
 
-### 阶段 3：只读容量协议和 CPU 切片（后续）
+### 阶段 3：只读容量协议和 CPU 切片（实施中）
 
-- 建立 `ProviderCapacityView` 和不可变快照；
+- 已建立 provider publication identity/index、`ProviderCapacityView`、`TargetedCountedCraftingProvider` 和不可变容量值类型；
+- 待接入 ready work 的服务器线程惰性快照捕获与提交前 revision 重验；
 - 先支持本模组可控目标，再接入 AE2LT 等第三方只读适配；
 - 实现启动优先的最大最小公平切分；
-- 实现 slice 部分成功事务和回滚；
+- 实现每个 slice 独立提交并只结算实际成功量；
 - 供应器兼容层不加入任何写行为。
 
 ### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）
@@ -738,7 +740,8 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 ### 阶段 5：自适应 Governor（后续）
 
 - 采集规划、提交、接受率、stale 和公平性指标；
-- 自适应调整 shard、quantum、批次和物理额度；
+- 固定 16 个 shard；只自适应调整物理调用额度、提交时间、Actor permit、provider quantum、队列高水位和退避；
+- 不拆小 counted logical batch；
 - 实现局部降级和固定安全模式；
 - 通过压力测试确定默认配置和硬上限。
 
