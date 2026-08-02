@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.item;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 
 import java.util.Optional;
 
@@ -12,6 +13,7 @@ import java.util.Optional;
  * <p>
  * The target is an {@link AEKey} without an amount so item, fluid, and addon key types share the same contract.
  * This interface is the sole mutation entry point used by menus, pattern transfer, and later crafting integration.
+ * It also provides the CPU-independent boundary for resolving a marked package from a complete pattern output key.
  * </p>
  */
 public interface OrderPackageTarget {
@@ -30,6 +32,27 @@ public interface OrderPackageTarget {
      * @return a new marked order package
      */
     ItemStack createMarkedPackage(AEKey target);
+
+    /**
+     * Resolves the target carried by a complete pattern output key.
+     *
+     * <p>
+     * This method only identifies marked order packages. It does not apply output amounts, mutate crafting state, or
+     * participate in provider admission.
+     * </p>
+     *
+     * @param outputKey complete output identity to inspect
+     * @return the package target, or empty for an unmarked package or any ordinary key
+     */
+    Optional<AEKey> resolveMarkedTarget(AEKey outputKey);
+
+    /**
+     * Resolves the target carried by a complete generic pattern output while deliberately ignoring its amount.
+     *
+     * @param output complete output identity and amount to inspect
+     * @return the package target, or empty for an unmarked package or any ordinary output
+     */
+    Optional<AEKey> resolveMarkedTarget(GenericStack output);
 
     /**
      * Tests whether the stack is an order package, independently of whether it is marked.

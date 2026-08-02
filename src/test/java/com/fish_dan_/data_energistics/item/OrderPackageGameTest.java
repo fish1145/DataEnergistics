@@ -66,6 +66,7 @@ public final class OrderPackageGameTest {
                     contract.getTarget(packageStack).orElse(null),
                     target,
                     "Setting a target must replace the complete AE key identity");
+            assertPatternOutputResolution(helper, contract, packageStack, target);
             assertPersistentRoundTrip(helper, packageStack, target);
             assertNetworkRoundTrip(helper, packageStack, target);
         }
@@ -73,6 +74,14 @@ public final class OrderPackageGameTest {
         AEKey removed = contract.clearTarget(packageStack).orElse(null);
         helper.assertValueEqual(removed, targets.getLast(), "Clearing must return the target that was removed");
         helper.assertTrue(contract.getTarget(packageStack).isEmpty(), "A cleared package must be unmarked");
+        AEItemKey unmarkedPackage = AEItemKey.of(packageStack);
+        if (unmarkedPackage == null) {
+            throw new GameTestAssertException("The unmarked order package must produce an AE item key");
+        }
+        helper.assertTrue(contract.resolveMarkedTarget(unmarkedPackage).isEmpty(),
+                "An unmarked package output must not resolve a virtual target");
+        helper.assertTrue(contract.resolveMarkedTarget(itemKey).isEmpty(),
+                "An ordinary output key must not resolve a virtual target");
         helper.assertTrue(contract.clearTarget(packageStack).isEmpty(), "Clearing an unmarked package must be a no-op");
         helper.succeed();
     }
@@ -136,6 +145,24 @@ public final class OrderPackageGameTest {
                 OrderPackageTarget.get().getTarget(decoded).orElse(null),
                 expectedTarget,
                 "Persistent item-stack encoding must retain the target component");
+    }
+
+    private static void assertPatternOutputResolution(GameTestHelper helper,
+                                                      OrderPackageTarget contract,
+                                                      ItemStack stack,
+                                                      AEKey expectedTarget) {
+        AEItemKey outputKey = AEItemKey.of(stack);
+        if (outputKey == null) {
+            throw new GameTestAssertException("The marked order package must produce an AE item key");
+        }
+        helper.assertValueEqual(
+                contract.resolveMarkedTarget(outputKey).orElse(null),
+                expectedTarget,
+                "A complete AE key output must resolve the package target without losing its identity");
+        helper.assertValueEqual(
+                contract.resolveMarkedTarget(new GenericStack(outputKey, 37L)).orElse(null),
+                expectedTarget,
+                "A generic output must resolve the package target independently of its logical amount");
     }
 
     private static void assertNetworkRoundTrip(GameTestHelper helper, ItemStack stack, AEKey expectedTarget) {

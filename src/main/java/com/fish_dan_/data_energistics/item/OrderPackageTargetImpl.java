@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -28,8 +30,23 @@ final class OrderPackageTargetImpl implements OrderPackageTarget {
     }
 
     @Override
+    public Optional<AEKey> resolveMarkedTarget(AEKey outputKey) {
+        Objects.requireNonNull(outputKey, "outputKey");
+        if (!(outputKey instanceof AEItemKey itemKey) || !itemKey.is(ModItems.ORDER_PACKAGE.get())) {
+            return Optional.empty();
+        }
+        return getTarget(itemKey.toStack());
+    }
+
+    @Override
+    public Optional<AEKey> resolveMarkedTarget(GenericStack output) {
+        Objects.requireNonNull(output, "output");
+        return resolveMarkedTarget(output.what());
+    }
+
+    @Override
     public boolean isOrderPackage(ItemStack stack) {
-        return stack != null && stack.is(ModItems.ORDER_PACKAGE.get());
+        return stack.is(ModItems.ORDER_PACKAGE.get());
     }
 
     @Override
