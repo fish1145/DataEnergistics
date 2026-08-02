@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
+import com.fish_dan_.data_energistics.ae2.DataFlowCellHandler;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
@@ -135,7 +136,8 @@ public final class ModUpgrades {
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.FUZZY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 4, "block.data_energistics.data_reassembler");
+        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 2, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 5, "block.data_energistics.data_reassembler");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DIGITAL_STORAGE_DEPOT.get(), 4, "block.data_energistics.digital_storage_depot");
@@ -175,6 +177,7 @@ public final class ModUpgrades {
         registerExternalDataSanctumInterfaceCompat();
         registerAppliedFluxAdaptivePatternProviderCompat();
         registerAe2CrystalScienceAdaptivePatternProviderCompat();
+        StorageCells.addCellHandler(DataFlowCellHandler.INSTANCE);
         StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
     }
 

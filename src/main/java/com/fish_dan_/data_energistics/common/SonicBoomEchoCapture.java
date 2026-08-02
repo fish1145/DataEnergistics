@@ -14,7 +14,8 @@ import net.minecraft.world.entity.monster.warden.Warden;
 public interface SonicBoomEchoCapture {
 
     /**
-     * Scans the Warden-to-target sonic path and inserts one Echo for every distinct eligible physical formation plane.
+     * Scans formation planes along the Warden-to-target sonic path. Each plane has a seventy-percent chance to insert
+     * ten Echo; the scan stops at the first successful capture.
      *
      * @param level  server level containing the already-loaded path chunks
      * @param warden direct Warden source of the sonic boom

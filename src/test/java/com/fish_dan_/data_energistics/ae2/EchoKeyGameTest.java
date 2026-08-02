@@ -28,6 +28,8 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.storage.cells.StorageCell;
 import appeng.items.storage.StorageCellTooltipComponent;
 import com.google.gson.JsonElement;
@@ -138,6 +140,15 @@ public final class EchoKeyGameTest {
         helper.succeed();
     }
 
+    @TestHolder("data_flow_cells_store_echo_with_shared_byte_accounting")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void dataFlowCellsStoreEchoWithSharedByteAccounting(GameTestHelper helper) {
+        assertDataFlowCellStoresEcho(helper, ModItems.DATA_FLOW_CELL_1K.toStack(), "regular");
+        assertDataFlowCellStoresEcho(helper, ModItems.PORTABLE_DATA_FLOW_CELL_1K.toStack(), "portable");
+        helper.succeed();
+    }
+
     @TestHolder("digital_storage_depot_stores_echo")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -184,5 +195,40 @@ public final class EchoKeyGameTest {
             return depot;
         }
         throw new GameTestAssertException("Placed digital storage depot has no matching block entity");
+    }
+
+    private static void assertDataFlowCellStoresEcho(GameTestHelper helper, ItemStack stack, String cellKind) {
+        if (!(stack.getItem() instanceof IBasicCellItem basicCell)) {
+            throw new GameTestAssertException("The " + cellKind + " Data Flow cell must implement IBasicCellItem");
+        }
+
+        StorageCell cell = StorageCells.getCellInventory(stack, null);
+        if (!(cell instanceof DataFlowCellInventory inventory)) {
+            throw new GameTestAssertException("The " + cellKind + " Data Flow cell must use the dual-resource inventory");
+        }
+
+        helper.assertValueEqual(inventory.getTotalItemTypes(), 2,
+                "The " + cellKind + " Data Flow cell must accept Data Flow and Echo");
+        helper.assertValueEqual(
+                cell.insert(EchoKey.of(), 1L, Actionable.MODULATE, IActionSource.empty()),
+                1L,
+                "The " + cellKind + " Data Flow cell must store Echo");
+        helper.assertValueEqual(
+                cell.insert(DataFlowKey.of(), 7L, Actionable.MODULATE, IActionSource.empty()),
+                7L,
+                "The " + cellKind + " Data Flow cell must retain Data Flow alongside Echo");
+        helper.assertValueEqual(
+                inventory.getUsedBytes(),
+                2L * basicCell.getBytesPerType(stack) + 1L,
+                "Data Flow and Echo must share the same eight-units-per-byte payload accounting");
+
+        StorageCell reloaded = StorageCells.getCellInventory(stack, null);
+        if (reloaded == null) {
+            throw new GameTestAssertException("The " + cellKind + " Data Flow cell must reload its storage inventory");
+        }
+        helper.assertValueEqual(reloaded.getAvailableStacks().get(EchoKey.of()), 1L,
+                "Reloading the " + cellKind + " Data Flow cell must retain Echo");
+        helper.assertValueEqual(reloaded.getAvailableStacks().get(DataFlowKey.of()), 7L,
+                "Reloading the " + cellKind + " Data Flow cell must retain Data Flow");
     }
 }

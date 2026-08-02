@@ -53,6 +53,19 @@ public final class AE2FluxIntegration {
      * @return amount accepted by the network
      */
     public static long insertEnergyIntoOwnNetwork(AENetworkedBlockEntity blockEntity, long amount) {
+        return insertEnergyIntoOwnNetwork(blockEntity, amount, false);
+    }
+
+    /**
+     * Inserts FE into the tower's own AppFlux network with explicit simulation control.
+     *
+     * @param blockEntity tower accessing its grid storage
+     * @param amount      non-negative amount to insert
+     * @param simulate    whether the insertion must leave storage unchanged
+     * @return amount accepted by the network
+     */
+    public static long insertEnergyIntoOwnNetwork(
+                                                  AENetworkedBlockEntity blockEntity, long amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
@@ -78,8 +91,9 @@ public final class AE2FluxIntegration {
                 return 0;
             }
 
+            Actionable actionable = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
             return inventory.insert(
-                    FluxKey.of(EnergyType.FE), amount, Actionable.MODULATE, IActionSource.ofMachine(blockEntity));
+                    FluxKey.of(EnergyType.FE), amount, actionable, IActionSource.ofMachine(blockEntity));
         });
     }
 }

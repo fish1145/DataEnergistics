@@ -57,7 +57,7 @@ public final class SonicBoomEchoCaptureGameTest {
         ServerLevel level = helper.getLevel();
         Warden warden = createWarden(helper, level);
         LivingEntity target = createTarget(helper, level);
-        SonicBoomEchoCapture capture = new SonicBoomEchoCaptureImpl();
+        SonicBoomEchoCaptureImpl capture = new SonicBoomEchoCaptureImpl();
 
         helper.startSequence()
                 .thenWaitUntil(() -> {
@@ -75,7 +75,7 @@ public final class SonicBoomEchoCaptureGameTest {
                                     level.damageSources().mobAttack(warden)),
                             "Ordinary Warden damage must not be recognized as a sonic boom");
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
+                            capture.capture(level, warden, target, () -> 0.0D),
                             0,
                             "Offline formation planes must not produce Echo");
                     helper.assertValueEqual(
@@ -93,18 +93,29 @@ public final class SonicBoomEchoCaptureGameTest {
                 })
                 .thenExecute(() -> {
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
-                            2,
-                            "Two physical formation planes on the same network must each produce one Echo");
+                            capture.capture(level, warden, target, () -> 0.0D),
+                            10,
+                            "The first successful formation plane must produce ten Echo and stop the capture ray");
                     helper.assertValueEqual(
                             storedEcho(fixture.depot()),
-                            2L,
-                            "Both Echo units must enter the network depot");
+                            10L,
+                            "A successful capture must not reach the formation plane behind it");
+
+                    double[] rolls = { 0.75D, 0.0D };
+                    int[] rollIndex = { 0 };
+                    helper.assertValueEqual(
+                            capture.capture(level, warden, target, () -> rolls[rollIndex[0]++]),
+                            10,
+                            "A failed capture must allow the ray to reach the next formation plane");
+                    helper.assertValueEqual(
+                            storedEcho(fixture.depot()),
+                            20L,
+                            "The second formation plane must capture after the first plane fails its roll");
 
                     fillKeyStorage(fixture.depot());
                     long fullEchoAmount = storedEcho(fixture.depot());
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
+                            capture.capture(level, warden, target, () -> 0.0D),
                             0,
                             "A full key inventory must reject the complete simulated insertion");
                     helper.assertValueEqual(

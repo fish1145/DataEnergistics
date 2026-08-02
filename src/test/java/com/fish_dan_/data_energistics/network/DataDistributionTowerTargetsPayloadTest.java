@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.network;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -32,7 +34,25 @@ public final class DataDistributionTowerTargetsPayloadTest {
                 new BlockPos(-12, 71, 4096),
                 TargetKind.AE,
                 TargetTransferMode.DISABLED,
-                new TargetTransferInfo(17, true, true, 4_000_000_000L, 8_000_000_000L, true, false));
+                new TargetTransferInfo(
+                        17,
+                        true,
+                        true,
+                        4_000_000_000L,
+                        8_000_000_000L,
+                        true,
+                        false,
+                        24,
+                        TowerVirtualDeviceState.WAITING_CHANNEL,
+                        "CHANNEL_UNAVAILABLE",
+                        ResourceLocation.parse("minecraft:overworld"),
+                        new BlockPos(4, 65, 9),
+                        new TowerDeviceKey(
+                                ResourceLocation.parse("minecraft:the_nether"),
+                                null,
+                                2,
+                                "example.LogicalDevice",
+                                3)));
         DataDistributionTowerTargetsPayload original = new DataDistributionTowerTargetsPayload(
                 42,
                 9001L,
@@ -57,6 +77,7 @@ public final class DataDistributionTowerTargetsPayloadTest {
             assertEquals(entry.kind(), decoded.entries().getFirst().kind());
             assertEquals(entry.transferMode(), decoded.entries().getFirst().transferMode());
             assertEquals(entry.transferInfo(), decoded.entries().getFirst().transferInfo());
+            assertTrue(decoded.entries().getFirst().transferInfo().logicalDevice());
             assertEquals(0, buffer.readableBytes());
         } finally {
             buffer.release();

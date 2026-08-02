@@ -4,172 +4,80 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLin
 import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridNodeListener;
-import appeng.me.GridNode;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TowerLinkGraphImplTest {
 
-    private static final BlockPos TARGET_POS = new BlockPos(4, 7, 9);
+    private static final BlockPos FIRST_TARGET = new BlockPos(4, 7, 9);
+    private static final BlockPos SECOND_TARGET = new BlockPos(-2, 5, 13);
 
     @Test
-    void reconcileRetainsExistingFacesAndDestroysOnlyRemovedFaces() {
+    void bindingsKeepInsertionOrderWithoutRetainingGridConnections() {
         TowerLinkGraph graph = new TowerLinkGraphImpl();
-        IGridNode northNode = new TestGridNode();
-        IGridNode southNode = new TestGridNode();
-        IGridNode upNode = new TestGridNode();
-        TestGridConnection northConnection = new TestGridConnection(northNode);
-        TestGridConnection southConnection = new TestGridConnection(southNode);
-        TestGridConnection upConnection = new TestGridConnection(upNode);
 
-        graph.reconcileConnections(TARGET_POS, Map.of(
-                northNode, northConnection,
-                southNode, southConnection));
-        graph.reconcileConnections(TARGET_POS, Map.of(
-                southNode, southConnection,
-                upNode, upConnection));
+        graph.addLinked(FIRST_TARGET);
+        graph.addLinked(SECOND_TARGET);
+        graph.addLinked(FIRST_TARGET);
 
-        assertEquals(1, northConnection.destroyCalls());
-        assertEquals(0, southConnection.destroyCalls());
-        assertEquals(0, upConnection.destroyCalls());
-        assertFalse(graph.hasConnection(TARGET_POS, northNode));
-        assertTrue(graph.hasConnection(TARGET_POS, southNode));
-        assertTrue(graph.hasConnection(TARGET_POS, upNode));
-        assertEquals(2, graph.connectionCount(TARGET_POS));
-        assertSame(southConnection, graph.connections(TARGET_POS).get(southNode));
-        assertSame(upConnection, graph.connections(TARGET_POS).get(upNode));
+        assertEquals(List.of(FIRST_TARGET, SECOND_TARGET), graph.trackedPositions());
+        assertEquals(Set.of(FIRST_TARGET, SECOND_TARGET), graph.linkedPositions());
+        assertEquals(TargetLinkState.BOUND, graph.status(FIRST_TARGET).state());
 
-        graph.reconcileConnections(TARGET_POS, Map.of(
-                southNode, southConnection,
-                upNode, upConnection));
+        graph.removeLinked(FIRST_TARGET);
 
-        assertEquals(0, southConnection.destroyCalls());
-        assertEquals(0, upConnection.destroyCalls());
+        assertFalse(graph.containsLinked(FIRST_TARGET));
+        assertEquals(TargetLinkState.INVALID, graph.status(FIRST_TARGET).state());
+        assertEquals(List.of(SECOND_TARGET), graph.trackedPositions());
     }
 
     @Test
-    void reconcileDestroysAReplacedConnectionForTheSameNode() {
+    void retryStateUsesBoundedExponentialBackoffAndCanBeResetByLifecycleEvent() {
         TowerLinkGraph graph = new TowerLinkGraphImpl();
-        IGridNode node = new TestGridNode();
-        TestGridConnection oldConnection = new TestGridConnection(node);
-        TestGridConnection replacement = new TestGridConnection(node);
-        graph.reconcileConnections(TARGET_POS, Map.of(node, oldConnection));
-
-        graph.reconcileConnections(TARGET_POS, Map.of(node, replacement));
-
-        assertEquals(1, oldConnection.destroyCalls());
-        assertEquals(0, replacement.destroyCalls());
-        assertSame(replacement, graph.connections(TARGET_POS).get(node));
-    }
-
-    @Test
-    void destroyingLiveConnectionsPreservesTheExplicitTargetBinding() {
-        TowerLinkGraph graph = new TowerLinkGraphImpl();
-        IGridNode node = new TestGridNode();
-        TestGridConnection connection = new TestGridConnection(node);
-        graph.addLinked(TARGET_POS);
-        graph.reconcileConnections(TARGET_POS, Map.of(node, connection));
-
-        graph.destroyTargetConnections(TARGET_POS);
-
-        assertTrue(graph.containsLinked(TARGET_POS));
-        assertFalse(graph.hasConnections(TARGET_POS));
-        assertEquals(1, connection.destroyCalls());
+        graph.addLinked(FIRST_TARGET);
 
         assertTrue(graph.scheduleRetry(
-                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
-        assertEquals(3, graph.status(TARGET_POS).retryTicks());
+                FIRST_TARGET, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(3, graph.status(FIRST_TARGET).retryTicks());
         assertTrue(graph.advanceRetryClock(2).isEmpty());
-        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(1)));
+        assertEquals(List.of(FIRST_TARGET), graph.advanceRetryClock(1));
+
         assertTrue(graph.scheduleRetry(
-                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
-        assertEquals(6, graph.status(TARGET_POS).retryTicks());
-        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(6)));
+                FIRST_TARGET, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(6, graph.status(FIRST_TARGET).retryTicks());
+        assertEquals(List.of(FIRST_TARGET), graph.advanceRetryClock(6));
+
         assertTrue(graph.scheduleRetry(
-                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
-        assertEquals(12, graph.status(TARGET_POS).retryTicks());
-        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(12)));
-        assertTrue(graph.scheduleRetry(
-                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
-        assertEquals(12, graph.status(TARGET_POS).retryTicks());
-        assertTrue(graph.transition(TARGET_POS, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0));
-        assertTrue(graph.containsLinked(TARGET_POS));
+                FIRST_TARGET, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(12, graph.status(FIRST_TARGET).retryTicks());
+        assertEquals(List.of(FIRST_TARGET), graph.advanceRetryClock(12));
+
+        assertTrue(graph.transition(FIRST_TARGET, TargetLinkState.ALLOCATED, TargetLinkFailure.NONE, 0));
         assertFalse(graph.hasRetryableTargets());
+        assertEquals(TargetLinkState.ALLOCATED, graph.status(FIRST_TARGET).state());
+    }
+
+    @Test
+    void runtimeResetPreservesBindingsAndRestoresBoundState() {
+        TowerLinkGraph graph = new TowerLinkGraphImpl();
+        graph.addLinkedAll(List.of(FIRST_TARGET, SECOND_TARGET));
+        graph.transition(FIRST_TARGET, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
+        graph.scheduleRetry(
+                SECOND_TARGET, TargetLinkState.BRIDGE_ERROR,
+                TargetLinkFailure.GRID_SERVICE_REGISTRATION, 2, 8);
 
         graph.resetRuntimeState();
 
-        assertTrue(graph.containsLinked(TARGET_POS));
-        assertEquals(TargetLinkState.BOUND, graph.status(TARGET_POS).state());
-        assertFalse(graph.hasConnections(TARGET_POS));
-    }
-
-    private static final class TestGridNode extends GridNode {
-
-        private static final IGridNodeListener<Object> LISTENER = (owner, node) -> {};
-
-        private TestGridNode() {
-            super(null, new Object(), LISTENER, Set.of());
-        }
-    }
-
-    private static final class TestGridConnection implements IGridConnection {
-
-        private final IGridNode node;
-        private int destroyCalls;
-
-        private TestGridConnection(IGridNode node) {
-            this.node = node;
-        }
-
-        @Override
-        public IGridNode getOtherSide(IGridNode gridNode) {
-            return this.node;
-        }
-
-        @Override
-        public boolean isInWorld() {
-            return false;
-        }
-
-        @Override
-        public Direction getDirection(IGridNode gridNode) {
-            return null;
-        }
-
-        @Override
-        public void destroy() {
-            this.destroyCalls++;
-        }
-
-        @Override
-        public IGridNode a() {
-            return this.node;
-        }
-
-        @Override
-        public IGridNode b() {
-            return this.node;
-        }
-
-        @Override
-        public int getUsedChannels() {
-            return 0;
-        }
-
-        private int destroyCalls() {
-            return this.destroyCalls;
-        }
+        assertEquals(List.of(FIRST_TARGET, SECOND_TARGET), graph.trackedPositions());
+        assertEquals(TargetLinkState.BOUND, graph.status(FIRST_TARGET).state());
+        assertEquals(TargetLinkState.BOUND, graph.status(SECOND_TARGET).state());
+        assertFalse(graph.hasRetryableTargets());
     }
 }

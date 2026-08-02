@@ -17,8 +17,6 @@ public final class Ae2LtCompatibilityPolicy {
         AE2LT_EJECT_REGISTRY,
         AE2LT_EJECT_INTERCEPTOR,
         THUNDERBOLT_EJECT_INTERCEPTOR,
-        AE2LT_MAX_FLOW,
-        THUNDERBOLT_MAX_FLOW,
         AE2LT_CHANNEL_HELPER,
         THUNDERBOLT_CHANNEL_HELPER
     }
@@ -31,8 +29,6 @@ public final class Ae2LtCompatibilityPolicy {
         LEGACY_WIRELESS,
         MODERN_WIRELESS_ADAPTER,
         DATA_EJECT_INTERCEPTOR,
-        LEGACY_MAX_FLOW_GUARD,
-        MODERN_MAX_FLOW_GUARD,
         LEGACY_CHANNEL_SOURCE,
         MODERN_CHANNEL_SOURCE
     }
@@ -70,8 +66,6 @@ public final class Ae2LtCompatibilityPolicy {
             case LEGACY_WIRELESS -> !has(Feature.WIRELESS_HOST_API);
             case MODERN_WIRELESS_ADAPTER -> has(Feature.WIRELESS_HOST_API) && has(Feature.THUNDERBOLT_WIRELESS_CONNECTION_API);
             case DATA_EJECT_INTERCEPTOR -> ejectOwner() == EjectOwner.DATA_ENERGISTICS;
-            case LEGACY_MAX_FLOW_GUARD -> has(Feature.AE2LT_MAX_FLOW);
-            case MODERN_MAX_FLOW_GUARD -> has(Feature.THUNDERBOLT_MAX_FLOW);
             case LEGACY_CHANNEL_SOURCE -> has(Feature.AE2LT_CHANNEL_HELPER);
             case MODERN_CHANNEL_SOURCE -> has(Feature.THUNDERBOLT_CHANNEL_HELPER);
         };

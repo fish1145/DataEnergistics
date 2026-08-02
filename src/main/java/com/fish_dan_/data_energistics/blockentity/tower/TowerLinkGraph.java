@@ -2,12 +2,8 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import net.minecraft.core.BlockPos;
 
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridNode;
-
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -25,11 +21,12 @@ public interface TowerLinkGraph {
     enum TargetLinkState {
         BOUND,
         WAITING_TARGET,
-        WAITING_GRID,
         PENDING,
-        PARTIAL,
-        CONNECTED,
+        ALLOCATED,
+        WAITING_CHANNEL,
         DISABLED,
+        CONFLICT,
+        BRIDGE_ERROR,
         INVALID
     }
 
@@ -39,9 +36,12 @@ public interface TowerLinkGraph {
     enum TargetLinkFailure {
         NONE,
         TARGET_UNAVAILABLE,
-        GRID_UNAVAILABLE,
         CHANNEL_UNAVAILABLE,
-        CONNECTION_EXCEPTION
+        CONTROLLER_PRESENT,
+        OWNERSHIP_CONFLICT,
+        BRIDGE_CYCLE,
+        SCOPE_CONFLICT,
+        GRID_SERVICE_REGISTRATION
     }
 
     /**
@@ -66,8 +66,8 @@ public interface TowerLinkGraph {
          */
         public boolean isRetryable() {
             return switch (this.state) {
-                case WAITING_TARGET, WAITING_GRID, PENDING, PARTIAL, CONNECTED -> true;
-                case BOUND, DISABLED, INVALID -> false;
+                case WAITING_TARGET, PENDING, WAITING_CHANNEL, CONFLICT, BRIDGE_ERROR -> true;
+                case BOUND, ALLOCATED, DISABLED, INVALID -> false;
             };
         }
     }
@@ -170,64 +170,6 @@ public interface TowerLinkGraph {
      * @return immutable tracked position snapshot
      */
     List<BlockPos> trackedPositions();
-
-    /**
-     * Returns the live node-to-connection mapping for a target.
-     *
-     * @param targetPos target position
-     * @return immutable connection snapshot keyed by exposed target node
-     */
-    Map<IGridNode, IGridConnection> connections(BlockPos targetPos);
-
-    /**
-     * Reconciles live connections with the currently exposed target nodes.
-     *
-     * <p>
-     * Connections omitted from the supplied map or replaced for the same node are destroyed, while retained
-     * node-to-connection mappings are left untouched.
-     * </p>
-     *
-     * @param targetPos   target position
-     * @param connections desired node-to-connection mapping
-     */
-    void reconcileConnections(BlockPos targetPos, Map<IGridNode, IGridConnection> connections);
-
-    /**
-     * Checks whether a specific exposed node already has a live tower connection.
-     *
-     * @param targetPos  target position
-     * @param targetNode exposed target node
-     * @return true when the node is already connected by this tower
-     */
-    boolean hasConnection(BlockPos targetPos, IGridNode targetNode);
-
-    /**
-     * Returns live connection count for a target.
-     *
-     * @param targetPos target position
-     * @return connection count
-     */
-    int connectionCount(BlockPos targetPos);
-
-    /**
-     * Checks whether live connections are recorded for a target.
-     *
-     * @param targetPos target position
-     * @return true when connections exist
-     */
-    boolean hasConnections(BlockPos targetPos);
-
-    /**
-     * Destroys and removes live connections for a target.
-     *
-     * @param targetPos target position
-     */
-    void destroyTargetConnections(BlockPos targetPos);
-
-    /**
-     * Destroys all live connections.
-     */
-    void destroyAllConnections();
 
     /**
      * Adds multiple persisted targets.

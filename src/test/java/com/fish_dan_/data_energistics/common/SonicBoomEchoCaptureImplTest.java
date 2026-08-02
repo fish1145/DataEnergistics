@@ -13,6 +13,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SonicBoomEchoCaptureImplTest {
 
     @Test
+    void capturesTenEchoOnlyForRollsBelowSeventyPercent() {
+        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.0D));
+        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.699999D));
+        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.70D));
+        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.75D));
+    }
+
+    @Test
     void extendsSevenBlocksPastTargetAndAcceptsOnlyFrontFaceIntersections() {
         Vec3 start = new Vec3(0.5D, 0.5D, -2.0D);
         Vec3 targetEye = new Vec3(0.5D, 0.5D, 2.0D);

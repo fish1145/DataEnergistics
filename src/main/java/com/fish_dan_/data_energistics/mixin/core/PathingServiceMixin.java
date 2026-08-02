@@ -1,65 +1,30 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.ChannelHubCapacity;
-import com.fish_dan_.data_energistics.ae2.ChannelHubCapacityImpl;
-import com.fish_dan_.data_energistics.ae2.ChannelHubHost;
+import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.pathing.ChannelMode;
-import appeng.api.networking.pathing.ControllerState;
+import appeng.me.Grid;
 import appeng.me.service.PathingService;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import java.util.Set;
-
 /**
- * Extends AE2's controller-less channel count when a channel hub is present while preserving the dense ad-hoc limit.
+ * Prevents incoming virtual members from inflating controllerless physical channel-power accounting.
  */
 @Mixin(PathingService.class)
 public abstract class PathingServiceMixin {
 
     /**
-     * Capacity calculator shared by all invocations of the ad-hoc redirect.
-     */
-    @Unique
-    private static final ChannelHubCapacity DATA_ENERGISTICS_CHANNEL_HUB_CAPACITY = new ChannelHubCapacityImpl();
-
-    /**
-     * Nodes participating in AE2's ad-hoc channel-count validation.
-     */
-    @Final
-    @Shadow
-    private Set<IGridNode> nodesNeedingChannels;
-
-    /**
-     * Replaces the ordinary eight-channel ad-hoc ceiling with dense capacity when the grid contains a hub.
+     * Returns the physical node count while leaving AE2's native channel assignment untouched.
      *
-     * @param mode active AE channel mode
-     * @return ordinary ad-hoc capacity or dense hub capacity
+     * @param grid grid being repathed
+     * @return physical node count
      */
     @Redirect(
-              method = "calculateAdHocChannels",
-              at = @At(
-                       value = "INVOKE",
-                       target = "Lappeng/api/networking/pathing/ChannelMode;getAdHocNetworkChannels()I"),
+              method = "onServerEndTick",
+              at = @At(value = "INVOKE", target = "Lappeng/me/Grid;size()I"),
               require = 1)
-    private int dataEnergistics$expandAdHocChannels(ChannelMode mode) {
-        int maxChannels = mode.getAdHocNetworkChannels();
-        for (IGridNode node : this.nodesNeedingChannels) {
-            if (node.getOwner() instanceof ChannelHubHost) {
-                return Math.max(
-                        maxChannels,
-                        DATA_ENERGISTICS_CHANNEL_HUB_CAPACITY.calculate(
-                                ControllerState.NO_CONTROLLER,
-                                mode,
-                                Set.of()));
-            }
-        }
-        return maxChannels;
+    private int dataEnergistics$countPhysicalNodes(Grid grid) {
+        return ((VirtualGridBridge) grid).physicalNodeCount();
     }
 }
