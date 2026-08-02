@@ -551,18 +551,16 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             }
 
             long componentStartedNanos = System.nanoTime();
-            Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> deterministicComponent =
-                    deterministicComponentPlanner.plan(
-                            component,
-                            demand,
-                            this.inventory,
-                            producibleInputs,
-                            this.settings.maxScheduleStates(),
-                            this.control);
+            Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> deterministicComponent = deterministicComponentPlanner.plan(
+                    component,
+                    demand,
+                    this.inventory,
+                    producibleInputs,
+                    this.settings.maxScheduleStates(),
+                    this.control);
             long componentNanos = Math.max(0L, System.nanoTime() - componentStartedNanos);
             if (deterministicComponent.isPresent()) {
-                TrinityAlgorithmResult<TrinityDeterministicComponentPlan> deterministic =
-                        deterministicComponent.orElseThrow();
+                TrinityAlgorithmResult<TrinityDeterministicComponentPlan> deterministic = deterministicComponent.orElseThrow();
                 if (!deterministic.successful()) {
                     return TrinityAlgorithmResult.failure(deterministic.diagnostic());
                 }

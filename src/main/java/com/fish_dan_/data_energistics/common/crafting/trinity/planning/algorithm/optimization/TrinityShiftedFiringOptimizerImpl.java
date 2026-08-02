@@ -194,9 +194,9 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private TrinityAlgorithmResult<ReductionBounds> tightenReductionBounds(
-                                                                            ShiftedContext context,
-                                                                            TrinityPlanningControl control,
-                                                                            int completedPasses) {
+                                                                           ShiftedContext context,
+                                                                           TrinityPlanningControl control,
+                                                                           int completedPasses) {
         LinkedHashMap<TrinityPatternVariant, BigInteger> tightened = new LinkedHashMap<>();
         LinkedHashMap<TrinityPatternVariant, BigInteger> guards = new LinkedHashMap<>();
         int passNumber = completedPasses;
@@ -270,10 +270,10 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private TrinityAlgorithmResult<SolvedShift> solve(
-                                                       ShiftedContext context,
-                                                       ShiftedPass pass,
-                                                       TrinityPlanningControl control,
-                                                       int passNumber) {
+                                                      ShiftedContext context,
+                                                      ShiftedPass pass,
+                                                      TrinityPlanningControl control,
+                                                      int passNumber) {
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -472,9 +472,9 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private static Set<AEKey> externalReserveKeys(
-                                                   List<TrinityPatternVariant> variants,
-                                                   Set<AEKey> internalKeys,
-                                                   TrinityCycleDemand demand) {
+                                                  List<TrinityPatternVariant> variants,
+                                                  Set<AEKey> internalKeys,
+                                                  TrinityCycleDemand demand) {
         LinkedHashSet<AEKey> external = new LinkedHashSet<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
                 .filter(key -> !internalKeys.contains(key))
@@ -492,8 +492,8 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private static BigInteger minimumFirstInternalInput(
-                                                         List<TrinityPatternVariant> variants,
-                                                         Set<AEKey> internalKeys) {
+                                                        List<TrinityPatternVariant> variants,
+                                                        Set<AEKey> internalKeys) {
         return variants.stream()
                 .map(variant -> variant.inputs().entrySet().stream()
                         .filter(entry -> internalKeys.contains(entry.getKey()))
@@ -550,7 +550,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private sealed interface ShiftedPass
-            permits ExternalPass, SeedPass, FiringPass, IdentityPass, ReductionBoundPass {}
+                                         permits ExternalPass, SeedPass, FiringPass, IdentityPass, ReductionBoundPass {}
 
     private enum ExternalPass implements ShiftedPass {
         INSTANCE

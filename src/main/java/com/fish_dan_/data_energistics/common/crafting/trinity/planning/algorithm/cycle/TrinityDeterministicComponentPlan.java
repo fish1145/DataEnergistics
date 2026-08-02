@@ -68,7 +68,7 @@ public record TrinityDeterministicComponentPlan(
     }
 
     private static Map<TrinityPatternVariant, BigInteger> copyPositiveFirings(
-                                                                               Map<TrinityPatternVariant, BigInteger> source) {
+                                                                              Map<TrinityPatternVariant, BigInteger> source) {
         LinkedHashMap<TrinityPatternVariant, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((variant, count) -> {
             if (variant == null || count == null || count.signum() <= 0) {

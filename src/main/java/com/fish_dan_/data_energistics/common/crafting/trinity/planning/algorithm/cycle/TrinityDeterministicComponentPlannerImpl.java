@@ -53,12 +53,12 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
 
     @Override
     public Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> plan(
-                                                                                     TrinityStronglyConnectedComponent component,
-                                                                                     TrinityCycleDemand demand,
-                                                                                     Map<AEKey, BigInteger> available,
-                                                                                     Set<AEKey> producibleInputs,
-                                                                                     int maxStates,
-                                                                                     TrinityPlanningControl control) {
+                                                                                    TrinityStronglyConnectedComponent component,
+                                                                                    TrinityCycleDemand demand,
+                                                                                    Map<AEKey, BigInteger> available,
+                                                                                    Set<AEKey> producibleInputs,
+                                                                                    int maxStates,
+                                                                                    TrinityPlanningControl control) {
         if (component == null || !component.cyclic() || demand == null || available == null ||
                 producibleInputs == null || maxStates <= 0 || control == null) {
             throw new IllegalArgumentException("A deterministic Trinity component request is incomplete");
@@ -124,15 +124,15 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private TrinityAlgorithmResult<Candidate> solveCandidate(
-                                                               TrinityStronglyConnectedComponent component,
-                                                               TrinityCycleDemand demand,
-                                                               Map<AEKey, BigInteger> available,
-                                                               Set<AEKey> producibleInputs,
-                                                               AEKey reservoir,
-                                                               List<TrinityVariantFiring> primitiveOrder,
-                                                               ResidualTopology topology,
-                                                               int maxStates,
-                                                               TrinityPlanningControl control) {
+                                                             TrinityStronglyConnectedComponent component,
+                                                             TrinityCycleDemand demand,
+                                                             Map<AEKey, BigInteger> available,
+                                                             Set<AEKey> producibleInputs,
+                                                             AEKey reservoir,
+                                                             List<TrinityVariantFiring> primitiveOrder,
+                                                             ResidualTopology topology,
+                                                             int maxStates,
+                                                             TrinityPlanningControl control) {
         LinkedHashMap<TrinityPatternVariant, BigInteger> primitiveFirings = aggregate(primitiveOrder);
         Map<AEKey, BigInteger> primitiveNet = netChange(primitiveFirings);
         BigInteger reservoirEffect = primitiveNet.getOrDefault(reservoir, ZERO);
@@ -198,14 +198,13 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         if (baselineFirings.isEmpty()) {
             return unsupported("A deterministic Trinity component produced no work");
         }
-        Optional<TrinityAlgorithmResult<Map<TrinityPatternVariant, BigInteger>>> optimized =
-                this.firingOptimizer.optimize(
-                        component,
-                        demand,
-                        available,
-                        producibleInputs,
-                        baselineFirings,
-                        control);
+        Optional<TrinityAlgorithmResult<Map<TrinityPatternVariant, BigInteger>>> optimized = this.firingOptimizer.optimize(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                baselineFirings,
+                control);
         if (optimized.isEmpty()) {
             return unsupported("The deterministic Trinity firing upper bound cannot be shifted safely");
         }
@@ -326,8 +325,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static Map<AEKey, BigInteger> minimumSeed(
-                                                       List<TrinityVariantFiring> order,
-                                                       List<AEKey> internalKeys) {
+                                                      List<TrinityVariantFiring> order,
+                                                      List<AEKey> internalKeys) {
         LinkedHashMap<AEKey, BigInteger> requiredInputs = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>();
         for (TrinityVariantFiring firing : order) {
@@ -344,8 +343,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static Map<AEKey, BigInteger> internalAmounts(
-                                                           Map<AEKey, BigInteger> amounts,
-                                                           List<AEKey> internalKeys) {
+                                                          Map<AEKey, BigInteger> amounts,
+                                                          List<AEKey> internalKeys) {
         Set<AEKey> internal = Set.copyOf(internalKeys);
         LinkedHashMap<AEKey, BigInteger> selected = new LinkedHashMap<>();
         amounts.forEach((key, amount) -> {
@@ -357,12 +356,12 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private TrinityAlgorithmResult<NormalizedCycle> normalizePrimitiveCycle(
-                                                                             TrinityStronglyConnectedComponent component,
-                                                                             Map<TrinityPatternVariant, BigInteger> primitiveFirings,
-                                                                             Map<AEKey, BigInteger> minimumBalances,
-                                                                             Map<AEKey, BigInteger> maximumBalances,
-                                                                             int maxStates,
-                                                                             TrinityPlanningControl control) {
+                                                                            TrinityStronglyConnectedComponent component,
+                                                                            Map<TrinityPatternVariant, BigInteger> primitiveFirings,
+                                                                            Map<AEKey, BigInteger> minimumBalances,
+                                                                            Map<AEKey, BigInteger> maximumBalances,
+                                                                            int maxStates,
+                                                                            TrinityPlanningControl control) {
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
         LinkedHashSet<AEKey> externalKeys = new LinkedHashSet<>();
         primitiveFirings.keySet().forEach(variant -> variant.inputs().keySet().forEach(key -> {
@@ -391,13 +390,13 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private TrinityAlgorithmResult<TrinityCompressedSchedule> schedule(
-                                                                        List<TrinityVariantFiring> prefixOrder,
-                                                                        List<TrinityVariantFiring> baseOrder,
-                                                                        BigInteger repetitions,
-                                                                        List<TrinityVariantFiring> suffixOrder,
-                                                                        Map<AEKey, BigInteger> initialInputs,
-                                                                        int maxStates,
-                                                                        TrinityPlanningControl control) {
+                                                                       List<TrinityVariantFiring> prefixOrder,
+                                                                       List<TrinityVariantFiring> baseOrder,
+                                                                       BigInteger repetitions,
+                                                                       List<TrinityVariantFiring> suffixOrder,
+                                                                       Map<AEKey, BigInteger> initialInputs,
+                                                                       int maxStates,
+                                                                       TrinityPlanningControl control) {
         if (maxStates <= 0) {
             return searchLimit(0, 0);
         }
@@ -452,12 +451,12 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static TrinityAlgorithmResult<Integer> executeBatch(
-                                                                  TrinityVariantFiring firing,
-                                                                  Map<AEKey, BigInteger> balances,
-                                                                  List<TrinityVariantFiring> batches,
-                                                                  int states,
-                                                                  int maxStates,
-                                                                  TrinityPlanningControl control) {
+                                                                TrinityVariantFiring firing,
+                                                                Map<AEKey, BigInteger> balances,
+                                                                List<TrinityVariantFiring> batches,
+                                                                int states,
+                                                                int maxStates,
+                                                                TrinityPlanningControl control) {
         StopState state = stopState(control);
         if (state != StopState.RUNNING) {
             return stopped(state);
@@ -477,10 +476,10 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static CycleDecomposition decompose(
-                                                 Map<TrinityPatternVariant, BigInteger> primitiveFirings,
-                                                 Map<TrinityPatternVariant, BigInteger> firings,
-                                                 AEKey reservoir,
-                                                 List<TrinityPatternVariant> topologicalOrder) {
+                                                Map<TrinityPatternVariant, BigInteger> primitiveFirings,
+                                                Map<TrinityPatternVariant, BigInteger> firings,
+                                                AEKey reservoir,
+                                                List<TrinityPatternVariant> topologicalOrder) {
         BigInteger repetitions = null;
         for (Map.Entry<TrinityPatternVariant, BigInteger> primitive : primitiveFirings.entrySet()) {
             BigInteger available = firings.getOrDefault(primitive.getKey(), ZERO);
@@ -518,9 +517,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static LinkedHashMap<AEKey, BigInteger> conservationInputs(
-                                                                        TrinityStronglyConnectedComponent component,
-                                                                        TrinityCycleDemand demand,
-                                                                        Map<AEKey, BigInteger> netChange) {
+                                                                       TrinityStronglyConnectedComponent component,
+                                                                       TrinityCycleDemand demand,
+                                                                       Map<AEKey, BigInteger> netChange) {
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
         component.cycleVariants().forEach(variant -> keys.addAll(variant.netChange().keySet()));
         keys.addAll(demand.finalBalanceLowerBounds().keySet());
@@ -554,8 +553,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static LinkedHashMap<AEKey, BigInteger> simulate(
-                                                              Map<AEKey, BigInteger> initial,
-                                                              List<TrinityVariantFiring> order) {
+                                                             Map<AEKey, BigInteger> initial,
+                                                             List<TrinityVariantFiring> order) {
         LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>(initial);
         for (TrinityVariantFiring firing : order) {
             if (!hasInputs(balances, requiredAtStart(firing))) {
@@ -567,12 +566,12 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static Map<AEKey, BigInteger> cycleStartMaximum(
-                                                             TrinityStronglyConnectedComponent component,
-                                                             Map<TrinityPatternVariant, BigInteger> primitiveFirings,
-                                                             Map<AEKey, BigInteger> available,
-                                                             Set<AEKey> producibleInputs,
-                                                             Map<AEKey, BigInteger> cycleStart,
-                                                             List<TrinityVariantFiring> prefix) {
+                                                            TrinityStronglyConnectedComponent component,
+                                                            Map<TrinityPatternVariant, BigInteger> primitiveFirings,
+                                                            Map<AEKey, BigInteger> available,
+                                                            Set<AEKey> producibleInputs,
+                                                            Map<AEKey, BigInteger> cycleStart,
+                                                            List<TrinityVariantFiring> prefix) {
         Map<AEKey, BigInteger> prefixNet = netChange(aggregate(prefix));
         LinkedHashMap<AEKey, BigInteger> primitiveConsumption = new LinkedHashMap<>();
         primitiveFirings.forEach((variant, count) -> variant.inputs().forEach(
@@ -599,9 +598,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static void mergeRequiredCycleStart(
-                                                 Map<AEKey, BigInteger> initialInputs,
-                                                 Map<AEKey, BigInteger> currentCycleStart,
-                                                 Map<AEKey, BigInteger> requiredCycleStart) {
+                                                Map<AEKey, BigInteger> initialInputs,
+                                                Map<AEKey, BigInteger> currentCycleStart,
+                                                Map<AEKey, BigInteger> requiredCycleStart) {
         requiredCycleStart.forEach((key, required) -> {
             BigInteger deficit = required.subtract(currentCycleStart.getOrDefault(key, ZERO));
             if (deficit.signum() > 0) {
@@ -611,10 +610,10 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static Map<AEKey, BigInteger> netLowerBounds(
-                                                          TrinityStronglyConnectedComponent component,
-                                                          TrinityCycleDemand demand,
-                                                          Map<AEKey, BigInteger> available,
-                                                          Set<AEKey> producibleInputs) {
+                                                         TrinityStronglyConnectedComponent component,
+                                                         TrinityCycleDemand demand,
+                                                         Map<AEKey, BigInteger> available,
+                                                         Set<AEKey> producibleInputs) {
         LinkedHashMap<AEKey, BigInteger> lower = new LinkedHashMap<>(
                 demand.requiredNetChangeLowerBounds());
         LinkedHashSet<AEKey> touched = new LinkedHashSet<>(component.keys());
@@ -633,8 +632,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static BigInteger initialRepetitions(
-                                                  TrinityCycleDemand demand,
-                                                  Map<AEKey, BigInteger> primitiveNet) {
+                                                 TrinityCycleDemand demand,
+                                                 Map<AEKey, BigInteger> primitiveNet) {
         BigInteger repetitions = ZERO;
         for (Map.Entry<AEKey, BigInteger> required : demand.requiredNetChangeLowerBounds().entrySet()) {
             BigInteger effect = primitiveNet.getOrDefault(required.getKey(), ZERO);
@@ -646,9 +645,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static BigInteger requiredRepetitionJump(
-                                                       Map<AEKey, BigInteger> combinedNet,
-                                                       Map<AEKey, BigInteger> lowerBounds,
-                                                       Map<AEKey, BigInteger> primitiveNet) {
+                                                     Map<AEKey, BigInteger> combinedNet,
+                                                     Map<AEKey, BigInteger> lowerBounds,
+                                                     Map<AEKey, BigInteger> primitiveNet) {
         BigInteger jump = ZERO;
         for (Map.Entry<AEKey, BigInteger> bound : lowerBounds.entrySet()) {
             BigInteger deficit = bound.getValue().subtract(combinedNet.getOrDefault(bound.getKey(), ZERO));
@@ -673,17 +672,17 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static boolean hasPositiveEffectOnPrimitiveAxis(
-                                                              Map<AEKey, BigInteger> residualNet,
-                                                              Map<AEKey, BigInteger> primitiveNet) {
+                                                            Map<AEKey, BigInteger> residualNet,
+                                                            Map<AEKey, BigInteger> primitiveNet) {
         return primitiveNet.entrySet().stream()
                 .filter(entry -> entry.getValue().signum() > 0)
                 .anyMatch(entry -> residualNet.getOrDefault(entry.getKey(), ZERO).signum() > 0);
     }
 
     private static boolean exceedsAvailable(
-                                             Map<AEKey, BigInteger> inputs,
-                                             Map<AEKey, BigInteger> available,
-                                             Set<AEKey> producibleInputs) {
+                                            Map<AEKey, BigInteger> inputs,
+                                            Map<AEKey, BigInteger> available,
+                                            Set<AEKey> producibleInputs) {
         return inputs.entrySet().stream().anyMatch(entry -> !producibleInputs.contains(entry.getKey()) &&
                 available.getOrDefault(entry.getKey(), ZERO).compareTo(entry.getValue()) < 0);
     }
@@ -696,9 +695,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static LinkedHashMap<TrinityPatternVariant, BigInteger> aggregateRepeated(
-                                                                                       Map<TrinityPatternVariant, BigInteger> primitive,
-                                                                                       BigInteger repetitions,
-                                                                                       Map<TrinityPatternVariant, BigInteger> residual) {
+                                                                                      Map<TrinityPatternVariant, BigInteger> primitive,
+                                                                                      BigInteger repetitions,
+                                                                                      Map<TrinityPatternVariant, BigInteger> residual) {
         LinkedHashMap<TrinityPatternVariant, BigInteger> aggregate = new LinkedHashMap<>();
         primitive.forEach((variant, count) -> {
             BigInteger repeated = count.multiply(repetitions);
@@ -720,8 +719,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     private static Map<AEKey, BigInteger> multiplySigned(
-                                                          Map<AEKey, BigInteger> amounts,
-                                                          BigInteger multiplier) {
+                                                         Map<AEKey, BigInteger> amounts,
+                                                         BigInteger multiplier) {
         LinkedHashMap<AEKey, BigInteger> multiplied = new LinkedHashMap<>();
         amounts.forEach((key, amount) -> {
             BigInteger result = amount.multiply(multiplier);
@@ -960,10 +959,10 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
 
     private record Candidate(
                              TrinityDeterministicComponentPlan plan,
-                              BigInteger externalTotal,
-                              BigInteger seedTotal,
-                              BigInteger firingTotal,
-                              List<BigInteger> stableVector) {
+                             BigInteger externalTotal,
+                             BigInteger seedTotal,
+                             BigInteger firingTotal,
+                             List<BigInteger> stableVector) {
 
         private static final Comparator<Candidate> ORDER = Comparator
                 .comparing(Candidate::externalTotal)
@@ -990,8 +989,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         }
 
         private static Optional<ResidualTopology> create(
-                                                          TrinityStronglyConnectedComponent component,
-                                                          AEKey reservoir) {
+                                                         TrinityStronglyConnectedComponent component,
+                                                         AEKey reservoir) {
             List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
             LinkedHashMap<AEKey, TrinityPatternVariant> producerByKey = new LinkedHashMap<>();
             LinkedHashSet<AEKey> ambiguous = new LinkedHashSet<>();
@@ -1064,9 +1063,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         }
 
         private TrinityAlgorithmResult<ResidualResult> solveResidual(
-                                                                       Map<AEKey, BigInteger> requiredNet,
-                                                                       Map<AEKey, BigInteger> primitiveNet,
-                                                                       BigInteger repetitions) {
+                                                                     Map<AEKey, BigInteger> requiredNet,
+                                                                     Map<AEKey, BigInteger> primitiveNet,
+                                                                     BigInteger repetitions) {
             LinkedHashMap<AEKey, BigInteger> requirements = new LinkedHashMap<>();
             requiredNet.forEach((key, amount) -> {
                 if (!key.equals(this.reservoir)) {
