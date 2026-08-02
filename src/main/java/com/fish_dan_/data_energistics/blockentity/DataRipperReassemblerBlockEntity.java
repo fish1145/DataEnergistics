@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
@@ -96,12 +97,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int KEY_INPUT_SLOT = 0;
     public static final int KEY_OUTPUT_SLOT = 1;
     public static final int KEY_SLOT_COUNT = 2;
-    public static final int FLUID_INPUT_CAPACITY = 64_000;
-    public static final int FLUID_OUTPUT_CAPACITY = 64_000;
-    public static final long KEY_INPUT_CAPACITY = 6_400_000L;
-    public static final long KEY_OUTPUT_CAPACITY = 6_400_000L;
+    public static final int FLUID_INPUT_CAPACITY = 256_000;
+    public static final int FLUID_OUTPUT_CAPACITY = 256_000;
+    public static final long KEY_INPUT_CAPACITY = 25_600_000L;
+    public static final long KEY_OUTPUT_CAPACITY = 25_600_000L;
     public static final int MAX_PROGRESS = 200;
-    public static final int UPGRADE_SLOTS = 4;
+    public static final int UPGRADE_SLOTS = 5;
+    public static final int BASE_PARALLEL = 1;
+    public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 8;
+    public static final int ITEM_SLOT_CAPACITY = 256;
     public static final double ENERGY_CAPACITY = 160_000.0D;
 
     private static final String STORAGE_TAG = "storage";
@@ -122,7 +126,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
-    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
+    private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     @Getter
@@ -172,6 +176,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + ITEM_INPUT_SLOT_COUNT;
             }
         });
+        initializeItemSlotCapacities();
         syncMenuFluidsFromTanks();
     }
 
@@ -290,6 +295,27 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.fluidOutputTankA.getCapacity();
     }
 
+    public int getParallel() {
+        return computeParallel(this.upgrades.getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+    }
+
+    public int getItemSlotCapacity() {
+        return ITEM_SLOT_CAPACITY;
+    }
+
+    public long getKeyInputCapacity() {
+        return KEY_INPUT_CAPACITY;
+    }
+
+    public long getKeyOutputCapacity() {
+        return KEY_OUTPUT_CAPACITY;
+    }
+
+    public static int computeParallel(int energyCardCount) {
+        int installedCards = Math.max(0, energyCardCount);
+        return installedCards == 0 ? BASE_PARALLEL : BASE_PARALLEL * installedCards * PARALLEL_MULTIPLIER_PER_ENERGY_CARD;
+    }
+
     public boolean isAutoExportEnabled() {
         return this.configManager.getSetting(Settings.AUTO_EXPORT) == YesNo.YES;
     }
@@ -342,8 +368,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
+        this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.fluidInputTankA.readFromNBT(registries, data.getCompound(FLUID_INPUT_A_TAG));
         this.fluidInputTankB.readFromNBT(registries, data.getCompound(FLUID_INPUT_B_TAG));
         this.fluidOutputTankA.readFromNBT(registries, data.getCompound(FLUID_OUTPUT_A_TAG));
@@ -532,6 +558,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         markForClientUpdate();
     }
 
+    private void initializeItemSlotCapacities() {
+        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
+            this.storage.setMaxStackSize(slot, ITEM_SLOT_CAPACITY);
+        }
+    }
+
     private void processRecipe() {
         if (!isOnline()) {
             resetProcessingState();
@@ -566,13 +598,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        RecipeProcessingState processingState = captureRecipeProcessingState();
-        if (!consumeRecipeInputs(recipe) || !insertRecipeOutputs(recipe, itemOutputs)) {
-            restoreRecipeProcessingState(processingState);
-            resetProcessingState();
-            saveChanges();
-            markForClientUpdate();
-            return;
+        for (int batch = 0; batch < getParallel(); batch++) {
+            List<ItemStack> batchOutputs = batch == 0 ? itemOutputs : recipe.getCraftedItemOutputs();
+            if (!canAcceptItemOutputs(recipe, batchOutputs)) {
+                break;
+            }
+
+            RecipeProcessingState processingState = captureRecipeProcessingState();
+            if (!consumeRecipeInputs(recipe) || !insertRecipeOutputs(recipe, batchOutputs)) {
+                restoreRecipeProcessingState(processingState);
+                break;
+            }
         }
 
         resetProcessingState();
@@ -764,6 +800,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean canAcceptFluidOutputs(DataRipperReassemblerRecipe recipe) {
         FluidStack simulatedA = this.fluidOutputTankA.getFluid().copy();
         FluidStack simulatedB = this.fluidOutputTankB.getFluid().copy();
+        int outputCapacity = getFluidOutputCapacity();
 
         for (GenericStack output : recipe.getFluidOutputs()) {
             if (!(output.what() instanceof AEFluidKey fluidKey) || output.amount() <= 0 || output.amount() > Integer.MAX_VALUE) {
@@ -772,28 +809,28 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             int amount = (int) output.amount();
             if (matchesFluidKey(simulatedA, fluidKey)) {
-                if ((long) simulatedA.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                if ((long) simulatedA.getAmount() + amount > outputCapacity) {
                     return false;
                 }
                 simulatedA.setAmount(simulatedA.getAmount() + amount);
                 continue;
             }
             if (matchesFluidKey(simulatedB, fluidKey)) {
-                if ((long) simulatedB.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                if ((long) simulatedB.getAmount() + amount > outputCapacity) {
                     return false;
                 }
                 simulatedB.setAmount(simulatedB.getAmount() + amount);
                 continue;
             }
             if (simulatedA.isEmpty()) {
-                if ((long) simulatedA.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                if ((long) simulatedA.getAmount() + amount > outputCapacity) {
                     return false;
                 }
                 simulatedA = fluidKey.toStack(amount);
                 continue;
             }
             if (simulatedB.isEmpty()) {
-                if ((long) simulatedB.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                if ((long) simulatedB.getAmount() + amount > outputCapacity) {
                     return false;
                 }
                 simulatedB = fluidKey.toStack(amount);
@@ -812,24 +849,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
-            return keyOutput.amount() <= KEY_OUTPUT_CAPACITY;
+            return keyOutput.amount() <= getKeyOutputCapacity();
         }
 
         if (!this.keyOutputStack.what().equals(keyOutput.what())) {
             return false;
         }
 
-        return keyOutput.amount() <= KEY_OUTPUT_CAPACITY - this.keyOutputStack.amount();
+        return keyOutput.amount() <= getKeyOutputCapacity() - this.keyOutputStack.amount();
     }
 
     private boolean insertKeyOutput(GenericStack stack) {
-        if (stack.what() == null || stack.amount() <= 0 || stack.amount() > KEY_OUTPUT_CAPACITY) {
+        if (stack.what() == null || stack.amount() <= 0 || stack.amount() > getKeyOutputCapacity()) {
             return false;
         }
         if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
             this.keyOutputStack = new GenericStack(stack.what(), stack.amount());
         } else {
-            if (!this.keyOutputStack.what().equals(stack.what()) || stack.amount() > KEY_OUTPUT_CAPACITY - this.keyOutputStack.amount()) {
+            if (!this.keyOutputStack.what().equals(stack.what()) || stack.amount() > getKeyOutputCapacity() - this.keyOutputStack.amount()) {
                 return false;
             }
             this.keyOutputStack = new GenericStack(stack.what(), this.keyOutputStack.amount() + stack.amount());
@@ -883,7 +920,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         int slotLimit = this.storage.getSlotLimit(slot);
 
         if (current.isEmpty()) {
-            int inserted = Math.min(stack.getCount(), Math.min(slotLimit, stack.getMaxStackSize()));
+            int inserted = Math.min(stack.getCount(), slotLimit);
             ItemStack newStack = stack.copyWithCount(inserted);
             if (simulated != null) {
                 simulated[outputIndex] = newStack;
@@ -900,7 +937,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return stack;
         }
 
-        int maxCount = Math.min(slotLimit, current.getMaxStackSize());
+        int maxCount = slotLimit;
         int free = maxCount - current.getCount();
         if (free <= 0) {
             return stack;
@@ -1248,7 +1285,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int maxCount = Math.min(this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i), current.getMaxStackSize());
+            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
             int free = maxCount - current.getCount();
             if (free <= 0) {
                 continue;
@@ -1265,7 +1302,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int maxCount = Math.min(this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i), prototype.getMaxStackSize());
+            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
             if (maxCount <= 0) {
                 continue;
             }
@@ -1285,10 +1322,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         int remaining = (int) amount;
         if (matchesFluidKey(state.fluidInputA, fluidKey)) {
-            return fillSimulatedTank(state, true, fluidKey, remaining, FLUID_INPUT_CAPACITY);
+            return fillSimulatedTank(state, true, fluidKey, remaining, getFluidInputCapacity());
         }
         if (matchesFluidKey(state.fluidInputB, fluidKey)) {
-            return fillSimulatedTank(state, false, fluidKey, remaining, FLUID_INPUT_CAPACITY);
+            return fillSimulatedTank(state, false, fluidKey, remaining, getFluidInputCapacity());
         }
 
         if (state.fluidInputA.isEmpty()) {
@@ -1321,7 +1358,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean setSimulatedTank(PatternPushState state, boolean firstTank, AEFluidKey fluidKey, int amount) {
-        if (amount > FLUID_INPUT_CAPACITY) {
+        if (amount > getFluidInputCapacity()) {
             return false;
         }
 
@@ -1335,7 +1372,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canAcceptGenericKeyInput(PatternPushState state, AEKey key, long amount) {
-        if (amount <= 0 || amount > KEY_INPUT_CAPACITY) {
+        if (amount <= 0 || amount > getKeyInputCapacity()) {
             return amount <= 0;
         }
 
@@ -1349,7 +1386,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         long updatedAmount = state.keyInput.amount() + amount;
-        if (updatedAmount > KEY_INPUT_CAPACITY) {
+        if (updatedAmount > getKeyInputCapacity()) {
             return false;
         }
 
@@ -1608,7 +1645,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 this.keyInputStack = null;
             } else {
-                this.keyInputStack = clampKeyStack(stack, KEY_INPUT_CAPACITY);
+                this.keyInputStack = clampKeyStack(stack, getKeyInputCapacity());
             }
             saveChanges();
             markForClientUpdate();
@@ -1633,7 +1670,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 this.keyOutputStack = null;
             } else {
-                this.keyOutputStack = clampKeyStack(stack, KEY_OUTPUT_CAPACITY);
+                this.keyOutputStack = clampKeyStack(stack, getKeyOutputCapacity());
             }
             saveChanges();
             markForClientUpdate();
@@ -1697,12 +1734,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public long getMaxAmount(AEKey key) {
-            return isAllowedMenuKey(key) ? Math.max(KEY_INPUT_CAPACITY, KEY_OUTPUT_CAPACITY) : 0L;
+            return isAllowedMenuKey(key) ? Math.max(getKeyInputCapacity(), getKeyOutputCapacity()) : 0L;
         }
 
         @Override
         public long getCapacity(AEKeyType keyType) {
-            return isSupportedType(keyType) ? Math.max(KEY_INPUT_CAPACITY, KEY_OUTPUT_CAPACITY) : 0L;
+            return isSupportedType(keyType) ? Math.max(getKeyInputCapacity(), getKeyOutputCapacity()) : 0L;
         }
 
         @Override
@@ -1726,7 +1763,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 if (!isAllowedMenuKey(newStack.what()) || !isCompatibleKeyReplacement(keyInputStack, newStack)) {
                     return;
                 }
-                normalized = clampKeyStack(newStack, KEY_INPUT_CAPACITY);
+                normalized = clampKeyStack(newStack, getKeyInputCapacity());
             }
 
             boolean changed = keyInputStack == null ? normalized != null : !keyInputStack.equals(normalized);
@@ -1759,7 +1796,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             long stored = keyInputStack == null ? 0L : keyInputStack.amount();
-            long inserted = Math.min(amount, Math.max(0L, KEY_INPUT_CAPACITY - stored));
+            long inserted = Math.min(amount, Math.max(0L, getKeyInputCapacity() - stored));
             if (inserted <= 0L) {
                 return 0L;
             }
@@ -1967,6 +2004,64 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 case 3 -> fluidOutputTankB;
                 default -> throw new IndexOutOfBoundsException("Invalid tank index: " + tank);
             };
+        }
+    }
+
+    private final class ReassemblerItemInventory extends AppEngInternalInventory {
+
+        private ReassemblerItemInventory() {
+            super(DataRipperReassemblerBlockEntity.this, STORAGE_SLOTS);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty() || !isItemValid(slot, stack)) {
+                return stack;
+            }
+
+            ItemStack inSlot = getStackInSlot(slot);
+            if (!inSlot.isEmpty() && !ItemStack.isSameItemSameComponents(inSlot, stack)) {
+                return stack;
+            }
+
+            int currentAmount = inSlot.isEmpty() ? 0 : inSlot.getCount();
+            int inserted = Math.min(stack.getCount(), Math.max(0, getSlotLimit(slot) - currentAmount));
+            if (inserted <= 0) {
+                return stack;
+            }
+
+            if (!simulate) {
+                ItemStack updated = inSlot.isEmpty() ? stack.copy() : inSlot.copy();
+                updated.setCount(currentAmount + inserted);
+                setItemDirect(slot, updated);
+            }
+            if (inserted >= stack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+
+            ItemStack remainder = stack.copy();
+            remainder.shrink(inserted);
+            return remainder;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            ItemStack stack = getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+
+            int extracted = Math.min(stack.getCount(), amount);
+            if (extracted <= 0) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack result = stack.copyWithCount(extracted);
+            if (!simulate) {
+                ItemStack remainder = stack.copy();
+                remainder.shrink(extracted);
+                setItemDirect(slot, remainder);
+            }
+            return result;
         }
     }
 

@@ -60,6 +60,11 @@
 			"left": 8,
 			"bottom": 26,
 			"grid": "HORIZONTAL"
+		},
+		"TOOLBOX": {
+			"right": 1,
+			"bottom": 60,
+			"grid": "BREAK_AFTER_3COLS"
 		}
 	},
 	"text": {
@@ -92,6 +97,16 @@
 		"progressBar": {
 			"left": 164,
 			"top": 39
+		},
+		"toolbox": {
+			"right": 2,
+			"bottom": 66,
+			"width": 59,
+			"height": 66
+		},
+		"upgrades": {
+			"left": 174,
+			"top": 0
 		}
 	}
 }

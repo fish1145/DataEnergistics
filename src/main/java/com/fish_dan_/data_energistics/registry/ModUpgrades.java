@@ -136,7 +136,8 @@ public final class ModUpgrades {
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.FUZZY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 4, "block.data_energistics.data_reassembler");
+        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 2, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 5, "block.data_energistics.data_reassembler");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DIGITAL_STORAGE_DEPOT.get(), 4, "block.data_energistics.digital_storage_depot");

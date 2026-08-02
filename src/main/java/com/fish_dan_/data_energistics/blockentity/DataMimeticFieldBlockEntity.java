@@ -110,7 +110,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
     public static final long KEY_INPUT_CAPACITY = 640_000L;
-    private static final int HIDDEN_BUFFER_SLOTS = 64;
+    /** Maximum hidden output slots: each carrier reserves 64 slots. */
+    private static final int HIDDEN_SLOTS_PER_CARRIER = 64;
+    private static final int HIDDEN_BUFFER_SLOTS = SLOT_COUNT * HIDDEN_SLOTS_PER_CARRIER;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
     private static final long DATA_FLOW_PER_WORK_CYCLE = 3_200L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;

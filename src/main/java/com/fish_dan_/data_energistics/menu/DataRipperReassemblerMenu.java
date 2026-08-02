@@ -8,10 +8,12 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
+import appeng.api.inventories.InternalInventory;
 import appeng.api.util.IConfigManager;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
@@ -120,7 +122,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     protected void setupInventorySlots() {
         var storage = this.getHost().getStorageInventory();
         for (int i = 0; i < DataRipperReassemblerBlockEntity.ITEM_INPUT_SLOT_COUNT; i++) {
-            this.addSlot(new AppEngSlot(storage, DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT + i), SlotSemantics.MACHINE_INPUT);
+            this.addSlot(new ReassemblerItemSlot(storage, DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT + i), SlotSemantics.MACHINE_INPUT);
         }
         this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventoryA(), 0), SlotSemantics.STORAGE);
         this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventoryB(), 0), FLUID_INPUT_B);
@@ -128,9 +130,9 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         this.addSlot(new AppEngSlot(this.getHost().getFluidOutputMenuInventoryB(), 0), FLUID_OUTPUT_B);
         this.addSlot(new AppEngSlot(this.getHost().getKeyMenuInventory(), 0), KEY_INPUT);
         this.addSlot(new AppEngSlot(this.getHost().getKeyOutputMenuInventory(), 0), KEY_OUTPUT);
-        this.addSlot(new OutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT, null), SlotSemantics.MACHINE_OUTPUT);
-        this.addSlot(new OutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 1, null), ITEM_OUTPUT_B);
-        this.addSlot(new OutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 2, null), ITEM_OUTPUT_C);
+        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT), SlotSemantics.MACHINE_OUTPUT);
+        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 1), ITEM_OUTPUT_B);
+        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 2), ITEM_OUTPUT_C);
     }
 
     @Override
@@ -178,11 +180,11 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     }
 
     public long getKeyInputCapacity() {
-        return DataRipperReassemblerBlockEntity.KEY_INPUT_CAPACITY;
+        return this.getHost().getKeyInputCapacity();
     }
 
     public long getKeyOutputCapacity() {
-        return DataRipperReassemblerBlockEntity.KEY_OUTPUT_CAPACITY;
+        return this.getHost().getKeyOutputCapacity();
     }
 
     public void sendSetAutoExport(boolean enabled) {
@@ -288,5 +290,29 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
             mask |= 1 << side.ordinal();
         }
         return mask;
+    }
+
+    private static final class ReassemblerItemSlot extends AppEngSlot {
+
+        private ReassemblerItemSlot(InternalInventory inv, int invSlot) {
+            super(inv, invSlot);
+        }
+
+        @Override
+        public int getMaxStackSize(ItemStack stack) {
+            return this.getMaxStackSize();
+        }
+    }
+
+    private static final class ReassemblerOutputSlot extends OutputSlot {
+
+        private ReassemblerOutputSlot(InternalInventory inv, int invSlot) {
+            super(inv, invSlot, null);
+        }
+
+        @Override
+        public int getMaxStackSize(ItemStack stack) {
+            return this.getMaxStackSize();
+        }
     }
 }
