@@ -121,6 +121,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     demand,
                     inventory,
                     producible,
+                    firingSolve.value().firings(),
                     optimalExternal,
                     optimalSeed,
                     optimalFirings,
@@ -595,6 +596,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         private final Map<AEKey, BigInteger> available;
         private final Set<AEKey> producibleInputs;
         private final Set<AEKey> externalKeys;
+        private final Map<TrinityPatternVariant, BigInteger> preferredFirings;
         private final BigInteger optimalExternal;
         private final BigInteger optimalSeed;
         private final BigInteger optimalFirings;
@@ -610,6 +612,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                                 TrinityCycleDemand demand,
                                 Map<AEKey, BigInteger> available,
                                 Set<AEKey> producibleInputs,
+                                Map<TrinityPatternVariant, BigInteger> preferredFirings,
                                 BigInteger optimalExternal,
                                 BigInteger optimalSeed,
                                 BigInteger optimalFirings,
@@ -622,6 +625,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             this.available = available;
             this.producibleInputs = producibleInputs;
             this.externalKeys = externalReserveKeys(variants, internalKeys, demand);
+            this.preferredFirings = preferredFirings;
             this.optimalExternal = optimalExternal;
             this.optimalSeed = optimalSeed;
             this.optimalFirings = optimalFirings;
@@ -631,6 +635,13 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         }
 
         private TrinityAlgorithmResult<TrinityMipCyclePlan> search() {
+            evaluate(this.preferredFirings);
+            if (this.terminal.isPresent()) {
+                return this.terminal.orElseThrow();
+            }
+            if (hasProvenMinimumSeed()) {
+                return TrinityAlgorithmResult.success(this.best.orElseThrow());
+            }
             BigInteger[] counts = new BigInteger[this.variants.size()];
             enumerate(0, this.optimalFirings, counts);
             if (this.terminal.isPresent()) {
@@ -679,15 +690,19 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         }
 
         private void evaluate(BigInteger[] counts) {
-            if (!this.budget.consume(1)) {
-                this.terminal = Optional.of(searchLimit(this.budget));
-                return;
-            }
             LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
             for (int index = 0; index < counts.length; index++) {
                 if (counts[index].signum() > 0) {
                     firings.put(this.variants.get(index), counts[index]);
                 }
+            }
+            evaluate(firings);
+        }
+
+        private void evaluate(Map<TrinityPatternVariant, BigInteger> firings) {
+            if (!this.budget.consume(1)) {
+                this.terminal = Optional.of(searchLimit(this.budget));
+                return;
             }
             Optional<CandidateAccounting> candidateAccounting = accountCandidate(
                     firings,

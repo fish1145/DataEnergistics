@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicComponentPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCycleSequence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityMixedIntegerCycleSolver;
@@ -34,6 +35,7 @@ public interface TrinityGraphPlanner {
                 TrinityAcyclicDemandPropagator.create(),
                 TrinityDeterministicCycleSequence.create(),
                 TrinityDeterministicCyclePlanner.create(),
+                TrinityDeterministicComponentPlanner.create(),
                 TrinityMixedIntegerCycleSolver.create(),
                 TrinityPlanByteEstimator.create());
     }

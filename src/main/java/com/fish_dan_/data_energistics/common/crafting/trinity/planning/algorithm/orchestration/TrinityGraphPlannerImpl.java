@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicComponentPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicComponentPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCycleSequence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityMipCyclePlan;
@@ -60,6 +62,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
     private final TrinityDeterministicCycleSequence deterministicCycleSequence;
     private final TrinityDeterministicCyclePlanner deterministicCyclePlanner;
+    private final TrinityDeterministicComponentPlanner deterministicComponentPlanner;
     private final TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver;
     private final TrinityPlanByteEstimator byteEstimator;
 
@@ -68,6 +71,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                             TrinityAcyclicDemandPropagator acyclicDemandPropagator,
                             TrinityDeterministicCycleSequence deterministicCycleSequence,
                             TrinityDeterministicCyclePlanner deterministicCyclePlanner,
+                            TrinityDeterministicComponentPlanner deterministicComponentPlanner,
                             TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver,
                             TrinityPlanByteEstimator byteEstimator) {
         this.variantExpander = variantExpander;
@@ -75,6 +79,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         this.acyclicDemandPropagator = acyclicDemandPropagator;
         this.deterministicCycleSequence = deterministicCycleSequence;
         this.deterministicCyclePlanner = deterministicCyclePlanner;
+        this.deterministicComponentPlanner = deterministicComponentPlanner;
         this.mixedIntegerCycleSolver = mixedIntegerCycleSolver;
         this.byteEstimator = byteEstimator;
     }
@@ -545,6 +550,34 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                 }
             }
 
+            long componentStartedNanos = System.nanoTime();
+            Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> deterministicComponent =
+                    deterministicComponentPlanner.plan(
+                            component,
+                            demand,
+                            this.inventory,
+                            producibleInputs,
+                            this.settings.maxScheduleStates(),
+                            this.control);
+            long componentNanos = Math.max(0L, System.nanoTime() - componentStartedNanos);
+            if (deterministicComponent.isPresent()) {
+                TrinityAlgorithmResult<TrinityDeterministicComponentPlan> deterministic =
+                        deterministicComponent.orElseThrow();
+                if (!deterministic.successful()) {
+                    return TrinityAlgorithmResult.failure(deterministic.diagnostic());
+                }
+                TrinityDeterministicComponentPlan plan = deterministic.value();
+                return TrinityAlgorithmResult.success(new CycleSolution(
+                        component.index(),
+                        plan.schedule().batches(),
+                        BigInteger.ONE,
+                        plan.minimumSeed(),
+                        plan.initialInputs(),
+                        plan.netChange(),
+                        plan.schedule().statesVisited(),
+                        componentNanos));
+            }
+
             TrinityAlgorithmResult<TrinityMipCyclePlan> mip = mixedIntegerCycleSolver.solve(
                     component,
                     demand,
@@ -567,7 +600,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     plan.initialInputs(),
                     plan.netChange(),
                     plan.schedule().statesVisited(),
-                    plan.solverNanos()));
+                    Math.addExact(componentNanos, plan.solverNanos())));
         }
 
         private TrinityAlgorithmResult<PlanAssembly> satisfyCycleInputs(
