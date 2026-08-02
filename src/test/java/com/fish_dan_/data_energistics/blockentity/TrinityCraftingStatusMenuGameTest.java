@@ -82,7 +82,11 @@ public final class TrinityCraftingStatusMenuGameTest {
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning access hatch"));
         TrackingServerPlayer player = new TrackingServerPlayer(helper);
-        Target target = new Target(host.getHostId(), runtime, worker, grid);
+        var route = host.craftingExecutionRoute();
+        if (route == null) {
+            throw new GameTestAssertException("Trinity fixture has no crafting execution route");
+        }
+        Target target = new Target(host.getHostId(), runtime, worker, route);
         CraftingStatusMenu menu = openSelectedMenu(player, hatch, target);
         TargetedMenu targetedMenu = requireTargetedMenu(menu);
 

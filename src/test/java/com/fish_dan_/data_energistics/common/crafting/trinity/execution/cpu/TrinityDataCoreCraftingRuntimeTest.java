@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
@@ -2999,6 +3000,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         public @Nullable IGrid accessGrid() {
             return this.grid;
         }
+
+        @Override
+        public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
+            return this.grid == null ? null : new TrinityCraftingExecutionRoute(this.grid, this.grid, 0L, 0L);
+        }
     }
 
     private static final class NetworkedTestHost extends TrinityDataCoreBlockEntity {
@@ -3028,6 +3034,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public IGrid accessGrid() {
             return this.grid;
+        }
+
+        @Override
+        public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
+            return this.cpuProviderAvailable ?
+                    new TrinityCraftingExecutionRoute(this.grid, this.grid, 0L, 0L) : null;
         }
 
         @Override

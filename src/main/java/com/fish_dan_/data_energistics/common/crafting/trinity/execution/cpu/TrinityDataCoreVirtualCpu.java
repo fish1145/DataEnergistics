@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
 
 import net.minecraft.network.chat.Component;
@@ -251,11 +252,12 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return true only while this remains a current CPU partition on the host's active lease grid
      */
     boolean isActiveOnGrid(IGrid grid) {
-        return this.host.isCpuProviderAvailable() && this.runtime.isCurrentCpu(this) && this.host.accessGrid() == grid;
+        TrinityCraftingExecutionRoute route = this.host.craftingExecutionRoute();
+        return route != null && route.serviceGrid() == grid && this.runtime.isCurrentCpu(this);
     }
 
     boolean isOnline() {
-        return this.host.isCpuProviderAvailable() && this.host.accessGrid() != null;
+        return this.host.craftingExecutionRoute() != null;
     }
 
     @Override
@@ -391,7 +393,8 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      */
     @Nullable
     IGrid grid() {
-        return this.host.accessGrid();
+        TrinityCraftingExecutionRoute route = this.host.craftingExecutionRoute();
+        return route == null ? null : route.serviceGrid();
     }
 
     /**

@@ -14,6 +14,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
@@ -91,6 +94,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                            implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER =
+            new TrinityCraftingRouteResolverImpl();
     /** Stable target identity for the bound Trinity pattern catalog. */
     private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
     private static final String TERMINAL_CONFIG_TAG = "terminal_config";
@@ -761,7 +766,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         if (host == null) {
             return TargetState.STALE_ROUTE;
         }
-        return target.currentState(host.getHostId(), boundCraftingRuntime(), accessGrid());
+        return target.currentState(host.getHostId(), boundCraftingRuntime(), craftingExecutionRoute());
     }
 
     /**
@@ -779,7 +784,29 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             throw new IllegalArgumentException("Trinity CPU status target cannot be null");
         }
         TrinityDataCoreBlockEntity host = boundHost(false);
-        return host != null && target.isRouteCurrent(host.getHostId(), boundCraftingRuntime(), accessGrid());
+        return host != null && target.isRouteCurrent(
+                host.getHostId(),
+                boundCraftingRuntime(),
+                craftingExecutionRoute());
+    }
+
+    /**
+     * Resolves the current CPU execution route while retaining {@link #accessGrid()} as the physical lease identity.
+     *
+     * @return immutable execution route, or {@code null} while this hatch does not own a usable CPU lease
+     */
+    public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host == null || !host.isLeaseOwner(this) ? null : host.craftingExecutionRoute();
+    }
+
+    /** Resolves this exact hatch node against the lease epoch already validated by its host. */
+    @Nullable
+    TrinityCraftingExecutionRoute resolveCraftingExecutionRoute(long leaseEpoch) {
+        if (!isCandidateOnline()) {
+            return null;
+        }
+        return CRAFTING_ROUTE_RESOLVER.resolve(this.getMainNode().getNode(), leaseEpoch);
     }
 
     public @Nullable IGrid connectedGrid() {
@@ -1043,18 +1070,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private CpuPublication resolveCraftingCpuPublication() {
         TrinityDataCoreCraftingRuntime runtime = boundCraftingRuntime();
-        if (runtime == null) {
+        TrinityCraftingExecutionRoute route = craftingExecutionRoute();
+        if (runtime == null || route == null) {
             return null;
         }
 
         IGridNode node = this.getMainNode().getNode();
-        IGrid grid = node.getGrid();
-        if (!(grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry)) {
+        IGrid serviceGrid = route.serviceGrid();
+        if (!(serviceGrid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry)) {
             LOGGER.error("Cannot publish Trinity CPU at {} because the AE2 crafting service has no runtime registry",
                     this.worldPosition);
             return null;
         }
-        return new CpuPublication(registry, grid, node, runtime);
+        return new CpuPublication(registry, route, node, runtime);
     }
 
     @Nullable
@@ -1091,7 +1119,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     private static void notifyCraftingCpuChanged(CpuPublication publication) {
-        publication.grid().postEvent(new GridCraftingCpuChange(publication.node()));
+        publication.route().serviceGrid().postEvent(new GridCraftingCpuChange(publication.node()));
     }
 
     private void refreshTerminalPartitionsSafely() {
@@ -1203,17 +1231,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     private record CpuPublication(TrinityCraftingRuntimeRegistry registry,
-                                  IGrid grid,
+                                  TrinityCraftingExecutionRoute route,
                                   IGridNode node,
                                   TrinityDataCoreCraftingRuntime runtime) {
 
         private boolean matches(CpuPublication other) {
-            return this.registry == other.registry && this.grid == other.grid && this.node == other.node &&
+            return this.registry == other.registry && this.route.isCurrent(other.route) && this.node == other.node &&
                     this.runtime == other.runtime;
         }
 
         private boolean hasSameNotificationTarget(CpuPublication other) {
-            return this.grid == other.grid && this.node == other.node;
+            return this.route.serviceGrid() == other.route.serviceGrid() && this.node == other.node;
         }
     }
 

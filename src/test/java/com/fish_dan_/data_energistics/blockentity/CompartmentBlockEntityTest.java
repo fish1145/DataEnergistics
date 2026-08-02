@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
+import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
@@ -15,6 +16,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
@@ -105,6 +107,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -670,6 +673,8 @@ public final class CompartmentBlockEntityTest {
         TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().getFirst();
         DataDistributionTowerBlockEntity tower = placeTowerNearAccessHatch(helper, hatch.getBlockPos());
         AtomicReference<TestGridPower> towerPower = new AtomicReference<>();
+        AtomicReference<IGrid> effectiveServiceGrid = new AtomicReference<>();
+        AtomicLong initialMembershipGeneration = new AtomicLong();
         registerGridPowerCleanup(helper, List.of(towerPower));
         AEItemKey probe = AEItemKey.of(Items.EMERALD);
 
@@ -688,6 +693,8 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(towerNode.isActive(), "Powered data distribution tower must be active");
                     helper.assertTrue(hatch.getMainNode().getNode().isOnline(),
                             "Trinity access hatch must already be online on its original grid");
+                    initialMembershipGeneration.set(
+                            ((VirtualGridNode) hatch.getMainNode().getNode()).virtualMembershipGeneration());
                 })
                 .thenExecute(() -> {
                     long inserted = TrinityDataCoreStorageSavedData.get(helper.getLevel().getServer()).insert(
@@ -697,6 +704,27 @@ public final class CompartmentBlockEntityTest {
                             Actionable.MODULATE);
                     helper.assertValueEqual(inserted, 11L, "Tower bridge probe must enter Trinity storage");
                     hatch.refreshTrinityStorageContent();
+
+                    IGridNode hatchNode = hatch.getMainNode().getNode();
+                    IGrid towerGrid = tower.getMainNode().getNode().getGrid();
+                    VirtualGridNode virtualNode = (VirtualGridNode) hatchNode;
+                    var owningRoute = host.craftingExecutionRoute();
+                    if (owningRoute == null) {
+                        throw new GameTestAssertException("Local Trinity CPU route was not resolved");
+                    }
+                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    virtualNode.updateVirtualMembership(towerGrid, true);
+                    try {
+                        helper.assertTrue(
+                                routeResolver.resolve(hatchNode, owningRoute.leaseEpoch()) == null,
+                                "An unregistered active virtual member must not expose a crafting route");
+                    } finally {
+                        virtualNode.updateVirtualMembership(null, false);
+                    }
+                    var restoredLocalRoute = routeResolver.resolve(hatchNode, owningRoute.leaseEpoch());
+                    helper.assertTrue(restoredLocalRoute != null &&
+                            restoredLocalRoute.serviceGrid() == hatchNode.getGrid(),
+                            "A fully released node must restore its physical-grid crafting route");
 
                     ConnectorBindResult result = tower.bindTargetFromConnector(hatch.getBlockPos());
                     helper.assertTrue(result.success(), "Data distribution tower must bind the ME access hatch");
@@ -708,6 +736,7 @@ public final class CompartmentBlockEntityTest {
                     IGridNode towerNode = tower.getMainNode().getNode();
                     IGridNode hatchNode = hatch.getMainNode().getNode();
                     IGrid towerGrid = towerNode.getGrid();
+                    effectiveServiceGrid.set(towerGrid);
                     TargetTransferInfo transferInfo = tower.getTargetTransferInfo(hatch.getBlockPos());
                     int expectedChannels = hatchNode.hasFlag(GridFlags.REQUIRE_CHANNEL) ? 1 : 0;
                     helper.assertValueEqual(
@@ -727,10 +756,64 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(
                             ((VirtualGridBridge) towerGrid).containsIncomingVirtualMember(hatchNode),
                             "The ME access hatch must be registered as a primary-grid virtual member");
+                    VirtualGridNode virtualNode = (VirtualGridNode) hatchNode;
+                    helper.assertTrue(virtualNode.isVirtualMemberActive(),
+                            "The ME access hatch must expose an active virtual membership");
+                    helper.assertTrue(virtualNode.virtualPrimaryGrid() == towerGrid,
+                            "The ME access hatch must resolve the tower grid as its primary service grid");
+                    helper.assertTrue(
+                            virtualNode.virtualMembershipGeneration() > initialMembershipGeneration.get(),
+                            "Virtual membership activation must advance its route generation");
+                    var craftingRoute = host.craftingExecutionRoute();
+                    if (craftingRoute == null) {
+                        throw new GameTestAssertException("Virtual Trinity CPU route was not resolved");
+                    }
+                    helper.assertTrue(craftingRoute.owningGrid() == hatchNode.getGrid(),
+                            "Trinity crafting route must retain the hatch's physical owning grid");
+                    helper.assertTrue(craftingRoute.serviceGrid() == towerGrid,
+                            "Trinity crafting route must execute through the tower service grid");
+                    helper.assertValueEqual(
+                            craftingRoute.membershipGeneration(),
+                            virtualNode.virtualMembershipGeneration(),
+                            "Trinity crafting route must bind the current virtual-membership generation");
+                    helper.assertValueEqual(
+                            publishedCpuCount(towerGrid, host.getCpuPartitions()),
+                            (long) host.getCpuPartitions().size(),
+                            "The tower crafting service must publish every Trinity CPU exactly once");
                     helper.assertValueEqual(
                             availableAmount(towerGrid, probe),
                             11L,
                             "A terminal on the tower grid must see Trinity storage through the ME access hatch");
+                })
+                .thenExecute(() -> {
+                    IGridNode hatchNode = hatch.getMainNode().getNode();
+                    IGrid serviceGrid = effectiveServiceGrid.get();
+                    VirtualGridNode virtualNode = (VirtualGridNode) hatchNode;
+                    var activeRoute = host.craftingExecutionRoute();
+                    if (activeRoute == null) {
+                        throw new GameTestAssertException("Active virtual Trinity CPU route was not resolved");
+                    }
+                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    virtualNode.updateVirtualMembership(serviceGrid, false);
+                    try {
+                        helper.assertTrue(
+                                routeResolver.resolve(hatchNode, activeRoute.leaseEpoch()) == null,
+                                "An inactive subordinate member must not fall back to its physical grid");
+                    } finally {
+                        virtualNode.updateVirtualMembership(serviceGrid, true);
+                    }
+                    var reactivatedRoute = routeResolver.resolve(hatchNode, activeRoute.leaseEpoch());
+                    helper.assertTrue(reactivatedRoute != null && !activeRoute.isCurrent(reactivatedRoute),
+                            "Reactivating the same primary grid must invalidate the previous membership route");
+                })
+                .thenExecute(() -> {
+                    ICraftingSubmitResult result = host.getCpuPartitions().getFirst().submitJob(
+                            effectiveServiceGrid.get(),
+                            waitingOutputPlan(AEItemKey.of(Items.DIAMOND), 1L),
+                            host.accessActionSource(),
+                            null);
+                    helper.assertTrue(result.successful(),
+                            "The bridged Trinity CPU must accept a job from its effective service grid");
                 })
                 .thenExecute(() -> destroyGridPower(towerPower))
                 .thenSucceed();

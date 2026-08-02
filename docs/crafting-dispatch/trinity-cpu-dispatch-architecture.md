@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：普通网格的 Phase 0、Phase 1、Phase 2 已实现；VirtualGrid 执行路由仍有 P0 身份缺口；Phase 3 至 Phase 5 尚未实现
+- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -96,10 +96,11 @@ Phase 0 至 Phase 2 已补齐：
 - 网格、provider 和 worker 物理调用预算；
 - 服务器提交时间预算与供应器准备/提交作用域核算。
 
-VirtualGrid 合入后的当前 P0 缺口：主网格能够发布 incoming virtual member 的 Trinity CPU，但 CPU 提交、runtime 激活和
-worker 执行仍使用物理 owning grid 判等。需要引入统一的 typed execution route，明确区分 `owningGrid`、
-`effectiveServiceGrid` 和 `membershipGeneration`；不能直接改写 `connectedGrid()` 或 `accessGrid()`，因为物理租约和菜单
-路由仍依赖 owning grid。
+VirtualGrid 的 P0 身份缺口已通过 typed execution route 修复。`TrinityCraftingExecutionRoute` 同时绑定物理
+`owningGrid`、实际提供 crafting/storage/energy 服务的 `serviceGrid`、access lease epoch 和 virtual membership
+generation。CPU 发布、提交、在线判定、状态菜单和输出路由统一使用 `serviceGrid`；`connectedGrid()`、`accessGrid()`、
+Access Hatch 选举和物理租约仍保留 owning grid 语义。inactive、未注册或代次不匹配的虚拟成员不产生可执行路由，旧菜单
+目标与后续 proposal 因完整 route token 不匹配而失效。
 
 仍未实现的部分为：
 
@@ -122,6 +123,7 @@ common.crafting.trinity
 │  ├─ commit      同步窗口与一次准入结果
 │  └─ provider    counted provider 契约
 ├─ execution.cpu  CPU runtime、worker、job 与派生索引
+├─ execution.route owning/service grid、lease 与 virtual membership 路由令牌
 ├─ execution      admission、pattern、runtime transaction 与持久状态机
 ├─ planning       graph、gateway、plan 与算法
 │  └─ algorithm.cycle
