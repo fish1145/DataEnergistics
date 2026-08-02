@@ -277,9 +277,11 @@ pattern 失效仍可在相同 revision 上重新发起计算。所有等待均�
 ready queue 和反向索引是派生状态，载入后确定性重建。schema 1 继续按普通线性作业恢复；未知 schema 和损坏数据
 fail fast、记录日志，且在能解析已有库存时只走统一回收路径。
 
-作业外层仍为 schema 2；其执行快照使用 schema 3 保存重试时钟基准，恢复时把 provider、动态材料和预算 retry 的剩余
-延迟重基到新会话 tick。旧执行 schema 2 的绝对 deadline 无法可靠换算，迁移时只令其立即到期一次，已接受 firing 仍以
-持久游标和 `waitingFor` 为准，不会重复派发。所有 durable 状态迁移通过 revision 统一触发宿主 dirty 标记。
+作业外层仍为 schema 2；其执行快照使用 schema 4。schema 3 引入重试时钟基准，恢复时把 provider、动态材料和预算 retry
+的剩余延迟重基到新会话 tick；schema 4 为每个 firing 保存不含输入余留物的真实声明输出，使 CPU 状态页可从紧凑游标精确
+推导剩余待合成量。旧执行 schema 2 的绝对 deadline 无法可靠换算，迁移时只令其立即到期一次；schema 2/3 没有声明输出
+元数据，恢复时记录警告并省略未知待合成行，不猜测数量。已接受 firing 仍以持久游标和 `waitingFor` 为准，不会重复派发。
+所有 durable 状态迁移通过 revision 统一触发宿主 dirty 标记。
 
 ## 9. 配置与线程
 
@@ -364,6 +366,7 @@ RUNTIME_DEADLOCK
 - 动态 variant 选择、服务器线程借料事务和 `RESERVED`/`COMMITTED`/`RELEASED` 守恒账本；
 - pattern signature 失效后的有界异步剩余量重规划，以及无可行方案时按 revision 等待；
 - 作业 schema 2 的阶段、repeat、seed、账本、封存输出和交付余量持久化，schema 1 普通作业继续恢复；
+- 执行快照 schema 4 的声明输出、紧凑剩余待合成投影和 schema 2/3 保守迁移；
 - `TrinityPlanAdmission` 统一显式目标、自动选择、fallback 和直接 CPU 的计划接纳语义。
 
 ### 11.4 已落地的数量与诊断轨道
@@ -374,7 +377,8 @@ RUNTIME_DEADLOCK
 - 玩家选择通过 AE2 `IActionSource` context 进入本次计算，机器和外部请求使用 COMMON 默认值；
 - 有合格 Trinity CPU 时并行启动 Trinity 与 AE2 Future，无合格 CPU 时不捕获图或库存并直接走 AE2；
 - 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果，并保留 AE2 结果与诊断；
-- 确认页显示 Trinity-only、循环动态材料警告和诊断；
+- 确认页显示 Trinity-only、循环动态材料警告、诊断以及与 AE2 原生计划一致的可用/待合成数量；
+- CPU 状态页从 stage/repeat 游标推导待合成量，并把已封存 completion buffer 计入已存储量；
 - 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。
 - 新计算和重算立即清除旧计划摘要；确认页只在新结果已经过下一轮 CPU 资格过滤后开放按钮与 Enter 提交。
 

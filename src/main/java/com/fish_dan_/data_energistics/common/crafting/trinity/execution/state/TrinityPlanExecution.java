@@ -102,7 +102,7 @@ public interface TrinityPlanExecution {
     }
 
     /**
-     * Restores schema 2 state and deterministically rebuilds its transient queues and indexes.
+     * Restores a supported compact execution snapshot and deterministically rebuilds its transient queues and indexes.
      *
      * @param tag         encoded execution state
      * @param registries  server registry lookup used by AE key codecs
@@ -247,6 +247,14 @@ public interface TrinityPlanExecution {
      * @return immutable exact seed reserve captured from the current plan
      */
     Map<AEKey, Long> seedReserve();
+
+    /**
+     * Reconstructs the exact pattern-declared outputs of every undispatched firing without expanding cycle repeats.
+     * Legacy schema 2/3 firings that predate output metadata are omitted instead of reporting invented values.
+     *
+     * @return immutable pending-output projection for AE2's crafting CPU status table
+     */
+    Map<AEKey, Long> pendingOutputs();
 
     /**
      * @return ownership ledger shared by dynamic material transactions

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Firing;
@@ -35,7 +36,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
- * Deterministic execution implementation with transient event indexes and strict schema 2 persistence.
+ * Deterministic execution implementation with transient event indexes and versioned persistence.
  */
 public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
 
@@ -138,6 +139,16 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             }
         }
         restored.seedReserve.putAll(snapshot.seedReserve());
+        boolean missingOutputProjection = restored.stages.values().stream()
+                .flatMap(stage -> stage.firings.stream())
+                .anyMatch(firing -> firing.outputs.isEmpty());
+        if (missingOutputProjection) {
+            Data_Energistics.LOGGER.warn(
+                    "Restored legacy Trinity execution without exact pending-output metadata; " +
+                            "CPU status omits unknown pending rows until replanning or completion: target={}, revision={}",
+                    restored.targetKey,
+                    restored.catalogRevision);
+        }
         restored.validateInstalledPlan();
         restored.validateRestoredCursors();
         restored.validateCompletionState();
@@ -457,6 +468,79 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     @Override
     public Map<AEKey, Long> seedReserve() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(this.seedReserve));
+    }
+
+    @Override
+    public Map<AEKey, Long> pendingOutputs() {
+        LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+        for (StageState stage : this.stages.values()) {
+            if (!stage.cycle) {
+                addDagPendingOutputs(outputs, stage);
+            }
+        }
+        for (RepeatState repeat : this.repeatBlocks.values()) {
+            addCyclePendingOutputs(outputs, repeat);
+        }
+        return Collections.unmodifiableMap(outputs);
+    }
+
+    private static void addDagPendingOutputs(Map<AEKey, Long> outputs, StageState stage) {
+        if (stage.completed) {
+            return;
+        }
+        for (int index = stage.currentFiring; index < stage.firings.size(); index++) {
+            FiringState firing = stage.firings.get(index);
+            long remaining = index == stage.currentFiring && firing.initialized ?
+                    firing.remainingCount :
+                    firing.plannedCount;
+            mergePendingOutputs(outputs, firing, remaining);
+        }
+    }
+
+    private void addCyclePendingOutputs(Map<AEKey, Long> outputs, RepeatState repeat) {
+        if (repeat.remainingRepetitions == 0L) {
+            return;
+        }
+        for (int stagePosition = 0; stagePosition < repeat.stageOrder.size(); stagePosition++) {
+            StageState stage = requireStage(repeat.stageOrder.get(stagePosition));
+            for (int firingIndex = 0; firingIndex < stage.firings.size(); firingIndex++) {
+                FiringState firing = stage.firings.get(firingIndex);
+                long remaining = cycleFiringRemainder(repeat, stage, stagePosition, firing, firingIndex);
+                mergePendingOutputs(outputs, firing, remaining);
+            }
+        }
+    }
+
+    private static long cycleFiringRemainder(RepeatState repeat,
+                                             StageState stage,
+                                             int stagePosition,
+                                             FiringState firing,
+                                             int firingIndex) {
+        if (repeat.waveCount == 0L || stagePosition > repeat.cursor ||
+                (stagePosition == repeat.cursor && firingIndex > stage.currentFiring)) {
+            return Math.multiplyExact(firing.plannedCount, repeat.remainingRepetitions);
+        }
+        long laterWaves = Math.subtractExact(repeat.remainingRepetitions, repeat.waveCount);
+        long laterCount = Math.multiplyExact(firing.plannedCount, laterWaves);
+        if (stagePosition < repeat.cursor || firingIndex < stage.currentFiring) {
+            return laterCount;
+        }
+        long activeCount = firing.initialized ?
+                firing.remainingCount :
+                Math.multiplyExact(firing.plannedCount, repeat.waveCount);
+        return Math.addExact(activeCount, laterCount);
+    }
+
+    private static void mergePendingOutputs(Map<AEKey, Long> outputs,
+                                            FiringState firing,
+                                            long firingCount) {
+        if (firingCount == 0L || firing.outputs.isEmpty()) {
+            return;
+        }
+        firing.outputs.forEach((key, perFiring) -> outputs.merge(
+                key,
+                Math.multiplyExact(perFiring, firingCount),
+                Math::addExact));
     }
 
     @Override
@@ -1109,6 +1193,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         private final AEKey primaryOutput;
         private final int variantOrdinal;
         private final long plannedCount;
+        private final LinkedHashMap<AEKey, Long> outputs;
         private long remainingCount;
         private boolean initialized;
 
@@ -1116,6 +1201,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                             AEKey primaryOutput,
                             int variantOrdinal,
                             long plannedCount,
+                            Map<AEKey, Long> outputs,
                             long remainingCount,
                             boolean initialized) {
             if (variantOrdinal < 0 || plannedCount <= 0L || remainingCount < 0L ||
@@ -1126,6 +1212,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             this.primaryOutput = primaryOutput;
             this.variantOrdinal = variantOrdinal;
             this.plannedCount = plannedCount;
+            this.outputs = copyOutputs(outputs);
             this.remainingCount = remainingCount;
             this.initialized = initialized;
         }
@@ -1137,6 +1224,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                     firing.primaryOutput(),
                     firing.variantOrdinal(),
                     count,
+                    exactOutputs(firing.outputs()),
                     cycle ? 0L : count,
                     !cycle);
         }
@@ -1147,6 +1235,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                     snapshot.primaryOutput(),
                     snapshot.variantOrdinal(),
                     snapshot.plannedCount(),
+                    snapshot.outputs(),
                     snapshot.remainingCount(),
                     snapshot.initialized());
         }
@@ -1157,8 +1246,26 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                     this.primaryOutput,
                     this.variantOrdinal,
                     this.plannedCount,
+                    this.outputs,
                     this.remainingCount,
                     this.initialized);
+        }
+
+        private static LinkedHashMap<AEKey, Long> exactOutputs(Map<AEKey, BigInteger> source) {
+            LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+            source.forEach((key, amount) -> outputs.put(key, amount.longValueExact()));
+            return outputs;
+        }
+
+        private static LinkedHashMap<AEKey, Long> copyOutputs(Map<AEKey, Long> source) {
+            LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+            source.forEach((key, amount) -> {
+                if (key == null || amount == null || amount <= 0L) {
+                    throw new IllegalArgumentException("A Trinity firing output must be positive");
+                }
+                outputs.put(key, amount);
+            });
+            return outputs;
         }
     }
 

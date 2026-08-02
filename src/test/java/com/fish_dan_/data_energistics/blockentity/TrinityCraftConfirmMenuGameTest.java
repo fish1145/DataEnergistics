@@ -176,7 +176,6 @@ public final class TrinityCraftConfirmMenuGameTest {
                 .cycleRepeatBlocks(List.of())
                 .minimumSeed(Map.of())
                 .targetNetChange(Map.of(output, BigInteger.ONE))
-                .emittedItems(Map.of(output, BigInteger.ONE))
                 .build();
     }
 

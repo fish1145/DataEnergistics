@@ -37,6 +37,11 @@ public interface TrinityCraftingPlan extends TrinityCpuExecutablePlan {
     Map<TrinityPatternIdentity, BigInteger> patternFirings();
 
     /**
+     * @return exact aggregate pattern-declared outputs used by confirmation and CPU status projections
+     */
+    Map<AEKey, BigInteger> plannedOutputs();
+
+    /**
      * @return immutable dependency-addressable stages
      */
     List<TrinityPlanStage> stages();

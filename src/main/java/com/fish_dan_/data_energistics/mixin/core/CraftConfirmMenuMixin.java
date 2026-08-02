@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.T
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
+import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 
+import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.networking.crafting.CraftingSubmitErrorCode;
 import appeng.api.networking.crafting.ICraftingCPU;
@@ -31,6 +33,7 @@ import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.me.crafting.CraftConfirmMenu;
+import appeng.menu.me.crafting.CraftingPlanSummary;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -114,6 +117,20 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
         }
+    }
+
+    @WrapOperation(
+                   method = "broadcastChanges",
+                   at = @At(
+                            value = "INVOKE",
+                            target = "Lappeng/menu/me/crafting/CraftingPlanSummary;fromJob(Lappeng/api/networking/IGrid;Lappeng/api/networking/security/IActionSource;Lappeng/api/networking/crafting/ICraftingPlan;)Lappeng/menu/me/crafting/CraftingPlanSummary;"))
+    private CraftingPlanSummary dataEnergistics$projectTrinityPlan(IGrid grid,
+                                                                   IActionSource actionSource,
+                                                                   ICraftingPlan job,
+                                                                   Operation<CraftingPlanSummary> original) {
+        return job instanceof TrinityCraftingPlan trinityPlan ?
+                TrinityCraftingPlanSummaryProjection.create(trinityPlan) :
+                original.call(grid, actionSource, job);
     }
 
     @Inject(method = "planJob", at = @At("HEAD"))

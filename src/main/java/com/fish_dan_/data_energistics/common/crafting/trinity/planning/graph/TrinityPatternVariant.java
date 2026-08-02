@@ -18,6 +18,7 @@ import java.util.Map;
  * @param ordinal             deterministic Cartesian binding ordinal for that pattern
  * @param alternativeOrdinals selected alternative index for every ordered input slot
  * @param inputs              exact per-firing consumption
+ * @param declaredOutputs     exact pattern-declared outputs, excluding input remainders
  * @param outputs             exact declared outputs plus remaining keys
  * @param netChange           exact signed {@code outputs - inputs}
  */
@@ -28,6 +29,7 @@ public record TrinityPatternVariant(
                                     List<Integer> alternativeOrdinals,
                                     List<TrinityBoundPatternInput> bindings,
                                     Map<AEKey, BigInteger> inputs,
+                                    Map<AEKey, BigInteger> declaredOutputs,
                                     Map<AEKey, BigInteger> outputs,
                                     Map<AEKey, BigInteger> netChange)
         implements Comparable<TrinityPatternVariant> {
@@ -38,7 +40,7 @@ public record TrinityPatternVariant(
     public TrinityPatternVariant {
         if (patternIdentity == null || primaryOutput == null || ordinal < 0 ||
                 alternativeOrdinals == null || bindings == null ||
-                inputs == null || outputs == null || netChange == null ||
+                inputs == null || declaredOutputs == null || outputs == null || netChange == null ||
                 alternativeOrdinals.size() != bindings.size()) {
             throw new IllegalArgumentException("A Trinity pattern variant requires one legal binding per input slot");
         }
@@ -53,14 +55,45 @@ public record TrinityPatternVariant(
             }
         }
         inputs = copyPositive(inputs, "inputs");
+        declaredOutputs = copyPositive(declaredOutputs, "declared outputs");
         outputs = copyPositive(outputs, "outputs");
-        if (!outputs.containsKey(primaryOutput)) {
+        if (!declaredOutputs.containsKey(primaryOutput)) {
             throw new IllegalArgumentException("A Trinity pattern variant must retain its primary output");
+        }
+        for (Map.Entry<AEKey, BigInteger> entry : declaredOutputs.entrySet()) {
+            BigInteger total = outputs.get(entry.getKey());
+            if (total == null || total.compareTo(entry.getValue()) < 0) {
+                throw new IllegalArgumentException(
+                        "Trinity declared outputs must be contained in the complete transition outputs");
+            }
         }
         netChange = copySignedNonZero(netChange);
         if (!netChange.equals(calculateNetChange(inputs, outputs))) {
             throw new IllegalArgumentException("A Trinity pattern variant net change must equal outputs minus inputs");
         }
+    }
+
+    /**
+     * Creates a synthetic variant whose supplied outputs are all pattern-declared outputs.
+     */
+    public TrinityPatternVariant(TrinityPatternIdentity patternIdentity,
+                                 AEKey primaryOutput,
+                                 int ordinal,
+                                 List<Integer> alternativeOrdinals,
+                                 List<TrinityBoundPatternInput> bindings,
+                                 Map<AEKey, BigInteger> inputs,
+                                 Map<AEKey, BigInteger> outputs,
+                                 Map<AEKey, BigInteger> netChange) {
+        this(
+                patternIdentity,
+                primaryOutput,
+                ordinal,
+                alternativeOrdinals,
+                bindings,
+                inputs,
+                outputs,
+                outputs,
+                netChange);
     }
 
     /**
@@ -84,6 +117,7 @@ public record TrinityPatternVariant(
             throw new IllegalArgumentException("A Trinity pattern variant requires complete creation inputs");
         }
         LinkedHashMap<AEKey, BigInteger> inputs = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> declared = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> outputs = new LinkedHashMap<>();
         for (TrinityBoundPatternInput binding : bindings) {
             merge(inputs, binding.template().what(), binding.consumedAmount());
@@ -95,7 +129,9 @@ public record TrinityPatternVariant(
             if (output == null || output.what() == null || output.amount() <= 0L) {
                 throw new IllegalArgumentException("A Trinity pattern variant cannot contain an invalid output");
             }
-            merge(outputs, output.what(), BigInteger.valueOf(output.amount()));
+            BigInteger amount = BigInteger.valueOf(output.amount());
+            merge(declared, output.what(), amount);
+            merge(outputs, output.what(), amount);
         }
         return new TrinityPatternVariant(
                 patternIdentity,
@@ -104,6 +140,7 @@ public record TrinityPatternVariant(
                 alternativeOrdinals,
                 bindings,
                 inputs,
+                declared,
                 outputs,
                 calculateNetChange(inputs, outputs));
     }

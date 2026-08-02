@@ -178,6 +178,16 @@ pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键�
 修复：区分语义拒绝与可恢复结果。语义拒绝继续等待新 revision；异步异常与预留竞态在同 revision 上按配置上限指数
 退避重试。replacement 成功接纳后显式结束本次重规划 episode，释放 revision gate，避免未来独立失效事件被旧状态拦截。
 
+### C-016：Trinity 计划缺少 AE2 原生数量信息投影
+
+Trinity 为避免大数量展开而将 `patternTimes()` 保持为空，确认页因此看不到中间产物与最终产物的待合成量；把目标放入
+`emittedItems()` 又会让最终产物同时显示为已存储。执行期的紧凑作业不填充旧 `scheduledTasks`，CPU 状态页的待合成量恒为
+零；封存完成缓冲虽参与 key 枚举，却未计入已存储量，可能形成空白或零数量行。
+
+修复：图快照保留每个绑定样板不含输入余留物的真实声明输出，紧凑计划聚合 gross planned outputs，并适配为 AE2 原生
+`CraftingPlanSummary`。运行时从 stage/repeat 游标按图规模推导剩余待合成量，不按请求数量展开；执行快照 schema 4 持久化
+声明输出，旧 schema 2/3 缺少精确信息时记录警告并省略未知行。completion buffer 同时计入 CPU 已存储量。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -197,6 +207,7 @@ pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键�
 | C-013 | 上游循环 final-balance 与 boundary-output 传播 | 已完成 | 完整/部分库存、串并联 SCC、多轴联合求解、环外输出与混合路线回溯 |
 | C-014 | 确认页计划就绪门 | 已完成 | 真实 `CraftConfirmMenu` 首次/二次广播、提前提交和重算提交 GameTest |
 | C-015 | 剩余量重规划结果处置协议 | 已完成 | 同 revision 异常与预留竞态退避重试、语义拒绝等待新 revision 的直接状态机测试 |
+| C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
 
 ## 5. 风险与控制
 
@@ -212,6 +223,7 @@ pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键�
 | 缺料等待造成忙轮询 | key 唤醒加最高 200 tick 退避 |
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
 | 单样板自环缺料后继续等待 AE2 大数量展开 | 发布 Trinity 权威诊断 simulation 并协作取消 AE2；多步顺序相关结果继续 fallback |
+| UI 数量与紧凑执行游标偏离 | 计划使用 gross 声明输出；运行时从持久游标精确推导，不维护第二份可漂移计数器 |
 
 ## 6. 验证矩阵
 
@@ -240,8 +252,9 @@ pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键�
 ### 6.3 恢复与集成
 
 - schema 1 普通任务恢复；
-- schema 2 在每个 cycle phase、借料后和封存后恢复；
-- 新会话 tick 重基 retry、旧 schema 2 迁移和 AE2 CPU 作业级暂停；
+- 作业 schema 2 在每个 cycle phase、借料后和封存后恢复；
+- 执行快照 schema 4 保留声明输出，schema 2/3 迁移不伪造未知待合成量；
+- 新会话 tick 重基 retry、旧执行 schema 2 迁移和 AE2 CPU 作业级暂停；
 - Trinity 与原生 CPU 同网格；
 - 无 Trinity 时 AE2 回退；
 - 扩展计划被原生 CPU 拒绝；
@@ -249,13 +262,14 @@ pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键�
 - 玩家 `NET_NEW`/`FINAL_TOTAL` 上下文与机器 COMMON 默认模式；
 - 初始 Trinity 计划超过所有合格 CPU 容量时保留 AE2 结果；
 - 确认页计划完成与 CPU-family 过滤同步后才允许提交，重算期间旧摘要不可复用；
+- 确认页显示外部可用量和各阶段待合成量，CPU 状态页随 DAG/循环游标及 completion buffer 更新；
 - `test`、`runGameTestServer`、`build` 和 IDEA inspections。
 
 ## 7. 完成判定
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-014 均有直接行为测试或集成证据；
+1. C-001 至 C-016 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

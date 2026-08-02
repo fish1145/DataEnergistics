@@ -194,6 +194,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 COUNTED_BATCH_SIZE,
                 64L);
         CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+        helper.assertValueEqual(
+                fixture.cpu().getPendingOutputs(fixture.output()),
+                COUNTED_BATCH_SIZE,
+                "CPU status must expose all undispatched compact output");
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
@@ -201,6 +205,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 CraftingDispatchWindow.create(oneAttempt));
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1, "The first tick must commit one physical batch");
         helper.assertValueEqual(fixture.provider().lastBatchCount(), 64L, "The provider cap must split the compact firing");
+        helper.assertValueEqual(
+                fixture.cpu().getPendingOutputs(fixture.output()),
+                64L,
+                "CPU status must deduct only the accepted compact batch");
         helper.assertValueEqual(
                 fixture.cpu().insert(fixture.output(), 64L, Actionable.MODULATE),
                 64L,
@@ -376,6 +384,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 CraftingDispatchWindow.create(oneAttempt));
         helper.assertValueEqual(fixture.provider().batchPushCount(), 2, "The second tick must commit the remaining batch");
         helper.assertValueEqual(
+                fixture.cpu().getPendingOutputs(fixture.output()),
+                0L,
+                "CPU status must clear pending output after the final dispatch");
+        helper.assertValueEqual(
                 fixture.cpu().insert(fixture.output(), 64L, Actionable.MODULATE),
                 64L,
                 "The final in-flight batch must return to the owning CPU");
@@ -438,6 +450,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(fixture.cpu().isBusy(), "A requester exception must retain the compact job");
         helper.assertValueEqual(requester.received(fixture.output()), 0L,
                 "A requester exception must not deduct an unknown amount from completion");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.output()), 5L,
+                "CPU status must count the isolated completion buffer as stored output");
         helper.assertValueEqual(visibleAmount(fixture.cpu(), fixture.output()), 5L,
                 "A requester exception must retain the complete sealed offer");
         helper.runAfterDelay(1L, () -> assertPartialCompletionRetained(helper, fixture, requester, oneAttempt));
@@ -2594,7 +2608,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 0,
                 true,
                 Set.of(),
-                List.of(new TrinityPlanPatternFiring(identity, pattern.key(), 0, BigInteger.ONE)),
+                List.of(new TrinityPlanPatternFiring(
+                        identity,
+                        pattern.key(),
+                        0,
+                        BigInteger.ONE,
+                        Map.of(pattern.key(), BigInteger.TWO))),
                 seed,
                 netPerCycle);
         TrinityCycleRepeatBlock repeatBlock = new TrinityCycleRepeatBlock(

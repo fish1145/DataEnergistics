@@ -32,6 +32,7 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
     private final CraftingQuantityMode quantityMode;
     private final Map<AEKey, BigInteger> initialExpectedInputs;
     private final Map<TrinityPatternIdentity, BigInteger> patternFirings;
+    private final Map<AEKey, BigInteger> plannedOutputs;
     private final List<TrinityPlanStage> stages;
     private final List<Integer> stageOrder;
     private final List<TrinityCycleRepeatBlock> cycleRepeatBlocks;
@@ -62,6 +63,7 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
         this.stages = copyStages(builder.stages);
         this.stageOrder = validateStageOrder(builder.stageOrder, this.stages);
         this.cycleRepeatBlocks = validateRepeatBlocks(builder.cycleRepeatBlocks, this.stages);
+        this.plannedOutputs = calculatePlannedOutputs(this.stages, this.cycleRepeatBlocks);
         this.minimumSeed = TrinityPlanAmounts.copyPositive(builder.minimumSeed, "minimum seed");
         this.targetNetChange = TrinityPlanAmounts.copySignedNonZero(builder.targetNetChange, "target net change");
         this.diagnostics = copyDiagnostics(builder.diagnostics);
@@ -76,6 +78,9 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
                 this.stageOrder,
                 this.cycleRepeatBlocks);
         validateTargetSemantics();
+        if (!this.plannedOutputs.containsKey(this.finalOutput.what())) {
+            throw new IllegalArgumentException("A Trinity plan must schedule its final output");
+        }
 
         this.usedItems = TrinityPlanAmounts.toKeyCounter(this.initialExpectedInputs);
         this.emittedItems = TrinityPlanAmounts.toKeyCounter(TrinityPlanAmounts.copyPositive(
@@ -200,6 +205,29 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
         if (!expected.equals(actual)) {
             throw new IllegalArgumentException("Trinity aggregate pattern firings do not match stage firings");
         }
+    }
+
+    private static Map<AEKey, BigInteger> calculatePlannedOutputs(
+                                                                  List<TrinityPlanStage> stages,
+                                                                  List<TrinityCycleRepeatBlock> repeatBlocks) {
+        Map<Integer, BigInteger> stageMultipliers = new HashMap<>();
+        stages.forEach(stage -> stageMultipliers.put(stage.index(), BigInteger.ONE));
+        repeatBlocks.forEach(block -> block.stageOrder().forEach(
+                stage -> stageMultipliers.put(stage, block.repetitions())));
+
+        LinkedHashMap<AEKey, BigInteger> outputs = new LinkedHashMap<>();
+        for (TrinityPlanStage stage : stages) {
+            BigInteger stageMultiplier = stageMultipliers.get(stage.index());
+            for (TrinityPlanPatternFiring firing : stage.firings()) {
+                BigInteger totalFirings = firing.count().multiply(stageMultiplier);
+                firing.outputs().forEach((key, amount) -> outputs.merge(
+                        key,
+                        amount.multiply(totalFirings),
+                        BigInteger::add));
+            }
+        }
+        outputs.replaceAll((key, amount) -> BigInteger.valueOf(amount.longValueExact()));
+        return TrinityPlanAmounts.copyPositive(outputs, "planned output");
     }
 
     private static void validateNetChange(
@@ -390,6 +418,11 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
     @Override
     public Map<TrinityPatternIdentity, BigInteger> patternFirings() {
         return this.patternFirings;
+    }
+
+    @Override
+    public Map<AEKey, BigInteger> plannedOutputs() {
+        return this.plannedOutputs;
     }
 
     @Override

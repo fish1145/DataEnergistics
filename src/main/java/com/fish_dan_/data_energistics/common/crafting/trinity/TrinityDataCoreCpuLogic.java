@@ -528,9 +528,12 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         reservation.orElseThrow().retain();
+        HashSet<AEKey> changedOutputKeys = new HashSet<>(execution.pendingOutputs().keySet());
         execution.replaceRemainingPlan(ready.plan(), currentTick);
+        changedOutputKeys.addAll(execution.pendingOutputs().keySet());
         this.remainingPlanCalculation.acceptRevision(ready.revision());
         this.cpu.markDirty();
+        changedOutputKeys.forEach(this::postChange);
     }
 
     private Map<AEKey, BigInteger> captureReplanAvailability(TrinityCraftingGraphSnapshot snapshot,
@@ -1941,7 +1944,14 @@ final class TrinityDataCoreCpuLogic {
     }
 
     long getStored(AEKey template) {
-        return this.inventory.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        long stored = this.inventory.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        if (this.job == null || !this.job.isTrinityPlan()) {
+            return stored;
+        }
+        return this.job.trinityExecution().completionOffer()
+                .filter(offer -> offer.what().equals(template))
+                .map(offer -> Math.addExact(stored, offer.amount()))
+                .orElse(stored);
     }
 
     long getPendingOutputs(AEKey template) {
@@ -1961,6 +1971,9 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         cancelPendingReplan();
+        Set<AEKey> pendingOutputKeys = this.job.isTrinityPlan() ?
+                this.job.trinityExecution().pendingOutputs().keySet() :
+                Set.of();
         if (this.job.isTrinityPlan()) {
             this.job.trinityExecution().releaseCompletionForStandalone().ifPresent(released -> this.inventory.insert(released.what(), released.amount(), Actionable.MODULATE));
         }
@@ -1976,6 +1989,7 @@ final class TrinityDataCoreCpuLogic {
                 postChange(output.what());
             }
         }
+        pendingOutputKeys.forEach(this::postChange);
         notifyJobOwner(
                 this.job,
                 success ? CraftingJobStatusPacket.Status.FINISHED : CraftingJobStatusPacket.Status.CANCELLED);

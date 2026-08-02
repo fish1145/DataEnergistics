@@ -132,7 +132,12 @@ final class TrinityExecutionStateTestSupport {
                 0,
                 true,
                 Set.of(),
-                List.of(new TrinityPlanPatternFiring(FIRST, target, 0, BigInteger.ONE)),
+                List.of(new TrinityPlanPatternFiring(
+                        FIRST,
+                        target,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(target, BigInteger.TWO))),
                 Map.of(target, BigInteger.ONE),
                 Map.of(target, BigInteger.ONE));
         TrinityCycleRepeatBlock block = new TrinityCycleRepeatBlock(
@@ -172,7 +177,12 @@ final class TrinityExecutionStateTestSupport {
                 1,
                 true,
                 Set.of(0),
-                List.of(new TrinityPlanPatternFiring(SECOND, seed, 0, BigInteger.ONE)),
+                List.of(new TrinityPlanPatternFiring(
+                        SECOND,
+                        seed,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(seed, BigInteger.TWO))),
                 Map.of(intermediate, BigInteger.ONE),
                 Map.of(intermediate, BigInteger.ONE.negate(), seed, BigInteger.TWO));
         TrinityCycleRepeatBlock block = new TrinityCycleRepeatBlock(

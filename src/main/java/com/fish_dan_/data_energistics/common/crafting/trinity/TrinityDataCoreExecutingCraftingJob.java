@@ -231,12 +231,12 @@ final class TrinityDataCoreExecutingCraftingJob {
         return this.remainingAmount <= 0L && this.tasks.isEmpty() && this.waitingFor.list.isEmpty();
     }
 
-    /** @return whether this job owns a compact schema 2 Trinity execution cursor */
+    /** @return whether this job owns a compact Trinity execution cursor */
     boolean isTrinityPlan() {
         return this.planExecution != null;
     }
 
-    /** @return schema 2 execution cursor for a Trinity plan */
+    /** @return compact execution cursor for a Trinity plan */
     TrinityPlanExecution trinityExecution() {
         if (this.planExecution == null) {
             throw new IllegalStateException("A legacy AE2 job has no Trinity execution cursor");
@@ -246,12 +246,18 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     /** Returns the indexed amount still scheduled by undispatched tasks. */
     long getPendingOutputs(AEKey key) {
-        return this.scheduledTasks.pendingOutputs(key);
+        return this.planExecution == null ?
+                this.scheduledTasks.pendingOutputs(key) :
+                this.planExecution.pendingOutputs().getOrDefault(key, 0L);
     }
 
     /** Adds every indexed undispatched output to the supplied aggregate. */
     void addScheduledOutputsTo(KeyCounter output) {
-        this.scheduledTasks.addOutputsTo(output);
+        if (this.planExecution == null) {
+            this.scheduledTasks.addOutputsTo(output);
+            return;
+        }
+        this.planExecution.pendingOutputs().forEach(output::add);
     }
 
     /** Removes the exact counted dispatch from the derived scheduled-output index. */

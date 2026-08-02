@@ -3,12 +3,14 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -115,13 +117,62 @@ public final class TrinityPlanExecutionImplTest {
         assertTrue(restoredBudget.poll(0L).isEmpty());
         assertTrue(restoredBudget.poll(1L).isPresent());
 
+        CompoundTag clockSchemaTag = providerTag.copy();
+        clockSchemaTag.putInt("schema_version", 3);
+        removeFiringOutputs(clockSchemaTag);
+        TrinityPlanExecution migratedClock = TrinityPlanExecution.restore(
+                clockSchemaTag,
+                RegistryAccess.EMPTY,
+                0L);
+        assertTrue(migratedClock.pendingOutputs().isEmpty());
+        assertTrue(migratedClock.poll(0L).isEmpty());
+        assertTrue(migratedClock.poll(1L).isPresent());
+
         providerTag.putInt("schema_version", 2);
         providerTag.remove("saved_at_tick");
+        removeFiringOutputs(providerTag);
         TrinityPlanExecution migratedProvider = TrinityPlanExecution.restore(
                 providerTag,
                 RegistryAccess.EMPTY,
                 0L);
         assertTrue(migratedProvider.poll(0L).isPresent());
+    }
+
+    @Test
+    void pendingOutputsTrackDagAndCycleCursorsAcrossReload() {
+        AEKey target = TrinityExecutionStateTestSupport.data();
+        TrinityPlanExecution execution = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.dagPlan(2L),
+                0L);
+
+        assertEquals(2L, execution.pendingOutputs().get(target));
+        execution.recordAccepted(execution.poll(0L).orElseThrow(), 1L);
+        assertEquals(1L, execution.pendingOutputs().get(target));
+
+        TrinityPlanExecution restored = roundTrip(execution, 0L);
+        assertEquals(1L, restored.pendingOutputs().get(target));
+        restored.recordAccepted(restored.poll(0L).orElseThrow(), 1L);
+        assertTrue(restored.pendingOutputs().isEmpty());
+
+        TrinityPlanExecution selfCycle = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.selfCyclePlan(7L),
+                0L);
+        assertEquals(Map.of(target, 14L), selfCycle.pendingOutputs());
+        selfCycle.recordAccepted(selfCycle.poll(0L).orElseThrow(), 1L);
+        assertEquals(Map.of(target, 12L), selfCycle.pendingOutputs());
+        selfCycle.recordAccepted(selfCycle.poll(0L).orElseThrow(), 2L);
+        assertEquals(Map.of(target, 8L), roundTrip(selfCycle, 0L).pendingOutputs());
+
+        AEKey intermediate = TrinityExecutionStateTestSupport.flow();
+        TrinityPlanExecution multiStep = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.multiStepCyclePlan(),
+                0L);
+        assertEquals(Map.of(target, 8L, intermediate, 4L), multiStep.pendingOutputs());
+        multiStep.recordAccepted(multiStep.poll(0L).orElseThrow(), 2L);
+        TrinityPlanExecution restoredMultiStep = roundTrip(multiStep, 0L);
+        assertEquals(Map.of(target, 8L, intermediate, 2L), restoredMultiStep.pendingOutputs());
+        restoredMultiStep.recordAccepted(restoredMultiStep.poll(0L).orElseThrow(), 2L);
+        assertEquals(Map.of(target, 4L, intermediate, 2L), restoredMultiStep.pendingOutputs());
     }
 
     @Test
@@ -340,5 +391,13 @@ public final class TrinityPlanExecutionImplTest {
                 execution.save(RegistryAccess.EMPTY, currentTick),
                 RegistryAccess.EMPTY,
                 currentTick);
+    }
+
+    private static void removeFiringOutputs(CompoundTag executionTag) {
+        for (Tag stageTag : executionTag.getList("stages", Tag.TAG_COMPOUND)) {
+            for (Tag firingTag : ((CompoundTag) stageTag).getList("firings", Tag.TAG_COMPOUND)) {
+                ((CompoundTag) firingTag).remove("outputs");
+            }
+        }
     }
 }

@@ -210,7 +210,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                 .cycleRepeatBlocks(assembly.repeatBlocks())
                 .minimumSeed(assembly.minimumSeed())
                 .targetNetChange(assembly.netChange())
-                .emittedItems(Map.of(target, requestedAmount))
+                .emittedItems(Map.of())
                 .diagnostics(List.of())
                 .statistics(statistics)
                 .build();
@@ -921,7 +921,8 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                         variant.patternIdentity(),
                         variant.primaryOutput(),
                         variant.ordinal(),
-                        count)),
+                        count,
+                        variant.declaredOutputs())),
                 required,
                 multiplySigned(variant.netChange(), count));
     }

@@ -38,7 +38,7 @@ import java.util.Set;
  * @param completionBuffer  undelivered output currently isolated from cycle inputs
  * @param deliveryRemaining total target amount still owed to the requester
  * @param borrowingEntries  ownership-preserving dynamic borrowing history
- * @param savedAtTick       server tick used to convert retry deadlines across a restart, or {@code -1} for schema 2
+ * @param savedAtTick       server tick used to convert retry deadlines across a restart, or {@code -1} for legacy saves
  * @param budgetRetryAt     next tick after a physical budget exhaustion, or {@code -1}
  */
 public record TrinityExecutionSnapshot(
@@ -99,6 +99,7 @@ public record TrinityExecutionSnapshot(
      * @param primaryOutput   output used to resolve a concrete pattern
      * @param variantOrdinal  bound input variant
      * @param plannedCount    logical firings per plan unit or cycle wave
+     * @param outputs         exact pattern-declared outputs per logical firing; empty only for schema 2/3 migration
      * @param remainingCount  logical firings left in the active unit or wave
      * @param initialized     whether remaining work has been initialized
      */
@@ -107,6 +108,7 @@ public record TrinityExecutionSnapshot(
                          AEKey primaryOutput,
                          int variantOrdinal,
                          long plannedCount,
+                         Map<AEKey, Long> outputs,
                          long remainingCount,
                          boolean initialized) {
 
@@ -114,6 +116,7 @@ public record TrinityExecutionSnapshot(
          * Rejects cursors that could create work absent from the plan.
          */
         public Firing {
+            outputs = immutableAmounts(outputs, false, "firing output");
             if (variantOrdinal < 0 || plannedCount <= 0L || remainingCount < 0L ||
                     (!initialized && remainingCount != 0L)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
