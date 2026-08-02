@@ -6,7 +6,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityFiringVector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
@@ -115,14 +117,35 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                 continue;
             }
             BigInteger optimalFirings = sum(firingSolve.value().firings());
-
+            LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
+            SolvedModel canonical = firingSolve.value();
+            for (TrinityPatternVariant variant : variants) {
+                ModelRequest identityRequest = new ModelRequest(
+                        variants,
+                        internalKeys,
+                        demand,
+                        inventory,
+                        producible,
+                        new IdentityPass(
+                                optimalExternal,
+                                optimalSeed,
+                                optimalFirings,
+                                Collections.unmodifiableMap(new LinkedHashMap<>(fixedFirings)),
+                                variant));
+                TrinityAlgorithmResult<SolvedModel> identitySolve = solveModel(identityRequest, control, metrics);
+                if (!identitySolve.successful()) {
+                    return TrinityAlgorithmResult.failure(identitySolve.diagnostic());
+                }
+                canonical = identitySolve.value();
+                fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
+            }
             CandidateSearch candidateSearch = new CandidateSearch(
                     variants,
                     internalKeys,
                     demand,
                     inventory,
                     producible,
-                    firingSolve.value().firings(),
+                    canonical.firings(),
                     optimalExternal,
                     optimalSeed,
                     optimalFirings,
@@ -291,6 +314,15 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             if (firingTotal.compareTo(pass.firingLowerBound()) < 0) {
                 return inexactResult("firing_lower", firingTotal + "<" + pass.firingLowerBound());
             }
+        } else if (request.pass() instanceof IdentityPass pass) {
+            if (!externalTotal.equals(pass.fixedExternal()) ||
+                    !seedTotal.equals(pass.fixedSeed()) ||
+                    !firingTotal.equals(pass.fixedFirings()) ||
+                    pass.fixedCounts().entrySet().stream().anyMatch(entry -> !solved.firings()
+                            .getOrDefault(entry.getKey(), BigInteger.ZERO)
+                            .equals(entry.getValue()))) {
+                return inexactResult("identity_level", pass.variant().patternIdentity().publicationEncoding());
+            }
         }
         return exact;
     }
@@ -394,6 +426,17 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             seedTotal.level(pass.fixedSeed());
             firingTotal.lower(pass.firingLowerBound());
             firingTotal.weight(BigDecimal.ONE);
+        } else if (request.pass() instanceof IdentityPass pass) {
+            externalTotal.level(pass.fixedExternal());
+            seedTotal.level(pass.fixedSeed());
+            firingTotal.level(pass.fixedFirings());
+            pass.fixedCounts().forEach((variant, count) -> model
+                    .addExpression("fixed_firing_" + request.variants().indexOf(variant))
+                    .set(firingVariables.get(variant), BigInteger.ONE)
+                    .level(count));
+            model.addExpression("identity_objective")
+                    .set(firingVariables.get(pass.variant()), BigInteger.ONE)
+                    .weight(BigDecimal.ONE.negate());
         } else {
             throw new IllegalStateException("Unknown Trinity MIP pass");
         }
@@ -503,7 +546,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                 Map.of("constraint", constraint, "value", value));
     }
 
-    private sealed interface ModelPass permits ExternalInputPass, SeedPass, FiringPass {}
+    private sealed interface ModelPass permits ExternalInputPass, SeedPass, FiringPass, IdentityPass {}
 
     private enum ExternalInputPass implements ModelPass {
         INSTANCE
@@ -528,6 +571,23 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             if (fixedExternal == null || fixedSeed == null || firingLowerBound == null) {
                 throw new IllegalArgumentException("A Trinity firing pass requires explicit bounds");
             }
+        }
+    }
+
+    private record IdentityPass(
+                                BigInteger fixedExternal,
+                                BigInteger fixedSeed,
+                                BigInteger fixedFirings,
+                                Map<TrinityPatternVariant, BigInteger> fixedCounts,
+                                TrinityPatternVariant variant)
+            implements ModelPass {
+
+        private IdentityPass {
+            if (fixedExternal == null || fixedSeed == null || fixedFirings == null ||
+                    fixedCounts == null || variant == null) {
+                throw new IllegalArgumentException("A Trinity identity pass requires exact preceding objectives");
+            }
+            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
         }
     }
 
@@ -605,6 +665,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         private final TrinityPlanningControl control;
         private final SolverMetrics metrics;
         private Optional<TrinityMipCyclePlan> best = Optional.empty();
+        private Optional<TrinityLexicographicObjective> bestObjective = Optional.empty();
         private Optional<TrinityAlgorithmResult<TrinityMipCyclePlan>> terminal = Optional.empty();
 
         private CandidateSearch(
@@ -808,8 +869,14 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     adjustedSchedule,
                     this.metrics.passes,
                     this.metrics.nanos);
-            if (this.best.isEmpty() || seedTotal(candidate).compareTo(seedTotal(this.best.orElseThrow())) < 0) {
+            TrinityLexicographicObjective objective = new TrinityLexicographicObjective(
+                    sum(candidate.externalInputs()),
+                    seedTotal(candidate),
+                    sum(candidate.firings()),
+                    TrinityFiringVector.from(this.variants, candidate.firings()));
+            if (this.bestObjective.isEmpty() || objective.compareTo(this.bestObjective.orElseThrow()) < 0) {
                 this.best = Optional.of(candidate);
+                this.bestObjective = Optional.of(objective);
             }
         }
 

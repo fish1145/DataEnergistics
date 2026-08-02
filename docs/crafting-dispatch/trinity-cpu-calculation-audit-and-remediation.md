@@ -202,6 +202,17 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 当前状态：已完成，P0。现有 VirtualGrid GameTest 直接覆盖未注册 active、inactive subordinate、同 primary 重连失效、
 主网格 CPU 发布和跨网格提交；全量 GameTest 验证 470 项通过。
 
+### C-018：局部循环机会缺少可证明的接纳边界
+
+旧 deterministic/shifted 路径用 `Optional<AlgorithmResult>` 同时表达“不适用”和“终端失败”，GraphPlanner 可能把局部路线
+歧义、局部 `UNSUPPORTED_PATTERN` 或排程未证明直接提升为用户无解。shifted optimizer 还根据 LP 松弛结果、浮点 ULP 和
+经验 guard 预先收紧 reduction 上界；真实整数最优值落在该边界附近时，可能被错误排除。
+
+修复：机会规划统一返回 `PROVED_OPTIMAL`、`NOT_APPLICABLE`、`TERMINAL`。只有完成唯一性、完整 firing、真实 seed 和压缩
+顺序证明的结果可以接纳；不适用继续通用 MIP，取消和共享预算耗尽才终止。删除 LP/ULP 预紧与经验 guard，reduction 只受
+精确 `0..baselineFirings` 结构界约束。MIP 与候选选择共用完整、缺失补零的 `BigInteger` firing vector，并在前三层目标固定后
+按稳定 identity 逐项确定结果。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -223,6 +234,7 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 | C-015 | 剩余量重规划结果处置协议 | 已完成 | 同 revision 异常与预留竞态退避重试、语义拒绝等待新 revision 的直接状态机测试 |
 | C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
+| C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中与超 `long` 数值 identity 直接契约测试 |
 
 ## 5. 风险与控制
 

@@ -142,6 +142,18 @@ cyclic owner；其环外输出需求回传给 owner，禁止再作为普通 DAG 
 该比例必须让所有非目标内部 key 的净变化严格为零，并让目标净变化为正；存在多维解空间、零/负 firing 或未覆盖 transition
 时不猜测路线，转入多路线 MIP。
 
+确定性规划是可选的证明型快速路径，不是独立的失败终点。其结果分为三类：
+
+- `PROVED_OPTIMAL`：内部 key 与 boundary output 路线唯一，完整 firing vector、minimum seed 和压缩顺序均通过精确验证；
+- `NOT_APPLICABLE`：存在多路线、残余路线歧义、未覆盖 transition 或局部证明不完整，必须继续通用规划；
+- `TERMINAL`：共享取消或全局预算已经耗尽，必须停止后续求解并保留原诊断。
+
+只有 `PROVED_OPTIMAL` 可以进入计划。局部快速路径的 `UNSUPPORTED_PATTERN`、无可执行顺序或向量分歧不得直接成为用户可见的
+“无解”诊断，也不得以局部成功覆盖尚未求解的全局路线。
+
+`TrinityCyclePlanSelector` 统一持有标量闭式、确定性 component 与通用 MIP 的选择策略；`TrinityGraphPlannerImpl` 只消费其
+不可变 selection 结果，不再直接组合各循环求解器。
+
 对求得整数比例并已验证顺序的阶段序列，定义：
 
 ```text
@@ -167,11 +179,15 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 1. 最小化按 AE2 存储单位求和的外部输入；
 2. 固定第一阶段最优值后最小化 seed；
 3. 固定前两阶段最优值后最小化 firing 数；
-4. 使用稳定 pattern identity 得到确定性结果。
+4. 按完整稳定 pattern identity 顺序逐项固定数值 firing，优先较早 identity，得到确定性结果。
 
 不使用 big-M 合并目标。ojAlgo 整数变量只允许按本次求解器自身的 integrality tolerance 规范化到最近整数，随后必须用
 `BigInteger` 重新验证全部输入、输出、库存上界、词典序固定层、余额和目标约束。超出该 tolerance 的真实小数、规范化后
 不守恒、负余额、溢出或目标不足均拒绝。
+
+第四层使用完整、排序后的 variant domain；稀疏 firing map 中缺失的 variant 必须补零，并以 `BigInteger` 数值逐项比较。
+禁止用 publication 字符串、哈希、`double` 或 big-M 权重代替该 identity。shifted optimization 的 reduction 仅允许使用精确的
+`0..baselineFirings` 结构边界；LP 松弛值、ULP guard 或经验常数不得作为整数硬上界。
 
 库存上界使用精确的 lazy constraint generation：先求省略非约束性容量上界的最优解；若某个 seed 或外部输入超过实际库存，
 只加入被违反项的精确上界并重新求解。这样既保留有限库存语义，也不会把无限存储单元发布的巨量容量直接交给数值求解器。

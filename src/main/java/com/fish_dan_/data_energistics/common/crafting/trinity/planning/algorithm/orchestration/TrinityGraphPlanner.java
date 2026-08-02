@@ -3,10 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlanner;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCyclePlanner;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMixedIntegerCycleSolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
@@ -33,10 +30,7 @@ public interface TrinityGraphPlanner {
                 TrinityPatternVariantExpander.create(),
                 TrinityGraphTopologyAnalyzer.create(),
                 TrinityAcyclicDemandPropagator.create(),
-                TrinityDeterministicCycleSequence.create(),
-                TrinityDeterministicCyclePlanner.create(),
-                TrinityDeterministicComponentPlanner.create(),
-                TrinityMixedIntegerCycleSolver.create(),
+                TrinityCyclePlanSelector.create(),
                 TrinityPlanByteEstimator.create());
     }
 

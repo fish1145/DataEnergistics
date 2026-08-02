@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -10,7 +10,6 @@ import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -32,13 +31,13 @@ public interface TrinityShiftedFiringOptimizer {
      * @param producibleInputs inputs supplied by predecessor DAG stages
      * @param firingUpperBound component-wise feasible firing vector without consuming optional internal stock
      * @param control          cancellation and shared deadline
-     * @return empty when shifted dominance cannot be proven; otherwise the exact lexicographic vector or failure
+     * @return exact optimum, non-terminal structural miss, or terminal shared-budget failure
      */
-    Optional<TrinityAlgorithmResult<Map<TrinityPatternVariant, BigInteger>>> optimize(
-                                                                                      TrinityStronglyConnectedComponent component,
-                                                                                      TrinityCycleDemand demand,
-                                                                                      Map<AEKey, BigInteger> available,
-                                                                                      Set<AEKey> producibleInputs,
-                                                                                      Map<TrinityPatternVariant, BigInteger> firingUpperBound,
-                                                                                      TrinityPlanningControl control);
+    TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimize(
+                                                                            TrinityStronglyConnectedComponent component,
+                                                                            TrinityCycleDemand demand,
+                                                                            Map<AEKey, BigInteger> available,
+                                                                            Set<AEKey> producibleInputs,
+                                                                            Map<TrinityPatternVariant, BigInteger> firingUpperBound,
+                                                                            TrinityPlanningControl control);
 }

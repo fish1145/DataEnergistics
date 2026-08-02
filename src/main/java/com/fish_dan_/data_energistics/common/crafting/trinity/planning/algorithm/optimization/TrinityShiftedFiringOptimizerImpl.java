@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -18,14 +19,12 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOptimizer {
 
     private static final BigInteger ZERO = BigInteger.ZERO;
-    private static final BigInteger MINIMUM_RELAXED_BOUND_GUARD = BigInteger.valueOf(4L);
 
     private final TrinityIntegerResultVerifier integerVerifier;
 
@@ -44,24 +42,26 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     @Override
-    public Optional<TrinityAlgorithmResult<Map<TrinityPatternVariant, BigInteger>>> optimize(
-                                                                                             TrinityStronglyConnectedComponent component,
-                                                                                             TrinityCycleDemand demand,
-                                                                                             Map<AEKey, BigInteger> available,
-                                                                                             Set<AEKey> producibleInputs,
-                                                                                             Map<TrinityPatternVariant, BigInteger> firingUpperBound,
-                                                                                             TrinityPlanningControl control) {
+    public TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimize(
+                                                                                   TrinityStronglyConnectedComponent component,
+                                                                                   TrinityCycleDemand demand,
+                                                                                   Map<AEKey, BigInteger> available,
+                                                                                   Set<AEKey> producibleInputs,
+                                                                                   Map<TrinityPatternVariant, BigInteger> firingUpperBound,
+                                                                                   TrinityPlanningControl control) {
         if (component == null || demand == null || available == null || producibleInputs == null ||
                 firingUpperBound == null || firingUpperBound.isEmpty() || control == null) {
             throw new IllegalArgumentException("A shifted Trinity firing request is incomplete");
         }
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
         if (producibleInputs.stream().anyMatch(internalKeys::contains)) {
-            return Optional.empty();
+            return notApplicable("A predecessor can supply an internal shifted-cycle key");
         }
         List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
-        if (!firingUpperBound.keySet().containsAll(variants)) {
-            return Optional.empty();
+        if (!firingUpperBound.keySet().containsAll(variants) || variants.stream()
+                .anyMatch(variant -> firingUpperBound.get(variant) == null ||
+                        firingUpperBound.get(variant).signum() < 0)) {
+            return notApplicable("The shifted-cycle structural firing bounds are incomplete");
         }
         Set<AEKey> externalCostKeys = externalReserveKeys(variants, internalKeys, demand);
         LinkedHashSet<AEKey> finiteExternal = new LinkedHashSet<>();
@@ -72,31 +72,11 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         for (TrinityPatternVariant variant : variants) {
             for (AEKey key : externalCostKeys) {
                 if (variant.netChange().getOrDefault(key, ZERO).signum() > 0) {
-                    return Optional.empty();
+                    return notApplicable("A shifted-cycle variant can produce an external reserve key");
                 }
             }
         }
 
-        ShiftedContext unboundedContext = new ShiftedContext(
-                variants,
-                internalKeys,
-                externalCostKeys,
-                finiteExternalKeys,
-                demand,
-                available,
-                firingUpperBound,
-                firingUpperBound,
-                Map.of(),
-                netChange(firingUpperBound));
-        int passes = 0;
-        TrinityAlgorithmResult<ReductionBounds> tightened = tightenReductionBounds(
-                unboundedContext,
-                control,
-                passes);
-        if (!tightened.successful()) {
-            return Optional.of(TrinityAlgorithmResult.failure(tightened.diagnostic()));
-        }
-        passes = Math.addExact(passes, variants.size());
         ShiftedContext context = new ShiftedContext(
                 variants,
                 internalKeys,
@@ -105,16 +85,15 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 demand,
                 available,
                 firingUpperBound,
-                tightened.value().upperBounds(),
-                tightened.value().guards(),
-                unboundedContext.baselineNet());
+                netChange(firingUpperBound));
+        int passes = 0;
         TrinityAlgorithmResult<SolvedShift> external = solve(
                 context,
                 ExternalPass.INSTANCE,
                 control,
                 ++passes);
         if (!external.successful()) {
-            return Optional.of(TrinityAlgorithmResult.failure(external.diagnostic()));
+            return unsuccessfulAttempt(external);
         }
         BigInteger optimalExternalSaving = external.value().externalSaving();
 
@@ -124,7 +103,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 control,
                 ++passes);
         if (!seed.successful()) {
-            return Optional.of(TrinityAlgorithmResult.failure(seed.diagnostic()));
+            return unsuccessfulAttempt(seed);
         }
         BigInteger optimalSeed = seed.value().seedTotal();
 
@@ -134,7 +113,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 control,
                 ++passes);
         if (!firing.successful()) {
-            return Optional.of(TrinityAlgorithmResult.failure(firing.diagnostic()));
+            return unsuccessfulAttempt(firing);
         }
         BigInteger optimalReduction = firing.value().reductionTotal();
         LinkedHashMap<TrinityPatternVariant, BigInteger> fixedReductions = new LinkedHashMap<>();
@@ -151,21 +130,18 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                     control,
                     ++passes);
             if (!identity.successful()) {
-                return Optional.of(TrinityAlgorithmResult.failure(identity.diagnostic()));
+                return unsuccessfulAttempt(identity);
             }
             canonical = identity.value();
             fixedReductions.put(variant, canonical.reductions().getOrDefault(variant, ZERO));
         }
-        if (touchesRelaxedBoundary(canonical, context)) {
-            return Optional.empty();
-        }
-
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
         for (TrinityPatternVariant variant : variants) {
             BigInteger firingCount = firingUpperBound.get(variant)
                     .subtract(canonical.reductions().getOrDefault(variant, ZERO));
             if (firingCount.signum() < 0) {
-                return Optional.of(inexact("firing_lower", variant.patternIdentity().publicationEncoding()));
+                return notApplicable(inexact("firing_lower", variant.patternIdentity().publicationEncoding())
+                        .diagnostic());
             }
             if (firingCount.signum() > 0) {
                 firings.put(variant, firingCount);
@@ -174,99 +150,9 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         Map<AEKey, BigInteger> net = netChange(firings);
         if (!satisfiesDemand(net, demand) ||
                 !fitsAvailable(net, demand, available, internalKeys, finiteExternalKeys)) {
-            return Optional.of(inexact("exact_conservation", "shifted_vector"));
+            return notApplicable(inexact("exact_conservation", "shifted_vector").diagnostic());
         }
-        return Optional.of(TrinityAlgorithmResult.success(Collections.unmodifiableMap(firings)));
-    }
-
-    private static boolean touchesRelaxedBoundary(SolvedShift solved, ShiftedContext context) {
-        for (TrinityPatternVariant variant : context.variants()) {
-            BigInteger tightened = context.reductionUpperBounds().get(variant);
-            BigInteger structural = context.firingUpperBound().get(variant);
-            if (tightened.compareTo(structural) < 0 && solved.reductions()
-                    .getOrDefault(variant, ZERO)
-                    .add(context.reductionBoundGuards().getOrDefault(variant, ZERO))
-                    .compareTo(tightened) >= 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private TrinityAlgorithmResult<ReductionBounds> tightenReductionBounds(
-                                                                           ShiftedContext context,
-                                                                           TrinityPlanningControl control,
-                                                                           int completedPasses) {
-        LinkedHashMap<TrinityPatternVariant, BigInteger> tightened = new LinkedHashMap<>();
-        LinkedHashMap<TrinityPatternVariant, BigInteger> guards = new LinkedHashMap<>();
-        int passNumber = completedPasses;
-        for (TrinityPatternVariant variant : context.variants()) {
-            if (control.cancellationRequested()) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "Shifted Trinity bound tightening was cancelled",
-                        Map.of("passes", Integer.toString(passNumber)));
-            }
-            if (control.deadlineExceeded()) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Shifted Trinity bound tightening exhausted its deadline",
-                        Map.of("passes", Integer.toString(passNumber)));
-            }
-            passNumber = Math.incrementExact(passNumber);
-            ModelData data = createModel(context, new ReductionBoundPass(variant), false);
-            configureDeadline(data.model(), control);
-            Optimisation.Result result = data.model().minimise();
-            if (!result.getState().isOptimal()) {
-                return failure(
-                        result.getState().isFeasible() ?
-                                TrinityPlanningDiagnosticCode.MIP_TIMEOUT :
-                                TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
-                        "Shifted Trinity bound tightening did not prove a finite relaxation",
-                        Map.of("passes", Integer.toString(passNumber), "state", result.getState().name()));
-            }
-            Variable reduction = data.reductions().get(variant);
-            BigDecimal relaxed = result.get(data.model().indexOf(reduction));
-            BigInteger guard = relaxedBoundGuard(relaxed, context);
-            BigInteger guarded = relaxed
-                    .max(BigDecimal.ZERO)
-                    .setScale(0, RoundingMode.CEILING)
-                    .toBigIntegerExact()
-                    .add(guard);
-            tightened.put(
-                    variant,
-                    guarded.min(context.firingUpperBound().get(variant)));
-            guards.put(variant, guard);
-        }
-        return TrinityAlgorithmResult.success(new ReductionBounds(
-                Collections.unmodifiableMap(tightened),
-                Collections.unmodifiableMap(guards)));
-    }
-
-    private static BigInteger relaxedBoundGuard(BigDecimal relaxed, ShiftedContext context) {
-        double magnitude = Math.abs(relaxed.doubleValue());
-        if (!Double.isFinite(magnitude)) {
-            return context.firingUpperBound().values().stream()
-                    .max(BigInteger::compareTo)
-                    .orElseThrow();
-        }
-        long dimension = Math.addExact(
-                Math.addExact(context.variants().size(), context.internalKeys().size()),
-                Math.addExact(
-                        context.finiteExternalKeys().size(),
-                        Math.addExact(
-                                context.demand().finalBalanceLowerBounds().size(),
-                                context.demand().requiredNetChangeLowerBounds().size())));
-        double scale = Math.max(32.0D, Math.multiplyExact(dimension, dimension) * 8.0D);
-        double guardedUlp = Math.ceil(Math.ulp(magnitude) * scale);
-        if (!Double.isFinite(guardedUlp)) {
-            return context.firingUpperBound().values().stream()
-                    .max(BigInteger::compareTo)
-                    .orElseThrow();
-        }
-        return BigDecimal.valueOf(guardedUlp)
-                .toBigIntegerExact()
-                .max(MINIMUM_RELAXED_BOUND_GUARD);
+        return TrinityPlanningAttempt.provedOptimal(Collections.unmodifiableMap(firings));
     }
 
     private TrinityAlgorithmResult<SolvedShift> solve(
@@ -286,7 +172,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                     "Shifted Trinity firing optimization exhausted its deadline",
                     Map.of("passes", Integer.toString(passNumber - 1)));
         }
-        ModelData data = createModel(context, pass, true);
+        ModelData data = createModel(context, pass);
         configureDeadline(data.model(), control);
         Optimisation.Result result = data.model().minimise();
         if (!result.getState().isOptimal()) {
@@ -331,8 +217,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
 
     private static ModelData createModel(
                                          ShiftedContext context,
-                                         ShiftedPass pass,
-                                         boolean integerReductions) {
+                                         ShiftedPass pass) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
         ArrayList<Variable> variables = new ArrayList<>();
         LinkedHashMap<TrinityPatternVariant, Variable> reductions = new LinkedHashMap<>();
@@ -340,10 +225,8 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
             TrinityPatternVariant variant = context.variants().get(index);
             Variable reduction = model.addVariable("reduction_" + index)
                     .lower(ZERO)
-                    .upper(context.reductionUpperBounds().get(variant));
-            if (integerReductions) {
-                reduction.integer();
-            }
+                    .upper(context.firingUpperBound().get(variant))
+                    .integer();
             reductions.put(variant, reduction);
             variables.add(reduction);
         }
@@ -352,10 +235,8 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         for (AEKey key : context.internalKeys()) {
             Variable seed = model.addVariable("seed_" + seedIndex++)
                     .lower(ZERO)
-                    .upper(context.available().getOrDefault(key, ZERO));
-            if (integerReductions) {
-                seed.integer();
-            }
+                    .upper(context.available().getOrDefault(key, ZERO))
+                    .integer();
             seeds.put(key, seed);
             variables.add(seed);
         }
@@ -414,11 +295,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                     .level(value));
             model.addExpression("identity_objective")
                     .set(reductions.get(identityPass.variant()), BigInteger.ONE)
-                    .weight(BigDecimal.ONE.negate());
-        } else if (pass instanceof ReductionBoundPass reductionBoundPass) {
-            model.addExpression("reduction_bound")
-                    .set(reductions.get(reductionBoundPass.variant()), BigInteger.ONE)
-                    .weight(BigDecimal.ONE.negate());
+                    .weight(BigDecimal.ONE);
         } else {
             throw new IllegalStateException("Unknown shifted Trinity optimization pass");
         }
@@ -549,8 +426,27 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 metadata));
     }
 
+    private static <T> TrinityPlanningAttempt<T> notApplicable(String detail) {
+        return notApplicable(TrinityPlanningDiagnostic.of(
+                TrinityPlanningDiagnosticCode.UNSUPPORTED_PATTERN,
+                detail));
+    }
+
+    private static <T> TrinityPlanningAttempt<T> notApplicable(TrinityPlanningDiagnostic diagnostic) {
+        return TrinityPlanningAttempt.notApplicable(diagnostic);
+    }
+
+    private static <T> TrinityPlanningAttempt<T> unsuccessfulAttempt(TrinityAlgorithmResult<?> result) {
+        TrinityPlanningDiagnostic diagnostic = result.diagnostic();
+        if (diagnostic.code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
+                diagnostic.code() == TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
+            return TrinityPlanningAttempt.terminal(diagnostic);
+        }
+        return TrinityPlanningAttempt.notApplicable(diagnostic);
+    }
+
     private sealed interface ShiftedPass
-                                         permits ExternalPass, SeedPass, FiringPass, IdentityPass, ReductionBoundPass {}
+                                         permits ExternalPass, SeedPass, FiringPass, IdentityPass {}
 
     private enum ExternalPass implements ShiftedPass {
         INSTANCE
@@ -568,8 +464,6 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                                 TrinityPatternVariant variant)
             implements ShiftedPass {}
 
-    private record ReductionBoundPass(TrinityPatternVariant variant) implements ShiftedPass {}
-
     private record ShiftedContext(
                                   List<TrinityPatternVariant> variants,
                                   Set<AEKey> internalKeys,
@@ -578,13 +472,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                                   TrinityCycleDemand demand,
                                   Map<AEKey, BigInteger> available,
                                   Map<TrinityPatternVariant, BigInteger> firingUpperBound,
-                                  Map<TrinityPatternVariant, BigInteger> reductionUpperBounds,
-                                  Map<TrinityPatternVariant, BigInteger> reductionBoundGuards,
                                   Map<AEKey, BigInteger> baselineNet) {}
-
-    private record ReductionBounds(
-                                   Map<TrinityPatternVariant, BigInteger> upperBounds,
-                                   Map<TrinityPatternVariant, BigInteger> guards) {}
 
     private record ModelData(
                              ExpressionsBasedModel model,

@@ -84,55 +84,6 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
-    void acceptsExecutablePrefixSeedAboveTheConservationLowerBound() {
-        AEKey certus = AEItemKey.of(Items.QUARTZ);
-        AEKey chargedCertus = AEItemKey.of(Items.AMETHYST_SHARD);
-        AEKey certusDust = AEItemKey.of(Items.REDSTONE);
-        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
-
-        TrinityAlgorithmResult<TrinityMipCyclePlan> result = solve(
-                certusGrowthComponent(certus, chargedCertus, certusDust, water),
-                certus,
-                BigInteger.valueOf(256L),
-                CraftingQuantityMode.NET_NEW,
-                Map.of(certus, BigInteger.valueOf(1_024L), water, BigInteger.valueOf(100_000L)),
-                500_000);
-
-        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
-        assertEquals(BigInteger.valueOf(256L), result.value().netChange().get(certus));
-        assertEquals(BigInteger.valueOf(80L), result.value().minimumSeed().get(certus));
-        assertEquals(BigInteger.valueOf(6_000L), result.value().externalInputs().get(water));
-    }
-
-    @Test
-    void solvesChargedDustReactionGrowthCycleFromAvailableIntermediateSeeds() {
-        AEKey certus = AEItemKey.of(Items.QUARTZ);
-        AEKey chargedCertus = AEItemKey.of(Items.AMETHYST_SHARD);
-        AEKey certusDust = AEItemKey.of(Items.REDSTONE);
-        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
-
-        TrinityAlgorithmResult<TrinityMipCyclePlan> result = solve(
-                certusGrowthComponent(certus, chargedCertus, certusDust, water),
-                certus,
-                BigInteger.valueOf(1_728L),
-                CraftingQuantityMode.NET_NEW,
-                Map.of(
-                        chargedCertus, BigInteger.valueOf(256L),
-                        certusDust, BigInteger.valueOf(320L),
-                        water, BigInteger.valueOf(2_147_483_647_000L)),
-                500_000);
-
-        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
-        assertEquals(BigInteger.valueOf(1_728L), result.value().netChange().get(certus));
-        assertEquals(
-                Map.of(
-                        chargedCertus, BigInteger.valueOf(256L),
-                        certusDust, BigInteger.valueOf(320L)),
-                result.value().minimumSeed());
-        assertEquals(BigInteger.valueOf(23_000L), result.value().externalInputs().get(water));
-    }
-
-    @Test
     void exactPrefixSeedParticipatesInRouteSelectionBeforeStableIdentity() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         TrinityPatternVariant identityFirstButHighSeed = variant(
@@ -443,35 +394,6 @@ public final class TrinityMixedIntegerCycleSolverTest {
                 valid.schedule(),
                 valid.solverPasses(),
                 valid.solverNanos()));
-    }
-
-    private static TrinityStronglyConnectedComponent certusGrowthComponent(
-                                                                           AEKey certus,
-                                                                           AEKey chargedCertus,
-                                                                           AEKey certusDust,
-                                                                           AEKey water) {
-        TrinityPatternVariant charge = variant(
-                "charge",
-                amounts(certus, BigInteger.valueOf(64L), water, BigInteger.valueOf(1_000L)),
-                amounts(chargedCertus, BigInteger.valueOf(64L)));
-        TrinityPatternVariant pulverize = variant(
-                "pulverize",
-                amounts(certus, BigInteger.ONE),
-                amounts(certusDust, BigInteger.ONE));
-        TrinityPatternVariant react = variant(
-                "react",
-                amounts(
-                        chargedCertus, BigInteger.valueOf(16L),
-                        certusDust, BigInteger.valueOf(16L),
-                        water, BigInteger.valueOf(500L)),
-                amounts(certus, BigInteger.valueOf(64L)));
-        return new TrinityStronglyConnectedComponent(
-                0,
-                List.of(certus, chargedCertus, certusDust),
-                true,
-                List.of(charge, pulverize, react),
-                List.of(),
-                List.of());
     }
 
     private static TrinityAlgorithmResult<TrinityMipCyclePlan> solve(

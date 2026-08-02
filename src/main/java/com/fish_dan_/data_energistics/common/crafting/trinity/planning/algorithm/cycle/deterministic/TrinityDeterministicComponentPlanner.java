@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityShiftedFiringOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
@@ -12,7 +12,6 @@ import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -40,13 +39,13 @@ public interface TrinityDeterministicComponentPlanner {
      * @param producibleInputs inputs that predecessor DAG stages may supply
      * @param maxStates        positive graph-bounded planning and scheduling limit
      * @param control          cancellation and shared deadline boundary
-     * @return empty when route choice or residual topology requires MIP; otherwise an exact result or rejection
+     * @return exact proved plan, structural miss requiring MIP, or terminal shared-budget failure
      */
-    Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> plan(
-                                                                             TrinityStronglyConnectedComponent component,
-                                                                             TrinityCycleDemand demand,
-                                                                             Map<AEKey, BigInteger> available,
-                                                                             Set<AEKey> producibleInputs,
-                                                                             int maxStates,
-                                                                             TrinityPlanningControl control);
+    TrinityPlanningAttempt<TrinityDeterministicComponentPlan> plan(
+                                                                   TrinityStronglyConnectedComponent component,
+                                                                   TrinityCycleDemand demand,
+                                                                   Map<AEKey, BigInteger> available,
+                                                                   Set<AEKey> producibleInputs,
+                                                                   int maxStates,
+                                                                   TrinityPlanningControl control);
 }

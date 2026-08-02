@@ -6,13 +6,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlanner;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCyclePlanner;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMipCyclePlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.TrinityMixedIntegerCycleSolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCycleSelection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
@@ -60,27 +55,18 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     private final TrinityPatternVariantExpander variantExpander;
     private final TrinityGraphTopologyAnalyzer topologyAnalyzer;
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
-    private final TrinityDeterministicCycleSequence deterministicCycleSequence;
-    private final TrinityDeterministicCyclePlanner deterministicCyclePlanner;
-    private final TrinityDeterministicComponentPlanner deterministicComponentPlanner;
-    private final TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver;
+    private final TrinityCyclePlanSelector cyclePlanSelector;
     private final TrinityPlanByteEstimator byteEstimator;
 
     TrinityGraphPlannerImpl(TrinityPatternVariantExpander variantExpander,
                             TrinityGraphTopologyAnalyzer topologyAnalyzer,
                             TrinityAcyclicDemandPropagator acyclicDemandPropagator,
-                            TrinityDeterministicCycleSequence deterministicCycleSequence,
-                            TrinityDeterministicCyclePlanner deterministicCyclePlanner,
-                            TrinityDeterministicComponentPlanner deterministicComponentPlanner,
-                            TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver,
+                            TrinityCyclePlanSelector cyclePlanSelector,
                             TrinityPlanByteEstimator byteEstimator) {
         this.variantExpander = variantExpander;
         this.topologyAnalyzer = topologyAnalyzer;
         this.acyclicDemandPropagator = acyclicDemandPropagator;
-        this.deterministicCycleSequence = deterministicCycleSequence;
-        this.deterministicCyclePlanner = deterministicCyclePlanner;
-        this.deterministicComponentPlanner = deterministicComponentPlanner;
-        this.mixedIntegerCycleSolver = mixedIntegerCycleSolver;
+        this.cyclePlanSelector = cyclePlanSelector;
         this.byteEstimator = byteEstimator;
     }
 
@@ -289,7 +275,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         private final LinkedHashMap<AEKey, BigInteger> demand = new LinkedHashMap<>();
         private final LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>();
         private final LinkedHashMap<TrinityPatternVariant, AcyclicFiring> acyclicFirings = new LinkedHashMap<>();
-        private final ArrayList<CycleSolution> cycleSolutions = new ArrayList<>();
+        private final ArrayList<TrinityCycleSelection> cycleSolutions = new ArrayList<>();
         private final LinkedHashMap<Integer, LinkedHashMap<AEKey, BigInteger>> cycleOutputDemands = new LinkedHashMap<>();
         private int scheduleStates;
         private long mipNanos;
@@ -498,10 +484,13 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     .forEach((key, amount) -> merge(requiredNetChanges, key, amount));
             TrinityCycleDemand cycleDemand = new TrinityCycleDemand(finalBalances, requiredNetChanges);
             Set<AEKey> producibleInputs = producibleInputs(component);
-            TrinityAlgorithmResult<CycleSolution> solved = solveCycle(
+            TrinityAlgorithmResult<TrinityCycleSelection> solved = TrinityGraphPlannerImpl.this.cyclePlanSelector.select(
                     component,
                     cycleDemand,
-                    producibleInputs);
+                    this.inventory,
+                    producibleInputs,
+                    this.settings.maxScheduleStates(),
+                    this.control);
             if (!solved.successful()) {
                 return TrinityAlgorithmResult.failure(solved.diagnostic());
             }
@@ -509,96 +498,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     solved.value(),
                     internalRequirements,
                     producibleInputs)));
-        }
-
-        private TrinityAlgorithmResult<CycleSolution> solveCycle(
-                                                                 TrinityStronglyConnectedComponent component,
-                                                                 TrinityCycleDemand demand,
-                                                                 Set<AEKey> producibleInputs) {
-            Optional<ScalarCycleDemand> scalar = scalarDemand(component, demand);
-            if (scalar.isPresent()) {
-                ScalarCycleDemand request = scalar.orElseThrow();
-                Optional<List<TrinityVariantFiring>> deterministicOrder = deterministicCycleSequence.resolve(
-                        component,
-                        request.target(),
-                        this.inventory);
-                if (deterministicOrder.isPresent()) {
-                    TrinityAlgorithmResult<TrinityCyclePlan> deterministic = deterministicCyclePlanner.plan(
-                            deterministicOrder.orElseThrow(),
-                            request.target(),
-                            request.amount(),
-                            request.quantityMode(),
-                            this.inventory,
-                            this.settings.maxScheduleStates(),
-                            this.control);
-                    if (deterministic.successful()) {
-                        TrinityCyclePlan plan = deterministic.value();
-                        return TrinityAlgorithmResult.success(new CycleSolution(
-                                component.index(),
-                                plan.oneCycleOrder(),
-                                plan.repetitions(),
-                                plan.minimumSeed(),
-                                plan.initialInputs(),
-                                plan.netChange(),
-                                plan.schedule().statesVisited(),
-                                0L));
-                    }
-                    if (deterministic.diagnostic().code() != TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT ||
-                            producibleInputs.isEmpty()) {
-                        return TrinityAlgorithmResult.failure(deterministic.diagnostic());
-                    }
-                }
-            }
-
-            long componentStartedNanos = System.nanoTime();
-            Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> deterministicComponent = deterministicComponentPlanner.plan(
-                    component,
-                    demand,
-                    this.inventory,
-                    producibleInputs,
-                    this.settings.maxScheduleStates(),
-                    this.control);
-            long componentNanos = Math.max(0L, System.nanoTime() - componentStartedNanos);
-            if (deterministicComponent.isPresent()) {
-                TrinityAlgorithmResult<TrinityDeterministicComponentPlan> deterministic = deterministicComponent.orElseThrow();
-                if (!deterministic.successful()) {
-                    return TrinityAlgorithmResult.failure(deterministic.diagnostic());
-                }
-                TrinityDeterministicComponentPlan plan = deterministic.value();
-                return TrinityAlgorithmResult.success(new CycleSolution(
-                        component.index(),
-                        plan.schedule().batches(),
-                        BigInteger.ONE,
-                        plan.minimumSeed(),
-                        plan.initialInputs(),
-                        plan.netChange(),
-                        plan.schedule().statesVisited(),
-                        componentNanos));
-            }
-
-            TrinityAlgorithmResult<TrinityMipCyclePlan> mip = mixedIntegerCycleSolver.solve(
-                    component,
-                    demand,
-                    this.inventory,
-                    producibleInputs,
-                    this.settings.maxScheduleStates(),
-                    this.control);
-            if (!mip.successful()) {
-                return TrinityAlgorithmResult.failure(mip.diagnostic());
-            }
-            TrinityMipCyclePlan plan = mip.value();
-            LinkedHashMap<AEKey, BigInteger> prefix = maximumAmounts(
-                    plan.minimumSeed(),
-                    plan.externalInputs());
-            return TrinityAlgorithmResult.success(new CycleSolution(
-                    component.index(),
-                    plan.schedule().batches(),
-                    BigInteger.ONE,
-                    prefix,
-                    plan.initialInputs(),
-                    plan.netChange(),
-                    plan.schedule().statesVisited(),
-                    Math.addExact(componentNanos, plan.solverNanos())));
         }
 
         private TrinityAlgorithmResult<PlanAssembly> satisfyCycleInputs(
@@ -676,7 +575,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                           TrinityStronglyConnectedComponent component,
                                                                           PreparedCycle prepared,
                                                                           int position) {
-            CycleSolution solution = prepared.solution();
+            TrinityCycleSelection solution = prepared.solution();
             this.cycleSolutions.add(solution);
             this.scheduleStates = Math.addExact(this.scheduleStates, solution.scheduleStates());
             this.mipNanos = Math.addExact(this.mipNanos, solution.mipNanos());
@@ -717,35 +616,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             registerAcyclic(selected, count, rank);
             applyReverseDemand(selected, count, crossBoundaryInput ? key : null);
             return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
-        }
-
-        private Optional<ScalarCycleDemand> scalarDemand(
-                                                         TrinityStronglyConnectedComponent component,
-                                                         TrinityCycleDemand demand) {
-            if (demand.requiredNetChangeLowerBounds().size() != 1) {
-                return Optional.empty();
-            }
-            Map.Entry<AEKey, BigInteger> net = demand.requiredNetChangeLowerBounds()
-                    .entrySet()
-                    .iterator()
-                    .next();
-            if (!component.keys().contains(net.getKey())) {
-                return Optional.empty();
-            }
-            if (demand.finalBalanceLowerBounds().isEmpty()) {
-                return Optional.of(new ScalarCycleDemand(
-                        net.getKey(),
-                        net.getValue(),
-                        CraftingQuantityMode.NET_NEW));
-            }
-            if (demand.finalBalanceLowerBounds().size() != 1 ||
-                    !demand.finalBalanceLowerBounds().containsKey(net.getKey())) {
-                return Optional.empty();
-            }
-            return Optional.of(new ScalarCycleDemand(
-                    net.getKey(),
-                    demand.finalBalanceLowerBounds().get(net.getKey()),
-                    CraftingQuantityMode.FINAL_TOTAL));
         }
 
         private List<TrinityPatternVariant> producersFor(
@@ -827,7 +697,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     variant,
                     firing.count())));
             for (int index = 0; index < this.cycleSolutions.size(); index++) {
-                CycleSolution cycle = this.cycleSolutions.get(index);
+                TrinityCycleSelection cycle = this.cycleSolutions.get(index);
                 units.add(new CycleUnit(
                         Math.multiplyExact(this.topologicalPositions.get(cycle.componentIndex()), 2),
                         index,
@@ -867,7 +737,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     continue;
                 }
 
-                CycleSolution cycle = ((CycleUnit) unit).solution();
+                TrinityCycleSelection cycle = ((CycleUnit) unit).solution();
                 ArrayList<Integer> blockStages = new ArrayList<>();
                 for (TrinityVariantFiring batch : cycle.localOrder()) {
                     int stageIndex = stages.size();
@@ -1047,14 +917,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         return false;
     }
 
-    private static LinkedHashMap<AEKey, BigInteger> maximumAmounts(
-                                                                   Map<AEKey, BigInteger> first,
-                                                                   Map<AEKey, BigInteger> second) {
-        LinkedHashMap<AEKey, BigInteger> maximum = new LinkedHashMap<>(first);
-        second.forEach((key, amount) -> maximum.merge(key, amount, BigInteger::max));
-        return maximum;
-    }
-
     private static void mergePatternFiring(
                                            Map<TrinityPatternIdentity, BigInteger> firings,
                                            TrinityPatternVariant variant,
@@ -1142,7 +1004,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     private record CycleUnit(
                              int rank,
                              int sequence,
-                             CycleSolution solution)
+                             TrinityCycleSelection solution)
             implements OrderedUnit {
 
         @Override
@@ -1153,25 +1015,10 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
 
     private record AcyclicFiring(BigInteger count, int rank) {}
 
-    private record CycleSolution(
-                                 int componentIndex,
-                                 List<TrinityVariantFiring> localOrder,
-                                 BigInteger repetitions,
-                                 Map<AEKey, BigInteger> minimumSeed,
-                                 Map<AEKey, BigInteger> initialInputs,
-                                 Map<AEKey, BigInteger> netChange,
-                                 int scheduleStates,
-                                 long mipNanos) {}
-
     private record PreparedCycle(
-                                 CycleSolution solution,
+                                 TrinityCycleSelection solution,
                                  Map<AEKey, BigInteger> internalRequirements,
                                  Set<AEKey> producibleInputs) {}
-
-    private record ScalarCycleDemand(
-                                     AEKey target,
-                                     BigInteger amount,
-                                     CraftingQuantityMode quantityMode) {}
 
     private record PlanAssembly(
                                 Map<AEKey, BigInteger> initialInputs,

@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityFiringVector;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityShiftedFiringOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
@@ -53,13 +56,13 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
     }
 
     @Override
-    public Optional<TrinityAlgorithmResult<TrinityDeterministicComponentPlan>> plan(
-                                                                                    TrinityStronglyConnectedComponent component,
-                                                                                    TrinityCycleDemand demand,
-                                                                                    Map<AEKey, BigInteger> available,
-                                                                                    Set<AEKey> producibleInputs,
-                                                                                    int maxStates,
-                                                                                    TrinityPlanningControl control) {
+    public TrinityPlanningAttempt<TrinityDeterministicComponentPlan> plan(
+                                                                          TrinityStronglyConnectedComponent component,
+                                                                          TrinityCycleDemand demand,
+                                                                          Map<AEKey, BigInteger> available,
+                                                                          Set<AEKey> producibleInputs,
+                                                                          int maxStates,
+                                                                          TrinityPlanningControl control) {
         if (component == null || !component.cyclic() || demand == null || available == null ||
                 producibleInputs == null || maxStates <= 0 || control == null) {
             throw new IllegalArgumentException("A deterministic Trinity component request is incomplete");
@@ -67,12 +70,11 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         Set<AEKey> producible = Set.copyOf(producibleInputs);
         ArrayList<Candidate> candidates = new ArrayList<>();
-        TrinityAlgorithmResult<TrinityDeterministicComponentPlan> terminal = null;
 
         for (AEKey reservoir : component.keys()) {
             StopState state = stopState(control);
             if (state != StopState.RUNNING) {
-                return Optional.of(stopped(state));
+                return TrinityPlanningAttempt.terminal(stopped(state).diagnostic());
             }
             Optional<List<TrinityVariantFiring>> primitive = this.cycleSequence.resolve(
                     component,
@@ -81,12 +83,12 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             if (primitive.isEmpty()) {
                 continue;
             }
-            Optional<ResidualTopology> topology = ResidualTopology.create(component, reservoir);
-            if (topology.isEmpty()) {
-                continue;
-            }
             if (!isProductiveBasis(component, demand, reservoir, primitive.orElseThrow())) {
                 continue;
+            }
+            Optional<ResidualTopology> topology = ResidualTopology.create(component, reservoir);
+            if (topology.isEmpty()) {
+                return notApplicable("A productive Trinity basis has an ambiguous residual route");
             }
             TrinityAlgorithmResult<Candidate> attempted = solveCandidate(
                     component,
@@ -105,23 +107,19 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             TrinityPlanningDiagnosticCode code = attempted.diagnostic().code();
             if (code == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
                     code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
-                terminal = TrinityAlgorithmResult.failure(attempted.diagnostic());
-                break;
+                return TrinityPlanningAttempt.terminal(attempted.diagnostic());
             }
-            return Optional.empty();
-        }
-        if (terminal != null) {
-            return Optional.of(terminal);
+            return TrinityPlanningAttempt.notApplicable(attempted.diagnostic());
         }
         if (candidates.isEmpty()) {
-            return Optional.empty();
+            return notApplicable("No unique productive Trinity component basis was proved");
         }
-        Map<TrinityPatternVariant, BigInteger> firstVector = candidates.getFirst().plan().firings();
-        if (candidates.stream().anyMatch(candidate -> !candidate.plan().firings().equals(firstVector))) {
-            return Optional.empty();
+        TrinityFiringVector firstVector = candidates.getFirst().objective().identity();
+        if (candidates.stream().anyMatch(candidate -> !candidate.objective().identity().equals(firstVector))) {
+            return notApplicable("Productive Trinity bases disagree on the complete firing identity");
         }
         candidates.sort(Candidate.ORDER);
-        return Optional.of(TrinityAlgorithmResult.success(candidates.getFirst().plan()));
+        return TrinityPlanningAttempt.provedOptimal(candidates.getFirst().plan());
     }
 
     private TrinityAlgorithmResult<Candidate> solveCandidate(
@@ -199,20 +197,17 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         if (baselineFirings.isEmpty()) {
             return unsupported("A deterministic Trinity component produced no work");
         }
-        Optional<TrinityAlgorithmResult<Map<TrinityPatternVariant, BigInteger>>> optimized = this.firingOptimizer.optimize(
+        TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimized = this.firingOptimizer.optimize(
                 component,
                 demand,
                 available,
                 producibleInputs,
                 baselineFirings,
                 control);
-        if (optimized.isEmpty()) {
-            return unsupported("The deterministic Trinity firing upper bound cannot be shifted safely");
+        if (optimized.kind() != TrinityPlanningAttempt.Kind.PROVED_OPTIMAL) {
+            return TrinityAlgorithmResult.failure(optimized.diagnostic());
         }
-        if (!optimized.orElseThrow().successful()) {
-            return TrinityAlgorithmResult.failure(optimized.orElseThrow().diagnostic());
-        }
-        Map<TrinityPatternVariant, BigInteger> firings = optimized.orElseThrow().value();
+        Map<TrinityPatternVariant, BigInteger> firings = optimized.value();
         Map<AEKey, BigInteger> totalNet = netChange(firings);
         if (!satisfies(totalNet, netLowerBounds)) {
             return unsupported("A deterministic Trinity component failed an exact net lower bound");
@@ -301,10 +296,11 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 completeSchedule);
         return TrinityAlgorithmResult.success(new Candidate(
                 plan,
-                externalTotal,
-                sum(minimumSeed),
-                sum(firings),
-                stableVector(component.cycleVariants(), firings)));
+                new TrinityLexicographicObjective(
+                        externalTotal,
+                        sum(minimumSeed),
+                        sum(firings),
+                        TrinityFiringVector.from(component.cycleVariants(), firings))));
     }
 
     private static boolean isProductiveBasis(
@@ -872,26 +868,6 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 .orElse(ZERO);
     }
 
-    private static List<BigInteger> stableVector(
-                                                 List<TrinityPatternVariant> variants,
-                                                 Map<TrinityPatternVariant, BigInteger> firings) {
-        return variants.stream()
-                .sorted()
-                .map(variant -> firings.getOrDefault(variant, ZERO))
-                .toList();
-    }
-
-    private static int compareVectors(List<BigInteger> first, List<BigInteger> second) {
-        int sharedSize = Math.min(first.size(), second.size());
-        for (int index = 0; index < sharedSize; index++) {
-            int compared = first.get(index).compareTo(second.get(index));
-            if (compared != 0) {
-                return compared;
-            }
-        }
-        return Integer.compare(first.size(), second.size());
-    }
-
     private static BigInteger ceilDivide(BigInteger numerator, BigInteger denominator) {
         if (numerator.signum() <= 0 || denominator.signum() <= 0) {
             throw new IllegalArgumentException("A deterministic Trinity ratio requires positive values");
@@ -924,6 +900,10 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                 TrinityPlanningDiagnosticCode.UNSUPPORTED_PATTERN,
                 detail,
                 Map.of("phase", "deterministic_component"));
+    }
+
+    private static <T> TrinityPlanningAttempt<T> notApplicable(String detail) {
+        return TrinityPlanningAttempt.notApplicable(unsupported(detail).diagnostic());
     }
 
     private static <T> TrinityAlgorithmResult<T> searchLimit(int limit, int states) {
@@ -960,16 +940,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
 
     private record Candidate(
                              TrinityDeterministicComponentPlan plan,
-                             BigInteger externalTotal,
-                             BigInteger seedTotal,
-                             BigInteger firingTotal,
-                             List<BigInteger> stableVector) {
+                             TrinityLexicographicObjective objective) {
 
-        private static final Comparator<Candidate> ORDER = Comparator
-                .comparing(Candidate::externalTotal)
-                .thenComparing(Candidate::seedTotal)
-                .thenComparing(Candidate::firingTotal)
-                .thenComparing(Candidate::stableVector, TrinityDeterministicComponentPlannerImpl::compareVectors);
+        private static final Comparator<Candidate> ORDER = Comparator.comparing(Candidate::objective);
     }
 
     private static final class ResidualTopology {
