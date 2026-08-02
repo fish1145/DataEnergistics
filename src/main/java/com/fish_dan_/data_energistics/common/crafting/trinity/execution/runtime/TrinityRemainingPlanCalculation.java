@@ -44,7 +44,7 @@ public interface TrinityRemainingPlanCalculation {
     /**
      * @param cause asynchronous calculation failure
      */
-    record Fault(Throwable cause) implements Result {}
+    record Fault(Throwable cause, long revision) implements Result {}
 
     /**
      * Creates a calculation owner using the shared bounded planning gateway.
@@ -65,6 +65,7 @@ public interface TrinityRemainingPlanCalculation {
      * @param requestedAmount   remaining delivery amount
      * @param quantityMode      retained quantity semantics
      * @param settings          immutable planner budgets
+     * @param currentTick       current server tick used by bounded same-revision retries
      * @return current advancement result
      */
     Result advance(Optional<TrinityCraftingGraphSnapshot> snapshot,
@@ -72,7 +73,26 @@ public interface TrinityRemainingPlanCalculation {
                    AEKey target,
                    BigInteger requestedAmount,
                    CraftingQuantityMode quantityMode,
-                   TrinityCraftingConfig.Settings settings);
+                   TrinityCraftingConfig.Settings settings,
+                   long currentTick);
+
+    /**
+     * Reopens the revision that produced a valid plan after its server-thread material reservation lost a race.
+     * Recalculation is delayed with exponential backoff so a changing inventory cannot create a planner busy loop.
+     *
+     * @param revision      revision returned with the unapplied ready plan
+     * @param currentTick   current server tick
+     * @param maxRetryTicks inclusive retry-delay cap
+     */
+    void retrySameRevision(long revision, long currentTick, int maxRetryTicks);
+
+    /**
+     * Completes one successful replacement-plan episode and releases its revision gate for future independent stale
+     * pattern events.
+     *
+     * @param revision revision of the replacement plan installed by the CPU
+     */
+    void acceptRevision(long revision);
 
     /**
      * Cooperatively cancels pending background work and clears its revision gate.

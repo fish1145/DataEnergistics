@@ -28,6 +28,9 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
     private final Supplier<TrinityPlanningGateway> gatewaySupplier;
     private Future<TrinityPlanningAttempt> pending;
     private long attemptedRevision = -1L;
+    private long retryRevision = -1L;
+    private long retryAtTick = -1L;
+    private int nextRetryDelay = 1;
 
     TrinityRemainingPlanCalculationImpl(Supplier<TrinityPlanningGateway> gatewaySupplier) {
         this.gatewaySupplier = gatewaySupplier;
@@ -39,16 +42,26 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
-                          TrinityCraftingConfig.Settings settings) {
+                          TrinityCraftingConfig.Settings settings,
+                          long currentTick) {
+        if (currentTick < 0L) {
+            throw new IllegalArgumentException("A Trinity remaining-plan calculation requires a non-negative tick");
+        }
         if (this.pending != null) {
-            return pollPending();
+            return pollPending(currentTick, settings.dynamicRetryMaxTicks());
         }
         if (snapshot.isEmpty()) {
             return new Waiting();
         }
         TrinityCraftingGraphSnapshot graph = snapshot.orElseThrow();
-        if (graph.revision() == this.attemptedRevision) {
-            return new Waiting();
+        if (graph.revision() != this.attemptedRevision) {
+            clearRetry();
+        } else {
+            if (this.retryRevision != graph.revision() || currentTick < this.retryAtTick) {
+                return new Waiting();
+            }
+            this.retryRevision = -1L;
+            this.retryAtTick = -1L;
         }
 
         Map<AEKey, BigInteger> available = availableSupplier.get();
@@ -63,7 +76,7 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
         return new Waiting();
     }
 
-    private Result pollPending() {
+    private Result pollPending(long currentTick, int maxRetryTicks) {
         if (!this.pending.isDone()) {
             return new Waiting();
         }
@@ -76,10 +89,55 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                     new Rejected(attempt.diagnostic(), this.attemptedRevision);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            return new Fault(exception);
+            scheduleRetry(this.attemptedRevision, currentTick, maxRetryTicks);
+            return new Fault(exception, this.attemptedRevision);
         } catch (ExecutionException | RuntimeException exception) {
-            return new Fault(exception);
+            scheduleRetry(this.attemptedRevision, currentTick, maxRetryTicks);
+            return new Fault(exception, this.attemptedRevision);
         }
+    }
+
+    @Override
+    public void retrySameRevision(long revision, long currentTick, int maxRetryTicks) {
+        if (this.pending != null) {
+            throw new IllegalStateException("A pending Trinity calculation cannot schedule a second retry");
+        }
+        if (revision != this.attemptedRevision) {
+            throw new IllegalArgumentException("A Trinity retry must match the last attempted graph revision");
+        }
+        scheduleRetry(revision, currentTick, maxRetryTicks);
+    }
+
+    @Override
+    public void acceptRevision(long revision) {
+        if (this.pending != null) {
+            throw new IllegalStateException("A pending Trinity calculation cannot be accepted");
+        }
+        if (revision != this.attemptedRevision) {
+            throw new IllegalArgumentException("An accepted Trinity revision must match the last completed calculation");
+        }
+        this.attemptedRevision = -1L;
+        clearRetry();
+    }
+
+    private void scheduleRetry(long revision, long currentTick, int maxRetryTicks) {
+        if (revision < 0L || currentTick < 0L || maxRetryTicks <= 0) {
+            throw new IllegalArgumentException("A Trinity same-revision retry requires revision, tick and retry cap");
+        }
+        if (this.retryRevision >= 0L) {
+            throw new IllegalStateException("A Trinity same-revision retry is already scheduled");
+        }
+        int delay = Math.min(this.nextRetryDelay, maxRetryTicks);
+        this.retryRevision = revision;
+        this.retryAtTick = Math.addExact(currentTick, delay);
+        this.nextRetryDelay = delay >= maxRetryTicks ? maxRetryTicks :
+                (int) Math.min(maxRetryTicks, Math.multiplyExact(delay, 2L));
+    }
+
+    private void clearRetry() {
+        this.retryRevision = -1L;
+        this.retryAtTick = -1L;
+        this.nextRetryDelay = 1;
     }
 
     private static TrinityPlanningAttempt calculate(TrinityCraftingGraphSnapshot graph,
@@ -110,6 +168,7 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
         Future<TrinityPlanningAttempt> calculation = this.pending;
         this.pending = null;
         this.attemptedRevision = -1L;
+        clearRetry();
         if (calculation != null) {
             calculation.cancel(true);
         }

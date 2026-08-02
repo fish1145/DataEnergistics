@@ -169,6 +169,15 @@ AE2 开始新计算时服务端会清空 `result`，但客户端和服务端仍�
 资格过滤已经观察到该结果后才重新开放。按钮和 Enter 提交统一受门控制，提前到达服务端的手动提交返回
 `INCOMPLETE_PLAN`，AE2 auto-start 仍可在结果产生后直接提交。
 
+### C-015：剩余量重规划会被同 revision gate 永久冻结
+
+pattern 失效后，剩余量计算曾把 graph revision 同时作为去重键和永久尝试标记。异步 Future 异常或有效 replacement
+在服务器线程预留输入时输掉库存竞态后，执行仍停留在 `PLANNING`，但同 revision 的后续调用只返回 `Waiting`；若样板目录
+不再变化，作业会永久停在 CPU 内。
+
+修复：区分语义拒绝与可恢复结果。语义拒绝继续等待新 revision；异步异常与预留竞态在同 revision 上按配置上限指数
+退避重试。replacement 成功接纳后显式结束本次重规划 episode，释放 revision gate，避免未来独立失效事件被旧状态拦截。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -187,6 +196,7 @@ AE2 开始新计算时服务端会清空 `result`，但客户端和服务端仍�
 | C-012 | retry 时钟重基、durable revision、作业暂停 | 已完成 | 高 tick→低 tick 恢复、在途续接、真实菜单 toggle |
 | C-013 | 上游循环 final-balance 与 boundary-output 传播 | 已完成 | 完整/部分库存、串并联 SCC、多轴联合求解、环外输出与混合路线回溯 |
 | C-014 | 确认页计划就绪门 | 已完成 | 真实 `CraftConfirmMenu` 首次/二次广播、提前提交和重算提交 GameTest |
+| C-015 | 剩余量重规划结果处置协议 | 已完成 | 同 revision 异常与预留竞态退避重试、语义拒绝等待新 revision 的直接状态机测试 |
 
 ## 5. 风险与控制
 
@@ -224,6 +234,7 @@ AE2 开始新计算时服务端会清空 `result`，但客户端和服务端仍�
 - 动态替代、追加借料、改路和无限期缺料等待；
 - 部分 requester 接受、standalone、取消和在途输出；
 - 配方 revision 变化和剩余量重规划；
+- 同 revision 异步异常与 replacement-input 预留竞态可重试，语义拒绝不忙轮询；
 - 真死锁诊断和唯一退款路径。
 
 ### 6.3 恢复与集成

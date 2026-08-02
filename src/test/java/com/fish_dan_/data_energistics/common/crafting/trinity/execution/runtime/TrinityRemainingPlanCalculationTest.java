@@ -65,7 +65,8 @@ final class TrinityRemainingPlanCalculationTest {
                 target,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
-                TrinityCraftingConfig.settings());
+                TrinityCraftingConfig.settings(),
+                0L);
 
         assertInstanceOf(TrinityRemainingPlanCalculation.Waiting.class, waiting);
         assertEquals(1, gateway.submissions);
@@ -84,7 +85,8 @@ final class TrinityRemainingPlanCalculationTest {
                         target,
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
-                        TrinityCraftingConfig.settings()));
+                        TrinityCraftingConfig.settings(),
+                        1L));
 
         assertEquals(replacement, ready.plan());
         assertEquals(7L, ready.revision());
@@ -103,7 +105,8 @@ final class TrinityRemainingPlanCalculationTest {
                 target,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
-                TrinityCraftingConfig.settings());
+                TrinityCraftingConfig.settings(),
+                0L);
         gateway.pending.complete(TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                 TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
                 Component.literal("no order"),
@@ -116,7 +119,8 @@ final class TrinityRemainingPlanCalculationTest {
                         target,
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
-                        TrinityCraftingConfig.settings()));
+                        TrinityCraftingConfig.settings(),
+                        1L));
 
         assertInstanceOf(
                 TrinityRemainingPlanCalculation.Waiting.class,
@@ -126,7 +130,8 @@ final class TrinityRemainingPlanCalculationTest {
                         target,
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
-                        TrinityCraftingConfig.settings()));
+                        TrinityCraftingConfig.settings(),
+                        2L));
         assertEquals(1, gateway.submissions);
 
         calculation.advance(
@@ -135,8 +140,110 @@ final class TrinityRemainingPlanCalculationTest {
                 target,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
-                TrinityCraftingConfig.settings());
+                TrinityCraftingConfig.settings(),
+                3L);
         assertEquals(2, gateway.submissions);
+    }
+
+    @Test
+    void transientOutcomesRetryTheSameRevisionWithBackoff() {
+        RecordingGateway gateway = new RecordingGateway();
+        TrinityRemainingPlanCalculation calculation = TrinityRemainingPlanCalculation.create(() -> gateway);
+        Supplier<Map<AEKey, BigInteger>> available = Map::of;
+
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                100L);
+        gateway.pending.completeExceptionally(new IllegalStateException("transient planner failure"));
+        TrinityRemainingPlanCalculation.Fault fault = assertInstanceOf(
+                TrinityRemainingPlanCalculation.Fault.class,
+                calculation.advance(
+                        snapshot(7L),
+                        available,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        TrinityCraftingConfig.settings(),
+                        100L));
+
+        assertEquals(7L, fault.revision());
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                100L);
+        assertEquals(1, gateway.submissions);
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                101L);
+        assertEquals(2, gateway.submissions);
+
+        gateway.pending.complete(TrinityPlanningAttempt.success(plan(7L)));
+        TrinityRemainingPlanCalculation.Ready ready = assertInstanceOf(
+                TrinityRemainingPlanCalculation.Ready.class,
+                calculation.advance(
+                        snapshot(7L),
+                        available,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        TrinityCraftingConfig.settings(),
+                        101L));
+        calculation.retrySameRevision(ready.revision(), 101L, 200);
+
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                102L);
+        assertEquals(2, gateway.submissions);
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                103L);
+        assertEquals(3, gateway.submissions);
+
+        gateway.pending.complete(TrinityPlanningAttempt.success(plan(7L)));
+        TrinityRemainingPlanCalculation.Ready retried = assertInstanceOf(
+                TrinityRemainingPlanCalculation.Ready.class,
+                calculation.advance(
+                        snapshot(7L),
+                        available,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        TrinityCraftingConfig.settings(),
+                        103L));
+        calculation.acceptRevision(retried.revision());
+        calculation.advance(
+                snapshot(7L),
+                available,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                TrinityCraftingConfig.settings(),
+                104L);
+        assertEquals(4, gateway.submissions);
     }
 
     @Test
@@ -150,7 +257,8 @@ final class TrinityRemainingPlanCalculationTest {
                 target,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
-                TrinityCraftingConfig.settings());
+                TrinityCraftingConfig.settings(),
+                0L);
         calculation.cancel();
 
         assertTrue(gateway.pending.isCancelled());

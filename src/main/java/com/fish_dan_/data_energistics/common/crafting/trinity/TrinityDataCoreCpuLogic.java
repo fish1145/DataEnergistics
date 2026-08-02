@@ -484,7 +484,8 @@ final class TrinityDataCoreCpuLogic {
                 execution.finalOutput().what(),
                 BigInteger.valueOf(execution.deliveryRemaining()),
                 execution.quantityMode(),
-                settings);
+                settings,
+                currentTick);
         TrinityRemainingPlanCalculation.Ready ready;
         switch (result) {
             case TrinityRemainingPlanCalculation.Ready value -> ready = value;
@@ -520,10 +521,15 @@ final class TrinityDataCoreCpuLogic {
                     this.cpu.number(),
                     currentJob.link.getCraftingID(),
                     ready.revision());
+            this.remainingPlanCalculation.retrySameRevision(
+                    ready.revision(),
+                    currentTick,
+                    settings.dynamicRetryMaxTicks());
             return;
         }
         reservation.orElseThrow().retain();
         execution.replaceRemainingPlan(ready.plan(), currentTick);
+        this.remainingPlanCalculation.acceptRevision(ready.revision());
         this.cpu.markDirty();
     }
 

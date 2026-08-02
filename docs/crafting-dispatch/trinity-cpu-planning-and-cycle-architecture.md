@@ -260,7 +260,9 @@ FAILED
 ### 7.5 配方变化
 
 普通 graph revision 变化不打断任务。即将使用的 pattern signature 不再存在或语义变化时，保留现有库存并对剩余量
-重规划。无有效方案时等待后续目录 revision，用户仍可取消任务。
+重规划。语义上无有效方案时等待后续目录 revision；异步计算异常或 replacement-input 预留竞态则在同一 revision 上按
+`1, 2, 4, ... dynamicRetryMaxTicks` 退避重试。有效 replacement 被执行器接纳后结束本次重规划 episode，使未来独立的
+pattern 失效仍可在相同 revision 上重新发起计算。所有等待均允许用户取消任务。
 
 ## 8. 持久化
 
