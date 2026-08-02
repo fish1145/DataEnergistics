@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.multiblock.preview;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.json.ResolvedJsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -45,7 +46,6 @@ public final class StructurePreviewProjectionGameTest {
     @GameTest(template = "empty_5x5")
     public static void projectsControllerRepeatAndTierMaterials(GameTestHelper helper) {
         AEItemKey ownerKey = itemKey(Blocks.DIAMOND_BLOCK);
-        AEItemKey stoneKey = itemKey(Blocks.STONE);
         AEItemKey ironKey = itemKey(Blocks.IRON_BLOCK);
         AEItemKey goldKey = itemKey(Blocks.GOLD_BLOCK);
         PreviewTierDomain tierDomain = new PreviewTierDomain(
@@ -81,22 +81,20 @@ public final class StructurePreviewProjectionGameTest {
                 controllerCandidate.placementKey().orElseThrow(),
                 ownerKey,
                 "The controller anchor must retain the owner item identity");
-        helper.assertValueEqual(amountOf(initialSnapshot, ownerKey), 0L,
-                "The controller owner must not be included in structure materials");
+        helper.assertValueEqual(amountOf(initialSnapshot, ownerKey), 1L,
+                "Only the matching non-controller cell must contribute the owner material identity");
 
         helper.assertValueEqual(initialSnapshot.cells().size(), 4,
                 "The default repeat count must project one repeatable layer");
         helper.assertValueEqual(repeatedSnapshot.cells().size(), 6,
                 "Increasing the repeat count must add one complete repeatable layer");
-        helper.assertValueEqual(amountOf(initialSnapshot, stoneKey), 1L,
-                "The fixed stone material must occur once initially");
         helper.assertValueEqual(amountOf(initialSnapshot, ironKey), 1L,
                 "The default iron tier must occur once initially");
-        helper.assertValueEqual(amountOf(repeatedSnapshot, stoneKey), 1L,
+        helper.assertValueEqual(amountOf(repeatedSnapshot, ownerKey), 1L,
                 "Changing repeat count must not change fixed materials");
         helper.assertValueEqual(amountOf(repeatedSnapshot, ironKey), 2L,
                 "Changing repeat count must change the repeated material amount");
-        helper.assertValueEqual(amountOf(goldSnapshot, stoneKey), 1L,
+        helper.assertValueEqual(amountOf(goldSnapshot, ownerKey), 1L,
                 "Changing tier must leave unrelated fixed materials unchanged");
         helper.assertValueEqual(amountOf(goldSnapshot, ironKey), 0L,
                 "Changing tier must remove the formerly selected tier material");
@@ -104,12 +102,19 @@ public final class StructurePreviewProjectionGameTest {
                 "Changing tier must replace every repeated tier material");
 
         MultiblockRecipeView recipe = MultiblockRecipeView.from(spec, goldSnapshot);
-        helper.assertValueEqual(recipe.inputs(), goldSnapshot.materials(),
-                "The ordinary recipe view must map only the projected materials");
-        helper.assertValueEqual(recipe.output().key(), ownerKey,
-                "The ordinary recipe output must be the preview owner");
+        helper.assertValueEqual(recipe.inputs().size(), goldSnapshot.materials().size(),
+                "The controller must merge with a matching projected material instead of adding a duplicate slot");
+        helper.assertValueEqual(amountOf(recipe.inputs(), ownerKey), 2L,
+                "The ordinary recipe inputs must add one controller to the matching material amount");
+        helper.assertValueEqual(amountOf(recipe.inputs(), goldKey), 2L,
+                "The ordinary recipe inputs must retain the selected tier amount");
+        ItemStack outputStack = recipe.output().key().toStack();
+        helper.assertTrue(OrderPackageTarget.get().isOrderPackage(outputStack),
+                "The ordinary recipe output must be an order package");
+        helper.assertValueEqual(OrderPackageTarget.get().getTarget(outputStack).orElseThrow(), ownerKey,
+                "The ordinary recipe output must target the preview owner");
         helper.assertValueEqual(recipe.output().amount(), 1L,
-                "The ordinary recipe output amount must be one");
+                "The order package output amount must be one");
         helper.assertValueEqual(recipe.substructureId(), SUBSTRUCTURE_ID,
                 "The ordinary recipe view must retain the active substructure id");
         helper.assertValueEqual(recipe.definitionRevision(), DEFINITION_REVISION,
@@ -129,8 +134,8 @@ public final class StructurePreviewProjectionGameTest {
                 "The explicit ALL view must retain every projected layer");
         helper.assertValueEqual(goldSnapshot.visibleLayers(oneLayer), List.of(goldSnapshot.layers().getFirst()),
                 "A logical-layer view must filter only rendered layers");
-        helper.assertValueEqual(recipe.inputs(), goldSnapshot.materials(),
-                "Changing visible layers must not rebuild or filter recipe materials");
+        helper.assertValueEqual(amountOf(recipe.inputs(), ownerKey), 2L,
+                "Changing visible layers must not remove the controller recipe input");
         helper.assertValueEqual(recipe.projectionFingerprint(), ProjectionFingerprint.from(goldSnapshot.selection()),
                 "Visible layer state must not enter the projection fingerprint");
         helper.succeed();
@@ -314,7 +319,7 @@ public final class StructurePreviewProjectionGameTest {
                 .beginRepeatable()
                 .aisle("T ")
                 .endRepeatable(1, 2)
-                .where('S', Predicates.blocks(Blocks.STONE))
+                .where('S', Predicates.blocks(Blocks.DIAMOND_BLOCK))
                 .where('T', Predicates.blocks(Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK))
                 .build();
     }
@@ -369,7 +374,11 @@ public final class StructurePreviewProjectionGameTest {
     }
 
     private static long amountOf(StructurePreviewSnapshot snapshot, AEItemKey key) {
-        return snapshot.materials().stream()
+        return amountOf(snapshot.materials(), key);
+    }
+
+    private static long amountOf(List<PreviewMaterial> materials, AEItemKey key) {
+        return materials.stream()
                 .filter(material -> material.key().equals(key))
                 .mapToLong(PreviewMaterial::amount)
                 .sum();

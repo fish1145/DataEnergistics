@@ -70,7 +70,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
     public static final String CANDIDATES_SUFFIX = "_candidates";
     /** Prefix used by the canonical recipe-input material strip. */
     public static final String RECIPE_INPUTS_SUFFIX = "_recipe_inputs";
-    /** Suffix used by the sole controller/owner output slot. */
+    /** Stable suffix used by the sole encoded output slot. */
     public static final String OWNER_OUTPUT_SUFFIX = "_owner_output";
     /** Minimum clickable width retained before named structures overflow into horizontal scrolling. */
     static final int STRUCTURE_BUTTON_MIN_WIDTH = 64;
@@ -475,7 +475,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
     private boolean refreshRecipeInputs() {
         MultiblockRecipeView view = this.previewUi.session().recipeView();
         if (!this.ownerOutputMaterial.equals(view.output())) {
-            throw new IllegalStateException("Multiblock XEI owner output changed within one controller recipe");
+            throw new IllegalStateException("Multiblock XEI encoded output changed within one controller recipe");
         }
         return this.recipeInputs.setRecipeInputs(view.inputs());
     }

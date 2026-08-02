@@ -1,25 +1,29 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Ordinary dynamic XEI recipe view containing only material inputs and one controller or owner output.
+ * Ordinary dynamic XEI recipe view containing structure and controller inputs plus one encoded result output.
  *
  * @param registeredRecipeId    stable controller-level wrapper id
  * @param controllerId          owning multiblock controller id
  * @param substructureId        active substructure for visible diagnostics only
  * @param definitionRevision    generation used to compute the inputs
  * @param projectionFingerprint dynamic identity of every recipe-affecting preview choice
- * @param inputs                selected aggregate material inputs
- * @param output                controller or owner output with amount one
+ * @param inputs                selected aggregate material inputs including the controller
+ * @param output                marked order-package output with amount one
  */
 public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
                                    ResourceLocation controllerId,
@@ -61,7 +65,7 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
             }
         }
         if (output.amount() != 1L) {
-            throw new IllegalArgumentException("Multiblock recipe owner output amount must be one");
+            throw new IllegalArgumentException("Multiblock recipe output amount must be one");
         }
     }
 
@@ -84,7 +88,7 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
      *
      * @param spec     revision-bound preview definition
      * @param snapshot current projected snapshot
-     * @return ordinary material-input/controller-output recipe view
+     * @return ordinary structure-and-controller input recipe view
      */
     public static MultiblockRecipeView from(MultiblockPreviewSpec spec, StructurePreviewSnapshot snapshot) {
         if (spec == null || snapshot == null) {
@@ -100,8 +104,29 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
                 snapshot.definitionKey().structureName(),
                 snapshot.definitionRevision(),
                 ProjectionFingerprint.from(snapshot.selection()),
-                snapshot.materials(),
-                new PreviewMaterial(spec.ownerOutput(), 1L));
+                mergeControllerInput(snapshot.materials(), spec.ownerOutput()),
+                markedOrderPackage(spec.ownerOutput()));
+    }
+
+    private static List<PreviewMaterial> mergeControllerInput(List<PreviewMaterial> materials,
+                                                              AEItemKey controller) {
+        Map<AEItemKey, Long> amounts = new LinkedHashMap<>();
+        for (PreviewMaterial material : materials) {
+            amounts.merge(material.key(), material.amount(), Math::addExact);
+        }
+        amounts.compute(controller, (unused, current) -> current == null ? 1L : Math.addExact(current, 1L));
+        return amounts.entrySet().stream()
+                .map(entry -> new PreviewMaterial(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    private static PreviewMaterial markedOrderPackage(AEItemKey controller) {
+        ItemStack packageStack = OrderPackageTarget.get().createMarkedPackage(controller);
+        AEItemKey packageKey = AEItemKey.of(packageStack);
+        if (packageKey == null) {
+            throw new IllegalStateException("Registered order package did not produce an AE item key");
+        }
+        return new PreviewMaterial(packageKey, 1L);
     }
 
     /**
