@@ -1,9 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider;
 
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
 
 import appeng.api.crafting.IPatternDetails;
@@ -20,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
  * use the single-craft {@link ICraftingProvider#pushPattern} contract.
  * </p>
  */
-public interface CountedCraftingProvider extends ICraftingProvider {
+public interface CountedCraftingProvider extends ICraftingProvider, CountedCraftingProviderAdapter {
 
     /**
      * Prepares one physical submission containing up to the requested number of identical logical crafts.
@@ -36,6 +35,7 @@ public interface CountedCraftingProvider extends ICraftingProvider {
      * @return one one-shot admission, or {@code null} when the prepared target cannot accept any craft
      */
     @Nullable
+    @Override
     CountedCraftingAdmission prepareBatch(
                                           IPatternDetails patternDetails,
                                           KeyCounter[] prototype,
@@ -60,19 +60,11 @@ public interface CountedCraftingProvider extends ICraftingProvider {
                                                     KeyCounter[] prototype,
                                                     long requestedCount,
                                                     CraftingDispatchTargetAvailability targetAvailability) {
-        if (targetAvailability == null) {
-            throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
-        }
-        CraftingDispatchTarget target = CraftingDispatchTarget.provider();
-        if (!targetAvailability.canAttempt(target)) {
-            return CountedCraftingPreparation.rejected(
-                    CraftingDispatchRejection.targeted(CraftingDispatchStatus.NO_CAPACITY, target));
-        }
-        CountedCraftingAdmission admission = prepareBatch(patternDetails, prototype, requestedCount);
-        if (admission == null) {
-            return CountedCraftingPreparation.rejected(
-                    CraftingDispatchRejection.scoped(CraftingDispatchStatus.NO_CAPACITY));
-        }
-        return CountedCraftingPreparation.accepted(admission, target);
+        return CountedCraftingProviderAdapters.prepareProviderTarget(
+                this,
+                patternDetails,
+                prototype,
+                requestedCount,
+                targetAvailability);
     }
 }

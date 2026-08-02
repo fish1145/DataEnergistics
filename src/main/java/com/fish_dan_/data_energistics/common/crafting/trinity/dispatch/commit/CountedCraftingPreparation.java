@@ -1,9 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit;
 
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
-
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingAdmission;
 
 import org.jetbrains.annotations.Nullable;
 

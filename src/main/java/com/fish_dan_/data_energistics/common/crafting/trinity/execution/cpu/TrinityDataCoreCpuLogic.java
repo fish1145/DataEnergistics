@@ -1,15 +1,14 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.WorkerOperationBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
@@ -738,7 +737,7 @@ final class TrinityDataCoreCpuLogic {
 
                     CountedCraftingPreparation preparation;
                     try {
-                        preparation = prepareAdmission(
+                        preparation = CountedCraftingProviderAdapters.prepare(
                                 provider,
                                 details,
                                 inputs.inputHolder(),
@@ -775,7 +774,10 @@ final class TrinityDataCoreCpuLogic {
                     }
                     long count;
                     try {
-                        count = validatedAdmissionCount(provider, admission, maximumCount);
+                        count = CountedCraftingProviderAdapters.validatedAdmissionCount(
+                                provider,
+                                admission,
+                                maximumCount);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
                                 "Crafting provider {} returned an invalid counted admission for pattern {} on Trinity CPU {}",
@@ -1002,36 +1004,6 @@ final class TrinityDataCoreCpuLogic {
         additionalInputs.commit();
         inputTransaction.commit();
         acceptedDispatch.accept(commit);
-    }
-
-    private static CountedCraftingPreparation prepareAdmission(
-                                                               ICraftingProvider provider,
-                                                               IPatternDetails details,
-                                                               KeyCounter[] prototype,
-                                                               long maximumCount,
-                                                               CraftingDispatchTargetAvailability targetAvailability) {
-        if (provider instanceof CountedCraftingProvider countedProvider) {
-            return countedProvider.prepareBatch(
-                    details,
-                    prototype,
-                    maximumCount,
-                    targetAvailability);
-        }
-        return CountedCraftingPreparation.accepted(
-                new SingleCraftingAdmission(provider, details),
-                CraftingDispatchTarget.provider());
-    }
-
-    private static long validatedAdmissionCount(ICraftingProvider provider,
-                                                CountedCraftingAdmission admission,
-                                                long maximumCount) {
-        long count = admission.count();
-        if (count <= 0L || count > maximumCount) {
-            throw new IllegalStateException(
-                    "Crafting provider " + provider + " admitted " + count +
-                            " crafts outside requested range 1.." + maximumCount);
-        }
-        return count;
     }
 
     @Nullable
@@ -1604,23 +1576,6 @@ final class TrinityDataCoreCpuLogic {
             for (var entry : this.ownedInputs) {
                 inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
             }
-        }
-    }
-
-    /**
-     * Single-craft admission preserves the exact behavior of providers that do not opt into counted dispatch.
-     */
-    private record SingleCraftingAdmission(ICraftingProvider provider, IPatternDetails details)
-            implements CountedCraftingAdmission {
-
-        @Override
-        public long count() {
-            return 1L;
-        }
-
-        @Override
-        public boolean commit(KeyCounter[] prototype) {
-            return this.provider.pushPattern(this.details, prototype);
         }
     }
 

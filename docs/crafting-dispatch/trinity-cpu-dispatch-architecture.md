@@ -401,6 +401,12 @@ CPU 根据能力选择三种模式：
 - 返回 `false` 前不得消费输入；
 - 输入所有权转移后发生异常时按完整 admission 已派发处理。
 
+第三方 provider 无需修改原类或直接实现 DataEnergistics 接口。可通过
+`TrinityCountedCraftingDispatch.registerAdapter(provider, adapter)` 按 provider 实例身份注册可选适配器；CPU
+始终按“DataEnergistics 直接 counted 契约、身份注册 adapter、AE2 普通单次”顺序解析。注册与注销、只读
+preparation 及一次性 commit 都属于服务器线程同步发配边界，公共适配器不暴露 target、窗口、规划或容量
+切片内部类型。
+
 ### 11.2 CPU 容量切片发配
 
 适用于能够提供只读机器容量、但不提供原子计数 admission 的自定义供应器。
@@ -676,7 +682,7 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 
 ### 18.3 第三方兼容层
 
-每个可选模组只实现 `ProviderCapacityView` 或等价只读桥：
+每个可选模组按实际能力选择 `CountedCraftingProviderAdapter`、`ProviderCapacityView` 或等价只读桥：
 
 - 使用编译期类型、公开 API、Mixin `@Accessor` 或只读 `@Invoker`；
 - 不使用反射；
@@ -684,6 +690,11 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 - 不接管第三方 tick；
 - 不改变第三方方法返回值；
 - 兼容失败时记录日志并返回“不支持容量快照”，由 CPU 退回单次。
+
+第三方推荐使用 `compileOnly` 引用 DataEnergistics API，并在模组元数据中声明 optional dependency。所有
+DataEnergistics 类型只能出现在独立 compat 启动类中，调用方确认 DataEnergistics 已加载后才加载该类；原始
+provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时 JVM 不会链接 compat 类，基础 provider
+仍可正常加载。注册句柄应随 provider 的服务器端生命周期关闭；同一身份重复注册和重复注销均立即报错。
 
 ## 19. 分阶段实施
 
@@ -843,10 +854,11 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 ## 23. 关联实现和文档
 
 - `src/main/java/com/fish_dan_/data_energistics/mixin/core/CraftingServiceMixin.java`
-- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/TrinityDataCoreCpuLogic.java`
-- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CraftingDispatchWindow.java`
-- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CountedCraftingProvider.java`
-- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CountedCraftingAdmission.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/execution/cpu/TrinityDataCoreCpuLogic.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/dispatch/commit/CraftingDispatchWindow.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/dispatch/provider/CountedCraftingProvider.java`
+- `src/main/java/com/fish_dan_/data_energistics/api/crafting/dispatch/CountedCraftingAdmission.java`
+- `src/main/java/com/fish_dan_/data_energistics/api/crafting/dispatch/TrinityCountedCraftingDispatch.java`
 - `src/main/java/com/fish_dan_/data_energistics/ae2/PatternProviderBatching.java`
 - `src/main/java/com/fish_dan_/data_energistics/mixin/core/PatternProviderLogicMixin.java`
 - `docs/crafting-dispatch/trinity-cpu-dispatch-phase-0-baseline.md`
