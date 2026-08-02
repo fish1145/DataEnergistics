@@ -188,6 +188,18 @@ Trinity 为避免大数量展开而将 `patternTimes()` 保持为空，确认页
 `CraftingPlanSummary`。运行时从 stage/repeat 游标按图规模推导剩余待合成量，不按请求数量展开；执行快照 schema 4 持久化
 声明输出，旧 schema 2/3 缺少精确信息时记录警告并省略未知行。completion buffer 同时计入 CPU 已存储量。
 
+### C-017：VirtualGrid 发布网格与执行网格身份不一致
+
+VirtualGrid 主网格能够把 incoming virtual member 的 Trinity CPU 发布到 crafting service，但显式目标、自动选择和
+fallback 提交都把主服务网格传入 CPU；CPU、runtime 和 worker 仍以 Access Hatch 的物理从网格进行严格判等，因此可见的
+CPU 会在提交时返回 `CPU_OFFLINE`。
+
+待修复：建立单一 typed execution route，分别携带 owning grid、effective service grid 和 membership generation。主网格
+crafting service、CPU 提交、库存/能源访问、图快照和执行状态必须使用同一个 effective service grid；物理 lease 和菜单
+路由继续使用 owning grid。桥接关系变化先使旧 route/proposal 失效，再允许新主网格提交。
+
+当前状态：未完成，P0。该问题优先于 Phase 3 容量快照；否则后续 proposal 和 reservation 会继承错误网格身份。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -208,6 +220,7 @@ Trinity 为避免大数量展开而将 `patternTimes()` 保持为空，确认页
 | C-014 | 确认页计划就绪门 | 已完成 | 真实 `CraftConfirmMenu` 首次/二次广播、提前提交和重算提交 GameTest |
 | C-015 | 剩余量重规划结果处置协议 | 已完成 | 同 revision 异常与预留竞态退避重试、语义拒绝等待新 revision 的直接状态机测试 |
 | C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
+| C-017 | VirtualGrid typed execution route | 未完成（P0） | 主网格发布与从网格严格判等的提交链路审计 |
 
 ## 5. 风险与控制
 

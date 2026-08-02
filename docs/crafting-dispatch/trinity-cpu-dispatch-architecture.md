@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0、Phase 1、Phase 2 已实现；Phase 3 至 Phase 5 保留为后续轨道
+- 方案状态：普通网格的 Phase 0、Phase 1、Phase 2 已实现；VirtualGrid 执行路由仍有 P0 身份缺口；Phase 3 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -96,13 +96,43 @@ Phase 0 至 Phase 2 已补齐：
 - 网格、provider 和 worker 物理调用预算；
 - 服务器提交时间预算与供应器准备/提交作用域核算。
 
-仍属于本文档后续阶段的部分包括：
+VirtualGrid 合入后的当前 P0 缺口：主网格能够发布 incoming virtual member 的 Trinity CPU，但 CPU 提交、runtime 激活和
+worker 执行仍使用物理 owning grid 判等。需要引入统一的 typed execution route，明确区分 `owningGrid`、
+`effectiveServiceGrid` 和 `membershipGeneration`；不能直接改写 `connectedGrid()` 或 `accessGrid()`，因为物理租约和菜单
+路由仍依赖 owning grid。
 
-- 第三方供应器只读容量协议和 CPU 容量切片；
-- Virtual Worker Actor、Provider Shard 和有界 proposal 队列；
-- 基于实测指标的自适应 Governor。
+仍未实现的部分为：
+
+| 阶段 | 当前缺口 | 优先级 |
+| --- | --- | --- |
+| Phase 3 | provider/target 稳定身份、只读容量快照、公平切片、唯一同步 commit 边界及 addon 容量适配 | P1 |
+| Phase 4 | worker mailbox、bounded proposal queue、provider shard、machine reservation、generation/stale 校验 | P2 |
+| Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
 计算入口、样板图、SCC/MIP 和循环执行不依赖上述 Phase 3 至 Phase 5，可在保持服务器线程事务边界的前提下作为独立轨道推进。
+
+### 5.1 当前代码职责布局
+
+```text
+common.crafting.trinity
+├─ dispatch
+│  ├─ selection   CPU 候选选择
+│  ├─ model       派发状态和值类型
+│  ├─ budget      固定物理预算
+│  ├─ commit      同步窗口与一次准入结果
+│  └─ provider    counted provider 契约
+├─ execution.cpu  CPU runtime、worker、job 与派生索引
+├─ execution      admission、pattern、runtime transaction 与持久状态机
+├─ planning       graph、gateway、plan 与算法
+│  └─ algorithm.cycle
+│     ├─ deterministic
+│     └─ mip
+├─ profile        CPU 硬件配置值
+└─ status         菜单同步 DTO
+```
+
+Phase 3 至 Phase 5 实施时只新增 `dispatch.capacity`、`dispatch.proposal` 和 `dispatch.governor` 等明确职责包，不把新逻辑
+继续堆入 `CraftingServiceMixin` 或 `TrinityDataCoreCpuLogic`。
 
 ## 6. 总体架构
 
