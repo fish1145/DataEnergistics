@@ -18,8 +18,7 @@ import appeng.api.stacks.KeyCounter;
  */
 public final class CountedCraftingProviderAdapters {
 
-    private static final CountedCraftingProviderAdapterRegistry REGISTRY =
-            new CountedCraftingProviderAdapterRegistryImpl();
+    private static final CountedCraftingProviderAdapterRegistry REGISTRY = new CountedCraftingProviderAdapterRegistryImpl();
 
     private CountedCraftingProviderAdapters() {}
 
@@ -27,8 +26,8 @@ public final class CountedCraftingProviderAdapters {
      * Registers one external adapter without allowing it to replace a direct DataEnergistics contract.
      */
     public static CountedCraftingProviderRegistration register(
-            ICraftingProvider provider,
-            CountedCraftingProviderAdapter adapter) {
+                                                               ICraftingProvider provider,
+                                                               CountedCraftingProviderAdapter adapter) {
         if (provider instanceof CountedCraftingProvider) {
             throw new IllegalArgumentException(
                     "A direct counted crafting provider cannot also register an identity adapter: " + provider);
@@ -40,11 +39,11 @@ public final class CountedCraftingProviderAdapters {
      * Resolves and prepares the provider using direct contract, registered adapter, then generic-single priority.
      */
     public static CountedCraftingPreparation prepare(
-            ICraftingProvider provider,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCount,
-            CraftingDispatchTargetAvailability targetAvailability) {
+                                                     ICraftingProvider provider,
+                                                     IPatternDetails patternDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount,
+                                                     CraftingDispatchTargetAvailability targetAvailability) {
         if (provider instanceof CountedCraftingProvider countedProvider) {
             return countedProvider.prepareBatch(patternDetails, prototype, requestedCount, targetAvailability);
         }
@@ -70,14 +69,13 @@ public final class CountedCraftingProviderAdapters {
      * Validates the exact count contract used by the CPU before any extraction or commit.
      */
     public static long validatedAdmissionCount(
-            ICraftingProvider provider,
-            CountedCraftingAdmission admission,
-            long requestedCount) {
+                                               ICraftingProvider provider,
+                                               CountedCraftingAdmission admission,
+                                               long requestedCount) {
         long count = admission.count();
         if (count <= 0L || count > requestedCount) {
             throw new IllegalStateException(
-                    "Crafting provider " + provider + " admitted " + count
-                            + " crafts outside requested range 1.." + requestedCount);
+                    "Crafting provider " + provider + " admitted " + count + " crafts outside requested range 1.." + requestedCount);
         }
         return count;
     }
@@ -85,7 +83,9 @@ public final class CountedCraftingProviderAdapters {
     /**
      * Returns the internal provider-adapter generation used to invalidate future dispatch proposals.
      *
-     * <p>This common-layer read-only contract is not part of the third-party registration API.</p>
+     * <p>
+     * This common-layer read-only contract is not part of the third-party registration API.
+     * </p>
      *
      * @return current identity-registry mutation revision
      */
@@ -94,11 +94,11 @@ public final class CountedCraftingProviderAdapters {
     }
 
     static CountedCraftingPreparation prepareProviderTarget(
-            CountedCraftingProviderAdapter adapter,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCount,
-            CraftingDispatchTargetAvailability targetAvailability) {
+                                                            CountedCraftingProviderAdapter adapter,
+                                                            IPatternDetails patternDetails,
+                                                            KeyCounter[] prototype,
+                                                            long requestedCount,
+                                                            CraftingDispatchTargetAvailability targetAvailability) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting amount must be positive: " + requestedCount);
         }

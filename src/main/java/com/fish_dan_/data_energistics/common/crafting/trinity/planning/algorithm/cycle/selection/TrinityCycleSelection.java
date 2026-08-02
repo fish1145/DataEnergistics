@@ -14,13 +14,13 @@ import java.util.Map;
  * Immutable cycle algorithm selection consumed by graph-stage assembly.
  *
  * @param componentIndex owning SCC index
- * @param localOrder    compressed executable batches for one repeat unit
- * @param repetitions   positive repeat count applied by graph assembly
- * @param minimumSeed   exact prefix reserve exposed to graph assembly
- * @param initialInputs exact initial inventory reserved for the selected cycle
- * @param netChange     exact signed aggregate cycle effect
+ * @param localOrder     compressed executable batches for one repeat unit
+ * @param repetitions    positive repeat count applied by graph assembly
+ * @param minimumSeed    exact prefix reserve exposed to graph assembly
+ * @param initialInputs  exact initial inventory reserved for the selected cycle
+ * @param netChange      exact signed aggregate cycle effect
  * @param scheduleStates bounded search states visited
- * @param mipNanos      deterministic opportunity time plus ojAlgo solver time
+ * @param mipNanos       deterministic opportunity time plus ojAlgo solver time
  */
 public record TrinityCycleSelection(
                                     int componentIndex,

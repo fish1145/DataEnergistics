@@ -9,7 +9,9 @@ public interface CountedCraftingProviderRegistration extends AutoCloseable {
     /**
      * Unregisters the adapter.
      *
-     * <p>This operation must run on the server thread. Closing a registration more than once fails fast.</p>
+     * <p>
+     * This operation must run on the server thread. Closing a registration more than once fails fast.
+     * </p>
      */
     @Override
     void close();

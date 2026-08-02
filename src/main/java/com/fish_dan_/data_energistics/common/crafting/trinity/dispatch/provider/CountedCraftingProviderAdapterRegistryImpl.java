@@ -12,8 +12,10 @@ import java.util.Map;
 /**
  * Server-thread identity registry with a monotonic mutation revision.
  *
- * <p>The registry deliberately performs no global Minecraft thread lookup. Its owner establishes the server-thread
- * lifecycle contract, keeping the API usable in dedicated-server and direct logic-test environments.</p>
+ * <p>
+ * The registry deliberately performs no global Minecraft thread lookup. Its owner establishes the server-thread
+ * lifecycle contract, keeping the API usable in dedicated-server and direct logic-test environments.
+ * </p>
  */
 final class CountedCraftingProviderAdapterRegistryImpl implements CountedCraftingProviderAdapterRegistry {
 
@@ -22,8 +24,8 @@ final class CountedCraftingProviderAdapterRegistryImpl implements CountedCraftin
 
     @Override
     public CountedCraftingProviderRegistration register(
-            ICraftingProvider provider,
-            CountedCraftingProviderAdapter adapter) {
+                                                        ICraftingProvider provider,
+                                                        CountedCraftingProviderAdapter adapter) {
         if (provider == null) {
             throw new IllegalArgumentException("Counted crafting provider must not be null");
         }

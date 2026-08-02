@@ -6,9 +6,11 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Immutable identity of the AE grid route used by one Trinity crafting publication.
  *
- * <p>The owning grid remains the physical lease identity. The service grid is the grid whose crafting, energy and
+ * <p>
+ * The owning grid remains the physical lease identity. The service grid is the grid whose crafting, energy and
  * storage services execute the job. Lease and membership generations prevent a detached route from becoming current
- * again merely because the same grid objects are later reattached.</p>
+ * again merely because the same grid objects are later reattached.
+ * </p>
  *
  * @param owningGrid           physical grid that owns the access-hatch node
  * @param serviceGrid          effective grid providing crafting services

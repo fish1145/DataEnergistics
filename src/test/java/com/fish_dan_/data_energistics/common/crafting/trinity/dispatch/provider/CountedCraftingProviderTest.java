@@ -84,8 +84,7 @@ public final class CountedCraftingProviderTest {
             requested[0] = requestedCount;
             return admission;
         };
-        CountedCraftingProviderRegistration registration =
-                TrinityCountedCraftingDispatch.registerAdapter(provider, adapter);
+        CountedCraftingProviderRegistration registration = TrinityCountedCraftingDispatch.registerAdapter(provider, adapter);
         try (registration) {
             assertEquals(initialRevision + 1L, CountedCraftingProviderAdapters.mutationRevision());
             assertThrows(
@@ -141,10 +140,9 @@ public final class CountedCraftingProviderTest {
     }
 
     private static void registerAndClose(
-            ICraftingProvider provider,
-            CountedCraftingProviderAdapter adapter) {
-        try (CountedCraftingProviderRegistration ignored =
-                TrinityCountedCraftingDispatch.registerAdapter(provider, adapter)) {
+                                         ICraftingProvider provider,
+                                         CountedCraftingProviderAdapter adapter) {
+        try (CountedCraftingProviderRegistration ignored = TrinityCountedCraftingDispatch.registerAdapter(provider, adapter)) {
             assertNotNull(ignored);
         }
     }

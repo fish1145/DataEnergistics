@@ -4,8 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.WorkerOperationBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchAccountingDelta;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
@@ -84,6 +88,7 @@ final class TrinityDataCoreCpuLogic {
     private static final double ENERGY_TOLERANCE = 0.01D;
 
     private final TrinityDataCoreVirtualCpu cpu;
+    private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
@@ -282,6 +287,9 @@ final class TrinityDataCoreCpuLogic {
                 accepted = false;
             }
             if (!accepted) {
+                if (this.job != currentJob) {
+                    return pushedPatterns;
+                }
                 continue;
             }
 
@@ -446,6 +454,9 @@ final class TrinityDataCoreCpuLogic {
             accepted = false;
         } finally {
             borrowed.releaseUncommitted();
+        }
+        if (this.job != currentJob) {
+            return 0;
         }
         if (accepted) {
             return 1;
@@ -822,110 +833,40 @@ final class TrinityDataCoreCpuLogic {
                         additionalInputs.rollback();
                         return false;
                     }
-                    try {
-                        KeyCounter[] rejectedPrototype = copyInputCounters(inputs.inputHolder());
-                        if (!submission.tryAcquire(target)) {
-                            continue;
-                        }
-
-                        boolean accepted;
-                        try {
-                            accepted = admission.commit(inputs.inputHolder());
-                        } catch (RuntimeException exception) {
-                            if (transferredInputOwnership(
-                                    provider,
-                                    details,
-                                    admission,
-                                    target,
-                                    rejectedPrototype,
-                                    inputs.inputHolder())) {
-                                Data_Energistics.LOGGER.error(
-                                        "Crafting provider {} target {} threw after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
-                                        provider,
-                                        target.stableIdentity(),
-                                        count,
-                                        details.getDefinition(),
-                                        this.cpu.number(),
-                                        exception);
-                                dispatchWindow.recordResult(
-                                        provider,
-                                        details,
-                                        target,
-                                        CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
-                                commitAcceptedDispatch(
-                                        inputTransaction,
-                                        additionalInputs,
-                                        energyCharge,
-                                        commit,
-                                        acceptedDispatch);
-                                return true;
-                            }
-                            Data_Energistics.LOGGER.error(
-                                    "Crafting provider {} target {} threw before taking ownership of {} crafts for pattern {} on Trinity CPU {}; isolating it for this dispatch window",
-                                    provider,
-                                    target.stableIdentity(),
-                                    count,
-                                    details.getDefinition(),
-                                    this.cpu.number(),
-                                    exception);
-                            dispatchWindow.recordResult(
-                                    provider,
-                                    details,
-                                    null,
-                                    CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
-                            continue;
-                        }
-                        if (!accepted) {
-                            if (transferredInputOwnership(
-                                    provider,
-                                    details,
-                                    admission,
-                                    target,
-                                    rejectedPrototype,
-                                    inputs.inputHolder())) {
-                                Data_Energistics.LOGGER.error(
-                                        "Crafting provider {} target {} returned false after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
-                                        provider,
-                                        target.stableIdentity(),
-                                        count,
-                                        details.getDefinition(),
-                                        this.cpu.number());
-                                dispatchWindow.recordResult(
-                                        provider,
-                                        details,
-                                        target,
-                                        CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
-                                commitAcceptedDispatch(
-                                        inputTransaction,
-                                        additionalInputs,
-                                        energyCharge,
-                                        commit,
-                                        acceptedDispatch);
-                                return true;
-                            }
-                            dispatchWindow.recordResult(
-                                    provider,
-                                    details,
-                                    target,
-                                    CraftingDispatchStatus.REJECTED);
-                            continue;
-                        }
-
-                        dispatchWindow.recordResult(
-                                provider,
-                                details,
-                                target,
-                                CraftingDispatchStatus.ACCEPTED);
-                        commitAcceptedDispatch(
-                                inputTransaction,
-                                additionalInputs,
-                                energyCharge,
-                                commit,
-                                acceptedDispatch);
+                    PatternInputTransaction acceptedInputs = inputTransaction;
+                    CraftingDispatchAccountingDelta accounting = CraftingDispatchAccountingDelta.create(
+                            count,
+                            () -> commitAcceptedDispatch(
+                                    acceptedInputs,
+                                    additionalInputs,
+                                    energyCharge,
+                                    commit,
+                                    acceptedDispatch),
+                            () -> {
+                                energyCharge.rollback();
+                                additionalInputs.rollback();
+                            });
+                    CraftingDispatchResult result = this.dispatchCommitter.commit(new CraftingDispatchCommitRequest(
+                            this.cpu.number(),
+                            currentJob.link.getCraftingID(),
+                            provider,
+                            details,
+                            target,
+                            admission,
+                            inputs.inputHolder(),
+                            dispatchWindow,
+                            submission,
+                            accounting));
+                    if (result.requiresJobAbort()) {
+                        Data_Energistics.LOGGER.error(
+                                "Trinity CPU {} is aborting job {} because provider dispatch accounting could not be settled",
+                                this.cpu.number(),
+                                currentJob.link.getCraftingID());
+                        finishJob(false);
+                        return false;
+                    }
+                    if (result.dispatched()) {
                         return true;
-                    } finally {
-                        energyCharge.rollback();
-                        additionalInputs.rollback();
                     }
                 }
             }
@@ -961,33 +902,6 @@ final class TrinityDataCoreCpuLogic {
                     details,
                     null,
                     CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
-            return true;
-        }
-    }
-
-    /**
-     * Resolves the ownership boundary after a rejected or failed provider commit. A throwing ownership query violates
-     * the admission contract; the conservative result is ownership transferred, preventing duplicate inputs.
-     */
-    private boolean transferredInputOwnership(ICraftingProvider provider,
-                                              IPatternDetails details,
-                                              CountedCraftingAdmission admission,
-                                              CraftingDispatchTarget target,
-                                              KeyCounter[] rejectedPrototype,
-                                              KeyCounter[] currentPrototype) {
-        if (!inputCountersMatch(rejectedPrototype, currentPrototype)) {
-            return true;
-        }
-        try {
-            return admission.hasTransferredInputOwnership();
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Crafting provider {} target {} failed to report input ownership for pattern {} on Trinity CPU {}; treating ownership as transferred to prevent duplication",
-                    provider,
-                    target.stableIdentity(),
-                    details.getDefinition(),
-                    this.cpu.number(),
-                    exception);
             return true;
         }
     }
@@ -1196,37 +1110,6 @@ final class TrinityDataCoreCpuLogic {
             }
         }
         return transaction;
-    }
-
-    private static KeyCounter[] copyInputCounters(KeyCounter[] source) {
-        KeyCounter[] copy = new KeyCounter[source.length];
-        for (int index = 0; index < source.length; index++) {
-            KeyCounter counter = new KeyCounter();
-            counter.addAll(source[index]);
-            copy[index] = counter;
-        }
-        return copy;
-    }
-
-    private static boolean inputCountersMatch(KeyCounter[] expected, KeyCounter[] actual) {
-        if (expected.length != actual.length) {
-            return false;
-        }
-        for (int index = 0; index < expected.length; index++) {
-            if (counterDiffers(expected[index], actual[index]) || counterDiffers(actual[index], expected[index])) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean counterDiffers(KeyCounter expected, KeyCounter actual) {
-        for (var entry : expected) {
-            if (actual.get(entry.getKey()) != entry.getLongValue()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static List<GenericStack> counterSnapshot(KeyCounter counter) {

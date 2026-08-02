@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 的 provider publication identity 与容量协议基础已实现，公平切片、唯一 commit 边界及 Phase 4 至 Phase 5 尚未实现
+- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 已完成 provider publication identity、容量协议基础、公平切片纯逻辑和同步唯一 commit 边界，容量快照接入与 addon 路由仍在实施；Phase 4 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -455,7 +455,7 @@ provider shard 是 CPU 内部的规划结构，用于处理多个 worker 对同�
 - 使用 provider 稳定身份进行一致分片；
 - 同一 provider 的 proposal 进入同一 shard；
 - 同一 target 不允许在同一 generation 被两个 shard 重复预留容量；
-- shard 数量由 Governor 在安全范围内调整；
+- shard 数量固定为 16，Governor 不得在运行中调整，避免 live remap；
 - shard 只处理不可变快照和 reservation，不持有世界对象。
 
 ### 12.2 公平性
@@ -669,12 +669,11 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 
 | 接口/数据对象 | 职责 |
 | --- | --- |
-| `CraftingDispatchPlanner` / `CraftingDispatchPlannerImpl` | 根据不可变快照生成 proposal |
+| `CapacitySlicePlanner` / `CapacitySlicePlannerImpl` | 根据不可变容量快照生成有界、公平的同步 slices |
 | `CraftingDispatchCommitter` / `CraftingDispatchCommitterImpl` | 服务器线程重验和提交事务 |
 | `CraftingDispatchGovernor` / `CraftingDispatchGovernorImpl` | 根据指标调整安全参数 |
 | `ProviderCapacityView` | 第三方供应器只读容量入口 |
-| `ProviderCapacitySnapshot` | provider 级不可变容量数据 |
-| `MachineCapacitySnapshot` | target 级不可变容量数据 |
+| `ProviderCapacitySnapshot` | provider、pattern 与 target 绑定后的不可变容量数据 |
 | `CraftingDispatchProposal` | 绑定版本的待提交计划 |
 | `CraftingDispatchSlice` | 一个 target 的计划数量 |
 | `CraftingDispatchResult` | 明确成功数量、所有权和拒绝原因 |
@@ -723,10 +722,11 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 ### 阶段 3：只读容量协议和 CPU 切片（实施中）
 
 - 已建立 provider publication identity/index、`ProviderCapacityView`、`TargetedCountedCraftingProvider` 和不可变容量值类型；
+- 已实现 `CapacitySlicePlanner` 的稳定 cursor、启动优先最大最小公平切分和 `BigInteger` 数量边界，slice 数只受物理调用额度约束；
+- 已将 `CraftingDispatchCommitter` 接入 Trinity 同步 provider 主路径，统一物理 attempt、输入所有权判定和一次性账本结算；
 - 待接入 ready work 的服务器线程惰性快照捕获与提交前 revision 重验；
 - 先支持本模组可控目标，再接入 AE2LT 等第三方只读适配；
-- 实现启动优先的最大最小公平切分；
-- 实现每个 slice 独立提交并只结算实际成功量；
+- 待将容量 slices 接入 provider 路由；接入后每个 slice 独立提交并只结算实际成功量；
 - 供应器兼容层不加入任何写行为。
 
 ### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）

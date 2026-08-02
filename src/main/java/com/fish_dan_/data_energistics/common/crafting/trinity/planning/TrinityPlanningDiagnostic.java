@@ -66,7 +66,7 @@ public record TrinityPlanningDiagnostic(
      * @return immutable diagnostic
      */
     public static TrinityPlanningDiagnostic ofTranslationKey(TrinityPlanningDiagnosticCode code,
-                                                              String translationKey) {
+                                                             String translationKey) {
         if (translationKey == null || translationKey.isBlank()) {
             throw new IllegalArgumentException("A Trinity planning diagnostic requires a translation key");
         }

@@ -19,8 +19,8 @@ interface CountedCraftingProviderAdapterRegistry {
      * @return lifecycle handle for unregistering the exact entry
      */
     CountedCraftingProviderRegistration register(
-            ICraftingProvider provider,
-            CountedCraftingProviderAdapter adapter);
+                                                 ICraftingProvider provider,
+                                                 CountedCraftingProviderAdapter adapter);
 
     /**
      * Finds the adapter registered for the exact provider identity.
