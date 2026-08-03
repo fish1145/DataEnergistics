@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -75,7 +76,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
     private static final int CRAFTING_GRID_SLOTS = CRAFTING_GRID_WIDTH * CRAFTING_GRID_HEIGHT;
-    private static final int PATTERN_PROVIDER_SYNC_INTERVAL_TICKS = 5;
 
     private final UniversalTerminalPart host;
     @GuiSync(890)
@@ -100,8 +100,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private final Map<PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
     private final Map<Long, List<PatternContainer>> syncedPatternProvidersById = new HashMap<>();
+    private final PatternProviderSyncTracker patternProviderSyncTracker = new PatternProviderSyncTracker();
     private long nextSyncedPatternProviderId = 1;
-    private int lastPatternProviderSyncTick = Integer.MIN_VALUE;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
         this(ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
@@ -472,43 +472,79 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     private void syncPatternProvidersFromNetwork() {
-        var grid = getActiveGrid();
+        IGrid grid = getActiveGrid();
         if (grid == null) {
             clearSyncedPatternProviders();
             return;
         }
 
+        syncPatternProvidersFromNetwork(grid);
+    }
+
+    private void syncPatternProvidersFromNetwork(IGrid grid) {
+        syncPatternProvidersFromNetwork(
+                grid,
+                PatternProviderSyncTracker.capturePublicationVersion(grid),
+                this.getPlayer().level().getGameTime(),
+                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
+                this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
+    }
+
+    private void syncPatternProvidersFromNetwork(
+                                                 IGrid grid,
+                                                 PatternProviderSyncTracker.PublicationVersion publication,
+                                                 long currentTick,
+                                                 @Nullable ResourceLocation preferredWorkstationId,
+                                                 ItemStack encodedPattern) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
+                preferredWorkstationId,
                 this.getMode(),
-                this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
+                encodedPattern);
+        this.patternProviderSyncTracker.refreshed(
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                this.getMode(),
+                encodedPattern);
     }
 
     private void syncPatternProvidersIfNeeded(boolean force) {
-        if (getActiveGrid() == null) {
+        IGrid grid = getActiveGrid();
+        if (grid == null) {
             clearSyncedPatternProviders();
-            this.lastPatternProviderSyncTick = Integer.MIN_VALUE;
             return;
         }
 
-        int currentTick = this.getPlayer().tickCount;
-        if (!force && currentTick - this.lastPatternProviderSyncTick < PATTERN_PROVIDER_SYNC_INTERVAL_TICKS) {
+        var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
+        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
+        ItemStack encodedPattern = this.host.getLogic().getEncodedPatternInv().getStackInSlot(0);
+        long currentTick = this.getPlayer().level().getGameTime();
+        if (!force && !this.patternProviderSyncTracker.needsRefresh(
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                this.getMode(),
+                encodedPattern)) {
             return;
         }
 
-        syncPatternProvidersFromNetwork();
-        this.lastPatternProviderSyncTick = currentTick;
+        syncPatternProvidersFromNetwork(
+                grid,
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                encodedPattern);
     }
 
     private void clearSyncedPatternProviders() {
         this.syncedPatternProviderIds.clear();
         this.syncedPatternProvidersById.clear();
         this.syncedPatternProviders = SyncedPatternProviderList.EMPTY;
-        this.lastPatternProviderSyncTick = Integer.MIN_VALUE;
+        this.patternProviderSyncTracker.clear();
     }
 
     @Nullable

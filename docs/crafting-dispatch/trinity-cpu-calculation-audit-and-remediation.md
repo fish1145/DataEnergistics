@@ -282,6 +282,16 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 `AEKey -> producer variants` 索引，需求聚合不再为每个循环输入扫描完整 variant 表。复杂度仍受 SCC、variant、模型规模、排程状态
 和有界执行队列控制，合法结果不会因机器冷热或整合包目录大小跨过墙钟阈值而改变。
 
+### C-023：样板编码终端周期性遍历全部 provider
+
+普通与通用样板编码终端原先每 5 tick 调用 `collectSyncedPatternProviders`，即使网格 publication、编码模式、
+已编码样板和首选工作站均未变化，也会重新遍历全部 provider。大型网络中该路径位于玩家 tick 的菜单广播阶段，
+会把与本次规划无关的 provider 枚举成本持续压到服务器线程。
+
+修复：两个终端统一使用 `PatternProviderSyncTracker`。稳定菜单每 tick 只比较 publication scope/revision 与少量菜单本地
+身份；只有 revision、本地展示输入或显式刷新变化时才重建列表。为没有发布 AE2 crafting revision 的第三方展示变化保留
+100 tick 一次的一致性刷新，不再每 5 tick 全量扫描。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -372,7 +382,7 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-022 均有直接行为测试或集成证据；
+1. C-001 至 C-023 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；
