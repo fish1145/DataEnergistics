@@ -281,7 +281,10 @@ final class TrinityDataCoreCpuLogic {
         int pushedPatterns = 0;
         boolean dispatched = false;
         var iterator = currentJob.tasks.entrySet().iterator();
-        while (!dispatchWindow.isExhausted() && iterator.hasNext() && pushedPatterns < maxPatterns) {
+        while (!dispatchWindow.isExhausted() &&
+                dispatchWindow.canCaptureProviderCapacity() &&
+                iterator.hasNext() &&
+                pushedPatterns < maxPatterns) {
             var task = iterator.next();
             if (task.getValue().value <= 0) {
                 iterator.remove();
@@ -743,30 +746,38 @@ final class TrinityDataCoreCpuLogic {
                                                                 CraftingDispatchWindow dispatchWindow,
                                                                 int physicalCallLimit,
                                                                 Consumer<PreparedPatternCommit> acceptedDispatch) {
-        if (physicalCallLimit <= 0 || dispatchWindow.isExhausted()) {
+        if (physicalCallLimit <= 0 ||
+                dispatchWindow.isExhausted() ||
+                !dispatchWindow.canCaptureProviderCapacity()) {
             return ProviderDispatchOutcome.NONE;
         }
-        ExtractedPatternInputs prototype = capturePatternInputPrototype(extractionDetails, level);
-        if (prototype == null || dispatchWindow.isExhausted()) {
-            return ProviderDispatchOutcome.NONE;
-        }
+        ExtractedPatternInputs prototype;
+        long maximumCount;
+        long currentTick;
+        List<ProviderCapacitySnapshot> snapshots;
+        try (CraftingDispatchWindow.CapacityCaptureScope ignored = dispatchWindow.beginProviderCapacityCapture()) {
+            prototype = capturePatternInputPrototype(extractionDetails, level);
+            if (prototype == null || dispatchWindow.isExhausted()) {
+                return ProviderDispatchOutcome.NONE;
+            }
 
-        double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
-        long maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingCrafts);
-        maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
-        maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
-        if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
-            return ProviderDispatchOutcome.NONE;
-        }
+            double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
+            maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingCrafts);
+            maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
+            maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
+            if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
+                return ProviderDispatchOutcome.NONE;
+            }
 
-        long currentTick = TickHandler.instance().getCurrentTick();
-        List<ProviderCapacitySnapshot> snapshots = this.capacityResolver.capture(
-                publications,
-                details,
-                prototype.inputHolder(),
-                maximumCount,
-                patternIdentity,
-                currentTick);
+            currentTick = TickHandler.instance().getCurrentTick();
+            snapshots = this.capacityResolver.capture(
+                    publications,
+                    details,
+                    prototype.inputHolder(),
+                    maximumCount,
+                    patternIdentity,
+                    currentTick);
+        }
         if (snapshots.isEmpty()) {
             return ProviderDispatchOutcome.NONE;
         }

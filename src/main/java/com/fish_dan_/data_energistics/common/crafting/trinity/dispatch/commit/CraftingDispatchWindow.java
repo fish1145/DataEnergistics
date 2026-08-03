@@ -110,6 +110,34 @@ public interface CraftingDispatchWindow {
                       CraftingDispatchStatus status);
 
     /**
+     * Checks the independent server-thread budget for another provider-capacity snapshot.
+     *
+     * @return whether a caller may begin one more read-only capacity capture
+     */
+    boolean canCaptureProviderCapacity();
+
+    /**
+     * Starts measuring one read-only provider-capacity capture.
+     *
+     * @return closeable scope that charges elapsed time only to the capacity-capture budget
+     */
+    CapacityCaptureScope beginProviderCapacityCapture();
+
+    /**
+     * Returns how many provider-capacity captures completed in this grid window.
+     *
+     * @return completed capture count
+     */
+    int capacityCaptureCount();
+
+    /**
+     * Returns accumulated monotonic time spent capturing provider capacity.
+     *
+     * @return measured capture nanoseconds
+     */
+    long capacityCaptureNanos();
+
+    /**
      * Returns the number of real physical submissions acquired across the complete grid window.
      *
      * @return total acquired physical attempts
@@ -166,6 +194,14 @@ public interface CraftingDispatchWindow {
         boolean tryAcquire(CraftingDispatchTarget target);
 
         /** Completes timing for this provider path without declaring checked cleanup failures. */
+        @Override
+        void close();
+    }
+
+    /** Measures one server-thread-confined read-only capacity capture. */
+    interface CapacityCaptureScope extends AutoCloseable {
+
+        /** Completes capture timing without declaring checked cleanup failures. */
         @Override
         void close();
     }

@@ -33,9 +33,16 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
     private int serverSubmissionCount;
     /** Accumulated time spent in completed provider preparation and submission paths. */
     private long serverSubmissionNanos;
+    /** Number of completed read-only provider-capacity captures. */
+    private int capacityCaptureCount;
+    /** Accumulated time spent in completed read-only provider-capacity captures. */
+    private long capacityCaptureNanos;
     /** Single server-thread scope currently measuring provider work. */
     @Nullable
     private SubmissionScopeImpl activeSubmission;
+    /** Single server-thread scope currently measuring capacity simulation. */
+    @Nullable
+    private CapacityCaptureScopeImpl activeCapacityCapture;
 
     CraftingDispatchWindowImpl() {
         this(CraftingDispatchLimits.DEFAULT);
@@ -85,6 +92,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         if (this.activeSubmission != null) {
             throw new IllegalStateException("Crafting dispatch submission scopes must not be nested");
         }
+        if (this.activeCapacityCapture != null) {
+            throw new IllegalStateException("Crafting dispatch submission cannot overlap capacity capture");
+        }
         if (!canAttempt(provider, pattern)) {
             throw new IllegalStateException("Crafting dispatch submission is unavailable");
         }
@@ -94,6 +104,29 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
                 this.nanoClock.getAsLong());
         this.activeSubmission = submission;
         return submission;
+    }
+
+    @Override
+    public boolean canCaptureProviderCapacity() {
+        return this.activeSubmission == null &&
+                this.activeCapacityCapture == null &&
+                this.capacityCaptureNanos < this.limits.maxCapacityCaptureNanos();
+    }
+
+    @Override
+    public CapacityCaptureScope beginProviderCapacityCapture() {
+        if (this.activeCapacityCapture != null) {
+            throw new IllegalStateException("Provider capacity capture scopes must not be nested");
+        }
+        if (this.activeSubmission != null) {
+            throw new IllegalStateException("Provider capacity capture cannot overlap crafting submission");
+        }
+        if (!canCaptureProviderCapacity()) {
+            throw new IllegalStateException("Provider capacity capture budget is exhausted");
+        }
+        CapacityCaptureScopeImpl capture = new CapacityCaptureScopeImpl(this.nanoClock.getAsLong());
+        this.activeCapacityCapture = capture;
+        return capture;
     }
 
     @Override
@@ -150,6 +183,16 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
     @Override
     public long serverSubmissionNanos() {
         return this.serverSubmissionNanos;
+    }
+
+    @Override
+    public int capacityCaptureCount() {
+        return this.capacityCaptureCount;
+    }
+
+    @Override
+    public long capacityCaptureNanos() {
+        return this.capacityCaptureNanos;
     }
 
     /** Checks global budgets using only completed work so an active preparation can still filter exact targets. */
@@ -264,6 +307,47 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             }
             if (activeSubmission != this) {
                 throw new IllegalStateException("Crafting dispatch submission scope is not active");
+            }
+        }
+    }
+
+    /** Server-thread-confined timing scope for one immutable provider-capacity capture. */
+    private final class CapacityCaptureScopeImpl implements CapacityCaptureScope {
+
+        /** Monotonic timestamp captured immediately before capacity simulation begins. */
+        private final long startedAtNanos;
+        /** Closed scopes reject reuse and double-close mistakes. */
+        private boolean closed;
+
+        private CapacityCaptureScopeImpl(long startedAtNanos) {
+            this.startedAtNanos = startedAtNanos;
+        }
+
+        @Override
+        public void close() {
+            requireActive();
+            this.closed = true;
+            try {
+                long elapsedNanos = nanoClock.getAsLong() - this.startedAtNanos;
+                if (elapsedNanos < 0L) {
+                    throw new IllegalStateException("Crafting dispatch nano clock moved backwards");
+                }
+                long completedNanos = Math.addExact(capacityCaptureNanos, elapsedNanos);
+                int completedCount = Math.incrementExact(capacityCaptureCount);
+                capacityCaptureNanos = completedNanos;
+                capacityCaptureCount = completedCount;
+            } finally {
+                activeCapacityCapture = null;
+            }
+        }
+
+        /** Ensures only the current, open scope can mutate its parent window. */
+        private void requireActive() {
+            if (this.closed) {
+                throw new IllegalStateException("Provider capacity capture scope is already closed");
+            }
+            if (activeCapacityCapture != this) {
+                throw new IllegalStateException("Provider capacity capture scope is not active");
             }
         }
     }

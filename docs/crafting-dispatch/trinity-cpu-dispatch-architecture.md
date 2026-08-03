@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 已完成 provider publication identity、ready-work 容量快照、提交前 revision 重验、公平切片、同步唯一 commit 边界和保守 addon 路由，独立容量采集时间预算仍待接入；Phase 4 至 Phase 5 尚未实现
+- 方案状态：Phase 0 至 Phase 3 与 VirtualGrid typed execution route 已实现；Phase 4 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -115,7 +115,7 @@ Phase 3 同步容量路径现已接入：
 
 | 阶段 | 当前缺口 | 优先级 |
 | --- | --- | --- |
-| Phase 3 | 同步容量快照、切片、路由和 commit 已接入；剩余独立每网格 4 ms 容量采集预算 | P1 |
+| Phase 3 | 已完成：publication identity、同步容量快照、独立 4 ms 采集预算、公平切片、保守 addon 路由和唯一 commit | 已完成 |
 | Phase 4 | worker mailbox、bounded proposal queue、provider shard、machine reservation、generation/stale 校验 | P2 |
 | Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
@@ -737,7 +737,7 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 区分 Blocking、Lock、No Capacity 和普通拒绝；
 - 引入网格物理调用和服务器提交时间预算。
 
-### 阶段 3：只读容量协议和 CPU 切片（收尾中）
+### 阶段 3：只读容量协议和 CPU 切片（已完成）
 
 - 已建立 provider publication identity/index、`ProviderCapacityView`、`TargetedCountedCraftingProvider` 和不可变容量值类型；
 - 已实现 `CapacitySlicePlanner` 的稳定 cursor、启动优先最大最小公平切分和 `BigInteger` 数量边界，slice 数只受物理调用额度约束；
@@ -745,7 +745,7 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已接入 ready work 的服务器线程惰性快照、只读输入 prototype、提交前 revision/route 重验和稳定 cursor 路由；
 - 已支持 AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线的 `TARGETED` counted 切片；公共 counted API 使用 `AGGREGATE`；
 - 已将 AE2 provider 子类及无法证明语义等价的 addon 路线显式降级为 `UNKNOWN` 单次，ExtendedAE Plus 不会绕过真实 hook；
-- 待增加独立每网格 4 ms 容量采集预算，避免大量 ready worker 的只读模拟占用提交预算之外的服务器时间；
+- 已增加独立每网格 4 ms 容量采集预算，覆盖只读 prototype 构造和 provider 容量模拟；该预算与 30 ms commit 预算分别计量；
 - 供应器兼容层不加入任何写行为。
 
 ### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）

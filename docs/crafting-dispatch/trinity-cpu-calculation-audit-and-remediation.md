@@ -225,7 +225,7 @@ provider registration、counted capability 和 pattern identity 的联合重验�
 按 publication revision、capability revision、pattern identity 和 route 重验 live provider；稳定 cursor 逐个请求有界 slice，失败后
 继续同 tick 后续候选。真实输入、能源和 waiting 只在准备阶段进入事务，最终统一由 `CraftingDispatchCommitter` 按所有权结果结算。
 AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用 `TARGETED`；公共 counted API 使用 `AGGREGATE`；其余无法证明
-等价的路线使用 `UNKNOWN` 单次。独立每网格 4 ms 容量采集预算仍是 Phase 3 的最后收尾项。
+等价的路线使用 `UNKNOWN` 单次。只读 prototype 与 provider 模拟由独立每网格 4 ms 采集窗口计量，不占用或掩盖 commit 预算。
 
 ## 4. 修复映射
 
@@ -249,7 +249,7 @@ AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用
 | C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
 | C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中、ordinary/radix 精确窗口与 `Long.MAX_VALUE` 直接契约测试 |
-| C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 主体完成 | 路由模式参数化契约、拒绝/异常续选、时间边界、256-worker 与 470 项 GameTest；独立容量采集预算待接入 |
+| C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
 
 ## 5. 风险与控制
 

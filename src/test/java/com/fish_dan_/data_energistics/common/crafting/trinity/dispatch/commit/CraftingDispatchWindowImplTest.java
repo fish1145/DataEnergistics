@@ -230,6 +230,26 @@ public final class CraftingDispatchWindowImplTest {
     }
 
     @Test
+    void capacityCaptureUsesAnIndependentTimeBudget() {
+        AtomicLong nanoClock = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 1_000L, 100L);
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+
+        try (CraftingDispatchWindow.CapacityCaptureScope ignored = window.beginProviderCapacityCapture()) {
+            nanoClock.set(limits.maxCapacityCaptureNanos());
+        }
+
+        assertEquals(1, window.capacityCaptureCount());
+        assertEquals(100L, window.capacityCaptureNanos());
+        assertFalse(window.canCaptureProviderCapacity());
+        assertTrue(window.canAttempt(provider, pattern));
+        assertEquals(0L, window.serverSubmissionNanos());
+        assertEquals(CraftingDispatchExhaustion.NONE, window.exhaustion());
+    }
+
+    @Test
     void independentWindowsResetAllTransientStateAndBudgets() {
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
@@ -330,6 +350,9 @@ public final class CraftingDispatchWindowImplTest {
         assertIllegalArgument(
                 "Server crafting submission time limit must be positive",
                 () -> new CraftingDispatchLimits(1, 1, 0L));
+        assertIllegalArgument(
+                "Provider capacity capture time limit must be positive",
+                () -> new CraftingDispatchLimits(1, 1, 1L, 0L));
     }
 
     private static CraftingDispatchWindow fixedWindow(CraftingDispatchLimits limits) {

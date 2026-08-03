@@ -706,6 +706,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         CraftingDispatchLimits baselineLimits = new CraftingDispatchLimits(
                 CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_GRID,
                 CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
+                Long.MAX_VALUE,
                 Long.MAX_VALUE);
         CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create(baselineLimits);
         long startedNanos = System.nanoTime();
