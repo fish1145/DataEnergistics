@@ -117,17 +117,23 @@ final class TrinityDeterministicFiringCalculatorImpl implements TrinityDetermini
         if (baselineFirings.isEmpty()) {
             return TrinityDeterministicDiagnostics.unsupported();
         }
-        TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimized = this.firingOptimizer.optimize(
-                component,
-                demand,
-                available,
-                producibleInputs,
-                baselineFirings,
-                control);
-        if (optimized.kind() != TrinityPlanningAttempt.Kind.PROVED_OPTIMAL) {
-            return TrinityAlgorithmResult.failure(optimized.diagnostic());
+        boolean leastFiringsProven = hasClosedOutputBoundary(component);
+        Map<TrinityPatternVariant, BigInteger> firings;
+        if (leastFiringsProven) {
+            firings = Collections.unmodifiableMap(new LinkedHashMap<>(baselineFirings));
+        } else {
+            TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimized = this.firingOptimizer.optimize(
+                    component,
+                    demand,
+                    available,
+                    producibleInputs,
+                    baselineFirings,
+                    control);
+            if (optimized.kind() != TrinityPlanningAttempt.Kind.PROVED_OPTIMAL) {
+                return TrinityAlgorithmResult.failure(optimized.diagnostic());
+            }
+            firings = optimized.value();
         }
-        Map<TrinityPatternVariant, BigInteger> firings = optimized.value();
         Map<AEKey, BigInteger> totalNet = TrinityDeterministicFiringMath.netChange(firings);
         if (!satisfies(totalNet, netLowerBounds)) {
             return TrinityDeterministicDiagnostics.unsupported();
@@ -136,7 +142,8 @@ final class TrinityDeterministicFiringCalculatorImpl implements TrinityDetermini
                 basis,
                 firings,
                 totalNet,
-                balancePasses));
+                balancePasses,
+                leastFiringsProven));
     }
 
     private static Map<AEKey, BigInteger> netLowerBounds(
@@ -212,5 +219,16 @@ final class TrinityDeterministicFiringCalculatorImpl implements TrinityDetermini
                 .anyMatch(entry -> residualNet
                         .getOrDefault(entry.getKey(), TrinityDeterministicFiringMath.ZERO)
                         .signum() > 0);
+    }
+
+    /**
+     * The residual reverse-DAG calculation is a componentwise least fixed point only when no transition can
+     * compensate for additional firings by producing a boundary key. Under that monotone boundary condition,
+     * every feasible vector contains the residual vector and enough copies of the primitive reservoir vector.
+     */
+    private static boolean hasClosedOutputBoundary(TrinityStronglyConnectedComponent component) {
+        Set<AEKey> internalKeys = Set.copyOf(component.keys());
+        return component.cycleVariants().stream()
+                .allMatch(variant -> internalKeys.containsAll(variant.outputs().keySet()));
     }
 }

@@ -217,6 +217,10 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 精确 `0..baselineFirings` 结构界约束。MIP 与候选选择共用完整、缺失补零的 `BigInteger` firing vector，并在前三层目标固定后
 按稳定 identity 逐项确定结果。
 
+补充修复：封闭输出边界下，唯一生产者残余解会证明逐分量最小 firing；外部输入、守恒初始库存和压缩顺序同时通过精确复验后，
+该候选已经是完整目标元组的全局最优解，应立即结束 reservoir 枚举。此前继续枚举会被另一个不适用 reservoir 覆盖为
+`NOT_APPLICABLE`，使大数量环外终点误入 radix MIP。守恒初始库存与调度前缀亏空现已分离，避免把较小前缀 seed 用作执行 reserve。
+
 ### C-019：provider 轮询、容量模拟与真实输入事务缺少统一边界
 
 旧同步路径直接消费 AE2 `getProviders` 的轮询 iterable，并在确认 provider 可用前从 CPU 真实库存提取一次图样输入。加入多 target

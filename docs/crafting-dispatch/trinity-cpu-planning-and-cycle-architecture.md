@@ -151,6 +151,11 @@ cyclic owner；其环外输出需求回传给 owner，禁止再作为普通 DAG 
 只有 `PROVED_OPTIMAL` 可以进入计划。局部快速路径的 `UNSUPPORTED_PATTERN`、无可执行顺序或向量分歧不得直接成为用户可见的
 “无解”诊断，也不得以局部成功覆盖尚未求解的全局路线。
 
+若唯一生产者结构同时具有封闭输出边界，残余反向 DAG 可证明 firing vector 为所有可行解的逐分量下界；再结合外部输入下界、
+守恒所需初始库存下界和可执行压缩顺序，即构成完整词典序目标的全局证明。此时首个通过证明的 reservoir 可以立即接纳，禁止继续
+枚举其他 reservoir 后因局部结构不适用而降级到通用 MIP。守恒所需初始库存与纯执行前缀亏空分别计算，执行 reserve 使用前者，
+不得把较小的前缀亏空误当作完整作业初始库存。
+
 `TrinityCyclePlanSelector` 统一持有标量闭式、确定性 component 与通用 MIP 的选择策略；`TrinityGraphPlannerImpl` 只消费其
 不可变 selection 结果，不再直接组合各循环求解器。
 

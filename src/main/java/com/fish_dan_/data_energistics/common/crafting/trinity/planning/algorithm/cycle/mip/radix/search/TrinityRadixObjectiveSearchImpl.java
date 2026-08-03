@@ -24,11 +24,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Uses exact integer feasibility probes to select objective digits without big-M weights or floating-point rounding.
+ * Selects objective digits with exact integer optimization, avoiding big-M weights and repeated feasibility searches.
  */
 final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSearch {
 
-    private static final IntegerStrategy FEASIBILITY_STRATEGY = IntegerStrategy.DEFAULT
+    private static final IntegerStrategy INTEGER_STRATEGY = IntegerStrategy.DEFAULT
             .withParallelism(() -> 1)
             .withPriorityDefinitions(NodeKey.MIN_OBJECTIVE);
 
@@ -94,9 +94,11 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
             if (control.deadlineExceeded()) {
                 return TrinityRadixDiagnostics.timeout(metrics, "before_digit", objective.name(), digit);
             }
-            TrinityAlgorithmResult<Map<Variable, BigInteger>> selected = built.minimize() ?
-                    minimizeDigit(built, digit, control, metrics) :
-                    maximizeDigit(built, digit, control, metrics);
+            TrinityAlgorithmResult<Map<Variable, BigInteger>> selected = optimizeDigit(
+                    built,
+                    digit,
+                    control,
+                    metrics);
             if (!selected.successful()) {
                 return selected;
             }
@@ -167,7 +169,8 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                 -1,
                 certifiedValue.toString(),
                 control,
-                metrics);
+                metrics,
+                false);
         if (!probe.successful()) {
             return probe;
         }
@@ -176,140 +179,11 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                 TrinityRadixDiagnostics.inexact("radix_certified_objective", decoded + "/" + certifiedValue);
     }
 
-    private TrinityAlgorithmResult<Map<Variable, BigInteger>> minimizeDigit(
+    private TrinityAlgorithmResult<Map<Variable, BigInteger>> optimizeDigit(
                                                                             TrinityRadixBuiltModel built,
                                                                             int digit,
                                                                             TrinityPlanningControl control,
                                                                             TrinityRadixSolverMetrics metrics) {
-        Variable objectiveDigit = built.objective().digits().get(digit);
-        int certifiedLower = certifiedMinimumDigit(built, digit);
-        int upper = decimalInteger(objectiveDigit.getUpperLimit()).intValueExact();
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> lowerProbe = probeDigit(
-                built,
-                digit,
-                certifiedLower,
-                certifiedLower,
-                control,
-                metrics);
-        if (lowerProbe.successful()) {
-            return requireSelectedDigit(lowerProbe.value(), objectiveDigit, certifiedLower);
-        }
-        if (lowerProbe.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-            return lowerProbe;
-        }
-        if (certifiedLower >= upper) {
-            return lowerProbe;
-        }
-
-        int lower = Math.addExact(certifiedLower, 1);
-        Map<Variable, BigInteger> best = null;
-        while (lower < upper) {
-            int candidate = lower + (upper - lower) / 2;
-            TrinityAlgorithmResult<Map<Variable, BigInteger>> probe = probeDigit(
-                    built,
-                    digit,
-                    lower,
-                    candidate,
-                    control,
-                    metrics);
-            if (probe.successful()) {
-                int selected = selectedDigit(probe.value(), objectiveDigit);
-                if (selected < lower || selected > candidate) {
-                    return TrinityRadixDiagnostics.inexact("radix_digit_min_probe", Integer.toString(selected));
-                }
-                upper = selected;
-                best = probe.value();
-            } else if (probe.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                lower = Math.addExact(candidate, 1);
-            } else {
-                return probe;
-            }
-        }
-        if (best != null && selectedDigit(best, objectiveDigit) == lower) {
-            return TrinityAlgorithmResult.success(best);
-        }
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> finalProbe = probeDigit(
-                built,
-                digit,
-                lower,
-                lower,
-                control,
-                metrics);
-        return finalProbe.successful() ? requireSelectedDigit(finalProbe.value(), objectiveDigit, lower) : finalProbe;
-    }
-
-    private TrinityAlgorithmResult<Map<Variable, BigInteger>> maximizeDigit(
-                                                                            TrinityRadixBuiltModel built,
-                                                                            int digit,
-                                                                            TrinityPlanningControl control,
-                                                                            TrinityRadixSolverMetrics metrics) {
-        Variable objectiveDigit = built.objective().digits().get(digit);
-        int lower = decimalInteger(objectiveDigit.getLowerLimit()).intValueExact();
-        int certifiedUpper = certifiedMaximumDigit(built, digit);
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> upperProbe = probeDigit(
-                built,
-                digit,
-                certifiedUpper,
-                certifiedUpper,
-                control,
-                metrics);
-        if (upperProbe.successful()) {
-            return requireSelectedDigit(upperProbe.value(), objectiveDigit, certifiedUpper);
-        }
-        if (upperProbe.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-            return upperProbe;
-        }
-        if (certifiedUpper <= lower) {
-            return upperProbe;
-        }
-
-        int upper = Math.subtractExact(certifiedUpper, 1);
-        Map<Variable, BigInteger> best = null;
-        while (lower < upper) {
-            int candidate = lower + (upper - lower + 1) / 2;
-            TrinityAlgorithmResult<Map<Variable, BigInteger>> probe = probeDigit(
-                    built,
-                    digit,
-                    candidate,
-                    upper,
-                    control,
-                    metrics);
-            if (probe.successful()) {
-                int selected = selectedDigit(probe.value(), objectiveDigit);
-                if (selected < candidate || selected > upper) {
-                    return TrinityRadixDiagnostics.inexact("radix_digit_max_probe", Integer.toString(selected));
-                }
-                lower = selected;
-                best = probe.value();
-            } else if (probe.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                upper = Math.subtractExact(candidate, 1);
-            } else {
-                return probe;
-            }
-        }
-        if (best != null && selectedDigit(best, objectiveDigit) == lower) {
-            return TrinityAlgorithmResult.success(best);
-        }
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> finalProbe = probeDigit(
-                built,
-                digit,
-                lower,
-                lower,
-                control,
-                metrics);
-        return finalProbe.successful() ? requireSelectedDigit(finalProbe.value(), objectiveDigit, lower) : finalProbe;
-    }
-
-    private TrinityAlgorithmResult<Map<Variable, BigInteger>> probeDigit(
-                                                                         TrinityRadixBuiltModel built,
-                                                                         int digit,
-                                                                         int lowerBound,
-                                                                         int upperBound,
-                                                                         TrinityPlanningControl control,
-                                                                         TrinityRadixSolverMetrics metrics) {
-        if (lowerBound > upperBound) {
-            throw new IllegalArgumentException("A Trinity radix digit probe requires an ordered interval");
-        }
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -317,33 +191,44 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                     Map.of("passes", Integer.toString(metrics.passes())));
         }
         if (control.deadlineExceeded()) {
-            return TrinityRadixDiagnostics.timeout(metrics, "before_digit_probe", built.objective().name(), digit);
+            return TrinityRadixDiagnostics.timeout(metrics, "before_digit_objective", built.objective().name(), digit);
         }
         TrinityRadixLinearEncoder encoder = built.model();
-        ExpressionsBasedModel probeModel = encoder.model().copy();
+        ExpressionsBasedModel objectiveModel = encoder.model().copy();
         Variable objectiveDigit = built.objective().digits().get(digit);
         int objectiveIndex = encoder.model().indexOf(objectiveDigit);
-        Variable probeDigit = probeModel.getVariable(objectiveIndex);
-        if (lowerBound == upperBound) {
-            probeDigit.level(lowerBound);
+        Variable solverDigit = objectiveModel.getVariable(objectiveIndex);
+        int lowerBound;
+        int upperBound;
+        if (built.minimize()) {
+            lowerBound = certifiedMinimumDigit(built, digit);
+            upperBound = decimalInteger(objectiveDigit.getUpperLimit()).intValueExact();
+            solverDigit.lower(lowerBound);
         } else {
-            probeDigit.lower(lowerBound).upper(upperBound);
+            lowerBound = decimalInteger(objectiveDigit.getLowerLimit()).intValueExact();
+            upperBound = certifiedMaximumDigit(built, digit);
+            solverDigit.upper(upperBound);
         }
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> decoded = solveProbeModel(
+        boolean fixedDigit = lowerBound == upperBound;
+        if (fixedDigit) {
+            solverDigit.level(lowerBound);
+        } else {
+            solverDigit.weight(built.minimize() ? BigDecimal.ONE : BigDecimal.ONE.negate());
+        }
+        TrinityAlgorithmResult<Map<Variable, BigInteger>> optimized = solveProbeModel(
                 built,
-                probeModel,
+                objectiveModel,
                 digit,
                 lowerBound + ".." + upperBound,
                 control,
-                metrics);
-        if (!decoded.successful()) {
-            return decoded;
+                metrics,
+                !fixedDigit);
+        if (!optimized.successful()) {
+            return optimized;
         }
-        int selected = selectedDigit(decoded.value(), objectiveDigit);
-        if (selected < lowerBound || selected > upperBound) {
-            return TrinityRadixDiagnostics.inexact("radix_digit_probe_bound", Integer.toString(selected));
-        }
-        return decoded;
+        int selected = selectedDigit(optimized.value(), objectiveDigit);
+        return selected >= lowerBound && selected <= upperBound ? optimized :
+                TrinityRadixDiagnostics.inexact("radix_digit_objective_bound", Integer.toString(selected));
     }
 
     private TrinityAlgorithmResult<Map<Variable, BigInteger>> solveProbeModel(
@@ -352,7 +237,8 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                                                                               int digit,
                                                                               String bound,
                                                                               TrinityPlanningControl control,
-                                                                              TrinityRadixSolverMetrics metrics) {
+                                                                              TrinityRadixSolverMetrics metrics,
+                                                                              boolean requireOptimal) {
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -388,21 +274,18 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                             "digit", Integer.toString(digit),
                             "bound", bound));
         }
+        if (requireOptimal && !result.getState().isOptimal()) {
+            if (control.deadlineExceeded()) {
+                return TrinityRadixDiagnostics.timeout(metrics, result.getState().name(), built.objective().name(), digit);
+            }
+            return TrinityRadixDiagnostics.inexact("radix_digit_objective_state", result.getState().name());
+        }
         TrinityRadixLinearEncoder encoder = built.model();
         return this.resultDecoder.decode(
                 probeModel,
                 encoder.variables(),
                 encoder.columnEquations(),
                 result);
-    }
-
-    private static TrinityAlgorithmResult<Map<Variable, BigInteger>> requireSelectedDigit(
-                                                                                          Map<Variable, BigInteger> values,
-                                                                                          Variable objectiveDigit,
-                                                                                          int expected) {
-        int selected = selectedDigit(values, objectiveDigit);
-        return selected == expected ? TrinityAlgorithmResult.success(values) :
-                TrinityRadixDiagnostics.inexact("radix_certified_digit", selected + "/" + expected);
     }
 
     private static int selectedDigit(Map<Variable, BigInteger> values, Variable objectiveDigit) {
@@ -473,7 +356,7 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
     }
 
     private static void applyDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
-        model.options.integer(FEASIBILITY_STRATEGY);
+        model.options.integer(INTEGER_STRATEGY);
         if (!control.deadlineConfigured()) {
             return;
         }

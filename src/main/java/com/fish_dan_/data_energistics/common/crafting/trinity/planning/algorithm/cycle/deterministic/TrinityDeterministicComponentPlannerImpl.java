@@ -95,6 +95,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             if (!assembled.successful()) {
                 return handleFailure(assembled);
             }
+            if (calculated.value().leastFiringsProven()) {
+                return TrinityPlanningAttempt.provedOptimal(assembled.value().plan());
+            }
             candidates.add(assembled.value());
         }
         if (candidates.isEmpty()) {

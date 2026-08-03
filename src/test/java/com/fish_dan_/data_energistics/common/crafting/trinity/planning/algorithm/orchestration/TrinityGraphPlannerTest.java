@@ -238,8 +238,10 @@ public final class TrinityGraphPlannerTest {
         assertTrue(stageIndex(plan, parallelGrowth.identity()) < stageIndex(plan, finish.identity()));
     }
 
-    @Test
-    void jointlySolvesMultipleSccAxesAndBoundaryOutputsForADagTarget() {
+    @ParameterizedTest
+    @ValueSource(longs = { 1L, 100_000_000L })
+    void jointlySolvesMultipleSccAxesAndBoundaryOutputsForADagTarget(long requestedAmount) {
+        BigInteger requested = BigInteger.valueOf(requestedAmount);
         AEKey first = AEItemKey.of(Items.IRON_INGOT);
         AEKey second = AEItemKey.of(Items.GOLD_INGOT);
         AEKey boundary = AEItemKey.of(Items.REDSTONE);
@@ -266,7 +268,7 @@ public final class TrinityGraphPlannerTest {
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
                 snapshot,
                 target,
-                BigInteger.ONE,
+                requested,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(first, BigInteger.ONE),
                 TrinityCraftingConfig.Settings.defaults(4),
@@ -274,9 +276,16 @@ public final class TrinityGraphPlannerTest {
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
         TrinityCraftingPlan plan = result.value();
-        assertEquals(BigInteger.TWO, plan.patternFirings().get(firstToSecond.identity()));
-        assertEquals(BigInteger.ONE, plan.patternFirings().get(secondToFirst.identity()));
-        assertEquals(BigInteger.ONE, plan.patternFirings().get(finish.identity()));
+        BigInteger firstFirings = requested.multiply(BigInteger.valueOf(7L))
+                .subtract(BigInteger.ONE)
+                .add(BigInteger.TWO)
+                .divide(BigInteger.valueOf(3L));
+        BigInteger secondFirings = firstFirings.add(requested).subtract(BigInteger.ONE)
+                .add(BigInteger.ONE)
+                .divide(BigInteger.TWO);
+        assertEquals(firstFirings, plan.patternFirings().get(firstToSecond.identity()));
+        assertEquals(secondFirings, plan.patternFirings().get(secondToFirst.identity()));
+        assertEquals(requested, plan.patternFirings().get(finish.identity()));
         assertEquals(BigInteger.ONE, plan.initialExpectedInputs().get(first));
         assertEquals(1, plan.cycleRepeatBlocks().size());
         assertTrue(stageIndex(plan, firstToSecond.identity()) < stageIndex(plan, finish.identity()));
