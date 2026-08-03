@@ -4,7 +4,9 @@
 
 当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
 已完成 Trinity 独立 DAG/SCC 计算内核、schema 2、seed 输出门、动态借料和事件执行器。扩展计划已经可以由真实
-Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。
+Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。Phase 3 同步
+派发已改为 publication identity、不可变容量快照、公平 target slice 和唯一 commit 边界；无法证明等价的 addon 路线
+保留原生单次语义。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -213,6 +215,18 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 精确 `0..baselineFirings` 结构界约束。MIP 与候选选择共用完整、缺失补零的 `BigInteger` firing vector，并在前三层目标固定后
 按稳定 identity 逐项确定结果。
 
+### C-019：provider 轮询、容量模拟与真实输入事务缺少统一边界
+
+旧同步路径直接消费 AE2 `getProviders` 的轮询 iterable，并在确认 provider 可用前从 CPU 真实库存提取一次图样输入。加入多 target
+容量后，若只执行切片表第一项，还会让 busy、quota、拒绝或异常的首个 target 吞掉同 tick 后续 provider 的机会；快照过期时也缺少
+provider registration、counted capability 和 pattern identity 的联合重验。
+
+修复：`CraftingService` 维护独立 publication index；CPU 从库存副本生成只读 prototype，只对 ready work 捕获容量。每个候选在准备前
+按 publication revision、capability revision、pattern identity 和 route 重验 live provider；稳定 cursor 逐个请求有界 slice，失败后
+继续同 tick 后续候选。真实输入、能源和 waiting 只在准备阶段进入事务，最终统一由 `CraftingDispatchCommitter` 按所有权结果结算。
+AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用 `TARGETED`；公共 counted API 使用 `AGGREGATE`；其余无法证明
+等价的路线使用 `UNKNOWN` 单次。独立每网格 4 ms 容量采集预算仍是 Phase 3 的最后收尾项。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -235,6 +249,7 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 | C-016 | 声明输出与计划/运行时数量投影 | 已完成 | 确认页直接摘要测试、DAG/单环/多步环游标与 schema 4 重载测试 |
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
 | C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中、ordinary/radix 精确窗口与 `Long.MAX_VALUE` 直接契约测试 |
+| C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 主体完成 | 路由模式参数化契约、拒绝/异常续选、时间边界、256-worker 与 470 项 GameTest；独立容量采集预算待接入 |
 
 ## 5. 风险与控制
 
@@ -251,6 +266,7 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
 | 单样板自环缺料后继续等待 AE2 大数量展开 | 发布 Trinity 权威诊断 simulation 并协作取消 AE2；多步顺序相关结果继续 fallback |
 | UI 数量与紧凑执行游标偏离 | 计划使用 gross 声明输出；运行时从持久游标精确推导，不维护第二份可漂移计数器 |
+| 容量快照提前修改库存或按旧 route 提交 | 从 CPU 库存副本捕获 prototype；提交前联合重验 provider、capability、pattern 与 target revision |
 
 ## 6. 验证矩阵
 
@@ -271,6 +287,8 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 
 - counted provider 几何批次；
 - generic provider 单次语义；
+- `TARGETED`、`ORDERED`、`AGGREGATE`、`UNKNOWN` 路由契约和失败 target 的同 tick 续选；
+- provider 拒绝、所有权前异常、时间预算耗尽和 256 worker 物理 attempt 守恒；
 - 动态替代、追加借料、改路和无限期缺料等待；
 - 部分 requester 接受、standalone、取消和在途输出；
 - 配方 revision 变化和剩余量重规划；
@@ -297,7 +315,7 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-016 均有直接行为测试或集成证据；
+1. C-001 至 C-019 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

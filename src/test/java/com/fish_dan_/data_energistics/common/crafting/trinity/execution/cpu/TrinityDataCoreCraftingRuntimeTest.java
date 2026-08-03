@@ -12,6 +12,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndexImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
@@ -1589,7 +1592,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 helper,
                 new BlockPos(1, 1, 1),
                 COUNTED_BATCH_SIZE,
-                BatchPushOutcome.REJECT);
+                BatchPushOutcome.REJECT,
+                1);
         RecordingBatchCraftingProvider fallback = new RecordingBatchCraftingProvider(
                 fixture.provider().pattern(),
                 fixture.input(),
@@ -1633,7 +1637,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 helper,
                 new BlockPos(1, 1, 1),
                 COUNTED_BATCH_SIZE,
-                BatchPushOutcome.THROW);
+                BatchPushOutcome.THROW,
+                1);
         RecordingBatchCraftingProvider fallback = new RecordingBatchCraftingProvider(
                 fixture.provider().pattern(),
                 fixture.input(),
@@ -2683,7 +2688,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 helper,
                 hostPos,
                 COUNTED_BATCH_SIZE,
-                failureOutcome);
+                failureOutcome,
+                1);
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
@@ -3144,9 +3150,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
     }
 
-    private static final class TestCraftingService extends CraftingService {
+    private static final class TestCraftingService extends CraftingService
+                                                   implements CraftingProviderPublicationAccess {
 
         private List<ICraftingProvider> providers = List.of();
+        private CraftingProviderPublicationIndexImpl publicationIndex = new CraftingProviderPublicationIndexImpl();
         private int nextProviderIndex;
 
         private TestCraftingService(IGrid grid, IStorageService storageService, IEnergyService energyService) {
@@ -3159,7 +3167,16 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private void setProviders(List<ICraftingProvider> providers) {
             this.providers = List.copyOf(providers);
+            this.publicationIndex = new CraftingProviderPublicationIndexImpl();
+            for (ICraftingProvider provider : this.providers) {
+                this.publicationIndex.publish(provider, provider.getAvailablePatterns());
+            }
             this.nextProviderIndex = 0;
+        }
+
+        @Override
+        public CraftingProviderPublicationIndex data_energistics$craftingProviderPublicationIndex() {
+            return this.publicationIndex;
         }
 
         @Override

@@ -15,6 +15,7 @@ import java.util.Optional;
  * @param machineTargetId     provider-independent machine identity when the adapter can prove one
  * @param patternIdentity     immutable pattern signature understood by the caller
  * @param publicationRevision provider-index revision observed during capture
+ * @param capacityRevision    counted-capability registry revision observed during capture
  * @param captureTick         server tick at which the facts were captured
  * @param routingMode         proven routing contract represented by this snapshot
  * @param capacity            currently available logical craft capacity
@@ -26,6 +27,7 @@ public record ProviderCapacitySnapshot(
                                        Optional<MachineTargetId> machineTargetId,
                                        String patternIdentity,
                                        long publicationRevision,
+                                       long capacityRevision,
                                        long captureTick,
                                        ProviderRoutingMode routingMode,
                                        DispatchCapacity capacity,
@@ -46,6 +48,9 @@ public record ProviderCapacitySnapshot(
         }
         if (publicationRevision < 0L) {
             throw new IllegalArgumentException("Provider capacity publication revision must not be negative");
+        }
+        if (capacityRevision < 0L) {
+            throw new IllegalArgumentException("Provider capacity contract revision must not be negative");
         }
         if (captureTick < 0L) {
             throw new IllegalArgumentException("Provider capacity capture tick must not be negative");

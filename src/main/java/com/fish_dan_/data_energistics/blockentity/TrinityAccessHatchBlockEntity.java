@@ -11,12 +11,16 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
@@ -84,6 +88,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -1260,7 +1265,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private final class HatchCraftingProvider implements CountedCraftingProvider {
+    private final class HatchCraftingProvider implements TargetedCountedCraftingProvider {
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
@@ -1331,6 +1336,47 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                             token,
                             prototype),
                     CRAFTING_CATALOG_TARGET);
+        }
+
+        @Override
+        public List<ProviderCapacitySnapshot> snapshotCapacity(
+                                                               CraftingProviderId providerId,
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCrafts,
+                                                               String patternIdentity,
+                                                               long publicationRevision,
+                                                               long capacityRevision,
+                                                               long captureTick) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || level == null || level.isClientSide() ||
+                    !host.getPatternCatalog().getAvailablePatterns().contains(patternDetails)) {
+                return List.of();
+            }
+            return List.of(new ProviderCapacitySnapshot(
+                    providerId,
+                    CRAFTING_CATALOG_TARGET,
+                    Optional.empty(),
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick,
+                    ProviderRoutingMode.TARGETED,
+                    new DispatchCapacity.Known(requestedCrafts),
+                    new DispatchCapacity.Known(requestedCrafts)));
+        }
+
+        @Override
+        @Nullable
+        public CountedCraftingAdmission prepareBatchForTarget(
+                                                              IPatternDetails patternDetails,
+                                                              KeyCounter[] prototype,
+                                                              long requestedCount,
+                                                              CraftingDispatchTarget target) {
+            if (!CRAFTING_CATALOG_TARGET.equals(target)) {
+                return null;
+            }
+            return prepareBatch(patternDetails, prototype, requestedCount);
         }
 
         @Override

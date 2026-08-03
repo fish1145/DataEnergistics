@@ -7,6 +7,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
 import net.minecraft.core.Direction;
 
@@ -25,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -197,6 +202,118 @@ public final class PatternProviderBatching {
     }
 
     /**
+     * Captures every ordinary AE2 side target without advancing the provider's round-robin cursor.
+     *
+     * <p>
+     * Routes whose blocking, lock or dedicated-machine semantics cannot be represented by a counted side target
+     * are exposed as one conservative provider-level route. Offline, busy and unpublished patterns expose no route.
+     * </p>
+     */
+    public static List<ProviderCapacitySnapshot> snapshotStandardCapacity(
+                                                                          PatternProviderLogic logic,
+                                                                          PatternProviderBatchAccess access,
+                                                                          CraftingProviderId providerId,
+                                                                          IPatternDetails patternDetails,
+                                                                          KeyCounter[] prototype,
+                                                                          long requestedCount,
+                                                                          String patternIdentity,
+                                                                          long publicationRevision,
+                                                                          long capacityRevision,
+                                                                          long captureTick) {
+        validatePreparation(patternDetails, prototype, requestedCount, () -> {});
+        if (logic == null || access == null || providerId == null) {
+            throw new IllegalArgumentException("Pattern provider capacity context must not be null");
+        }
+        if (patternIdentity == null || patternIdentity.isBlank()) {
+            throw new IllegalArgumentException("Pattern provider capacity identity must not be blank");
+        }
+        if (publicationRevision < 0L || capacityRevision < 0L || captureTick < 0L) {
+            throw new IllegalArgumentException("Pattern provider capacity revisions and capture tick must not be negative");
+        }
+        if (!access.dataEnergistics$getSendList().isEmpty() ||
+                !access.dataEnergistics$getMainNode().isActive() ||
+                !access.dataEnergistics$getPatterns().contains(patternDetails) ||
+                logic.getCraftingLockedReason() != LockCraftingMode.NONE ||
+                !patternDetails.supportsPushInputsToExternalInventory()) {
+            return List.of();
+        }
+
+        var blockEntity = access.dataEnergistics$getHost().getBlockEntity();
+        var level = blockEntity.getLevel();
+        if (level == null) {
+            return List.of();
+        }
+        var lockMode = logic.getConfigManager().getSetting(Settings.LOCK_CRAFTING_MODE);
+        if (selectsSingleCraftPath(logic.isBlocking(), lockMode, false)) {
+            return List.of(singleRouteSnapshot(
+                    providerId,
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick));
+        }
+
+        ArrayList<ProviderCapacitySnapshot> snapshots = new ArrayList<>();
+        for (Direction direction : access.dataEnergistics$invokeGetActiveSides()) {
+            var adjacentPosition = blockEntity.getBlockPos().relative(direction);
+            var adjacentSide = direction.getOpposite();
+            var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
+            if (craftingMachine != null && craftingMachine.acceptsPlans()) {
+                return List.of(singleRouteSnapshot(
+                        providerId,
+                        patternIdentity,
+                        publicationRevision,
+                        capacityRevision,
+                        captureTick));
+            }
+
+            PatternProviderTarget target = access.dataEnergistics$invokeFindAdapter(direction);
+            if (target == null) {
+                continue;
+            }
+            long capacity = simulateCapacity(target, prototype, requestedCount);
+            snapshots.add(new ProviderCapacitySnapshot(
+                    providerId,
+                    targetFor(direction),
+                    Optional.empty(),
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick,
+                    ProviderRoutingMode.TARGETED,
+                    new DispatchCapacity.Known(capacity),
+                    new DispatchCapacity.Known(requestedCount)));
+        }
+        return List.copyOf(snapshots);
+    }
+
+    /**
+     * Re-simulates and prepares exactly one side selected from a current capacity snapshot.
+     */
+    @Nullable
+    public static CountedCraftingAdmission prepareStandardBatchForTarget(
+                                                                         PatternProviderLogic logic,
+                                                                         PatternProviderBatchAccess access,
+                                                                         IPatternDetails patternDetails,
+                                                                         KeyCounter[] prototype,
+                                                                         long requestedCount,
+                                                                         Runnable afterCommit,
+                                                                         CraftingDispatchTarget target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Pattern provider dispatch target must not be null");
+        }
+        CountedCraftingPreparation preparation = prepareStandardBatch(
+                logic,
+                access,
+                patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit,
+                candidate -> candidate.equals(target));
+        return preparation.accepted() ? preparation.admission() : null;
+    }
+
+    /**
      * Selects the original one-craft provider path whenever batching could change AE2 blocking or lock semantics.
      */
     static boolean selectsSingleCraftPath(boolean blocking,
@@ -239,6 +356,25 @@ public final class PatternProviderBatching {
 
     private static CountedCraftingPreparation rejected(CraftingDispatchStatus status) {
         return CountedCraftingPreparation.rejected(CraftingDispatchRejection.scoped(status));
+    }
+
+    private static ProviderCapacitySnapshot singleRouteSnapshot(
+                                                                CraftingProviderId providerId,
+                                                                String patternIdentity,
+                                                                long publicationRevision,
+                                                                long capacityRevision,
+                                                                long captureTick) {
+        return new ProviderCapacitySnapshot(
+                providerId,
+                CraftingDispatchTarget.provider(),
+                Optional.empty(),
+                patternIdentity,
+                publicationRevision,
+                capacityRevision,
+                captureTick,
+                ProviderRoutingMode.UNKNOWN,
+                DispatchCapacity.Unknown.INSTANCE,
+                new DispatchCapacity.Known(1L));
     }
 
     private static CraftingDispatchTarget targetFor(Direction direction) {

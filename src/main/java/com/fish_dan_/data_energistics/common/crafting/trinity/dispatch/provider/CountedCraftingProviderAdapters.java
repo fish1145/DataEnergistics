@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -91,6 +92,23 @@ public final class CountedCraftingProviderAdapters {
      */
     public static long mutationRevision() {
         return REGISTRY.mutationRevision();
+    }
+
+    /**
+     * Classifies providers that do not expose explicit target capacity.
+     *
+     * <p>
+     * A direct or registered counted contract remains aggregate-counted. All other providers retain AE2's native
+     * single-call semantics and therefore remain unknown.
+     * </p>
+     *
+     * @param provider live provider resolved from the publication index
+     * @return conservative non-targeted routing mode
+     */
+    public static ProviderRoutingMode fallbackRoutingMode(ICraftingProvider provider) {
+        return provider instanceof CountedCraftingProvider || REGISTRY.find(provider) != null ?
+                ProviderRoutingMode.AGGREGATE :
+                ProviderRoutingMode.UNKNOWN;
     }
 
     static CountedCraftingPreparation prepareProviderTarget(

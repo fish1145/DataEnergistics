@@ -4,9 +4,15 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmis
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderRegistration;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.TrinityCountedCraftingDispatch;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityView;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -15,8 +21,11 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -139,6 +148,36 @@ public final class CountedCraftingProviderTest {
         assertEquals(initialRevision + 2L, CountedCraftingProviderAdapters.mutationRevision());
     }
 
+    @ParameterizedTest
+    @EnumSource(ProviderRoutingMode.class)
+    void capacityResolverPreservesEveryDeclaredRoutingContract(ProviderRoutingMode routingMode) {
+        TestPattern pattern = new TestPattern();
+        RoutingProvider provider = new RoutingProvider(pattern, routingMode);
+        CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+        publications.publish(provider, List.of(pattern));
+        ProviderCapacityResolver resolver = ProviderCapacityResolver.create();
+
+        List<ProviderCapacitySnapshot> snapshots = resolver.capture(
+                publications,
+                pattern,
+                new KeyCounter[0],
+                8L,
+                "routing-contract",
+                1L);
+
+        assertEquals(1, snapshots.size());
+        ProviderCapacitySnapshot snapshot = snapshots.getFirst();
+        assertEquals(routingMode, snapshot.routingMode());
+        assertSame(provider, resolver.resolveCurrent(
+                publications,
+                pattern,
+                new KeyCounter[0],
+                8L,
+                "routing-contract",
+                snapshot,
+                2L));
+    }
+
     private static void registerAndClose(
                                          ICraftingProvider provider,
                                          CountedCraftingProviderAdapter adapter) {
@@ -210,6 +249,62 @@ public final class CountedCraftingProviderTest {
         @Override
         public int hashCode() {
             return 1;
+        }
+    }
+
+    private static final class RoutingProvider implements ICraftingProvider, ProviderCapacityView {
+
+        private final IPatternDetails pattern;
+        private final ProviderRoutingMode routingMode;
+
+        private RoutingProvider(IPatternDetails pattern, ProviderRoutingMode routingMode) {
+            this.pattern = pattern;
+            this.routingMode = routingMode;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new UnsupportedOperationException("Capacity routing contract does not perform physical dispatch");
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+
+        @Override
+        public List<ProviderCapacitySnapshot> snapshotCapacity(
+                                                               CraftingProviderId providerId,
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCrafts,
+                                                               String patternIdentity,
+                                                               long publicationRevision,
+                                                               long capacityRevision,
+                                                               long captureTick) {
+            CraftingDispatchTarget route = this.routingMode == ProviderRoutingMode.TARGETED ?
+                    new CraftingDispatchTarget("test-target") :
+                    CraftingDispatchTarget.provider();
+            DispatchCapacity capacity = this.routingMode == ProviderRoutingMode.TARGETED ?
+                    new DispatchCapacity.Known(requestedCrafts) :
+                    DispatchCapacity.Unknown.INSTANCE;
+            return List.of(new ProviderCapacitySnapshot(
+                    providerId,
+                    route,
+                    Optional.empty(),
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick,
+                    this.routingMode,
+                    capacity,
+                    new DispatchCapacity.Known(this.routingMode == ProviderRoutingMode.AGGREGATE ?
+                            requestedCrafts : 1L)));
         }
     }
 

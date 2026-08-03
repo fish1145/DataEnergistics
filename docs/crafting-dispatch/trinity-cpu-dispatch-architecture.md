@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 已完成 provider publication identity、容量协议基础、公平切片纯逻辑和同步唯一 commit 边界，容量快照接入与 addon 路由仍在实施；Phase 4 至 Phase 5 尚未实现
+- 方案状态：Phase 0、Phase 1、Phase 2 与 VirtualGrid typed execution route 已实现；Phase 3 已完成 provider publication identity、ready-work 容量快照、提交前 revision 重验、公平切片、同步唯一 commit 边界和保守 addon 路由，独立容量采集时间预算仍待接入；Phase 4 至 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -102,11 +102,20 @@ generation。CPU 发布、提交、在线判定、状态菜单和输出路由统
 Access Hatch 选举和物理租约仍保留 owning grid 语义。inactive、未注册或代次不匹配的虚拟成员不产生可执行路由，旧菜单
 目标与后续 proposal 因完整 route token 不匹配而失效。
 
+Phase 3 同步容量路径现已接入：
+
+- `CraftingService` 维护不推进 AE2 round-robin 的 provider publication index，重注册会获得新 identity；
+- CPU 只为当前 ready work 从库存副本捕获一次输入 prototype，容量枚举不会提前修改真实库存；
+- `ProviderCapacityResolver` 在准备前重验 publication revision、counted capability revision、pattern identity 和 target route；
+- `CapacitySlicePlanner` 使用跨 tick 稳定 cursor 选择 target，失败 target 不会吞掉同 tick 后续 provider 的机会；
+- 每个物理调用统一经过 `CraftingDispatchCommitter`，拒绝和所有权前异常计入 attempt，只有实际成功数量进入任务、waiting、能源和输入账本；
+- 无法证明定向或 counted 语义的 AE2 子类及 addon 路线统一降级为 `UNKNOWN` 单次提交，不绕过其 `pushPattern` hook。
+
 仍未实现的部分为：
 
 | 阶段 | 当前缺口 | 优先级 |
 | --- | --- | --- |
-| Phase 3 | provider publication identity、容量值类型与编译期协议已实现；惰性快照、公平切片、唯一同步 commit 边界及 addon 容量适配待实现 | P1 |
+| Phase 3 | 同步容量快照、切片、路由和 commit 已接入；剩余独立每网格 4 ms 容量采集预算 | P1 |
 | Phase 4 | worker mailbox、bounded proposal queue、provider shard、machine reservation、generation/stale 校验 | P2 |
 | Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
@@ -120,8 +129,9 @@ common.crafting.trinity
 │  ├─ selection   CPU 候选选择
 │  ├─ model       派发状态和值类型
 │  ├─ budget      固定物理预算
+│  ├─ capacity    provider 容量捕获、重验与公平切片
 │  ├─ commit      同步窗口与一次准入结果
-│  └─ provider    counted provider 契约
+│  └─ provider    publication index 与 counted provider 契约
 ├─ execution.cpu  CPU runtime、worker、job 与派生索引
 ├─ execution.route owning/service grid、lease 与 virtual membership 路由令牌
 ├─ execution      admission、pattern、runtime transaction 与持久状态机
@@ -250,30 +260,36 @@ proposal 只能携带不可变身份、数量和版本，不能携带已经准�
 
 ### 9.1 接口边界
 
-兼容层应采用面向接口的只读契约。示意命名如下，最终实现必须为接口和成员补齐动机、作用和边界注释：
+兼容层采用面向接口的只读契约。当前实现由以下职责组成：
 
 ```java
 interface ProviderCapacityView {
-    ProviderCapacitySnapshot snapshotCapacity(IPatternDetails patternDetails);
+    List<ProviderCapacitySnapshot> snapshotCapacity(
+            CraftingProviderId providerId,
+            IPatternDetails patternDetails,
+            KeyCounter[] prototype,
+            long requestedCrafts,
+            String patternIdentity,
+            long publicationRevision,
+            long capacityRevision,
+            long captureTick);
 }
 
 record ProviderCapacitySnapshot(
-        long revision,
+        CraftingProviderId providerId,
+        CraftingDispatchTarget route,
+        Optional<MachineTargetId> machineTargetId,
+        String patternIdentity,
+        long publicationRevision,
+        long capacityRevision,
+        long captureTick,
         ProviderRoutingMode routingMode,
-        List<MachineCapacitySnapshot> machines) {
-}
-
-record MachineCapacitySnapshot(
-        MachineTargetId targetId,
-        boolean online,
-        boolean busy,
-        long craftCapacity,
-        long returnCapacity,
-        int routingOrder) {
+        DispatchCapacity capacity,
+        DispatchCapacity maximumSingleBatch) {
 }
 ```
 
-接口实现只负责把第三方供应器已经掌握的事实转换成不可变快照，不负责选择倍率或产生发配动作。
+`ProviderCapacityResolver` 从 publication index 捕获快照并在提交前解析 live provider；接口实现只负责把供应器已经掌握的事实转换成不可变快照，不负责选择倍率或产生发配动作。
 
 ### 9.2 允许读取的信息
 
@@ -631,11 +647,12 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 
 | 供应器类别 | 容量来源 | CPU 模式 | 备注 |
 | --- | --- | --- | --- |
-| AE2 原版普通样板供应器 | 原版目标模拟和现有 accessor | 原子计数合批 | Blocking/Lock/专用机器除外 |
-| Trinity ME 访问仓 | 本模组目录和 admission | 原子计数合批 | 保留一次性所有权和租约校验 |
-| 本模组自适应样板供应器 | 本模组稳定接口 | 按路由选择合批或切片 | 特殊定向路径保持其语义 |
-| AE2 Lightning Tech 多机器供应器 | 只读连接、机器容量和 revision 兼容层 | CPU 容量切片 | 不修改其 push、回收、冷却和轮询逻辑 |
-| AdvancedAE / ExtendedAE / AE2CS | 只读公开能力或稳定 accessor | 能证明时切片，否则单次 | 不按类名猜测原子性 |
+| AE2 精确原版 `PatternProviderLogic` | 原版 target 模拟和现有 accessor | `TARGETED` counted 切片 | Blocking/Lock/专用机器回退单次 |
+| Trinity ME 访问仓 | 本模组目录和一次性 admission | `TARGETED` counted 切片 | 保留目录身份与所有权边界 |
+| 本模组自适应样板供应器普通路线 | 原版 target 模拟和现有 accessor | `TARGETED` counted 切片 | 特殊 addon 路线不复用普通语义 |
+| 公共 API 直接或注册的 counted provider | provider 自身 admission | `AGGREGATE` counted | API 保持软依赖，不暴露内部 target 类型 |
+| AE2 `PatternProviderLogic` 子类、ExtendedAE Plus 与自适应特殊 addon 路线 | 无完整编译期定向契约 | `UNKNOWN` 单次 | 保留真实 `pushPattern` hook、内部顺序与回收语义 |
+| AdvancedAE / ExtendedAE / AE2CS / AE2LT 其它路线 | 无已证明等价的容量契约 | `UNKNOWN` 单次 | 不按类名猜测原子性或 target 身份 |
 | Applied Create | 可验证信息有限 | 保守单次 | 不假设机械网络原子接收 |
 | 未识别供应器 | 无可靠快照 | 保守单次 | 正确性优先 |
 
@@ -670,6 +687,7 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 | 接口/数据对象 | 职责 |
 | --- | --- |
 | `CapacitySlicePlanner` / `CapacitySlicePlannerImpl` | 根据不可变容量快照生成有界、公平的同步 slices |
+| `ProviderCapacityResolver` / `ProviderCapacityResolverImpl` | 从 publication index 捕获快照并在提交前重验 live provider 与 revision |
 | `CraftingDispatchCommitter` / `CraftingDispatchCommitterImpl` | 服务器线程重验和提交事务 |
 | `CraftingDispatchGovernor` / `CraftingDispatchGovernorImpl` | 根据指标调整安全参数 |
 | `ProviderCapacityView` | 第三方供应器只读容量入口 |
@@ -719,14 +737,15 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 区分 Blocking、Lock、No Capacity 和普通拒绝；
 - 引入网格物理调用和服务器提交时间预算。
 
-### 阶段 3：只读容量协议和 CPU 切片（实施中）
+### 阶段 3：只读容量协议和 CPU 切片（收尾中）
 
 - 已建立 provider publication identity/index、`ProviderCapacityView`、`TargetedCountedCraftingProvider` 和不可变容量值类型；
 - 已实现 `CapacitySlicePlanner` 的稳定 cursor、启动优先最大最小公平切分和 `BigInteger` 数量边界，slice 数只受物理调用额度约束；
 - 已将 `CraftingDispatchCommitter` 接入 Trinity 同步 provider 主路径，统一物理 attempt、输入所有权判定和一次性账本结算；
-- 待接入 ready work 的服务器线程惰性快照捕获与提交前 revision 重验；
-- 先支持本模组可控目标，再接入 AE2LT 等第三方只读适配；
-- 待将容量 slices 接入 provider 路由；接入后每个 slice 独立提交并只结算实际成功量；
+- 已接入 ready work 的服务器线程惰性快照、只读输入 prototype、提交前 revision/route 重验和稳定 cursor 路由；
+- 已支持 AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线的 `TARGETED` counted 切片；公共 counted API 使用 `AGGREGATE`；
+- 已将 AE2 provider 子类及无法证明语义等价的 addon 路线显式降级为 `UNKNOWN` 单次，ExtendedAE Plus 不会绕过真实 hook；
+- 待增加独立每网格 4 ms 容量采集预算，避免大量 ready worker 的只读模拟占用提交预算之外的服务器时间；
 - 供应器兼容层不加入任何写行为。
 
 ### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）

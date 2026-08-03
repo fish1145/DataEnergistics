@@ -179,6 +179,7 @@ public final class CapacitySlicePlannerTest {
                 "test-pattern",
                 1L,
                 1L,
+                1L,
                 routingMode,
                 capacity,
                 maximumSingleBatch);

@@ -3,6 +3,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.WorkerOperationBudget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlice;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitter;
@@ -12,7 +17,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
@@ -22,7 +31,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.Tr
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
 import net.minecraft.core.HolderLookup;
@@ -89,6 +100,8 @@ final class TrinityDataCoreCpuLogic {
 
     private final TrinityDataCoreVirtualCpu cpu;
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
+    private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create();
+    private final CapacitySlicePlanner capacitySlicePlanner = CapacitySlicePlanner.create();
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
@@ -98,6 +111,7 @@ final class TrinityDataCoreCpuLogic {
     private final WorkerOperationBudget operationBudget = WorkerOperationBudget.create();
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
+    private int capacitySliceCursor;
     private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
 
     TrinityDataCoreCpuLogic(TrinityDataCoreVirtualCpu cpu) {
@@ -150,6 +164,7 @@ final class TrinityDataCoreCpuLogic {
                 CraftingCpuHelper.generateLinkData(craftId, requester == null, false),
                 this.cpu);
         this.job = new TrinityDataCoreExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
+        this.capacitySliceCursor = 0;
         this.cpu.markDirty();
         notifyJobOwner(this.job, CraftingJobStatusPacket.Status.STARTED);
 
@@ -211,16 +226,20 @@ final class TrinityDataCoreCpuLogic {
 
         try {
             while (remainingOperations > 0 && !dispatchWindow.isExhausted()) {
-                int pushedPatterns = executeCrafting(
+                CraftingExecutionOutcome outcome = executeCrafting(
                         remainingOperations,
                         craftingService,
                         energyService,
                         level,
                         dispatchWindow);
+                int pushedPatterns = outcome.physicalAttempts();
                 if (pushedPatterns <= 0) {
                     break;
                 }
                 remainingOperations -= pushedPatterns;
+                if (!outcome.dispatched()) {
+                    break;
+                }
             }
             this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
         } finally {
@@ -238,20 +257,21 @@ final class TrinityDataCoreCpuLogic {
      * @param energyService   AE2 energy service
      * @param level           server level used by pattern validation
      * @param dispatchWindow  shared per-grid physical submission budget
-     * @return number of physical dispatch operations consumed
+     * @return physical dispatch operations consumed and whether logical work advanced
      */
-    int executeCrafting(int maxPatterns,
-                        CraftingService craftingService,
-                        IEnergyService energyService,
-                        Level level,
-                        CraftingDispatchWindow dispatchWindow) {
+    private CraftingExecutionOutcome executeCrafting(int maxPatterns,
+                                                     CraftingService craftingService,
+                                                     IEnergyService energyService,
+                                                     Level level,
+                                                     CraftingDispatchWindow dispatchWindow) {
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null || maxPatterns <= 0) {
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
         if (currentJob.isTrinityPlan()) {
             return executeTrinityCrafting(
                     currentJob,
+                    maxPatterns,
                     craftingService,
                     energyService,
                     level,
@@ -259,6 +279,7 @@ final class TrinityDataCoreCpuLogic {
         }
 
         int pushedPatterns = 0;
+        boolean dispatched = false;
         var iterator = currentJob.tasks.entrySet().iterator();
         while (!dispatchWindow.isExhausted() && iterator.hasNext() && pushedPatterns < maxPatterns) {
             var task = iterator.next();
@@ -268,57 +289,61 @@ final class TrinityDataCoreCpuLogic {
             }
 
             var details = task.getKey();
-            boolean accepted;
+            ProviderDispatchOutcome outcome;
             try {
-                accepted = dispatchToAvailableProvider(
+                outcome = dispatchToAvailableProvider(
                         currentJob,
                         details,
                         task.getValue(),
-                        craftingService.getProviders(details),
+                        craftingProviderPublications(craftingService),
+                        capturePatternIdentity(details, level),
                         energyService,
                         level,
-                        dispatchWindow);
+                        dispatchWindow,
+                        maxPatterns - pushedPatterns);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Trinity CPU {} isolated an unexpected dispatch failure for pattern {}",
                         this.cpu.number(),
                         details.getDefinition(),
                         exception);
-                accepted = false;
+                outcome = ProviderDispatchOutcome.NONE;
             }
-            if (!accepted) {
+            pushedPatterns = Math.addExact(pushedPatterns, outcome.physicalAttempts());
+            dispatched |= outcome.dispatched();
+            if (!outcome.dispatched()) {
                 if (this.job != currentJob) {
-                    return pushedPatterns;
+                    return new CraftingExecutionOutcome(pushedPatterns, dispatched);
                 }
                 continue;
             }
 
-            pushedPatterns++;
             if (task.getValue().value <= 0L) {
                 iterator.remove();
             }
         }
 
-        return pushedPatterns;
+        return new CraftingExecutionOutcome(pushedPatterns, dispatched);
     }
 
     /**
      * Advances one event-selected compact-plan work item without scanning unrelated stages.
      */
-    private int executeTrinityCrafting(TrinityDataCoreExecutingCraftingJob currentJob,
-                                       CraftingService craftingService,
-                                       IEnergyService energyService,
-                                       Level level,
-                                       CraftingDispatchWindow dispatchWindow) {
+    private CraftingExecutionOutcome executeTrinityCrafting(TrinityDataCoreExecutingCraftingJob currentJob,
+                                                            int maxPatterns,
+                                                            CraftingService craftingService,
+                                                            IEnergyService energyService,
+                                                            Level level,
+                                                            CraftingDispatchWindow dispatchWindow) {
         if (advanceTrinityCompletion(currentJob)) {
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
 
         TrinityPlanExecution execution = currentJob.trinityExecution();
         long currentTick = TickHandler.instance().getCurrentTick();
         if (execution.status() == TrinityPlanExecution.Status.PLANNING) {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
         var workOffer = execution.poll(currentTick);
         if (workOffer.isEmpty()) {
@@ -338,7 +363,7 @@ final class TrinityDataCoreCpuLogic {
                         currentJob.link.getCraftingID());
                 finishJob(false);
             }
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
 
         TrinityPlanExecution.Work work = workOffer.orElseThrow();
@@ -360,12 +385,12 @@ final class TrinityDataCoreCpuLogic {
                     work,
                     currentTick,
                     TrinityCraftingConfig.settings().dynamicRetryMaxTicks());
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
         if (!(resolution instanceof TrinityPatternResolver.Matched(IPatternDetails pattern))) {
             execution.markPlanning(work);
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
 
         IGrid activeGrid = this.cpu.grid();
@@ -374,7 +399,7 @@ final class TrinityDataCoreCpuLogic {
                     work,
                     currentTick,
                     TrinityCraftingConfig.settings().dynamicRetryMaxTicks());
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
         TrinityCraftingConfig.Settings settings = TrinityCraftingConfig.settings();
@@ -399,16 +424,16 @@ final class TrinityDataCoreCpuLogic {
                 } else {
                     execution.deferInput(work, unavailable.observedKeys());
                 }
-                return 0;
+                return CraftingExecutionOutcome.NONE;
             }
             case TrinityPatternSelector.VariantLimit limit -> {
                 execution.fail("VARIANT_LIMIT: runtime binding requires " + limit.required() +
                         " variants, configured limit is " + limit.limit());
-                return 0;
+                return CraftingExecutionOutcome.NONE;
             }
             case TrinityPatternSelector.ArithmeticOverflow overflow -> {
                 execution.fail("ARITHMETIC_OVERFLOW: " + overflow.operation());
-                return 0;
+                return CraftingExecutionOutcome.NONE;
             }
         }
 
@@ -425,22 +450,24 @@ final class TrinityDataCoreCpuLogic {
                     selected.observedKeys(),
                     currentTick,
                     settings.dynamicRetryMaxTicks());
-            return 0;
+            return CraftingExecutionOutcome.NONE;
         }
         TrinityBorrowingTransaction borrowed = borrowing.orElseThrow();
 
-        boolean accepted;
+        ProviderDispatchOutcome outcome;
         try {
-            accepted = dispatchToAvailableProvider(
+            outcome = dispatchToAvailableProvider(
                     currentJob,
                     pattern,
                     selected.extractionPattern(),
                     Math.min(work.maximumLogicalFirings(), selected.maximumCrafts()),
                     false,
-                    craftingService.getProviders(pattern),
+                    craftingProviderPublications(craftingService),
+                    stablePatternIdentity(work.patternIdentity()),
                     energyService,
                     level,
                     dispatchWindow,
+                    maxPatterns,
                     commit -> {
                         borrowed.commitConsumed(selected.inputsPerCraft(), commit.count());
                         commitTrinityPatternPush(currentJob, execution, work, commit);
@@ -451,22 +478,22 @@ final class TrinityDataCoreCpuLogic {
                     this.cpu.number(),
                     pattern.getDefinition(),
                     exception);
-            accepted = false;
+            outcome = ProviderDispatchOutcome.NONE;
         } finally {
             borrowed.releaseUncommitted();
         }
         if (this.job != currentJob) {
-            return 0;
+            return new CraftingExecutionOutcome(outcome.physicalAttempts(), outcome.dispatched());
         }
-        if (accepted) {
-            return 1;
+        if (outcome.dispatched()) {
+            return new CraftingExecutionOutcome(outcome.physicalAttempts(), true);
         }
         if (dispatchWindow.isExhausted()) {
             execution.markBudgetExhausted(work, currentTick);
         } else {
             execution.deferProvider(work, currentTick, settings.dynamicRetryMaxTicks());
         }
-        return 0;
+        return new CraftingExecutionOutcome(outcome.physicalAttempts(), false);
     }
 
     /**
@@ -593,27 +620,30 @@ final class TrinityDataCoreCpuLogic {
     }
 
     /**
-     * Attempts providers directly through AE2's cyclic iterable and stops consuming it as soon as one accepts. Pattern
-     * input extraction is lazy, and the retained one-craft prototype is rolled back by {@code finally} on every
-     * unaccepted exit.
+     * Resolves stable provider publications and offers fair capacity slices within the worker's physical-call budget.
      */
-    private boolean dispatchToAvailableProvider(TrinityDataCoreExecutingCraftingJob currentJob,
-                                                IPatternDetails details,
-                                                TrinityDataCoreExecutingCraftingJob.TaskProgress task,
-                                                Iterable<ICraftingProvider> candidates,
-                                                IEnergyService energyService,
-                                                Level level,
-                                                CraftingDispatchWindow dispatchWindow) {
+    private ProviderDispatchOutcome dispatchToAvailableProvider(
+                                                                TrinityDataCoreExecutingCraftingJob currentJob,
+                                                                IPatternDetails details,
+                                                                TrinityDataCoreExecutingCraftingJob.TaskProgress task,
+                                                                CraftingProviderPublicationIndex publications,
+                                                                String patternIdentity,
+                                                                IEnergyService energyService,
+                                                                Level level,
+                                                                CraftingDispatchWindow dispatchWindow,
+                                                                int physicalCallLimit) {
         return dispatchToAvailableProvider(
                 currentJob,
                 details,
                 details,
                 task.value,
                 true,
-                candidates,
+                publications,
+                patternIdentity,
                 energyService,
                 level,
                 dispatchWindow,
+                physicalCallLimit,
                 commit -> commitPatternPush(currentJob, task, commit));
     }
 
@@ -700,60 +730,130 @@ final class TrinityDataCoreCpuLogic {
     /**
      * Executes the shared transactional provider path with independently selected extraction semantics and accounting.
      */
-    private boolean dispatchToAvailableProvider(TrinityDataCoreExecutingCraftingJob currentJob,
-                                                IPatternDetails details,
-                                                IPatternDetails extractionDetails,
-                                                long remainingCrafts,
-                                                boolean validateScheduledOutputs,
-                                                Iterable<ICraftingProvider> candidates,
-                                                IEnergyService energyService,
-                                                Level level,
-                                                CraftingDispatchWindow dispatchWindow,
-                                                Consumer<PreparedPatternCommit> acceptedDispatch) {
-        PatternInputTransaction inputTransaction = null;
-        try {
-            ExtractedPatternInputs inputs = null;
-            double powerPerCraft = 0.0D;
-            long maximumCount = 0L;
-            var candidateIterator = candidates.iterator();
-            while (!dispatchWindow.isExhausted() && candidateIterator.hasNext()) {
-                ICraftingProvider provider = candidateIterator.next();
-                if (!dispatchWindow.canAttempt(provider, details)) {
+    private ProviderDispatchOutcome dispatchToAvailableProvider(
+                                                                TrinityDataCoreExecutingCraftingJob currentJob,
+                                                                IPatternDetails details,
+                                                                IPatternDetails extractionDetails,
+                                                                long remainingCrafts,
+                                                                boolean validateScheduledOutputs,
+                                                                CraftingProviderPublicationIndex publications,
+                                                                String patternIdentity,
+                                                                IEnergyService energyService,
+                                                                Level level,
+                                                                CraftingDispatchWindow dispatchWindow,
+                                                                int physicalCallLimit,
+                                                                Consumer<PreparedPatternCommit> acceptedDispatch) {
+        if (physicalCallLimit <= 0 || dispatchWindow.isExhausted()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+        ExtractedPatternInputs prototype = capturePatternInputPrototype(extractionDetails, level);
+        if (prototype == null || dispatchWindow.isExhausted()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+
+        double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
+        long maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingCrafts);
+        maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
+        maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
+        if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+
+        long currentTick = TickHandler.instance().getCurrentTick();
+        List<ProviderCapacitySnapshot> snapshots = this.capacityResolver.capture(
+                publications,
+                details,
+                prototype.inputHolder(),
+                maximumCount,
+                patternIdentity,
+                currentTick);
+        if (snapshots.isEmpty()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+
+        int physicalAttempts = 0;
+        int inspectedSnapshots = 0;
+        int searchCursor = this.capacitySliceCursor;
+        Set<ProviderCapacitySnapshot> inspectedTargets = new HashSet<>();
+        while (inspectedSnapshots < snapshots.size() &&
+                physicalAttempts < physicalCallLimit &&
+                !dispatchWindow.isExhausted()) {
+            CapacitySlicePlan candidatePlan = this.capacitySlicePlanner.plan(
+                    snapshots,
+                    BigInteger.valueOf(maximumCount),
+                    1,
+                    searchCursor);
+            if (candidatePlan.slices().isEmpty()) {
+                break;
+            }
+            CapacitySlice slice = candidatePlan.slices().getFirst();
+            ProviderCapacitySnapshot snapshot = slice.target();
+            if (!inspectedTargets.add(snapshot)) {
+                break;
+            }
+            inspectedSnapshots++;
+            searchCursor = candidatePlan.nextCursor();
+            this.capacitySliceCursor = searchCursor;
+            long prototypeOffer = offeredCount(snapshot, slice, maximumCount);
+            ICraftingProvider provider = this.capacityResolver.resolveCurrent(
+                    publications,
+                    details,
+                    prototype.inputHolder(),
+                    prototypeOffer,
+                    patternIdentity,
+                    snapshot,
+                    currentTick);
+            if (provider == null || !dispatchWindow.canAttempt(provider, details, snapshot.route())) {
+                continue;
+            }
+
+            try (CraftingDispatchWindow.SubmissionScope submission = dispatchWindow.beginSubmission(provider, details)) {
+                if (providerBusy(provider, details, dispatchWindow)) {
                     continue;
                 }
-                try (CraftingDispatchWindow.SubmissionScope submission = dispatchWindow.beginSubmission(provider, details)) {
-                    if (providerBusy(provider, details, dispatchWindow)) {
-                        continue;
-                    }
+                if (dispatchWindow.isExhausted()) {
+                    break;
+                }
+
+                PatternInputTransaction inputTransaction = beginPatternInputTransaction(extractionDetails, level);
+                if (inputTransaction == null) {
+                    return new ProviderDispatchOutcome(physicalAttempts, false);
+                }
+                try {
                     if (dispatchWindow.isExhausted()) {
-                        continue;
+                        break;
                     }
-                    if (inputTransaction == null) {
-                        inputTransaction = beginPatternInputTransaction(extractionDetails, level);
-                        if (inputTransaction == null) {
-                            return false;
-                        }
-                        inputs = inputTransaction.inputs();
-                        powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
-                        maximumCount = limitByInputAvailability(inputs.inputsPerCraft(), remainingCrafts);
-                        maximumCount = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), maximumCount);
-                        maximumCount = limitByEnergy(powerPerCraft, maximumCount, energyService);
-                        if (maximumCount <= 0L) {
-                            return false;
-                        }
+                    ExtractedPatternInputs inputs = inputTransaction.inputs();
+                    double powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
+                    long currentMaximum = limitByInputAvailability(inputs.inputsPerCraft(), remainingCrafts);
+                    currentMaximum = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), currentMaximum);
+                    currentMaximum = limitByEnergy(powerPerCraft, currentMaximum, energyService);
+                    if (currentMaximum <= 0L || dispatchWindow.isExhausted()) {
+                        break;
                     }
-                    if (dispatchWindow.isExhausted()) {
+
+                    long offeredCount = offeredCount(snapshot, slice, currentMaximum);
+                    ICraftingProvider currentProvider = this.capacityResolver.resolveCurrent(
+                            publications,
+                            details,
+                            inputs.inputHolder(),
+                            offeredCount,
+                            patternIdentity,
+                            snapshot,
+                            currentTick);
+                    if (currentProvider != provider) {
                         continue;
                     }
 
                     CountedCraftingPreparation preparation;
                     try {
-                        preparation = CountedCraftingProviderAdapters.prepare(
+                        preparation = prepareSelectedProvider(
                                 provider,
                                 details,
                                 inputs.inputHolder(),
-                                maximumCount,
-                                target -> dispatchWindow.canAttempt(provider, details, target));
+                                offeredCount,
+                                snapshot,
+                                dispatchWindow);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
                                 "Crafting provider {} threw while preparing pattern {} on Trinity CPU {}; isolating the provider for this dispatch window",
@@ -764,15 +864,18 @@ final class TrinityDataCoreCpuLogic {
                         dispatchWindow.recordResult(
                                 provider,
                                 details,
-                                null,
+                                snapshot.route(),
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
                         continue;
                     }
                     for (CraftingDispatchRejection rejection : preparation.rejections()) {
                         dispatchWindow.recordResult(provider, details, rejection.target(), rejection.status());
                     }
-                    if (!preparation.accepted() || dispatchWindow.isExhausted()) {
+                    if (!preparation.accepted()) {
                         continue;
+                    }
+                    if (dispatchWindow.isExhausted()) {
+                        break;
                     }
 
                     CountedCraftingAdmission admission = preparation.admission();
@@ -780,7 +883,9 @@ final class TrinityDataCoreCpuLogic {
                     if (admission == null || target == null) {
                         throw new IllegalStateException("Accepted counted preparation lost its admission or target");
                     }
-                    if (!dispatchWindow.canAttempt(provider, details, target)) {
+                    if ((snapshot.routingMode() != ProviderRoutingMode.AGGREGATE &&
+                            !target.equals(snapshot.route())) ||
+                            !dispatchWindow.canAttempt(provider, details, target)) {
                         continue;
                     }
                     long count;
@@ -788,7 +893,7 @@ final class TrinityDataCoreCpuLogic {
                         count = CountedCraftingProviderAdapters.validatedAdmissionCount(
                                 provider,
                                 admission,
-                                maximumCount);
+                                offeredCount);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
                                 "Crafting provider {} returned an invalid counted admission for pattern {} on Trinity CPU {}",
@@ -799,12 +904,12 @@ final class TrinityDataCoreCpuLogic {
                         dispatchWindow.recordResult(
                                 provider,
                                 details,
-                                null,
+                                target,
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
                         continue;
                     }
                     if (dispatchWindow.isExhausted()) {
-                        continue;
+                        break;
                     }
 
                     PreparedPatternCommit commit = preparePatternCommit(
@@ -814,24 +919,21 @@ final class TrinityDataCoreCpuLogic {
                             inputs,
                             count,
                             validateScheduledOutputs);
-                    if (commit == null) {
-                        return false;
-                    }
-                    if (dispatchWindow.isExhausted()) {
-                        continue;
+                    if (commit == null || dispatchWindow.isExhausted()) {
+                        break;
                     }
                     AdditionalInputTransaction additionalInputs = extractAdditionalInputs(inputs.inputsPerCraft(), count);
                     if (additionalInputs == null) {
-                        return false;
+                        return new ProviderDispatchOutcome(physicalAttempts, false);
                     }
                     if (dispatchWindow.isExhausted()) {
                         additionalInputs.rollback();
-                        continue;
+                        break;
                     }
                     EnergyCharge energyCharge = chargeEnergy(energyService, powerPerCraft * count);
                     if (energyCharge == null) {
                         additionalInputs.rollback();
-                        return false;
+                        return new ProviderDispatchOutcome(physicalAttempts, false);
                     }
                     PatternInputTransaction acceptedInputs = inputTransaction;
                     CraftingDispatchAccountingDelta accounting = CraftingDispatchAccountingDelta.create(
@@ -857,25 +959,94 @@ final class TrinityDataCoreCpuLogic {
                             dispatchWindow,
                             submission,
                             accounting));
+                    if (result.physicalAttempted()) {
+                        physicalAttempts = Math.incrementExact(physicalAttempts);
+                    }
                     if (result.requiresJobAbort()) {
                         Data_Energistics.LOGGER.error(
                                 "Trinity CPU {} is aborting job {} because provider dispatch accounting could not be settled",
                                 this.cpu.number(),
                                 currentJob.link.getCraftingID());
                         finishJob(false);
-                        return false;
+                        return new ProviderDispatchOutcome(physicalAttempts, false);
                     }
                     if (result.dispatched()) {
-                        return true;
+                        return new ProviderDispatchOutcome(physicalAttempts, true);
                     }
+                } finally {
+                    inputTransaction.rollback();
                 }
             }
-            return false;
-        } finally {
-            if (inputTransaction != null) {
-                inputTransaction.rollback();
-            }
         }
+        return new ProviderDispatchOutcome(physicalAttempts, false);
+    }
+
+    private CountedCraftingPreparation prepareSelectedProvider(
+                                                               ICraftingProvider provider,
+                                                               IPatternDetails details,
+                                                               KeyCounter[] prototype,
+                                                               long offeredCount,
+                                                               ProviderCapacitySnapshot snapshot,
+                                                               CraftingDispatchWindow dispatchWindow) {
+        if (snapshot.routingMode() == ProviderRoutingMode.TARGETED) {
+            if (!(provider instanceof TargetedCountedCraftingProvider targetedProvider)) {
+                throw new IllegalStateException("Targeted capacity snapshot requires a targeted counted provider");
+            }
+            CountedCraftingAdmission admission = targetedProvider.prepareBatchForTarget(
+                    details,
+                    prototype,
+                    offeredCount,
+                    snapshot.route());
+            return admission == null ?
+                    CountedCraftingPreparation.rejected(CraftingDispatchRejection.targeted(
+                            CraftingDispatchStatus.NO_CAPACITY,
+                            snapshot.route())) :
+                    CountedCraftingPreparation.accepted(admission, snapshot.route());
+        }
+        if (snapshot.routingMode() == ProviderRoutingMode.AGGREGATE) {
+            return CountedCraftingProviderAdapters.prepare(
+                    provider,
+                    details,
+                    prototype,
+                    offeredCount,
+                    target -> dispatchWindow.canAttempt(provider, details, target));
+        }
+        return CountedCraftingProviderAdapters.prepare(
+                provider,
+                details,
+                prototype,
+                offeredCount,
+                target -> target.equals(snapshot.route()) && dispatchWindow.canAttempt(provider, details, target));
+    }
+
+    private static long offeredCount(
+                                     ProviderCapacitySnapshot snapshot,
+                                     CapacitySlice slice,
+                                     long maximumCount) {
+        return switch (snapshot.routingMode()) {
+            case TARGETED -> Math.min(slice.logicalCrafts(), maximumCount);
+            case AGGREGATE -> maximumCount;
+            case ORDERED, UNKNOWN -> 1L;
+        };
+    }
+
+    private static CraftingProviderPublicationIndex craftingProviderPublications(CraftingService craftingService) {
+        if (!(craftingService instanceof CraftingProviderPublicationAccess publicationAccess)) {
+            throw new IllegalStateException("Crafting service does not expose the Trinity provider publication index");
+        }
+        return publicationAccess.data_energistics$craftingProviderPublicationIndex();
+    }
+
+    private static String capturePatternIdentity(IPatternDetails details, Level level) {
+        TrinityPatternIdentity identity = TrinityPatternIdentity.capture(
+                TrinityPatternPublicationSignature.capture(details),
+                level.registryAccess());
+        return stablePatternIdentity(identity);
+    }
+
+    private static String stablePatternIdentity(TrinityPatternIdentity identity) {
+        return identity.definitionEncoding().length() + ":" +
+                identity.definitionEncoding() + identity.publicationEncoding();
     }
 
     /**
@@ -922,11 +1093,32 @@ final class TrinityDataCoreCpuLogic {
 
     @Nullable
     private PatternInputTransaction beginPatternInputTransaction(IPatternDetails details, Level level) {
+        PatternInputCapture capture = extractPatternInputs(details, this.inventory, level);
+        if (capture == null) {
+            return null;
+        }
+        return new PatternInputTransaction(capture.inputs(), capture.ownedInputs());
+    }
+
+    @Nullable
+    private ExtractedPatternInputs capturePatternInputPrototype(IPatternDetails details, Level level) {
+        ListCraftingInventory prototypeInventory = new ListCraftingInventory(ignored -> {});
+        for (var entry : this.inventory.list) {
+            prototypeInventory.list.add(entry.getKey(), entry.getLongValue());
+        }
+        PatternInputCapture capture = extractPatternInputs(details, prototypeInventory, level);
+        return capture == null ? null : capture.inputs();
+    }
+
+    @Nullable
+    private static PatternInputCapture extractPatternInputs(IPatternDetails details,
+                                                            ListCraftingInventory sourceInventory,
+                                                            Level level) {
         KeyCounter expectedOutputs = new KeyCounter();
         KeyCounter expectedContainerItems = new KeyCounter();
         KeyCounter[] inputHolder = CraftingCpuHelper.extractPatternInputs(
                 details,
-                this.inventory,
+                sourceInventory,
                 level,
                 expectedOutputs,
                 expectedContainerItems);
@@ -936,16 +1128,16 @@ final class TrinityDataCoreCpuLogic {
         CapturedPatternInputs capturedInputs = capturePatternInputs(inputHolder);
         if (capturedInputs == null) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot track overflowing extracted pattern inputs");
-            CraftingCpuHelper.reinjectPatternInputs(this.inventory, inputHolder);
+            CraftingCpuHelper.reinjectPatternInputs(sourceInventory, inputHolder);
             return null;
         }
         CapturedPatternResults capturedResults = capturePatternResults(expectedOutputs, expectedContainerItems);
         if (capturedResults == null) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot track overflowing expected pattern outputs");
-            CraftingCpuHelper.reinjectPatternInputs(this.inventory, inputHolder);
+            CraftingCpuHelper.reinjectPatternInputs(sourceInventory, inputHolder);
             return null;
         }
-        return new PatternInputTransaction(
+        return new PatternInputCapture(
                 new ExtractedPatternInputs(
                         inputHolder,
                         capturedInputs.inputsPerCraft(),
@@ -1018,6 +1210,16 @@ final class TrinityDataCoreCpuLogic {
             long availableCopies = this.inventory.list.get(input.what()) / amountPerCraft;
             long availableCount = availableCopies == Long.MAX_VALUE ? Long.MAX_VALUE : availableCopies + 1L;
             count = Math.min(count, availableCount);
+            count = Math.min(count, Long.MAX_VALUE / amountPerCraft);
+        }
+        return count;
+    }
+
+    private long limitByUnextractedInputAvailability(List<GenericStack> inputsPerCraft, long maximumCount) {
+        long count = maximumCount;
+        for (GenericStack input : inputsPerCraft) {
+            long amountPerCraft = input.amount();
+            count = Math.min(count, this.inventory.list.get(input.what()) / amountPerCraft);
             count = Math.min(count, Long.MAX_VALUE / amountPerCraft);
         }
         return count;
@@ -1373,6 +1575,8 @@ final class TrinityDataCoreCpuLogic {
                                           List<GenericStack> expectedContainerItems,
                                           List<GenericStack> waitingPerCraft) {}
 
+    private record PatternInputCapture(ExtractedPatternInputs inputs, KeyCounter ownedInputs) {}
+
     private record PreparedPatternCommit(long count,
                                          List<GenericStack> expectedOutputs,
                                          List<GenericStack> expectedContainerItems,
@@ -1395,6 +1599,34 @@ final class TrinityDataCoreCpuLogic {
         @Override
         public List<GenericStack> getOutputs() {
             return this.outputs;
+        }
+    }
+
+    private record CraftingExecutionOutcome(int physicalAttempts, boolean dispatched) {
+
+        private static final CraftingExecutionOutcome NONE = new CraftingExecutionOutcome(0, false);
+
+        private CraftingExecutionOutcome {
+            if (physicalAttempts < 0) {
+                throw new IllegalArgumentException("Physical attempt count must not be negative");
+            }
+            if (dispatched && physicalAttempts == 0) {
+                throw new IllegalArgumentException("Advanced crafting work must consume a physical attempt");
+            }
+        }
+    }
+
+    private record ProviderDispatchOutcome(int physicalAttempts, boolean dispatched) {
+
+        private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false);
+
+        private ProviderDispatchOutcome {
+            if (physicalAttempts < 0) {
+                throw new IllegalArgumentException("Physical attempt count must not be negative");
+            }
+            if (dispatched && physicalAttempts == 0) {
+                throw new IllegalArgumentException("A dispatched provider slice must consume a physical attempt");
+            }
         }
     }
 
@@ -1719,6 +1951,7 @@ final class TrinityDataCoreCpuLogic {
                     registries,
                     this::postChange,
                     this);
+            this.capacitySliceCursor = 0;
             if (this.job.finalOutput == null) {
                 finishJob(false);
             }
@@ -1732,6 +1965,7 @@ final class TrinityDataCoreCpuLogic {
         cancelPendingReplan();
         this.inventory.clear();
         this.job = null;
+        this.capacitySliceCursor = 0;
     }
 
     static boolean persistedHasJob(CompoundTag data) {
@@ -1835,6 +2069,7 @@ final class TrinityDataCoreCpuLogic {
                 this.job,
                 success ? CraftingJobStatusPacket.Status.FINISHED : CraftingJobStatusPacket.Status.CANCELLED);
         this.job = null;
+        this.capacitySliceCursor = 0;
         this.cpu.markDirty();
         storeItems();
     }

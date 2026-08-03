@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuCandidate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuCandidateSelection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuCandidateSelector;
@@ -84,7 +86,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
-public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegistry, TrinityCraftingGraphAccess {
+public abstract class CraftingServiceMixin
+                                           implements TrinityCraftingRuntimeRegistry, TrinityCraftingGraphAccess, CraftingProviderPublicationAccess {
 
     @Unique
     private static final CraftingCpuCandidateSelector DATA_ENERGISTICS_CPU_SELECTOR = CraftingCpuCandidateSelector.create();
@@ -154,6 +157,14 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Shadow
     private long lastProcessedCraftingLogicChangeTick;
+
+    @Override
+    public CraftingProviderPublicationIndex data_energistics$craftingProviderPublicationIndex() {
+        if (!(this.craftingProviders instanceof CraftingProviderPublicationIndex publicationIndex)) {
+            throw new IllegalStateException("AE2 crafting providers do not expose the Trinity publication index");
+        }
+        return publicationIndex;
+    }
 
     @WrapMethod(method = "beginCraftingCalculation")
     private Future<ICraftingPlan> dataEnergistics$beginTrinityCraftingCalculation(
