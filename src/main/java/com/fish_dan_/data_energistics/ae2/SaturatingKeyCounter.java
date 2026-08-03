@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import appeng.api.stacks.KeyCounter;
 
 /** Combines non-negative AE storage amounts without allowing signed {@code long} overflow. */
@@ -18,7 +20,9 @@ public final class SaturatingKeyCounter {
             long current = total.get(entry.getKey());
             long added = entry.getLongValue();
             if (current < 0L || added < 0L) {
-                throw new IllegalArgumentException("AE storage amounts must be non-negative");
+                Data_Energistics.LOGGER.warn("AE storage amounts must be non-negative");
+                if (current < 0) current = 0;
+                if (added < 0) added = 0;
             }
             total.set(entry.getKey(), added > Long.MAX_VALUE - current ? Long.MAX_VALUE : current + added);
         }
