@@ -49,6 +49,9 @@ public interface TrinityWorkerProposalCoordinator {
     /** @return whether this worker is waiting exclusively for its background proposal completion */
     boolean pending();
 
+    /** @return whether this worker still owns any unconsumed proposal ticket state */
+    boolean outstanding();
+
     /** Releases the currently consumed ready proposal after server-thread commit or rejection. */
     void release();
 
@@ -56,7 +59,7 @@ public interface TrinityWorkerProposalCoordinator {
     void cancel();
 
     /** Non-blocking server-thread decision. */
-    sealed interface Decision permits Empty, Pending, Ready, NoCapacity, Fallback {}
+    sealed interface Decision permits Empty, Pending, Ready, NoCapacity, Deferred, Fallback {}
 
     /** No proposal exists, so the caller may capture and submit immutable candidates. */
     enum Empty implements Decision {
@@ -83,6 +86,16 @@ public interface TrinityWorkerProposalCoordinator {
         INSTANCE
     }
 
+    /** @param reason bounded scheduler pressure requiring a retry without synchronous resource mutation */
+    record Deferred(DeferredReason reason) implements Decision {
+
+        public Deferred {
+            if (reason == null) {
+                throw new IllegalArgumentException("Worker proposal deferral reason must not be null");
+            }
+        }
+    }
+
     /** @param reason expected reason to use the Phase 3 synchronous path */
     record Fallback(FallbackReason reason) implements Decision {
 
@@ -95,11 +108,15 @@ public interface TrinityWorkerProposalCoordinator {
 
     /** Expected proposal failures that never authorize resource mutation in the background. */
     enum FallbackReason {
-        WORKER_BUSY,
-        GRID_LIMIT,
-        QUEUE_FULL,
         SCHEDULER_CLOSED,
         CALCULATION_FAILED,
         CANCELLED
+    }
+
+    /** Expected bounded-admission pressure that must not fall through to a synchronous commit in the same pass. */
+    enum DeferredReason {
+        WORKER_BUSY,
+        GRID_LIMIT,
+        QUEUE_FULL
     }
 }

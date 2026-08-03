@@ -4,10 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlice;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard.ProviderShardDispatcher;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +32,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final Object admissionLock = new Object();
     private final DispatchProposalLimits limits;
     private final CapacitySlicePlanner slicePlanner;
+    private final ProviderShardDispatcher shardDispatcher;
     private final ThreadPoolExecutor executor;
     private final Set<WorkerKey> outstandingWorkers = new HashSet<>();
     private final Map<Long, Integer> outstandingByGrid = new HashMap<>();
@@ -53,6 +52,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         }
         this.limits = limits;
         this.slicePlanner = slicePlanner;
+        this.shardDispatcher = ProviderShardDispatcher.create(limits.shardCount());
         this.executor = createExecutor(limits);
     }
 
@@ -114,23 +114,18 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
     private void calculate(TicketImpl ticket, CraftingDispatchProposalRequest request) {
         try {
-            CapacitySlicePlan plan = this.slicePlanner.plan(
-                    request.candidates(),
-                    request.remainingCrafts(),
-                    1,
-                    request.cursor());
-            if (plan.slices().isEmpty()) {
-                ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
-                return;
+            ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(request, this.slicePlanner);
+            switch (result) {
+                case ProviderShardDispatcher.NoCapacity ignored -> ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
+                case ProviderShardDispatcher.Reserved reserved -> {
+                    ticket.attachReservation(reserved.reservation());
+                    ticket.complete(new DispatchProposalTicket.Ready(new CraftingDispatchProposal(
+                            request.lease(),
+                            reserved.target(),
+                            reserved.logicalCrafts(),
+                            reserved.nextCursor())));
+                }
             }
-            CapacitySlice slice = plan.slices().getFirst();
-            ProviderCapacitySnapshot target = slice.target();
-            long logicalCrafts = offeredCount(target, slice, request.remainingCrafts().longValueExact());
-            ticket.complete(new DispatchProposalTicket.Ready(new CraftingDispatchProposal(
-                    request.lease(),
-                    target,
-                    logicalCrafts,
-                    plan.nextCursor())));
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Trinity dispatch proposal calculation failed for worker {} job {}",
@@ -180,17 +175,6 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                 new ThreadPoolExecutor.AbortPolicy());
     }
 
-    private static long offeredCount(
-                                     ProviderCapacitySnapshot snapshot,
-                                     CapacitySlice slice,
-                                     long maximumCount) {
-        return switch (snapshot.routingMode()) {
-            case TARGETED -> Math.min(slice.logicalCrafts(), maximumCount);
-            case AGGREGATE -> maximumCount;
-            case ORDERED, UNKNOWN -> 1L;
-        };
-    }
-
     /** Stable worker identity used only for outstanding admission. */
     private record WorkerKey(UUID runtimeId, int workerNumber) {
 
@@ -207,6 +191,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private final WorkerKey workerKey;
         private final Runnable wakeup;
         private final AtomicReference<State> state = new AtomicReference<>(Pending.INSTANCE);
+        private final AtomicReference<ProviderShardDispatcher.Reservation> reservation = new AtomicReference<>();
         private final AtomicBoolean closed = new AtomicBoolean();
         private volatile FutureTask<Void> task;
 
@@ -240,6 +225,10 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             if (currentTask != null) {
                 this.owner.cancelTask(currentTask);
             }
+            ProviderShardDispatcher.Reservation currentReservation = this.reservation.getAndSet(null);
+            if (currentReservation != null) {
+                currentReservation.close();
+            }
             this.owner.release(this);
         }
 
@@ -263,6 +252,19 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                         this.lease.jobId(),
                         exception);
                 close();
+            }
+        }
+
+        private void attachReservation(ProviderShardDispatcher.Reservation reservation) {
+            if (!this.reservation.compareAndSet(null, reservation)) {
+                reservation.close();
+                throw new IllegalStateException("A dispatch proposal ticket already owns a provider reservation");
+            }
+            if (this.closed.get()) {
+                ProviderShardDispatcher.Reservation cancelled = this.reservation.getAndSet(null);
+                if (cancelled != null) {
+                    cancelled.close();
+                }
             }
         }
     }

@@ -318,6 +318,7 @@ final class TrinityDataCoreCpuLogic {
                         dispatchWindow,
                         maxPatterns - pushedPatterns);
             } catch (RuntimeException exception) {
+                this.proposalCoordinator.cancel();
                 Data_Energistics.LOGGER.error(
                         "Trinity CPU {} isolated an unexpected dispatch failure for pattern {}",
                         this.cpu.number(),
@@ -327,6 +328,9 @@ final class TrinityDataCoreCpuLogic {
             }
             pushedPatterns = Math.addExact(pushedPatterns, outcome.physicalAttempts());
             dispatched |= outcome.dispatched();
+            if (outcome.proposalOutstanding() || outcome.proposalDeferred()) {
+                return new CraftingExecutionOutcome(pushedPatterns, dispatched);
+            }
             if (!outcome.dispatched()) {
                 if (this.job != currentJob) {
                     return new CraftingExecutionOutcome(pushedPatterns, dispatched);
@@ -491,6 +495,7 @@ final class TrinityDataCoreCpuLogic {
                         commitTrinityPatternPush(currentJob, execution, work, commit);
                     });
         } catch (RuntimeException exception) {
+            this.proposalCoordinator.cancel();
             Data_Energistics.LOGGER.error(
                     "Trinity CPU {} isolated an unexpected compact-plan dispatch failure for pattern {}",
                     this.cpu.number(),
@@ -505,6 +510,9 @@ final class TrinityDataCoreCpuLogic {
         }
         if (outcome.dispatched()) {
             return new CraftingExecutionOutcome(outcome.physicalAttempts(), true);
+        }
+        if (outcome.proposalOutstanding()) {
+            return new CraftingExecutionOutcome(outcome.physicalAttempts(), false);
         }
         if (dispatchWindow.isExhausted()) {
             execution.markBudgetExhausted(work, currentTick);
@@ -781,18 +789,22 @@ final class TrinityDataCoreCpuLogic {
         TrinityWorkerProposalCoordinator.Decision proposalDecision = this.proposalCoordinator.poll(
                 dispatchLease,
                 workIdentity);
+        boolean synchronousFallback = false;
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
-            return ProviderDispatchOutcome.NONE;
+            // A provider window must not be lost solely because the optimistic background proposal has not completed.
+            // Release it and use the synchronous safe path for this already-selected worker pass.
+            this.proposalCoordinator.cancel();
+            proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
+            synchronousFallback = true;
         }
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.NoCapacity) {
-            return ProviderDispatchOutcome.NONE;
+            // Capacity is a transient server-thread fact. A completed background miss must recapture the current
+            // provider window instead of suppressing this worker for the next fair runtime pass.
+            proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
         }
         CraftingDispatchProposal selectedProposal = proposalDecision instanceof TrinityWorkerProposalCoordinator.Ready ready ?
                 ready.proposal() : null;
         boolean asynchronousSelection = selectedProposal != null;
-        if (asynchronousSelection) {
-            this.proposalCoordinator.release();
-        }
 
         ExtractedPatternInputs prototype;
         long maximumCount;
@@ -801,7 +813,7 @@ final class TrinityDataCoreCpuLogic {
         try (CraftingDispatchWindow.CapacityCaptureScope ignored = dispatchWindow.beginProviderCapacityCapture()) {
             prototype = capturePatternInputPrototype(extractionDetails, level);
             if (prototype == null || dispatchWindow.isExhausted()) {
-                return ProviderDispatchOutcome.NONE;
+                return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
             }
 
             double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
@@ -809,7 +821,7 @@ final class TrinityDataCoreCpuLogic {
             maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
             maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
             if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
-                return ProviderDispatchOutcome.NONE;
+                return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
             }
 
             currentTick = TickHandler.instance().getCurrentTick();
@@ -824,9 +836,9 @@ final class TrinityDataCoreCpuLogic {
                     List.of(selectedProposal.target());
         }
         if (snapshots.isEmpty()) {
-            return ProviderDispatchOutcome.NONE;
+            return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
         }
-        if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Empty) {
+        if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Empty && !synchronousFallback) {
             try {
                 proposalDecision = this.proposalCoordinator.submit(
                         new CraftingDispatchProposalRequest(
@@ -844,9 +856,9 @@ final class TrinityDataCoreCpuLogic {
                 proposalDecision = new TrinityWorkerProposalCoordinator.Fallback(
                         TrinityWorkerProposalCoordinator.FallbackReason.CALCULATION_FAILED);
             }
-            if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
-                return ProviderDispatchOutcome.NONE;
-            }
+        }
+        if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Deferred) {
+            return ProviderDispatchOutcome.DEFERRED;
         }
         if (asynchronousSelection) {
             maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
@@ -902,7 +914,9 @@ final class TrinityDataCoreCpuLogic {
 
                 PatternInputTransaction inputTransaction = beginPatternInputTransaction(extractionDetails, level);
                 if (inputTransaction == null) {
-                    return new ProviderDispatchOutcome(physicalAttempts, false);
+                    return settleProposal(
+                            asynchronousSelection,
+                            new ProviderDispatchOutcome(physicalAttempts, false));
                 }
                 try {
                     if (dispatchWindow.isExhausted()) {
@@ -1009,7 +1023,9 @@ final class TrinityDataCoreCpuLogic {
                     }
                     AdditionalInputTransaction additionalInputs = extractAdditionalInputs(inputs.inputsPerCraft(), count);
                     if (additionalInputs == null) {
-                        return new ProviderDispatchOutcome(physicalAttempts, false);
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     if (dispatchWindow.isExhausted()) {
                         additionalInputs.rollback();
@@ -1018,7 +1034,9 @@ final class TrinityDataCoreCpuLogic {
                     EnergyCharge energyCharge = chargeEnergy(energyService, powerPerCraft * count);
                     if (energyCharge == null) {
                         additionalInputs.rollback();
-                        return new ProviderDispatchOutcome(physicalAttempts, false);
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     PatternInputTransaction acceptedInputs = inputTransaction;
                     CraftingDispatchAccountingDelta accounting = CraftingDispatchAccountingDelta.create(
@@ -1053,17 +1071,30 @@ final class TrinityDataCoreCpuLogic {
                                 this.cpu.number(),
                                 currentJob.link.getCraftingID());
                         finishJob(false);
-                        return new ProviderDispatchOutcome(physicalAttempts, false);
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     if (result.dispatched()) {
-                        return new ProviderDispatchOutcome(physicalAttempts, true);
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, true));
                     }
                 } finally {
                     inputTransaction.rollback();
                 }
             }
         }
-        return new ProviderDispatchOutcome(physicalAttempts, false);
+        return settleProposal(
+                asynchronousSelection,
+                new ProviderDispatchOutcome(physicalAttempts, false));
+    }
+
+    private ProviderDispatchOutcome settleProposal(boolean consumedProposal, ProviderDispatchOutcome outcome) {
+        if (consumedProposal || outcome.dispatched()) {
+            this.proposalCoordinator.cancel();
+        }
+        return outcome.withProposalOutstanding(this.proposalCoordinator.outstanding());
     }
 
     private CountedCraftingPreparation prepareSelectedProvider(
@@ -1721,9 +1752,17 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    private record ProviderDispatchOutcome(int physicalAttempts, boolean dispatched) {
+    private record ProviderDispatchOutcome(int physicalAttempts,
+                                           boolean dispatched,
+                                           boolean proposalOutstanding,
+                                           boolean proposalDeferred) {
 
-        private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false);
+        private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false, false, false);
+        private static final ProviderDispatchOutcome DEFERRED = new ProviderDispatchOutcome(0, false, false, true);
+
+        private ProviderDispatchOutcome(int physicalAttempts, boolean dispatched) {
+            this(physicalAttempts, dispatched, false, false);
+        }
 
         private ProviderDispatchOutcome {
             if (physicalAttempts < 0) {
@@ -1732,6 +1771,22 @@ final class TrinityDataCoreCpuLogic {
             if (dispatched && physicalAttempts == 0) {
                 throw new IllegalArgumentException("A dispatched provider slice must consume a physical attempt");
             }
+            if (dispatched && (proposalOutstanding || proposalDeferred)) {
+                throw new IllegalArgumentException("A committed provider slice cannot retain its stale proposal");
+            }
+            if (proposalOutstanding && proposalDeferred) {
+                throw new IllegalArgumentException("A provider proposal cannot be outstanding and deferred");
+            }
+        }
+
+        private ProviderDispatchOutcome withProposalOutstanding(boolean outstanding) {
+            return this.proposalOutstanding == outstanding ?
+                    this :
+                    new ProviderDispatchOutcome(
+                            this.physicalAttempts,
+                            this.dispatched,
+                            outstanding,
+                            this.proposalDeferred);
         }
     }
 
@@ -1948,7 +2003,7 @@ final class TrinityDataCoreCpuLogic {
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
         if (this.proposalCoordinator.pending()) {
-            return TrinityWorkerSchedulingHint.waitingEvent();
+            return TrinityWorkerSchedulingHint.ready();
         }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
@@ -1961,7 +2016,7 @@ final class TrinityDataCoreCpuLogic {
         }
         if (!currentJob.isTrinityPlan()) {
             if (!currentJob.tasks.isEmpty()) {
-                return TrinityWorkerSchedulingHint.retryAt(Math.incrementExact(currentTick));
+                return TrinityWorkerSchedulingHint.ready();
             }
             return currentJob.waitingFor.list.isEmpty() ?
                     TrinityWorkerSchedulingHint.ready() :

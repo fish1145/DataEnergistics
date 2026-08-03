@@ -68,13 +68,18 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
                 this.workIdentity = workIdentity;
                 yield Pending.INSTANCE;
             }
-            case DispatchProposalScheduler.Rejected rejected -> new Fallback(map(rejected.reason()));
+            case DispatchProposalScheduler.Rejected rejected -> rejectionDecision(rejected.reason());
         };
     }
 
     @Override
     public boolean pending() {
         return this.ticket != null && this.ticket.state() instanceof DispatchProposalTicket.Pending;
+    }
+
+    @Override
+    public boolean outstanding() {
+        return this.ticket != null;
     }
 
     @Override
@@ -97,12 +102,12 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
         return decision;
     }
 
-    private static FallbackReason map(DispatchProposalScheduler.RejectionReason reason) {
+    private static Decision rejectionDecision(DispatchProposalScheduler.RejectionReason reason) {
         return switch (reason) {
-            case WORKER_BUSY -> FallbackReason.WORKER_BUSY;
-            case GRID_LIMIT -> FallbackReason.GRID_LIMIT;
-            case QUEUE_FULL -> FallbackReason.QUEUE_FULL;
-            case CLOSED -> FallbackReason.SCHEDULER_CLOSED;
+            case WORKER_BUSY -> new Deferred(DeferredReason.WORKER_BUSY);
+            case GRID_LIMIT -> new Deferred(DeferredReason.GRID_LIMIT);
+            case QUEUE_FULL -> new Deferred(DeferredReason.QUEUE_FULL);
+            case CLOSED -> new Fallback(FallbackReason.SCHEDULER_CLOSED);
         };
     }
 }

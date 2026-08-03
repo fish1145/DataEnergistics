@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.MachineTargetId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
@@ -275,7 +276,7 @@ public final class PatternProviderBatching {
             snapshots.add(new ProviderCapacitySnapshot(
                     providerId,
                     targetFor(direction),
-                    Optional.empty(),
+                    Optional.of(MachineTargetId.forBlockTarget(level.dimension(), adjacentPosition, adjacentSide)),
                     patternIdentity,
                     publicationRevision,
                     capacityRevision,

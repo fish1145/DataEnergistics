@@ -2,8 +2,7 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0 至 Phase 3 与 VirtualGrid typed execution route 已实现；Phase 4 的 worker proposal、generation
-  租约和事件队列已实现，provider shard/reservation 与 Phase 5 尚未实现
+- 方案状态：Phase 0 至 Phase 4 与 VirtualGrid typed execution route 已实现；Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -118,7 +117,7 @@ Phase 3 同步容量路径现已接入：
 | 阶段 | 当前缺口 | 优先级 |
 | --- | --- | --- |
 | Phase 3 | 已完成：publication identity、同步容量快照、独立 4 ms 采集预算、公平切片、保守 addon 路由和唯一 commit | 已完成 |
-| Phase 4 | 已完成 worker mailbox、bounded proposal queue、generation/stale 校验与事件驱动 worker queue；尚缺 provider shard 和 machine reservation | 进行中 |
+| Phase 4 | 已完成 worker mailbox、bounded proposal queue、generation/stale 校验、事件驱动 worker queue、固定 provider shard 与 machine reservation | 已完成 |
 | Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
 计算入口、样板图、SCC/MIP 和循环执行不依赖上述 Phase 3 至 Phase 5，可在保持服务器线程事务边界的前提下作为独立轨道推进。
@@ -604,15 +603,15 @@ Governor 至少观测：
 
 Governor 可以调整：
 
-- 活跃规划 Actor 数；
-- provider shard 数；
-- proposal 队列容量；
+- 活跃规划 Actor permit；
+- proposal 高水位；
 - 每网格物理调用额度；
 - 每 provider 每轮 quantum；
-- 原子合批最大逻辑数量；
 - 单 tick 服务器提交时间预算；
 - stale proposal 的重算频率；
 - 长期容量为 0 的 target 退避时间。
+
+固定 16 个 shard、executor 物理队列容量和 counted logical batch 不属于 Governor 可调参数。
 
 调整必须渐进，避免因为单 tick 波动频繁切换模式。精确默认值应通过基准测试确定，不在实现前凭经验写死。
 
@@ -750,14 +749,16 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已增加独立每网格 4 ms 容量采集预算，覆盖只读 prototype 构造和 provider 容量模拟；该预算与 30 ms commit 预算分别计量；
 - 供应器兼容层不加入任何写行为。
 
-### 阶段 4：Virtual Worker Actor 和 Provider Shard（进行中）
+### 阶段 4：Virtual Worker Actor 和 Provider Shard（已完成）
 
 - 已把 provider target 选择迁移到只接收不可变快照的独立固定有界 executor；
 - 已建立全局 1024、单 Grid 256、每 worker 单 outstanding 的 proposal admission；
 - 已建立 route/job/work generation lease、取消/暂停/重载清理和服务器线程 provider/输入/能源/账本重验；
 - 已用 worker ready queue、proposal completion handoff 与 retry priority queue 替换 retained worker 全扫描；
-- 以 provider 稳定身份分 shard；
-- 增加跨 provider 的 machine reservation；
+- 已按 provider 稳定身份固定映射到 16 个 shard，同 provider route 的并发 proposal 共享容量预留；
+- 已增加跨 provider 的 `MachineTargetId` 独占 reservation，并将释放生命周期绑定到 proposal ticket；
+- worker/队列/Grid admission 压力只触发有界退避，不在被拒绝的同一轮绕过异步上限执行同步资源提交；
+- worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。
 
 ### 阶段 5：自适应 Governor（后续）

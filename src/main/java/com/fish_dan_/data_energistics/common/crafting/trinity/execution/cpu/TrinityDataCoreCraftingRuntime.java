@@ -95,6 +95,10 @@ public final class TrinityDataCoreCraftingRuntime {
      * Allocation cursor always identifies the smallest free positive worker number.
      */
     private int nextAvailableWorkerNumber = 1;
+    /**
+     * Transient dispatch cursor preserves round-robin priority across event-driven runtime passes.
+     */
+    private int nextWorkerTickStartNumber = 1;
     private boolean mainStructureFormed;
     private boolean paused;
 
@@ -358,9 +362,15 @@ public final class TrinityDataCoreCraftingRuntime {
         if (this.paused || !this.mainStructureFormed || !this.profile.active()) {
             return;
         }
+        releaseReleasableWorkers();
+        if (this.retainedWorkers.isEmpty()) {
+            return;
+        }
         long currentTick = TickHandler.instance().getCurrentTick();
         drainProposalCompletions();
         activateDueWorkerRetries(currentTick);
+        orderReadyWorkersFromCursor();
+        int lastSubmittingWorkerNumber = -1;
         while (!this.readyWorkers.isEmpty() && !dispatchWindow.isExhausted()) {
             WorkerScheduleEntry scheduled = this.readyWorkers.removeFirst();
             if (!consumeReadySchedule(scheduled)) {
@@ -371,11 +381,18 @@ public final class TrinityDataCoreCraftingRuntime {
                 continue;
             }
             int workerNumber = worker.number();
+            int submissionsBeforeWorker = dispatchWindow.serverSubmissionCount();
             worker.tick(energyService, craftingService, dispatchWindow);
+            if (dispatchWindow.serverSubmissionCount() > submissionsBeforeWorker) {
+                lastSubmittingWorkerNumber = workerNumber;
+            }
             removeWorkerIfReleasable(workerNumber, worker);
             if (this.retainedWorkers.get(workerNumber) == worker) {
                 scheduleAfterWorkerTick(worker, currentTick);
             }
+        }
+        if (lastSubmittingWorkerNumber >= 0) {
+            advanceWorkerTickStartAfter(lastSubmittingWorkerNumber);
         }
     }
 
@@ -645,7 +662,8 @@ public final class TrinityDataCoreCraftingRuntime {
     private void drainProposalCompletions() {
         Integer workerNumber;
         while ((workerNumber = this.proposalCompletions.poll()) != null) {
-            if (this.retainedWorkers.containsKey(workerNumber)) {
+            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(workerNumber);
+            if (worker != null && isCurrentCpu(worker)) {
                 enqueueReady(workerNumber);
             }
         }
@@ -660,6 +678,26 @@ public final class TrinityDataCoreCraftingRuntime {
         }
     }
 
+    /**
+     * Orders only event-selected workers around the persistent cursor; unrelated idle workers are never visited.
+     */
+    private void orderReadyWorkersFromCursor() {
+        if (this.readyWorkers.size() < 2) {
+            return;
+        }
+        List<WorkerScheduleEntry> ordered = new ArrayList<>(this.readyWorkers);
+        ordered.sort((left, right) -> {
+            boolean leftAfterCursor = left.workerNumber() >= this.nextWorkerTickStartNumber;
+            boolean rightAfterCursor = right.workerNumber() >= this.nextWorkerTickStartNumber;
+            if (leftAfterCursor != rightAfterCursor) {
+                return leftAfterCursor ? -1 : 1;
+            }
+            return Integer.compare(left.workerNumber(), right.workerNumber());
+        });
+        this.readyWorkers.clear();
+        this.readyWorkers.addAll(ordered);
+    }
+
     private boolean consumeReadySchedule(WorkerScheduleEntry scheduled) {
         if (!isCurrentSchedule(scheduled) || !this.readyWorkerNumbers.remove(scheduled.workerNumber())) {
             return false;
@@ -670,14 +708,14 @@ public final class TrinityDataCoreCraftingRuntime {
     private void scheduleAfterWorkerTick(TrinityDataCoreVirtualCpu worker, long currentTick) {
         TrinityWorkerSchedulingHint hint = worker.logic().schedulingHint(currentTick);
         if (hint.kind() == TrinityWorkerSchedulingHint.Kind.READY) {
-            scheduleRetry(worker.number(), Math.incrementExact(currentTick));
+            scheduleRetry(worker.number(), currentTick);
             return;
         }
         applySchedulingHint(worker.number(), hint);
     }
 
     private void scheduleFromEvent(TrinityDataCoreVirtualCpu worker) {
-        if (this.paused || this.retainedWorkers.get(worker.number()) != worker) {
+        if (this.paused || !isCurrentCpu(worker)) {
             return;
         }
         TrinityWorkerSchedulingHint hint = worker.logic().schedulingHint(TickHandler.instance().getCurrentTick());
@@ -732,7 +770,11 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         long currentTick = TickHandler.instance().getCurrentTick();
-        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (entry.getKey() > this.profile.partitionCount()) {
+                continue;
+            }
+            TrinityDataCoreVirtualCpu worker = entry.getValue();
             TrinityWorkerSchedulingHint hint = worker.logic().schedulingHint(currentTick);
             if (hint.kind() == TrinityWorkerSchedulingHint.Kind.READY) {
                 enqueueReady(worker.number());
@@ -750,8 +792,25 @@ public final class TrinityDataCoreCraftingRuntime {
         this.proposalCompletions.clear();
     }
 
+    /**
+     * Advances fairness only after a worker actually consumes shared physical dispatch capacity.
+     */
+    private void advanceWorkerTickStartAfter(int workerNumber) {
+        if (this.retainedWorkers.isEmpty()) {
+            this.nextWorkerTickStartNumber = 1;
+            return;
+        }
+        Integer followingNumber = this.retainedWorkers.higherKey(workerNumber);
+        this.nextWorkerTickStartNumber = followingNumber != null ? followingNumber : this.retainedWorkers.firstKey();
+    }
+
     private void applyProfile(TrinityDataCoreCpuProfile nextProfile) {
         this.profile = nextProfile;
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (!nextProfile.active() || entry.getKey() > nextProfile.partitionCount()) {
+                entry.getValue().logic().cancelPendingDispatch();
+            }
+        }
         if (!nextProfile.active()) {
             rebuildAvailableWorkerNumber();
             rebuildWorkerScheduling();
@@ -976,6 +1035,9 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private void clearPersistedState() {
+        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+            worker.logic().cancelPendingDispatch();
+        }
         clearTransientScheduling();
         this.externalContributions.clear();
         this.retainedWorkers.clear();
@@ -985,6 +1047,7 @@ public final class TrinityDataCoreCraftingRuntime {
         this.publishedCpus = List.of();
         this.lastModifiedOnTick = 0L;
         this.nextAvailableWorkerNumber = 1;
+        this.nextWorkerTickStartNumber = 1;
     }
 
     /** Immutable queue entry invalidated by the per-worker transient scheduling revision. */

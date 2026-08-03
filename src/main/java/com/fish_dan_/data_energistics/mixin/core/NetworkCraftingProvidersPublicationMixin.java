@@ -29,6 +29,11 @@ public abstract class NetworkCraftingProvidersPublicationMixin
     private final CraftingProviderPublicationIndexImpl dataEnergistics$publicationIndex = new CraftingProviderPublicationIndexImpl();
 
     @Override
+    public long publicationScope() {
+        return this.dataEnergistics$publicationIndex.publicationScope();
+    }
+
+    @Override
     public long publicationRevision() {
         return this.dataEnergistics$publicationIndex.publicationRevision();
     }

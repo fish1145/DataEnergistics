@@ -234,8 +234,21 @@ AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用
 
 修复：worker 层增加去重 ready queue、proposal completion handoff 和按 tick retry priority queue；输出、恢复和异步完成只唤醒相关
 worker。独立固定有界 executor 只接收 `ProviderCapacitySnapshot` 与 scalar generation lease；每 worker 最多一个 outstanding、单 Grid 最多
-256、全局队列 1024。服务器线程重新构造输入 prototype，并沿 Phase 3 resolver/committer 重验和提交；队列拒绝或 executor 异常使用
-同步安全路径。暂停、route 失效、取消、作业结束和重载都会释放 transient ticket，proposal 不写 NBT。
+256、全局队列 1024。服务器线程重新构造输入 prototype，并沿 Phase 3 resolver/committer 重验和提交；worker、Grid 或队列额度
+不足时不触碰资源，释放 admission 后进入 provider retry 退避，executor 关闭或计算异常才使用 Phase 3 同步安全路径。暂停、
+route 失效、取消、作业结束和重载都会释放 transient ticket，proposal 不写 NBT。
+
+### C-021：并行 proposal 缺少 provider/物理目标竞争边界
+
+仅限制每 worker 一个 outstanding 仍不足以防止不同 worker 同时依据同一容量快照超卖 provider route；可选模组还可能通过不同
+provider identity 指向同一台物理机器。若 proposal 完成后立即释放而不是等服务器线程消费，同一 generation 内也会重新暴露
+尚未提交的容量。
+
+修复：process-wide scheduler 按稳定 `CraftingProviderId` 固定映射到 16 个公平 shard；proposal 选择时原子扣除同 provider route
+的已观察容量，并以 `MachineTargetId` 在 provider 之间建立独占 reservation。仅标准定向 block-face 路线在可证明物理目标时生成
+machine identity，其余 addon 路线保持未知。reservation 只保存不可变身份和数量，不触碰世界，且由 ticket 持有到服务器线程完成
+重验与提交；拒绝、stale、取消、暂停、重载、异常和 scheduler 关闭均走同一幂等释放路径。容量耗尽与共享机器竞争由合并式
+runtime 契约直接验证，不为具体配方或 addon 重复建立特例测试。
 
 ## 4. 修复映射
 
@@ -260,7 +273,8 @@ worker。独立固定有界 executor 只接收 `ProviderCapacitySnapshot` 与 sc
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
 | C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中、ordinary/radix 精确窗口与 `Long.MAX_VALUE` 直接契约测试 |
 | C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
-| C-020 | worker event queue、bounded proposal 与 generation lease | 已完成；provider shard/reservation 待 C-021 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
+| C-020 | worker event queue、bounded proposal 与 generation lease | 已完成 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
+| C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
 
 ## 5. 风险与控制
 
