@@ -45,10 +45,13 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
         }
 
         KeyCounter[] unchangedPrototype = copyInputCounters(request.prototype());
-        if (!request.submission().tryAcquire(request.target())) {
+        CraftingDispatchWindow.Acquisition acquisition = request.submission().tryAcquire(request.target());
+        if (acquisition != CraftingDispatchWindow.Acquisition.ACQUIRED) {
             boolean settled = releaseBeforeOwnership(request);
             return new CraftingDispatchResult(
-                    CraftingDispatchStatus.STALE,
+                    acquisition == CraftingDispatchWindow.Acquisition.WINDOW_EXHAUSTED ?
+                            CraftingDispatchStatus.BUDGET_EXHAUSTED :
+                            CraftingDispatchStatus.STALE,
                     0L,
                     false,
                     false,
@@ -113,9 +116,9 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
     }
 
     private static CraftingDispatchResult beforeOwnership(
-            CraftingDispatchCommitRequest request,
-            CraftingDispatchStatus status,
-            boolean attempted) {
+                                                          CraftingDispatchCommitRequest request,
+                                                          CraftingDispatchStatus status,
+                                                          boolean attempted) {
         boolean settled = releaseBeforeOwnership(request);
         request.window().recordResult(request.provider(), request.pattern(), request.target(), status);
         return new CraftingDispatchResult(status, 0L, attempted, false, settled);
@@ -154,8 +157,8 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
     }
 
     private static boolean transferredInputOwnership(
-            CraftingDispatchCommitRequest request,
-            KeyCounter[] unchangedPrototype) {
+                                                     CraftingDispatchCommitRequest request,
+                                                     KeyCounter[] unchangedPrototype) {
         if (!inputCountersMatch(unchangedPrototype, request.prototype())) {
             return true;
         }

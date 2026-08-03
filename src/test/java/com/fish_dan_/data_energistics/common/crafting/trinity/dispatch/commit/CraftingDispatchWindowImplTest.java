@@ -134,6 +134,7 @@ public final class CraftingDispatchWindowImplTest {
         for (CraftingDispatchStatus status : List.of(
                 CraftingDispatchStatus.ACCEPTED,
                 CraftingDispatchStatus.STALE,
+                CraftingDispatchStatus.BUDGET_EXHAUSTED,
                 CraftingDispatchStatus.REJECTED,
                 CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP)) {
             CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
@@ -177,7 +178,9 @@ public final class CraftingDispatchWindowImplTest {
 
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
             nanoClock.set(limits.maxServerSubmissionNanos());
-            assertFalse(submission.tryAcquire(target("north")));
+            assertEquals(
+                    CraftingDispatchWindow.Acquisition.WINDOW_EXHAUSTED,
+                    submission.tryAcquire(target("north")));
         }
 
         assertEquals(0, window.attemptCount());
@@ -196,7 +199,9 @@ public final class CraftingDispatchWindowImplTest {
 
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
             nanoClock.set(99L);
-            assertTrue(submission.tryAcquire(target("north")));
+            assertEquals(
+                    CraftingDispatchWindow.Acquisition.ACQUIRED,
+                    submission.tryAcquire(target("north")));
             nanoClock.set(101L);
         }
 
@@ -219,7 +224,9 @@ public final class CraftingDispatchWindowImplTest {
         }
         nanoClock.set(100L);
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
-            assertTrue(submission.tryAcquire(target("north")));
+            assertEquals(
+                    CraftingDispatchWindow.Acquisition.ACQUIRED,
+                    submission.tryAcquire(target("north")));
             nanoClock.set(125L);
         }
 
@@ -365,7 +372,7 @@ public final class CraftingDispatchWindowImplTest {
                                    IPatternDetails pattern,
                                    CraftingDispatchTarget target) {
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
-            return submission.tryAcquire(target);
+            return submission.tryAcquire(target) == CraftingDispatchWindow.Acquisition.ACQUIRED;
         }
     }
 

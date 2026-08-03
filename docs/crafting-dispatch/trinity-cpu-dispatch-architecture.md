@@ -2,8 +2,8 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0 至 Phase 4、VirtualGrid typed execution route 与 Phase 5 指标/观察期已实现；自适应切换和
-  SAFE 回退待启用
+- 方案状态：Phase 0 至 Phase 4、VirtualGrid typed execution route、Phase 5 指标/观察期与全服务器共享的
+  动态 tick 发配边界已实现；自适应切换和 SAFE 回退待启用
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -585,6 +585,11 @@ FAILED_AFTER_OWNERSHIP
 
 物理预算耗尽时，未提交 proposal 延后到下一 tick，不丢失、不取消 worker 的逻辑硬件能力。
 
+所有 Grid 的容量捕获与 provider 提交共享同一个服务器 tick 边界。边界从上一完整 tick 中扣除已记录的
+Trinity 发配耗时，以剩余的非 Trinity 基线估算可用余量：基线低于 `50 ms` 时只使用到 `50 ms` 的余量；
+基线已经达到或超过 `50 ms` 时仍保留 `1 ms/tick` 的同步发配通道。已经开始的同步 provider 调用必须完成
+所有权结算，但边界耗尽后不再启动后续物理调用。预算耗尽是可重试状态，不计为 stale 或 provider 拒绝。
+
 ### 15.2 观测指标
 
 Governor 至少观测：
@@ -771,6 +776,8 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已按 Grid 采集完整服务器 tick、容量捕获、proposal 排队/计算、服务器提交、接受率、stale、
   logical-per-physical-call、队列深度/outstanding 和 worker share；
 - 已将 `OBSERVING` Governor 接入唯一 Grid dispatch window；配置重载只替换瞬态派生状态，不写作业 NBT；
+- 已将所有 Grid 的 capacity/commit 时间接入同一服务器 tick 动态余量；低负载使用到 `50 ms` 目标，高负载保留
+  `1 ms/tick`，避免每个 Grid 独立放大时间预算；
 - 固定 16 个 shard；只自适应调整物理调用额度、提交时间、Actor permit、provider quantum、队列高水位和退避；
 - 不拆小 counted logical batch；
 - 待启用 `ADAPTIVE` 调节、异常隔离和固定 `SAFE` 同步模式；

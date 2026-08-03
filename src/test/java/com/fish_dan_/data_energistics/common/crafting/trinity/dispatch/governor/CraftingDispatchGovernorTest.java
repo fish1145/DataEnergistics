@@ -6,9 +6,12 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class CraftingDispatchGovernorTest {
 
@@ -36,14 +39,40 @@ public final class CraftingDispatchGovernorTest {
         assertEquals(0, snapshot.lastProposalFailures());
     }
 
+    @Test
+    void serverBudgetSharesHeadroomAndRetainsOneMillisecondWhenAlreadyOverloaded() {
+        AtomicLong nanoClock = new AtomicLong();
+        CraftingServerDispatchBudgetImpl budget = new CraftingServerDispatchBudgetImpl(
+                nanoClock::get,
+                TimeUnit.MILLISECONDS.toNanos(50L),
+                TimeUnit.MILLISECONDS.toNanos(1L));
+
+        budget.beginTick();
+        nanoClock.set(TimeUnit.MILLISECONDS.toNanos(10L));
+        budget.completeTick(TimeUnit.MILLISECONDS.toNanos(10L));
+
+        budget.beginTick();
+        budget.record(TimeUnit.MILLISECONDS.toNanos(25L));
+        assertTrue(budget.canStart(TimeUnit.MILLISECONDS.toNanos(14L)));
+        assertFalse(budget.canStart(TimeUnit.MILLISECONDS.toNanos(15L)));
+        budget.completeTick(TimeUnit.MILLISECONDS.toNanos(50L));
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(25L), budget.lastCompletedDispatchNanos());
+
+        budget.beginTick();
+        budget.completeTick(TimeUnit.MILLISECONDS.toNanos(60L));
+        budget.beginTick();
+        assertTrue(budget.canStart(TimeUnit.MICROSECONDS.toNanos(999L)));
+        assertFalse(budget.canStart(TimeUnit.MILLISECONDS.toNanos(1L)));
+    }
+
     private static CraftingDispatchBudget budget(
-            int gridAttempts,
-            int providerAttempts,
-            long commitMillis,
-            int actorPermits,
-            int providerQuantum,
-            int proposalHighWater,
-            boolean asynchronous) {
+                                                 int gridAttempts,
+                                                 int providerAttempts,
+                                                 long commitMillis,
+                                                 int actorPermits,
+                                                 int providerQuantum,
+                                                 int proposalHighWater,
+                                                 boolean asynchronous) {
         return new CraftingDispatchBudget(
                 new CraftingDispatchLimits(
                         gridAttempts,
@@ -57,13 +86,13 @@ public final class CraftingDispatchGovernorTest {
     }
 
     private static CraftingDispatchMetrics metrics(
-            long tickMillis,
-            int queueDepth,
-            int queueCapacity,
-            int accepted,
-            int rejected,
-            int stale,
-            double workerShare) {
+                                                   long tickMillis,
+                                                   int queueDepth,
+                                                   int queueCapacity,
+                                                   int accepted,
+                                                   int rejected,
+                                                   int stale,
+                                                   double workerShare) {
         return new CraftingDispatchMetrics(
                 TimeUnit.MILLISECONDS.toNanos(tickMillis),
                 0L,

@@ -41,12 +41,12 @@ public final class CraftingDispatchCommitterTest {
                 nanoClock::get);
         AtomicInteger applied = new AtomicInteger();
         AtomicInteger released = new AtomicInteger();
-        KeyCounter[] prototype = {new KeyCounter()};
+        KeyCounter[] prototype = { new KeyCounter() };
         TestAdmission admission = new TestAdmission(scenario);
 
         CraftingDispatchResult result;
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(PROVIDER, PATTERN)) {
-            if (scenario.budgetStale()) {
+            if (scenario.budgetExhausted()) {
                 nanoClock.set(100L);
             }
             CraftingDispatchAccountingDelta accounting = CraftingDispatchAccountingDelta.create(
@@ -99,7 +99,7 @@ public final class CraftingDispatchCommitterTest {
                 new Scenario("accounting failure after ownership aborts", CommitBehavior.ACCEPT, OwnershipBehavior.FALSE, false, true,
                         CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP, LOGICAL_CRAFTS, true, true, false, 1, 0, true, true),
                 new Scenario("budget exhaustion never calls provider", CommitBehavior.ACCEPT, OwnershipBehavior.FALSE, true, false,
-                        CraftingDispatchStatus.STALE, 0L, false, false, true, 0, 1, false, false));
+                        CraftingDispatchStatus.BUDGET_EXHAUSTED, 0L, false, false, true, 0, 1, false, false));
     }
 
     private enum CommitBehavior {
@@ -114,20 +114,20 @@ public final class CraftingDispatchCommitterTest {
     }
 
     private record Scenario(
-            String name,
-            CommitBehavior commitBehavior,
-            OwnershipBehavior ownershipBehavior,
-            boolean budgetStale,
-            boolean applyFailure,
-            CraftingDispatchStatus expectedStatus,
-            long expectedLogicalCrafts,
-            boolean physicalAttempted,
-            boolean ownershipTransferred,
-            boolean accountingSettled,
-            int expectedApplied,
-            int expectedReleased,
-            boolean recordedResult,
-            boolean commitInvoked) {
+                            String name,
+                            CommitBehavior commitBehavior,
+                            OwnershipBehavior ownershipBehavior,
+                            boolean budgetExhausted,
+                            boolean applyFailure,
+                            CraftingDispatchStatus expectedStatus,
+                            long expectedLogicalCrafts,
+                            boolean physicalAttempted,
+                            boolean ownershipTransferred,
+                            boolean accountingSettled,
+                            int expectedApplied,
+                            int expectedReleased,
+                            boolean recordedResult,
+                            boolean commitInvoked) {
 
         @Override
         public String toString() {

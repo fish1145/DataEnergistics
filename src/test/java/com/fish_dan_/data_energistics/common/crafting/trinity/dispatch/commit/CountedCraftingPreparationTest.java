@@ -75,6 +75,7 @@ public final class CountedCraftingPreparationTest {
         for (CraftingDispatchStatus status : List.of(
                 CraftingDispatchStatus.ACCEPTED,
                 CraftingDispatchStatus.STALE,
+                CraftingDispatchStatus.BUDGET_EXHAUSTED,
                 CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP)) {
             assertThrows(
                     IllegalArgumentException.class,

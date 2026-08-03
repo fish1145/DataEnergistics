@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchExhaustion;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingServerDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 
@@ -38,6 +39,8 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
      * Injectable monotonic source keeps time-boundary behavior deterministic in direct logic tests.
      */
     private final LongSupplier nanoClock;
+    /** Shared current-tick limit prevents independent grids from multiplying the server latency budget. */
+    private final CraftingServerDispatchBudget serverBudget;
     /**
      * Number of real physical submissions already acquired across all providers.
      */
@@ -78,18 +81,29 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
     }
 
     CraftingDispatchWindowImpl(CraftingDispatchLimits limits) {
-        this(limits, System::nanoTime);
+        this(limits, System::nanoTime, CraftingServerDispatchBudget.unbounded());
     }
 
     CraftingDispatchWindowImpl(CraftingDispatchLimits limits, LongSupplier nanoClock) {
+        this(limits, nanoClock, CraftingServerDispatchBudget.unbounded());
+    }
+
+    CraftingDispatchWindowImpl(
+                               CraftingDispatchLimits limits,
+                               LongSupplier nanoClock,
+                               CraftingServerDispatchBudget serverBudget) {
         if (limits == null) {
             throw new IllegalArgumentException("Crafting dispatch limits must not be null");
         }
         if (nanoClock == null) {
             throw new IllegalArgumentException("Crafting dispatch nano clock must not be null");
         }
+        if (serverBudget == null) {
+            throw new IllegalArgumentException("Server crafting dispatch budget must not be null");
+        }
         this.limits = limits;
         this.nanoClock = nanoClock;
+        this.serverBudget = serverBudget;
     }
 
     @Override
@@ -98,19 +112,21 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         validatePattern(pattern);
         ProviderState state = this.states.get(provider);
         return hasCompletedGlobalCapacity() &&
+                this.serverBudget.canStart(0L) &&
                 (state == null || state.canAttempt(pattern, null, this.limits.maxAttemptsPerProvider()));
     }
 
     @Override
     public boolean canAttempt(
-            ICraftingProvider provider,
-            IPatternDetails pattern,
-            CraftingDispatchTarget target) {
+                              ICraftingProvider provider,
+                              IPatternDetails pattern,
+                              CraftingDispatchTarget target) {
         validateProvider(provider);
         validatePattern(pattern);
         validateTarget(target);
         ProviderState state = this.states.get(provider);
         return hasCompletedGlobalCapacity() &&
+                this.serverBudget.canStart(0L) &&
                 (state == null || state.canAttempt(pattern, target, this.limits.maxAttemptsPerProvider()));
     }
 
@@ -139,7 +155,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
     public boolean canCaptureProviderCapacity() {
         return this.activeSubmission == null &&
                 this.activeCapacityCapture == null &&
-                this.capacityCaptureNanos < this.limits.maxCapacityCaptureNanos();
+                this.capacityCaptureNanos < this.limits.maxCapacityCaptureNanos() &&
+                hasCompletedGlobalCapacity() &&
+                this.serverBudget.canStart(0L);
     }
 
     @Override
@@ -160,10 +178,10 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
     @Override
     public void recordResult(
-            ICraftingProvider provider,
-            IPatternDetails pattern,
-            @Nullable CraftingDispatchTarget target,
-            CraftingDispatchStatus status) {
+                             ICraftingProvider provider,
+                             IPatternDetails pattern,
+                             @Nullable CraftingDispatchTarget target,
+                             CraftingDispatchStatus status) {
         validateProvider(provider);
         validatePattern(pattern);
         validateStatus(status);
@@ -211,8 +229,12 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         if (this.attemptCount >= this.limits.maxAttemptsPerGrid()) {
             return CraftingDispatchExhaustion.GRID_CALL_BUDGET;
         }
-        if (currentServerSubmissionNanos() >= this.limits.maxServerSubmissionNanos()) {
+        long activeDispatchNanos = activeDispatchNanos();
+        if (currentServerWorkNanos() >= this.limits.maxServerSubmissionNanos()) {
             return CraftingDispatchExhaustion.SERVER_TIME_BUDGET;
+        }
+        if (!this.serverBudget.canStart(activeDispatchNanos)) {
+            return CraftingDispatchExhaustion.SERVER_TICK_BUDGET;
         }
         return CraftingDispatchExhaustion.NONE;
     }
@@ -242,26 +264,34 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
      */
     private boolean hasCompletedGlobalCapacity() {
         return this.attemptCount < this.limits.maxAttemptsPerGrid() &&
-                this.serverSubmissionNanos < this.limits.maxServerSubmissionNanos();
+                completedServerWorkNanos() < this.limits.maxServerSubmissionNanos();
     }
 
-    /**
-     * Includes an active provider path when reporting whether later work must stop.
-     */
-    private long currentServerSubmissionNanos() {
+    private long completedServerWorkNanos() {
+        return Math.addExact(this.serverSubmissionNanos, this.capacityCaptureNanos);
+    }
+
+    private long currentServerWorkNanos() {
+        return Math.addExact(completedServerWorkNanos(), activeDispatchNanos());
+    }
+
+    private long activeDispatchNanos() {
         SubmissionScopeImpl submission = this.activeSubmission;
-        if (submission == null) {
-            return this.serverSubmissionNanos;
+        if (submission != null) {
+            return submission.elapsedNanos();
         }
-        return Math.addExact(this.serverSubmissionNanos, submission.elapsedNanos());
+        CapacityCaptureScopeImpl capture = this.activeCapacityCapture;
+        return capture == null ? 0L : capture.elapsedNanos();
     }
 
     /**
      * Verifies an active scope still has time before acquiring another irreversible physical call.
      */
     private boolean hasServerSubmissionTime(SubmissionScopeImpl submission) {
-        long projectedNanos = Math.addExact(this.serverSubmissionNanos, submission.elapsedNanos());
-        return projectedNanos < this.limits.maxServerSubmissionNanos();
+        long activeNanos = submission.elapsedNanos();
+        long projectedNanos = Math.addExact(completedServerWorkNanos(), activeNanos);
+        return projectedNanos < this.limits.maxServerSubmissionNanos() &&
+                this.serverBudget.canStart(activeNanos);
     }
 
     private static void validateProvider(ICraftingProvider provider) {
@@ -311,27 +341,30 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         private boolean closed;
 
         private SubmissionScopeImpl(
-                ICraftingProvider provider,
-                IPatternDetails pattern,
-                long startedAtNanos) {
+                                    ICraftingProvider provider,
+                                    IPatternDetails pattern,
+                                    long startedAtNanos) {
             this.provider = provider;
             this.pattern = pattern;
             this.startedAtNanos = startedAtNanos;
         }
 
         @Override
-        public boolean tryAcquire(CraftingDispatchTarget target) {
+        public Acquisition tryAcquire(CraftingDispatchTarget target) {
             requireActive();
             validateTarget(target);
             ProviderState state = states.computeIfAbsent(this.provider, ignored -> new ProviderState());
             if (attemptCount >= limits.maxAttemptsPerGrid() ||
-                    !state.canAttempt(this.pattern, target, limits.maxAttemptsPerProvider()) ||
+                    !state.hasAttemptCapacity(limits.maxAttemptsPerProvider()) ||
                     !hasServerSubmissionTime(this)) {
-                return false;
+                return Acquisition.WINDOW_EXHAUSTED;
+            }
+            if (!state.routeAvailable(this.pattern, target)) {
+                return Acquisition.ROUTE_UNAVAILABLE;
             }
             state.attemptCount = Math.incrementExact(state.attemptCount);
             attemptCount = Math.incrementExact(attemptCount);
-            return true;
+            return Acquisition.ACQUIRED;
         }
 
         @Override
@@ -344,6 +377,7 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
                 int completedCount = Math.incrementExact(serverSubmissionCount);
                 serverSubmissionNanos = completedNanos;
                 serverSubmissionCount = completedCount;
+                serverBudget.record(elapsedNanos);
             } finally {
                 activeSubmission = null;
             }
@@ -396,14 +430,12 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             requireActive();
             this.closed = true;
             try {
-                long elapsedNanos = nanoClock.getAsLong() - this.startedAtNanos;
-                if (elapsedNanos < 0L) {
-                    throw new IllegalStateException("Crafting dispatch nano clock moved backwards");
-                }
+                long elapsedNanos = elapsedNanos();
                 long completedNanos = Math.addExact(capacityCaptureNanos, elapsedNanos);
                 int completedCount = Math.incrementExact(capacityCaptureCount);
                 capacityCaptureNanos = completedNanos;
                 capacityCaptureCount = completedCount;
+                serverBudget.record(elapsedNanos);
             } finally {
                 activeCapacityCapture = null;
             }
@@ -412,6 +444,14 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         /**
          * Ensures only the current, open scope can mutate its parent window.
          */
+        private long elapsedNanos() {
+            long elapsedNanos = nanoClock.getAsLong() - this.startedAtNanos;
+            if (elapsedNanos < 0L) {
+                throw new IllegalStateException("Crafting dispatch nano clock moved backwards");
+            }
+            return elapsedNanos;
+        }
+
         private void requireActive() {
             if (this.closed) {
                 throw new IllegalStateException("Provider capacity capture scope is already closed");
@@ -446,10 +486,22 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
          * Returns whether neither quota nor provider/pattern/target state blocks another attempt.
          */
         private boolean canAttempt(
-                IPatternDetails pattern,
-                @Nullable CraftingDispatchTarget target,
-                int maxAttemptsPerProvider) {
-            if (this.providerUnavailable || this.attemptCount >= maxAttemptsPerProvider) {
+                                   IPatternDetails pattern,
+                                   @Nullable CraftingDispatchTarget target,
+                                   int maxAttemptsPerProvider) {
+            return hasAttemptCapacity(maxAttemptsPerProvider) && routeAvailable(pattern, target);
+        }
+
+        /** Returns whether this provider still has a physical-call slot in the current grid window. */
+        private boolean hasAttemptCapacity(int maxAttemptsPerProvider) {
+            return this.attemptCount < maxAttemptsPerProvider;
+        }
+
+        /** Returns whether live provider, pattern and target state still permit the selected route. */
+        private boolean routeAvailable(
+                                       IPatternDetails pattern,
+                                       @Nullable CraftingDispatchTarget target) {
+            if (this.providerUnavailable) {
                 return false;
             }
             PatternState patternState = this.patternStates.get(pattern);
@@ -460,8 +512,8 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
          * Applies a capacity or Blocking exclusion to the narrowest reported scope.
          */
         private void block(
-                IPatternDetails pattern,
-                @Nullable CraftingDispatchTarget target) {
+                           IPatternDetails pattern,
+                           @Nullable CraftingDispatchTarget target) {
             PatternState patternState = this.patternStates.computeIfAbsent(pattern, ignored -> new PatternState());
             if (target == null) {
                 patternState.patternUnavailable = true;

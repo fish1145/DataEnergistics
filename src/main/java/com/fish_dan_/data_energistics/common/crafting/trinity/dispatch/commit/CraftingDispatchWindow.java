@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchExhaustion;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingServerDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 
@@ -44,6 +45,19 @@ public interface CraftingDispatchWindow {
     }
 
     /**
+     * Creates a grid window sharing one current-tick server budget with every other Trinity grid.
+     *
+     * @param limits       grid-local hard limits
+     * @param serverBudget server-wide current-tick boundary
+     * @return independent grid window backed by the shared server boundary
+     */
+    static CraftingDispatchWindow create(
+                                         CraftingDispatchLimits limits,
+                                         CraftingServerDispatchBudget serverBudget) {
+        return new CraftingDispatchWindowImpl(limits, System::nanoTime, serverBudget);
+    }
+
+    /**
      * Creates a dispatch window with an explicit monotonic clock for deterministic budget verification.
      *
      * @param limits    physical call and server submission time limits
@@ -78,9 +92,9 @@ public interface CraftingDispatchWindow {
      * @return whether the target remains eligible and physical quota remains
      */
     boolean canAttempt(
-            ICraftingProvider provider,
-            IPatternDetails pattern,
-            CraftingDispatchTarget target);
+                       ICraftingProvider provider,
+                       IPatternDetails pattern,
+                       CraftingDispatchTarget target);
 
     /**
      * Starts measuring one provider's complete server-thread preparation and submission path.
@@ -105,10 +119,10 @@ public interface CraftingDispatchWindow {
      * @param status   explicit result status
      */
     void recordResult(
-            ICraftingProvider provider,
-            IPatternDetails pattern,
-            @Nullable CraftingDispatchTarget target,
-            CraftingDispatchStatus status);
+                      ICraftingProvider provider,
+                      IPatternDetails pattern,
+                      @Nullable CraftingDispatchTarget target,
+                      CraftingDispatchStatus status);
 
     /**
      * Checks the independent server-thread budget for another provider-capacity snapshot.
@@ -204,15 +218,25 @@ public interface CraftingDispatchWindow {
          * Atomically acquires and records one physical submission attempt when quota, time and route state permit it.
          *
          * @param target stable provider-local target fixed during preparation
-         * @return {@code true} when the attempt was recorded, or {@code false} when unavailable or exhausted
+         * @return structured acquisition outcome
          */
-        boolean tryAcquire(CraftingDispatchTarget target);
+        Acquisition tryAcquire(CraftingDispatchTarget target);
 
         /**
          * Completes timing for this provider path without declaring checked cleanup failures.
          */
         @Override
         void close();
+    }
+
+    /** Final provider-call admission result produced immediately before ownership transfer. */
+    enum Acquisition {
+        /** The physical attempt was recorded and the provider may be called. */
+        ACQUIRED,
+        /** A grid-local or server-wide physical/time budget was exhausted. */
+        WINDOW_EXHAUSTED,
+        /** The selected provider route became unavailable inside this grid window. */
+        ROUTE_UNAVAILABLE
     }
 
     /**

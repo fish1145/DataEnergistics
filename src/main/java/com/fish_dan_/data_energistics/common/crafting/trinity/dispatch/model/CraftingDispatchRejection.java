@@ -17,6 +17,7 @@ public record CraftingDispatchRejection(CraftingDispatchStatus status,
         }
         if (status == CraftingDispatchStatus.ACCEPTED ||
                 status == CraftingDispatchStatus.STALE ||
+                status == CraftingDispatchStatus.BUDGET_EXHAUSTED ||
                 status == CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP) {
             throw new IllegalArgumentException("Crafting dispatch status is not a preparation rejection: " + status);
         }

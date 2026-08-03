@@ -10,5 +10,8 @@ public enum CraftingDispatchExhaustion {
     GRID_CALL_BUDGET,
 
     /** Measured server-thread submission work reached its time budget. */
-    SERVER_TIME_BUDGET
+    SERVER_TIME_BUDGET,
+
+    /** All Trinity grids together reached the current server tick's dynamic dispatch allowance. */
+    SERVER_TICK_BUDGET
 }

@@ -33,6 +33,10 @@ public enum CraftingDispatchStatus {
      */
     STALE,
     /**
+     * No provider call began because a grid-local or server-wide physical/time budget was exhausted.
+     */
+    BUDGET_EXHAUSTED,
+    /**
      * The provider rejected the attempt without establishing a reusable blocking condition.
      */
     REJECTED,
