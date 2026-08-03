@@ -66,5 +66,4 @@ public final class TrinityServerTickMetrics {
     public static CraftingServerDispatchBudget dispatchBudget(MinecraftServer server) {
         return sampledServer == server ? SERVER_DISPATCH_BUDGET : CraftingServerDispatchBudget.unbounded();
     }
-
 }

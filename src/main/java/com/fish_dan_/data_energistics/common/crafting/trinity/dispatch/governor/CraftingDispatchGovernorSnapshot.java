@@ -15,14 +15,13 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor
  * @param lastProposalFailures   isolated proposal calculation failures in the last complete window
  */
 public record CraftingDispatchGovernorSnapshot(
-        CraftingDispatchGovernorState state,
-        CraftingDispatchBudget budget,
-        long observedTicks,
-        long completedWindows,
-        double tickEwmaNanos,
-        double lastQueueRatio,
-        double lastStaleRatio,
-        double lastAcceptanceRatio,
-        double lastBusiestWorkerShare,
-        int lastProposalFailures) {
-}
+                                               CraftingDispatchGovernorState state,
+                                               CraftingDispatchBudget budget,
+                                               long observedTicks,
+                                               long completedWindows,
+                                               double tickEwmaNanos,
+                                               double lastQueueRatio,
+                                               double lastStaleRatio,
+                                               double lastAcceptanceRatio,
+                                               double lastBusiestWorkerShare,
+                                               int lastProposalFailures) {}

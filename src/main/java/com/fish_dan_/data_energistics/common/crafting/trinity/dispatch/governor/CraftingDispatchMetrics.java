@@ -15,24 +15,24 @@ import java.math.BigInteger;
  * </p>
  */
 public record CraftingDispatchMetrics(
-        long serverTickNanos,
-        long capacityCaptureNanos,
-        long proposalQueueNanos,
-        long proposalCalculationNanos,
-        long commitNanos,
-        int admittedProposals,
-        int rejectedProposals,
-        int completedProposals,
-        int failedProposals,
-        int acceptedProviderCalls,
-        int rejectedProviderCalls,
-        int staleProposals,
-        BigInteger committedLogicalCrafts,
-        int physicalCalls,
-        int proposalQueueDepth,
-        int proposalQueueCapacity,
-        int outstandingProposals,
-        double busiestWorkerShare) {
+                                      long serverTickNanos,
+                                      long capacityCaptureNanos,
+                                      long proposalQueueNanos,
+                                      long proposalCalculationNanos,
+                                      long commitNanos,
+                                      int admittedProposals,
+                                      int rejectedProposals,
+                                      int completedProposals,
+                                      int failedProposals,
+                                      int acceptedProviderCalls,
+                                      int rejectedProviderCalls,
+                                      int staleProposals,
+                                      BigInteger committedLogicalCrafts,
+                                      int physicalCalls,
+                                      int proposalQueueDepth,
+                                      int proposalQueueCapacity,
+                                      int outstandingProposals,
+                                      double busiestWorkerShare) {
 
     public CraftingDispatchMetrics {
         if (serverTickNanos < 0L || capacityCaptureNanos < 0L || proposalQueueNanos < 0L ||
@@ -58,10 +58,10 @@ public record CraftingDispatchMetrics(
      * Captures one completed grid window and its independently reset proposal metrics.
      */
     public static CraftingDispatchMetrics capture(
-            long serverTickNanos,
-            CraftingDispatchWindow window,
-            DispatchProposalMetrics proposals,
-            double busiestWorkerShare) {
+                                                  long serverTickNanos,
+                                                  CraftingDispatchWindow window,
+                                                  DispatchProposalMetrics proposals,
+                                                  double busiestWorkerShare) {
         int rejected = 0;
         for (CraftingDispatchStatus status : CraftingDispatchStatus.values()) {
             if (status != CraftingDispatchStatus.ACCEPTED) {

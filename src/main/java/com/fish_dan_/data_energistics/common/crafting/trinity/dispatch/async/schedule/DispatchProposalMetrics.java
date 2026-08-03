@@ -15,16 +15,16 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sc
  * @param outstanding      current outstanding tickets for this grid
  */
 public record DispatchProposalMetrics(
-        int admitted,
-        int rejected,
-        int completed,
-        int failed,
-        int stale,
-        long queueWaitNanos,
-        long calculationNanos,
-        int queueDepth,
-        int queueCapacity,
-        int outstanding) {
+                                      int admitted,
+                                      int rejected,
+                                      int completed,
+                                      int failed,
+                                      int stale,
+                                      long queueWaitNanos,
+                                      long calculationNanos,
+                                      int queueDepth,
+                                      int queueCapacity,
+                                      int outstanding) {
 
     public DispatchProposalMetrics {
         if (admitted < 0 || rejected < 0 || completed < 0 || failed < 0 || stale < 0 ||

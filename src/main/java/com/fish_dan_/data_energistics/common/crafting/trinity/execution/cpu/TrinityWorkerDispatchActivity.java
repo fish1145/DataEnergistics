@@ -8,9 +8,9 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
  * @param busiestOperations recent physical operations assigned to the busiest worker
  */
 public record TrinityWorkerDispatchActivity(
-        int workerCount,
-        long totalOperations,
-        long busiestOperations) {
+                                            int workerCount,
+                                            long totalOperations,
+                                            long busiestOperations) {
 
     public static final TrinityWorkerDispatchActivity EMPTY = new TrinityWorkerDispatchActivity(0, 0L, 0L);
 
