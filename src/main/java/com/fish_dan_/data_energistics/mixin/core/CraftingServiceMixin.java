@@ -378,7 +378,7 @@ public abstract class CraftingServiceMixin
             this.dataEnergistics$nextTrinityRuntimeTickStart = (start + 1) % runtimes.size();
             for (int offset = 0; offset < runtimes.size(); offset++) {
                 TrinityDataCoreCraftingRuntime runtime = runtimes.get((start + offset) % runtimes.size());
-                runtime.tick(this.energyGrid, service, dispatchWindow);
+                runtime.tick(this.energyGrid, service, dispatchWindow, dispatchBudget);
                 latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
                 if (dispatchWindow.isExhausted()) {
                     break;

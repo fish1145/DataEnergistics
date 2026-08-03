@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.ru
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalPolicy;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalTicket;
 
@@ -48,7 +49,11 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
     }
 
     @Override
-    public Decision submit(CraftingDispatchProposalRequest request, Object workIdentity, Runnable wakeup) {
+    public Decision submit(
+                           CraftingDispatchProposalRequest request,
+                           Object workIdentity,
+                           Runnable wakeup,
+                           DispatchProposalPolicy policy) {
         if (request == null) {
             throw new IllegalArgumentException("Dispatch proposal request must not be null");
         }
@@ -58,10 +63,13 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
         if (wakeup == null) {
             throw new IllegalArgumentException("Dispatch proposal wakeup must not be null");
         }
+        if (policy == null) {
+            throw new IllegalArgumentException("Dispatch proposal policy must not be null");
+        }
         if (this.ticket != null) {
             throw new IllegalStateException("A Trinity worker proposal is already outstanding");
         }
-        DispatchProposalScheduler.Submission submission = this.scheduler.get().submit(request, wakeup);
+        DispatchProposalScheduler.Submission submission = this.scheduler.get().submit(request, wakeup, policy);
         return switch (submission) {
             case DispatchProposalScheduler.Accepted accepted -> {
                 this.ticket = accepted.ticket();
@@ -114,7 +122,9 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
         return switch (reason) {
             case WORKER_BUSY -> new Deferred(DeferredReason.WORKER_BUSY);
             case GRID_LIMIT -> new Deferred(DeferredReason.GRID_LIMIT);
+            case HIGH_WATER -> new Deferred(DeferredReason.HIGH_WATER);
             case QUEUE_FULL -> new Deferred(DeferredReason.QUEUE_FULL);
+            case DISABLED -> new Fallback(FallbackReason.SCHEDULER_DISABLED);
             case CLOSED -> new Fallback(FallbackReason.SCHEDULER_CLOSED);
         };
     }

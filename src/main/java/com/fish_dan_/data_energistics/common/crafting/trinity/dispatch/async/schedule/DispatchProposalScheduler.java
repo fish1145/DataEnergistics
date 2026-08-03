@@ -34,9 +34,17 @@ public interface DispatchProposalScheduler extends AutoCloseable {
      *
      * @param request immutable server-thread snapshot
      * @param wakeup  non-blocking callback that only enqueues the owning worker after completion
+     * @param policy  per-grid Governor admission policy captured for this attempt
      * @return accepted ticket or an explicit rejection that owns no resources
      */
-    Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup);
+    Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup, DispatchProposalPolicy policy);
+
+    /**
+     * Retains the pre-Governor contract with deterministic hard limits.
+     */
+    default Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup) {
+        return submit(request, wakeup, DispatchProposalPolicy.defaults());
+    }
 
     /**
      * Drains accumulated proposal timing and admission facts for one process-local grid generation.
@@ -59,8 +67,7 @@ public interface DispatchProposalScheduler extends AutoCloseable {
     /**
      * Submission result without exceptions for expected bounded-capacity rejection.
      */
-    sealed interface Submission permits Accepted, Rejected {
-    }
+    sealed interface Submission permits Accepted, Rejected {}
 
     /**
      * @param ticket admitted outstanding ticket
@@ -92,7 +99,9 @@ public interface DispatchProposalScheduler extends AutoCloseable {
     enum RejectionReason {
         WORKER_BUSY,
         GRID_LIMIT,
+        HIGH_WATER,
         QUEUE_FULL,
+        DISABLED,
         CLOSED
     }
 }

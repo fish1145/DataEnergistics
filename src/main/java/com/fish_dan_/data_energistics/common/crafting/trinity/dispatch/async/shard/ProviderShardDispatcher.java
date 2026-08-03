@@ -22,13 +22,19 @@ public interface ProviderShardDispatcher {
     /**
      * Selects one provider target and atomically reserves its currently observed capacity.
      *
-     * @param request immutable worker request
-     * @param planner pure capacity slice planner
+     * @param request         immutable worker request
+     * @param planner         pure capacity slice planner
+     * @param providerQuantum maximum simultaneous proposals reserving one provider
      * @return reserved selection or explicit no-capacity result
      */
-    Result selectAndReserve(CraftingDispatchProposalRequest request, CapacitySlicePlanner planner);
+    Result selectAndReserve(
+                            CraftingDispatchProposalRequest request,
+                            CapacitySlicePlanner planner,
+                            int providerQuantum);
 
-    /** Reservation-bearing shard result. */
+    /**
+     * Reservation-bearing shard result.
+     */
     sealed interface Result permits Reserved, NoCapacity {}
 
     /**
@@ -60,15 +66,21 @@ public interface ProviderShardDispatcher {
         }
     }
 
-    /** No candidate retained unreserved safe capacity. */
+    /**
+     * No candidate retained unreserved safe capacity.
+     */
     enum NoCapacity implements Result {
         INSTANCE
     }
 
-    /** Transient provider and optional machine-target reservation owned by one proposal ticket. */
+    /**
+     * Transient provider and optional machine-target reservation owned by one proposal ticket.
+     */
     interface Reservation extends AutoCloseable {
 
-        /** Releases capacity exactly once. */
+        /**
+         * Releases capacity exactly once.
+         */
         @Override
         void close();
     }

@@ -58,12 +58,18 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     }
 
     @Override
-    public Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup) {
+    public Submission submit(
+                             CraftingDispatchProposalRequest request,
+                             Runnable wakeup,
+                             DispatchProposalPolicy policy) {
         if (request == null) {
             throw new IllegalArgumentException("Dispatch proposal request must not be null");
         }
         if (wakeup == null) {
             throw new IllegalArgumentException("Dispatch proposal wakeup must not be null");
+        }
+        if (policy == null) {
+            throw new IllegalArgumentException("Dispatch proposal policy must not be null");
         }
 
         WorkerKey workerKey = WorkerKey.from(request.lease());
@@ -75,14 +81,23 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                 metrics(gridGeneration).recordRejected();
                 return new Rejected(RejectionReason.CLOSED);
             }
+            if (!policy.enabled()) {
+                metrics(gridGeneration).recordRejected();
+                return new Rejected(RejectionReason.DISABLED);
+            }
             if (this.outstandingWorkers.contains(workerKey)) {
                 metrics(gridGeneration).recordRejected();
                 return new Rejected(RejectionReason.WORKER_BUSY);
             }
             int gridOutstanding = this.outstandingByGrid.getOrDefault(gridGeneration, 0);
-            if (gridOutstanding >= this.limits.perGridOutstanding()) {
+            if (gridOutstanding >= Math.min(this.limits.perGridOutstanding(), policy.actorPermits())) {
                 metrics(gridGeneration).recordRejected();
                 return new Rejected(RejectionReason.GRID_LIMIT);
+            }
+            if (policy.proposalHighWater() < this.limits.queueCapacity() &&
+                    this.executor.getQueue().size() >= policy.proposalHighWater()) {
+                metrics(gridGeneration).recordRejected();
+                return new Rejected(RejectionReason.HIGH_WATER);
             }
             ticket = new TicketImpl(this, request.lease(), workerKey, wakeup);
             this.outstandingWorkers.add(workerKey);
@@ -91,7 +106,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         }
 
         FutureTask<Void> task = new FutureTask<>(() -> {
-            calculate(ticket, request, queuedAtNanos);
+            calculate(ticket, request, policy.providerQuantum(), queuedAtNanos);
             return null;
         });
         ticket.bind(task);
@@ -151,17 +166,20 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     }
 
     private void calculate(
-            TicketImpl ticket,
-            CraftingDispatchProposalRequest request,
-            long queuedAtNanos) {
+                           TicketImpl ticket,
+                           CraftingDispatchProposalRequest request,
+                           int providerQuantum,
+                           long queuedAtNanos) {
         long startedAtNanos = System.nanoTime();
         long queueWaitNanos = elapsedNanos(queuedAtNanos, startedAtNanos);
         boolean failed = false;
         try {
-            ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(request, this.slicePlanner);
+            ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(
+                    request,
+                    this.slicePlanner,
+                    providerQuantum);
             switch (result) {
-                case ProviderShardDispatcher.NoCapacity ignored ->
-                        ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
+                case ProviderShardDispatcher.NoCapacity ignored -> ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
                 case ProviderShardDispatcher.Reserved reserved -> {
                     ticket.attachReservation(reserved.reservation());
                     ticket.complete(new DispatchProposalTicket.Ready(new CraftingDispatchProposal(
@@ -180,6 +198,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                     exception);
             ticket.complete(new DispatchProposalTicket.Failed(exception));
         } finally {
+            failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
             synchronized (this.admissionLock) {
                 metrics(request.lease().gridGeneration()).recordCompleted(
@@ -286,9 +305,9 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         }
 
         private DispatchProposalMetrics snapshot(
-                int queueDepth,
-                int queueCapacity,
-                int outstanding) {
+                                                 int queueDepth,
+                                                 int queueCapacity,
+                                                 int outstanding) {
             return new DispatchProposalMetrics(
                     this.admitted,
                     this.rejected,
@@ -315,6 +334,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private final AtomicReference<State> state = new AtomicReference<>(Pending.INSTANCE);
         private final AtomicReference<ProviderShardDispatcher.Reservation> reservation = new AtomicReference<>();
         private final AtomicBoolean closed = new AtomicBoolean();
+        private final AtomicBoolean wakeupFailed = new AtomicBoolean();
         private volatile FutureTask<Void> task;
 
         private TicketImpl(DispatchProposalSchedulerImpl owner,
@@ -375,6 +395,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             try {
                 this.wakeup.run();
             } catch (RuntimeException exception) {
+                this.wakeupFailed.set(true);
                 Data_Energistics.LOGGER.error(
                         "Trinity dispatch proposal wakeup failed for worker {} job {}",
                         this.lease.workerNumber(),
@@ -382,6 +403,10 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                         exception);
                 close();
             }
+        }
+
+        private boolean wakeupFailed() {
+            return this.wakeupFailed.get();
         }
 
         private void attachReservation(ProviderShardDispatcher.Reservation reservation) {

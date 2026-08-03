@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.ru
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalPolicy;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
 
 import java.util.function.Supplier;
@@ -42,39 +43,69 @@ public interface TrinityWorkerProposalCoordinator {
      * @param request      immutable pure-planning request
      * @param workIdentity exact server-thread work identity retained for later stale validation
      * @param wakeup       callback that enqueues only this worker after completion
+     * @param policy       current per-grid Governor proposal policy
      * @return pending or synchronous-fallback decision
      */
-    Decision submit(CraftingDispatchProposalRequest request, Object workIdentity, Runnable wakeup);
+    Decision submit(
+                    CraftingDispatchProposalRequest request,
+                    Object workIdentity,
+                    Runnable wakeup,
+                    DispatchProposalPolicy policy);
 
-    /** @return whether this worker is waiting exclusively for its background proposal completion */
+    /**
+     * Retains the pre-Governor contract with deterministic hard limits.
+     */
+    default Decision submit(CraftingDispatchProposalRequest request, Object workIdentity, Runnable wakeup) {
+        return submit(request, workIdentity, wakeup, DispatchProposalPolicy.defaults());
+    }
+
+    /**
+     * @return whether this worker is waiting exclusively for its background proposal completion
+     */
     boolean pending();
 
-    /** @return whether this worker still owns any unconsumed proposal ticket state */
+    /**
+     * @return whether this worker still owns any unconsumed proposal ticket state
+     */
     boolean outstanding();
 
-    /** Releases the currently consumed ready proposal after server-thread commit or rejection. */
+    /**
+     * Releases the currently consumed ready proposal after server-thread commit or rejection.
+     */
     void release();
 
-    /** Records and releases a proposal rejected by server-thread generation or route revalidation. */
+    /**
+     * Records and releases a proposal rejected by server-thread generation or route revalidation.
+     */
     void discardStale();
 
-    /** Cancels any outstanding proposal during job, route, reload or worker lifecycle changes. */
+    /**
+     * Cancels any outstanding proposal during job, route, reload or worker lifecycle changes.
+     */
     void cancel();
 
-    /** Non-blocking server-thread decision. */
+    /**
+     * Non-blocking server-thread decision.
+     */
     sealed interface Decision permits Empty, Pending, Ready, NoCapacity, Deferred, Fallback {}
 
-    /** No proposal exists, so the caller may capture and submit immutable candidates. */
+    /**
+     * No proposal exists, so the caller may capture and submit immutable candidates.
+     */
     enum Empty implements Decision {
         INSTANCE
     }
 
-    /** The outstanding proposal is queued or calculating. */
+    /**
+     * The outstanding proposal is queued or calculating.
+     */
     enum Pending implements Decision {
         INSTANCE
     }
 
-    /** @param proposal completed immutable proposal awaiting server-thread revalidation */
+    /**
+     * @param proposal completed immutable proposal awaiting server-thread revalidation
+     */
     record Ready(CraftingDispatchProposal proposal) implements Decision {
 
         public Ready {
@@ -84,12 +115,16 @@ public interface TrinityWorkerProposalCoordinator {
         }
     }
 
-    /** No immutable candidate had a safe positive offer. */
+    /**
+     * No immutable candidate had a safe positive offer.
+     */
     enum NoCapacity implements Decision {
         INSTANCE
     }
 
-    /** @param reason bounded scheduler pressure requiring a retry without synchronous resource mutation */
+    /**
+     * @param reason bounded scheduler pressure requiring a retry without synchronous resource mutation
+     */
     record Deferred(DeferredReason reason) implements Decision {
 
         public Deferred {
@@ -99,7 +134,9 @@ public interface TrinityWorkerProposalCoordinator {
         }
     }
 
-    /** @param reason expected reason to use the Phase 3 synchronous path */
+    /**
+     * @param reason expected reason to use the Phase 3 synchronous path
+     */
     record Fallback(FallbackReason reason) implements Decision {
 
         public Fallback {
@@ -109,17 +146,23 @@ public interface TrinityWorkerProposalCoordinator {
         }
     }
 
-    /** Expected proposal failures that never authorize resource mutation in the background. */
+    /**
+     * Expected proposal failures that never authorize resource mutation in the background.
+     */
     enum FallbackReason {
         SCHEDULER_CLOSED,
+        SCHEDULER_DISABLED,
         CALCULATION_FAILED,
         CANCELLED
     }
 
-    /** Expected bounded-admission pressure that must not fall through to a synchronous commit in the same pass. */
+    /**
+     * Expected bounded-admission pressure that must not fall through to a synchronous commit in the same pass.
+     */
     enum DeferredReason {
         WORKER_BUSY,
         GRID_LIMIT,
+        HIGH_WATER,
         QUEUE_FULL
     }
 }

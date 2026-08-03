@@ -31,6 +31,7 @@ public final class TrinityDispatchConfig {
     public static final int DEFAULT_SAFE_PROVIDER_ATTEMPTS = 2;
     public static final int DEFAULT_SAFE_COMMIT_BUDGET_MS = 2;
     public static final int DEFAULT_SAFE_ACTOR_PERMITS = 1;
+    public static final int DEFAULT_SAFE_RETRY_BACKOFF_TICKS = 8;
     public static final int DEFAULT_WARMUP_TICKS = 200;
     public static final int DEFAULT_METRICS_WINDOW_TICKS = 20;
     public static final double DEFAULT_EWMA_ALPHA = 0.25D;
@@ -75,6 +76,11 @@ public final class TrinityDispatchConfig {
                     "SAFE 策略保留的单网格 outstanding proposal permit 数量。")
             .defineInRange("safeActorPermits", DEFAULT_SAFE_ACTOR_PERMITS, 1, Integer.MAX_VALUE);
 
+    private static final ModConfigSpec.IntValue SAFE_RETRY_BACKOFF_TICKS = BUILDER
+            .comment("Maximum adaptive retry backoff and the synchronous SAFE-mode retry delay, in ticks.",
+                    "自适应重试退避上限及 SAFE 同步模式重试延迟，单位 tick。")
+            .defineInRange("safeRetryBackoffTicks", DEFAULT_SAFE_RETRY_BACKOFF_TICKS, 1, Integer.MAX_VALUE);
+
     private static final ModConfigSpec.IntValue WARMUP_TICKS = BUILDER
             .comment("Observation ticks collected before adaptive decisions are allowed.",
                     "允许自适应决策前收集指标的观察 tick 数量。")
@@ -109,8 +115,7 @@ public final class TrinityDispatchConfig {
 
     private static volatile Settings current = Settings.defaults();
 
-    private TrinityDispatchConfig() {
-    }
+    private TrinityDispatchConfig() {}
 
     /**
      * @return one internally consistent dispatch-governor config snapshot
@@ -132,6 +137,7 @@ public final class TrinityDispatchConfig {
                 SAFE_PROVIDER_ATTEMPTS.get(),
                 SAFE_COMMIT_BUDGET_MS.get(),
                 SAFE_ACTOR_PERMITS.get(),
+                SAFE_RETRY_BACKOFF_TICKS.get(),
                 WARMUP_TICKS.get(),
                 METRICS_WINDOW_TICKS.get(),
                 EWMA_ALPHA.get(),
@@ -144,24 +150,25 @@ public final class TrinityDispatchConfig {
      * Immutable config consumed when a per-grid Governor is created or reloaded.
      */
     public record Settings(
-            int hardGridAttempts,
-            int hardProviderAttempts,
-            int hardCommitBudgetMs,
-            int safeGridAttempts,
-            int safeProviderAttempts,
-            int safeCommitBudgetMs,
-            int safeActorPermits,
-            int warmupTicks,
-            int metricsWindowTicks,
-            double ewmaAlpha,
-            int transitionWindows,
-            int cooldownTicks,
-            int safeHoldTicks) {
+                           int hardGridAttempts,
+                           int hardProviderAttempts,
+                           int hardCommitBudgetMs,
+                           int safeGridAttempts,
+                           int safeProviderAttempts,
+                           int safeCommitBudgetMs,
+                           int safeActorPermits,
+                           int safeRetryBackoffTicks,
+                           int warmupTicks,
+                           int metricsWindowTicks,
+                           double ewmaAlpha,
+                           int transitionWindows,
+                           int cooldownTicks,
+                           int safeHoldTicks) {
 
         public Settings {
             if (hardGridAttempts <= 0 || hardProviderAttempts <= 0 || hardCommitBudgetMs <= 0 ||
                     safeGridAttempts <= 0 || safeProviderAttempts <= 0 || safeCommitBudgetMs <= 0 ||
-                    safeActorPermits <= 0 || warmupTicks <= 0 || metricsWindowTicks <= 0 ||
+                    safeActorPermits <= 0 || safeRetryBackoffTicks <= 0 || warmupTicks <= 0 || metricsWindowTicks <= 0 ||
                     transitionWindows <= 0 || cooldownTicks < 0 || safeHoldTicks <= 0) {
                 throw new IllegalArgumentException("Trinity dispatch governor integer settings are out of range");
             }
@@ -197,7 +204,7 @@ public final class TrinityDispatchConfig {
                     this.safeActorPermits,
                     this.safeProviderAttempts,
                     this.safeActorPermits,
-                    1,
+                    this.safeRetryBackoffTicks,
                     false);
             return CraftingDispatchGovernorSettings.defaults(
                     hardBudget,
@@ -219,6 +226,7 @@ public final class TrinityDispatchConfig {
                     DEFAULT_SAFE_PROVIDER_ATTEMPTS,
                     DEFAULT_SAFE_COMMIT_BUDGET_MS,
                     DEFAULT_SAFE_ACTOR_PERMITS,
+                    DEFAULT_SAFE_RETRY_BACKOFF_TICKS,
                     DEFAULT_WARMUP_TICKS,
                     DEFAULT_METRICS_WINDOW_TICKS,
                     DEFAULT_EWMA_ALPHA,

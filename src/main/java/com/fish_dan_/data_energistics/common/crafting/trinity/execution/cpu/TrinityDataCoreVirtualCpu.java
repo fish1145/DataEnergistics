@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
@@ -113,13 +114,24 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param energyService   AE2 energy service
      * @param craftingService AE2 crafting service
      * @param dispatchWindow  grid-shared physical dispatch budget for this tick
+     * @param dispatchBudget  Governor policy captured for this grid tick
+     */
+    public void tick(IEnergyService energyService,
+                     CraftingService craftingService,
+                     CraftingDispatchWindow dispatchWindow,
+                     CraftingDispatchBudget dispatchBudget) {
+        boolean wasBusy = isBusy();
+        this.logic.tickCraftingLogic(energyService, craftingService, dispatchWindow, dispatchBudget);
+        this.runtime.workerOperationCompleted(this, wasBusy);
+    }
+
+    /**
+     * Retains the pre-Governor execution contract with deterministic hard limits.
      */
     public void tick(IEnergyService energyService,
                      CraftingService craftingService,
                      CraftingDispatchWindow dispatchWindow) {
-        boolean wasBusy = isBusy();
-        this.logic.tickCraftingLogic(energyService, craftingService, dispatchWindow);
-        this.runtime.workerOperationCompleted(this, wasBusy);
+        tick(energyService, craftingService, dispatchWindow, CraftingDispatchBudget.legacyFixedHard());
     }
 
     /**

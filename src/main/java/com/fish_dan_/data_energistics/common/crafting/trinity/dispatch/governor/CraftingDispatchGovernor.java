@@ -25,6 +25,14 @@ public interface CraftingDispatchGovernor {
     void observe(CraftingDispatchMetrics metrics);
 
     /**
+     * Forces the grid into synchronous SAFE mode after an unexpected Governor or Actor boundary failure.
+     *
+     * @param source  concise failing boundary identity used only for logs
+     * @param failure original unexpected failure
+     */
+    void recordUnexpectedFailure(String source, RuntimeException failure);
+
+    /**
      * @return current read-only diagnostics
      */
     CraftingDispatchGovernorSnapshot snapshot();

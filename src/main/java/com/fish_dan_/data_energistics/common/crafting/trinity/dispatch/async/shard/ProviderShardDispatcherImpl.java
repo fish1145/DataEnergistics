@@ -27,6 +27,7 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
     private final ReentrantLock[] shards;
     private final Object reservationLock = new Object();
     private final Map<ProviderRouteKey, Long> reservedByProviderRoute = new HashMap<>();
+    private final Map<CraftingProviderId, Integer> reservedProposalsByProvider = new HashMap<>();
     private final Map<MachineTargetId, ReservationImpl> reservedMachines = new HashMap<>();
 
     ProviderShardDispatcherImpl(int shardCount) {
@@ -40,12 +41,18 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
     }
 
     @Override
-    public Result selectAndReserve(CraftingDispatchProposalRequest request, CapacitySlicePlanner planner) {
+    public Result selectAndReserve(
+                                   CraftingDispatchProposalRequest request,
+                                   CapacitySlicePlanner planner,
+                                   int providerQuantum) {
         if (request == null) {
             throw new IllegalArgumentException("Provider shard request must not be null");
         }
         if (planner == null) {
             throw new IllegalArgumentException("Provider shard capacity planner must not be null");
+        }
+        if (providerQuantum <= 0) {
+            throw new IllegalArgumentException("Provider shard proposal quantum must be positive");
         }
 
         Set<ProviderRouteKey> inspected = new HashSet<>();
@@ -69,7 +76,7 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
             shard.lock();
             try {
                 long requested = offeredCount(target, slice, request.remainingCrafts().longValueExact());
-                ReservationImpl reservation = reserve(routeKey, target, requested);
+                ReservationImpl reservation = reserve(routeKey, target, requested, providerQuantum);
                 if (reservation != null) {
                     return new Reserved(target, reservation.logicalCrafts, cursor, reservation);
                 }
@@ -82,8 +89,13 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
 
     private ReservationImpl reserve(ProviderRouteKey routeKey,
                                     ProviderCapacitySnapshot target,
-                                    long requested) {
+                                    long requested,
+                                    int providerQuantum) {
         synchronized (this.reservationLock) {
+            int reservedProposals = this.reservedProposalsByProvider.getOrDefault(target.providerId(), 0);
+            if (reservedProposals >= providerQuantum) {
+                return null;
+            }
             long alreadyReserved = this.reservedByProviderRoute.getOrDefault(routeKey, 0L);
             long available = availableCapacity(target.capacity(), alreadyReserved);
             long logicalCrafts = Math.min(requested, available);
@@ -95,9 +107,11 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
             ReservationImpl reservation = new ReservationImpl(
                     this,
                     routeKey,
+                    target.providerId(),
                     machineTarget,
                     logicalCrafts);
             this.reservedByProviderRoute.put(routeKey, Math.addExact(alreadyReserved, logicalCrafts));
+            this.reservedProposalsByProvider.put(target.providerId(), Math.incrementExact(reservedProposals));
             machineTarget.ifPresent(machine -> this.reservedMachines.put(machine, reservation));
             return reservation;
         }
@@ -111,6 +125,12 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
                 this.reservedByProviderRoute.remove(reservation.routeKey);
             } else {
                 this.reservedByProviderRoute.put(reservation.routeKey, remaining);
+            }
+            int providerProposals = Math.decrementExact(this.reservedProposalsByProvider.get(reservation.providerId));
+            if (providerProposals == 0) {
+                this.reservedProposalsByProvider.remove(reservation.providerId);
+            } else {
+                this.reservedProposalsByProvider.put(reservation.providerId, providerProposals);
             }
             reservation.machineTarget.ifPresent(machine -> {
                 if (!this.reservedMachines.remove(machine, reservation)) {
@@ -175,7 +195,9 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         throw new IllegalStateException("Provider shard selected a target outside its request");
     }
 
-    /** Provider-local reservation key; machine identity is independently global. */
+    /**
+     * Provider-local reservation key; machine identity is independently global.
+     */
     private record ProviderRouteKey(CraftingProviderId providerId, CraftingDispatchTarget route) {
 
         private static ProviderRouteKey from(ProviderCapacitySnapshot target) {
@@ -183,21 +205,26 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         }
     }
 
-    /** Idempotent reservation retained by the proposal ticket until server-thread consumption or cancellation. */
+    /**
+     * Idempotent reservation retained by the proposal ticket until server-thread consumption or cancellation.
+     */
     private static final class ReservationImpl implements Reservation {
 
         private final ProviderShardDispatcherImpl owner;
         private final ProviderRouteKey routeKey;
+        private final CraftingProviderId providerId;
         private final Optional<MachineTargetId> machineTarget;
         private final long logicalCrafts;
         private final AtomicBoolean closed = new AtomicBoolean();
 
         private ReservationImpl(ProviderShardDispatcherImpl owner,
                                 ProviderRouteKey routeKey,
+                                CraftingProviderId providerId,
                                 Optional<MachineTargetId> machineTarget,
                                 long logicalCrafts) {
             this.owner = owner;
             this.routeKey = routeKey;
+            this.providerId = providerId;
             this.machineTarget = machineTarget;
             this.logicalCrafts = logicalCrafts;
         }

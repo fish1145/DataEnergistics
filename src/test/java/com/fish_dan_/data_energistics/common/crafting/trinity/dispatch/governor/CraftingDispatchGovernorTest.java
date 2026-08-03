@@ -17,10 +17,10 @@ public final class CraftingDispatchGovernorTest {
 
     @Test
     void fakeMetricsDriveTheObservationWindowWithoutChangingPhysicalBudgets() {
-        CraftingDispatchBudget hard = budget(256, 16, 30L, 256, 16, 1024, true);
-        CraftingDispatchBudget safe = budget(16, 2, 2L, 1, 2, 1, false);
+        CraftingDispatchBudget hard = budget(256, 16, 30L, 256, 16, 1024, 1, true);
+        CraftingDispatchBudget safe = budget(16, 2, 2L, 1, 2, 1, 1, false);
         CraftingDispatchGovernor governor = CraftingDispatchGovernor.create(
-                CraftingDispatchGovernorSettings.defaults(hard, safe, 2, 2, 0.25D, 3, 60, 200));
+                CraftingDispatchGovernorSettings.defaults(hard, safe, 4, 2, 0.25D, 3, 60, 200));
 
         governor.observe(metrics(40L, 2, 8, 1, 0, 0, 0.25D));
         governor.observe(metrics(50L, 6, 8, 1, 1, 1, 0.75D));
@@ -37,6 +37,57 @@ public final class CraftingDispatchGovernorTest {
         assertEquals(2.0D / 3.0D, snapshot.lastAcceptanceRatio());
         assertEquals(0.75D, snapshot.lastBusiestWorkerShare());
         assertEquals(0, snapshot.lastProposalFailures());
+    }
+
+    @Test
+    void fakeMetricsDriveAdaptiveDownshiftRecoveryAndSafeFallback() {
+        CraftingDispatchBudget hard = budget(64, 8, 12L, 8, 8, 32, 1, true);
+        CraftingDispatchBudget safe = budget(16, 2, 2L, 1, 2, 1, 4, false);
+        CraftingDispatchGovernor governor = CraftingDispatchGovernor.create(
+                CraftingDispatchGovernorSettings.defaults(hard, safe, 2, 1, 1.0D, 2, 2, 3));
+
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        assertEquals(CraftingDispatchGovernorState.ADAPTIVE, governor.snapshot().state());
+
+        governor.observe(metrics(50L, 8, 8, 1, 0, 0, 0.25D));
+        governor.observe(metrics(50L, 8, 8, 1, 0, 0, 0.25D));
+        CraftingDispatchBudget firstDownshift = governor.budget();
+        assertEquals(48, firstDownshift.dispatchLimits().maxAttemptsPerGrid());
+        assertEquals(6, firstDownshift.dispatchLimits().maxAttemptsPerProvider());
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(9L), firstDownshift.dispatchLimits().maxServerSubmissionNanos());
+        assertEquals(6, firstDownshift.actorPermits());
+        assertEquals(6, firstDownshift.providerQuantum());
+        assertEquals(24, firstDownshift.proposalHighWater());
+        assertEquals(2, firstDownshift.retryBackoffTicks());
+        assertTrue(firstDownshift.asynchronousEnabled());
+
+        governor.observe(metrics(50L, 8, 8, 1, 0, 0, 0.25D));
+        assertSame(firstDownshift, governor.budget());
+        governor.observe(metrics(50L, 8, 8, 1, 0, 0, 0.25D));
+        assertEquals(36, governor.budget().dispatchLimits().maxAttemptsPerGrid());
+        assertEquals(3, governor.budget().retryBackoffTicks());
+
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        assertEquals(44, governor.budget().dispatchLimits().maxAttemptsPerGrid());
+        assertEquals(2, governor.budget().retryBackoffTicks());
+
+        governor.observe(metrics(101L, 0, 8, 8, 0, 0, 0.25D));
+        governor.observe(metrics(101L, 0, 8, 8, 0, 0, 0.25D));
+        assertEquals(CraftingDispatchGovernorState.SAFE, governor.snapshot().state());
+        assertSame(safe, governor.budget());
+
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        assertEquals(CraftingDispatchGovernorState.SAFE, governor.snapshot().state());
+        governor.observe(metrics(30L, 0, 8, 8, 0, 0, 0.25D));
+        assertEquals(CraftingDispatchGovernorState.OBSERVING, governor.snapshot().state());
+        assertSame(hard, governor.budget());
+
+        governor.recordUnexpectedFailure("test Actor", new IllegalStateException("expected test failure"));
+        assertEquals(CraftingDispatchGovernorState.SAFE, governor.snapshot().state());
+        assertSame(safe, governor.budget());
     }
 
     @Test
@@ -72,6 +123,7 @@ public final class CraftingDispatchGovernorTest {
                                                  int actorPermits,
                                                  int providerQuantum,
                                                  int proposalHighWater,
+                                                 int retryBackoffTicks,
                                                  boolean asynchronous) {
         return new CraftingDispatchBudget(
                 new CraftingDispatchLimits(
@@ -81,7 +133,7 @@ public final class CraftingDispatchGovernorTest {
                 actorPermits,
                 providerQuantum,
                 proposalHighWater,
-                1,
+                retryBackoffTicks,
                 asynchronous);
     }
 

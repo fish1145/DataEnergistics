@@ -2,8 +2,8 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0 至 Phase 4、VirtualGrid typed execution route、Phase 5 指标/观察期与全服务器共享的
-  动态 tick 发配边界已实现；自适应切换和 SAFE 回退待启用
+- 方案状态：Phase 0 至 Phase 5、VirtualGrid typed execution route、全服务器共享动态 tick 边界、
+  自适应 Governor 与 SAFE 同步回退均已实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -119,7 +119,7 @@ Phase 3 同步容量路径现已接入：
 | --- | --- | --- |
 | Phase 3 | 已完成：publication identity、同步容量快照、独立 4 ms 采集预算、公平切片、保守 addon 路由和唯一 commit | 已完成 |
 | Phase 4 | 已完成 worker mailbox、bounded proposal queue、generation/stale 校验、事件驱动 worker queue、固定 provider shard 与 machine reservation | 已完成 |
-| Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
+| Phase 5 | 已完成长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | 已完成 |
 
 计算入口、样板图、SCC/MIP 和循环执行不依赖上述 Phase 3 至 Phase 5，可在保持服务器线程事务边界的前提下作为独立轨道推进。
 
@@ -620,8 +620,15 @@ Governor 可以调整：
 固定 16 个 shard、executor 物理队列容量和 counted logical batch 不属于 Governor 可调参数。
 
 调整必须渐进，避免因为单 tick 波动频繁切换模式。当前 COMMON 配置以 hard `256/16/30 ms`、safe
-`16/2/2 ms`、`200 tick` warm-up、`20 tick` 窗口和 `0.25` EWMA alpha 作为已确定初值；后续压力矩阵只允许
+`16/2/2 ms`、SAFE retry backoff `8 tick`、`200 tick` warm-up、`20 tick` 窗口和 `0.25` EWMA alpha
+作为已确定初值；后续压力矩阵只允许
 在不破坏 hard/safe 不变量的前提下重新校准。
+
+运行时状态机已经启用：`OBSERVING` 只采集窗口并使用 hard budget；`ADAPTIVE` 在连续 3 个窗口满足高负载或恢复
+条件后按固定步长调节物理调用、提交时间、Actor permit、provider quantum、proposal 高水位和 retry backoff；调整后
+保持 60 tick cooldown。连续 3 个原始服务器 tick 超过 `100 ms`，或 proposal/Actor/Governor 出现未预期异常时立即进入
+`SAFE`，取消瞬态 proposal 并改走 safe budget 的 Phase 3 同步提交；保持 200 tick 后重新进入 `OBSERVING`。该切换不写
+作业 NBT，也不改变 counted logical batch。
 
 阶段 2 的固定安全模式依据 Phase 0 已记录的 7 个 256 Worker 样本，将服务器提交时间预算暂定为
 `30,000,000 ns`；样本最大值为 `26,108,000 ns`。该预算测量供应器准备和真实提交作用域，耗尽后只延后未提交
@@ -769,19 +776,21 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。
 
-### 阶段 5：自适应 Governor（观察期已完成，自适应待启用）
+### 阶段 5：自适应 Governor（已完成）
 
 - 已增加独立 `data_energistics-trinity_dispatch.toml`，配置 hard/safe 物理预算、warm-up、指标窗口、
-  EWMA、切换确认、cooldown 和 SAFE 保持时间；
+  EWMA、切换确认、cooldown、SAFE retry backoff 和 SAFE 保持时间；
 - 已按 Grid 采集完整服务器 tick、容量捕获、proposal 排队/计算、服务器提交、接受率、stale、
   logical-per-physical-call、队列深度/outstanding 和 worker share；
-- 已将 `OBSERVING` Governor 接入唯一 Grid dispatch window；配置重载只替换瞬态派生状态，不写作业 NBT；
+- 已将 `OBSERVING`、`ADAPTIVE` 和 `SAFE` Governor 接入唯一 Grid dispatch window；配置重载只替换瞬态派生状态，
+  不写作业 NBT；
 - 已将所有 Grid 的 capacity/commit 时间接入同一服务器 tick 动态余量；低负载使用到 `50 ms` 目标，高负载保留
   `1 ms/tick`，避免每个 Grid 独立放大时间预算；
 - 固定 16 个 shard；只自适应调整物理调用额度、提交时间、Actor permit、provider quantum、队列高水位和退避；
 - 不拆小 counted logical batch；
-- 待启用 `ADAPTIVE` 调节、异常隔离和固定 `SAFE` 同步模式；
-- 通过压力测试确定默认配置和硬上限。
+- 已启用连续窗口确认、cooldown、异常隔离和固定 `SAFE` 同步模式；SAFE 结束后重新执行观察期；
+- fake-metrics 契约覆盖观察、降档、恢复和 SAFE；全服务器预算契约继续保证非 Trinity 基线达到 `50 ms` 时仍只保留
+  `1 ms/tick` 发配通道，且不使用墙钟 CI 断言。
 
 阶段之间必须串行验收。不得在 CPU 账本、所有权和原版阻挡语义未稳定前直接启用异步规划或自适应切换。
 

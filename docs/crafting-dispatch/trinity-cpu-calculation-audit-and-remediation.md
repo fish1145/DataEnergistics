@@ -7,11 +7,13 @@
 Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。Phase 3 同步
 派发已改为 publication identity、不可变容量快照、公平 target slice 和唯一 commit 边界；Phase 4 的
 worker proposal、generation lease、固定 provider shard 和事件驱动调度也已接入，无法证明等价的 addon 路线保留
-原生单次语义。Phase 5 当前已接入独立 COMMON 配置、只观察的 per-grid Governor，以及跨 Grid 共享的服务器 tick
+原生单次语义。Phase 5 当前已接入独立 COMMON 配置、完整的 per-grid `OBSERVING`/`ADAPTIVE`/`SAFE` Governor，
+以及跨 Grid 共享的服务器 tick
 动态发配边界；完整 tick、capacity、proposal、commit、接受率、stale、logical-per-physical-call 与 worker share
 均为运行时派生指标。预算耗尽已与 stale/provider 拒绝分离；大型图的 binding variant 上限也已改为只计算额外
-笛卡尔分支，默认及旧默认配置迁移为 `32768`，普通唯一绑定样板不再在全图第 513 个位置误回退 AE2。自适应和
-SAFE 切换尚未启用。
+笛卡尔分支，默认及旧默认配置迁移为 `32768`，普通唯一绑定样板不再在全图第 513 个位置误回退 AE2。自适应切换、
+连续超时/Actor 异常触发的 SAFE 同步回退、proposal admission policy 和有界 retry backoff 均已启用；这些调节只作用于
+物理额度，不拆分 counted logical batch。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -317,6 +319,8 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 | C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
 | C-020 | worker event queue、bounded proposal 与 generation lease | 已完成 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
 | C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
+| C-022 | 目标可达图缓存与确定性复杂度边界 | 已完成 | 大型图不使用墙钟截止，取消/图/variant/状态边界保持生效 |
+| C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 
 ## 5. 风险与控制
 

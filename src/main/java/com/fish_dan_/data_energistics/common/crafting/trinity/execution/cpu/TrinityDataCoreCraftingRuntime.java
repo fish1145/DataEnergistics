@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
@@ -359,10 +360,12 @@ public final class TrinityDataCoreCraftingRuntime {
      * @param energyService   AE2 energy service shared by this runtime's grid
      * @param craftingService AE2 crafting service used to resolve pattern providers
      * @param dispatchWindow  physical provider-attempt budget shared across the complete grid tick
+     * @param dispatchBudget  Governor policy captured for this complete grid tick
      */
     public void tick(IEnergyService energyService,
                      CraftingService craftingService,
-                     CraftingDispatchWindow dispatchWindow) {
+                     CraftingDispatchWindow dispatchWindow,
+                     CraftingDispatchBudget dispatchBudget) {
         if (this.paused || !this.mainStructureFormed || !this.profile.active()) {
             return;
         }
@@ -386,7 +389,7 @@ public final class TrinityDataCoreCraftingRuntime {
             }
             int workerNumber = worker.number();
             int submissionsBeforeWorker = dispatchWindow.serverSubmissionCount();
-            worker.tick(energyService, craftingService, dispatchWindow);
+            worker.tick(energyService, craftingService, dispatchWindow, dispatchBudget);
             if (dispatchWindow.serverSubmissionCount() > submissionsBeforeWorker) {
                 lastSubmittingWorkerNumber = workerNumber;
             }
@@ -398,6 +401,15 @@ public final class TrinityDataCoreCraftingRuntime {
         if (lastSubmittingWorkerNumber >= 0) {
             advanceWorkerTickStartAfter(lastSubmittingWorkerNumber);
         }
+    }
+
+    /**
+     * Retains the pre-Governor execution contract with deterministic hard limits.
+     */
+    public void tick(IEnergyService energyService,
+                     CraftingService craftingService,
+                     CraftingDispatchWindow dispatchWindow) {
+        tick(energyService, craftingService, dispatchWindow, CraftingDispatchBudget.legacyFixedHard());
     }
 
     /**
