@@ -99,6 +99,11 @@ public final class CraftingProviderPublicationIndexImpl implements CraftingProvi
     }
 
     @Override
+    public long publicationScope() {
+        return this.publicationScope;
+    }
+
+    @Override
     public long publicationRevision() {
         return this.revision;
     }

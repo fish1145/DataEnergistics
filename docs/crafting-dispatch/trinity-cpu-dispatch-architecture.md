@@ -2,7 +2,8 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0 至 Phase 3 与 VirtualGrid typed execution route 已实现；Phase 4 至 Phase 5 尚未实现
+- 方案状态：Phase 0 至 Phase 3 与 VirtualGrid typed execution route 已实现；Phase 4 的 worker proposal、generation
+  租约和事件队列已实现，provider shard/reservation 与 Phase 5 尚未实现
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -86,7 +87,8 @@ CPU 对以下行为负权威责任：
 - `CountedCraftingAdmission` 已定义一次性提交和输入所有权边界；
 - 批量任务进度、聚合 scheduled output 和实际接受数量之间已有一致记账规则；
 - Blocking、结果锁、脉冲锁和专用 `ICraftingMachine` 已回退原版单次派发；
-- 网格 tick 已有 runtime 起始位置轮换和共享 `CraftingDispatchWindow`。
+- 网格 tick 使用 worker ready queue、proposal completion handoff、按 tick retry queue 和共享 `CraftingDispatchWindow`，
+  不再遍历无关 retained worker。
 
 Phase 0 至 Phase 2 已补齐：
 
@@ -116,7 +118,7 @@ Phase 3 同步容量路径现已接入：
 | 阶段 | 当前缺口 | 优先级 |
 | --- | --- | --- |
 | Phase 3 | 已完成：publication identity、同步容量快照、独立 4 ms 采集预算、公平切片、保守 addon 路由和唯一 commit | 已完成 |
-| Phase 4 | worker mailbox、bounded proposal queue、provider shard、machine reservation、generation/stale 校验 | P2 |
+| Phase 4 | 已完成 worker mailbox、bounded proposal queue、generation/stale 校验与事件驱动 worker queue；尚缺 provider shard 和 machine reservation | 进行中 |
 | Phase 5 | 长期指标窗口、`OBSERVING`/`ADAPTIVE`/`SAFE` Governor、独立配置和同步安全回退 | P2 |
 
 计算入口、样板图、SCC/MIP 和循环执行不依赖上述 Phase 3 至 Phase 5，可在保持服务器线程事务边界的前提下作为独立轨道推进。
@@ -214,7 +216,7 @@ Virtual Actor 不等于每个 worker 拥有一个长期占用的操作系统平�
 
 网络重建、供应器移除、机器卸载、维度卸载、访问租约变化、样板目录重发或任务变化后，旧 proposal 必须被服务器线程判定为 `STALE`，不得按旧容量提交。
 
-proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。任何超过生成 tick 仍未提交的 proposal 必须丢弃并基于新快照重新规划。
+proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。proposal 可以跨 tick 等待，但提交前必须重验 grid/runtime/worker/job/work/route/provider/pattern/target 的完整身份与代次；任一不匹配即释放并重新规划。
 
 ## 8. CPU 预选策略
 
@@ -748,12 +750,14 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已增加独立每网格 4 ms 容量采集预算，覆盖只读 prototype 构造和 provider 容量模拟；该预算与 30 ms commit 预算分别计量；
 - 供应器兼容层不加入任何写行为。
 
-### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）
+### 阶段 4：Virtual Worker Actor 和 Provider Shard（进行中）
 
-- 把纯规划从服务器线程迁移到不可变快照 Actor；
-- 建立有界 proposal 队列；
+- 已把 provider target 选择迁移到只接收不可变快照的独立固定有界 executor；
+- 已建立全局 1024、单 Grid 256、每 worker 单 outstanding 的 proposal admission；
+- 已建立 route/job/work generation lease、取消/暂停/重载清理和服务器线程 provider/输入/能源/账本重验；
+- 已用 worker ready queue、proposal completion handoff 与 retry priority queue 替换 retained worker 全扫描；
 - 以 provider 稳定身份分 shard；
-- 增加 generation 失效、取消和卸载清理；
+- 增加跨 provider 的 machine reservation；
 - 保持所有真实世界提交在服务器线程。
 
 ### 阶段 5：自适应 Governor（后续）

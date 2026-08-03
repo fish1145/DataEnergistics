@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
@@ -20,6 +21,12 @@ public final class ServerLifecycleEventHandler {
     public void onServerStarting(ServerStartingEvent event) {
         stoppingServer = null;
         TrinityPlanningGatewayLifecycle.start(TrinityCraftingConfig.settings());
+        try {
+            TrinityDispatchProposalLifecycle.start();
+        } catch (RuntimeException exception) {
+            TrinityPlanningGatewayLifecycle.stop();
+            throw exception;
+        }
     }
 
     @SubscribeEvent
@@ -33,10 +40,14 @@ public final class ServerLifecycleEventHandler {
             DataTeleportAnchorBlockEntity.clearRuntimeAnchorCache();
         } finally {
             try {
-                TrinityPlanningGatewayLifecycle.stop();
+                TrinityDispatchProposalLifecycle.stop();
             } finally {
-                if (stoppingServer == event.getServer()) {
-                    stoppingServer = null;
+                try {
+                    TrinityPlanningGatewayLifecycle.stop();
+                } finally {
+                    if (stoppingServer == event.getServer()) {
+                        stoppingServer = null;
+                    }
                 }
             }
         }

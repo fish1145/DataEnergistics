@@ -227,6 +227,16 @@ provider registration、counted capability 和 pattern identity 的联合重验�
 AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用 `TARGETED`；公共 counted API 使用 `AGGREGATE`；其余无法证明
 等价的路线使用 `UNKNOWN` 单次。只读 prototype 与 provider 模拟由独立每网格 4 ms 采集窗口计量，不占用或掩盖 commit 预算。
 
+### C-020：worker 全扫描与异步 proposal 缺少 generation 租约
+
+旧 runtime 每 tick 复制并遍历全部 retained worker；即使只有一个输出或 proposal 完成，也会重新访问无关 worker。纯 provider 目标选择
+也只能留在服务器线程，且没有统一 token 证明结果仍属于相同 grid/runtime/worker/job/work/VirtualGrid route。
+
+修复：worker 层增加去重 ready queue、proposal completion handoff 和按 tick retry priority queue；输出、恢复和异步完成只唤醒相关
+worker。独立固定有界 executor 只接收 `ProviderCapacitySnapshot` 与 scalar generation lease；每 worker 最多一个 outstanding、单 Grid 最多
+256、全局队列 1024。服务器线程重新构造输入 prototype，并沿 Phase 3 resolver/committer 重验和提交；队列拒绝或 executor 异常使用
+同步安全路径。暂停、route 失效、取消、作业结束和重载都会释放 transient ticket，proposal 不写 NBT。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -250,6 +260,7 @@ AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用
 | C-017 | VirtualGrid typed execution route | 已完成 | 完整 route token、VirtualGrid 跨网格提交与 470 项 GameTest |
 | C-018 | 机会规划三态边界与精确 firing identity | 已完成 | selector、结构边界命中、ordinary/radix 精确窗口与 `Long.MAX_VALUE` 直接契约测试 |
 | C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
+| C-020 | worker event queue、bounded proposal 与 generation lease | 已完成；provider shard/reservation 待 C-021 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
 
 ## 5. 风险与控制
 

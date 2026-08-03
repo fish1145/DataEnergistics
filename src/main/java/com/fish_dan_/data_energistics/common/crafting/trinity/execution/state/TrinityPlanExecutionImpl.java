@@ -32,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
 
@@ -207,6 +208,18 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             return Status.WAITING_INPUT;
         }
         return Status.READY;
+    }
+
+    @Override
+    public OptionalLong nextRetryTick() {
+        long nextRetry = this.budgetRetryAt;
+        for (StageState stage : this.stages.values()) {
+            if (stage.waitKind.retrying() && stage.retryAt >= 0L &&
+                    (nextRetry < 0L || stage.retryAt < nextRetry)) {
+                nextRetry = stage.retryAt;
+            }
+        }
+        return nextRetry < 0L ? OptionalLong.empty() : OptionalLong.of(nextRetry);
     }
 
     @Override

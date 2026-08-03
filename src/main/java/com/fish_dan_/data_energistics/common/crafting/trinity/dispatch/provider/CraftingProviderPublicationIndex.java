@@ -19,6 +19,13 @@ import java.util.List;
 public interface CraftingProviderPublicationIndex {
 
     /**
+     * Returns the process-local identity of this service-grid publication index.
+     *
+     * @return positive scope shared by every provider ID from this index
+     */
+    long publicationScope();
+
+    /**
      * Returns the generation changed by every successful publication or removal.
      *
      * @return non-negative monotonic revision

@@ -12,6 +12,7 @@ import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 /**
@@ -119,6 +120,13 @@ public interface TrinityPlanExecution {
      * @return current scheduler-visible state
      */
     Status status();
+
+    /**
+     * Returns the earliest deterministic provider, dynamic-input or budget retry tick.
+     *
+     * @return retry tick, or empty when the current status is not time-gated
+     */
+    OptionalLong nextRetryTick();
 
     /**
      * @return catalog revision against which current remaining stages were planned

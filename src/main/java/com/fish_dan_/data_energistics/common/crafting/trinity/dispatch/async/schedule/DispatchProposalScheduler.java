@@ -1,0 +1,73 @@
+package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule;
+
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
+
+/**
+ * Independent bounded executor for pure dispatch-proposal calculations.
+ *
+ * <p>
+ * Submission never mutates crafting resources. A rejected submission leaves no worker or grid permit behind, allowing
+ * the caller to retry or use the synchronous Phase 3 path.
+ * </p>
+ */
+public interface DispatchProposalScheduler extends AutoCloseable {
+
+    /** @return scheduler using the architecture hard limits */
+    static DispatchProposalScheduler create() {
+        return create(DispatchProposalLimits.defaults());
+    }
+
+    /**
+     * Creates an independent bounded scheduler.
+     *
+     * @param limits immutable executor limits
+     * @return running scheduler
+     */
+    static DispatchProposalScheduler create(DispatchProposalLimits limits) {
+        return new DispatchProposalSchedulerImpl(limits);
+    }
+
+    /**
+     * Attempts to admit one worker proposal.
+     *
+     * @param request immutable server-thread snapshot
+     * @param wakeup  non-blocking callback that only enqueues the owning worker after completion
+     * @return accepted ticket or an explicit rejection that owns no resources
+     */
+    Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup);
+
+    /** Cancels all outstanding tickets and stops the independent executor. */
+    @Override
+    void close();
+
+    /** Submission result without exceptions for expected bounded-capacity rejection. */
+    sealed interface Submission permits Accepted, Rejected {}
+
+    /** @param ticket admitted outstanding ticket */
+    record Accepted(DispatchProposalTicket ticket) implements Submission {
+
+        public Accepted {
+            if (ticket == null) {
+                throw new IllegalArgumentException("Accepted dispatch proposal ticket must not be null");
+            }
+        }
+    }
+
+    /** @param reason expected admission rejection */
+    record Rejected(RejectionReason reason) implements Submission {
+
+        public Rejected {
+            if (reason == null) {
+                throw new IllegalArgumentException("Dispatch proposal rejection reason must not be null");
+            }
+        }
+    }
+
+    /** Bounded admission reasons used by the server thread to select retry or synchronous fallback. */
+    enum RejectionReason {
+        WORKER_BUSY,
+        GRID_LIMIT,
+        QUEUE_FULL,
+        CLOSED
+    }
+}

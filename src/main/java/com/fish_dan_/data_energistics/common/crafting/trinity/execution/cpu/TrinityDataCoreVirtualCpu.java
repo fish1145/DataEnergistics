@@ -28,6 +28,7 @@ import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -258,6 +259,22 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     boolean isOnline() {
         return this.host.craftingExecutionRoute() != null;
+    }
+
+    TrinityCraftingExecutionRoute executionRoute() {
+        return this.host.craftingExecutionRoute();
+    }
+
+    UUID runtimeId() {
+        return this.runtime.runtimeId();
+    }
+
+    long runtimeGeneration() {
+        return this.runtime.runtimeGeneration();
+    }
+
+    void proposalCompleted() {
+        this.runtime.workerProposalCompleted(number());
     }
 
     @Override
