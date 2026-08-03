@@ -14,13 +14,19 @@ public final class TrinityCraftingConfigTest {
         TrinityCraftingConfig.Settings settings = TrinityCraftingConfig.Settings.defaults(12);
 
         assertEquals(64, settings.maxSccKeys());
-        assertEquals(512, settings.maxBindingVariants());
+        assertEquals(32_768, settings.maxBindingVariants());
         assertEquals(500_000, settings.maxScheduleStates());
         assertEquals(4, settings.graphRebuildBudgetMs());
         assertEquals(6, settings.plannerThreads());
         assertEquals(128, settings.plannerQueueCapacity());
         assertEquals(200, settings.dynamicRetryMaxTicks());
         assertEquals(CraftingQuantityMode.NET_NEW, settings.defaultQuantityMode());
+    }
+
+    @Test
+    void migratesOnlyTheLegacyBindingVariantDefault() {
+        assertEquals(32_768, TrinityCraftingConfig.migrateBindingVariantLimit(512));
+        assertEquals(4_096, TrinityCraftingConfig.migrateBindingVariantLimit(4_096));
     }
 
     @Test

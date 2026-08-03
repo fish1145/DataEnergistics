@@ -23,7 +23,9 @@ public final class TrinityCraftingConfig {
     /** Default maximum number of keys solved inside one strongly connected component. */
     public static final int DEFAULT_MAX_SCC_KEYS = 64;
     /** Default maximum number of legal input-binding variants materialized per request. */
-    public static final int DEFAULT_MAX_BINDING_VARIANTS = 512;
+    public static final int DEFAULT_MAX_BINDING_VARIANTS = 32_768;
+    /** Previous default migrated because it incorrectly rejected ordinary graphs at their 513th pattern. */
+    private static final int LEGACY_MAX_BINDING_VARIANTS = 512;
     /** Default upper bound for compressed scheduling-search states. */
     public static final int DEFAULT_MAX_SCHEDULE_STATES = 500_000;
     /** Default server-thread graph rebuild budget per tick, in milliseconds. */
@@ -111,15 +113,33 @@ public final class TrinityCraftingConfig {
         if (event.getConfig().getSpec() != SPEC) {
             return;
         }
+        int configuredBindingVariants = MAX_BINDING_VARIANTS.get();
+        int maxBindingVariants = migrateBindingVariantLimit(configuredBindingVariants);
+        if (maxBindingVariants != configuredBindingVariants) {
+            MAX_BINDING_VARIANTS.set(maxBindingVariants);
+            var loadedConfig = event.getConfig().getLoadedConfig();
+            if (loadedConfig == null) {
+                throw new IllegalStateException("Loaded Trinity crafting config is unavailable during migration");
+            }
+            loadedConfig.save();
+            Data_Energistics.LOGGER.info(
+                    "Migrated Trinity maxBindingVariants from {} to {}",
+                    LEGACY_MAX_BINDING_VARIANTS,
+                    maxBindingVariants);
+        }
         current = new Settings(
                 MAX_SCC_KEYS.get(),
-                MAX_BINDING_VARIANTS.get(),
+                maxBindingVariants,
                 MAX_SCHEDULE_STATES.get(),
                 GRAPH_REBUILD_BUDGET_MS.get(),
                 PLANNER_THREADS.get(),
                 PLANNER_QUEUE_CAPACITY.get(),
                 DYNAMIC_RETRY_MAX_TICKS.get(),
                 DEFAULT_QUANTITY.get());
+    }
+
+    static int migrateBindingVariantLimit(int configuredLimit) {
+        return configuredLimit == LEGACY_MAX_BINDING_VARIANTS ? DEFAULT_MAX_BINDING_VARIANTS : configuredLimit;
     }
 
     /**

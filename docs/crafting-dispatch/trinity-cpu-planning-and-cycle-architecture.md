@@ -70,7 +70,8 @@ flowchart LR
 - 稳定 publication signature。
 
 每组合法输入选择形成一个 pattern binding variant。variant 只包含不可变 `AEKey`、数量和稳定签名，不保存
-provider、BlockEntity 或世界引用。
+provider、BlockEntity 或世界引用。变体预算只统计每个样板规范首绑定之外的额外笛卡尔分支；唯一绑定样板属于
+基础图规模，不消耗该预算。单样板笛卡尔积仍单独受同一上限约束。
 
 ### 4.2 Revision 与重建
 
@@ -317,7 +318,7 @@ COMMON 默认值：
 | 配置 | 默认值 |
 | --- | ---: |
 | `maxSccKeys` | 64 |
-| `maxBindingVariants` | 512 |
+| `maxBindingVariants` | 32768 |
 | `maxScheduleStates` | 500000 |
 | `graphRebuildBudgetMs` | 4 |
 | `plannerThreads` | `max(1, min(8, availableProcessors / 2))` |

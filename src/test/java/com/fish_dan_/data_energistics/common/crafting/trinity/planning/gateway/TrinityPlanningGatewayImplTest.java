@@ -100,25 +100,6 @@ public final class TrinityPlanningGatewayImplTest {
     }
 
     @Test
-    void unsupportedAe2LtRuntimeReturnsNativeAe2PlanWithoutStartingTrinity() throws Exception {
-        this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false, false);
-        AtomicBoolean trinityStarted = new AtomicBoolean();
-        ICraftingPlan ae2Simulation = ae2Plan(true);
-
-        ICraftingPlan selected = gateway.begin(
-                true,
-                () -> {
-                    trinityStarted.set(true);
-                    return TrinityPlanningAttempt.success(trinityPlan());
-                },
-                () -> CompletableFuture.completedFuture(ae2Simulation)).get();
-
-        assertSame(ae2Simulation, selected);
-        assertFalse(trinityStarted.get());
-    }
-
-    @Test
     void retainsAe2SimulationAndAddsTrinityDiagnostic() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);

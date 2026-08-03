@@ -20,7 +20,9 @@ public interface TrinityPatternVariantExpander {
 
     /**
      * @param snapshot    immutable graph revision
-     * @param maxVariants hard cap checked before materialization
+     * @param maxVariants hard cap for one Cartesian product and for additional binding branches across the graph;
+     *                    every pattern's canonical first binding belongs to the base graph and does not consume this
+     *                    budget
      * @return complete identity-ordered variants or {@code VARIANT_LIMIT}
      */
     TrinityAlgorithmResult<List<TrinityPatternVariant>> expand(

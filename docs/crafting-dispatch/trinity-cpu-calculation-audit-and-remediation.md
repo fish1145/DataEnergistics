@@ -9,7 +9,9 @@ Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftin
 worker proposal、generation lease、固定 provider shard 和事件驱动调度也已接入，无法证明等价的 addon 路线保留
 原生单次语义。Phase 5 当前已接入独立 COMMON 配置、只观察的 per-grid Governor，以及跨 Grid 共享的服务器 tick
 动态发配边界；完整 tick、capacity、proposal、commit、接受率、stale、logical-per-physical-call 与 worker share
-均为运行时派生指标。预算耗尽已与 stale/provider 拒绝分离；自适应和 SAFE 切换尚未启用。
+均为运行时派生指标。预算耗尽已与 stale/provider 拒绝分离；大型图的 binding variant 上限也已改为只计算额外
+笛卡尔分支，默认及旧默认配置迁移为 `32768`，普通唯一绑定样板不再在全图第 513 个位置误回退 AE2。自适应和
+SAFE 切换尚未启用。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -145,6 +147,14 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 修复：建立唯一的 `TrinityPlanAdmission`。AE2 原生 `CraftingPlan` 与显式 opt-in 的
 `TrinityCpuExecutablePlan` 可提交；未知扩展计划在显式/直接路径拒绝，在自动/fallback 路径交回原实现。Mixin 和
 `TrinityDataCoreVirtualCpu` 均调用同一契约，不硬依赖 Thunderbolt，也不使用反射。
+
+Thunderbolt Core 提交
+[`45cb112`](https://github.com/ae2lt/Thunderbolt-Core/commit/45cb112cc954409e997e5137a244c47515c051f0)
+只在 `CraftingPlanSummary.fromJob` 的显示边界将任意第三方 `ICraftingPlan` 投影为 AE2 原生 `CraftingPlan`；确认菜单保存和
+CPU 提交仍使用原始计划。该提交可消除 Trinity 扩展/诊断计划在摘要层的具体类型强转异常，但不会改变计划所有权：
+`LoopCraftingPlan` 仍必须由 Thunderbolt/TimeWheel 执行，Trinity 的显式、自动、fallback 和最终 CPU 接纳门禁均保持拒绝。
+Thunderbolt Core 当前没有 release，且该提交后的 `mod_version` 仍为 `1.0.0`，因此不能按版本号可靠探测这一摘要能力；
+这项摘要兼容也不等同于重新启用 DataE 对不受支持 AE2LT 版本的运行时适配。
 
 ### C-012：重载后的绝对 retry tick 与未标脏迁移会冻结作业
 

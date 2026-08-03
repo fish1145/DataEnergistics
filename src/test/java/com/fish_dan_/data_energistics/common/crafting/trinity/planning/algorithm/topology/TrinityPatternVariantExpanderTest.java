@@ -84,6 +84,45 @@ public final class TrinityPatternVariantExpanderTest {
     }
 
     @Test
+    void canonicalBindingsDoNotConsumeTheAdditionalBranchBudget() {
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(3L, List.of(
+                pattern(
+                        new TrinityPatternIdentity("definition-0", "publication-0"),
+                        List.of(input(1L, alternative(Items.IRON_INGOT, 1L, null))),
+                        stack(Items.DIAMOND, 1L)),
+                pattern(
+                        new TrinityPatternIdentity("definition-1", "publication-1"),
+                        List.of(input(1L, alternative(Items.GOLD_INGOT, 1L, null))),
+                        stack(Items.DIAMOND, 1L)),
+                pattern(
+                        new TrinityPatternIdentity("definition-2", "publication-2"),
+                        List.of(input(1L, alternative(Items.REDSTONE, 1L, null))),
+                        stack(Items.DIAMOND, 1L)),
+                pattern(
+                        new TrinityPatternIdentity("definition-3", "publication-3"),
+                        List.of(input(1L, alternative(Items.COAL, 1L, null))),
+                        stack(Items.DIAMOND, 1L)),
+                pattern(
+                        new TrinityPatternIdentity("definition-4", "publication-4"),
+                        List.of(
+                                input(1L,
+                                        alternative(Items.IRON_INGOT, 1L, null),
+                                        alternative(Items.GOLD_INGOT, 1L, null)),
+                                input(1L,
+                                        alternative(Items.REDSTONE, 1L, null),
+                                        alternative(Items.COAL, 1L, null))),
+                        stack(Items.DIAMOND, 1L))));
+
+        TrinityAlgorithmResult<List<TrinityPatternVariant>> result = TrinityPatternVariantExpander.create()
+                .expand(snapshot, 4);
+
+        assertTrue(result.successful());
+        assertEquals(8, result.value().size());
+        assertEquals("publication-0", result.value().getFirst().patternIdentity().publicationEncoding());
+        assertEquals("publication-4", result.value().getLast().patternIdentity().publicationEncoding());
+    }
+
+    @Test
     void retainsProductsBeyondLongWithoutIntermediateOverflow() {
         TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(3L, List.of(pattern(
                 new TrinityPatternIdentity("definition", "publication"),

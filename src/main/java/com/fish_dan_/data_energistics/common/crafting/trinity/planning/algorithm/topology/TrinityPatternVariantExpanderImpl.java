@@ -31,29 +31,50 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
         }
 
         BigInteger limit = BigInteger.valueOf(maxVariants);
-        BigInteger total = BigInteger.ZERO;
+        BigInteger additionalBranches = BigInteger.ZERO;
         for (TrinityCraftingGraphPattern pattern : snapshot.patterns()) {
             BigInteger patternVariants = BigInteger.ONE;
             for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
                 patternVariants = patternVariants.multiply(BigInteger.valueOf(input.alternatives().size()));
             }
-            total = total.add(patternVariants);
-            if (total.compareTo(limit) > 0) {
-                return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
-                        TrinityPlanningDiagnosticCode.VARIANT_LIMIT,
-                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.variant_limit"),
-                        Map.of(
-                                "limit", Integer.toString(maxVariants),
-                                "required", total.toString(),
-                                "pattern", pattern.identity().publicationEncoding())));
+            if (patternVariants.compareTo(limit) > 0) {
+                return variantLimit(pattern, maxVariants, patternVariants);
+            }
+            additionalBranches = additionalBranches.add(patternVariants.subtract(BigInteger.ONE));
+            if (additionalBranches.compareTo(limit) > 0) {
+                return variantLimit(pattern, maxVariants, additionalBranches);
             }
         }
 
-        ArrayList<TrinityPatternVariant> variants = new ArrayList<>(total.intValueExact());
+        int materializedCapacity;
+        try {
+            materializedCapacity = Math.addExact(snapshot.patterns().size(), additionalBranches.intValueExact());
+        } catch (ArithmeticException overflow) {
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow"),
+                    Map.of(
+                            "patterns", Integer.toString(snapshot.patterns().size()),
+                            "additionalBranches", additionalBranches.toString())));
+        }
+        ArrayList<TrinityPatternVariant> variants = new ArrayList<>(materializedCapacity);
         for (TrinityCraftingGraphPattern pattern : snapshot.patterns()) {
             expandPattern(pattern, variants);
         }
         return TrinityAlgorithmResult.success(List.copyOf(variants));
+    }
+
+    private static TrinityAlgorithmResult<List<TrinityPatternVariant>> variantLimit(
+                                                                                    TrinityCraftingGraphPattern pattern,
+                                                                                    int maxVariants,
+                                                                                    BigInteger required) {
+        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.VARIANT_LIMIT,
+                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.variant_limit"),
+                Map.of(
+                        "limit", Integer.toString(maxVariants),
+                        "required", required.toString(),
+                        "pattern", pattern.identity().publicationEncoding())));
     }
 
     private static void expandPattern(TrinityCraftingGraphPattern pattern,
