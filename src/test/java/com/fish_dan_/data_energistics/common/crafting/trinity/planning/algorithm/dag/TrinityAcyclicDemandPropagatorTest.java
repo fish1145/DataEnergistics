@@ -135,7 +135,7 @@ public final class TrinityAcyclicDemandPropagatorTest {
                 .value();
 
         assertEquals(one.statesVisited(), huge.statesVisited());
-        assertEquals(4, huge.statesVisited());
+        assertEquals(2, huge.statesVisited());
         assertEquals(largeRequest, huge.firings().get(oakTable));
         assertEquals(largeRequest, huge.firings().get(crimsonTable));
         assertEquals(largeRequest, huge.firings().get(finish));
@@ -195,7 +195,7 @@ public final class TrinityAcyclicDemandPropagatorTest {
         assertEquals(BigInteger.valueOf(128L), plan.externalInputs().get(crimsonStem));
         assertEquals(List.of(crimsonPlanks, availableCrimson),
                 plan.executionOrder().stream().map(TrinityVariantFiring::variant).toList());
-        assertEquals(5, plan.statesVisited());
+        assertEquals(2, plan.statesVisited());
     }
 
     @Test
@@ -238,7 +238,7 @@ public final class TrinityAcyclicDemandPropagatorTest {
         assertEquals(BigInteger.valueOf(6L), plan.firings().get(availableMangrove));
         assertEquals(BigInteger.valueOf(16L), plan.externalInputs().get(crimson));
         assertEquals(BigInteger.valueOf(24L), plan.externalInputs().get(mangrove));
-        assertEquals(variants.size(), plan.statesVisited());
+        assertEquals(2, plan.statesVisited());
     }
 
     @Test

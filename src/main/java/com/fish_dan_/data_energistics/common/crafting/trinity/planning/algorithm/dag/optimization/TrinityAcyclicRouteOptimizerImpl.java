@@ -48,11 +48,14 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
 
     private final TrinityIntegerResultVerifier integerVerifier;
     private final TrinityExactConservationVerifier conservationVerifier;
+    private final TrinityAcyclicRoutePruner routePruner;
 
     TrinityAcyclicRouteOptimizerImpl(TrinityIntegerResultVerifier integerVerifier,
-                                     TrinityExactConservationVerifier conservationVerifier) {
+                                     TrinityExactConservationVerifier conservationVerifier,
+                                     TrinityAcyclicRoutePruner routePruner) {
         this.integerVerifier = integerVerifier;
         this.conservationVerifier = conservationVerifier;
+        this.routePruner = routePruner;
     }
 
     @Override
@@ -70,7 +73,10 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                 maxSearchStates <= 0 || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic route optimization requires complete inputs");
         }
-        List<TrinityPatternVariant> reachable = targetReachableVariants(variants, target);
+        List<TrinityPatternVariant> reachable = this.routePruner.retainExecutableTargetRoutes(
+                variants,
+                target,
+                available);
         if (reachable.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
@@ -124,28 +130,45 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         BigInteger optimalFirings = sum(firingResult.value().firings());
         SolvedModel selected = firingResult.value();
         LinkedHashMap<TrinityPatternVariant, BigInteger> fixedPrefix = new LinkedHashMap<>();
+        Map<AEKey, BigInteger> sourceCapacity = sourceCapacity(reachable, inventory);
+        LinkedHashMap<AEKey, BigInteger> fixedSourceConsumption = new LinkedHashMap<>();
+        BigInteger remainingFirings = optimalFirings;
         for (int index = 0; index < reachable.size() - 1; index++) {
             TrinityPatternVariant preferred = reachable.get(index);
-            TrinityAlgorithmResult<SolvedModel> identityResult = solve(
-                    new ModelRequest(
-                            reachable,
-                            target,
-                            requestedAmount,
-                            requiredTargetNet,
-                            quantityMode,
-                            inventory,
-                            new IdentityPass(
-                                    optimalExternal,
-                                    optimalFirings,
-                                    Collections.unmodifiableMap(new LinkedHashMap<>(fixedPrefix)),
-                                    preferred)),
-                    budget,
-                    control);
-            if (!identityResult.successful()) {
-                return TrinityAlgorithmResult.failure(identityResult.diagnostic());
+            if (remainingFirings.signum() == 0) {
+                break;
             }
-            selected = identityResult.value();
-            fixedPrefix.put(preferred, selected.firings().getOrDefault(preferred, BigInteger.ZERO));
+            BigInteger preferredCount = selected.firings().getOrDefault(preferred, BigInteger.ZERO);
+            BigInteger provenUpper = sourceUpperBound(
+                    preferred,
+                    remainingFirings,
+                    sourceCapacity,
+                    fixedSourceConsumption);
+            if (!preferredCount.equals(provenUpper)) {
+                TrinityAlgorithmResult<SolvedModel> identityResult = solve(
+                        new ModelRequest(
+                                reachable,
+                                target,
+                                requestedAmount,
+                                requiredTargetNet,
+                                quantityMode,
+                                inventory,
+                                new IdentityPass(
+                                        optimalExternal,
+                                        optimalFirings,
+                                        Collections.unmodifiableMap(new LinkedHashMap<>(fixedPrefix)),
+                                        preferred)),
+                        budget,
+                        control);
+                if (!identityResult.successful()) {
+                    return TrinityAlgorithmResult.failure(identityResult.diagnostic());
+                }
+                selected = identityResult.value();
+                preferredCount = selected.firings().getOrDefault(preferred, BigInteger.ZERO);
+            }
+            fixedPrefix.put(preferred, preferredCount);
+            remainingFirings = remainingFirings.subtract(preferredCount);
+            mergeSourceConsumption(fixedSourceConsumption, preferred, preferredCount, sourceCapacity.keySet());
         }
         return buildPlan(topology, selected, budget.used());
     }
@@ -502,35 +525,6 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                 states));
     }
 
-    private static List<TrinityPatternVariant> targetReachableVariants(
-                                                                       List<TrinityPatternVariant> variants,
-                                                                       AEKey target) {
-        ArrayList<TrinityPatternVariant> ordered = new ArrayList<>(variants.size());
-        for (TrinityPatternVariant variant : variants) {
-            if (variant == null) {
-                throw new IllegalArgumentException("A Trinity acyclic model cannot contain a null variant");
-            }
-            ordered.add(variant);
-        }
-        ordered.sort(Comparator.naturalOrder());
-        LinkedHashSet<AEKey> requiredKeys = new LinkedHashSet<>();
-        LinkedHashSet<TrinityPatternVariant> reachable = new LinkedHashSet<>();
-        requiredKeys.add(target);
-        boolean changed;
-        do {
-            changed = false;
-            for (TrinityPatternVariant variant : ordered) {
-                if (reachable.contains(variant) ||
-                        Collections.disjoint(variant.outputs().keySet(), requiredKeys)) {
-                    continue;
-                }
-                reachable.add(variant);
-                changed |= requiredKeys.addAll(variant.inputs().keySet());
-            }
-        } while (changed);
-        return reachable.stream().sorted().toList();
-    }
-
     private static Set<AEKey> touchedKeys(List<TrinityPatternVariant> variants, AEKey target) {
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
         keys.add(target);
@@ -539,6 +533,51 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
             keys.addAll(variant.outputs().keySet());
         });
         return Collections.unmodifiableSet(keys);
+    }
+
+    private static Map<AEKey, BigInteger> sourceCapacity(
+                                                         List<TrinityPatternVariant> variants,
+                                                         Map<AEKey, BigInteger> available) {
+        LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
+        variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
+        LinkedHashMap<AEKey, BigInteger> capacity = new LinkedHashMap<>();
+        variants.forEach(variant -> variant.inputs().keySet().stream()
+                .filter(key -> !produced.contains(key))
+                .forEach(key -> capacity.putIfAbsent(key, available.getOrDefault(key, BigInteger.ZERO))));
+        return Collections.unmodifiableMap(capacity);
+    }
+
+    private static BigInteger sourceUpperBound(
+                                               TrinityPatternVariant variant,
+                                               BigInteger remainingFirings,
+                                               Map<AEKey, BigInteger> sourceCapacity,
+                                               Map<AEKey, BigInteger> fixedSourceConsumption) {
+        BigInteger upper = remainingFirings;
+        for (Map.Entry<AEKey, BigInteger> input : variant.inputs().entrySet()) {
+            BigInteger capacity = sourceCapacity.get(input.getKey());
+            if (capacity == null) {
+                continue;
+            }
+            BigInteger remaining = capacity.subtract(
+                    fixedSourceConsumption.getOrDefault(input.getKey(), BigInteger.ZERO));
+            upper = upper.min(remaining.max(BigInteger.ZERO).divide(input.getValue()));
+        }
+        return upper;
+    }
+
+    private static void mergeSourceConsumption(
+                                               Map<AEKey, BigInteger> consumption,
+                                               TrinityPatternVariant variant,
+                                               BigInteger count,
+                                               Set<AEKey> sourceKeys) {
+        if (count.signum() == 0) {
+            return;
+        }
+        variant.inputs().forEach((key, amount) -> {
+            if (sourceKeys.contains(key)) {
+                consumption.merge(key, amount.multiply(count), BigInteger::add);
+            }
+        });
     }
 
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {

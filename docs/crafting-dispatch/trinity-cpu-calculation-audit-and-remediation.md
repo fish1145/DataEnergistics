@@ -81,6 +81,10 @@ ojAlgo 返回的整数变量允许按其本次 integrality tolerance 消除浮�
 
 修复：无环区域使用批量需求传播；输入输出重叠使用精确前缀余额；多路线 SCC 使用整数模型和压缩排程验证。
 
+当前状态：目标反向可达性已改为 producer 索引驱动的 `O(V + E)` 遍历，并在同一遍正向传播中移除库存不可达路线。
+唯一可行路线直接使用 `BigInteger` 批量传播；多路线词典序阶段在 source-capacity 能精确证明 firing 上界时跳过重复
+identity MIP。状态数只随图与有效路线数量增长，不随 256M 等请求数量逐个展开。
+
 ### C-004：最终输出被提前交付，循环失去 seed
 
 `TrinityDataCoreCpuLogic.insert` 对非 standalone 作业使用：

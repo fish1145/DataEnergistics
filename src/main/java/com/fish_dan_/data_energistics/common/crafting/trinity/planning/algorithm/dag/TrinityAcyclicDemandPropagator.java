@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -22,7 +23,9 @@ public interface TrinityAcyclicDemandPropagator {
      * @return stateless exact propagator
      */
     static TrinityAcyclicDemandPropagator create() {
-        return new TrinityAcyclicDemandPropagatorImpl(TrinityAcyclicRouteOptimizer.create());
+        return new TrinityAcyclicDemandPropagatorImpl(
+                TrinityAcyclicRouteOptimizer.create(),
+                TrinityAcyclicRoutePruner.create());
     }
 
     /**

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
@@ -29,9 +30,12 @@ import java.util.Map;
 final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPropagator {
 
     private final TrinityAcyclicRouteOptimizer routeOptimizer;
+    private final TrinityAcyclicRoutePruner routePruner;
 
-    TrinityAcyclicDemandPropagatorImpl(TrinityAcyclicRouteOptimizer routeOptimizer) {
+    TrinityAcyclicDemandPropagatorImpl(TrinityAcyclicRouteOptimizer routeOptimizer,
+                                       TrinityAcyclicRoutePruner routePruner) {
         this.routeOptimizer = routeOptimizer;
+        this.routePruner = routePruner;
     }
 
     @Override
@@ -53,7 +57,6 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
         if (initialState != StopState.RUNNING) {
             return stopped(initialState);
         }
-        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(variants);
         Integer targetComponent = topology.componentByKey().get(target);
         if (targetComponent == null) {
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
@@ -75,10 +78,16 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
                         Map.of("component", Integer.toString(component.index()))));
             }
         }
+        List<TrinityPatternVariant> executableRoutes = this.routePruner.retainExecutableTargetRoutes(
+                variants,
+                target,
+                available);
+        List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
+        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants);
         if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
             return this.routeOptimizer.optimize(
                     topology,
-                    variants,
+                    planningVariants,
                     target,
                     requestedAmount,
                     quantityMode,

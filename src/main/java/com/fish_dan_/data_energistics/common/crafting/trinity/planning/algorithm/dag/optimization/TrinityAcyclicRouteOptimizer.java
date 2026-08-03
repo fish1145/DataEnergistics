@@ -26,7 +26,8 @@ public interface TrinityAcyclicRouteOptimizer {
     static TrinityAcyclicRouteOptimizer create() {
         return new TrinityAcyclicRouteOptimizerImpl(
                 TrinityIntegerResultVerifier.create(),
-                TrinityExactConservationVerifier.create());
+                TrinityExactConservationVerifier.create(),
+                TrinityAcyclicRoutePruner.create());
     }
 
     /**
