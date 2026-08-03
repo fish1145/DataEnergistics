@@ -294,6 +294,16 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 身份；只有 revision、本地展示输入或显式刷新变化时才重建列表。为没有发布 AE2 crafting revision 的第三方展示变化保留
 100 tick 一次的一致性刷新，不再每 5 tick 全量扫描。
 
+### C-024：旧版 Pattern Core 缺少 refund outbox 后被永久拒绝
+
+durable refund outbox 引入前的合法 V2 状态包含 `version=2`、core identity、容量和 `slots`，但没有
+`refund_outbox`。当前读取器把缺少 outbox 一律视为损坏，使旧世界中的核心进入 `REJECTED`；随后真实玩家拆除无法冻结
+掉落快照，方块也会拒绝移除。
+
+修复：Pattern Core 当前持久化 schema 显式标记为 V3。只有完整验证通过的 `version=2 + slots` 旧状态才原子迁移为空
+outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 字段、schema 混用、未知版本或损坏 V3 继续 fail fast。
+迁移后的真实玩家拆除、独立样板掉落、保留工作重放和退款不复制由同一 GameTest 覆盖。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -321,6 +331,7 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 | C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
 | C-022 | 目标可达图缓存与确定性复杂度边界 | 已完成 | 大型图不使用墙钟截止，取消/图/variant/状态边界保持生效 |
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
+| C-024 | Pattern Core V2→V3 版本化迁移 | 已完成 | 原子迁移、损坏状态拒绝与真实玩家拆除/掉落/重放 GameTest |
 
 ## 5. 风险与控制
 
@@ -386,7 +397,7 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-023 均有直接行为测试或集成证据；
+1. C-001 至 C-024 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；
