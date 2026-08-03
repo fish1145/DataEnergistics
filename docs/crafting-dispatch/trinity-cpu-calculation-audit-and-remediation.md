@@ -5,8 +5,10 @@
 当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
 已完成 Trinity 独立 DAG/SCC 计算内核、schema 2、seed 输出门、动态借料和事件执行器。扩展计划已经可以由真实
 Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。Phase 3 同步
-派发已改为 publication identity、不可变容量快照、公平 target slice 和唯一 commit 边界；无法证明等价的 addon 路线
-保留原生单次语义。
+派发已改为 publication identity、不可变容量快照、公平 target slice 和唯一 commit 边界；Phase 4 的
+worker proposal、generation lease、固定 provider shard 和事件驱动调度也已接入，无法证明等价的 addon 路线保留
+原生单次语义。Phase 5 当前已接入独立 COMMON 配置和只观察的 per-grid Governor，完整 tick、capacity、proposal、
+commit、接受率、stale、logical-per-physical-call 与 worker share 均为运行时派生指标；自适应和 SAFE 切换尚未启用。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。

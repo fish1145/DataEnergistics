@@ -12,7 +12,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
  */
 public interface DispatchProposalScheduler extends AutoCloseable {
 
-    /** @return scheduler using the architecture hard limits */
+    /**
+     * @return scheduler using the architecture hard limits
+     */
     static DispatchProposalScheduler create() {
         return create(DispatchProposalLimits.defaults());
     }
@@ -36,14 +38,33 @@ public interface DispatchProposalScheduler extends AutoCloseable {
      */
     Submission submit(CraftingDispatchProposalRequest request, Runnable wakeup);
 
-    /** Cancels all outstanding tickets and stops the independent executor. */
+    /**
+     * Drains accumulated proposal timing and admission facts for one process-local grid generation.
+     *
+     * <p>
+     * Current queue depth and outstanding counts are snapshots and are not reset.
+     * </p>
+     *
+     * @param gridGeneration current grid publication scope
+     * @return independent immutable metrics
+     */
+    DispatchProposalMetrics snapshotAndResetMetrics(long gridGeneration);
+
+    /**
+     * Cancels all outstanding tickets and stops the independent executor.
+     */
     @Override
     void close();
 
-    /** Submission result without exceptions for expected bounded-capacity rejection. */
-    sealed interface Submission permits Accepted, Rejected {}
+    /**
+     * Submission result without exceptions for expected bounded-capacity rejection.
+     */
+    sealed interface Submission permits Accepted, Rejected {
+    }
 
-    /** @param ticket admitted outstanding ticket */
+    /**
+     * @param ticket admitted outstanding ticket
+     */
     record Accepted(DispatchProposalTicket ticket) implements Submission {
 
         public Accepted {
@@ -53,7 +74,9 @@ public interface DispatchProposalScheduler extends AutoCloseable {
         }
     }
 
-    /** @param reason expected admission rejection */
+    /**
+     * @param reason expected admission rejection
+     */
     record Rejected(RejectionReason reason) implements Submission {
 
         public Rejected {
@@ -63,7 +86,9 @@ public interface DispatchProposalScheduler extends AutoCloseable {
         }
     }
 
-    /** Bounded admission reasons used by the server thread to select retry or synchronous fallback. */
+    /**
+     * Bounded admission reasons used by the server thread to select retry or synchronous fallback.
+     */
     enum RejectionReason {
         WORKER_BUSY,
         GRID_LIMIT,

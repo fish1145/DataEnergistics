@@ -55,6 +55,9 @@ public interface TrinityWorkerProposalCoordinator {
     /** Releases the currently consumed ready proposal after server-thread commit or rejection. */
     void release();
 
+    /** Records and releases a proposal rejected by server-thread generation or route revalidation. */
+    void discardStale();
+
     /** Cancels any outstanding proposal during job, route, reload or worker lifecycle changes. */
     void cancel();
 

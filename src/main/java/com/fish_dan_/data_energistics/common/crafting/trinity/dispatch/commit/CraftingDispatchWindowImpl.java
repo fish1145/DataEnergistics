@@ -9,6 +9,7 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -16,31 +17,59 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.LongSupplier;
 
-/** Identity-based in-memory {@link CraftingDispatchWindow} implementation for one server tick. */
+/**
+ * Identity-based in-memory {@link CraftingDispatchWindow} implementation for one server tick.
+ */
 final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
-    /** Mutable attempt state retained only for providers observed during this window. */
+    /**
+     * Mutable attempt state retained only for providers observed during this window.
+     */
     private final Map<ICraftingProvider, ProviderState> states = new IdentityHashMap<>();
-    /** Result counters expose rejection and ownership behavior without leaking mutable provider state. */
+    /**
+     * Result counters expose rejection and ownership behavior without leaking mutable provider state.
+     */
     private final Map<CraftingDispatchStatus, Integer> resultCounts = new EnumMap<>(CraftingDispatchStatus.class);
-    /** Immutable hard limits shared by physical call and measured server-time accounting. */
+    /**
+     * Immutable hard limits shared by physical call and measured server-time accounting.
+     */
     private final CraftingDispatchLimits limits;
-    /** Injectable monotonic source keeps time-boundary behavior deterministic in direct logic tests. */
+    /**
+     * Injectable monotonic source keeps time-boundary behavior deterministic in direct logic tests.
+     */
     private final LongSupplier nanoClock;
-    /** Number of real physical submissions already acquired across all providers. */
+    /**
+     * Number of real physical submissions already acquired across all providers.
+     */
     private int attemptCount;
-    /** Number of completed provider preparation and submission paths. */
+    /**
+     * Number of completed provider preparation and submission paths.
+     */
     private int serverSubmissionCount;
-    /** Accumulated time spent in completed provider preparation and submission paths. */
+    /**
+     * Accumulated time spent in completed provider preparation and submission paths.
+     */
     private long serverSubmissionNanos;
-    /** Number of completed read-only provider-capacity captures. */
+    /**
+     * Number of completed read-only provider-capacity captures.
+     */
     private int capacityCaptureCount;
-    /** Accumulated time spent in completed read-only provider-capacity captures. */
+    /**
+     * Accumulated time spent in completed read-only provider-capacity captures.
+     */
     private long capacityCaptureNanos;
-    /** Single server-thread scope currently measuring provider work. */
+    /**
+     * Logical firings committed through counted physical submissions.
+     */
+    private BigInteger committedLogicalCrafts = BigInteger.ZERO;
+    /**
+     * Single server-thread scope currently measuring provider work.
+     */
     @Nullable
     private SubmissionScopeImpl activeSubmission;
-    /** Single server-thread scope currently measuring capacity simulation. */
+    /**
+     * Single server-thread scope currently measuring capacity simulation.
+     */
     @Nullable
     private CapacityCaptureScopeImpl activeCapacityCapture;
 
@@ -74,9 +103,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
     @Override
     public boolean canAttempt(
-                              ICraftingProvider provider,
-                              IPatternDetails pattern,
-                              CraftingDispatchTarget target) {
+            ICraftingProvider provider,
+            IPatternDetails pattern,
+            CraftingDispatchTarget target) {
         validateProvider(provider);
         validatePattern(pattern);
         validateTarget(target);
@@ -131,10 +160,10 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
     @Override
     public void recordResult(
-                             ICraftingProvider provider,
-                             IPatternDetails pattern,
-                             @Nullable CraftingDispatchTarget target,
-                             CraftingDispatchStatus status) {
+            ICraftingProvider provider,
+            IPatternDetails pattern,
+            @Nullable CraftingDispatchTarget target,
+            CraftingDispatchStatus status) {
         validateProvider(provider);
         validatePattern(pattern);
         validateStatus(status);
@@ -162,6 +191,19 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
     public int resultCount(CraftingDispatchStatus status) {
         validateStatus(status);
         return this.resultCounts.getOrDefault(status, 0);
+    }
+
+    @Override
+    public void recordCommittedLogicalCrafts(long logicalCrafts) {
+        if (logicalCrafts <= 0L) {
+            throw new IllegalArgumentException("Committed logical craft count must be positive");
+        }
+        this.committedLogicalCrafts = this.committedLogicalCrafts.add(BigInteger.valueOf(logicalCrafts));
+    }
+
+    @Override
+    public BigInteger committedLogicalCrafts() {
+        return this.committedLogicalCrafts;
     }
 
     @Override
@@ -195,13 +237,17 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         return this.capacityCaptureNanos;
     }
 
-    /** Checks global budgets using only completed work so an active preparation can still filter exact targets. */
+    /**
+     * Checks global budgets using only completed work so an active preparation can still filter exact targets.
+     */
     private boolean hasCompletedGlobalCapacity() {
         return this.attemptCount < this.limits.maxAttemptsPerGrid() &&
                 this.serverSubmissionNanos < this.limits.maxServerSubmissionNanos();
     }
 
-    /** Includes an active provider path when reporting whether later work must stop. */
+    /**
+     * Includes an active provider path when reporting whether later work must stop.
+     */
     private long currentServerSubmissionNanos() {
         SubmissionScopeImpl submission = this.activeSubmission;
         if (submission == null) {
@@ -210,7 +256,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         return Math.addExact(this.serverSubmissionNanos, submission.elapsedNanos());
     }
 
-    /** Verifies an active scope still has time before acquiring another irreversible physical call. */
+    /**
+     * Verifies an active scope still has time before acquiring another irreversible physical call.
+     */
     private boolean hasServerSubmissionTime(SubmissionScopeImpl submission) {
         long projectedNanos = Math.addExact(this.serverSubmissionNanos, submission.elapsedNanos());
         return projectedNanos < this.limits.maxServerSubmissionNanos();
@@ -240,22 +288,32 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         }
     }
 
-    /** Server-thread-confined timing scope for one provider preparation and submission path. */
+    /**
+     * Server-thread-confined timing scope for one provider preparation and submission path.
+     */
     private final class SubmissionScopeImpl implements SubmissionScope {
 
-        /** Provider whose path owns every physical call acquired by this scope. */
+        /**
+         * Provider whose path owns every physical call acquired by this scope.
+         */
         private final ICraftingProvider provider;
-        /** Exact pattern prepared by this scope. */
+        /**
+         * Exact pattern prepared by this scope.
+         */
         private final IPatternDetails pattern;
-        /** Monotonic timestamp captured immediately before provider work begins. */
+        /**
+         * Monotonic timestamp captured immediately before provider work begins.
+         */
         private final long startedAtNanos;
-        /** Closed scopes reject reuse and double-close mistakes. */
+        /**
+         * Closed scopes reject reuse and double-close mistakes.
+         */
         private boolean closed;
 
         private SubmissionScopeImpl(
-                                    ICraftingProvider provider,
-                                    IPatternDetails pattern,
-                                    long startedAtNanos) {
+                ICraftingProvider provider,
+                IPatternDetails pattern,
+                long startedAtNanos) {
             this.provider = provider;
             this.pattern = pattern;
             this.startedAtNanos = startedAtNanos;
@@ -291,7 +349,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             }
         }
 
-        /** Returns elapsed monotonic time and rejects a clock that moved backwards. */
+        /**
+         * Returns elapsed monotonic time and rejects a clock that moved backwards.
+         */
         private long elapsedNanos() {
             long elapsedNanos = nanoClock.getAsLong() - this.startedAtNanos;
             if (elapsedNanos < 0L) {
@@ -300,7 +360,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             return elapsedNanos;
         }
 
-        /** Ensures only the current, open scope can mutate its parent window. */
+        /**
+         * Ensures only the current, open scope can mutate its parent window.
+         */
         private void requireActive() {
             if (this.closed) {
                 throw new IllegalStateException("Crafting dispatch submission scope is already closed");
@@ -311,12 +373,18 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         }
     }
 
-    /** Server-thread-confined timing scope for one immutable provider-capacity capture. */
+    /**
+     * Server-thread-confined timing scope for one immutable provider-capacity capture.
+     */
     private final class CapacityCaptureScopeImpl implements CapacityCaptureScope {
 
-        /** Monotonic timestamp captured immediately before capacity simulation begins. */
+        /**
+         * Monotonic timestamp captured immediately before capacity simulation begins.
+         */
         private final long startedAtNanos;
-        /** Closed scopes reject reuse and double-close mistakes. */
+        /**
+         * Closed scopes reject reuse and double-close mistakes.
+         */
         private boolean closed;
 
         private CapacityCaptureScopeImpl(long startedAtNanos) {
@@ -341,7 +409,9 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             }
         }
 
-        /** Ensures only the current, open scope can mutate its parent window. */
+        /**
+         * Ensures only the current, open scope can mutate its parent window.
+         */
         private void requireActive() {
             if (this.closed) {
                 throw new IllegalStateException("Provider capacity capture scope is already closed");
@@ -352,25 +422,33 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         }
     }
 
-    /** Per-provider state keeps exhaustion and no-capacity decisions independent. */
+    /**
+     * Per-provider state keeps exhaustion and no-capacity decisions independent.
+     */
     private static final class ProviderState {
 
-        /** Number of real physical submissions already attempted in this window. */
+        /**
+         * Number of real physical submissions already attempted in this window.
+         */
         private int attemptCount;
 
-        /** Provider-wide isolation covers busy, offline, locked and pre-ownership failure states. */
+        /**
+         * Provider-wide isolation covers busy, offline, locked and pre-ownership failure states.
+         */
         private boolean providerUnavailable;
 
-        /** Pattern identity prevents equality-collapsing wrappers from sharing transient routing state. */
+        /**
+         * Pattern identity prevents equality-collapsing wrappers from sharing transient routing state.
+         */
         private final Map<IPatternDetails, PatternState> patternStates = new IdentityHashMap<>();
 
         /**
          * Returns whether neither quota nor provider/pattern/target state blocks another attempt.
          */
         private boolean canAttempt(
-                                   IPatternDetails pattern,
-                                   @Nullable CraftingDispatchTarget target,
-                                   int maxAttemptsPerProvider) {
+                IPatternDetails pattern,
+                @Nullable CraftingDispatchTarget target,
+                int maxAttemptsPerProvider) {
             if (this.providerUnavailable || this.attemptCount >= maxAttemptsPerProvider) {
                 return false;
             }
@@ -378,10 +456,12 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
             return patternState == null || patternState.canAttempt(target);
         }
 
-        /** Applies a capacity or Blocking exclusion to the narrowest reported scope. */
+        /**
+         * Applies a capacity or Blocking exclusion to the narrowest reported scope.
+         */
         private void block(
-                           IPatternDetails pattern,
-                           @Nullable CraftingDispatchTarget target) {
+                IPatternDetails pattern,
+                @Nullable CraftingDispatchTarget target) {
             PatternState patternState = this.patternStates.computeIfAbsent(pattern, ignored -> new PatternState());
             if (target == null) {
                 patternState.patternUnavailable = true;
@@ -391,16 +471,24 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
         }
     }
 
-    /** Per-pattern state separates a complete provider-pattern rejection from exact target failures. */
+    /**
+     * Per-pattern state separates a complete provider-pattern rejection from exact target failures.
+     */
     private static final class PatternState {
 
-        /** Whether no target for this provider-pattern pair should be prepared again in this window. */
+        /**
+         * Whether no target for this provider-pattern pair should be prepared again in this window.
+         */
         private boolean patternUnavailable;
 
-        /** Stable target identities rejected for Blocking or capacity in this window. */
+        /**
+         * Stable target identities rejected for Blocking or capacity in this window.
+         */
         private final Set<CraftingDispatchTarget> unavailableTargets = new HashSet<>();
 
-        /** Returns whether the complete pattern and optional exact target remain eligible. */
+        /**
+         * Returns whether the complete pattern and optional exact target remain eligible.
+         */
         private boolean canAttempt(@Nullable CraftingDispatchTarget target) {
             return !this.patternUnavailable &&
                     (target == null || !this.unavailableTargets.contains(target));

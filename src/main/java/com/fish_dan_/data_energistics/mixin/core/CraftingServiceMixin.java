@@ -3,7 +3,13 @@ package com.fish_dan_.data_energistics.mixin.core;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchGovernor;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchMetrics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuCandidate;
@@ -16,6 +22,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admissio
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityWorkerDispatchActivity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
@@ -30,6 +37,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.cap
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.config.TrinityDispatchConfig;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
@@ -87,7 +95,7 @@ import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
 public abstract class CraftingServiceMixin
-                                           implements TrinityCraftingRuntimeRegistry, TrinityCraftingGraphAccess, CraftingProviderPublicationAccess {
+        implements TrinityCraftingRuntimeRegistry, TrinityCraftingGraphAccess, CraftingProviderPublicationAccess {
 
     @Unique
     private static final CraftingCpuCandidateSelector DATA_ENERGISTICS_CPU_SELECTOR = CraftingCpuCandidateSelector.create();
@@ -118,6 +126,19 @@ public abstract class CraftingServiceMixin
      */
     @Unique
     private final Map<CraftingCpuSelectionGroup, String> dataEnergistics$nextCpuSubmitByGroup = new HashMap<>();
+
+    /**
+     * Config snapshot paired with the transient per-grid dispatch Governor.
+     */
+    @Unique
+    private TrinityDispatchConfig.Settings dataEnergistics$dispatchGovernorConfig = TrinityDispatchConfig.settings();
+
+    /**
+     * Runtime-derived Governor state is intentionally never persisted.
+     */
+    @Unique
+    private CraftingDispatchGovernor dataEnergistics$dispatchGovernor = CraftingDispatchGovernor.create(
+            this.dataEnergistics$dispatchGovernorConfig.governorSettings());
 
     /**
      * Server-thread-only incremental capture state; published snapshots contain no reference back to this object.
@@ -168,12 +189,12 @@ public abstract class CraftingServiceMixin
 
     @WrapMethod(method = "beginCraftingCalculation")
     private Future<ICraftingPlan> dataEnergistics$beginTrinityCraftingCalculation(
-                                                                                  Level level,
-                                                                                  ICraftingSimulationRequester simRequester,
-                                                                                  AEKey what,
-                                                                                  long amount,
-                                                                                  CalculationStrategy strategy,
-                                                                                  Operation<Future<ICraftingPlan>> original) {
+            Level level,
+            ICraftingSimulationRequester simRequester,
+            AEKey what,
+            long amount,
+            CalculationStrategy strategy,
+            Operation<Future<ICraftingPlan>> original) {
         if (level == null || simRequester == null || what == null || strategy == null || amount <= 0L) {
             return original.call(level, simRequester, what, amount, strategy);
         }
@@ -210,14 +231,14 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private TrinityPlanningAttempt dataEnergistics$calculateInitialTrinityPlan(
-                                                                               long requestId,
-                                                                               Optional<TrinityCraftingGraphSnapshot> graph,
-                                                                               AEKey target,
-                                                                               long amount,
-                                                                               CraftingQuantityMode quantityMode,
-                                                                               Map<AEKey, BigInteger> available,
-                                                                               long maxTrinityBytes,
-                                                                               TrinityCraftingConfig.Settings settings) {
+            long requestId,
+            Optional<TrinityCraftingGraphSnapshot> graph,
+            AEKey target,
+            long amount,
+            CraftingQuantityMode quantityMode,
+            Map<AEKey, BigInteger> available,
+            long maxTrinityBytes,
+            TrinityCraftingConfig.Settings settings) {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
@@ -248,7 +269,7 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private Map<AEKey, BigInteger> dataEnergistics$capturePlanningInventory(
-                                                                            TrinityCraftingGraphSnapshot graph) {
+            TrinityCraftingGraphSnapshot graph) {
         LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
         var cachedInventory = this.grid.getStorageService().getCachedInventory();
         for (AEKey key : graph.keys()) {
@@ -338,8 +359,11 @@ public abstract class CraftingServiceMixin
 
     @Inject(method = "onServerEndTick", at = @At("HEAD"))
     private void dataEnergistics$tickTrinityDataCoreCpuClusters(CallbackInfo ci) {
+        dataEnergistics$reloadDispatchGovernor();
         CraftingService service = (CraftingService) (Object) this;
-        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
+        CraftingDispatchBudget dispatchBudget = this.dataEnergistics$dispatchGovernor.budget();
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create(dispatchBudget.dispatchLimits());
+        long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
         List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
         long latestChange = 0L;
         for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
@@ -361,6 +385,32 @@ public abstract class CraftingServiceMixin
             this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;
             this.lastProcessedCraftingLogicChangeTick = -1L;
         }
+        TrinityWorkerDispatchActivity workerActivity = TrinityWorkerDispatchActivity.EMPTY;
+        for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
+            workerActivity = workerActivity.combine(runtime.dispatchActivity());
+        }
+        DispatchProposalMetrics proposalMetrics = TrinityDispatchProposalLifecycle.scheduler()
+                .snapshotAndResetMetrics(gridGeneration);
+        long serverTickNanos = TrinityServerTickMetrics.lastCompletedNanos(
+                this.grid.getPivot().getLevel().getServer());
+        this.dataEnergistics$dispatchGovernor.observe(CraftingDispatchMetrics.capture(
+                serverTickNanos,
+                dispatchWindow,
+                proposalMetrics,
+                workerActivity.busiestShare()));
+    }
+
+    /**
+     * Replaces observation state atomically when the dedicated COMMON config is reloaded.
+     */
+    @Unique
+    private void dataEnergistics$reloadDispatchGovernor() {
+        TrinityDispatchConfig.Settings current = TrinityDispatchConfig.settings();
+        if (current.equals(this.dataEnergistics$dispatchGovernorConfig)) {
+            return;
+        }
+        this.dataEnergistics$dispatchGovernorConfig = current;
+        this.dataEnergistics$dispatchGovernor = CraftingDispatchGovernor.create(current.governorSettings());
     }
 
     @Inject(method = "onServerEndTick", at = @At("TAIL"))
@@ -392,10 +442,10 @@ public abstract class CraftingServiceMixin
     @Inject(
             method = "onServerEndTick",
             at = @At(
-                     value = "FIELD",
-                     target = "Lappeng/me/service/CraftingService;interests:Lcom/google/common/collect/Multimap;",
-                     opcode = Opcodes.GETFIELD,
-                     ordinal = 0))
+                    value = "FIELD",
+                    target = "Lappeng/me/service/CraftingService;interests:Lcom/google/common/collect/Multimap;",
+                    opcode = Opcodes.GETFIELD,
+                    ordinal = 0))
     private void dataEnergistics$collectTrinityDataCoreCpuWaitingKeys(CallbackInfo ci) {
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             runtime.getAllWaitingFor(this.currentlyCrafting);
@@ -416,12 +466,12 @@ public abstract class CraftingServiceMixin
 
     @WrapMethod(method = "submitJob")
     private ICraftingSubmitResult dataEnergistics$submitTrinityDataCoreCpuJob(
-                                                                              ICraftingPlan job,
-                                                                              ICraftingRequester requestingMachine,
-                                                                              ICraftingCPU target,
-                                                                              boolean prioritizePower,
-                                                                              IActionSource src,
-                                                                              Operation<ICraftingSubmitResult> original) {
+            ICraftingPlan job,
+            ICraftingRequester requestingMachine,
+            ICraftingCPU target,
+            boolean prioritizePower,
+            IActionSource src,
+            Operation<ICraftingSubmitResult> original) {
         if (target != null) {
             TrinityPlanAdmission.CpuFamily targetFamily = target instanceof TrinityDataCoreVirtualCpu ?
                     TrinityPlanAdmission.CpuFamily.TRINITY :
@@ -509,8 +559,8 @@ public abstract class CraftingServiceMixin
     @Inject(
             method = "getCpus",
             at = @At(
-                     value = "INVOKE",
-                     target = "Lcom/google/common/collect/ImmutableSet$Builder;build()Lcom/google/common/collect/ImmutableSet;"),
+                    value = "INVOKE",
+                    target = "Lcom/google/common/collect/ImmutableSet$Builder;build()Lcom/google/common/collect/ImmutableSet;"),
             locals = LocalCapture.CAPTURE_FAILHARD)
     private void dataEnergistics$getTrinityDataCoreCpus(CallbackInfoReturnable<ImmutableSet<ICraftingCPU>> cir,
                                                         ImmutableSet.Builder<ICraftingCPU> cpus) {
@@ -557,13 +607,13 @@ public abstract class CraftingServiceMixin
     @Nullable
     @Unique
     private ICraftingSubmitResult dataEnergistics$submitToKnownCpuCandidates(
-                                                                             ICraftingPlan job,
-                                                                             boolean prioritizePower,
-                                                                             IActionSource source,
-                                                                             @Nullable ICraftingRequester requester,
-                                                                             boolean includeNativeCpus,
-                                                                             boolean delegateFirstNativeAttempt,
-                                                                             Operation<ICraftingSubmitResult> original) {
+            ICraftingPlan job,
+            boolean prioritizePower,
+            IActionSource source,
+            @Nullable ICraftingRequester requester,
+            boolean includeNativeCpus,
+            boolean delegateFirstNativeAttempt,
+            Operation<ICraftingSubmitResult> original) {
         Map<String, ICraftingCPU> submissionHandles = new HashMap<>();
         CraftingCpuCandidateSelection selection = dataEnergistics$findSuitableCpuCandidates(
                 job,
@@ -624,11 +674,11 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private CraftingCpuCandidateSelection dataEnergistics$findSuitableCpuCandidates(
-                                                                                    ICraftingPlan job,
-                                                                                    boolean prioritizePower,
-                                                                                    IActionSource source,
-                                                                                    boolean includeNativeCpus,
-                                                                                    Map<String, ICraftingCPU> submissionHandles) {
+            ICraftingPlan job,
+            boolean prioritizePower,
+            IActionSource source,
+            boolean includeNativeCpus,
+            Map<String, ICraftingCPU> submissionHandles) {
         ArrayList<CraftingCpuCandidate> candidateFacts = new ArrayList<>();
         if (includeNativeCpus) {
             dataEnergistics$collectNativeCpuCandidates(candidateFacts, submissionHandles);
@@ -645,8 +695,8 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private static ICraftingSubmitResult dataEnergistics$mergeKnownCpuDiagnostics(
-                                                                                  ICraftingSubmitResult originalResult,
-                                                                                  CraftingCpuCandidateSelection selection) {
+            ICraftingSubmitResult originalResult,
+            CraftingCpuCandidateSelection selection) {
         if (originalResult.successful()) {
             return originalResult;
         }
@@ -661,8 +711,8 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private static UnsuitableCpus dataEnergistics$addRetryableFailure(
-                                                                      UnsuitableCpus unsuitableCpus,
-                                                                      CraftingSubmitErrorCode errorCode) {
+            UnsuitableCpus unsuitableCpus,
+            CraftingSubmitErrorCode errorCode) {
         return switch (errorCode) {
             case CPU_OFFLINE -> new UnsuitableCpus(
                     Math.addExact(unsuitableCpus.offline(), 1),
@@ -685,8 +735,8 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$collectNativeCpuCandidates(
-                                                            List<CraftingCpuCandidate> candidateFacts,
-                                                            Map<String, ICraftingCPU> submissionHandles) {
+            List<CraftingCpuCandidate> candidateFacts,
+            Map<String, ICraftingCPU> submissionHandles) {
         for (CraftingCPUCluster cpu : this.craftingCPUClusters) {
             if (cpu.isDestroyed()) {
                 continue;
@@ -715,8 +765,8 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$collectTrinityCpuCandidates(
-                                                             List<CraftingCpuCandidate> candidateFacts,
-                                                             Map<String, ICraftingCPU> submissionHandles) {
+            List<CraftingCpuCandidate> candidateFacts,
+            Map<String, ICraftingCPU> submissionHandles) {
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             List<TrinityDataCoreVirtualCpu> publishedCpus = runtime.publishedCpus();
             if (publishedCpus.isEmpty()) {
@@ -751,10 +801,10 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private static void dataEnergistics$registerCpuCandidate(
-                                                             List<CraftingCpuCandidate> candidateFacts,
-                                                             Map<String, ICraftingCPU> submissionHandles,
-                                                             CraftingCpuCandidate candidate,
-                                                             ICraftingCPU submissionHandle) {
+            List<CraftingCpuCandidate> candidateFacts,
+            Map<String, ICraftingCPU> submissionHandles,
+            CraftingCpuCandidate candidate,
+            ICraftingCPU submissionHandle) {
         ICraftingCPU previous = submissionHandles.putIfAbsent(candidate.stableIdentity(), submissionHandle);
         if (previous != null) {
             Data_Energistics.LOGGER.error(
@@ -775,14 +825,14 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private ICraftingSubmitResult dataEnergistics$submitKnownCpuCandidate(
-                                                                          CraftingCpuCandidate candidate,
-                                                                          ICraftingCPU submissionHandle,
-                                                                          ICraftingPlan job,
-                                                                          boolean prioritizePower,
-                                                                          IActionSource source,
-                                                                          @Nullable ICraftingRequester requester,
-                                                                          boolean delegateNativeAttempt,
-                                                                          Operation<ICraftingSubmitResult> original) {
+            CraftingCpuCandidate candidate,
+            ICraftingCPU submissionHandle,
+            ICraftingPlan job,
+            boolean prioritizePower,
+            IActionSource source,
+            @Nullable ICraftingRequester requester,
+            boolean delegateNativeAttempt,
+            Operation<ICraftingSubmitResult> original) {
         if (candidate.kind() == CraftingCpuKind.TRINITY) {
             if (!DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(
                     job,
@@ -835,9 +885,9 @@ public abstract class CraftingServiceMixin
      */
     @Unique
     private void dataEnergistics$advanceCpuSubmitStart(
-                                                       CraftingCpuCandidate successfulCandidate,
-                                                       List<CraftingCpuCandidate> selectedCandidates,
-                                                       boolean playerRequest) {
+            CraftingCpuCandidate successfulCandidate,
+            List<CraftingCpuCandidate> selectedCandidates,
+            boolean playerRequest) {
         CraftingCpuSelectionGroup successfulGroup = DATA_ENERGISTICS_CPU_SELECTOR.group(successfulCandidate, playerRequest);
         ArrayList<String> groupIdentities = new ArrayList<>();
         for (CraftingCpuCandidate candidate : selectedCandidates) {

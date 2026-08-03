@@ -19,6 +19,9 @@ public interface DispatchProposalTicket extends AutoCloseable {
     /** @return current non-blocking calculation state */
     State state();
 
+    /** Records that server-thread revalidation rejected this proposal as stale. */
+    void recordStale();
+
     /** Releases executor admission and cancels unfinished calculation. */
     @Override
     void close();

@@ -15,6 +15,7 @@ import appeng.api.stacks.KeyCounter;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,7 +41,7 @@ public final class CraftingDispatchCommitterTest {
                 nanoClock::get);
         AtomicInteger applied = new AtomicInteger();
         AtomicInteger released = new AtomicInteger();
-        KeyCounter[] prototype = { new KeyCounter() };
+        KeyCounter[] prototype = {new KeyCounter()};
         TestAdmission admission = new TestAdmission(scenario);
 
         CraftingDispatchResult result;
@@ -78,6 +79,7 @@ public final class CraftingDispatchCommitterTest {
         assertEquals(scenario.expectedApplied(), applied.get());
         assertEquals(scenario.expectedReleased(), released.get());
         assertEquals(scenario.physicalAttempted() ? 1 : 0, window.attemptCount());
+        assertEquals(BigInteger.valueOf(scenario.expectedLogicalCrafts()), window.committedLogicalCrafts());
         assertEquals(scenario.recordedResult() ? 1 : 0, window.resultCount(scenario.expectedStatus()));
         assertEquals(scenario.ownershipTransferred() && scenario.accountingSettled(), result.dispatched());
         assertEquals(!scenario.accountingSettled(), result.requiresJobAbort());
@@ -112,20 +114,20 @@ public final class CraftingDispatchCommitterTest {
     }
 
     private record Scenario(
-                            String name,
-                            CommitBehavior commitBehavior,
-                            OwnershipBehavior ownershipBehavior,
-                            boolean budgetStale,
-                            boolean applyFailure,
-                            CraftingDispatchStatus expectedStatus,
-                            long expectedLogicalCrafts,
-                            boolean physicalAttempted,
-                            boolean ownershipTransferred,
-                            boolean accountingSettled,
-                            int expectedApplied,
-                            int expectedReleased,
-                            boolean recordedResult,
-                            boolean commitInvoked) {
+            String name,
+            CommitBehavior commitBehavior,
+            OwnershipBehavior ownershipBehavior,
+            boolean budgetStale,
+            boolean applyFailure,
+            CraftingDispatchStatus expectedStatus,
+            long expectedLogicalCrafts,
+            boolean physicalAttempted,
+            boolean ownershipTransferred,
+            boolean accountingSettled,
+            int expectedApplied,
+            int expectedReleased,
+            boolean recordedResult,
+            boolean commitInvoked) {
 
         @Override
         public String toString() {

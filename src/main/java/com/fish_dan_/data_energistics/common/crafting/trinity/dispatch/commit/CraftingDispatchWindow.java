@@ -9,6 +9,7 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.function.LongSupplier;
 
 /**
@@ -77,9 +78,9 @@ public interface CraftingDispatchWindow {
      * @return whether the target remains eligible and physical quota remains
      */
     boolean canAttempt(
-                       ICraftingProvider provider,
-                       IPatternDetails pattern,
-                       CraftingDispatchTarget target);
+            ICraftingProvider provider,
+            IPatternDetails pattern,
+            CraftingDispatchTarget target);
 
     /**
      * Starts measuring one provider's complete server-thread preparation and submission path.
@@ -104,10 +105,10 @@ public interface CraftingDispatchWindow {
      * @param status   explicit result status
      */
     void recordResult(
-                      ICraftingProvider provider,
-                      IPatternDetails pattern,
-                      @Nullable CraftingDispatchTarget target,
-                      CraftingDispatchStatus status);
+            ICraftingProvider provider,
+            IPatternDetails pattern,
+            @Nullable CraftingDispatchTarget target,
+            CraftingDispatchStatus status);
 
     /**
      * Checks the independent server-thread budget for another provider-capacity snapshot.
@@ -153,6 +154,18 @@ public interface CraftingDispatchWindow {
     int resultCount(CraftingDispatchStatus status);
 
     /**
+     * Records a logical counted batch after the provider has taken ownership.
+     *
+     * @param logicalCrafts positive committed logical firing count
+     */
+    void recordCommittedLogicalCrafts(long logicalCrafts);
+
+    /**
+     * @return total logical firings committed through physical calls in this window
+     */
+    BigInteger committedLogicalCrafts();
+
+    /**
      * Returns the grid-wide hard budget that currently prevents more submission work.
      *
      * @return exhaustion reason, or {@link CraftingDispatchExhaustion#NONE}
@@ -182,7 +195,9 @@ public interface CraftingDispatchWindow {
      */
     long serverSubmissionNanos();
 
-    /** Measures one provider path and controls every physical call made from that path. */
+    /**
+     * Measures one provider path and controls every physical call made from that path.
+     */
     interface SubmissionScope extends AutoCloseable {
 
         /**
@@ -193,15 +208,21 @@ public interface CraftingDispatchWindow {
          */
         boolean tryAcquire(CraftingDispatchTarget target);
 
-        /** Completes timing for this provider path without declaring checked cleanup failures. */
+        /**
+         * Completes timing for this provider path without declaring checked cleanup failures.
+         */
         @Override
         void close();
     }
 
-    /** Measures one server-thread-confined read-only capacity capture. */
+    /**
+     * Measures one server-thread-confined read-only capacity capture.
+     */
     interface CapacityCaptureScope extends AutoCloseable {
 
-        /** Completes capture timing without declaring checked cleanup failures. */
+        /**
+         * Completes capture timing without declaring checked cleanup failures.
+         */
         @Override
         void close();
     }

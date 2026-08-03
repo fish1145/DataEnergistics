@@ -73,9 +73,13 @@ public final class TrinityDataCoreCraftingRuntime {
      * Derived request lookup removes full-worker scans from network output routing.
      */
     private final TrinityCpuWaitingIndex waitingIndex = new TrinityCpuWaitingIndexImpl();
-    /** Background completion callbacks enqueue only worker numbers into this thread-safe handoff. */
+    /**
+     * Background completion callbacks enqueue only worker numbers into this thread-safe handoff.
+     */
     private final ConcurrentLinkedQueue<Integer> proposalCompletions = new ConcurrentLinkedQueue<>();
-    /** Event-selected workers replace the previous every-tick retained-worker scan. */
+    /**
+     * Event-selected workers replace the previous every-tick retained-worker scan.
+     */
     private final ArrayDeque<WorkerScheduleEntry> readyWorkers = new ArrayDeque<>();
     private final Set<Integer> readyWorkerNumbers = new HashSet<>();
     private final PriorityQueue<WorkerScheduleEntry> providerRetries = new PriorityQueue<>();
@@ -446,6 +450,25 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     /**
+     * Captures recent per-worker physical-operation distribution without exposing mutable worker budgets.
+     *
+     * @return immutable activity snapshot
+     */
+    public TrinityWorkerDispatchActivity dispatchActivity() {
+        long totalOperations = 0L;
+        long busiestOperations = 0L;
+        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+            long operations = worker.logic().recentOperationLoad();
+            totalOperations = Math.addExact(totalOperations, operations);
+            busiestOperations = Math.max(busiestOperations, operations);
+        }
+        return new TrinityWorkerDispatchActivity(
+                this.retainedWorkers.size(),
+                totalOperations,
+                busiestOperations);
+    }
+
+    /**
      * Re-registers persisted links for every retained worker.
      */
     public void restoreLinks(CraftingService service) {
@@ -617,17 +640,23 @@ public final class TrinityDataCoreCraftingRuntime {
         }
     }
 
-    /** Enqueues one background proposal completion without touching worker or grid state off-thread. */
+    /**
+     * Enqueues one background proposal completion without touching worker or grid state off-thread.
+     */
     void workerProposalCompleted(int workerNumber) {
         this.proposalCompletions.add(workerNumber);
     }
 
-    /** @return stable host identity used by transient worker proposal leases */
+    /**
+     * @return stable host identity used by transient worker proposal leases
+     */
     UUID runtimeId() {
         return this.host.getHostId();
     }
 
-    /** @return process-local generation of this runtime instance */
+    /**
+     * @return process-local generation of this runtime instance
+     */
     long runtimeGeneration() {
         return this.runtimeGeneration;
     }
@@ -1050,7 +1079,9 @@ public final class TrinityDataCoreCraftingRuntime {
         this.nextWorkerTickStartNumber = 1;
     }
 
-    /** Immutable queue entry invalidated by the per-worker transient scheduling revision. */
+    /**
+     * Immutable queue entry invalidated by the per-worker transient scheduling revision.
+     */
     private record WorkerScheduleEntry(int workerNumber, long revision, long retryAt)
             implements Comparable<WorkerScheduleEntry> {
 

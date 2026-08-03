@@ -18,5 +18,9 @@ public class ConfigHolder {
                 ModConfig.Type.COMMON,
                 TrinityCraftingConfig.SPEC,
                 "data_energistics-trinity_crafting.toml");
+        modContainer.registerConfig(
+                ModConfig.Type.COMMON,
+                TrinityDispatchConfig.SPEC,
+                "data_energistics-trinity_dispatch.toml");
     }
 }

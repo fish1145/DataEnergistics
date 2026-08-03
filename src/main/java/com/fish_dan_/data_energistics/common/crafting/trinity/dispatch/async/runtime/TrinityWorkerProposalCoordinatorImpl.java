@@ -35,7 +35,7 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
             return Empty.INSTANCE;
         }
         if (!this.ticket.lease().equals(currentLease) || this.workIdentity != workIdentity) {
-            cancel();
+            discardStale();
             return Empty.INSTANCE;
         }
         return switch (this.ticket.state()) {
@@ -84,6 +84,14 @@ final class TrinityWorkerProposalCoordinatorImpl implements TrinityWorkerProposa
 
     @Override
     public void release() {
+        cancel();
+    }
+
+    @Override
+    public void discardStale() {
+        if (this.ticket != null) {
+            this.ticket.recordStale();
+        }
         cancel();
     }
 

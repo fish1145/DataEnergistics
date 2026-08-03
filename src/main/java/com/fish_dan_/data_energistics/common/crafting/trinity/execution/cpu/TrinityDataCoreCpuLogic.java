@@ -900,7 +900,13 @@ final class TrinityDataCoreCpuLogic {
                     patternIdentity,
                     snapshot,
                     currentTick);
-            if (provider == null || !dispatchWindow.canAttempt(provider, details, snapshot.route())) {
+            if (provider == null) {
+                if (asynchronousSelection) {
+                    this.proposalCoordinator.discardStale();
+                }
+                continue;
+            }
+            if (!dispatchWindow.canAttempt(provider, details, snapshot.route())) {
                 continue;
             }
 
@@ -941,6 +947,9 @@ final class TrinityDataCoreCpuLogic {
                             snapshot,
                             currentTick);
                     if (currentProvider != provider) {
+                        if (asynchronousSelection) {
+                            this.proposalCoordinator.discardStale();
+                        }
                         continue;
                     }
 

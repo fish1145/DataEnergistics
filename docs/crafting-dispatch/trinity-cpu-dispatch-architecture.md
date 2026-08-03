@@ -2,7 +2,8 @@
 
 ## 1. 文档状态
 
-- 方案状态：Phase 0 至 Phase 4 与 VirtualGrid typed execution route 已实现；Phase 5 尚未实现
+- 方案状态：Phase 0 至 Phase 4、VirtualGrid typed execution route 与 Phase 5 指标/观察期已实现；自适应切换和
+  SAFE 回退待启用
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
 - 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
 - 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
@@ -592,7 +593,7 @@ Governor 至少观测：
 - 快照采集耗时；
 - 异步规划耗时；
 - 服务器提交耗时；
-- proposal 队列长度和等待 tick；
+- proposal 队列长度、outstanding 数量和单调时钟等待耗时；
 - stale 比例；
 - provider/target 接受率；
 - 每物理调用承载的逻辑 craft 数；
@@ -613,7 +614,9 @@ Governor 可以调整：
 
 固定 16 个 shard、executor 物理队列容量和 counted logical batch 不属于 Governor 可调参数。
 
-调整必须渐进，避免因为单 tick 波动频繁切换模式。精确默认值应通过基准测试确定，不在实现前凭经验写死。
+调整必须渐进，避免因为单 tick 波动频繁切换模式。当前 COMMON 配置以 hard `256/16/30 ms`、safe
+`16/2/2 ms`、`200 tick` warm-up、`20 tick` 窗口和 `0.25` EWMA alpha 作为已确定初值；后续压力矩阵只允许
+在不破坏 hard/safe 不变量的前提下重新校准。
 
 阶段 2 的固定安全模式依据 Phase 0 已记录的 7 个 256 Worker 样本，将服务器提交时间预算暂定为
 `30,000,000 ns`；样本最大值为 `26,108,000 ns`。该预算测量供应器准备和真实提交作用域，耗尽后只延后未提交
@@ -761,12 +764,16 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。
 
-### 阶段 5：自适应 Governor（后续）
+### 阶段 5：自适应 Governor（观察期已完成，自适应待启用）
 
-- 采集规划、提交、接受率、stale 和公平性指标；
+- 已增加独立 `data_energistics-trinity_dispatch.toml`，配置 hard/safe 物理预算、warm-up、指标窗口、
+  EWMA、切换确认、cooldown 和 SAFE 保持时间；
+- 已按 Grid 采集完整服务器 tick、容量捕获、proposal 排队/计算、服务器提交、接受率、stale、
+  logical-per-physical-call、队列深度/outstanding 和 worker share；
+- 已将 `OBSERVING` Governor 接入唯一 Grid dispatch window；配置重载只替换瞬态派生状态，不写作业 NBT；
 - 固定 16 个 shard；只自适应调整物理调用额度、提交时间、Actor permit、provider quantum、队列高水位和退避；
 - 不拆小 counted logical batch；
-- 实现局部降级和固定安全模式；
+- 待启用 `ADAPTIVE` 调节、异常隔离和固定 `SAFE` 同步模式；
 - 通过压力测试确定默认配置和硬上限。
 
 阶段之间必须串行验收。不得在 CPU 账本、所有权和原版阻挡语义未稳定前直接启用异步规划或自适应切换。

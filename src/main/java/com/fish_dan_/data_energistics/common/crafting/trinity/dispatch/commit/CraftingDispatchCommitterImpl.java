@@ -103,6 +103,7 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
                     request.jobId());
         }
 
+        request.window().recordCommittedLogicalCrafts(admittedCount);
         boolean settled = applyAfterOwnership(request);
         CraftingDispatchStatus status = accepted && providerFailure == null && settled ?
                 CraftingDispatchStatus.ACCEPTED :
@@ -112,9 +113,9 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
     }
 
     private static CraftingDispatchResult beforeOwnership(
-                                                          CraftingDispatchCommitRequest request,
-                                                          CraftingDispatchStatus status,
-                                                          boolean attempted) {
+            CraftingDispatchCommitRequest request,
+            CraftingDispatchStatus status,
+            boolean attempted) {
         boolean settled = releaseBeforeOwnership(request);
         request.window().recordResult(request.provider(), request.pattern(), request.target(), status);
         return new CraftingDispatchResult(status, 0L, attempted, false, settled);
@@ -153,8 +154,8 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
     }
 
     private static boolean transferredInputOwnership(
-                                                     CraftingDispatchCommitRequest request,
-                                                     KeyCounter[] unchangedPrototype) {
+            CraftingDispatchCommitRequest request,
+            KeyCounter[] unchangedPrototype) {
         if (!inputCountersMatch(unchangedPrototype, request.prototype())) {
             return true;
         }

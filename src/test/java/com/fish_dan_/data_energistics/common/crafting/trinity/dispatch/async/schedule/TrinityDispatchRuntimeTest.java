@@ -43,7 +43,8 @@ public final class TrinityDispatchRuntimeTest {
 
             DispatchProposalScheduler.Rejected duplicate = assertInstanceOf(
                     DispatchProposalScheduler.Rejected.class,
-                    scheduler.submit(request, () -> {}));
+                    scheduler.submit(request, () -> {
+                    }));
             assertEquals(DispatchProposalScheduler.RejectionReason.WORKER_BUSY, duplicate.reason());
             assertTrue(completed.await(5L, TimeUnit.SECONDS));
             DispatchProposalTicket.Ready ready = assertInstanceOf(
@@ -56,8 +57,15 @@ public final class TrinityDispatchRuntimeTest {
             accepted.ticket().close();
             DispatchProposalScheduler.Accepted retried = assertInstanceOf(
                     DispatchProposalScheduler.Accepted.class,
-                    scheduler.submit(request, () -> {}));
+                    scheduler.submit(request, () -> {
+                    }));
             retried.ticket().close();
+            DispatchProposalMetrics metrics = scheduler.snapshotAndResetMetrics(1L);
+            assertEquals(2, metrics.admitted());
+            assertEquals(1, metrics.rejected());
+            assertTrue(metrics.completed() >= 1);
+            assertEquals(0, metrics.outstanding());
+            assertEquals(4, metrics.queueCapacity());
         } finally {
             scheduler.close();
         }
@@ -87,17 +95,20 @@ public final class TrinityDispatchRuntimeTest {
             UUID runtimeId = UUID.randomUUID();
             DispatchProposalScheduler.Accepted first = assertInstanceOf(
                     DispatchProposalScheduler.Accepted.class,
-                    scheduler.submit(request(2L, runtimeId, 1, 0L, 1L), () -> {}));
+                    scheduler.submit(request(2L, runtimeId, 1, 0L, 1L), () -> {
+                    }));
             assertTrue(running.await(5L, TimeUnit.SECONDS));
             DispatchProposalScheduler.Accepted second = assertInstanceOf(
                     DispatchProposalScheduler.Accepted.class,
-                    scheduler.submit(request(2L, runtimeId, 2, 0L, 1L), () -> {}));
+                    scheduler.submit(request(2L, runtimeId, 2, 0L, 1L), () -> {
+                    }));
             TrinityWorkerProposalCoordinator deferredWorker =
                     TrinityWorkerProposalCoordinator.create(() -> scheduler);
             CraftingDispatchProposalRequest deferredRequest = request(2L, runtimeId, 3, 0L, 1L);
             TrinityWorkerProposalCoordinator.Deferred full = assertInstanceOf(
                     TrinityWorkerProposalCoordinator.Deferred.class,
-                    deferredWorker.submit(deferredRequest, deferredRequest, () -> {}));
+                    deferredWorker.submit(deferredRequest, deferredRequest, () -> {
+                    }));
             assertEquals(TrinityWorkerProposalCoordinator.DeferredReason.QUEUE_FULL, full.reason());
 
             release.countDown();
@@ -105,7 +116,8 @@ public final class TrinityDispatchRuntimeTest {
             second.ticket().close();
             assertInstanceOf(
                     TrinityWorkerProposalCoordinator.Pending.class,
-                    deferredWorker.submit(deferredRequest, deferredRequest, () -> {}));
+                    deferredWorker.submit(deferredRequest, deferredRequest, () -> {
+                    }));
             deferredWorker.cancel();
         } finally {
             release.countDown();
@@ -142,7 +154,8 @@ public final class TrinityDispatchRuntimeTest {
                     coordinator.poll(changedRoute, workIdentity));
             assertInstanceOf(
                     TrinityWorkerProposalCoordinator.Pending.class,
-                    coordinator.submit(request, workIdentity, () -> {}));
+                    coordinator.submit(request, workIdentity, () -> {
+                    }));
             coordinator.cancel();
         } finally {
             scheduler.close();
@@ -292,9 +305,9 @@ public final class TrinityDispatchRuntimeTest {
     }
 
     private static DispatchProposalScheduler.Accepted submitAndAwait(
-                                                                     DispatchProposalScheduler scheduler,
-                                                                     CraftingDispatchProposalRequest request)
-                                                                                                              throws InterruptedException {
+            DispatchProposalScheduler scheduler,
+            CraftingDispatchProposalRequest request)
+            throws InterruptedException {
         CountDownLatch completed = new CountDownLatch(1);
         DispatchProposalScheduler.Accepted accepted = assertInstanceOf(
                 DispatchProposalScheduler.Accepted.class,
