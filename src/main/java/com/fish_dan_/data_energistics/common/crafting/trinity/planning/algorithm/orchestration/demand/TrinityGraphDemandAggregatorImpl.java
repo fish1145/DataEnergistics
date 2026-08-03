@@ -51,21 +51,19 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
     @Override
     public TrinityAlgorithmResult<TrinityGraphDemandSolution> aggregate(
                                                                         TrinityCraftingTopology topology,
-                                                                        List<TrinityPatternVariant> variants,
                                                                         AEKey target,
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
                                                                         Map<AEKey, BigInteger> available,
                                                                         TrinityCraftingConfig.Settings settings,
                                                                         TrinityPlanningControl control) {
-        if (topology == null || variants == null || target == null || requestedAmount == null ||
+        if (topology == null || target == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || quantityMode == null || available == null || settings == null ||
                 control == null) {
             throw new IllegalArgumentException("A Trinity graph demand request is incomplete");
         }
         return new PlanningAccumulator(
                 topology,
-                variants,
                 target,
                 requestedAmount,
                 quantityMode,
@@ -80,7 +78,6 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
     private final class PlanningAccumulator {
 
         private final TrinityCraftingTopology topology;
-        private final List<TrinityPatternVariant> variants;
         private final AEKey target;
         private final CraftingQuantityMode quantityMode;
         private final LinkedHashMap<AEKey, BigInteger> inventory;
@@ -98,7 +95,6 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
 
         private PlanningAccumulator(
                                     TrinityCraftingTopology topology,
-                                    List<TrinityPatternVariant> variants,
                                     AEKey target,
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
@@ -106,7 +102,6 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
                                     TrinityCraftingConfig.Settings settings,
                                     TrinityPlanningControl control) {
             this.topology = topology;
-            this.variants = variants;
             this.target = target;
             this.quantityMode = quantityMode;
             this.inventory = new LinkedHashMap<>(available);
@@ -119,7 +114,6 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
 
         private PlanningAccumulator(PlanningAccumulator source) {
             this.topology = source.topology;
-            this.variants = source.variants;
             this.target = source.target;
             this.quantityMode = source.quantityMode;
             this.inventory = new LinkedHashMap<>(source.inventory);
@@ -444,12 +438,10 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
                                                          int outputComponent,
                                                          boolean crossBoundaryOnly) {
             int outputPosition = this.topologicalPositions.get(outputComponent);
-            return this.topology.variantsByOutputComponent()
-                    .getOrDefault(outputComponent, List.of())
+            return this.topology.variantsByOutputKey()
+                    .getOrDefault(key, List.of())
                     .stream()
-                    .filter(variant -> variant.outputs().containsKey(key))
                     .filter(variant -> !crossBoundaryOnly || variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().get(input)) < outputPosition))
-                    .sorted()
                     .toList();
         }
 
@@ -459,8 +451,9 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
             component.cycleVariants().forEach(variant -> inputs.addAll(variant.inputs().keySet()));
             LinkedHashSet<AEKey> producible = new LinkedHashSet<>();
             for (AEKey key : inputs) {
-                boolean hasEarlierProducer = this.variants.stream()
-                        .filter(variant -> variant.outputs().containsKey(key))
+                boolean hasEarlierProducer = this.topology.variantsByOutputKey()
+                        .getOrDefault(key, List.of())
+                        .stream()
                         .anyMatch(variant -> variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().get(input)) <
                                 cyclePosition));
                 if (hasEarlierProducer) {

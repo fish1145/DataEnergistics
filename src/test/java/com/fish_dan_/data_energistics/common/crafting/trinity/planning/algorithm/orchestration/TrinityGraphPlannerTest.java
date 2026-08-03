@@ -338,9 +338,15 @@ public final class TrinityGraphPlannerTest {
                 Items.MAP,
                 List.of(stack(intermediate, 5L)),
                 List.of(stack(target, 1L)));
-        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
-                42L,
-                List.of(upstream, downstream));
+        List<TrinityCraftingGraphPattern> graphPatterns = new ArrayList<>(List.of(upstream, downstream));
+        for (int index = 0; index < 600; index++) {
+            graphPatterns.add(pattern(
+                    "unrelated-" + index,
+                    Items.STICK,
+                    List.of(stack(AEItemKey.of(Items.DIRT), 1L)),
+                    List.of(stack(AEItemKey.of(Items.COAL), 1L))));
+        }
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(42L, graphPatterns);
         BigInteger requested = BigInteger.valueOf(1_000_000L);
 
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
@@ -358,6 +364,7 @@ public final class TrinityGraphPlannerTest {
         assertEquals(requested, plan.patternFirings().get(downstream.identity()));
         assertEquals(BigInteger.valueOf(7_500_000L), plan.initialExpectedInputs().get(raw));
         assertEquals(requested, plan.targetNetChange().get(target));
+        assertEquals(2, plan.statistics().variantCount());
         assertTrue(plan.statistics().scheduleStates() < 16);
     }
 

@@ -139,6 +139,20 @@ final class TrinityGraphTopologyAnalyzerImpl implements TrinityGraphTopologyAnal
         for (int componentIndex = 0; componentIndex < outputVariants.size(); componentIndex++) {
             variantsByOutputComponent.put(componentIndex, List.copyOf(outputVariants.get(componentIndex)));
         }
+        LinkedHashMap<AEKey, List<TrinityPatternVariant>> variantsByOutputKey = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, ArrayList<TrinityPatternVariant>> producerLists = new LinkedHashMap<>();
+        for (TrinityPatternVariant variant : variants) {
+            variant.outputs().keySet().forEach(key -> producerLists
+                    .computeIfAbsent(key, ignored -> new ArrayList<>())
+                    .add(variant));
+        }
+        for (AEKey key : graph.keys()) {
+            ArrayList<TrinityPatternVariant> producers = producerLists.get(key);
+            if (producers != null) {
+                producers.sort(Comparator.naturalOrder());
+                variantsByOutputKey.put(key, List.copyOf(producers));
+            }
+        }
         LinkedHashMap<TrinityPatternVariant, Integer> cyclicOwnerByVariant = new LinkedHashMap<>();
         for (TrinityStronglyConnectedComponent component : components) {
             if (!component.cyclic()) {
@@ -156,6 +170,7 @@ final class TrinityGraphTopologyAnalyzerImpl implements TrinityGraphTopologyAnal
                 mapping,
                 topologicalOrder(predecessors, successors),
                 variantsByOutputComponent,
+                variantsByOutputKey,
                 cyclicOwnerByVariant);
     }
 

@@ -211,6 +211,9 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     }
 
     private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
+        if (!control.deadlineConfigured()) {
+            return;
+        }
         long remainingNanos = control.remainingNanos();
         long remainingMillis = Math.max(
                 1L,

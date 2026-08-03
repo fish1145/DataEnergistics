@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -146,10 +145,7 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                                                     CraftingQuantityMode quantityMode,
                                                     Map<AEKey, BigInteger> available,
                                                     TrinityCraftingConfig.Settings settings) {
-        TrinityPlanningControl control = TrinityPlanningControl.create(
-                () -> Thread.currentThread().isInterrupted(),
-                System::nanoTime,
-                TimeUnit.MILLISECONDS.toNanos(settings.mipTimeoutMs()));
+        TrinityPlanningControl control = TrinityPlanningControl.unbounded();
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
                 graph,
                 target,

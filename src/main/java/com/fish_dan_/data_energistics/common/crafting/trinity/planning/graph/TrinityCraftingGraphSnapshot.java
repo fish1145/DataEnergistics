@@ -5,12 +5,15 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSi
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Atomically published, read-only derivation of every crafting transition visible on one grid revision.
@@ -26,6 +29,7 @@ public final class TrinityCraftingGraphSnapshot {
     private final List<TrinityCraftingGraphPattern> patterns;
     private final List<AEKey> keys;
     private final Map<AEKey, List<TrinityCraftingGraphPattern>> patternsByOutput;
+    private final ConcurrentMap<AEKey, TrinityCraftingGraphSnapshot> reachableSubgraphs = new ConcurrentHashMap<>();
 
     /**
      * Builds a deterministic graph and rejects duplicate semantic identities.
@@ -110,5 +114,51 @@ public final class TrinityCraftingGraphSnapshot {
      */
     public Map<AEKey, List<TrinityCraftingGraphPattern>> patternsByOutput() {
         return this.patternsByOutput;
+    }
+
+    /**
+     * Derives the complete reverse-reachable hypergraph for one requested output.
+     *
+     * <p>
+     * Every producer route and every legal input alternative remains present. Patterns unrelated to the requested
+     * output are excluded before binding expansion and SCC analysis, so planning work follows the request graph
+     * instead of the size of the whole grid catalog. The derived value is cached for this immutable revision.
+     * </p>
+     *
+     * @param target requested output key
+     * @return immutable target-reachable snapshot with the same publication revision
+     */
+    public TrinityCraftingGraphSnapshot reachableSubgraph(AEKey target) {
+        if (target == null) {
+            throw new IllegalArgumentException("A Trinity reachable graph requires a target");
+        }
+        return this.reachableSubgraphs.computeIfAbsent(target, this::deriveReachableSubgraph);
+    }
+
+    private TrinityCraftingGraphSnapshot deriveReachableSubgraph(AEKey target) {
+        ArrayDeque<AEKey> pending = new ArrayDeque<>();
+        LinkedHashSet<AEKey> visitedKeys = new LinkedHashSet<>();
+        LinkedHashSet<TrinityCraftingGraphPattern> reachablePatterns = new LinkedHashSet<>();
+        pending.add(target);
+        while (!pending.isEmpty()) {
+            AEKey required = pending.removeFirst();
+            if (!visitedKeys.add(required)) {
+                continue;
+            }
+            for (TrinityCraftingGraphPattern pattern : patternsProducing(required)) {
+                if (!reachablePatterns.add(pattern)) {
+                    continue;
+                }
+                for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
+                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                        pending.addLast(alternative.stack().what());
+                    }
+                }
+            }
+        }
+        if (reachablePatterns.size() == this.patterns.size()) {
+            return this;
+        }
+        return new TrinityCraftingGraphSnapshot(this.revision, List.copyOf(reachablePatterns));
     }
 }

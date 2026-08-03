@@ -108,14 +108,21 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         }
 
         long startedNanos = System.nanoTime();
+        TrinityCraftingGraphSnapshot reachableSnapshot = snapshot.reachableSubgraph(target);
+        if (reachableSnapshot.patterns().isEmpty()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                    TARGET_ABSENT_KEY,
+                    Map.of("target", target.toString()));
+        }
         TrinityAlgorithmResult<List<TrinityPatternVariant>> expanded = this.variantExpander.expand(
-                snapshot,
+                reachableSnapshot,
                 settings.maxBindingVariants());
         if (!expanded.successful()) {
             return TrinityAlgorithmResult.failure(expanded.diagnostic());
         }
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
-                snapshot,
+                reachableSnapshot,
                 expanded.value(),
                 settings.maxSccKeys());
         if (!analyzed.successful()) {
@@ -134,7 +141,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                 targetComponent) ?
                         solveWithCycles(
                                 analyzed.value(),
-                                expanded.value(),
                                 target,
                                 requestedAmount,
                                 quantityMode,
@@ -155,7 +161,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         }
         TrinityCraftingPlan plan = this.planAssembler.finalizePlan(
                 new TrinityGraphPlanContext(
-                        snapshot.revision(),
+                        reachableSnapshot.revision(),
                         target,
                         requestedAmount,
                         requestedLong,
@@ -169,7 +175,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
 
     private TrinityAlgorithmResult<TrinityGraphPlanAssembly> solveWithCycles(
                                                                              TrinityCraftingTopology topology,
-                                                                             List<TrinityPatternVariant> variants,
                                                                              AEKey target,
                                                                              BigInteger requestedAmount,
                                                                              CraftingQuantityMode quantityMode,
@@ -178,7 +183,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                              TrinityPlanningControl control) {
         TrinityAlgorithmResult<TrinityGraphDemandSolution> solved = this.demandAggregator.aggregate(
                 topology,
-                variants,
                 target,
                 requestedAmount,
                 quantityMode,

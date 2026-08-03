@@ -4,9 +4,30 @@ import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
 /**
- * Cooperative cancellation and monotonic deadline boundary shared by MIP and compressed scheduling.
+ * Cooperative cancellation with an optional injected monotonic deadline for deterministic tests and callers that
+ * explicitly require one.
  */
 public interface TrinityPlanningControl {
+
+    /**
+     * Creates the production control for a Future whose cancellation interrupts the planner thread.
+     *
+     * @return unbounded interrupt-aware control
+     */
+    static TrinityPlanningControl unbounded() {
+        return TrinityPlanningControlImpl.unbounded(() -> false);
+    }
+
+    /**
+     * Creates the production control used by Trinity planning. It has no wall-clock deadline; cancellation is driven
+     * only by the owning future or caller.
+     *
+     * @param cancellation explicit request cancellation
+     * @return unbounded cooperative control
+     */
+    static TrinityPlanningControl unbounded(BooleanSupplier cancellation) {
+        return TrinityPlanningControlImpl.unbounded(cancellation);
+    }
 
     /**
      * Creates a bounded control using an injected monotonic clock.
@@ -30,6 +51,11 @@ public interface TrinityPlanningControl {
      * @return process-interruption or explicit cooperative cancellation
      */
     boolean cancellationRequested();
+
+    /**
+     * @return whether this control has an actual wall-clock deadline
+     */
+    boolean deadlineConfigured();
 
     /**
      * @return whether the injected monotonic budget has been exhausted

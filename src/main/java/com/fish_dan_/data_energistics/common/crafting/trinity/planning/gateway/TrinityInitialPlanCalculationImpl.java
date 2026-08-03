@@ -14,7 +14,6 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Production calculation with exact post-plan CPU-capacity validation and structured outcome logging.
@@ -29,10 +28,7 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
 
     @Override
     public TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) {
-        TrinityPlanningControl control = TrinityPlanningControl.create(
-                () -> Thread.currentThread().isInterrupted(),
-                System::nanoTime,
-                TimeUnit.MILLISECONDS.toNanos(request.settings().mipTimeoutMs()));
+        TrinityPlanningControl control = TrinityPlanningControl.unbounded();
         TrinityAlgorithmResult<TrinityCraftingPlan> result = this.planner.plan(
                 request.graph(),
                 request.target(),

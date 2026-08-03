@@ -12,14 +12,27 @@ final class TrinityPlanningControlImpl implements TrinityPlanningControl {
     private final LongSupplier nanoClock;
     private final long budgetNanos;
     private final long startedNanos;
+    private final boolean deadlineConfigured;
 
     TrinityPlanningControlImpl(BooleanSupplier cancellation,
                                LongSupplier nanoClock,
                                long budgetNanos) {
+        this(cancellation, nanoClock, budgetNanos, true);
+    }
+
+    private TrinityPlanningControlImpl(BooleanSupplier cancellation,
+                                       LongSupplier nanoClock,
+                                       long budgetNanos,
+                                       boolean deadlineConfigured) {
         this.cancellation = cancellation;
         this.nanoClock = nanoClock;
         this.budgetNanos = budgetNanos;
         this.startedNanos = nanoClock.getAsLong();
+        this.deadlineConfigured = deadlineConfigured;
+    }
+
+    static TrinityPlanningControl unbounded(BooleanSupplier cancellation) {
+        return new TrinityPlanningControlImpl(cancellation, () -> 0L, Long.MAX_VALUE, false);
     }
 
     @Override
@@ -28,12 +41,20 @@ final class TrinityPlanningControlImpl implements TrinityPlanningControl {
     }
 
     @Override
+    public boolean deadlineConfigured() {
+        return this.deadlineConfigured;
+    }
+
+    @Override
     public boolean deadlineExceeded() {
-        return remainingNanos() == 0L;
+        return this.deadlineConfigured && remainingNanos() == 0L;
     }
 
     @Override
     public long remainingNanos() {
+        if (!this.deadlineConfigured) {
+            return Long.MAX_VALUE;
+        }
         long now = this.nanoClock.getAsLong();
         if (now < this.startedNanos) {
             throw new IllegalStateException("The Trinity planning clock moved backwards");

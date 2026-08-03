@@ -15,7 +15,6 @@ public final class TrinityCraftingConfigTest {
 
         assertEquals(64, settings.maxSccKeys());
         assertEquals(512, settings.maxBindingVariants());
-        assertEquals(250, settings.mipTimeoutMs());
         assertEquals(500_000, settings.maxScheduleStates());
         assertEquals(4, settings.graphRebuildBudgetMs());
         assertEquals(6, settings.plannerThreads());
@@ -41,7 +40,6 @@ public final class TrinityCraftingConfigTest {
                 () -> new TrinityCraftingConfig.Settings(
                         0,
                         512,
-                        250,
                         500_000,
                         4,
                         6,
@@ -53,7 +51,6 @@ public final class TrinityCraftingConfigTest {
                 () -> new TrinityCraftingConfig.Settings(
                         64,
                         512,
-                        250,
                         500_000,
                         4,
                         9,
@@ -65,7 +62,6 @@ public final class TrinityCraftingConfigTest {
                 () -> new TrinityCraftingConfig.Settings(
                         64,
                         512,
-                        250,
                         500_000,
                         4,
                         6,

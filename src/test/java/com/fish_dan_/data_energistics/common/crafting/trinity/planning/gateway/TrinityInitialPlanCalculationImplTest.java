@@ -38,7 +38,10 @@ final class TrinityInitialPlanCalculationImplTest {
     @Test
     void rejectsPlanThatExceedsEveryEligibleTrinityCpuCapturedAtRequestStart() {
         TrinityCraftingPlan oversizedPlan = oversizedPlan();
-        TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, available, settings, control) -> TrinityAlgorithmResult.success(oversizedPlan);
+        TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, available, settings, control) -> {
+            assertFalse(control.deadlineConfigured());
+            return TrinityAlgorithmResult.success(oversizedPlan);
+        };
         TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
                 .requestId(7L)
                 .graph(new TrinityCraftingGraphSnapshot(19L, List.of()))

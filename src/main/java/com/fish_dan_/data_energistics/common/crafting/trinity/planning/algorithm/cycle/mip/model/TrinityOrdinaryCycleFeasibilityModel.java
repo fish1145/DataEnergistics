@@ -159,13 +159,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             return timeout(metrics, "before_model");
         }
         ModelData data = createModel(request, pass);
-        long remainingNanos = control.remainingNanos();
-        long remainingMillis = Math.max(
-                1L,
-                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
-                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
-        data.model().options.time_abort = remainingMillis;
-        data.model().options.time_suffice = remainingMillis;
+        configureDeadline(data.model(), control);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
         metrics.addPass(Math.max(0L, System.nanoTime() - started));
@@ -201,6 +195,19 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
         return exact.successful() ? TrinityAlgorithmResult.success(solved) :
                 TrinityAlgorithmResult.failure(exact.diagnostic());
+    }
+
+    private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
+        if (!control.deadlineConfigured()) {
+            return;
+        }
+        long remainingNanos = control.remainingNanos();
+        long remainingMillis = Math.max(
+                1L,
+                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
+                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
+        model.options.time_abort = remainingMillis;
+        model.options.time_suffice = remainingMillis;
     }
 
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExact(

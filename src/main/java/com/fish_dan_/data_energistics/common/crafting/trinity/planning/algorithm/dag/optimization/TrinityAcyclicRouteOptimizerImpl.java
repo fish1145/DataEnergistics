@@ -268,13 +268,7 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         }
 
         ModelData data = createModel(request);
-        long remainingNanos = control.remainingNanos();
-        long remainingMillis = Math.max(
-                1L,
-                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
-                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
-        data.model().options.time_abort = remainingMillis;
-        data.model().options.time_suffice = remainingMillis;
+        configureDeadline(data.model(), control);
         Optimisation.Result result = request.pass() instanceof IdentityPass ?
                 data.model().maximise() :
                 data.model().minimise();
@@ -379,6 +373,19 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
             }
         }
         return exact;
+    }
+
+    private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
+        if (!control.deadlineConfigured()) {
+            return;
+        }
+        long remainingNanos = control.remainingNanos();
+        long remainingMillis = Math.max(
+                1L,
+                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
+                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
+        model.options.time_abort = remainingMillis;
+        model.options.time_suffice = remainingMillis;
     }
 
     private static ModelData createModel(ModelRequest request) {

@@ -5,13 +5,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,7 +29,6 @@ public interface TrinityGraphDemandAggregator {
      */
     TrinityAlgorithmResult<TrinityGraphDemandSolution> aggregate(
                                                                  TrinityCraftingTopology topology,
-                                                                 List<TrinityPatternVariant> variants,
                                                                  AEKey target,
                                                                  BigInteger requestedAmount,
                                                                  CraftingQuantityMode quantityMode,

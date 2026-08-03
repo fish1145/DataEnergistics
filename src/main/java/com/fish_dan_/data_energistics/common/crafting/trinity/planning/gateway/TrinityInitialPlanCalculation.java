@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
 
 /**
- * Converts one immutable initial request into an executable attempt under the configured total planning budget.
+ * Converts one immutable initial request into an executable attempt with cooperative cancellation.
  */
 public interface TrinityInitialPlanCalculation {
 

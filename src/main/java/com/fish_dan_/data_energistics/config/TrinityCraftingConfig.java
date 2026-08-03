@@ -9,7 +9,7 @@ import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * Owns the bounded planning and dynamic-input budgets used by Trinity crafting.
+ * Owns deterministic planning-complexity and dynamic-input budgets used by Trinity crafting.
  *
  * <p>
  * The values live in a dedicated COMMON file so planning policy can evolve without expanding the legacy global
@@ -24,8 +24,6 @@ public final class TrinityCraftingConfig {
     public static final int DEFAULT_MAX_SCC_KEYS = 64;
     /** Default maximum number of legal input-binding variants materialized per request. */
     public static final int DEFAULT_MAX_BINDING_VARIANTS = 512;
-    /** Default time budget for one mixed-integer solve, in milliseconds. */
-    public static final int DEFAULT_MIP_TIMEOUT_MS = 250;
     /** Default upper bound for compressed scheduling-search states. */
     public static final int DEFAULT_MAX_SCHEDULE_STATES = 500_000;
     /** Default server-thread graph rebuild budget per tick, in milliseconds. */
@@ -48,11 +46,6 @@ public final class TrinityCraftingConfig {
             .comment("Maximum legal input-binding variants materialized for one planning request.",
                     "单次规划请求允许展开的最大合法输入绑定变体数。")
             .defineInRange("maxBindingVariants", DEFAULT_MAX_BINDING_VARIANTS, 1, Integer.MAX_VALUE);
-
-    private static final ModConfigSpec.IntValue MIP_TIMEOUT_MS = BUILDER
-            .comment("Wall-clock timeout for each ojAlgo mixed-integer solve in milliseconds.",
-                    "每次 ojAlgo 混合整数求解的墙钟超时，单位毫秒。")
-            .defineInRange("mipTimeoutMs", DEFAULT_MIP_TIMEOUT_MS, 1, Integer.MAX_VALUE);
 
     private static final ModConfigSpec.IntValue MAX_SCHEDULE_STATES = BUILDER
             .comment("Maximum compressed scheduling states explored after a cyclic integer solution.",
@@ -121,7 +114,6 @@ public final class TrinityCraftingConfig {
         current = new Settings(
                 MAX_SCC_KEYS.get(),
                 MAX_BINDING_VARIANTS.get(),
-                MIP_TIMEOUT_MS.get(),
                 MAX_SCHEDULE_STATES.get(),
                 GRAPH_REBUILD_BUDGET_MS.get(),
                 PLANNER_THREADS.get(),
@@ -135,7 +127,6 @@ public final class TrinityCraftingConfig {
      *
      * @param maxSccKeys           largest accepted SCC key count
      * @param maxBindingVariants   largest materialized input-binding set
-     * @param mipTimeoutMs         timeout for one MIP solve
      * @param maxScheduleStates    compressed scheduling search bound
      * @param graphRebuildBudgetMs per-tick graph capture budget
      * @param plannerThreads       bounded planning worker count
@@ -146,7 +137,6 @@ public final class TrinityCraftingConfig {
     public record Settings(
                            int maxSccKeys,
                            int maxBindingVariants,
-                           int mipTimeoutMs,
                            int maxScheduleStates,
                            int graphRebuildBudgetMs,
                            int plannerThreads,
@@ -156,7 +146,7 @@ public final class TrinityCraftingConfig {
 
         /** Rejects invalid programmatic settings before they can disable a planner bound. */
         public Settings {
-            if (maxSccKeys <= 0 || maxBindingVariants <= 0 || mipTimeoutMs <= 0 || maxScheduleStates <= 0 ||
+            if (maxSccKeys <= 0 || maxBindingVariants <= 0 || maxScheduleStates <= 0 ||
                     graphRebuildBudgetMs <= 0 || plannerThreads <= 0 || plannerThreads > 8 ||
                     plannerQueueCapacity <= 0 || dynamicRetryMaxTicks <= 0) {
                 throw new IllegalArgumentException("Trinity crafting budgets must be positive and use at most 8 workers");
@@ -176,7 +166,6 @@ public final class TrinityCraftingConfig {
             return new Settings(
                     DEFAULT_MAX_SCC_KEYS,
                     DEFAULT_MAX_BINDING_VARIANTS,
-                    DEFAULT_MIP_TIMEOUT_MS,
                     DEFAULT_MAX_SCHEDULE_STATES,
                     DEFAULT_GRAPH_REBUILD_BUDGET_MS,
                     recommendedPlannerThreads(availableProcessors),

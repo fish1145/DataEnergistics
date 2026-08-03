@@ -252,6 +252,17 @@ machine identity，其余 addon 路线保持未知。reservation 只保存不可
 重验与提交；拒绝、stale、取消、暂停、重载、异常和 scheduler 关闭均走同一幂等释放路径。容量耗尽与共享机器竞争由合并式
 runtime 契约直接验证，不为具体配方或 addon 重复建立特例测试。
 
+### C-022：生产规划误用全图 250 ms 墙钟截止
+
+`mipTimeoutMs` 原本描述为单次 ojAlgo 求解预算，实际却由初始规划与剩余量重规划创建唯一 `TrinityPlanningControl`，令样板
+展开、Tarjan、DAG 传播、所有 SCC 求解、排程和组装共同争用 250 ms。大型但合法的依赖图会在数学求解完成前被主动取消，
+随后错误显示为“超出配置预算并使用 AE2 计算”。每次请求还会展开整个网格目录，并在循环输入判断中反复扫描全部 variant。
+
+修复：生产控制只响应 Future 的协作取消，不再设置 wall-clock 截止，也删除无效的 `mipTimeoutMs` 配置。规划开始时按目标提取
+保留全部生产路线和输入替代的反向可达超图，再执行 variant 展开与 Tarjan；快照按 revision/target 缓存该派生图。拓扑同时建立
+`AEKey -> producer variants` 索引，需求聚合不再为每个循环输入扫描完整 variant 表。复杂度仍受 SCC、variant、模型规模、排程状态
+和有界执行队列控制，合法结果不会因机器冷热或整合包目录大小跨过墙钟阈值而改变。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -283,7 +294,7 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 | 风险 | 控制 |
 | --- | --- |
 | MIP 数值解不精确 | 精确窗口内使用 ordinary model，超出窗口使用整数 digit/carry radix model；两者都经 `BigInteger` 二次验证，失败即拒绝 |
-| 任意 Petri net 搜索失控 | SCC/variant/time/state 四重上限 |
+| 任意 Petri net 搜索失控 | 先裁剪目标反向可达超图，再以 SCC、variant、模型规模、状态数和显式取消控制复杂度；合法结果不因墙钟截止被降级 |
 | 异步线程访问世界 | 只传不可变值对象，服务器线程二次校验 |
 | 动态借料复制或误退款 | RESERVED/COMMITTED/RELEASED 所有权状态 |
 | 配方热更新执行旧语义 | pattern signature 校验，只重规划剩余量 |
@@ -342,7 +353,7 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-019 均有直接行为测试或集成证据；
+1. C-001 至 C-022 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

@@ -474,6 +474,9 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
 
     private static void applyDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
         model.options.integer(FEASIBILITY_STRATEGY);
+        if (!control.deadlineConfigured()) {
+            return;
+        }
         long remainingNanos = control.remainingNanos();
         long remainingMillis = Math.max(
                 1L,

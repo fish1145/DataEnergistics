@@ -16,6 +16,7 @@ import java.util.Map;
  * @param componentByKey            exact key-to-component lookup
  * @param topologicalOrder          input-to-output condensation order
  * @param variantsByOutputComponent explicit transition ownership for every output-side component
+ * @param variantsByOutputKey       exact pre-sorted producer index for reverse demand propagation
  * @param cyclicOwnerByVariant      unique cyclic component that owns a transition with internal feedback
  */
 public record TrinityCraftingTopology(
@@ -23,6 +24,7 @@ public record TrinityCraftingTopology(
                                       Map<AEKey, Integer> componentByKey,
                                       List<Integer> topologicalOrder,
                                       Map<Integer, List<TrinityPatternVariant>> variantsByOutputComponent,
+                                      Map<AEKey, List<TrinityPatternVariant>> variantsByOutputKey,
                                       Map<TrinityPatternVariant, Integer> cyclicOwnerByVariant) {
 
     /**
@@ -30,7 +32,7 @@ public record TrinityCraftingTopology(
      */
     public TrinityCraftingTopology {
         if (components == null || components.isEmpty() || componentByKey == null || topologicalOrder == null ||
-                variantsByOutputComponent == null || cyclicOwnerByVariant == null ||
+                variantsByOutputComponent == null || variantsByOutputKey == null || cyclicOwnerByVariant == null ||
                 components.size() != topologicalOrder.size()) {
             throw new IllegalArgumentException("A Trinity crafting topology requires complete components and order");
         }
@@ -61,6 +63,14 @@ public record TrinityCraftingTopology(
             copiedVariants.put(index, List.copyOf(variants));
         });
         variantsByOutputComponent = Collections.unmodifiableMap(copiedVariants);
+        LinkedHashMap<AEKey, List<TrinityPatternVariant>> copiedProducers = new LinkedHashMap<>();
+        variantsByOutputKey.forEach((key, variants) -> {
+            if (key == null || variants == null || !copiedMapping.containsKey(key)) {
+                throw new IllegalArgumentException("A Trinity producer index must reference a topology key");
+            }
+            copiedProducers.put(key, List.copyOf(variants));
+        });
+        variantsByOutputKey = Collections.unmodifiableMap(copiedProducers);
         LinkedHashMap<TrinityPatternVariant, Integer> copiedOwners = new LinkedHashMap<>();
         for (Map.Entry<TrinityPatternVariant, Integer> owner : cyclicOwnerByVariant.entrySet()) {
             TrinityPatternVariant variant = owner.getKey();

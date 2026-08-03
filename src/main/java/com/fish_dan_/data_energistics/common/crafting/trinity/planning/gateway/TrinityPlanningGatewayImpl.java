@@ -24,44 +24,25 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
- * Bounded implementation that waits only for the configured Trinity budget before adopting the AE2 result.
+ * Bounded-executor implementation that waits for a proved Trinity result before adopting the AE2 result.
  */
 final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
     private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
     private final ExecutorService plannerExecutor;
-    private final long trinityWaitNanos;
     private final boolean ownsExecutor;
-    private final LongSupplier nanoClock;
 
     TrinityPlanningGatewayImpl(TrinityCraftingConfig.Settings settings) {
-        this(
-                createExecutor(settings),
-                TimeUnit.MILLISECONDS.toNanos(settings.mipTimeoutMs()),
-                true,
-                System::nanoTime);
+        this(createExecutor(settings), true);
     }
 
-    TrinityPlanningGatewayImpl(ExecutorService plannerExecutor, long trinityWaitNanos, boolean ownsExecutor) {
-        this(plannerExecutor, trinityWaitNanos, ownsExecutor, System::nanoTime);
-    }
-
-    TrinityPlanningGatewayImpl(ExecutorService plannerExecutor,
-                               long trinityWaitNanos,
-                               boolean ownsExecutor,
-                               LongSupplier nanoClock) {
-        if (trinityWaitNanos <= 0L) {
-            throw new IllegalArgumentException("A Trinity planning gateway requires a positive timeout");
-        }
+    TrinityPlanningGatewayImpl(ExecutorService plannerExecutor, boolean ownsExecutor) {
         this.plannerExecutor = plannerExecutor;
-        this.trinityWaitNanos = trinityWaitNanos;
         this.ownsExecutor = ownsExecutor;
-        this.nanoClock = nanoClock;
     }
 
     private static ExecutorService createExecutor(TrinityCraftingConfig.Settings settings) {
@@ -85,26 +66,19 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                                        boolean qualifiedTrinityCpu,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
                                        Supplier<Future<ICraftingPlan>> ae2Calculation) {
-        long trinityStartedNanos = this.nanoClock.getAsLong();
-        long trinityDeadlineNanos = PreferredPlanningFuture.saturatedAdd(
-                trinityStartedNanos,
-                this.trinityWaitNanos);
-        Future<CompletedPlanningAttempt> trinityFuture = null;
+        Future<TrinityPlanningAttempt> trinityFuture = null;
         if (qualifiedTrinityCpu) {
             try {
-                trinityFuture = this.plannerExecutor.submit(() -> new CompletedPlanningAttempt(
-                        trinityCalculation.call(),
-                        this.nanoClock.getAsLong()));
+                trinityFuture = this.plannerExecutor.submit(trinityCalculation);
             } catch (RejectedExecutionException exception) {
                 Data_Energistics.LOGGER.warn("Trinity planner queue rejected a calculation; falling back to AE2",
                         exception);
-                trinityFuture = CompletableFuture.completedFuture(new CompletedPlanningAttempt(
+                trinityFuture = CompletableFuture.completedFuture(
                         TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                                 TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL,
                                 Component.translatable(
                                         "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full_ae2"),
-                                Map.of("reason", exception.getClass().getSimpleName()))),
-                        trinityStartedNanos));
+                                Map.of("reason", exception.getClass().getSimpleName()))));
             }
         }
 
@@ -121,11 +95,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
         if (!qualifiedTrinityCpu) {
             return ae2Future;
         }
-        return new PreferredPlanningFuture(
-                trinityFuture,
-                ae2Future,
-                trinityDeadlineNanos,
-                this.nanoClock);
+        return new PreferredPlanningFuture(trinityFuture, ae2Future);
     }
 
     @Override
@@ -154,23 +124,17 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
      */
     private static final class PreferredPlanningFuture implements Future<ICraftingPlan> {
 
-        private final Future<CompletedPlanningAttempt> trinity;
+        private final Future<TrinityPlanningAttempt> trinity;
         private final Future<ICraftingPlan> ae2;
-        private final long trinityDeadlineNanos;
-        private final LongSupplier nanoClock;
 
         private ICraftingPlan result;
         private boolean cancelled;
 
         private PreferredPlanningFuture(
-                                        Future<CompletedPlanningAttempt> trinity,
-                                        Future<ICraftingPlan> ae2,
-                                        long trinityDeadlineNanos,
-                                        LongSupplier nanoClock) {
+                                        Future<TrinityPlanningAttempt> trinity,
+                                        Future<ICraftingPlan> ae2) {
             this.trinity = trinity;
             this.ae2 = ae2;
-            this.trinityDeadlineNanos = trinityDeadlineNanos;
-            this.nanoClock = nanoClock;
         }
 
         @Override
@@ -197,8 +161,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             if (this.cancelled || this.result != null) {
                 return true;
             }
-            long now = this.nanoClock.getAsLong();
-            if (!this.trinity.isDone() && now < this.trinityDeadlineNanos) {
+            if (!this.trinity.isDone()) {
                 return false;
             }
             if (this.trinity.isDone() && hasPreferredTrinityResult(this.trinity)) {
@@ -222,7 +185,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             if (timeout < 0L) {
                 throw new IllegalArgumentException("Timeout must not be negative");
             }
-            return resolve(saturatedAdd(this.nanoClock.getAsLong(), unit.toNanos(timeout)));
+            return resolve(saturatedAdd(System.nanoTime(), unit.toNanos(timeout)));
         }
 
         private ICraftingPlan resolve(long callerDeadlineNanos)
@@ -239,8 +202,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             TrinityPlanningDiagnostic diagnostic;
             Throwable trinityFailure = null;
             try {
-                CompletedPlanningAttempt completedAttempt = awaitTrinity(callerDeadlineNanos);
-                TrinityPlanningAttempt attempt = completedAttempt.attempt();
+                TrinityPlanningAttempt attempt = awaitTrinity(callerDeadlineNanos);
                 if (attempt.successful()) {
                     this.ae2.cancel(true);
                     return publish(attempt.plan());
@@ -284,38 +246,19 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             }
         }
 
-        private CompletedPlanningAttempt awaitTrinity(long callerDeadlineNanos)
-                                                                                throws InterruptedException, ExecutionException, TimeoutException {
-            if (this.trinity.isDone()) {
-                CompletedPlanningAttempt completed = this.trinity.get();
-                if (completed.completedNanos() <= this.trinityDeadlineNanos) {
-                    return completed;
-                }
-                return timedOutAttempt();
+        private TrinityPlanningAttempt awaitTrinity(long callerDeadlineNanos)
+                                                                              throws InterruptedException, ExecutionException, TimeoutException {
+            if (callerDeadlineNanos == Long.MAX_VALUE) {
+                return this.trinity.get();
             }
-
-            long deadline = Math.min(this.trinityDeadlineNanos, callerDeadlineNanos);
-            long remaining = deadline - this.nanoClock.getAsLong();
+            long remaining = callerDeadlineNanos - System.nanoTime();
             if (remaining > 0L) {
-                try {
-                    CompletedPlanningAttempt completed = this.trinity.get(remaining, TimeUnit.NANOSECONDS);
-                    if (completed.completedNanos() <= this.trinityDeadlineNanos) {
-                        return completed;
-                    }
-                    return timedOutAttempt();
-                } catch (TimeoutException timeout) {
-                    if (callerDeadlineNanos < this.trinityDeadlineNanos) {
-                        throw timeout;
-                    }
-                }
+                return this.trinity.get(remaining, TimeUnit.NANOSECONDS);
             }
-
-            if (callerDeadlineNanos < this.trinityDeadlineNanos) {
-                throw new TimeoutException("Caller timeout elapsed while awaiting Trinity planning");
+            if (this.trinity.isDone()) {
+                return this.trinity.get();
             }
-            this.trinity.cancel(true);
-            Data_Energistics.LOGGER.warn("Trinity planning exceeded its configured wait budget; falling back to AE2");
-            return timedOutAttempt();
+            throw new TimeoutException("Caller timeout elapsed while awaiting Trinity planning");
         }
 
         private ICraftingPlan awaitAe2(long callerDeadlineNanos)
@@ -323,7 +266,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             if (callerDeadlineNanos == Long.MAX_VALUE) {
                 return this.ae2.get();
             }
-            long remaining = callerDeadlineNanos - this.nanoClock.getAsLong();
+            long remaining = callerDeadlineNanos - System.nanoTime();
             if (remaining <= 0L) {
                 if (this.ae2.isDone()) {
                     return this.ae2.get();
@@ -343,25 +286,16 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             return this.result;
         }
 
-        private boolean hasPreferredTrinityResult(Future<CompletedPlanningAttempt> future) {
+        private boolean hasPreferredTrinityResult(Future<TrinityPlanningAttempt> future) {
             try {
-                CompletedPlanningAttempt completed = future.get();
-                return completed.completedNanos() <= this.trinityDeadlineNanos &&
-                        (completed.attempt().successful() || completed.attempt().authoritativeSimulation().isPresent());
+                TrinityPlanningAttempt attempt = future.get();
+                return attempt.successful() || attempt.authoritativeSimulation().isPresent();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return false;
             } catch (ExecutionException | CancellationException exception) {
                 return false;
             }
-        }
-
-        private CompletedPlanningAttempt timedOutAttempt() {
-            return new CompletedPlanningAttempt(
-                    TrinityPlanningAttempt.failure(TrinityPlanningDiagnostic.ofTranslationKey(
-                            TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                            "gui.data_energistics.trinity_planning.diagnostic.timeout_ae2")),
-                    this.nanoClock.getAsLong());
         }
 
         private static long saturatedAdd(long left, long right) {
@@ -374,8 +308,6 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             return left + right;
         }
     }
-
-    private record CompletedPlanningAttempt(TrinityPlanningAttempt attempt, long completedNanos) {}
 
     /**
      * Adds Trinity context without replacing the original AE2 planning exception.
