@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtVersionPolicy;
 
 import net.minecraft.network.chat.Component;
 
@@ -35,14 +36,23 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
     private final ExecutorService plannerExecutor;
     private final boolean ownsExecutor;
+    private final boolean trinityPlanningEnabled;
 
     TrinityPlanningGatewayImpl(TrinityCraftingConfig.Settings settings) {
-        this(createExecutor(settings), true);
+        this(createExecutor(settings), true, Ae2LtVersionPolicy.unsupportedInstalledVersion().isEmpty());
     }
 
     TrinityPlanningGatewayImpl(ExecutorService plannerExecutor, boolean ownsExecutor) {
+        this(plannerExecutor, ownsExecutor, Ae2LtVersionPolicy.unsupportedInstalledVersion().isEmpty());
+    }
+
+    TrinityPlanningGatewayImpl(
+                               ExecutorService plannerExecutor,
+                               boolean ownsExecutor,
+                               boolean trinityPlanningEnabled) {
         this.plannerExecutor = plannerExecutor;
         this.ownsExecutor = ownsExecutor;
+        this.trinityPlanningEnabled = trinityPlanningEnabled;
     }
 
     private static ExecutorService createExecutor(TrinityCraftingConfig.Settings settings) {
@@ -66,8 +76,9 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                                        boolean qualifiedTrinityCpu,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
                                        Supplier<Future<ICraftingPlan>> ae2Calculation) {
+        boolean runTrinity = qualifiedTrinityCpu && this.trinityPlanningEnabled;
         Future<TrinityPlanningAttempt> trinityFuture = null;
-        if (qualifiedTrinityCpu) {
+        if (runTrinity) {
             try {
                 trinityFuture = this.plannerExecutor.submit(trinityCalculation);
             } catch (RejectedExecutionException exception) {
@@ -92,7 +103,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             ae2Future = CompletableFuture.failedFuture(exception);
         }
 
-        if (!qualifiedTrinityCpu) {
+        if (!runTrinity) {
             return ae2Future;
         }
         return new PreferredPlanningFuture(trinityFuture, ae2Future);

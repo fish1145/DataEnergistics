@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtSoftInterfaceInjector;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtVersionPolicy;
 
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.ClassNode;
 
@@ -29,6 +31,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Ae2LtCompatibilityPolicyTest {
+
+    @Test
+    void versionsNewerThanTwoZeroZeroDisableCompatibility() {
+        assertFalse(Ae2LtVersionPolicy.isUnsupported(new DefaultArtifactVersion("1.1.4")));
+        assertFalse(Ae2LtVersionPolicy.isUnsupported(new DefaultArtifactVersion("2.0.0")));
+        assertTrue(Ae2LtVersionPolicy.isUnsupported(new DefaultArtifactVersion("2.0.1")));
+        assertTrue(Ae2LtVersionPolicy.isUnsupported(new DefaultArtifactVersion("2.1.0")));
+    }
 
     @Test
     void supportedRuntimeMatrixSelectsOneEjectOwnerAndOneWirelessAbi() {

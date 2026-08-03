@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEventHandler;
 import com.fish_dan_.data_energistics.effect.DataDisorderControlLogic;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtCompatibilityWarning;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
@@ -34,6 +35,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new SonicBoomEchoCaptureImpl());
         NeoForge.EVENT_BUS.register(new ServerTickDelayQueue());
         NeoForge.EVENT_BUS.register(new TrinityServerTickMetrics());
+        NeoForge.EVENT_BUS.register(new Ae2LtCompatibilityWarning());
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, DataMimeticFieldBlockEntity::captureSimulatedSpawnedDrops);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, DataMimeticFieldBlockEntity::captureSimulatedDeathDrops);
     }

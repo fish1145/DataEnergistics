@@ -661,5 +661,6 @@
 	"text.data_energistics.multiblock.failure.trinity.pattern_core_rejected_state": "A pattern processing core rejected its persisted state",
 	"text.data_energistics.multiblock.failure.trinity.pattern_core_mounted_elsewhere": "A pattern processing core is mounted by another active host",
 	"text.data_energistics.multiblock.failure.trinity.pattern_catalog_invalid": "The pattern core catalog is inconsistent",
-	"text.data_energistics.multiblock.failure.trinity.structure_validation": "Trinity structure validation failed; see the server log"
+	"text.data_energistics.multiblock.failure.trinity.structure_validation": "Trinity structure validation failed; see the server log",
+	"message.data_energistics.compatibility.ae2lt.unsupported": "Warning: AE2 Lightning Tech %1$s is newer than the supported boundary %2$s. Data Energistics has disabled its AE2LT compatibility features."
 }

@@ -661,5 +661,6 @@
 	"text.data_energistics.multiblock.failure.trinity.pattern_core_rejected_state": "样板处理核心拒绝了持久化状态",
 	"text.data_energistics.multiblock.failure.trinity.pattern_core_mounted_elsewhere": "样板处理核心已被其他活动主机挂载",
 	"text.data_energistics.multiblock.failure.trinity.pattern_catalog_invalid": "样板核心目录数据不一致",
-	"text.data_energistics.multiblock.failure.trinity.structure_validation": "Trinity 结构校验失败，请查看服务端日志"
+	"text.data_energistics.multiblock.failure.trinity.structure_validation": "Trinity 结构校验失败，请查看服务端日志",
+	"message.data_energistics.compatibility.ae2lt.unsupported": "警告：检测到 AE2 Lightning Tech %1$s，高于支持上限 %2$s。Data Energistics 已禁用 AE2LT 兼容功能。"
 }
