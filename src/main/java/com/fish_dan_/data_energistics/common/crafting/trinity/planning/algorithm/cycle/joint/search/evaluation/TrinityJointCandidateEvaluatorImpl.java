@@ -245,6 +245,18 @@ final class TrinityJointCandidateEvaluatorImpl implements TrinityJointCandidateE
         firings.forEach((variant, count) -> variant.netChange().forEach(
                 (key, amount) -> net.merge(key, amount.multiply(count), BigInteger::add)));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
+        boolean exportsInternalKey = internalKeys.stream()
+                .anyMatch(demand.requiredNetChangeLowerBounds()::containsKey);
+        if (internalKeys.stream().anyMatch(key -> {
+            BigInteger amount = net.getOrDefault(key, BigInteger.ZERO);
+            BigInteger requested = demand.requiredNetChangeLowerBounds().get(key);
+            if (requested != null) {
+                return amount.compareTo(requested) < 0;
+            }
+            return exportsInternalKey ? amount.signum() != 0 : amount.signum() < 0;
+        })) {
+            return Optional.empty();
+        }
         for (Map.Entry<AEKey, BigInteger> bound : demand.requiredNetChangeLowerBounds().entrySet()) {
             if (net.getOrDefault(bound.getKey(), BigInteger.ZERO).compareTo(bound.getValue()) < 0) {
                 return Optional.empty();

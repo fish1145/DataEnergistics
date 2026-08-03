@@ -142,7 +142,7 @@ public final class TrinityPatternSelectorTest {
     }
 
     @Test
-    void reportsExactVariantLimitBeforeExpansion() {
+    void reportsDistinctVariantLimitAfterEquivalentBindingsAreCollapsed() {
         IPatternDetails pattern = pattern(
                 input(1L, stack(iron, 1L), stack(gold, 1L)),
                 input(1L, stack(redstone, 1L), stack(iron, 1L), stack(gold, 1L)));
@@ -156,10 +156,10 @@ public final class TrinityPatternSelectorTest {
                         1L,
                         ignored -> 1L,
                         ignored -> 0L,
-                        5));
+                        4));
 
-        assertEquals(BigInteger.valueOf(6L), result.required());
-        assertEquals(5, result.limit());
+        assertEquals(BigInteger.valueOf(5L), result.required());
+        assertEquals(4, result.limit());
     }
 
     @Test

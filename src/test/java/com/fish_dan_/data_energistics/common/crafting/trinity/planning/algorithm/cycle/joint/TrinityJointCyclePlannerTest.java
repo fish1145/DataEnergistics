@@ -125,7 +125,7 @@ public final class TrinityJointCyclePlannerTest {
                 List.of(),
                 List.of());
         BigInteger requested = BigInteger.valueOf(requestedAmount);
-        Map<AEKey, BigInteger> available = directNeedsExternal || cycleNeedsExternal ?
+        Map<AEKey, BigInteger> available = directNeedsExternal ?
                 Map.of(a, BigInteger.TWO, catalyst, BigInteger.ONE) : Map.of(a, BigInteger.TWO);
 
         TrinityAlgorithmResult<TrinityJointCyclePlan> result = solve(
@@ -300,13 +300,15 @@ public final class TrinityJointCyclePlannerTest {
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString() + result.diagnostic().metadata());
         TrinityJointCyclePlan plan = result.value();
-        BigInteger aToBFirings = target.subtract(BigInteger.ONE).divide(BigInteger.valueOf(3L));
-        BigInteger bToAFirings = aToBFirings.multiply(BigInteger.TWO).add(BigInteger.ONE);
+        BigInteger aToBFirings = target.add(BigInteger.TWO).divide(BigInteger.valueOf(3L));
+        BigInteger bToAFirings = aToBFirings.multiply(BigInteger.TWO);
         assertEquals(Map.of(aToB, aToBFirings, bToA, bToAFirings), plan.firings());
         assertEquals(Map.of(b, BigInteger.ONE), plan.minimumSeed());
         assertEquals(Map.of(b, BigInteger.ONE), plan.initialInputs());
-        assertEquals(Map.of(a, target.add(BigInteger.ONE), b, BigInteger.ONE.negate()), plan.netChange());
-        assertEquals(Map.of(a, target.add(BigInteger.ONE)), plan.schedule().finalBalances());
+        assertEquals(Map.of(a, aToBFirings.multiply(BigInteger.valueOf(3L))), plan.netChange());
+        assertEquals(
+                Map.of(a, aToBFirings.multiply(BigInteger.valueOf(3L)), b, BigInteger.ONE),
+                plan.schedule().finalBalances());
     }
 
     @Test

@@ -304,6 +304,24 @@ durable refund outbox 引入前的合法 V2 状态包含 `version=2`、core iden
 outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 字段、schema 混用、未知版本或损坏 V3 继续 fail fast。
 迁移后的真实玩家拆除、独立样板掉落、保留工作重放和退款不复制由同一 GameTest 覆盖。
 
+### C-025：完整增殖循环被展开，且中间余额可能越过 SCC 边界
+
+唯一生产者循环同时向上层提供多个净增输出时，旧确定性路径虽然能立即算出 primitive firing 比例与重复次数，却要求真实
+minimum seed 必须等于“任意首个 transition 的最小输入”这一弱下界。完整多步循环的真实前缀 seed 通常更大，正确候选因此
+被误判为不适用并退回 joint MIP；通用排程又把完整 firing vector 以 `repetitions=1` 铺平，256M 乃至十亿级链路随数量膨胀。
+需求传播若直接观察阶段余额，还可能把未完成循环的 seed 或内部中间产物提前供给上层。
+
+修复：增加 proof-carrying `TrinityCycleMacro`，只对 primitive 内部净变化非负、请求边界输出已完整结算且 residual 为唯一生产者
+DAG 的 SCC 生效。重复次数由聚合边界需求一次求得；有 residual 时只搜索“完整 residual + 覆盖其 reservoir 亏空所需的最少
+primitive 单元”这一证明核，其余单元直接保留为 `BigInteger` repeat count。下游只能看到计划显式证明的 settled export，内部
+stage 余额和 seed 保持私有。通用 joint 候选在请求内部 key 时还要求其它内部 key 精确归零；只请求环外输出时允许保留非负
+内部工作余额，但不允许导出。unit order 合并相邻同样板 firing；输入替代在展开前按聚合消耗与余留物效果合并等价绑定，
+预算按 distinct transition effect 和证明核余额断点计数。
+
+直接证据是一套有限原料的完整 256M 风格链路：两个有限 seed 原料、有限流体与外壳、三段增殖循环和四层上游组件全部参与
+守恒；规划结果为 85 个完整宏单元、3 个 repeat unit stage，而不是展开 5,000 余次内部 firing。已有玩家请求域、joint SCC、
+binding expander 与运行时 selector 契约继续覆盖通用数量和绑定边界，不新增具体模组配方分支。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -332,6 +350,7 @@ outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 
 | C-022 | 目标可达图缓存与确定性复杂度边界 | 已完成 | 大型图不使用墙钟截止，取消/图/variant/状态边界保持生效 |
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 | C-024 | Pattern Core V2→V3 版本化迁移 | 已完成 | 原子迁移、损坏状态拒绝与真实玩家拆除/掉落/重放 GameTest |
+| C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
 
 ## 5. 风险与控制
 
@@ -347,6 +366,8 @@ outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 
 | 缺料等待造成忙轮询 | key 唤醒加最高 200 tick 退避 |
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
 | 单样板自环缺料后继续等待 AE2 大数量展开 | 发布 Trinity 权威诊断 simulation 并协作取消 AE2；多步顺序相关结果继续 fallback |
+| 多输出循环退化为逐 firing 排程或提前暴露 seed | 只接纳带完整 unit seed/net 证明的 primitive macro；下游仅消费 settled positive net |
+| 原始输入替代笛卡尔积放大图规模 | 按聚合消耗和余留物效果合并等价绑定，规划与运行时共享首个合法 representative |
 | UI 数量与紧凑执行游标偏离 | 计划使用 gross 声明输出；运行时从持久游标精确推导，不维护第二份可漂移计数器 |
 | 容量快照提前修改库存或按旧 route 提交 | 从 CPU 库存副本捕获 prototype；提交前联合重验 provider、capability、pattern 与 target revision |
 
@@ -362,6 +383,7 @@ outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 
 - 非生产 SCC、无 seed、MIP 超时、SCC/variant/search 上限；
 - `NET_NEW` 与 `FINAL_TOTAL`；
 - 非循环终点复用已库存循环中间料，串并联 SCC 的 final-balance 传播，同 SCC 多轴与 cyclic-owned 环外输出；
+- 完整有限库存的 256M 风格全链路，验证多输出 primitive macro、固定 unit stage 与 seed/副产物守恒；
 - 十亿级确定性循环缺料在 scheduler 前完成，组合 Future 不等待 AE2；
 - `long` 边界与溢出。
 
@@ -397,7 +419,7 @@ outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-024 均有直接行为测试或集成证据；
+1. C-001 至 C-025 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

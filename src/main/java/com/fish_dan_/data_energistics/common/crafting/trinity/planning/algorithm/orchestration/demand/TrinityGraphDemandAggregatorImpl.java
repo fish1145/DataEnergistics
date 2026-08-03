@@ -220,7 +220,7 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
             }
             TrinityPlanningDiagnostic lastDiagnostic = null;
             for (TrinityPatternVariant selected : candidates) {
-                if (!this.routeSearchBudget.consume()) {
+                if (!this.routeSearchBudget.tryConsume()) {
                     return routeSearchLimit();
                 }
                 PlanningAccumulator branch = new PlanningAccumulator(this);
@@ -287,16 +287,16 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
                 BigInteger shortage = required
                         .subtract(this.inventory.getOrDefault(key, BigInteger.ZERO))
                         .max(BigInteger.ZERO);
-                if (key.equals(this.target) && this.quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
+                if (key.equals(this.target)) {
                     shortage = shortage.max(BigInteger.ONE);
                 }
                 if (shortage.signum() > 0) {
                     requiredNetChanges.put(key, shortage);
                 }
             }
-            this.cycleOutputDemands
-                    .getOrDefault(component.index(), new LinkedHashMap<>())
-                    .forEach((key, amount) -> merge(requiredNetChanges, key, amount));
+            Map<AEKey, BigInteger> requestedCycleOutputs = Map.copyOf(
+                    this.cycleOutputDemands.getOrDefault(component.index(), new LinkedHashMap<>()));
+            requestedCycleOutputs.forEach((key, amount) -> merge(requiredNetChanges, key, amount));
             TrinityCycleDemand cycleDemand = new TrinityCycleDemand(finalBalances, requiredNetChanges);
             Set<AEKey> producibleInputs = producibleInputs(component);
             TrinityAlgorithmResult<TrinityCycleSelection> solved = TrinityGraphDemandAggregatorImpl.this.cyclePlanSelector.select(
@@ -309,8 +309,18 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
             if (!solved.successful()) {
                 return TrinityAlgorithmResult.failure(solved.diagnostic());
             }
+            TrinityCycleSelection selection = solved.value();
+            if (requiredNetChanges.entrySet().stream()
+                    .anyMatch(entry -> selection.exportableNet()
+                            .getOrDefault(entry.getKey(), BigInteger.ZERO)
+                            .compareTo(entry.getValue()) < 0)) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                        INTERNAL_ERROR_KEY,
+                        Map.of("component", Integer.toString(component.index())));
+            }
             return TrinityAlgorithmResult.success(Optional.of(new PreparedCycle(
-                    solved.value(),
+                    selection,
                     internalRequirements,
                     producibleInputs)));
         }
@@ -356,7 +366,7 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
             }
             TrinityPlanningDiagnostic lastDiagnostic = null;
             for (TrinityPatternVariant selected : candidates) {
-                if (!this.routeSearchBudget.consume()) {
+                if (!this.routeSearchBudget.tryConsume()) {
                     return routeSearchLimit();
                 }
                 PlanningAccumulator branch = new PlanningAccumulator(this);
@@ -595,7 +605,8 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
             this.limit = limit;
         }
 
-        private boolean consume() {
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+        private boolean tryConsume() {
             if (this.used >= this.limit) {
                 return false;
             }

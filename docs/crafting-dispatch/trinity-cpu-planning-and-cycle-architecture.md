@@ -70,8 +70,10 @@ flowchart LR
 - 稳定 publication signature。
 
 每组合法输入选择形成一个 pattern binding variant。variant 只包含不可变 `AEKey`、数量和稳定签名，不保存
-provider、BlockEntity 或世界引用。变体预算只统计每个样板规范首绑定之外的额外笛卡尔分支；唯一绑定样板属于
-基础图规模，不消耗该预算。单样板笛卡尔积仍单独受同一上限约束。
+provider、BlockEntity 或世界引用。展开前按输入槽做动态规划：聚合消耗与输入余留物效果完全相同的绑定只保留首个
+合法 Cartesian representative，规划和运行时动态选料共用同一枚举边界。变体预算统计 distinct transition effect，
+而不是原始笛卡尔组合数；唯一绑定样板属于基础图规模，不消耗额外分支预算。已有计划保存的非规范 raw ordinal 仍按
+原笛卡尔语义直接解码，避免恢复时静默改绑。
 
 ### 4.2 Revision 与重建
 
@@ -162,6 +164,23 @@ cyclic owner；其环外输出需求回传给 owner，禁止再作为普通 DAG 
 枚举其他 reservoir 后因局部结构不适用而降级到通用 MIP。守恒所需初始库存与纯执行前缀亏空分别计算，执行 reserve 使用前者，
 不得把较小的前缀亏空误当作完整作业初始库存。
 
+唯一生产者 SCC 若存在一个内部 seed 不减少、所有被请求边界输出均为正净变化的 primitive firing ray，则形成
+`TrinityCycleMacro`。对每个被请求输出 `key` 计算 `ceil(demand[key] / unitEffect[key])`，取最大值作为完整单元重复次数；
+不为请求数量展开 firing。若上层 DAG 同时要求多个循环输出，唯一 residual DAG 只保留一次性 prefix/suffix；minimum seed
+证明核由“完整 residual + 足以覆盖 residual reservoir 亏空的最少 primitive 单元”组成。精确 Dijkstra 只搜索该有界证明核，
+其余 primitive 单元因内部净变化非负而直接追加为一个 repeat block。相邻同样板 firing 合并为一个 unit stage，状态数只随
+样板拓扑、residual 和余额断点变化，不随 256M 或十亿级请求量展开。
+
+宏对外只发布完整单元的正 `unitNetChange`。内部 seed、阶段中途产物和任意未完成前缀都保持 SCC 私有；下游 DAG 只能捕获
+`repetitions * exportableNet`，不能把循环内部任意位置的临时余额当作可用产物。一次性 residual 只有在唯一生产者 DAG、完整
+守恒与证明核排程全部成立时才能放在 repeat block 两侧；若任一内部 key 在完整单元后减少、residual 有歧义或精确排程证明
+失败，则该宏不适用并继续通用规划。
+
+通用 joint 路径同样显式携带已经证明的 `exportableNet`，不得从任意 firing vector 的正余额反推可导出材料。当上层请求 SCC
+内部 key 时，所有未被请求的内部 key 必须在候选结束时精确结算为零；当上层只请求环外边界输出时，内部 key 允许保持非负
+工作余额，但这些余额仍不进入导出集合。非全局目标的循环需求按“所需最终余额减现有库存”的净缺口传播，现有 seed 只参与
+可执行性验证，不会被重复计作新增需求，也不会提前供给其它分支。
+
 `TrinityCyclePlanSelector` 统一持有标量闭式、确定性 component 与通用 MIP 的选择策略；`TrinityGraphPlannerImpl` 只消费其
 不可变 selection 结果，不再直接组合各循环求解器。
 
@@ -213,6 +232,9 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 
 状态搜索不逐个执行 firing，而按“当前最大安全批次”或下一个余额断点推进。状态包含剩余 firing vector、相关余额和
 阶段游标，并受 `maxScheduleStates` 限制。
+
+已证明的 primitive macro 只排程一个完整单元，再以 `BigInteger repetitions` 保存重复次数；不会把 256M 或十亿级请求
+铺平成同数量级的 schedule batch。单元内部仍保留精确可执行的余额断点，因此压缩不改变 provider 顺序或 seed 守恒。
 
 MIP 中的 seed 变量是最终守恒的整数下界，压缩排程负责求出真正满足所有执行前缀的 minimum seed。同一最优 firing
 层内按真实前缀 seed 比较候选；只要真实 seed 未超过可用库存，就不能因为它高于 MIP 松弛下界而把可执行循环判为无解。
@@ -276,6 +298,10 @@ FAILED
 3. completion buffer 与循环输入完全隔离；
 4. requester 实际接受多少就扣减多少；
 5. seed、过量目标和其它剩余物通过现有网络回收路径返还。
+
+循环还承担上层材料供给时，只有一个完整 repeat 单元结算后、且列入 `exportableNet` 的正净增输出可以唤醒下游 stage；单元
+内部的临时 charged、dust、seed 或其它中间余额不能越过 repeat block 边界。这样同一循环的多个已结算副产物可以共同供给
+上层，而不会提前消费下一轮 seed。
 
 ### 7.4 动态替代与借料
 
@@ -381,6 +407,8 @@ RUNTIME_DEADLOCK
 - binding variant 的稳定展开、Tarjan SCC 和凝聚 DAG；
 - 不随请求量逐次展开的 `BigInteger` 无环需求传播；
 - `A -> 2A` 与 `A -> B -> 2A` 的闭式 repeat block 和最大前缀 seed；
+- 多边界输出的 primitive cycle macro、完整单元净增结算和只随图结构增长的 unit stage；
+- 等价输入绑定的 transition-effect 动态规划压缩，以及规划/运行时共享的 canonical representative；
 - ordinary/radix ojAlgo 顺序词典序 MIP、`BigInteger` 精确整数复验和有界压缩排程证明；
 - 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
 - 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界；图需求、计划组装、

@@ -114,63 +114,52 @@ final class TrinityRadixModelAssemblerImpl implements TrinityRadixModelAssembler
                                                TrinityRadixVariable firingTotal,
                                                BigInteger minimumSeed,
                                                BigInteger minimumExternal) {
-        if (pass instanceof TrinityRadixModelPass.External) {
-            BigInteger lower = request.fixedExternalTotal().orElse(minimumExternal);
-            BigInteger upper = request.fixedExternalTotal().orElse(externalTotal.upperBound());
-            return new ObjectiveSelection(
-                    externalTotal,
-                    true,
-                    lower,
-                    upper);
-        }
-        if (pass instanceof TrinityRadixModelPass.Seed seed) {
-            model.addFixed("fixed_external", externalTotal, seed.fixedExternal());
-            BigInteger seedSearchLower = minimumSeed.max(seed.seedLowerBound());
-            model.addLowerBound("seed_search_lower", seedTotal, seedSearchLower);
-            return new ObjectiveSelection(
-                    seedTotal,
-                    true,
-                    seedSearchLower,
-                    seedTotal.upperBound());
-        }
-        if (pass instanceof TrinityRadixModelPass.Firing firing) {
-            model.addFixed("fixed_external", externalTotal, firing.fixedExternal());
-            model.addFixed("fixed_seed", seedTotal, firing.fixedSeed());
-            BigInteger firingSearchLower = firing.firingLowerBound().max(
-                    this.exactBounds.conservationFiringLowerBound(
-                            request,
-                            firing.fixedExternal(),
-                            firing.fixedSeed()));
-            model.addLowerBound("firing_search_lower", firingTotal, firingSearchLower);
-            return new ObjectiveSelection(
-                    firingTotal,
-                    true,
-                    firingSearchLower,
-                    firingTotal.upperBound());
-        }
-        if (pass instanceof TrinityRadixModelPass.Identity identity) {
-            model.addFixed("fixed_external", externalTotal, identity.fixedExternal());
-            model.addFixed("fixed_seed", seedTotal, identity.fixedSeed());
-            model.addFixed("fixed_firings", firingTotal, identity.fixedFirings());
-            identity.fixedCounts().forEach((variant, count) -> model.addFixed(
-                    "fixed_firing_" + request.variants().indexOf(variant),
-                    firingVariables.get(variant),
-                    count));
-            TrinityRadixVariable objective = firingVariables.get(identity.variant());
-            BigInteger upperBound = this.exactBounds.identityObjectiveUpperBound(
-                    request,
-                    identity.fixedExternal(),
-                    identity.fixedSeed(),
-                    identity.fixedFirings(),
-                    identity.fixedCounts(),
-                    identity.variant())
-                    .min(objective.upperBound());
-            if (upperBound.signum() < 0) {
-                throw new TrinityRadixInfeasibleException("identity_objective_upper");
+        return switch (pass) {
+            case TrinityRadixModelPass.External.INSTANCE -> {
+                BigInteger lower = request.fixedExternalTotal().orElse(minimumExternal);
+                BigInteger upper = request.fixedExternalTotal().orElse(externalTotal.upperBound());
+                yield new ObjectiveSelection(externalTotal, true, lower, upper);
             }
-            return new ObjectiveSelection(objective, false, BigInteger.ZERO, upperBound);
-        }
-        throw new IllegalStateException("Unknown Trinity radix MIP pass");
+            case TrinityRadixModelPass.Seed(var fixedExternal, var seedLowerBound) -> {
+                model.addFixed("fixed_external", externalTotal, fixedExternal);
+                BigInteger seedSearchLower = minimumSeed.max(seedLowerBound);
+                model.addLowerBound("seed_search_lower", seedTotal, seedSearchLower);
+                yield new ObjectiveSelection(seedTotal, true, seedSearchLower, seedTotal.upperBound());
+            }
+            case TrinityRadixModelPass.Firing(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
+                model.addFixed("fixed_external", externalTotal, fixedExternal);
+                model.addFixed("fixed_seed", seedTotal, fixedSeed);
+                BigInteger firingSearchLower = firingLowerBound.max(
+                        this.exactBounds.conservationFiringLowerBound(
+                                request,
+                                fixedExternal,
+                                fixedSeed));
+                model.addLowerBound("firing_search_lower", firingTotal, firingSearchLower);
+                yield new ObjectiveSelection(firingTotal, true, firingSearchLower, firingTotal.upperBound());
+            }
+            case TrinityRadixModelPass.Identity(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
+                model.addFixed("fixed_external", externalTotal, fixedExternal);
+                model.addFixed("fixed_seed", seedTotal, fixedSeed);
+                model.addFixed("fixed_firings", firingTotal, fixedFirings);
+                fixedCounts.forEach((fixedVariant, count) -> model.addFixed(
+                        "fixed_firing_" + request.variants().indexOf(fixedVariant),
+                        firingVariables.get(fixedVariant),
+                        count));
+                TrinityRadixVariable objective = firingVariables.get(variant);
+                BigInteger upperBound = this.exactBounds.identityObjectiveUpperBound(
+                        request,
+                        fixedExternal,
+                        fixedSeed,
+                        fixedFirings,
+                        fixedCounts,
+                        variant)
+                        .min(objective.upperBound());
+                if (upperBound.signum() < 0) {
+                    throw new TrinityRadixInfeasibleException("identity_objective_upper");
+                }
+                yield new ObjectiveSelection(objective, false, BigInteger.ZERO, upperBound);
+            }
+        };
     }
 
     private static LinkedHashMap<AEKey, TrinityRadixVariable> reserveVariables(
@@ -221,6 +210,21 @@ final class TrinityRadixModelAssemblerImpl implements TrinityRadixModelAssembler
                     "required_net_" + netIndex++,
                     netTerms(bound.getKey(), firingVariables),
                     bound.getValue());
+        }
+        int settlementIndex = 0;
+        boolean exportsInternalKey = request.internalKeys().stream()
+                .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
+        for (AEKey key : request.internalKeys()) {
+            String name = "settled_internal_" + settlementIndex++;
+            LinkedHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(key, firingVariables);
+            BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
+            if (requestedOutput != null) {
+                model.addGreaterOrEqual(name, terms, requestedOutput);
+            } else if (exportsInternalKey) {
+                model.addExact(name, terms, BigInteger.ZERO);
+            } else {
+                model.addGreaterOrEqual(name, terms, BigInteger.ZERO);
+            }
         }
     }
 

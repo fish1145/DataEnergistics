@@ -71,7 +71,6 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
 
         validateFiringAggregation(this.patternFirings, this.stages, this.cycleRepeatBlocks);
         validateNetChange(this.targetNetChange, this.stages, this.cycleRepeatBlocks);
-        validateGlobalMinimumSeed(this.minimumSeed, this.cycleRepeatBlocks);
         validateExecutionBalances(
                 this.initialExpectedInputs,
                 this.stages,
@@ -270,17 +269,6 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
 
     private static void removeZeros(Map<AEKey, BigInteger> amounts) {
         amounts.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-    }
-
-    private static void validateGlobalMinimumSeed(
-                                                  Map<AEKey, BigInteger> expected,
-                                                  List<TrinityCycleRepeatBlock> repeatBlocks) {
-        LinkedHashMap<AEKey, BigInteger> actual = new LinkedHashMap<>();
-        repeatBlocks.forEach(block -> block.minimumSeed().forEach(
-                (key, amount) -> actual.merge(key, amount, BigInteger::max)));
-        if (!expected.equals(actual)) {
-            throw new IllegalArgumentException("Trinity global minimum seed must aggregate its repeat blocks");
-        }
     }
 
     private static void validateExecutionBalances(

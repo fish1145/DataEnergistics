@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.complement.TrinityFiringComplementOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -25,8 +26,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Sequential shifted-MIP implementation whose large request quantities remain model constants.
@@ -41,27 +44,28 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     private static final String INEXACT_RESULT_KEY = "gui.data_energistics.trinity_planning.diagnostic.inexact_result";
 
     private final TrinityIntegerResultVerifier integerVerifier;
+    private final TrinityFiringComplementOptimizer complementOptimizer;
 
-    TrinityShiftedFiringOptimizerImpl(TrinityIntegerResultVerifier integerVerifier) {
+    TrinityShiftedFiringOptimizerImpl(
+                                      TrinityIntegerResultVerifier integerVerifier,
+                                      TrinityFiringComplementOptimizer complementOptimizer) {
         this.integerVerifier = integerVerifier;
+        this.complementOptimizer = complementOptimizer;
     }
 
     @Override
-    public TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> optimize(
-                                                                                   TrinityStronglyConnectedComponent component,
-                                                                                   TrinityCycleDemand demand,
-                                                                                   Map<AEKey, BigInteger> available,
-                                                                                   Set<AEKey> producibleInputs,
-                                                                                   Map<TrinityPatternVariant, BigInteger> firingUpperBound,
-                                                                                   TrinityPlanningControl control) {
+    public TrinityPlanningAttempt<TrinityFiringOptimization> optimize(
+                                                                      TrinityStronglyConnectedComponent component,
+                                                                      TrinityCycleDemand demand,
+                                                                      Map<AEKey, BigInteger> available,
+                                                                      Set<AEKey> producibleInputs,
+                                                                      Map<TrinityPatternVariant, BigInteger> firingUpperBound,
+                                                                      TrinityPlanningControl control) {
         if (component == null || demand == null || available == null || producibleInputs == null ||
                 firingUpperBound == null || firingUpperBound.isEmpty() || control == null) {
             throw new IllegalArgumentException("A shifted Trinity firing request is incomplete");
         }
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
-        if (producibleInputs.stream().anyMatch(internalKeys::contains)) {
-            return notApplicable(UNSUPPORTED_PATTERN_KEY);
-        }
         List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
         if (!firingUpperBound.keySet().containsAll(variants) || variants.stream()
                 .anyMatch(variant -> firingUpperBound.get(variant) == null ||
@@ -87,6 +91,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 internalKeys,
                 externalCostKeys,
                 finiteExternalKeys,
+                Set.copyOf(producibleInputs),
                 demand,
                 available,
                 firingUpperBound,
@@ -111,6 +116,30 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
             return unsuccessfulAttempt(seed);
         }
         BigInteger optimalSeed = seed.value().seedTotal();
+
+        Set<TrinityPatternVariant> externallyFixed = variants.stream()
+                .filter(variant -> externalCost(variant, externalCostKeys).signum() > 0)
+                .collect(Collectors.toUnmodifiableSet());
+        Optional<Map<TrinityPatternVariant, BigInteger>> complemented = this.complementOptimizer.minimize(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                firingUpperBound,
+                seed.value().reductions(),
+                externallyFixed);
+        if (complemented.isPresent()) {
+            Map<TrinityPatternVariant, BigInteger> firings = complemented.orElseThrow();
+            Map<AEKey, BigInteger> net = netChange(firings);
+            if (!satisfiesDemand(net, demand) ||
+                    !fitsAvailable(net, demand, available, internalKeys, finiteExternalKeys)) {
+                return notApplicable(inexact("exact_conservation", "complement_vector").diagnostic());
+            }
+            return TrinityPlanningAttempt.provedOptimal(new TrinityFiringOptimization(
+                    firings,
+                    externalReserveTotal(net, demand, externalCostKeys),
+                    optimalSeed));
+        }
 
         TrinityAlgorithmResult<SolvedShift> firing = solve(
                 context,
@@ -157,7 +186,10 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 !fitsAvailable(net, demand, available, internalKeys, finiteExternalKeys)) {
             return notApplicable(inexact("exact_conservation", "shifted_vector").diagnostic());
         }
-        return TrinityPlanningAttempt.provedOptimal(Collections.unmodifiableMap(firings));
+        return TrinityPlanningAttempt.provedOptimal(new TrinityFiringOptimization(
+                Collections.unmodifiableMap(firings),
+                externalReserveTotal(net, demand, externalCostKeys),
+                optimalSeed));
     }
 
     private TrinityAlgorithmResult<SolvedShift> solve(
@@ -243,7 +275,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         for (AEKey key : context.internalKeys()) {
             Variable seed = model.addVariable("seed_" + seedIndex++)
                     .lower(ZERO)
-                    .upper(context.available().getOrDefault(key, ZERO))
+                    .upper(seedUpperBound(context, key))
                     .integer();
             seeds.put(key, seed);
             variables.add(seed);
@@ -287,20 +319,19 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         if (pass instanceof ExternalPass) {
             externalSaving.weight(BigDecimal.ONE.negate());
         } else if (pass instanceof SeedPass seedPass) {
-            externalSaving.level(seedPass.externalSaving());
+            externalSaving.lower(seedPass.externalSaving());
             seedTotal.weight(BigDecimal.ONE);
         } else if (pass instanceof FiringPass firingPass) {
-            externalSaving.level(firingPass.externalSaving());
-            seedTotal.level(firingPass.seedTotal());
+            externalSaving.lower(firingPass.externalSaving());
+            seedTotal.upper(firingPass.seedTotal());
             reductionTotal.weight(BigDecimal.ONE.negate());
         } else if (pass instanceof IdentityPass identityPass) {
-            externalSaving.level(identityPass.externalSaving());
-            seedTotal.level(identityPass.seedTotal());
-            reductionTotal.level(identityPass.reductionTotal());
-            identityPass.fixedReductions().forEach((variant, value) -> model
-                    .addExpression("fixed_" + context.variants().indexOf(variant))
-                    .set(reductions.get(variant), BigInteger.ONE)
-                    .level(value));
+            externalSaving.lower(identityPass.externalSaving());
+            seedTotal.upper(identityPass.seedTotal());
+            reductionTotal.lower(identityPass.reductionTotal());
+            identityPass.fixedReductions().forEach((variant, value) -> reductions.get(variant)
+                    .lower(value)
+                    .upper(value));
             model.addExpression("identity_objective")
                     .set(reductions.get(identityPass.variant()), BigInteger.ONE)
                     .weight(BigDecimal.ONE);
@@ -324,6 +355,23 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 expression.set(variable, coefficient);
             }
         });
+    }
+
+    /**
+     * Uses the finite verified incumbent as the bound for predecessor-produced cycle seeds. Supplying every bounded
+     * internal input up front is sufficient for any non-negative reduction of that incumbent.
+     */
+    private static BigInteger seedUpperBound(ShiftedContext context, AEKey key) {
+        BigInteger stored = context.available().getOrDefault(key, ZERO);
+        if (!context.producibleInputs().contains(key)) {
+            return stored;
+        }
+        BigInteger upstream = context.firingUpperBound().entrySet().stream()
+                .map(entry -> entry.getKey().inputs()
+                        .getOrDefault(key, ZERO)
+                        .multiply(entry.getValue()))
+                .reduce(ZERO, BigInteger::add);
+        return stored.add(upstream);
     }
 
     private static Expression expression(
@@ -373,6 +421,18 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
     private static BigInteger externalCost(TrinityPatternVariant variant, Set<AEKey> externalReserveKeys) {
         return externalReserveKeys.stream()
                 .map(key -> variant.netChange().getOrDefault(key, ZERO).negate())
+                .reduce(ZERO, BigInteger::add);
+    }
+
+    private static BigInteger externalReserveTotal(
+                                                   Map<AEKey, BigInteger> net,
+                                                   TrinityCycleDemand demand,
+                                                   Set<AEKey> externalReserveKeys) {
+        return externalReserveKeys.stream()
+                .map(key -> demand.finalBalanceLowerBounds()
+                        .getOrDefault(key, ZERO)
+                        .subtract(net.getOrDefault(key, ZERO))
+                        .max(ZERO))
                 .reduce(ZERO, BigInteger::add);
     }
 
@@ -477,6 +537,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                                   Set<AEKey> internalKeys,
                                   Set<AEKey> externalCostKeys,
                                   Set<AEKey> finiteExternalKeys,
+                                  Set<AEKey> producibleInputs,
                                   TrinityCycleDemand demand,
                                   Map<AEKey, BigInteger> available,
                                   Map<TrinityPatternVariant, BigInteger> firingUpperBound,

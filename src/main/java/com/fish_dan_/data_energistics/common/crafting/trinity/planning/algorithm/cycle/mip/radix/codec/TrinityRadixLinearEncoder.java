@@ -113,6 +113,14 @@ public final class TrinityRadixLinearEncoder {
         addGreaterOrEqual(name, Map.of(value, BigInteger.ONE), lowerBound);
     }
 
+    /** Adds an exact signed logical relation before it is split into bounded radix carry columns. */
+    public void addExact(
+                         String name,
+                         Map<TrinityRadixVariable, BigInteger> terms,
+                         BigInteger value) {
+        addEquality(name, terms, value, true);
+    }
+
     public void addFixed(String name, TrinityRadixVariable value, BigInteger fixed) {
         if (fixed == null || fixed.signum() < 0 || fixed.compareTo(value.upperBound()) > 0) {
             throw new TrinityRadixInfeasibleException(name);

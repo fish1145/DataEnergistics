@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.macro.TrinityCycleMacro;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.selector.TrinityPlanningAttemptSelector;
@@ -86,7 +87,7 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
                         maxStates,
                         control);
                 if (deterministic.successful()) {
-                    return TrinityAlgorithmResult.success(fromScalar(component.index(), deterministic.value()));
+                    return TrinityAlgorithmResult.success(fromScalar(component, deterministic.value()));
                 }
                 if (deterministic.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
                         deterministic.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
@@ -107,7 +108,7 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
         long componentNanos = Math.max(0L, System.nanoTime() - componentStartedNanos);
         return this.planningAttemptSelector.select(
                 deterministic,
-                plan -> fromDeterministic(component.index(), plan, componentNanos),
+                plan -> fromDeterministic(component, demand, plan, componentNanos),
                 () -> planJointCycle(component, demand, inventory, producible, maxStates, control, componentNanos));
     }
 
@@ -132,38 +133,51 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
         TrinityJointCyclePlan plan = joint.value();
         return TrinityAlgorithmResult.success(new TrinityCycleSelection(
                 component.index(),
+                List.of(),
                 plan.schedule().batches(),
                 BigInteger.ONE,
+                List.of(),
                 maximumAmounts(plan.minimumSeed(), plan.externalInputs()),
                 plan.initialInputs(),
                 plan.netChange(),
+                settledExports(component, demand, plan.netChange()),
                 plan.searchStates(),
                 Math.addExact(componentNanos, plan.solverNanos())));
     }
 
-    private static TrinityCycleSelection fromScalar(int componentIndex, TrinityCyclePlan plan) {
+    private static TrinityCycleSelection fromScalar(
+                                                    TrinityStronglyConnectedComponent component,
+                                                    TrinityCyclePlan plan) {
         return new TrinityCycleSelection(
-                componentIndex,
+                component.index(),
+                List.of(),
                 plan.oneCycleOrder(),
                 plan.repetitions(),
+                List.of(),
                 plan.minimumSeed(),
                 plan.initialInputs(),
                 plan.netChange(),
+                positiveAmounts(plan.netChange()),
                 plan.schedule().statesVisited(),
                 0L);
     }
 
     private static TrinityCycleSelection fromDeterministic(
-                                                           int componentIndex,
+                                                           TrinityStronglyConnectedComponent component,
+                                                           TrinityCycleDemand demand,
                                                            TrinityDeterministicComponentPlan plan,
                                                            long componentNanos) {
+        Optional<TrinityCycleMacro> macro = plan.macro();
         return new TrinityCycleSelection(
-                componentIndex,
-                plan.schedule().batches(),
-                BigInteger.ONE,
+                component.index(),
+                plan.prefixOrder(),
+                macro.map(TrinityCycleMacro::unitOrder).orElseGet(() -> plan.schedule().batches()),
+                macro.map(TrinityCycleMacro::repetitions).orElse(BigInteger.ONE),
+                plan.suffixOrder(),
                 plan.minimumSeed(),
                 plan.initialInputs(),
                 plan.netChange(),
+                settledExports(component, demand, plan.netChange()),
                 plan.schedule().statesVisited(),
                 componentNanos);
     }
@@ -231,6 +245,37 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
             }
         });
         return Collections.unmodifiableMap(copied);
+    }
+
+    private static Map<AEKey, BigInteger> settledExports(
+                                                         TrinityStronglyConnectedComponent component,
+                                                         TrinityCycleDemand demand,
+                                                         Map<AEKey, BigInteger> netChange) {
+        Set<AEKey> internalKeys = Set.copyOf(component.keys());
+        LinkedHashMap<AEKey, BigInteger> exports = new LinkedHashMap<>();
+        boolean internallySettled = internalKeys.stream().allMatch(key -> {
+            BigInteger amount = netChange.getOrDefault(key, BigInteger.ZERO);
+            BigInteger requested = demand.requiredNetChangeLowerBounds().get(key);
+            return requested == null ? amount.signum() == 0 : amount.compareTo(requested) >= 0;
+        });
+        netChange.forEach((key, amount) -> {
+            if (amount.signum() > 0 &&
+                    (!internalKeys.contains(key) ||
+                            internallySettled && demand.requiredNetChangeLowerBounds().containsKey(key))) {
+                exports.put(key, amount);
+            }
+        });
+        return Collections.unmodifiableMap(exports);
+    }
+
+    private static Map<AEKey, BigInteger> positiveAmounts(Map<AEKey, BigInteger> source) {
+        LinkedHashMap<AEKey, BigInteger> positive = new LinkedHashMap<>();
+        source.forEach((key, amount) -> {
+            if (amount.signum() > 0) {
+                positive.put(key, amount);
+            }
+        });
+        return Collections.unmodifiableMap(positive);
     }
 
     private record ScalarDemand(

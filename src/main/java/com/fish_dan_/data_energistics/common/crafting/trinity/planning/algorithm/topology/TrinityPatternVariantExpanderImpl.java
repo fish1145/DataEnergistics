@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.TrinityPatternBindingEnumerator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
@@ -17,9 +18,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Odometer-style Cartesian expansion that retains AE input order and stops before crossing its configured cap.
+ * Exact transition expansion that collapses equivalent Cartesian bindings before applying its configured cap.
  */
 final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantExpander {
+
+    private final TrinityPatternBindingEnumerator bindingEnumerator = TrinityPatternBindingEnumerator.create();
 
     @Override
     public TrinityAlgorithmResult<List<TrinityPatternVariant>> expand(
@@ -32,18 +35,27 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
 
         BigInteger limit = BigInteger.valueOf(maxVariants);
         BigInteger additionalBranches = BigInteger.ZERO;
+        ArrayList<PatternBindings> enumeratedPatterns = new ArrayList<>(snapshot.patterns().size());
         for (TrinityCraftingGraphPattern pattern : snapshot.patterns()) {
-            BigInteger patternVariants = BigInteger.ONE;
-            for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
-                patternVariants = patternVariants.multiply(BigInteger.valueOf(input.alternatives().size()));
+            TrinityPatternBindingEnumerator.Result enumeration = this.bindingEnumerator.enumerate(
+                    pattern.inputs(),
+                    maxVariants);
+            List<TrinityPatternBindingEnumerator.Binding> bindings;
+            switch (enumeration) {
+                case TrinityPatternBindingEnumerator.LimitExceeded(var required, var limitValue) -> {
+                    return variantLimit(pattern, limitValue, required);
+                }
+                case TrinityPatternBindingEnumerator.ArithmeticOverflow(var axis) -> {
+                    return arithmeticOverflow(pattern, axis);
+                }
+                case TrinityPatternBindingEnumerator.Enumerated(var enumerated) -> bindings = enumerated;
             }
-            if (patternVariants.compareTo(limit) > 0) {
-                return variantLimit(pattern, maxVariants, patternVariants);
-            }
+            BigInteger patternVariants = BigInteger.valueOf(bindings.size());
             additionalBranches = additionalBranches.add(patternVariants.subtract(BigInteger.ONE));
             if (additionalBranches.compareTo(limit) > 0) {
                 return variantLimit(pattern, maxVariants, additionalBranches);
             }
+            enumeratedPatterns.add(new PatternBindings(pattern, bindings));
         }
 
         int materializedCapacity;
@@ -58,8 +70,8 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
                             "additionalBranches", additionalBranches.toString())));
         }
         ArrayList<TrinityPatternVariant> variants = new ArrayList<>(materializedCapacity);
-        for (TrinityCraftingGraphPattern pattern : snapshot.patterns()) {
-            expandPattern(pattern, variants);
+        for (PatternBindings pattern : enumeratedPatterns) {
+            expandPattern(pattern.pattern(), pattern.bindings(), variants);
         }
         return TrinityAlgorithmResult.success(List.copyOf(variants));
     }
@@ -77,31 +89,26 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
                         "pattern", pattern.identity().publicationEncoding())));
     }
 
-    private static void expandPattern(TrinityCraftingGraphPattern pattern,
-                                      List<TrinityPatternVariant> destination) {
-        int slotCount = pattern.inputs().size();
-        if (slotCount == 0) {
-            destination.add(TrinityPatternVariant.create(
-                    pattern.identity(),
-                    pattern.outputs().getFirst().what(),
-                    0,
-                    List.of(),
-                    List.of(),
-                    pattern.outputs()));
-            return;
-        }
+    private static TrinityAlgorithmResult<List<TrinityPatternVariant>> arithmeticOverflow(
+                                                                                          TrinityCraftingGraphPattern pattern,
+                                                                                          String axis) {
+        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
+                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow"),
+                Map.of(
+                        "pattern", pattern.identity().publicationEncoding(),
+                        "axis", axis)));
+    }
 
-        int[] alternatives = new int[slotCount];
-        int ordinal = 0;
-        boolean complete = false;
-        while (!complete) {
-            ArrayList<Integer> ordinals = new ArrayList<>(slotCount);
-            ArrayList<TrinityBoundPatternInput> bindings = new ArrayList<>(slotCount);
-            for (int slot = 0; slot < slotCount; slot++) {
-                int alternativeIndex = alternatives[slot];
+    private static void expandPattern(TrinityCraftingGraphPattern pattern,
+                                      List<TrinityPatternBindingEnumerator.Binding> enumeratedBindings,
+                                      List<TrinityPatternVariant> destination) {
+        for (TrinityPatternBindingEnumerator.Binding enumerated : enumeratedBindings) {
+            ArrayList<TrinityBoundPatternInput> bindings = new ArrayList<>(pattern.inputs().size());
+            for (int slot = 0; slot < pattern.inputs().size(); slot++) {
+                int alternativeIndex = enumerated.alternativeOrdinals().get(slot);
                 TrinityPatternPublicationSignature.Input input = pattern.inputs().get(slot);
                 TrinityPatternPublicationSignature.Alternative alternative = input.alternatives().get(alternativeIndex);
-                ordinals.add(alternativeIndex);
                 bindings.add(new TrinityBoundPatternInput(
                         slot,
                         alternativeIndex,
@@ -112,25 +119,15 @@ final class TrinityPatternVariantExpanderImpl implements TrinityPatternVariantEx
             destination.add(TrinityPatternVariant.create(
                     pattern.identity(),
                     pattern.outputs().getFirst().what(),
-                    ordinal,
-                    ordinals,
+                    enumerated.cartesianOrdinal(),
+                    enumerated.alternativeOrdinals(),
                     bindings,
                     pattern.outputs()));
-            ordinal++;
-            complete = incrementOdometer(alternatives, pattern.inputs());
         }
     }
 
-    private static boolean incrementOdometer(
-                                             int[] ordinals,
-                                             List<TrinityPatternPublicationSignature.Input> inputs) {
-        for (int slot = ordinals.length - 1; slot >= 0; slot--) {
-            ordinals[slot]++;
-            if (ordinals[slot] < inputs.get(slot).alternatives().size()) {
-                return false;
-            }
-            ordinals[slot] = 0;
-        }
-        return true;
-    }
+    /** Keeps one pattern coupled to its already bounded canonical bindings. */
+    private record PatternBindings(
+                                   TrinityCraftingGraphPattern pattern,
+                                   List<TrinityPatternBindingEnumerator.Binding> bindings) {}
 }

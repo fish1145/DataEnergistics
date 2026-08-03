@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability;
 
 /**
- * Distinguishes a reservoir miss from a component-wide structural rejection without conflating either with failure.
+ * Distinguishes a reservoir miss from an unusable residual coordinate without conflating either with failure.
  *
  * @param kind  applicability disposition
  * @param basis populated only for {@link Kind#APPLICABLE}
@@ -15,7 +15,7 @@ public record TrinityDeterministicApplicabilityResult(
     }
 
     public static TrinityDeterministicApplicabilityResult reject() {
-        return new TrinityDeterministicApplicabilityResult(Kind.REJECT_COMPONENT, null);
+        return new TrinityDeterministicApplicabilityResult(Kind.REJECT_RESERVOIR, null);
     }
 
     public static TrinityDeterministicApplicabilityResult applicable(TrinityDeterministicBasis basis) {
@@ -24,7 +24,7 @@ public record TrinityDeterministicApplicabilityResult(
 
     public enum Kind {
         SKIP_RESERVOIR,
-        REJECT_COMPONENT,
+        REJECT_RESERVOIR,
         APPLICABLE
     }
 }

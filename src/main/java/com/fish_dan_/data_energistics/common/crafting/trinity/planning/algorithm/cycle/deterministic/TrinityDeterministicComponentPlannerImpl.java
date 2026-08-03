@@ -57,6 +57,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         Set<AEKey> producible = Set.copyOf(producibleInputs);
         ArrayList<TrinityDeterministicCandidate> candidates = new ArrayList<>();
+        boolean rejectedReservoir = false;
+        boolean basisLocalCandidate = false;
 
         for (AEKey reservoir : component.keys()) {
             TrinityDeterministicDiagnostics.StopState state = TrinityDeterministicDiagnostics.stopState(control);
@@ -71,8 +73,9 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.SKIP_RESERVOIR) {
                 continue;
             }
-            if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.REJECT_COMPONENT) {
-                return TrinityDeterministicDiagnostics.notApplicable();
+            if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.REJECT_RESERVOIR) {
+                rejectedReservoir = true;
+                continue;
             }
             TrinityAlgorithmResult<TrinityDeterministicFiringSolution> calculated = this.firingCalculator.calculate(
                     component,
@@ -95,10 +98,15 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
             if (!assembled.successful()) {
                 return handleFailure(assembled);
             }
-            if (calculated.value().leastFiringsProven()) {
+            if (calculated.value().completeComponentProof()) {
                 return TrinityPlanningAttempt.provedOptimal(assembled.value().plan());
             }
+            basisLocalCandidate |= calculated.value().leastFiringsProven() &&
+                    !calculated.value().completeComponentProof();
             candidates.add(assembled.value());
+        }
+        if (rejectedReservoir && basisLocalCandidate) {
+            return TrinityDeterministicDiagnostics.notApplicable();
         }
         if (candidates.isEmpty()) {
             return TrinityDeterministicDiagnostics.notApplicable();

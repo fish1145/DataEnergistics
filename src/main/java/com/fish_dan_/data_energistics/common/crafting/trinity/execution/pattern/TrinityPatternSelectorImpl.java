@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.TrinityPatternBindingEnumerator;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 
 import net.minecraft.world.item.TooltipFlag;
@@ -12,7 +13,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -20,8 +20,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToLongFunction;
 
-/** Odometer-style selector sharing the planner's stable Cartesian ordinal semantics. */
+/** Runtime selector sharing the planner's compacted, stable Cartesian representative semantics. */
 final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
+
+    private final TrinityPatternBindingEnumerator bindingEnumerator = TrinityPatternBindingEnumerator.create();
 
     @Override
     public Result select(IPatternDetails pattern,
@@ -36,37 +38,46 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         }
 
         List<RuntimeInput> inputs = captureInputs(pattern.getInputs());
-        BigInteger exactVariantCount = countVariants(inputs);
-        if (exactVariantCount.compareTo(BigInteger.valueOf(maxVariants)) > 0) {
-            return new VariantLimit(exactVariantCount, maxVariants);
-        }
-        int variantCount = exactVariantCount.intValueExact();
-        if (!dynamic && plannedOrdinal >= variantCount) {
-            return new Unavailable(allAlternativeKeys(inputs));
+        LinkedHashSet<AEKey> observedKeys = allAlternativeKeys(inputs);
+        List<TrinityPatternBindingEnumerator.Binding> bindings;
+        if (dynamic) {
+            TrinityPatternBindingEnumerator.Result enumeration = this.bindingEnumerator.enumerate(
+                    inputs.stream().map(RuntimeInput::signature).toList(),
+                    maxVariants);
+            switch (enumeration) {
+                case TrinityPatternBindingEnumerator.LimitExceeded(var required, var limit) -> {
+                    return new VariantLimit(required, limit);
+                }
+                case TrinityPatternBindingEnumerator.ArithmeticOverflow(var axis) -> {
+                    return new ArithmeticOverflow(axis);
+                }
+                case TrinityPatternBindingEnumerator.Enumerated(var enumerated) -> bindings = enumerated;
+            }
+        } else {
+            List<Integer> alternatives = decodeCartesianOrdinal(plannedOrdinal, inputs);
+            if (alternatives == null) {
+                return new Unavailable(observedKeys);
+            }
+            bindings = List.of(new TrinityPatternBindingEnumerator.Binding(plannedOrdinal, alternatives));
         }
 
-        LinkedHashSet<AEKey> observedKeys = allAlternativeKeys(inputs);
         Candidate best = null;
-        int[] alternatives = new int[inputs.size()];
-        for (int ordinal = 0; ordinal < variantCount; ordinal++) {
-            if (dynamic || ordinal == plannedOrdinal) {
-                Candidate candidate;
-                try {
-                    candidate = evaluate(
-                            inputs,
-                            alternatives,
-                            ordinal,
-                            remainingCrafts,
-                            cpuAvailability,
-                            networkAvailability);
-                } catch (ArithmeticException exception) {
-                    return new ArithmeticOverflow("runtime_pattern_binding");
-                }
-                if (candidate.maximumCrafts() > 0L && (best == null || candidate.isBetterThan(best))) {
-                    best = candidate;
-                }
+        for (TrinityPatternBindingEnumerator.Binding binding : bindings) {
+            Candidate candidate;
+            try {
+                candidate = evaluate(
+                        inputs,
+                        binding.alternativeOrdinals(),
+                        binding.cartesianOrdinal(),
+                        remainingCrafts,
+                        cpuAvailability,
+                        networkAvailability);
+            } catch (ArithmeticException exception) {
+                return new ArithmeticOverflow("runtime_pattern_binding");
             }
-            incrementOdometer(alternatives, inputs);
+            if (candidate.maximumCrafts() > 0L && (best == null || candidate.isBetterThan(best))) {
+                best = candidate;
+            }
         }
 
         if (best == null) {
@@ -89,14 +100,6 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         return List.copyOf(captured);
     }
 
-    private static BigInteger countVariants(List<RuntimeInput> inputs) {
-        BigInteger count = BigInteger.ONE;
-        for (RuntimeInput input : inputs) {
-            count = count.multiply(BigInteger.valueOf(input.signature().alternatives().size()));
-        }
-        return count;
-    }
-
     private static LinkedHashSet<AEKey> allAlternativeKeys(List<RuntimeInput> inputs) {
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
         for (RuntimeInput input : inputs) {
@@ -108,7 +111,7 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
     }
 
     private static Candidate evaluate(List<RuntimeInput> inputs,
-                                      int[] alternatives,
+                                      List<Integer> alternatives,
                                       int ordinal,
                                       long remainingCrafts,
                                       ToLongFunction<AEKey> cpuAvailability,
@@ -117,7 +120,9 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         LinkedHashMap<AEKey, Long> aggregated = new LinkedHashMap<>();
         for (int slot = 0; slot < inputs.size(); slot++) {
             RuntimeInput input = inputs.get(slot);
-            TrinityPatternPublicationSignature.Alternative alternative = input.signature().alternatives().get(alternatives[slot]);
+            TrinityPatternPublicationSignature.Alternative alternative = input.signature()
+                    .alternatives()
+                    .get(alternatives.get(slot));
             GenericStack template = alternative.stack();
             long amount = Math.multiplyExact(template.amount(), input.signature().multiplier());
             aggregated.merge(template.what(), amount, Math::addExact);
@@ -162,14 +167,15 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         return left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
     }
 
-    private static void incrementOdometer(int[] alternatives, List<RuntimeInput> inputs) {
-        for (int slot = alternatives.length - 1; slot >= 0; slot--) {
-            alternatives[slot]++;
-            if (alternatives[slot] < inputs.get(slot).signature().alternatives().size()) {
-                return;
-            }
-            alternatives[slot] = 0;
+    private static List<Integer> decodeCartesianOrdinal(int ordinal, List<RuntimeInput> inputs) {
+        int remaining = ordinal;
+        Integer[] alternatives = new Integer[inputs.size()];
+        for (int slot = inputs.size() - 1; slot >= 0; slot--) {
+            int alternativeCount = inputs.get(slot).signature().alternatives().size();
+            alternatives[slot] = remaining % alternativeCount;
+            remaining /= alternativeCount;
         }
+        return remaining == 0 ? List.of(alternatives) : null;
     }
 
     private record Candidate(int ordinal,
@@ -197,6 +203,7 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
                                  AEKey remainingKey) {}
 
     /** Pattern wrapper used only for exact CPU-side extraction; providers always receive the registered delegate. */
+    @SuppressWarnings("ClassCanBeRecord")
     private static final class BoundPatternDetails implements IPatternDetails {
 
         private final IPatternDetails delegate;

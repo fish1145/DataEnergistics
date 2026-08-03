@@ -50,7 +50,7 @@ public final class TrinityShiftedFiringOptimizerTest {
                 List.of(),
                 List.of());
 
-        TrinityPlanningAttempt<Map<TrinityPatternVariant, BigInteger>> attempt = TrinityShiftedFiringOptimizer
+        TrinityPlanningAttempt<TrinityFiringOptimization> attempt = TrinityShiftedFiringOptimizer
                 .create()
                 .optimize(
                         component,
@@ -61,6 +61,6 @@ public final class TrinityShiftedFiringOptimizerTest {
                         TrinityPlanningControl.create(() -> false, () -> 0L, Long.MAX_VALUE));
 
         assertEquals(TrinityPlanningAttempt.Kind.PROVED_OPTIMAL, attempt.kind());
-        assertEquals(Map.of(required, BigInteger.ONE), attempt.value());
+        assertEquals(Map.of(required, BigInteger.ONE), attempt.value().firings());
     }
 }

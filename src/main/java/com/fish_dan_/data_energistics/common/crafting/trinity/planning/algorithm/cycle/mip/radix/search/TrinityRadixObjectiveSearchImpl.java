@@ -20,6 +20,7 @@ import org.ojalgo.optimisation.integer.NodeKey;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
  */
 final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSearch {
 
+    @SuppressWarnings("unchecked")
     private static final IntegerStrategy INTEGER_STRATEGY = IntegerStrategy.DEFAULT
             .withParallelism(() -> 1)
             .withPriorityDefinitions(NodeKey.MIN_OBJECTIVE);
@@ -52,6 +54,7 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                                                                       TrinityRadixSolverMetrics metrics) {
         requireInputs(built, control, metrics);
         Map<Variable, BigInteger> lastValues = Map.of();
+        Map<Integer, Integer> fixedDigits = new LinkedHashMap<>();
         TrinityRadixVariable objective = built.objective();
         BigInteger certifiedValue = built.minimize() ?
                 built.objectiveLowerBound() : built.objectiveUpperBound();
@@ -97,13 +100,14 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
             TrinityAlgorithmResult<Map<Variable, BigInteger>> selected = optimizeDigit(
                     built,
                     digit,
+                    fixedDigits,
                     control,
                     metrics);
             if (!selected.successful()) {
                 return selected;
             }
             lastValues = selected.value();
-            objective.digits().get(digit).level(lastValues.get(objective.digits().get(digit)));
+            fixedDigits.put(digit, selectedDigit(lastValues, objective.digits().get(digit)));
         }
         return TrinityAlgorithmResult.success(lastValues);
     }
@@ -182,6 +186,7 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
     private TrinityAlgorithmResult<Map<Variable, BigInteger>> optimizeDigit(
                                                                             TrinityRadixBuiltModel built,
                                                                             int digit,
+                                                                            Map<Integer, Integer> fixedDigits,
                                                                             TrinityPlanningControl control,
                                                                             TrinityRadixSolverMetrics metrics) {
         if (control.cancellationRequested()) {
@@ -195,18 +200,29 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
         }
         TrinityRadixLinearEncoder encoder = built.model();
         ExpressionsBasedModel objectiveModel = encoder.model().copy();
+        // Every preceding digit is already proven optimal. A directional bound therefore forces the same value
+        // mathematically, while keeping ojAlgo from eliminating the carry column through fixed-variable presolve.
+        fixedDigits.forEach((fixedDigit, value) -> {
+            Variable source = built.objective().digits().get(fixedDigit);
+            Variable target = objectiveModel.getVariable(encoder.model().indexOf(source));
+            if (built.minimize()) {
+                target.upper(value);
+            } else {
+                target.lower(value);
+            }
+        });
         Variable objectiveDigit = built.objective().digits().get(digit);
         int objectiveIndex = encoder.model().indexOf(objectiveDigit);
         Variable solverDigit = objectiveModel.getVariable(objectiveIndex);
         int lowerBound;
         int upperBound;
         if (built.minimize()) {
-            lowerBound = certifiedMinimumDigit(built, digit);
+            lowerBound = certifiedMinimumDigit(built, digit, fixedDigits);
             upperBound = decimalInteger(objectiveDigit.getUpperLimit()).intValueExact();
             solverDigit.lower(lowerBound);
         } else {
             lowerBound = decimalInteger(objectiveDigit.getLowerLimit()).intValueExact();
-            upperBound = certifiedMaximumDigit(built, digit);
+            upperBound = certifiedMaximumDigit(built, digit, fixedDigits);
             solverDigit.upper(upperBound);
         }
         boolean fixedDigit = lowerBound == upperBound;
@@ -225,6 +241,14 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
                 !fixedDigit);
         if (!optimized.successful()) {
             return optimized;
+        }
+        for (Map.Entry<Integer, Integer> fixed : fixedDigits.entrySet()) {
+            Variable prefixDigit = built.objective().digits().get(fixed.getKey());
+            if (selectedDigit(optimized.value(), prefixDigit) != fixed.getValue()) {
+                return TrinityRadixDiagnostics.inexact(
+                        "radix_objective_prefix",
+                        fixed.getKey() + ":" + selectedDigit(optimized.value(), prefixDigit));
+            }
         }
         int selected = selectedDigit(optimized.value(), objectiveDigit);
         return selected >= lowerBound && selected <= upperBound ? optimized :
@@ -296,8 +320,12 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
         return selected.intValueExact();
     }
 
-    private static int certifiedMinimumDigit(TrinityRadixBuiltModel built, int digit) {
-        BigInteger residual = built.objectiveLowerBound().subtract(higherPrefix(built.objective(), digit));
+    private static int certifiedMinimumDigit(
+                                             TrinityRadixBuiltModel built,
+                                             int digit,
+                                             Map<Integer, Integer> fixedDigits) {
+        BigInteger residual = built.objectiveLowerBound().subtract(
+                higherPrefix(built.objective(), digit, fixedDigits));
         BigInteger derived = residual.signum() <= 0 ? BigInteger.ZERO :
                 residual.divide(radixPlace(digit));
         BigInteger currentLower = decimalInteger(built.objective().digits().get(digit).getLowerLimit());
@@ -308,8 +336,12 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
         return checkedDigit(candidate, "minimum");
     }
 
-    private static int certifiedMaximumDigit(TrinityRadixBuiltModel built, int digit) {
-        BigInteger residual = built.objectiveUpperBound().subtract(higherPrefix(built.objective(), digit));
+    private static int certifiedMaximumDigit(
+                                             TrinityRadixBuiltModel built,
+                                             int digit,
+                                             Map<Integer, Integer> fixedDigits) {
+        BigInteger residual = built.objectiveUpperBound().subtract(
+                higherPrefix(built.objective(), digit, fixedDigits));
         if (residual.signum() < 0) {
             throw new TrinityRadixInfeasibleException("objective_upper_prefix");
         }
@@ -323,16 +355,17 @@ final class TrinityRadixObjectiveSearchImpl implements TrinityRadixObjectiveSear
         return checkedDigit(candidate, "maximum");
     }
 
-    private static BigInteger higherPrefix(TrinityRadixVariable objective, int digit) {
+    private static BigInteger higherPrefix(
+                                           TrinityRadixVariable objective,
+                                           int digit,
+                                           Map<Integer, Integer> fixedDigits) {
         BigInteger prefix = BigInteger.ZERO;
         for (int index = digit + 1; index < objective.digits().size(); index++) {
-            Variable fixed = objective.digits().get(index);
-            BigInteger lower = decimalInteger(fixed.getLowerLimit());
-            BigInteger upper = decimalInteger(fixed.getUpperLimit());
-            if (!lower.equals(upper)) {
+            Integer fixed = fixedDigits.get(index);
+            if (fixed == null || fixed < 0 || fixed >= TrinityRadixDigits.BASE) {
                 throw new IllegalStateException("Higher Trinity radix objective digits must already be fixed");
             }
-            prefix = prefix.add(lower.multiply(radixPlace(index)));
+            prefix = prefix.add(BigInteger.valueOf(fixed).multiply(radixPlace(index)));
         }
         return prefix;
     }

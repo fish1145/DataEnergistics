@@ -242,24 +242,20 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 seedTotal.compareTo(this.objectiveBounds.minimumFirstInternalInput(request)) < 0) {
             return inexact("objective_lower", externalTotal + "/" + seedTotal);
         }
-        if (pass instanceof SeedPass seed &&
-                (!externalTotal.equals(seed.fixedExternal()) || seedTotal.compareTo(seed.seedLowerBound()) < 0)) {
-            return inexact("seed_level", externalTotal + "/" + seedTotal);
-        }
-        if (pass instanceof FiringPass firing &&
-                (!externalTotal.equals(firing.fixedExternal()) || !seedTotal.equals(firing.fixedSeed()) ||
-                        firingTotal.compareTo(firing.firingLowerBound()) < 0)) {
-            return inexact("firing_level", externalTotal + "/" + seedTotal + "/" + firingTotal);
-        }
-        if (pass instanceof IdentityPass identity &&
-                (!externalTotal.equals(identity.fixedExternal()) || !seedTotal.equals(identity.fixedSeed()) ||
-                        !firingTotal.equals(identity.fixedFirings()) || identity.fixedCounts().entrySet().stream()
-                                .anyMatch(entry -> !solved.firings()
-                                        .getOrDefault(entry.getKey(), BigInteger.ZERO)
-                                        .equals(entry.getValue())))) {
-            return inexact("identity_level", identity.variant().patternIdentity().publicationEncoding());
-        }
-        return exact;
+        return switch (pass) {
+            case ExternalPass.INSTANCE -> exact;
+            case SeedPass(var fixedExternal, var seedLowerBound) -> !externalTotal.equals(fixedExternal) || seedTotal.compareTo(seedLowerBound) < 0 ?
+                    inexact("seed_level", externalTotal + "/" + seedTotal) : exact;
+            case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
+                    firingTotal.compareTo(firingLowerBound) < 0 ?
+                            inexact("firing_level", externalTotal + "/" + seedTotal + "/" + firingTotal) : exact;
+            case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
+                    !firingTotal.equals(fixedFirings) || fixedCounts.entrySet().stream()
+                            .anyMatch(entry -> !solved.firings()
+                                    .getOrDefault(entry.getKey(), BigInteger.ZERO)
+                                    .equals(entry.getValue())) ?
+                                            inexact("identity_level", variant.patternIdentity().publicationEncoding()) : exact;
+        };
     }
 
     private ModelData createModel(TrinityCycleFeasibilityRequest request, ModelPass pass) {
@@ -296,43 +292,44 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         externalTotal.lower(this.objectiveBounds.minimumFirstExternalInput(request));
         request.fixedExternalTotal().ifPresent(externalTotal::level);
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        if (pass instanceof ExternalPass) {
-            externalTotal.weight(BigDecimal.ONE);
-        } else if (pass instanceof SeedPass seed) {
-            externalTotal.level(seed.fixedExternal());
-            seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request).max(seed.seedLowerBound()));
-            seedTotal.weight(BigDecimal.ONE);
-        } else if (pass instanceof FiringPass firing) {
-            externalTotal.level(firing.fixedExternal());
-            seedTotal.level(firing.fixedSeed());
-            firingTotal.lower(firing.firingLowerBound().max(
-                    this.objectiveBounds.conservationFiringLowerBound(
-                            request,
-                            firing.fixedExternal(),
-                            firing.fixedSeed())));
-            firingTotal.weight(BigDecimal.ONE);
-        } else if (pass instanceof IdentityPass identity) {
-            externalTotal.level(identity.fixedExternal());
-            seedTotal.level(identity.fixedSeed());
-            firingTotal.level(identity.fixedFirings());
-            identity.fixedCounts().forEach((variant, count) -> model
-                    .addExpression("fixed_firing_" + request.variants().indexOf(variant))
-                    .set(firingVariables.get(variant), BigInteger.ONE)
-                    .level(count));
-            BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
-                    request,
-                    identity.fixedExternal(),
-                    identity.fixedSeed(),
-                    identity.fixedFirings(),
-                    identity.fixedCounts(),
-                    identity.variant())
-                    .min(request.firingBounds().get(identity.variant()).upperInclusive());
-            model.addExpression("identity_objective")
-                    .set(firingVariables.get(identity.variant()), BigInteger.ONE)
-                    .upper(identityUpper)
-                    .weight(BigDecimal.ONE.negate());
-        } else {
-            throw new IllegalStateException("Unknown Trinity ordinary MIP pass");
+        switch (pass) {
+            case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
+            case SeedPass(var fixedExternal, var seedLowerBound) -> {
+                externalTotal.level(fixedExternal);
+                seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request).max(seedLowerBound));
+                seedTotal.weight(BigDecimal.ONE);
+            }
+            case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
+                externalTotal.level(fixedExternal);
+                seedTotal.level(fixedSeed);
+                firingTotal.lower(firingLowerBound.max(
+                        this.objectiveBounds.conservationFiringLowerBound(
+                                request,
+                                fixedExternal,
+                                fixedSeed)));
+                firingTotal.weight(BigDecimal.ONE);
+            }
+            case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
+                externalTotal.level(fixedExternal);
+                seedTotal.level(fixedSeed);
+                firingTotal.level(fixedFirings);
+                fixedCounts.forEach((fixedVariant, count) -> model
+                        .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
+                        .set(firingVariables.get(fixedVariant), BigInteger.ONE)
+                        .level(count));
+                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
+                        request,
+                        fixedExternal,
+                        fixedSeed,
+                        fixedFirings,
+                        fixedCounts,
+                        variant)
+                        .min(request.firingBounds().get(variant).upperInclusive());
+                model.addExpression("identity_objective")
+                        .set(firingVariables.get(variant), BigInteger.ONE)
+                        .upper(identityUpper)
+                        .weight(BigDecimal.ONE.negate());
+            }
         }
         return new ModelData(
                 model,
@@ -396,6 +393,24 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     variable,
                     variant.netChange().getOrDefault(bound.getKey(), BigInteger.ZERO)));
             net.lower(bound.getValue());
+        }
+        int settlementIndex = 0;
+        boolean exportsInternalKey = request.internalKeys().stream()
+                .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
+        for (AEKey key : request.internalKeys()) {
+            Expression settlement = model.addExpression("settled_internal_" + settlementIndex++);
+            firingVariables.forEach((variant, variable) -> setIfNonZero(
+                    settlement,
+                    variable,
+                    variant.netChange().getOrDefault(key, BigInteger.ZERO)));
+            BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
+            if (requestedOutput != null) {
+                settlement.lower(requestedOutput);
+            } else if (exportsInternalKey) {
+                settlement.level(BigInteger.ZERO);
+            } else {
+                settlement.lower(BigInteger.ZERO);
+            }
         }
     }
 

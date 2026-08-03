@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPlanningGraphTestBootstrap;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
@@ -26,6 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -120,6 +122,7 @@ public final class TrinityGraphPlannerTest {
         AEKey dust = AEItemKey.of(Items.REDSTONE);
         AEKey fuel = AEItemKey.of(Items.STICK);
         AEKey target = AEItemKey.of(Items.DIAMOND);
+        AEKey residualTarget = AEItemKey.of(Items.EMERALD);
         TrinityCraftingGraphPattern charge = pattern(
                 "upstream-charge",
                 Items.PAPER,
@@ -140,9 +143,14 @@ public final class TrinityGraphPlannerTest {
                 Items.COMPASS,
                 List.of(stack(material, 1L)),
                 List.of(stack(target, 1L)));
+        TrinityCraftingGraphPattern residualFinish = pattern(
+                "downstream-residual-finish",
+                Items.CLOCK,
+                List.of(stack(material, 1L), stack(charged, 1L), stack(dust, 1L)),
+                List.of(stack(residualTarget, 1L)));
         TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
                 42L,
-                List.of(charge, pulverize, grow, finish));
+                List.of(charge, pulverize, grow, finish, residualFinish));
 
         TrinityAlgorithmResult<TrinityCraftingPlan> fullyStocked = TrinityGraphPlanner.create().plan(
                 snapshot,
@@ -178,6 +186,43 @@ public final class TrinityGraphPlannerTest {
         assertEquals(BigInteger.ONE, partialPlan.initialExpectedInputs().get(fuel));
         assertEquals(1, partialPlan.cycleRepeatBlocks().size());
         assertTrue(stageIndex(partialPlan, grow.identity()) < stageIndex(partialPlan, finish.identity()));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> residualOutputs = TrinityGraphPlanner.create().plan(
+                snapshot,
+                residualTarget,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(material, BigInteger.TWO, fuel, BigInteger.ONE),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(residualOutputs.successful(), () -> residualOutputs.diagnostic().message().getString());
+        TrinityCraftingPlan residualPlan = residualOutputs.value();
+        assertEquals(BigInteger.TWO, residualPlan.patternFirings().get(charge.identity()));
+        assertEquals(BigInteger.TWO, residualPlan.patternFirings().get(pulverize.identity()));
+        assertEquals(BigInteger.ONE, residualPlan.patternFirings().get(grow.identity()));
+        assertEquals(BigInteger.ONE, residualPlan.patternFirings().get(residualFinish.identity()));
+        assertEquals(BigInteger.TWO, residualPlan.initialExpectedInputs().get(material));
+        assertEquals(BigInteger.ONE, residualPlan.initialExpectedInputs().get(fuel));
+        assertEquals(1, residualPlan.cycleRepeatBlocks().size());
+        TrinityCycleRepeatBlock repeatBlock = residualPlan.cycleRepeatBlocks().getFirst();
+        assertEquals(BigInteger.ONE, repeatBlock.repetitions());
+        Map<TrinityPatternIdentity, BigInteger> unitFirings = firingsInStages(
+                residualPlan,
+                repeatBlock.stageOrder());
+        assertEquals(Map.of(
+                charge.identity(), BigInteger.ONE,
+                pulverize.identity(), BigInteger.ONE,
+                grow.identity(), BigInteger.ONE), unitFirings);
+        int repeatEnd = repeatBlock.stageOrder().getLast();
+        int terminalStage = stageIndex(residualPlan, residualFinish.identity());
+        long terminalConversions = residualPlan.stages().stream()
+                .filter(stage -> stage.index() > repeatEnd && stage.index() < terminalStage)
+                .flatMap(stage -> stage.firings().stream())
+                .filter(firing -> firing.patternIdentity().equals(charge.identity()) ||
+                        firing.patternIdentity().equals(pulverize.identity()))
+                .count();
+        assertEquals(2L, terminalConversions);
     }
 
     @Test
@@ -280,8 +325,7 @@ public final class TrinityGraphPlannerTest {
                 .subtract(BigInteger.ONE)
                 .add(BigInteger.TWO)
                 .divide(BigInteger.valueOf(3L));
-        BigInteger secondFirings = firstFirings.add(requested).subtract(BigInteger.ONE)
-                .add(BigInteger.ONE)
+        BigInteger secondFirings = firstFirings.add(requested)
                 .divide(BigInteger.TWO);
         assertEquals(firstFirings, plan.patternFirings().get(firstToSecond.identity()));
         assertEquals(secondFirings, plan.patternFirings().get(secondToFirst.identity()));
@@ -439,10 +483,203 @@ public final class TrinityGraphPlannerTest {
         assertFalse(plan.targetNetChange().containsKey(chargedCertus));
         assertFalse(plan.targetNetChange().containsKey(certusDust));
         assertEquals(1, plan.cycleRepeatBlocks().size());
+        assertEquals(repetitions, plan.cycleRepeatBlocks().getFirst().repetitions());
+        assertEquals(3, plan.cycleRepeatBlocks().getFirst().stageOrder().size());
         assertTrue(stageIndex(plan, react.identity()) < stageIndex(plan, finish.identity()));
         assertTrue(
                 plan.statistics().scheduleStates() <= 128,
                 () -> "compressed states=" + plan.statistics().scheduleStates());
+    }
+
+    @Test
+    void plansACompleteTwoHundredFiftySixMegabyteChainFromFiniteRawInventory() {
+        AEKey rawCharged = AEItemKey.of(Items.IRON_INGOT);
+        AEKey rawDust = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
+        AEKey casing = AEItemKey.of(Items.COPPER_INGOT);
+        AEKey crystal = AEItemKey.of(Items.QUARTZ);
+        AEKey charged = AEItemKey.of(Items.AMETHYST_SHARD);
+        AEKey dust = AEItemKey.of(Items.REDSTONE);
+        AEKey growthByproduct = AEItemKey.of(Items.GLOWSTONE_DUST);
+        AEKey oneMegabyte = AEItemKey.of(Items.PAPER);
+        AEKey fourMegabyte = AEItemKey.of(Items.MAP);
+        AEKey sixteenMegabyte = AEItemKey.of(Items.BOOK);
+        AEKey sixtyFourMegabyte = AEItemKey.of(Items.CLOCK);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+
+        TrinityCraftingGraphPattern chargedSeed = pattern(
+                "full-256m-charged-seed",
+                Items.IRON_NUGGET,
+                List.of(stack(rawCharged, 64L)),
+                List.of(stack(charged, 64L)));
+        TrinityCraftingGraphPattern dustSeed = pattern(
+                "full-256m-dust-seed",
+                Items.GOLD_NUGGET,
+                List.of(stack(rawDust, 64L)),
+                List.of(stack(dust, 64L)));
+        TrinityCraftingGraphPattern charge = pattern(
+                "full-256m-charge",
+                Items.AMETHYST_BLOCK,
+                List.of(stack(crystal, 64L), stack(water, 1_000L)),
+                List.of(stack(charged, 64L)));
+        TrinityCraftingGraphPattern pulverize = pattern(
+                "full-256m-pulverize",
+                Items.REDSTONE_BLOCK,
+                List.of(stack(crystal, 1L)),
+                List.of(stack(dust, 1L)));
+        TrinityCraftingGraphPattern grow = pattern(
+                "full-256m-grow",
+                Items.QUARTZ_BLOCK,
+                List.of(stack(charged, 16L), stack(dust, 16L), stack(water, 500L)),
+                List.of(stack(crystal, 64L), stack(growthByproduct, 1L)));
+        TrinityCraftingGraphPattern craftOneMegabyte = pattern(
+                "full-256m-1m",
+                Items.PAPER,
+                List.of(
+                        stack(crystal, 128L),
+                        stack(charged, 1L),
+                        stack(dust, 1L),
+                        stack(growthByproduct, 4L),
+                        stack(casing, 1L)),
+                List.of(stack(oneMegabyte, 1L)));
+        TrinityCraftingGraphPattern craftFourMegabyte = pattern(
+                "full-256m-4m",
+                Items.MAP,
+                List.of(stack(oneMegabyte, 3L), stack(crystal, 8L), stack(casing, 1L)),
+                List.of(stack(fourMegabyte, 1L)));
+        TrinityCraftingGraphPattern craftSixteenMegabyte = pattern(
+                "full-256m-16m",
+                Items.BOOK,
+                List.of(stack(fourMegabyte, 3L), stack(crystal, 8L), stack(casing, 1L)),
+                List.of(stack(sixteenMegabyte, 1L)));
+        TrinityCraftingGraphPattern craftSixtyFourMegabyte = pattern(
+                "full-256m-64m",
+                Items.CLOCK,
+                List.of(stack(sixteenMegabyte, 3L), stack(crystal, 8L), stack(casing, 1L)),
+                List.of(stack(sixtyFourMegabyte, 1L)));
+        TrinityCraftingGraphPattern craftTarget = pattern(
+                "full-256m-256m",
+                Items.COMPASS,
+                List.of(stack(sixtyFourMegabyte, 3L), stack(crystal, 8L), stack(casing, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                256L,
+                List.of(
+                        chargedSeed,
+                        dustSeed,
+                        charge,
+                        pulverize,
+                        grow,
+                        craftOneMegabyte,
+                        craftFourMegabyte,
+                        craftSixteenMegabyte,
+                        craftSixtyFourMegabyte,
+                        craftTarget));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(
+                        rawCharged, BigInteger.valueOf(64L),
+                        rawDust, BigInteger.valueOf(64L),
+                        water, BigInteger.valueOf(260_000L),
+                        casing, BigInteger.valueOf(121L)),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityCraftingPlan plan = result.value();
+        assertEquals(Map.of(
+                rawCharged, BigInteger.valueOf(64L),
+                rawDust, BigInteger.valueOf(64L),
+                water, BigInteger.valueOf(257_500L),
+                casing, BigInteger.valueOf(121L)), plan.initialExpectedInputs());
+        assertEquals(Map.of(
+                chargedSeed.identity(), BigInteger.ONE,
+                dustSeed.identity(), BigInteger.ONE,
+                charge.identity(), BigInteger.valueOf(87L),
+                pulverize.identity(), BigInteger.valueOf(5_537L),
+                grow.identity(), BigInteger.valueOf(341L),
+                craftOneMegabyte.identity(), BigInteger.valueOf(81L),
+                craftFourMegabyte.identity(), BigInteger.valueOf(27L),
+                craftSixteenMegabyte.identity(), BigInteger.valueOf(9L),
+                craftSixtyFourMegabyte.identity(), BigInteger.valueOf(3L),
+                craftTarget.identity(), BigInteger.ONE), plan.patternFirings());
+        assertEquals(Map.of(
+                charged, BigInteger.valueOf(32L),
+                dust, BigInteger.valueOf(16L)), plan.minimumSeed());
+        assertEquals(Map.of(
+                rawCharged, BigInteger.valueOf(-64L),
+                rawDust, BigInteger.valueOf(-64L),
+                water, BigInteger.valueOf(-257_500L),
+                casing, BigInteger.valueOf(-121L),
+                charged, BigInteger.valueOf(95L),
+                dust, BigInteger.valueOf(64L),
+                crystal, BigInteger.valueOf(31L),
+                growthByproduct, BigInteger.valueOf(17L),
+                target, BigInteger.ONE), plan.targetNetChange());
+        LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(plan.initialExpectedInputs());
+        plan.targetNetChange().forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
+        finalBalances.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
+        assertEquals(Map.of(
+                charged, BigInteger.valueOf(95L),
+                dust, BigInteger.valueOf(64L),
+                crystal, BigInteger.valueOf(31L),
+                growthByproduct, BigInteger.valueOf(17L),
+                target, BigInteger.ONE), finalBalances);
+        assertEquals(1, plan.cycleRepeatBlocks().size());
+        var repeatBlock = plan.cycleRepeatBlocks().getFirst();
+        assertEquals(BigInteger.valueOf(85L), repeatBlock.repetitions());
+        assertTrue(repeatBlock.stageOrder().size() <= 6);
+        LinkedHashMap<TrinityPatternIdentity, BigInteger> unitFirings = new LinkedHashMap<>();
+        for (Integer stageIndex : repeatBlock.stageOrder()) {
+            plan.stages().get(stageIndex).firings().forEach(firing -> unitFirings.merge(
+                    firing.patternIdentity(),
+                    firing.count(),
+                    BigInteger::add));
+        }
+        assertEquals(Map.of(
+                charge.identity(), BigInteger.ONE,
+                pulverize.identity(), BigInteger.valueOf(64L),
+                grow.identity(), BigInteger.valueOf(4L)), unitFirings);
+        assertTrue(plan.statistics().scheduleStates() <= 256);
+    }
+
+    @Test
+    void doesNotExportAnUnsettledIntermediateFromInsideACycle() {
+        AEKey a = AEItemKey.of(Items.IRON_INGOT);
+        AEKey b = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey intermediate = AEItemKey.of(Items.REDSTONE);
+        AEKey settledByproduct = AEItemKey.of(Items.GLOWSTONE_DUST);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityCraftingGraphPattern expand = pattern(
+                "settlement-expand",
+                Items.PAPER,
+                List.of(stack(a, 1L)),
+                List.of(stack(b, 1L), stack(intermediate, 1L)));
+        TrinityCraftingGraphPattern close = pattern(
+                "settlement-close",
+                Items.MAP,
+                List.of(stack(b, 1L), stack(intermediate, 1L)),
+                List.of(stack(a, 2L), stack(settledByproduct, 1L)));
+        TrinityCraftingGraphPattern finish = pattern(
+                "settlement-finish",
+                Items.COMPASS,
+                List.of(stack(intermediate, 1L)),
+                List.of(stack(target, 1L)));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                new TrinityCraftingGraphSnapshot(257L, List.of(expand, close, finish)),
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(a, BigInteger.TWO),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertFalse(result.successful(), "A partial firing vector must not expose an internal cycle intermediate");
     }
 
     @Test
@@ -477,6 +714,19 @@ public final class TrinityGraphPlannerTest {
             }
         }
         throw new AssertionError("Pattern stage is absent: " + identity);
+    }
+
+    private static Map<TrinityPatternIdentity, BigInteger> firingsInStages(
+                                                                           TrinityCraftingPlan plan,
+                                                                           List<Integer> stageIndexes) {
+        LinkedHashMap<TrinityPatternIdentity, BigInteger> firings = new LinkedHashMap<>();
+        for (Integer stageIndex : stageIndexes) {
+            plan.stages().get(stageIndex).firings().forEach(firing -> firings.merge(
+                    firing.patternIdentity(),
+                    firing.count(),
+                    BigInteger::add));
+        }
+        return Map.copyOf(firings);
     }
 
     private static TrinityCraftingGraphPattern pattern(

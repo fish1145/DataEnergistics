@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
@@ -21,7 +20,6 @@ import java.math.BigInteger;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityPatternVariantExpanderTest {
@@ -64,7 +62,7 @@ public final class TrinityPatternVariantExpanderTest {
     }
 
     @Test
-    void checksGlobalVariantLimitBeforeMaterializingCartesianProduct() {
+    void collapsesEquivalentCartesianBindingsBeforeApplyingTheLimit() {
         TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(3L, List.of(pattern(
                 new TrinityPatternIdentity("definition", "publication"),
                 List.of(
@@ -72,15 +70,18 @@ public final class TrinityPatternVariantExpanderTest {
                                 alternative(Items.IRON_INGOT, 1L, null),
                                 alternative(Items.GOLD_INGOT, 1L, null)),
                         input(1L,
-                                alternative(Items.REDSTONE, 1L, null),
-                                alternative(Items.COAL, 1L, null))),
+                                alternative(Items.IRON_INGOT, 1L, null),
+                                alternative(Items.GOLD_INGOT, 1L, null))),
                 stack(Items.DIAMOND, 1L))));
 
         TrinityAlgorithmResult<List<TrinityPatternVariant>> result = TrinityPatternVariantExpander.create().expand(snapshot, 3);
 
-        assertFalse(result.successful());
-        assertEquals(TrinityPlanningDiagnosticCode.VARIANT_LIMIT, result.diagnostic().code());
-        assertEquals("4", result.diagnostic().metadata().get("required"));
+        assertTrue(result.successful());
+        assertEquals(3, result.value().size());
+        assertEquals(List.of(0, 0), result.value().get(0).alternativeOrdinals());
+        assertEquals(List.of(0, 1), result.value().get(1).alternativeOrdinals());
+        assertEquals(List.of(1, 1), result.value().get(2).alternativeOrdinals());
+        assertEquals(3, result.value().get(2).ordinal());
     }
 
     @Test

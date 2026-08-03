@@ -142,6 +142,12 @@ final class TrinityGraphPlanAssemblerImpl implements TrinityGraphPlanAssembler {
             }
 
             TrinityCycleSelection cycle = ((CycleUnit) unit).solution();
+            appendOneTimeStages(
+                    cycle.prefixOrder(),
+                    stages,
+                    stageOrder,
+                    patternFirings,
+                    stackRequests);
             ArrayList<Integer> blockStages = new ArrayList<>();
             for (TrinityVariantFiring batch : cycle.localOrder()) {
                 int stageIndex = stages.size();
@@ -164,8 +170,14 @@ final class TrinityGraphPlanAssemblerImpl implements TrinityGraphPlanAssembler {
                     repeatIndex++,
                     blockStages,
                     cycle.repetitions(),
-                    cycle.minimumSeed(),
-                    cycle.netChange()));
+                    minimumBalances(cycle.localOrder()),
+                    repeatedNetChange(cycle.localOrder(), cycle.repetitions())));
+            appendOneTimeStages(
+                    cycle.suffixOrder(),
+                    stages,
+                    stageOrder,
+                    patternFirings,
+                    stackRequests);
             cycle.minimumSeed().forEach((key, amount) -> minimumSeed.merge(key, amount, BigInteger::max));
             mergeScaled(netChange, cycle.netChange(), BigInteger.ONE);
         }
@@ -232,6 +244,62 @@ final class TrinityGraphPlanAssemblerImpl implements TrinityGraphPlanAssembler {
                 .diagnostics(List.of())
                 .statistics(statistics)
                 .build();
+    }
+
+    private static void appendOneTimeStages(
+                                            List<TrinityVariantFiring> order,
+                                            List<TrinityPlanStage> stages,
+                                            List<Integer> stageOrder,
+                                            Map<TrinityPatternIdentity, BigInteger> patternFirings,
+                                            Map<AEKey, BigInteger> stackRequests) {
+        for (TrinityVariantFiring batch : order) {
+            int stageIndex = stages.size();
+            Set<Integer> dependencies = stageIndex == 0 ? Set.of() : Set.of(stageIndex - 1);
+            stages.add(stage(
+                    stageIndex,
+                    false,
+                    dependencies,
+                    batch.variant(),
+                    batch.count(),
+                    false));
+            stageOrder.add(stageIndex);
+            mergePatternFiring(patternFirings, batch.variant(), batch.count());
+            mergeScaled(stackRequests, batch.variant().inputs(), batch.count());
+            mergeScaled(stackRequests, batch.variant().outputs(), batch.count());
+        }
+    }
+
+    private static Map<AEKey, BigInteger> repeatedNetChange(
+                                                            List<TrinityVariantFiring> order,
+                                                            BigInteger repetitions) {
+        LinkedHashMap<AEKey, BigInteger> netChange = new LinkedHashMap<>();
+        order.forEach(batch -> mergeScaled(
+                netChange,
+                batch.variant().netChange(),
+                batch.count().multiply(repetitions)));
+        removeZeros(netChange);
+        return Collections.unmodifiableMap(netChange);
+    }
+
+    private static Map<AEKey, BigInteger> minimumBalances(List<TrinityVariantFiring> order) {
+        LinkedHashMap<AEKey, BigInteger> required = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>();
+        for (TrinityVariantFiring firing : order) {
+            requiredAtStart(firing.variant(), firing.count()).forEach((key, amount) -> {
+                BigInteger deficit = amount.subtract(balances.getOrDefault(key, BigInteger.ZERO));
+                if (deficit.signum() > 0) {
+                    required.merge(key, deficit, BigInteger::add);
+                    balances.merge(key, deficit, BigInteger::add);
+                }
+            });
+            mergeScaled(balances, firing.variant().netChange(), firing.count());
+        }
+        balances.values().forEach(amount -> {
+            if (amount.signum() < 0) {
+                throw new IllegalStateException("A Trinity cycle unit requires an unaccounted entry balance");
+            }
+        });
+        return Collections.unmodifiableMap(required);
     }
 
     private static TrinityPlanStage stage(
