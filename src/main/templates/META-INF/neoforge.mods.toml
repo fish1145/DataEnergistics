@@ -32,6 +32,14 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.${mod_id}]]
+modId = "configuration"
+type = "required"
+embedded = true
+versionRange = "[${configuration_version},4)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
 modId = "ldlib2"
 type = "required"
 versionRange = "[${ldlib_version},)"
