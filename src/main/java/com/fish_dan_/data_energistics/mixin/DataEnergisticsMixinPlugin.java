@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtSoftInterfaceInjector;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtVersionPolicy;
 
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
@@ -98,6 +99,9 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
                     return false;
                 }
                 if ("ae2lt".equals(compatMod.getKey())) {
+                    if (Ae2LtVersionPolicy.unsupportedInstalledVersion().isPresent()) {
+                        return false;
+                    }
                     return Ae2LtPolicyHolder.POLICY.shouldApply(ae2LtRole(mixinClassName));
                 }
                 return true;

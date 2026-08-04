@@ -102,7 +102,9 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         if (serverData.contains(TAG_FAILURE_REASON)) {
             tooltip.add(Component.translatable(
                     "jade.data_energistics.multiblock.failure",
-                    MultiBlockFailureText.describe(serverData.getString(TAG_FAILURE_REASON))));
+                    serverData.getBoolean(TAG_TRINITY_DATA_CORE) ?
+                            MultiBlockFailureText.describeTrinityDataCore(serverData.getString(TAG_FAILURE_REASON)) :
+                            MultiBlockFailureText.describe(serverData.getString(TAG_FAILURE_REASON))));
         }
         if (serverData.contains(TAG_FAILURE_X) && serverData.contains(TAG_FAILURE_Y) && serverData.contains(TAG_FAILURE_Z)) {
             tooltip.add(Component.translatable(
@@ -159,7 +161,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         if (serverData.contains(TAG_CPU_FAILURE_REASON)) {
             tooltip.add(Component.translatable(
                     "jade.data_energistics.multiblock.cpu_failure",
-                    MultiBlockFailureText.describe(serverData.getString(TAG_CPU_FAILURE_REASON))));
+                    MultiBlockFailureText.describeTrinityDataCore(serverData.getString(TAG_CPU_FAILURE_REASON))));
         }
         if (serverData.contains(TAG_CPU_FAILURE_X) && serverData.contains(TAG_CPU_FAILURE_Y) && serverData.contains(TAG_CPU_FAILURE_Z)) {
             tooltip.add(Component.translatable(
@@ -174,7 +176,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         if (serverData.contains(TAG_CRAFTING_FAILURE_REASON)) {
             tooltip.add(Component.translatable(
                     "jade.data_energistics.multiblock.crafting_failure",
-                    MultiBlockFailureText.describe(serverData.getString(TAG_CRAFTING_FAILURE_REASON))));
+                    MultiBlockFailureText.describeTrinityDataCore(serverData.getString(TAG_CRAFTING_FAILURE_REASON))));
         }
         if (serverData.contains(TAG_CRAFTING_FAILURE_X) && serverData.contains(TAG_CRAFTING_FAILURE_Y) &&
                 serverData.contains(TAG_CRAFTING_FAILURE_Z)) {

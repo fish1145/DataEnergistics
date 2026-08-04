@@ -17,7 +17,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -35,6 +40,7 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.core.definitions.AEItems;
+import com.mojang.authlib.GameProfile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -107,6 +113,88 @@ public final class TrinityPatternCoreBlockEntityTest {
             assertEquals(1, restored.queuedBatchCount(retainedWorkSlot));
             assertEquals(index + 1L, restored.pendingOutputs(route).getFirst().amount());
         }
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_legacy_v2_break_round_trip")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void migratedLegacyV2CoreBreaksAndRetainsWorkThroughItsRealDrop(GameTestHelper helper) {
+        BlockPos sourcePos = new BlockPos(1, 1, 1);
+        BlockPos migratedPos = new BlockPos(3, 1, 1);
+        BlockPos restoredPos = new BlockPos(3, 1, 3);
+        TrinityPatternCoreBlock block = ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
+        helper.setBlock(sourcePos, block.defaultBlockState());
+        TrinityPatternCoreBlockEntity source = helper.getBlockEntity(sourcePos);
+        ItemStack oakPattern = encodedOakPlanksPattern(helper);
+        ItemStack cakePattern = encodedCakePattern(helper);
+        int cakeSlot = 62;
+        int workSlot = 63;
+        PatternRoute route = new PatternRoute(HOST_ID, source.coreId(), workSlot);
+        assertTrue(source.trySetPattern(cakeSlot, cakePattern));
+        assertTrue(source.trySetPattern(workSlot, oakPattern));
+        assertTrue(source.enqueueBatch(route, oakPattern, oakLogInputs(), 31L));
+        source.appendPendingOutputs(route, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));
+        CompoundTag currentState = new CompoundTag();
+        source.writeToTag(currentState, helper.getLevel().registryAccess());
+
+        helper.setBlock(migratedPos, block.defaultBlockState());
+        TrinityPatternCoreBlockEntity migrated = helper.getBlockEntity(migratedPos);
+        migrated.loadTag(asLegacyV2State(currentState), helper.getLevel().registryAccess());
+        assertTrue(migrated.isCoreStateReady());
+        assertEquals(source.coreId(), migrated.coreId());
+        assertEquals(1, migrated.queuedBatchCount(workSlot));
+        assertEquals(2L, migrated.pendingOutputs(route).getFirst().amount());
+        CompoundTag rewritten = new CompoundTag();
+        migrated.saveAdditional(rewritten, helper.getLevel().registryAccess());
+        assertEquals(3, rewritten.getInt("version"));
+        assertTrue(rewritten.contains("refund_outbox", Tag.TAG_COMPOUND));
+
+        ServerPlayer player = makeServerPlayer(helper);
+        player.getInventory().selected = 0;
+        player.getInventory().setItem(0, new ItemStack(Items.NETHERITE_PICKAXE));
+        ServerPlayerGameMode gameMode = new DirectDestroyGameMode(player, GameType.SURVIVAL);
+        assertTrue(migrated.getBlockState().canHarvestBlock(
+                helper.getLevel(),
+                helper.absolutePos(migratedPos),
+                player));
+        assertTrue(gameMode.destroyBlock(helper.absolutePos(migratedPos)));
+        assertTrue(helper.getBlockState(migratedPos).isAir());
+
+        List<ItemEntity> itemDrops = helper.getEntities(EntityType.ITEM);
+        assertEquals(3, itemDrops.size());
+        ItemStack coreDrop = ItemStack.EMPTY;
+        boolean droppedOakPattern = false;
+        boolean droppedCakePattern = false;
+        for (ItemEntity itemDrop : itemDrops) {
+            ItemStack dropped = itemDrop.getItem();
+            if (dropped.is(block.asItem())) {
+                assertTrue(coreDrop.isEmpty());
+                coreDrop = dropped.copy();
+            } else if (ItemStack.isSameItemSameComponents(oakPattern, dropped)) {
+                assertFalse(droppedOakPattern);
+                droppedOakPattern = true;
+            } else if (ItemStack.isSameItemSameComponents(cakePattern, dropped)) {
+                assertFalse(droppedCakePattern);
+                droppedCakePattern = true;
+            }
+        }
+        assertFalse(coreDrop.isEmpty());
+        assertTrue(droppedOakPattern);
+        assertTrue(droppedCakePattern);
+
+        Player placementPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
+        placementPlayer.setItemInHand(InteractionHand.MAIN_HAND, coreDrop);
+        helper.placeAt(placementPlayer, coreDrop, restoredPos.below(), Direction.UP);
+        TrinityPatternCoreBlockEntity restored = helper.getBlockEntity(restoredPos);
+        assertTrue(restored.isCoreStateReady());
+        assertEquals(source.coreId(), restored.coreId());
+        assertTrue(restored.pattern(cakeSlot).isEmpty());
+        assertTrue(restored.pattern(workSlot).isEmpty());
+        assertEquals(1, restored.queuedBatchCount(workSlot));
+        assertEquals(route, restored.queuedBatches(workSlot).getFirst().route());
+        assertEquals(2L, restored.pendingOutputs(route).getFirst().amount());
+        assertFalse(restored.hasPendingRefund(HOST_ID));
         helper.succeed();
     }
 
@@ -297,6 +385,28 @@ public final class TrinityPatternCoreBlockEntityTest {
                 new ItemStack(Items.WHEAT));
     }
 
+    private static CompoundTag asLegacyV2State(CompoundTag currentState) {
+        CompoundTag legacyState = currentState.copy();
+        legacyState.putInt("version", 2);
+        legacyState.remove("refund_outbox");
+        ListTag slots = legacyState.getList("slots", Tag.TAG_COMPOUND);
+        for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
+            ListTag definitions = slots.getCompound(slotIndex).getList("definitions", Tag.TAG_COMPOUND);
+            for (int definitionIndex = 0; definitionIndex < definitions.size(); definitionIndex++) {
+                definitions.getCompound(definitionIndex).putBoolean("resolved", true);
+            }
+        }
+        return legacyState;
+    }
+
+    private static ServerPlayer makeServerPlayer(GameTestHelper helper) {
+        return new ServerPlayer(
+                helper.getLevel().getServer(),
+                helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "pattern-core-breaker"),
+                ClientInformation.createDefault());
+    }
+
     private static void setFirstDefinitionRecipeId(CompoundTag state, String recipeId) {
         ListTag slots = state.getList("slots", Tag.TAG_COMPOUND);
         CompoundTag slot = slots.getCompound(0);
@@ -347,5 +457,13 @@ public final class TrinityPatternCoreBlockEntityTest {
             return;
         }
         throw new GameTestAssertException("Expected IllegalStateException");
+    }
+
+    private static final class DirectDestroyGameMode extends ServerPlayerGameMode {
+
+        private DirectDestroyGameMode(ServerPlayer player, GameType gameType) {
+            super(player);
+            setGameModeForPlayer(gameType, null);
+        }
     }
 }

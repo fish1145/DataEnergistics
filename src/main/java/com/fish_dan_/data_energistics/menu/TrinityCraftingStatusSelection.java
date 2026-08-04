@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.menu;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
-import appeng.api.networking.IGrid;
 import appeng.api.storage.ITerminalHost;
 import appeng.menu.me.crafting.CraftingStatusMenu;
 import org.jetbrains.annotations.Nullable;
@@ -91,10 +91,10 @@ public final class TrinityCraftingStatusSelection {
     public record Target(UUID hostId,
                          TrinityDataCoreCraftingRuntime runtime,
                          TrinityDataCoreVirtualCpu cpu,
-                         IGrid grid) {
+                         TrinityCraftingExecutionRoute route) {
 
         public Target {
-            if (hostId == null || runtime == null || cpu == null || grid == null) {
+            if (hostId == null || runtime == null || cpu == null || route == null) {
                 throw new IllegalArgumentException("Trinity crafting-status target identities cannot be null");
             }
         }
@@ -102,32 +102,38 @@ public final class TrinityCraftingStatusSelection {
         /** Classifies the exact CPU pin while preserving a valid route after a worker finishes or is cancelled. */
         public TargetState currentState(@Nullable UUID currentHostId,
                                         @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
-                                        @Nullable IGrid currentGrid) {
+                                        @Nullable TrinityCraftingExecutionRoute currentRoute) {
             List<TrinityDataCoreVirtualCpu> publishedCpus = currentRuntime == null ? List.of() : currentRuntime.publishedCpus();
-            return classifyCurrentState(
-                    this.hostId,
-                    this.runtime,
-                    this.cpu,
-                    this.grid,
-                    currentHostId,
-                    currentRuntime,
-                    publishedCpus,
-                    currentGrid,
-                    (grid, targetCpu) -> grid.getCraftingService().getCpus().contains(targetCpu),
-                    this.cpu.number() != 0 && !this.cpu.isBusy());
+            if (!matchesCurrentExecutionRoute(currentHostId, currentRuntime, currentRoute)) {
+                return TargetState.STALE_ROUTE;
+            }
+            for (TrinityDataCoreVirtualCpu publishedCpu : publishedCpus) {
+                if (publishedCpu == null) {
+                    throw new IllegalStateException("Published Trinity CPU collection contains null");
+                }
+                if (publishedCpu == this.cpu &&
+                        this.route.serviceGrid().getCraftingService().getCpus().contains(this.cpu)) {
+                    return TargetState.CURRENT_CPU;
+                }
+            }
+            return this.cpu.number() != 0 && !this.cpu.isBusy() ?
+                    TargetState.RETIRED_WORKER : TargetState.STALE_ROUTE;
         }
 
         /** Verifies the immutable Host, runtime and Grid route independently of the retired worker object. */
         public boolean isRouteCurrent(@Nullable UUID currentHostId,
                                       @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
-                                      @Nullable IGrid currentGrid) {
-            return matchesCurrentRoute(
-                    this.hostId,
-                    this.runtime,
-                    this.grid,
-                    currentHostId,
-                    currentRuntime,
-                    currentGrid);
+                                      @Nullable TrinityCraftingExecutionRoute currentRoute) {
+            return matchesCurrentExecutionRoute(currentHostId, currentRuntime, currentRoute);
+        }
+
+        /** Compares the Host/runtime identity and uninterrupted lease-membership route token. */
+        private boolean matchesCurrentExecutionRoute(@Nullable UUID currentHostId,
+                                                     @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
+                                                     @Nullable TrinityCraftingExecutionRoute currentRoute) {
+            return this.hostId.equals(currentHostId) &&
+                    this.runtime == currentRuntime &&
+                    this.route.isCurrent(currentRoute);
         }
     }
 

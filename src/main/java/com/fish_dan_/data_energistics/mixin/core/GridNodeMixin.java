@@ -27,6 +27,9 @@ public abstract class GridNodeMixin implements VirtualGridNode {
     @Unique
     private boolean dataEnergistics$virtualMemberActive;
 
+    @Unique
+    private long dataEnergistics$virtualMembershipGeneration;
+
     @Override
     @Nullable
     public IGrid virtualPrimaryGrid() {
@@ -39,6 +42,11 @@ public abstract class GridNodeMixin implements VirtualGridNode {
     }
 
     @Override
+    public long virtualMembershipGeneration() {
+        return this.dataEnergistics$virtualMembershipGeneration;
+    }
+
+    @Override
     public void updateVirtualMembership(@Nullable IGrid primaryGrid, boolean active) {
         if (primaryGrid == null && active) {
             throw new IllegalArgumentException("A released virtual node cannot remain active");
@@ -48,6 +56,8 @@ public abstract class GridNodeMixin implements VirtualGridNode {
         }
         this.dataEnergistics$virtualPrimaryGrid = primaryGrid;
         this.dataEnergistics$virtualMemberActive = active;
+        this.dataEnergistics$virtualMembershipGeneration = Math.incrementExact(
+                this.dataEnergistics$virtualMembershipGeneration);
         notifyStatusChange(IGridNodeListener.State.POWER);
         notifyStatusChange(IGridNodeListener.State.CHANNEL);
         notifyStatusChange(IGridNodeListener.State.GRID_BOOT);

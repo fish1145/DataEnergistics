@@ -29,6 +29,13 @@ public interface VirtualGridNode {
     boolean isVirtualMemberActive();
 
     /**
+     * Returns the monotonic generation of this node's virtual membership state.
+     *
+     * @return generation incremented after every effective primary or active-state change
+     */
+    long virtualMembershipGeneration();
+
+    /**
      * Updates the node's virtual service view without changing its owning grid.
      *
      * @param primaryGrid primary grid, or {@code null} to release the node

@@ -304,7 +304,7 @@ final class TrinityDataCoreStatusPanel {
     private static Component failureSummary(TrinityDataCoreHostStatus status) {
         StructureStatus failure = latestFailure(status);
         return failure.hasFailure() ?
-                MultiBlockFailureText.describe(failure.failureReason()) :
+                MultiBlockFailureText.describeTrinityDataCore(failure.failureReason()) :
                 Component.translatable("screen.data_energistics.trinity_data_core.no_failure");
     }
 
@@ -335,7 +335,9 @@ final class TrinityDataCoreStatusPanel {
         if (!structure.hasFailure()) {
             return;
         }
-        tooltip.add(Component.translatable(reasonKey, MultiBlockFailureText.describe(structure.failureReason())));
+        tooltip.add(Component.translatable(
+                reasonKey,
+                MultiBlockFailureText.describeTrinityDataCore(structure.failureReason())));
         if (!structure.failurePosition().isBlank()) {
             tooltip.add(Component.translatable(positionKey, structure.failurePosition()).withStyle(ChatFormatting.GRAY));
         }

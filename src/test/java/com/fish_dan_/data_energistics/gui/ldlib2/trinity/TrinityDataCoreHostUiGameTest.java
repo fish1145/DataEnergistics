@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
@@ -239,8 +239,9 @@ public final class TrinityDataCoreHostUiGameTest {
                 0.0F,
                 0L);
         cpuList.setValue(new TrinityCpuListStatus(List.of(unlimited)), false);
-        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_processor_count").getText());
-        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_storage_amount").getText());
+        Component unlimitedText = Component.translatable("gui.data_energistics.trinity.unlimited");
+        assertComponent(unlimitedText, label(modularUI, "trinity_cpu_status_7_processor_count").getText());
+        assertComponent(unlimitedText, label(modularUI, "trinity_cpu_status_7_storage_amount").getText());
         cpuList.setValue(new TrinityCpuListStatus(List.of(busy, idle)), false);
 
         assertTrue(cpuList.activateCpu(5));

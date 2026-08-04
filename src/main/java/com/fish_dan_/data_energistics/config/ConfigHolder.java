@@ -14,5 +14,13 @@ public class ConfigHolder {
         modContainer.registerConfig(ModConfig.Type.COMMON, FlatteningTntConfig.SPEC, "data_energistics-tnt.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, DataExtractorConfig.SPEC, "data_energistics-data_extractor.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SolarPanelConfig.SPEC, "data_energistics-solar_panel.toml");
+        modContainer.registerConfig(
+                ModConfig.Type.COMMON,
+                TrinityCraftingConfig.SPEC,
+                "data_energistics-trinity_crafting.toml");
+        modContainer.registerConfig(
+                ModConfig.Type.COMMON,
+                TrinityDispatchConfig.SPEC,
+                "data_energistics-trinity_dispatch.toml");
     }
 }

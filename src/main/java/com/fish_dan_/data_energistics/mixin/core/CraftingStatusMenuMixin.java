@@ -2,7 +2,8 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 
@@ -73,10 +74,11 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
             throw new IllegalStateException("Trinity CPU status target became stale during menu construction");
         }
 
-        IGrid grid = hatch.accessGrid();
-        if (grid == null) {
+        TrinityCraftingExecutionRoute route = hatch.craftingExecutionRoute();
+        if (route == null) {
             throw new IllegalStateException("Trinity CPU status target lost its grid during menu construction");
         }
+        IGrid grid = route.serviceGrid();
         this.lastCpuSet = grid.getCraftingService().getCpus();
         CraftingStatusMenu menu = (CraftingStatusMenu) (Object) this;
         menu.cpuList = dataEnergistics$invokeCreateCpuList();
@@ -140,10 +142,11 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
     @Unique
     private boolean dataEnergistics$selectCoordinatorFallback(TrinityCraftingStatusSelection.Target target,
                                                               TrinityAccessHatchBlockEntity hatch) {
-        IGrid grid = hatch.accessGrid();
-        if (grid == null || grid != target.grid()) {
+        TrinityCraftingExecutionRoute route = hatch.craftingExecutionRoute();
+        if (!target.route().isCurrent(route)) {
             return false;
         }
+        IGrid grid = target.route().serviceGrid();
 
         TrinityDataCoreVirtualCpu coordinator = null;
         for (TrinityDataCoreVirtualCpu cpu : target.runtime().publishedCpus()) {

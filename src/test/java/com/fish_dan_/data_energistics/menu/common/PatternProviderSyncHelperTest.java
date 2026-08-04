@@ -9,6 +9,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -31,6 +32,7 @@ import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEBlocks;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.parts.encoding.EncodingMode;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.google.gson.stream.JsonWriter;
@@ -50,6 +52,43 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class PatternProviderSyncHelperTest {
 
     private PatternProviderSyncHelperTest() {}
+
+    @TestHolder("pattern_provider_sync_tracks_publication_revision")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void tracksPublicationAndPresentationChanges(GameTestHelper helper) {
+        var tracker = new PatternProviderSyncTracker();
+        var publication = new PatternProviderSyncTracker.PublicationVersion(1L, 3L);
+        ItemStack encodedPattern = Items.CRAFTING_TABLE.getDefaultInstance();
+        ResourceLocation preferredWorkstation = ResourceLocation.withDefaultNamespace("crafting_table");
+
+        assertTrue(tracker.needsRefresh(publication, 10L, null, EncodingMode.CRAFTING, encodedPattern));
+        tracker.refreshed(publication, 10L, null, EncodingMode.CRAFTING, encodedPattern);
+
+        assertTrue(!tracker.needsRefresh(publication, 11L, null, EncodingMode.CRAFTING, encodedPattern));
+        assertTrue(tracker.needsRefresh(
+                new PatternProviderSyncTracker.PublicationVersion(1L, 4L),
+                11L,
+                null,
+                EncodingMode.CRAFTING,
+                encodedPattern));
+        assertTrue(tracker.needsRefresh(
+                new PatternProviderSyncTracker.PublicationVersion(2L, 3L),
+                11L,
+                null,
+                EncodingMode.CRAFTING,
+                encodedPattern));
+        assertTrue(tracker.needsRefresh(publication, 11L, preferredWorkstation, EncodingMode.CRAFTING, encodedPattern));
+        assertTrue(tracker.needsRefresh(publication, 11L, null, EncodingMode.PROCESSING, encodedPattern));
+        assertTrue(tracker.needsRefresh(
+                publication,
+                11L,
+                null,
+                EncodingMode.CRAFTING,
+                Items.FURNACE.getDefaultInstance()));
+        assertTrue(tracker.needsRefresh(publication, 110L, null, EncodingMode.CRAFTING, encodedPattern));
+        helper.succeed();
+    }
 
     @TestHolder("pattern_provider_sync_merges_same_display_entry")
     @EmptyTemplate("5")

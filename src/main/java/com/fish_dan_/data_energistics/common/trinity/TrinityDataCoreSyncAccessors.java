@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 
 import com.lowdragmc.lowdraglib2.syncdata.AccessorRegistries;
 import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;

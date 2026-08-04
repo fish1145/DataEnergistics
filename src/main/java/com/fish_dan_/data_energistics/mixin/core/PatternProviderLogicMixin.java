@@ -7,8 +7,17 @@ import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.PatternProviderBatching;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
 import net.minecraft.server.level.ServerLevel;
 
@@ -30,10 +39,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
+import java.util.Optional;
 
 @Mixin(PatternProviderLogic.class)
 public abstract class PatternProviderLogicMixin
-                                                implements PatternProviderLogicAccessor, PatternProviderBatchBridge, CountedCraftingProvider {
+                                                implements PatternProviderLogicAccessor, PatternProviderBatchBridge, TargetedCountedCraftingProvider {
 
     @Shadow
     @Final
@@ -65,15 +75,39 @@ public abstract class PatternProviderLogicMixin
                                                  IPatternDetails patternDetails,
                                                  KeyCounter[] prototype,
                                                  long requestedCount) {
+        return prepareBatch(
+                patternDetails,
+                prototype,
+                requestedCount,
+                CraftingDispatchTargetAvailability.all()).admission();
+    }
+
+    @Override
+    public CountedCraftingPreparation prepareBatch(
+                                                   IPatternDetails patternDetails,
+                                                   KeyCounter[] prototype,
+                                                   long requestedCount,
+                                                   CraftingDispatchTargetAvailability targetAvailability) {
+        if (targetAvailability == null) {
+            throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+        }
         PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
         if (logic.getClass() != PatternProviderLogic.class) {
-            return PatternProviderBatching.prepareSingle(logic, patternDetails, prototype, requestedCount);
+            CraftingDispatchTarget target = CraftingDispatchTarget.provider();
+            if (!targetAvailability.canAttempt(target)) {
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(CraftingDispatchStatus.NO_CAPACITY, target));
+            }
+            return CountedCraftingPreparation.accepted(
+                    PatternProviderBatching.prepareSingle(logic, patternDetails, prototype, requestedCount),
+                    target);
         }
         return this.dataEnergistics$prepareStandardBatch(
                 patternDetails,
                 prototype,
                 requestedCount,
-                this::dataEnergistics$afterCountedPush);
+                this::dataEnergistics$afterCountedPush,
+                targetAvailability);
     }
 
     @Override
@@ -83,13 +117,89 @@ public abstract class PatternProviderLogicMixin
                                                                          KeyCounter[] prototype,
                                                                          long requestedCount,
                                                                          Runnable afterCommit) {
+        return this.dataEnergistics$prepareStandardBatch(
+                patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit,
+                CraftingDispatchTargetAvailability.all()).admission();
+    }
+
+    @Override
+    public CountedCraftingPreparation dataEnergistics$prepareStandardBatch(
+                                                                           IPatternDetails patternDetails,
+                                                                           KeyCounter[] prototype,
+                                                                           long requestedCount,
+                                                                           Runnable afterCommit,
+                                                                           CraftingDispatchTargetAvailability targetAvailability) {
         return PatternProviderBatching.prepareStandardBatch(
                 (PatternProviderLogic) (Object) this,
                 (PatternProviderBatchAccess) this,
                 patternDetails,
                 prototype,
                 requestedCount,
-                afterCommit);
+                afterCommit,
+                targetAvailability);
+    }
+
+    @Override
+    public List<ProviderCapacitySnapshot> snapshotCapacity(
+                                                           CraftingProviderId providerId,
+                                                           IPatternDetails patternDetails,
+                                                           KeyCounter[] prototype,
+                                                           long requestedCrafts,
+                                                           String patternIdentity,
+                                                           long publicationRevision,
+                                                           long capacityRevision,
+                                                           long captureTick) {
+        PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
+        if (logic.getClass() != PatternProviderLogic.class) {
+            return List.of(new ProviderCapacitySnapshot(
+                    providerId,
+                    CraftingDispatchTarget.provider(),
+                    Optional.empty(),
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick,
+                    ProviderRoutingMode.UNKNOWN,
+                    DispatchCapacity.Unknown.INSTANCE,
+                    new DispatchCapacity.Known(1L)));
+        }
+        return PatternProviderBatching.snapshotStandardCapacity(
+                logic,
+                (PatternProviderBatchAccess) this,
+                providerId,
+                patternDetails,
+                prototype,
+                requestedCrafts,
+                patternIdentity,
+                publicationRevision,
+                capacityRevision,
+                captureTick);
+    }
+
+    @Override
+    @Nullable
+    public CountedCraftingAdmission prepareBatchForTarget(
+                                                          IPatternDetails patternDetails,
+                                                          KeyCounter[] prototype,
+                                                          long requestedCount,
+                                                          CraftingDispatchTarget target) {
+        PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
+        if (logic.getClass() != PatternProviderLogic.class) {
+            return target.equals(CraftingDispatchTarget.provider()) ?
+                    PatternProviderBatching.prepareSingle(logic, patternDetails, prototype, requestedCount) :
+                    null;
+        }
+        return PatternProviderBatching.prepareStandardBatchForTarget(
+                logic,
+                (PatternProviderBatchAccess) this,
+                patternDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterCountedPush,
+                target);
     }
 
     @Inject(method = "pushPattern", at = @At("RETURN"))

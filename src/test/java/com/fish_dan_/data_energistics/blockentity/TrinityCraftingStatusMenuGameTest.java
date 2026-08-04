@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.Target;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetedMenu;
@@ -82,7 +82,11 @@ public final class TrinityCraftingStatusMenuGameTest {
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning access hatch"));
         TrackingServerPlayer player = new TrackingServerPlayer(helper);
-        Target target = new Target(host.getHostId(), runtime, worker, grid);
+        var route = host.craftingExecutionRoute();
+        if (route == null) {
+            throw new GameTestAssertException("Trinity fixture has no crafting execution route");
+        }
+        Target target = new Target(host.getHostId(), runtime, worker, route);
         CraftingStatusMenu menu = openSelectedMenu(player, hatch, target);
         TargetedMenu targetedMenu = requireTargetedMenu(menu);
 
@@ -91,6 +95,11 @@ public final class TrinityCraftingStatusMenuGameTest {
         helper.assertTrue(
                 targetedMenu.dataEnergistics$getTrinityTarget() == target,
                 "Opened CPU status menu should retain the exact validated target");
+        menu.toggleScheduling();
+        helper.assertTrue(worker.isJobSuspended(), "AE2 CPU scheduling control should suspend the Trinity worker");
+        menu.broadcastChanges();
+        menu.toggleScheduling();
+        helper.assertFalse(worker.isJobSuspended(), "AE2 CPU scheduling control should resume the Trinity worker");
         CraftingStatusMenu.CraftingCpuListEntry coordinatorEntry = requireCpuEntry(menu, coordinator);
         helper.assertTrue(
                 coordinatorEntry.serial() != workerSerial,

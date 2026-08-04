@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;
 
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;

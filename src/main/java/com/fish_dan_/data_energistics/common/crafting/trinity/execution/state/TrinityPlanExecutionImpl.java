@@ -1,0 +1,1462 @@
+package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Firing;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.RepeatBlock;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Stage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.WaitKind;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+
+import java.math.BigInteger;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.PriorityQueue;
+import java.util.Set;
+
+/**
+ * Deterministic execution implementation with transient event indexes and versioned persistence.
+ */
+public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
+
+    private final AEKey targetKey;
+    private final long targetAmount;
+    private final LinkedHashMap<Integer, StageState> stages = new LinkedHashMap<>();
+    private final ArrayList<Integer> stageOrder = new ArrayList<>();
+    private final LinkedHashMap<Integer, RepeatState> repeatBlocks = new LinkedHashMap<>();
+    private final HashMap<Integer, RepeatState> repeatByStage = new HashMap<>();
+    private final LinkedHashMap<AEKey, Long> seedReserve = new LinkedHashMap<>();
+    private final TrinityBorrowingLedgerImpl borrowingLedger;
+
+    private final ArrayDeque<Integer> readyQueue = new ArrayDeque<>();
+    private final HashSet<Integer> queuedStages = new HashSet<>();
+    private final HashMap<AEKey, LinkedHashSet<Integer>> inputStageIndex = new HashMap<>();
+    private final HashMap<Integer, LinkedHashSet<Integer>> dependents = new HashMap<>();
+    private final PriorityQueue<RetryEntry> retryQueue = new PriorityQueue<>(Comparator
+            .comparingLong(RetryEntry::retryAt)
+            .thenComparingInt(RetryEntry::stageIndex)
+            .thenComparingLong(RetryEntry::version));
+
+    private long catalogRevision;
+    private CraftingQuantityMode quantityMode;
+    private long generation;
+    private long durableRevision;
+    private Work currentWork;
+    private boolean planning;
+    private boolean failed;
+    private String failureReason = "";
+    private long budgetRetryAt = -1L;
+    private boolean completionSealed;
+    private long completionBuffer;
+    private long deliveryRemaining;
+
+    private TrinityPlanExecutionImpl(AEKey targetKey,
+                                     long targetAmount,
+                                     TrinityBorrowingLedgerImpl borrowingLedger) {
+        if (targetAmount <= 0L) {
+            throw new IllegalArgumentException("A Trinity execution requires a positive target amount");
+        }
+        this.targetKey = targetKey;
+        this.targetAmount = targetAmount;
+        this.deliveryRemaining = targetAmount;
+        this.borrowingLedger = borrowingLedger;
+    }
+
+    static TrinityPlanExecutionImpl create(TrinityCraftingPlan plan, long currentTick) {
+        if (plan == null || currentTick < 0L) {
+            throw new IllegalArgumentException("A Trinity execution requires a plan and non-negative server tick");
+        }
+        GenericStack output = plan.finalOutput();
+        TrinityPlanExecutionImpl execution = new TrinityPlanExecutionImpl(
+                output.what(),
+                output.amount(),
+                new TrinityBorrowingLedgerImpl());
+        execution.installPlan(plan);
+        execution.rebuildTransientState(currentTick);
+        return execution;
+    }
+
+    static TrinityPlanExecutionImpl restore(CompoundTag tag,
+                                            HolderLookup.Provider registries,
+                                            long currentTick) {
+        requireTick(currentTick);
+        TrinityExecutionSnapshot snapshot = TrinityExecutionNbtCodec.decode(tag, registries);
+        TrinityPlanExecutionImpl restored = new TrinityPlanExecutionImpl(
+                snapshot.targetKey(),
+                snapshot.targetAmount(),
+                new TrinityBorrowingLedgerImpl(snapshot.borrowingEntries()));
+        restored.catalogRevision = snapshot.catalogRevision();
+        restored.quantityMode = snapshot.quantityMode();
+        restored.generation = snapshot.generation();
+        restored.failureReason = snapshot.failureReason();
+        restored.completionSealed = snapshot.completionSealed();
+        restored.completionBuffer = snapshot.completionBuffer();
+        restored.deliveryRemaining = snapshot.deliveryRemaining();
+        restored.budgetRetryAt = rebaseRetryAt(
+                snapshot.budgetRetryAt(),
+                snapshot.savedAtTick(),
+                currentTick);
+        restored.stageOrder.addAll(snapshot.stageOrder());
+        for (Stage stageSnapshot : snapshot.stages()) {
+            StageState stage = StageState.fromSnapshot(
+                    stageSnapshot,
+                    snapshot.savedAtTick(),
+                    currentTick);
+            if (restored.stages.putIfAbsent(stage.index, stage) != null) {
+                throw new IllegalArgumentException("A Trinity execution contains duplicate stage indexes");
+            }
+        }
+        for (RepeatBlock repeatSnapshot : snapshot.repeatBlocks()) {
+            RepeatState repeat = RepeatState.fromSnapshot(repeatSnapshot);
+            if (restored.repeatBlocks.putIfAbsent(repeat.index, repeat) != null) {
+                throw new IllegalArgumentException("A Trinity execution contains duplicate repeat indexes");
+            }
+            for (Integer stageIndex : repeat.stageOrder) {
+                if (restored.repeatByStage.putIfAbsent(stageIndex, repeat) != null) {
+                    throw new IllegalArgumentException("A Trinity cycle stage belongs to multiple restored repeats");
+                }
+            }
+        }
+        restored.seedReserve.putAll(snapshot.seedReserve());
+        boolean missingOutputProjection = restored.stages.values().stream()
+                .flatMap(stage -> stage.firings.stream())
+                .anyMatch(firing -> firing.outputs.isEmpty());
+        if (missingOutputProjection) {
+            Data_Energistics.LOGGER.warn(
+                    "Restored legacy Trinity execution without exact pending-output metadata; " +
+                            "CPU status omits unknown pending rows until replanning or completion: target={}, revision={}",
+                    restored.targetKey,
+                    restored.catalogRevision);
+        }
+        restored.validateInstalledPlan();
+        restored.validateRestoredCursors();
+        restored.validateCompletionState();
+
+        Status persistedStatus = snapshot.status();
+        restored.failed = persistedStatus == Status.FAILED;
+        restored.planning = persistedStatus == Status.PLANNING;
+        if (restored.failed == restored.failureReason.isBlank()) {
+            throw new IllegalArgumentException("A Trinity failure reason must exist exactly for failed execution");
+        }
+        if ((persistedStatus == Status.BUDGET_EXHAUSTED) != (restored.budgetRetryAt >= 0L)) {
+            throw new IllegalArgumentException("A Trinity budget state must retain exactly one retry tick");
+        }
+        if (persistedStatus != Status.BUDGET_EXHAUSTED && restored.budgetRetryAt != -1L) {
+            throw new IllegalArgumentException("A Trinity non-budget state cannot retain a budget retry tick");
+        }
+        if ((persistedStatus == Status.COMPLETED) != restored.productionComplete()) {
+            throw new IllegalArgumentException("A Trinity completed status must match all persisted stage cursors");
+        }
+        restored.validatePersistedStatusShape(persistedStatus);
+
+        restored.rebuildTransientState(currentTick);
+        return restored;
+    }
+
+    @Override
+    public Status status() {
+        if (this.failed) {
+            return Status.FAILED;
+        }
+        if (this.planning) {
+            return Status.PLANNING;
+        }
+        if (productionComplete()) {
+            return Status.COMPLETED;
+        }
+        if (this.budgetRetryAt >= 0L) {
+            return Status.BUDGET_EXHAUSTED;
+        }
+        if (this.currentWork != null || !this.readyQueue.isEmpty()) {
+            return Status.READY;
+        }
+        boolean waitingInput = false;
+        boolean waitingProvider = false;
+        for (StageState stage : this.stages.values()) {
+            if (stage.waitKind == WaitKind.DYNAMIC_INPUT) {
+                return Status.WAITING_DYNAMIC_INPUT;
+            }
+            waitingProvider |= stage.waitKind == WaitKind.PROVIDER;
+            waitingInput |= stage.waitKind == WaitKind.INPUT;
+        }
+        if (waitingProvider) {
+            return Status.WAITING_PROVIDER;
+        }
+        if (waitingInput) {
+            return Status.WAITING_INPUT;
+        }
+        return Status.READY;
+    }
+
+    @Override
+    public OptionalLong nextRetryTick() {
+        long nextRetry = this.budgetRetryAt;
+        for (StageState stage : this.stages.values()) {
+            if (stage.waitKind.retrying() && stage.retryAt >= 0L &&
+                    (nextRetry < 0L || stage.retryAt < nextRetry)) {
+                nextRetry = stage.retryAt;
+            }
+        }
+        return nextRetry < 0L ? OptionalLong.empty() : OptionalLong.of(nextRetry);
+    }
+
+    @Override
+    public long catalogRevision() {
+        return this.catalogRevision;
+    }
+
+    @Override
+    public CraftingQuantityMode quantityMode() {
+        return this.quantityMode;
+    }
+
+    @Override
+    public GenericStack finalOutput() {
+        return new GenericStack(this.targetKey, this.targetAmount);
+    }
+
+    @Override
+    public Optional<Work> poll(long currentTick) {
+        requireTick(currentTick);
+        if (this.failed || this.planning || productionComplete()) {
+            return Optional.empty();
+        }
+        activateDueRetries(currentTick);
+        if (this.budgetRetryAt >= 0L && currentTick >= this.budgetRetryAt) {
+            this.budgetRetryAt = -1L;
+            markDurableMutation();
+        }
+        if (this.currentWork != null) {
+            return Optional.of(this.currentWork);
+        }
+        if (this.budgetRetryAt >= 0L) {
+            return Optional.empty();
+        }
+        while (!this.readyQueue.isEmpty()) {
+            int stageIndex = this.readyQueue.removeFirst();
+            this.queuedStages.remove(stageIndex);
+            StageState stage = requireStage(stageIndex);
+            if (!eligible(stage)) {
+                continue;
+            }
+            this.currentWork = createWork(stage);
+            stage.leased = true;
+            return Optional.of(this.currentWork);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public int queuedStageCount() {
+        return this.queuedStages.size();
+    }
+
+    @Override
+    public void registerInputKeys(int stageIndex, Set<AEKey> keys) {
+        StageState stage = requireStage(stageIndex);
+        Set<AEKey> copied = copyKeys(keys, "registered input");
+        boolean changed = false;
+        for (AEKey key : copied) {
+            if (stage.inputKeys.add(key)) {
+                this.inputStageIndex.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(stageIndex);
+                changed = true;
+            }
+        }
+        if (changed) {
+            markDurableMutation();
+        }
+    }
+
+    @Override
+    public boolean wake(AEKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException("A Trinity wake event requires an AE key");
+        }
+        Set<Integer> indexed = this.inputStageIndex.get(key);
+        if (indexed == null || indexed.isEmpty()) {
+            return false;
+        }
+        boolean released = false;
+        for (Integer stageIndex : List.copyOf(indexed)) {
+            StageState stage = requireStage(stageIndex);
+            if ((stage.waitKind == WaitKind.INPUT || stage.waitKind == WaitKind.DYNAMIC_INPUT) &&
+                    stage.waitingKeys.contains(key)) {
+                clearWait(stage);
+                enqueueIfEligible(stage);
+                released = true;
+            }
+        }
+        if (released) {
+            markDurableMutation();
+        }
+        return released;
+    }
+
+    @Override
+    public void deferInput(Work work, Set<AEKey> keys) {
+        Set<AEKey> copied = copyNonEmptyKeys(keys, "input wait");
+        StageState stage = releaseCurrentWork(work);
+        registerInputKeys(stage.index, copied);
+        beginWait(stage, WaitKind.INPUT, copied, -1L);
+        markDurableMutation();
+    }
+
+    @Override
+    public void deferDynamicInput(Work work, Set<AEKey> keys, long currentTick, int maxRetryTicks) {
+        requireTick(currentTick);
+        requireRetryCap(maxRetryTicks);
+        Set<AEKey> copied = copyNonEmptyKeys(keys, "dynamic input wait");
+        StageState stage = requireCurrentWork(work);
+        if (!stage.cycle) {
+            throw new IllegalStateException("Only a Trinity cycle stage may wait for dynamic material selection");
+        }
+        clearCurrentWork(stage);
+        registerInputKeys(stage.index, copied);
+        int delay = stage.nextDynamicDelay;
+        beginWait(stage, WaitKind.DYNAMIC_INPUT, copied, Math.addExact(currentTick, delay));
+        stage.nextDynamicDelay = nextDelay(delay, maxRetryTicks);
+        scheduleRetry(stage);
+        markDurableMutation();
+    }
+
+    @Override
+    public void deferProvider(Work work, long currentTick, int maxRetryTicks) {
+        requireTick(currentTick);
+        requireRetryCap(maxRetryTicks);
+        StageState stage = releaseCurrentWork(work);
+        int delay = stage.nextProviderDelay;
+        beginWait(stage, WaitKind.PROVIDER, Set.of(), Math.addExact(currentTick, delay));
+        stage.nextProviderDelay = nextDelay(delay, maxRetryTicks);
+        scheduleRetry(stage);
+        markDurableMutation();
+    }
+
+    @Override
+    public void markPlanning(Work work) {
+        releaseCurrentWork(work);
+        this.planning = true;
+        this.budgetRetryAt = -1L;
+        markDurableMutation();
+    }
+
+    @Override
+    public void replaceRemainingPlan(TrinityCraftingPlan replacement, long currentTick) {
+        requireTick(currentTick);
+        if (!this.planning || replacement == null) {
+            throw new IllegalStateException("A Trinity replacement plan is accepted only while planning");
+        }
+        GenericStack output = replacement.finalOutput();
+        if (!this.targetKey.equals(output.what()) || replacement.quantityMode() != this.quantityMode ||
+                output.amount() > this.deliveryRemaining) {
+            throw new IllegalArgumentException("A Trinity replacement plan must preserve target and quantity semantics");
+        }
+        long nextGeneration = Math.addExact(this.generation, 1L);
+        TrinityPlanExecutionImpl prepared = new TrinityPlanExecutionImpl(
+                this.targetKey,
+                this.targetAmount,
+                this.borrowingLedger);
+        prepared.installPlan(replacement);
+        adoptInstalledPlan(prepared);
+        this.generation = nextGeneration;
+        this.planning = false;
+        this.budgetRetryAt = -1L;
+        rebuildTransientState(currentTick);
+        markDurableMutation();
+    }
+
+    @Override
+    public void recordAccepted(Work work, long acceptedCount) {
+        if (acceptedCount <= 0L) {
+            throw new IllegalArgumentException("A Trinity provider acceptance must be positive");
+        }
+        StageState stage = requireCurrentWork(work);
+        if (acceptedCount > work.maximumLogicalFirings()) {
+            throw new IllegalArgumentException("A Trinity provider accepted more than the offered logical firing count");
+        }
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        RepeatState repeat = stage.cycle ? requireRepeat(stage.index) : null;
+        if (stage.cycle && repeat.waveCount == 0L) {
+            if (repeat.cursor != 0 || stage.currentFiring != 0) {
+                throw new IllegalStateException("A Trinity cycle wave must begin at its first stage and firing");
+            }
+            repeat.waveCount = ceilDiv(acceptedCount, firing.plannedCount);
+            firing.remainingCount = Math.multiplyExact(firing.plannedCount, repeat.waveCount);
+            firing.initialized = true;
+        }
+        if (!firing.initialized || firing.remainingCount < acceptedCount) {
+            throw new IllegalStateException("A Trinity firing cursor cannot consume beyond its initialized wave");
+        }
+        firing.remainingCount -= acceptedCount;
+        clearCurrentWork(stage);
+        stage.nextDynamicDelay = 1;
+        stage.nextProviderDelay = 1;
+        markDurableMutation();
+
+        if (firing.remainingCount > 0L) {
+            enqueueIfEligible(stage);
+            return;
+        }
+        stage.currentFiring++;
+        if (stage.currentFiring < stage.firings.size()) {
+            initializeCurrentFiring(stage);
+            enqueueIfEligible(stage);
+            return;
+        }
+        finishStage(stage);
+    }
+
+    @Override
+    public void markBudgetExhausted(Work work, long currentTick) {
+        requireTick(currentTick);
+        StageState stage = releaseCurrentWork(work);
+        enqueueIfEligible(stage);
+        this.budgetRetryAt = Math.addExact(currentTick, 1L);
+        markDurableMutation();
+    }
+
+    @Override
+    public boolean deadlocked(boolean hasInFlight) {
+        if (hasInFlight || this.failed || this.planning || productionComplete() || this.currentWork != null ||
+                !this.readyQueue.isEmpty() || this.budgetRetryAt >= 0L) {
+            return false;
+        }
+        for (StageState stage : this.stages.values()) {
+            if (stage.waitKind != WaitKind.NONE) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void fail(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("A Trinity execution failure requires a diagnostic reason");
+        }
+        if (productionComplete()) {
+            throw new IllegalStateException("A completed Trinity execution cannot fail");
+        }
+        this.failed = true;
+        this.failureReason = reason;
+        this.planning = false;
+        this.budgetRetryAt = -1L;
+        this.currentWork = null;
+        this.readyQueue.clear();
+        this.queuedStages.clear();
+        this.retryQueue.clear();
+        this.stages.values().forEach(stage -> {
+            stage.leased = false;
+            clearWait(stage);
+        });
+        markDurableMutation();
+    }
+
+    @Override
+    public Optional<String> failureReason() {
+        return this.failed ? Optional.of(this.failureReason) : Optional.empty();
+    }
+
+    @Override
+    public Map<AEKey, Long> seedReserve() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(this.seedReserve));
+    }
+
+    @Override
+    public Map<AEKey, Long> pendingOutputs() {
+        LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+        for (StageState stage : this.stages.values()) {
+            if (!stage.cycle) {
+                addDagPendingOutputs(outputs, stage);
+            }
+        }
+        for (RepeatState repeat : this.repeatBlocks.values()) {
+            addCyclePendingOutputs(outputs, repeat);
+        }
+        return Collections.unmodifiableMap(outputs);
+    }
+
+    private static void addDagPendingOutputs(Map<AEKey, Long> outputs, StageState stage) {
+        if (stage.completed) {
+            return;
+        }
+        for (int index = stage.currentFiring; index < stage.firings.size(); index++) {
+            FiringState firing = stage.firings.get(index);
+            long remaining = index == stage.currentFiring && firing.initialized ?
+                    firing.remainingCount :
+                    firing.plannedCount;
+            mergePendingOutputs(outputs, firing, remaining);
+        }
+    }
+
+    private void addCyclePendingOutputs(Map<AEKey, Long> outputs, RepeatState repeat) {
+        if (repeat.remainingRepetitions == 0L) {
+            return;
+        }
+        for (int stagePosition = 0; stagePosition < repeat.stageOrder.size(); stagePosition++) {
+            StageState stage = requireStage(repeat.stageOrder.get(stagePosition));
+            for (int firingIndex = 0; firingIndex < stage.firings.size(); firingIndex++) {
+                FiringState firing = stage.firings.get(firingIndex);
+                long remaining = cycleFiringRemainder(repeat, stage, stagePosition, firing, firingIndex);
+                mergePendingOutputs(outputs, firing, remaining);
+            }
+        }
+    }
+
+    private static long cycleFiringRemainder(RepeatState repeat,
+                                             StageState stage,
+                                             int stagePosition,
+                                             FiringState firing,
+                                             int firingIndex) {
+        if (repeat.waveCount == 0L || stagePosition > repeat.cursor ||
+                (stagePosition == repeat.cursor && firingIndex > stage.currentFiring)) {
+            return Math.multiplyExact(firing.plannedCount, repeat.remainingRepetitions);
+        }
+        long laterWaves = Math.subtractExact(repeat.remainingRepetitions, repeat.waveCount);
+        long laterCount = Math.multiplyExact(firing.plannedCount, laterWaves);
+        if (stagePosition < repeat.cursor || firingIndex < stage.currentFiring) {
+            return laterCount;
+        }
+        long activeCount = firing.initialized ?
+                firing.remainingCount :
+                Math.multiplyExact(firing.plannedCount, repeat.waveCount);
+        return Math.addExact(activeCount, laterCount);
+    }
+
+    private static void mergePendingOutputs(Map<AEKey, Long> outputs,
+                                            FiringState firing,
+                                            long firingCount) {
+        if (firingCount == 0L || firing.outputs.isEmpty()) {
+            return;
+        }
+        firing.outputs.forEach((key, perFiring) -> outputs.merge(
+                key,
+                Math.multiplyExact(perFiring, firingCount),
+                Math::addExact));
+    }
+
+    @Override
+    public TrinityBorrowingLedger borrowingLedger() {
+        return this.borrowingLedger;
+    }
+
+    @Override
+    public boolean productionComplete() {
+        for (StageState stage : this.stages.values()) {
+            if (!stage.completed) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void sealCompletion(long amount) {
+        if (!productionComplete() || this.failed || this.completionSealed || amount != this.deliveryRemaining) {
+            throw new IllegalStateException("A Trinity completion buffer requires one exact post-production delivery seal");
+        }
+        this.completionSealed = true;
+        this.completionBuffer = amount;
+        markDurableMutation();
+    }
+
+    @Override
+    public Optional<GenericStack> completionOffer() {
+        return this.completionBuffer == 0L ? Optional.empty() :
+                Optional.of(new GenericStack(this.targetKey, this.completionBuffer));
+    }
+
+    @Override
+    public void recordDelivered(long acceptedAmount) {
+        if (!this.completionSealed || acceptedAmount <= 0L || acceptedAmount > this.completionBuffer ||
+                acceptedAmount > this.deliveryRemaining) {
+            throw new IllegalArgumentException("A Trinity delivery must deduct a positive accepted completion amount");
+        }
+        this.completionBuffer -= acceptedAmount;
+        this.deliveryRemaining -= acceptedAmount;
+        markDurableMutation();
+    }
+
+    @Override
+    public Optional<GenericStack> releaseCompletionForStandalone() {
+        if (!this.completionSealed || this.completionBuffer == 0L) {
+            return Optional.empty();
+        }
+        GenericStack released = new GenericStack(this.targetKey, this.completionBuffer);
+        this.deliveryRemaining = Math.subtractExact(this.deliveryRemaining, this.completionBuffer);
+        this.completionBuffer = 0L;
+        markDurableMutation();
+        return Optional.of(released);
+    }
+
+    @Override
+    public long deliveryRemaining() {
+        return this.deliveryRemaining;
+    }
+
+    @Override
+    public long durableRevision() {
+        return this.durableRevision;
+    }
+
+    @Override
+    public CompoundTag save(HolderLookup.Provider registries, long currentTick) {
+        requireTick(currentTick);
+        return TrinityExecutionNbtCodec.encode(snapshot(currentTick), registries);
+    }
+
+    private TrinityExecutionSnapshot snapshot(long currentTick) {
+        ArrayList<Stage> stageSnapshots = new ArrayList<>();
+        for (Integer stageIndex : this.stageOrder) {
+            stageSnapshots.add(requireStage(stageIndex).snapshot());
+        }
+        ArrayList<RepeatBlock> repeatSnapshots = new ArrayList<>();
+        this.repeatBlocks.values().forEach(repeat -> repeatSnapshots.add(repeat.snapshot()));
+        return new TrinityExecutionSnapshot(
+                this.catalogRevision,
+                this.quantityMode,
+                this.targetKey,
+                this.targetAmount,
+                status(),
+                this.failureReason,
+                this.generation,
+                stageSnapshots,
+                this.stageOrder,
+                repeatSnapshots,
+                this.seedReserve,
+                this.completionSealed,
+                this.completionBuffer,
+                this.deliveryRemaining,
+                this.borrowingLedger.entries(),
+                currentTick,
+                this.budgetRetryAt);
+    }
+
+    private void installPlan(TrinityCraftingPlan plan) {
+        this.catalogRevision = plan.catalogRevision();
+        this.quantityMode = plan.quantityMode();
+        this.stages.clear();
+        this.stageOrder.clear();
+        this.repeatBlocks.clear();
+        this.repeatByStage.clear();
+        this.seedReserve.clear();
+
+        for (TrinityPlanStage planStage : plan.stages()) {
+            StageState stage = StageState.fromPlan(planStage);
+            if (this.stages.putIfAbsent(stage.index, stage) != null) {
+                throw new IllegalArgumentException("A Trinity execution plan contains duplicate stage indexes");
+            }
+        }
+        this.stageOrder.addAll(plan.stageOrder());
+        for (TrinityCycleRepeatBlock planBlock : plan.cycleRepeatBlocks()) {
+            RepeatState repeat = RepeatState.fromPlan(planBlock);
+            if (this.repeatBlocks.putIfAbsent(repeat.index, repeat) != null) {
+                throw new IllegalArgumentException("A Trinity execution plan contains duplicate repeat indexes");
+            }
+            for (Integer stageIndex : repeat.stageOrder) {
+                if (this.repeatByStage.putIfAbsent(stageIndex, repeat) != null) {
+                    throw new IllegalArgumentException("A Trinity execution cycle stage belongs to multiple repeats");
+                }
+            }
+        }
+        plan.minimumSeed().forEach((key, amount) -> this.seedReserve.put(key, amount.longValueExact()));
+        validateInstalledPlan();
+    }
+
+    private void adoptInstalledPlan(TrinityPlanExecutionImpl prepared) {
+        this.catalogRevision = prepared.catalogRevision;
+        this.quantityMode = prepared.quantityMode;
+        this.stages.clear();
+        this.stages.putAll(prepared.stages);
+        this.stageOrder.clear();
+        this.stageOrder.addAll(prepared.stageOrder);
+        this.repeatBlocks.clear();
+        this.repeatBlocks.putAll(prepared.repeatBlocks);
+        this.repeatByStage.clear();
+        this.repeatByStage.putAll(prepared.repeatByStage);
+        this.seedReserve.clear();
+        this.seedReserve.putAll(prepared.seedReserve);
+    }
+
+    private void validateInstalledPlan() {
+        if (this.catalogRevision < 0L || this.quantityMode == null ||
+                this.stageOrder.size() != this.stages.size() ||
+                !new HashSet<>(this.stageOrder).equals(this.stages.keySet())) {
+            throw new IllegalArgumentException("A Trinity execution requires complete plan metadata and stage order");
+        }
+        for (StageState stage : this.stages.values()) {
+            if (!this.stages.keySet().containsAll(stage.dependencies) ||
+                    stage.cycle != this.repeatByStage.containsKey(stage.index)) {
+                throw new IllegalArgumentException("A Trinity execution plan has inconsistent dependencies or cycle membership");
+            }
+        }
+    }
+
+    private void validateRestoredCursors() {
+        for (StageState stage : this.stages.values()) {
+            if (stage.completed) {
+                if (stage.currentFiring != stage.firings.size() ||
+                        stage.firings.stream().anyMatch(firing -> firing.remainingCount != 0L) ||
+                        stage.waitKind != WaitKind.NONE) {
+                    throw new IllegalArgumentException("A completed Trinity stage cannot retain firing or wait work");
+                }
+                continue;
+            }
+            if (stage.currentFiring < 0 || stage.currentFiring > stage.firings.size() ||
+                    (!stage.cycle && stage.currentFiring == stage.firings.size())) {
+                throw new IllegalArgumentException("An unfinished Trinity stage requires a current firing");
+            }
+            for (int firingIndex = 0; firingIndex < stage.firings.size(); firingIndex++) {
+                FiringState firing = stage.firings.get(firingIndex);
+                if (firingIndex < stage.currentFiring && firing.remainingCount != 0L) {
+                    throw new IllegalArgumentException("A Trinity stage retained work before its current firing");
+                }
+                if (firingIndex > stage.currentFiring && firing.initialized) {
+                    throw new IllegalArgumentException("A Trinity stage initialized a firing after its current cursor");
+                }
+            }
+            validateWait(stage);
+            if (!stage.cycle) {
+                FiringState current = stage.firings.get(stage.currentFiring);
+                if (!current.initialized || current.remainingCount <= 0L ||
+                        current.remainingCount > current.plannedCount) {
+                    throw new IllegalArgumentException("An unfinished Trinity DAG stage requires positive remaining work");
+                }
+            }
+        }
+
+        HashSet<Integer> cycleStages = new HashSet<>();
+        for (RepeatState repeat : this.repeatBlocks.values()) {
+            if (!cycleStages.addAll(repeat.stageOrder)) {
+                throw new IllegalArgumentException("A Trinity cycle stage appears in multiple restored repeat blocks");
+            }
+            if (repeat.remainingRepetitions == 0L) {
+                if (repeat.waveCount != 0L || repeat.stageOrder.stream().anyMatch(index -> !requireStage(index).completed)) {
+                    throw new IllegalArgumentException("A finished Trinity repeat block requires completed stages and no wave");
+                }
+                continue;
+            }
+            if (repeat.stageOrder.stream().anyMatch(index -> requireStage(index).completed)) {
+                throw new IllegalArgumentException("An unfinished Trinity repeat block cannot contain completed stages");
+            }
+            if (repeat.waveCount == 0L && repeat.cursor != 0) {
+                throw new IllegalArgumentException("A Trinity repeat block without a wave must point at its first stage");
+            }
+            for (int position = 0; position < repeat.stageOrder.size(); position++) {
+                StageState stage = requireStage(repeat.stageOrder.get(position));
+                if (position < repeat.cursor &&
+                        (stage.currentFiring != stage.firings.size() ||
+                                stage.firings.stream().anyMatch(firing -> !firing.initialized))) {
+                    throw new IllegalArgumentException("A Trinity repeat stage before the cursor must finish every wave firing");
+                }
+                if (position > repeat.cursor && stage.firings.stream().anyMatch(firing -> firing.initialized)) {
+                    throw new IllegalArgumentException("A Trinity repeat stage after the cursor cannot start its wave");
+                }
+            }
+            StageState active = requireStage(repeat.stageOrder.get(repeat.cursor));
+            if (active.currentFiring >= active.firings.size()) {
+                throw new IllegalArgumentException("A Trinity active repeat stage requires a current firing");
+            }
+            FiringState current = active.firings.get(active.currentFiring);
+            if (repeat.waveCount == 0L) {
+                if (active.currentFiring != 0 || current.initialized) {
+                    throw new IllegalArgumentException("A Trinity new wave must begin with an uninitialized first firing");
+                }
+            } else {
+                long maximumRemaining = Math.multiplyExact(current.plannedCount, repeat.waveCount);
+                if (current.initialized &&
+                        (current.remainingCount <= 0L || current.remainingCount > maximumRemaining)) {
+                    throw new IllegalArgumentException("A Trinity active wave requires bounded initialized firing work");
+                }
+            }
+        }
+    }
+
+    private void validateCompletionState() {
+        if (this.completionBuffer < 0L || this.deliveryRemaining < 0L ||
+                this.deliveryRemaining > this.targetAmount || this.completionBuffer > this.deliveryRemaining) {
+            throw new IllegalArgumentException("A Trinity completion buffer contains impossible delivery amounts");
+        }
+        if (!this.completionSealed &&
+                (this.completionBuffer != 0L || this.deliveryRemaining != this.targetAmount)) {
+            throw new IllegalArgumentException("An unsealed Trinity completion buffer cannot record delivery progress");
+        }
+        if (this.completionSealed && !productionComplete()) {
+            throw new IllegalArgumentException("A Trinity completion buffer cannot be sealed before production completes");
+        }
+        if (this.completionSealed && this.completionBuffer != this.deliveryRemaining) {
+            throw new IllegalArgumentException("A sealed Trinity completion buffer must own every undelivered target unit");
+        }
+    }
+
+    private void validatePersistedStatusShape(Status persistedStatus) {
+        boolean hasInputWait = false;
+        boolean hasDynamicWait = false;
+        boolean hasProviderWait = false;
+        for (StageState stage : this.stages.values()) {
+            hasInputWait |= stage.waitKind == WaitKind.INPUT;
+            hasDynamicWait |= stage.waitKind == WaitKind.DYNAMIC_INPUT;
+            hasProviderWait |= stage.waitKind == WaitKind.PROVIDER;
+        }
+        switch (persistedStatus) {
+            case READY -> {
+                if (this.failed || this.planning || productionComplete() || this.budgetRetryAt >= 0L ||
+                        this.stages.values().stream().noneMatch(this::eligible)) {
+                    throw new IllegalArgumentException("A ready Trinity execution cannot be terminal, planning or budget-gated");
+                }
+            }
+            case WAITING_INPUT -> {
+                if (!hasInputWait || this.failed || this.planning || productionComplete() ||
+                        this.stages.values().stream().anyMatch(this::eligible)) {
+                    throw new IllegalArgumentException("A Trinity input-wait status requires an unfinished input wait");
+                }
+            }
+            case WAITING_DYNAMIC_INPUT -> {
+                if (!hasDynamicWait || this.failed || this.planning || productionComplete() ||
+                        this.stages.values().stream().anyMatch(this::eligible)) {
+                    throw new IllegalArgumentException("A Trinity dynamic-wait status requires an unfinished dynamic wait");
+                }
+            }
+            case WAITING_PROVIDER -> {
+                if (!hasProviderWait || this.failed || this.planning || productionComplete() ||
+                        this.stages.values().stream().anyMatch(this::eligible)) {
+                    throw new IllegalArgumentException("A Trinity provider-wait status requires an unfinished provider wait");
+                }
+            }
+            case PLANNING -> {
+                if (!this.planning || this.failed || productionComplete()) {
+                    throw new IllegalArgumentException("A Trinity planning status requires unfinished non-failed work");
+                }
+            }
+            case BUDGET_EXHAUSTED -> {
+                if (this.failed || this.planning || productionComplete() ||
+                        this.stages.values().stream().noneMatch(this::eligible)) {
+                    throw new IllegalArgumentException("A Trinity budget status requires unfinished active work");
+                }
+            }
+            case COMPLETED -> {
+                if (!productionComplete() || this.failed || this.planning) {
+                    throw new IllegalArgumentException("A Trinity completed status requires only completed stages");
+                }
+            }
+            case FAILED -> {
+                if (!this.failed || productionComplete()) {
+                    throw new IllegalArgumentException("A Trinity failed status requires unfinished failed work");
+                }
+            }
+        }
+    }
+
+    private static void validateWait(StageState stage) {
+        switch (stage.waitKind) {
+            case NONE -> {
+                if (!stage.waitingKeys.isEmpty() || stage.retryAt != -1L) {
+                    throw new IllegalArgumentException("An active Trinity stage cannot retain wait metadata");
+                }
+            }
+            case INPUT -> {
+                if (stage.waitingKeys.isEmpty() || stage.retryAt != -1L) {
+                    throw new IllegalArgumentException("A Trinity input wait requires keys and no timed retry");
+                }
+            }
+            case DYNAMIC_INPUT -> {
+                if (stage.waitingKeys.isEmpty() || stage.retryAt < 0L) {
+                    throw new IllegalArgumentException("A Trinity dynamic wait requires keys and a timed retry");
+                }
+            }
+            case PROVIDER -> {
+                if (!stage.waitingKeys.isEmpty() || stage.retryAt < 0L) {
+                    throw new IllegalArgumentException("A Trinity provider wait requires a timed retry without keys");
+                }
+            }
+        }
+    }
+
+    private void rebuildTransientState(long currentTick) {
+        this.currentWork = null;
+        this.readyQueue.clear();
+        this.queuedStages.clear();
+        this.inputStageIndex.clear();
+        this.dependents.clear();
+        this.retryQueue.clear();
+        for (StageState stage : this.stages.values()) {
+            stage.leased = false;
+            for (Integer dependency : stage.dependencies) {
+                this.dependents.computeIfAbsent(dependency, ignored -> new LinkedHashSet<>()).add(stage.index);
+            }
+            LinkedHashSet<AEKey> indexedKeys = new LinkedHashSet<>(stage.inputKeys);
+            indexedKeys.addAll(stage.waitingKeys);
+            for (AEKey key : indexedKeys) {
+                this.inputStageIndex.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(stage.index);
+            }
+            if (stage.waitKind.retrying()) {
+                scheduleRetry(stage);
+            }
+        }
+        if (!this.failed && !this.planning && !productionComplete()) {
+            activateDueRetries(currentTick);
+        }
+        if (this.budgetRetryAt >= 0L && currentTick >= this.budgetRetryAt) {
+            this.budgetRetryAt = -1L;
+            markDurableMutation();
+        }
+        if (!this.failed && !this.planning && !productionComplete()) {
+            for (Integer stageIndex : this.stageOrder) {
+                enqueueIfEligible(requireStage(stageIndex));
+            }
+        }
+    }
+
+    private Work createWork(StageState stage) {
+        initializeCurrentFiring(stage);
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        long maximum = firing.remainingCount;
+        if (stage.cycle) {
+            RepeatState repeat = requireRepeat(stage.index);
+            if (repeat.waveCount == 0L) {
+                if (repeat.cursor != 0 || stage.currentFiring != 0 || firing.initialized) {
+                    throw new IllegalStateException("A Trinity cycle has an invalid uninitialized wave cursor");
+                }
+                maximum = Math.multiplyExact(firing.plannedCount, repeat.remainingRepetitions);
+            }
+        }
+        return new Work(
+                this.generation,
+                stage.index,
+                stage.currentFiring,
+                firing.patternIdentity,
+                firing.primaryOutput,
+                firing.variantOrdinal,
+                maximum,
+                stage.cycle);
+    }
+
+    private void initializeCurrentFiring(StageState stage) {
+        if (stage.currentFiring < 0 || stage.currentFiring >= stage.firings.size()) {
+            throw new IllegalStateException("A Trinity stage firing cursor is outside its signature");
+        }
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        if (firing.initialized) {
+            return;
+        }
+        if (!stage.cycle) {
+            firing.remainingCount = firing.plannedCount;
+            firing.initialized = true;
+            return;
+        }
+        RepeatState repeat = requireRepeat(stage.index);
+        if (repeat.waveCount > 0L) {
+            firing.remainingCount = Math.multiplyExact(firing.plannedCount, repeat.waveCount);
+            firing.initialized = true;
+        }
+    }
+
+    private void finishStage(StageState stage) {
+        if (!stage.cycle) {
+            stage.completed = true;
+            enqueueDependents(stage.index);
+            return;
+        }
+        RepeatState repeat = requireRepeat(stage.index);
+        int expectedStage = repeat.stageOrder.get(repeat.cursor);
+        if (expectedStage != stage.index || repeat.waveCount <= 0L) {
+            throw new IllegalStateException("A Trinity cycle stage completed outside its active wave cursor");
+        }
+        if (repeat.cursor + 1 < repeat.stageOrder.size()) {
+            repeat.cursor++;
+            StageState next = requireStage(repeat.stageOrder.get(repeat.cursor));
+            next.resetForCycleWave();
+            enqueueIfEligible(next);
+            return;
+        }
+
+        repeat.remainingRepetitions = Math.subtractExact(repeat.remainingRepetitions, repeat.waveCount);
+        if (repeat.remainingRepetitions < 0L) {
+            throw new IllegalStateException("A Trinity cycle wave exceeded its remaining repetitions");
+        }
+        if (repeat.remainingRepetitions == 0L) {
+            for (Integer stageIndex : repeat.stageOrder) {
+                StageState completed = requireStage(stageIndex);
+                completed.completed = true;
+                enqueueDependents(stageIndex);
+            }
+            repeat.waveCount = 0L;
+            return;
+        }
+
+        repeat.cursor = 0;
+        repeat.waveCount = 0L;
+        for (Integer stageIndex : repeat.stageOrder) {
+            requireStage(stageIndex).resetForCycleWave();
+        }
+        enqueueIfEligible(requireStage(repeat.stageOrder.getFirst()));
+    }
+
+    private void enqueueDependents(int stageIndex) {
+        Set<Integer> affected = this.dependents.get(stageIndex);
+        if (affected == null) {
+            return;
+        }
+        for (Integer dependent : affected) {
+            enqueueIfEligible(requireStage(dependent));
+        }
+    }
+
+    private void enqueueIfEligible(StageState stage) {
+        if (eligible(stage) && this.queuedStages.add(stage.index)) {
+            this.readyQueue.addLast(stage.index);
+        }
+    }
+
+    private boolean eligible(StageState stage) {
+        if (stage.completed || stage.leased || stage.waitKind != WaitKind.NONE) {
+            return false;
+        }
+        if (!stage.cycle) {
+            return dependenciesComplete(stage, null);
+        }
+        RepeatState repeat = requireRepeat(stage.index);
+        return repeat.remainingRepetitions > 0L && repeat.stageOrder.get(repeat.cursor) == stage.index &&
+                dependenciesComplete(stage, repeat);
+    }
+
+    private boolean dependenciesComplete(StageState stage, RepeatState repeat) {
+        for (Integer dependency : stage.dependencies) {
+            if (repeat != null) {
+                int dependencyPosition = repeat.stageOrder.indexOf(dependency);
+                if (dependencyPosition >= 0 && dependencyPosition < repeat.cursor) {
+                    continue;
+                }
+            }
+            if (!requireStage(dependency).completed) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private StageState releaseCurrentWork(Work work) {
+        StageState stage = requireCurrentWork(work);
+        clearCurrentWork(stage);
+        return stage;
+    }
+
+    private StageState requireCurrentWork(Work work) {
+        if (this.currentWork == null || !this.currentWork.equals(work)) {
+            throw new IllegalStateException("A Trinity execution event referenced stale or unleased work");
+        }
+        StageState stage = requireStage(work.stageIndex());
+        if (!stage.leased || stage.currentFiring != work.firingIndex()) {
+            throw new IllegalStateException("A Trinity execution work lease no longer matches its stage cursor");
+        }
+        return stage;
+    }
+
+    private void clearCurrentWork(StageState stage) {
+        stage.leased = false;
+        this.currentWork = null;
+    }
+
+    private void beginWait(StageState stage, WaitKind kind, Set<AEKey> keys, long retryAt) {
+        if (stage.waitKind != WaitKind.NONE || !stage.waitingKeys.isEmpty() || stage.retryAt != -1L) {
+            throw new IllegalStateException("A Trinity stage cannot begin a second wait before the first is released");
+        }
+        stage.waitKind = kind;
+        stage.waitingKeys.addAll(keys);
+        stage.retryAt = retryAt;
+        stage.retryVersion = Math.addExact(stage.retryVersion, 1L);
+    }
+
+    private void clearWait(StageState stage) {
+        boolean hadWait = stage.waitKind != WaitKind.NONE || !stage.waitingKeys.isEmpty() || stage.retryAt != -1L;
+        stage.waitKind = WaitKind.NONE;
+        stage.waitingKeys.clear();
+        stage.retryAt = -1L;
+        if (hadWait) {
+            stage.retryVersion = Math.addExact(stage.retryVersion, 1L);
+        }
+    }
+
+    private void scheduleRetry(StageState stage) {
+        if (!stage.waitKind.retrying() || stage.retryAt < 0L) {
+            throw new IllegalStateException("A Trinity retry requires a retrying wait state and tick");
+        }
+        this.retryQueue.add(new RetryEntry(stage.retryAt, stage.index, stage.retryVersion, stage.waitKind));
+    }
+
+    private void activateDueRetries(long currentTick) {
+        boolean changed = false;
+        while (!this.retryQueue.isEmpty() && this.retryQueue.peek().retryAt <= currentTick) {
+            RetryEntry retry = this.retryQueue.remove();
+            StageState stage = requireStage(retry.stageIndex);
+            if (stage.retryVersion != retry.version || stage.waitKind != retry.waitKind ||
+                    stage.retryAt != retry.retryAt) {
+                continue;
+            }
+            clearWait(stage);
+            enqueueIfEligible(stage);
+            changed = true;
+        }
+        if (changed) {
+            markDurableMutation();
+        }
+    }
+
+    private void markDurableMutation() {
+        this.durableRevision = Math.incrementExact(this.durableRevision);
+    }
+
+    private StageState requireStage(int stageIndex) {
+        StageState stage = this.stages.get(stageIndex);
+        if (stage == null) {
+            throw new IllegalArgumentException("Unknown Trinity execution stage " + stageIndex);
+        }
+        return stage;
+    }
+
+    private RepeatState requireRepeat(int stageIndex) {
+        RepeatState repeat = this.repeatByStage.get(stageIndex);
+        if (repeat == null) {
+            throw new IllegalStateException("A Trinity cycle stage is missing its repeat block");
+        }
+        return repeat;
+    }
+
+    private static Set<AEKey> copyKeys(Set<AEKey> keys, String role) {
+        if (keys == null) {
+            throw new IllegalArgumentException("A Trinity " + role + " key set is required");
+        }
+        LinkedHashSet<AEKey> copied = new LinkedHashSet<>();
+        for (AEKey key : keys) {
+            if (key == null) {
+                throw new IllegalArgumentException("A Trinity " + role + " cannot contain a null key");
+            }
+            copied.add(key);
+        }
+        return Collections.unmodifiableSet(copied);
+    }
+
+    private static Set<AEKey> copyNonEmptyKeys(Set<AEKey> keys, String role) {
+        Set<AEKey> copied = copyKeys(keys, role);
+        if (copied.isEmpty()) {
+            throw new IllegalArgumentException("A Trinity " + role + " requires at least one key");
+        }
+        return copied;
+    }
+
+    private static void requireTick(long currentTick) {
+        if (currentTick < 0L) {
+            throw new IllegalArgumentException("A Trinity execution tick cannot be negative");
+        }
+    }
+
+    private static long rebaseRetryAt(long retryAt, long savedAtTick, long currentTick) {
+        if (retryAt < 0L) {
+            return -1L;
+        }
+        if (savedAtTick < 0L || retryAt <= savedAtTick) {
+            return currentTick;
+        }
+        return Math.addExact(currentTick, Math.subtractExact(retryAt, savedAtTick));
+    }
+
+    private static void requireRetryCap(int maxRetryTicks) {
+        if (maxRetryTicks <= 0) {
+            throw new IllegalArgumentException("A Trinity retry cap must be positive");
+        }
+    }
+
+    private static int nextDelay(int current, int maximum) {
+        if (current >= maximum) {
+            return maximum;
+        }
+        return (int) Math.min(maximum, Math.multiplyExact(current, 2L));
+    }
+
+    private static long ceilDiv(long amount, long divisor) {
+        return 1L + (amount - 1L) / divisor;
+    }
+
+    private record RetryEntry(long retryAt, int stageIndex, long version, WaitKind waitKind) {}
+
+    private static final class FiringState {
+
+        private final TrinityPatternIdentity patternIdentity;
+        private final AEKey primaryOutput;
+        private final int variantOrdinal;
+        private final long plannedCount;
+        private final LinkedHashMap<AEKey, Long> outputs;
+        private long remainingCount;
+        private boolean initialized;
+
+        private FiringState(TrinityPatternIdentity patternIdentity,
+                            AEKey primaryOutput,
+                            int variantOrdinal,
+                            long plannedCount,
+                            Map<AEKey, Long> outputs,
+                            long remainingCount,
+                            boolean initialized) {
+            if (variantOrdinal < 0 || plannedCount <= 0L || remainingCount < 0L ||
+                    (!initialized && remainingCount != 0L)) {
+                throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
+            }
+            this.patternIdentity = patternIdentity;
+            this.primaryOutput = primaryOutput;
+            this.variantOrdinal = variantOrdinal;
+            this.plannedCount = plannedCount;
+            this.outputs = copyOutputs(outputs);
+            this.remainingCount = remainingCount;
+            this.initialized = initialized;
+        }
+
+        private static FiringState fromPlan(TrinityPlanPatternFiring firing, boolean cycle) {
+            long count = firing.count().longValueExact();
+            return new FiringState(
+                    firing.patternIdentity(),
+                    firing.primaryOutput(),
+                    firing.variantOrdinal(),
+                    count,
+                    exactOutputs(firing.outputs()),
+                    cycle ? 0L : count,
+                    !cycle);
+        }
+
+        private static FiringState fromSnapshot(Firing snapshot) {
+            return new FiringState(
+                    snapshot.patternIdentity(),
+                    snapshot.primaryOutput(),
+                    snapshot.variantOrdinal(),
+                    snapshot.plannedCount(),
+                    snapshot.outputs(),
+                    snapshot.remainingCount(),
+                    snapshot.initialized());
+        }
+
+        private Firing snapshot() {
+            return new Firing(
+                    this.patternIdentity,
+                    this.primaryOutput,
+                    this.variantOrdinal,
+                    this.plannedCount,
+                    this.outputs,
+                    this.remainingCount,
+                    this.initialized);
+        }
+
+        private static LinkedHashMap<AEKey, Long> exactOutputs(Map<AEKey, BigInteger> source) {
+            LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+            source.forEach((key, amount) -> outputs.put(key, amount.longValueExact()));
+            return outputs;
+        }
+
+        private static LinkedHashMap<AEKey, Long> copyOutputs(Map<AEKey, Long> source) {
+            LinkedHashMap<AEKey, Long> outputs = new LinkedHashMap<>();
+            source.forEach((key, amount) -> {
+                if (key == null || amount == null || amount <= 0L) {
+                    throw new IllegalArgumentException("A Trinity firing output must be positive");
+                }
+                outputs.put(key, amount);
+            });
+            return outputs;
+        }
+    }
+
+    private static final class StageState {
+
+        private final int index;
+        private final boolean cycle;
+        private final LinkedHashSet<Integer> dependencies;
+        private final ArrayList<FiringState> firings;
+        private final LinkedHashMap<AEKey, Long> requiredAtStart;
+        private final LinkedHashMap<AEKey, Long> netChange;
+        private final LinkedHashSet<AEKey> inputKeys = new LinkedHashSet<>();
+        private final LinkedHashSet<AEKey> waitingKeys = new LinkedHashSet<>();
+        private int currentFiring;
+        private boolean completed;
+        private WaitKind waitKind = WaitKind.NONE;
+        private long retryAt = -1L;
+        private int nextDynamicDelay = 1;
+        private int nextProviderDelay = 1;
+        private long retryVersion;
+        private boolean leased;
+
+        private StageState(int index,
+                           boolean cycle,
+                           Set<Integer> dependencies,
+                           List<FiringState> firings,
+                           Map<AEKey, Long> requiredAtStart,
+                           Map<AEKey, Long> netChange) {
+            if (index < 0 || firings.isEmpty()) {
+                throw new IllegalArgumentException("A Trinity stage state requires index, dependencies and firings");
+            }
+            this.index = index;
+            this.cycle = cycle;
+            this.dependencies = new LinkedHashSet<>(dependencies);
+            this.firings = new ArrayList<>(firings);
+            this.requiredAtStart = copyAmounts(requiredAtStart, false, "stage start requirement");
+            this.netChange = copyAmounts(netChange, true, "stage net change");
+        }
+
+        private static StageState fromPlan(TrinityPlanStage stage) {
+            ArrayList<FiringState> firings = new ArrayList<>();
+            stage.firings().forEach(firing -> firings.add(FiringState.fromPlan(firing, stage.cycleStage())));
+            return new StageState(
+                    stage.index(),
+                    stage.cycleStage(),
+                    stage.dependencies(),
+                    firings,
+                    exactAmounts(stage.requiredAtStart()),
+                    exactAmounts(stage.netChange()));
+        }
+
+        private static StageState fromSnapshot(Stage snapshot, long savedAtTick, long currentTick) {
+            ArrayList<FiringState> firings = new ArrayList<>();
+            snapshot.firings().forEach(firing -> firings.add(FiringState.fromSnapshot(firing)));
+            StageState restored = new StageState(
+                    snapshot.index(),
+                    snapshot.cycle(),
+                    new LinkedHashSet<>(snapshot.dependencies()),
+                    firings,
+                    snapshot.requiredAtStart(),
+                    snapshot.netChange());
+            restored.currentFiring = snapshot.currentFiring();
+            restored.completed = snapshot.completed();
+            restored.inputKeys.addAll(snapshot.inputKeys());
+            restored.waitingKeys.addAll(snapshot.waitingKeys());
+            restored.waitKind = snapshot.waitKind();
+            restored.retryAt = rebaseRetryAt(snapshot.retryAt(), savedAtTick, currentTick);
+            restored.nextDynamicDelay = snapshot.nextDynamicDelay();
+            restored.nextProviderDelay = snapshot.nextProviderDelay();
+            restored.retryVersion = snapshot.retryVersion();
+            return restored;
+        }
+
+        private void resetForCycleWave() {
+            if (!this.cycle || this.completed || this.leased) {
+                throw new IllegalStateException("Only an unfinished idle Trinity cycle stage may reset for a wave");
+            }
+            this.currentFiring = 0;
+            this.waitKind = WaitKind.NONE;
+            this.waitingKeys.clear();
+            this.retryAt = -1L;
+            for (FiringState firing : this.firings) {
+                firing.remainingCount = 0L;
+                firing.initialized = false;
+            }
+        }
+
+        private Stage snapshot() {
+            ArrayList<Firing> firingSnapshots = new ArrayList<>();
+            this.firings.forEach(firing -> firingSnapshots.add(firing.snapshot()));
+            return new Stage(
+                    this.index,
+                    this.cycle,
+                    List.copyOf(this.dependencies),
+                    this.currentFiring,
+                    this.completed,
+                    this.inputKeys,
+                    this.waitingKeys,
+                    this.waitKind,
+                    this.retryAt,
+                    this.nextDynamicDelay,
+                    this.nextProviderDelay,
+                    this.retryVersion,
+                    firingSnapshots,
+                    this.requiredAtStart,
+                    this.netChange);
+        }
+
+        private static LinkedHashMap<AEKey, Long> exactAmounts(Map<AEKey, BigInteger> source) {
+            LinkedHashMap<AEKey, Long> exact = new LinkedHashMap<>();
+            source.forEach((key, amount) -> exact.put(key, amount.longValueExact()));
+            return exact;
+        }
+
+        private static LinkedHashMap<AEKey, Long> copyAmounts(Map<AEKey, Long> source,
+                                                              boolean signed,
+                                                              String role) {
+            LinkedHashMap<AEKey, Long> copied = new LinkedHashMap<>();
+            source.forEach((key, amount) -> {
+                if (signed ? amount == 0L : amount <= 0L) {
+                    throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
+                }
+                copied.put(key, amount);
+            });
+            return copied;
+        }
+    }
+
+    private static final class RepeatState {
+
+        private final int index;
+        private final ArrayList<Integer> stageOrder;
+        private long remainingRepetitions;
+        private int cursor;
+        private long waveCount;
+
+        private RepeatState(int index,
+                            List<Integer> stageOrder,
+                            long remainingRepetitions,
+                            int cursor,
+                            long waveCount) {
+            if (index < 0 || stageOrder.isEmpty() || remainingRepetitions < 0L ||
+                    cursor < 0 || cursor >= stageOrder.size() || waveCount < 0L || waveCount > remainingRepetitions) {
+                throw new IllegalArgumentException("A Trinity repeat state contains an invalid cursor or count");
+            }
+            HashSet<Integer> uniqueStages = new HashSet<>();
+            for (Integer stageIndex : stageOrder) {
+                if (stageIndex < 0 || !uniqueStages.add(stageIndex)) {
+                    throw new IllegalArgumentException("A Trinity repeat state requires unique non-negative stages");
+                }
+            }
+            this.index = index;
+            this.stageOrder = new ArrayList<>(stageOrder);
+            this.remainingRepetitions = remainingRepetitions;
+            this.cursor = cursor;
+            this.waveCount = waveCount;
+        }
+
+        private static RepeatState fromPlan(TrinityCycleRepeatBlock block) {
+            return new RepeatState(block.index(), block.stageOrder(), block.repetitions().longValueExact(), 0, 0L);
+        }
+
+        private static RepeatState fromSnapshot(RepeatBlock snapshot) {
+            return new RepeatState(
+                    snapshot.index(),
+                    snapshot.stageOrder(),
+                    snapshot.remainingRepetitions(),
+                    snapshot.cursor(),
+                    snapshot.waveCount());
+        }
+
+        private RepeatBlock snapshot() {
+            return new RepeatBlock(
+                    this.index,
+                    this.stageOrder,
+                    this.remainingRepetitions,
+                    this.cursor,
+                    this.waveCount);
+        }
+    }
+}

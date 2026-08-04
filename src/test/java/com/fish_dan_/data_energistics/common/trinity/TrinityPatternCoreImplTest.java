@@ -822,6 +822,113 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_migrates_legacy_v2_atomically")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void legacyV2StateMigratesToVersionedCurrentStateWithoutLosingWork(GameTestHelper helper) {
+        UUID coreId = UUID.fromString("ac854209-4ac5-4d7a-a244-945abcc45ea8");
+        TrinityPatternCoreImpl source = new TrinityPatternCoreImpl(
+                64,
+                coreId,
+                TrinityPatternCoreImplTest::decode,
+                testResolvers(),
+                change -> {});
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = new PatternRoute(HOST_ID, coreId, 9);
+        assertTrue(source.trySetPattern(9, pattern));
+        assertTrue(source.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 17L));
+        source.appendPendingOutputs(route, List.of(amount(Items.DIAMOND, 5L)));
+        CompoundTag currentState = new CompoundTag();
+        source.writeToTag(currentState, helper.getLevel().registryAccess());
+        CompoundTag legacyV2State = asLegacyV2State(currentState);
+        CompoundTag originalLegacyV2State = legacyV2State.copy();
+
+        TrinityPatternCoreImpl migrated = core(64);
+        assertTrue(migrated.hydrateFromTagAndReportMigration(
+                legacyV2State,
+                helper.getLevel().registryAccess()));
+
+        assertEquals(originalLegacyV2State, legacyV2State);
+        assertEquals(coreId, migrated.coreId());
+        assertTrue(migrated.pattern(9).is(Items.PAPER));
+        assertEquals(1, migrated.queuedBatchCount(9));
+        assertEquals(route, migrated.queuedBatches(9).getFirst().route());
+        assertTrue(migrated.queuedBatches(9).getFirst().inputs().getFirst().is(Items.IRON_INGOT));
+        assertAmount(Items.DIAMOND, 5L, migrated.pendingOutputs(route).getFirst());
+        assertFalse(migrated.hasPendingRefund(HOST_ID));
+
+        CompoundTag rewritten = new CompoundTag();
+        migrated.writeToTag(rewritten, helper.getLevel().registryAccess());
+        assertEquals(3, rewritten.getInt("version"));
+        CompoundTag rewrittenOutbox = rewritten.getCompound("refund_outbox");
+        assertTrue(rewrittenOutbox.getList("patterns", Tag.TAG_COMPOUND).isEmpty());
+        assertTrue(rewrittenOutbox.getList("retained", Tag.TAG_COMPOUND).isEmpty());
+
+        TrinityPatternCoreImpl roundTripped = core(64);
+        assertFalse(roundTripped.hydrateFromTagAndReportMigration(
+                rewritten,
+                helper.getLevel().registryAccess()));
+        assertEquals(coreId, roundTripped.coreId());
+        assertEquals(1, roundTripped.queuedBatchCount(9));
+        assertAmount(Items.DIAMOND, 5L, roundTripped.pendingOutputs(route).getFirst());
+
+        CompoundTag unversionedCurrentState = currentState.copy();
+        unversionedCurrentState.remove("version");
+        TrinityPatternCoreImpl unversionedCurrent = core(64);
+        assertTrue(unversionedCurrent.hydrateFromTagAndReportMigration(
+                unversionedCurrentState,
+                helper.getLevel().registryAccess()));
+
+        TrinityPatternCoreImpl unchanged = core(64);
+        assertTrue(unchanged.trySetPattern(0, pattern(Items.MAP)));
+        CompoundTag ambiguousMissingOutbox = legacyV2State.copy();
+        ambiguousMissingOutbox.remove("version");
+        CompoundTag originalAmbiguousState = ambiguousMissingOutbox.copy();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> unchanged.readFromTagAndReportMigration(
+                        ambiguousMissingOutbox,
+                        helper.getLevel().registryAccess()));
+        assertEquals(originalAmbiguousState, ambiguousMissingOutbox);
+        assertTrue(unchanged.pattern(0).is(Items.MAP));
+        assertTrue(unchanged.pattern(9).isEmpty());
+
+        CompoundTag versionedMissingOutbox = currentState.copy();
+        versionedMissingOutbox.remove("refund_outbox");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> unchanged.readFromTagAndReportMigration(
+                        versionedMissingOutbox,
+                        helper.getLevel().registryAccess()));
+        assertTrue(unchanged.pattern(0).is(Items.MAP));
+        assertTrue(unchanged.pattern(9).isEmpty());
+
+        CompoundTag mixedV2AndCurrentState = legacyV2State.copy();
+        mixedV2AndCurrentState.put("refund_outbox", currentState.getCompound("refund_outbox").copy());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> unchanged.readFromTagAndReportMigration(
+                        mixedV2AndCurrentState,
+                        helper.getLevel().registryAccess()));
+        assertTrue(unchanged.pattern(0).is(Items.MAP));
+        assertTrue(unchanged.pattern(9).isEmpty());
+
+        CompoundTag unsupportedV1State = new CompoundTag();
+        unsupportedV1State.putUUID("core_id", coreId);
+        unsupportedV1State.putInt("pattern_capacity", 64);
+        unsupportedV1State.put("patterns", new ListTag());
+        unsupportedV1State.put("queues", new ListTag());
+        unsupportedV1State.put("pending_outputs", new ListTag());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> unchanged.readFromTagAndReportMigration(
+                        unsupportedV1State,
+                        helper.getLevel().registryAccess()));
+        assertTrue(unchanged.pattern(0).is(Items.MAP));
+        assertTrue(unchanged.pattern(9).isEmpty());
+        helper.succeed();
+    }
+
     @TestHolder("trinity_pattern_core_rebuilds_multi_host_work_indexes")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -1043,6 +1150,20 @@ public final class TrinityPatternCoreImplTest {
         core.appendPendingOutputs(route, List.of(amount(Items.DIAMOND, 1L)));
         assertEquals(1, core.pendingOutputs(route).size());
         helper.succeed();
+    }
+
+    private static CompoundTag asLegacyV2State(CompoundTag currentState) {
+        CompoundTag legacyState = currentState.copy();
+        legacyState.putInt("version", 2);
+        legacyState.remove("refund_outbox");
+        ListTag slots = legacyState.getList("slots", Tag.TAG_COMPOUND);
+        for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
+            ListTag definitions = slots.getCompound(slotIndex).getList("definitions", Tag.TAG_COMPOUND);
+            for (int definitionIndex = 0; definitionIndex < definitions.size(); definitionIndex++) {
+                definitions.getCompound(definitionIndex).putBoolean("resolved", true);
+            }
+        }
+        return legacyState;
     }
 
     private static TrinityPatternCoreImpl core(int capacity) {
