@@ -18,12 +18,14 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.stacks.AEItemKey;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class TrinityDataCoreCraftingPersistenceTest {
 
     private static final int RUNTIME_SCHEMA_VERSION = 2;
-    private static final int CPU_LOGIC_SCHEMA_VERSION = 1;
+    private static final int CPU_LOGIC_SCHEMA_VERSION = 2;
 
     private TrinityDataCoreCraftingPersistenceTest() {}
 
@@ -101,6 +103,44 @@ public final class TrinityDataCoreCraftingPersistenceTest {
 
         helper.assertValueEqual(cpu.getStored(iron), 0L, "Unsupported CPU logic schema must not retain inventory state");
         helper.assertFalse(cpu.logic().hasJob(), "Unsupported CPU logic schema must not restore a job");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_virtual_completion_survives_reload")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void virtualCompletionSurvivesReload(GameTestHelper helper) {
+        TrinityDataCoreVirtualCpu cpu = activeCpu(helper, new BlockPos(1, 1, 1));
+        AEItemKey target = AEItemKey.of(Items.DIAMOND);
+        if (target == null) {
+            throw new IllegalStateException("The virtual completion persistence target must exist");
+        }
+        CompoundTag state = cpu.logic().writeToTag(helper.getLevel().registryAccess());
+        ListTag ledger = new ListTag();
+        CompoundTag completion = target.toTagGeneric(helper.getLevel().registryAccess());
+        completion.putLong("#", 7L);
+        ledger.add(completion);
+        state.put("virtual_completions", ledger);
+
+        cpu.logic().readFromTag(state, helper.getLevel().registryAccess());
+        CompoundTag resaved = cpu.logic().writeToTag(helper.getLevel().registryAccess());
+        helper.assertValueEqual(
+                resaved.getList("virtual_completions", 10).getCompound(0).getLong("#"),
+                7L,
+                "The restored CPU must retain its pending virtual completion ledger");
+        AtomicLong recovered = new AtomicLong();
+        helper.assertTrue(cpu.logic().recoverIdleInventory((key, amount) -> {
+            if (key.equals(target)) {
+                recovered.addAndGet(amount);
+            }
+            return amount;
+        }), "The restored virtual completion must be recoverable through the normal CPU inventory sink");
+        helper.assertValueEqual(recovered.get(), 7L, "The restored virtual completion must remain recoverable");
+        helper.assertTrue(
+                cpu.logic().writeToTag(helper.getLevel().registryAccess())
+                        .getList("virtual_completions", 10)
+                        .isEmpty(),
+                "Recovered virtual completions must be cleared from persisted state");
         helper.succeed();
     }
 

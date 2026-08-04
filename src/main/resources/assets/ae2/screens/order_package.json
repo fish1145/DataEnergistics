@@ -1,0 +1,24 @@
+{
+	"$schema": "schema.json",
+	"includes": ["common/common.json", "common/player_inventory.json"],
+	"background": {
+		"texture": "guis/order_package.png",
+		"srcRect": [0, 0, 176, 144]
+	},
+	"slots": {
+		"ORDER_PACKAGE_TARGET": {
+			"left": 79,
+			"top": 20
+		},
+		"PLAYER_INVENTORY": {
+			"left": 8,
+			"top": 59,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 8,
+			"top": 117,
+			"grid": "HORIZONTAL"
+		}
+	}
+}

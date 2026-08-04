@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.client.screen.MeCompositeInputWarehouseScr
 import com.fish_dan_.data_energistics.client.screen.MeCompositeOutputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.MePatternBufferScreen;
 import com.fish_dan_.data_energistics.client.screen.MeVacuumScreen;
+import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityAccessHatchScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityDataCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityPatternCoreScreen;
@@ -49,6 +50,7 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, ModMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE.get(), MeCompositeOutputWarehouseScreen::new, "/screens/me_composite_output_warehouse.json");
         InitScreens.register(event, ModMenus.ME_PATTERN_BUFFER.get(), MePatternBufferScreen::new, "/screens/me_pattern_buffer.json");
         InitScreens.register(event, ModMenus.ME_VACUUM.get(), MeVacuumScreen::new, "/screens/me_vacuum.json");
+        InitScreens.register(event, ModMenus.ORDER_PACKAGE.get(), OrderPackageScreen::new, "/screens/order_package.json");
         InitScreens.register(event, ModMenus.DATA_TELEPORT_ANCHOR.get(), DataTeleportAnchorScreen::new, "/screens/data_teleport_anchor.json");
         InitScreens.register(event, ModMenus.DATA_SANCTUM_STATUS.get(), DataSanctumStatusScreen::new, "/screens/data_sanctum_status.json");
         InitScreens.register(event, ModMenus.DATA_SANCTUM_INTERFACE.get(), DataSanctumInterfaceScreen::new, "/screens/data_sanctum_interface.json");

@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.render.DataMeteoriteCompassBakedModel;
 import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.MeVacuumBakedModel;
+import com.fish_dan_.data_energistics.client.render.OrderPackageBakedModel;
+import com.fish_dan_.data_energistics.client.render.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 
 import net.minecraft.client.resources.model.BakedModel;
@@ -36,6 +38,7 @@ final class ClientModelRegistrar {
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("item/data_meteorite_compass_pointer")));
         event.register(DataSanctumRenderer.BLACK_HOLE_MODEL);
         event.register(DataSanctumRenderer.PORTAL_MODEL);
+        event.register(OrderPackageItemRenderer.MARKED_BADGE_MODEL);
     }
 
     static void modifyBakingResult(ModelEvent.ModifyBakingResult event) {
@@ -54,6 +57,12 @@ final class ClientModelRegistrar {
         BakedModel meVacuumModel = event.getModels().get(meVacuum);
         if (meVacuumModel != null && !(meVacuumModel instanceof MeVacuumBakedModel)) {
             event.getModels().put(meVacuum, new MeVacuumBakedModel(meVacuumModel));
+        }
+
+        ModelResourceLocation orderPackage = ModelResourceLocation.inventory(Data_Energistics.id("order_package"));
+        BakedModel orderPackageModel = event.getModels().get(orderPackage);
+        if (orderPackageModel != null && !(orderPackageModel instanceof OrderPackageBakedModel)) {
+            event.getModels().put(orderPackage, new OrderPackageBakedModel(orderPackageModel));
         }
     }
 }

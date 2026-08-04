@@ -26,6 +26,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
+import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
@@ -52,6 +53,7 @@ import appeng.api.config.CpuSelectionMode;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.IPatternDetails.IInput;
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
@@ -228,6 +230,78 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Intermediate target output must remain isolated from network storage");
 
         helper.runAfterDelay(1L, () -> runSecondCompactBatch(helper, fixture, oneAttempt));
+    }
+
+    @TestHolder("trinity_data_core_accepted_order_package_batch_completes_virtual_target")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void acceptedOrderPackageBatchCompletesVirtualTarget(GameTestHelper helper) {
+        AEItemKey input = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey target = AEItemKey.of(Items.DIAMOND);
+        if (input == null || target == null) {
+            throw new IllegalStateException("The Trinity order-package test keys must exist");
+        }
+        AEItemKey packageKey = AEItemKey.of(OrderPackageTarget.get().createMarkedPackage(target));
+        if (packageKey == null) {
+            throw new IllegalStateException("The marked order package must produce an AE item key");
+        }
+        IPatternDetails pattern = PatternDetailsHelper.decodePattern(
+                PatternDetailsHelper.encodeProcessingPattern(
+                        List.of(new GenericStack(input, 1L)),
+                        List.of(new GenericStack(packageKey, 2L))),
+                helper.getLevel());
+        if (pattern == null) {
+            throw new IllegalStateException("The Trinity order-package processing pattern must decode");
+        }
+
+        RecordingBatchCraftingProvider provider = new RecordingBatchCraftingProvider(
+                pattern,
+                input,
+                BatchPushOutcome.ACCEPT);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("order_package", TrinityDataCoreCpuContribution.of(4096L, 2, 1));
+        seedStorage(grid.storage(), input, 4L);
+
+        KeyCounter usedItems = new KeyCounter();
+        usedItems.add(input, 4L);
+        CraftingPlan plan = new CraftingPlan(
+                new GenericStack(target, 8L),
+                1L,
+                false,
+                false,
+                usedItems,
+                new KeyCounter(),
+                new KeyCounter(),
+                Map.of(pattern, 4L));
+        TestRequester requester = new TestRequester(Long.MAX_VALUE);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), requester);
+        helper.assertTrue(result.successful(), "The Trinity order-package job must submit");
+        if (result.link() == null) {
+            throw new IllegalStateException("The Trinity order-package requester must receive a crafting link");
+        }
+        requester.track(result.link());
+        TrinityDataCoreVirtualCpu cpu = singleBusyWorker(host.getCraftingRuntime());
+
+        cpu.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+        helper.assertValueEqual(provider.batchPushCount(), 1,
+                "The order-package batch must perform one physical provider dispatch");
+        helper.assertValueEqual(provider.lastBatchCount(), 4L,
+                "The virtual completion must use the provider's accepted logical count");
+
+        cpu.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+        helper.assertValueEqual(requester.received(target), 8L,
+                "The accepted batch must complete the exact scaled target amount");
+        helper.assertValueEqual(requester.received(packageKey), 0L,
+                "The marked order package must never reach the requester");
+        helper.assertValueEqual(grid.storage().getStored(packageKey), 0L,
+                "The marked order package must never reach network storage");
+        helper.assertFalse(cpu.isBusy(), "The virtual target must finish the Trinity crafting job");
+        helper.succeed();
     }
 
     @TestHolder("trinity_data_core_compact_plan_resumes_after_host_nbt_reload")

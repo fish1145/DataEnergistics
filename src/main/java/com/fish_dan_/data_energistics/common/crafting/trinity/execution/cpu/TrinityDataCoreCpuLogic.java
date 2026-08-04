@@ -41,6 +41,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
+import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
@@ -101,8 +103,10 @@ import java.util.function.Consumer;
 final class TrinityDataCoreCpuLogic {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
+    private static final int LEGACY_SCHEMA_VERSION = 1;
     private static final String INVENTORY_TAG = "inventory";
+    private static final String VIRTUAL_COMPLETIONS_TAG = "virtual_completions";
     private static final String JOB_TAG = "job";
     private static final double ENERGY_TOLERANCE = 0.01D;
 
@@ -118,6 +122,7 @@ final class TrinityDataCoreCpuLogic {
     @Nullable
     private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
+    private final ListCraftingInventory pendingVirtualCompletions;
     private final WorkerOperationBudget operationBudget = WorkerOperationBudget.create();
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
@@ -128,6 +133,7 @@ final class TrinityDataCoreCpuLogic {
 
     TrinityDataCoreCpuLogic(TrinityDataCoreVirtualCpu cpu) {
         this.cpu = cpu;
+        this.pendingVirtualCompletions = new ListCraftingInventory(ignored -> this.cpu.markDirty());
     }
 
     /**
@@ -210,6 +216,7 @@ final class TrinityDataCoreCpuLogic {
         }
         this.cantStoreItems = false;
         if (this.job == null) {
+            recoverVirtualCompletions();
             storeItems();
             if (!this.inventory.list.isEmpty()) {
                 this.cantStoreItems = true;
@@ -226,6 +233,13 @@ final class TrinityDataCoreCpuLogic {
         }
         if (this.job.link.isCanceled()) {
             cancel();
+            return;
+        }
+        if (!drainVirtualCompletions(this.job)) {
+            finishJob(false);
+            return;
+        }
+        if (this.job == null) {
             return;
         }
         if (this.job.suspended) {
@@ -1554,12 +1568,12 @@ final class TrinityDataCoreCpuLogic {
     }
 
     @Nullable
-    private static PreparedPatternCommit preparePatternCommit(TrinityDataCoreExecutingCraftingJob currentJob,
-                                                              IPatternDetails details,
-                                                              long remainingCrafts,
-                                                              ExtractedPatternInputs extractedInputs,
-                                                              long count,
-                                                              boolean validateScheduledOutputs) {
+    private PreparedPatternCommit preparePatternCommit(TrinityDataCoreExecutingCraftingJob currentJob,
+                                                       IPatternDetails details,
+                                                       long remainingCrafts,
+                                                       ExtractedPatternInputs extractedInputs,
+                                                       long count,
+                                                       boolean validateScheduledOutputs) {
         if (count <= 0L || count > remainingCrafts) {
             Data_Energistics.LOGGER.error(
                     "Trinity Data Core CPU cannot commit {} crafts from a task with {} remaining",
@@ -1574,6 +1588,21 @@ final class TrinityDataCoreCpuLogic {
         List<GenericStack> expectedOutputs = scaleAmounts(extractedInputs.expectedOutputs(), count);
         List<GenericStack> expectedContainerItems = scaleAmounts(extractedInputs.expectedContainerItems(), count);
         List<GenericStack> scheduledOutputs = scaleStacks(details.getOutputs(), count);
+        List<GenericStack> virtualOutputs;
+        try {
+            VirtualCraftingOutputProjection projection = VirtualCraftingOutputAdapters.project(details);
+            virtualOutputs = projection.virtualOutputs(count);
+            for (GenericStack output : virtualOutputs) {
+                Math.addExact(this.pendingVirtualCompletions.list.get(output.what()), output.amount());
+            }
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity Data Core CPU cannot prepare virtual outputs for pattern {} and {} accepted crafts",
+                    details.getDefinition(),
+                    count,
+                    exception);
+            return null;
+        }
         if (expectedOutputs == null || expectedContainerItems == null || scheduledOutputs == null) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot commit overflowing pattern outputs");
             return null;
@@ -1600,6 +1629,7 @@ final class TrinityDataCoreCpuLogic {
                 count,
                 expectedOutputs,
                 expectedContainerItems,
+                virtualOutputs,
                 new PreparedScheduledOutputs(details.getDefinition(), scheduledOutputs),
                 Set.copyOf(changedKeys));
     }
@@ -1649,6 +1679,7 @@ final class TrinityDataCoreCpuLogic {
         for (AEKey changedKey : commit.changedKeys()) {
             postChange(changedKey);
         }
+        enqueueVirtualCompletions(commit.virtualOutputs());
     }
 
     private void commitTrinityPatternPush(TrinityDataCoreExecutingCraftingJob currentJob,
@@ -1668,6 +1699,7 @@ final class TrinityDataCoreCpuLogic {
         for (AEKey changedKey : commit.changedKeys()) {
             postChange(changedKey);
         }
+        enqueueVirtualCompletions(commit.virtualOutputs());
     }
 
     private Optional<TrinityBorrowingTransaction> borrowDynamicInputs(List<GenericStack> inputsPerCraft,
@@ -1730,6 +1762,132 @@ final class TrinityDataCoreCpuLogic {
                 this::postChange);
     }
 
+    private void enqueueVirtualCompletions(List<GenericStack> completions) {
+        for (GenericStack completion : completions) {
+            Math.addExact(this.pendingVirtualCompletions.list.get(completion.what()), completion.amount());
+            this.pendingVirtualCompletions.insert(
+                    completion.what(),
+                    completion.amount(),
+                    Actionable.MODULATE);
+        }
+    }
+
+    private boolean drainVirtualCompletions(TrinityDataCoreExecutingCraftingJob currentJob) {
+        if (this.pendingVirtualCompletions.list.isEmpty()) {
+            return true;
+        }
+        if (this.job != currentJob) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity CPU {} cannot apply virtual completions to a stale crafting job",
+                    this.cpu.number());
+            return false;
+        }
+
+        ArrayList<GenericStack> intermediate = new ArrayList<>();
+        ArrayList<GenericStack> finalResults = new ArrayList<>();
+        for (var entry : this.pendingVirtualCompletions.list) {
+            GenericStack completion = new GenericStack(entry.getKey(), entry.getLongValue());
+            (entry.getKey().matches(currentJob.finalOutput) ? finalResults : intermediate).add(completion);
+        }
+        intermediate.addAll(finalResults);
+
+        for (GenericStack completion : intermediate) {
+            if (this.job != currentJob) {
+                return this.job == null && this.pendingVirtualCompletions.list.isEmpty();
+            }
+            long removed = this.pendingVirtualCompletions.extract(
+                    completion.what(),
+                    completion.amount(),
+                    Actionable.MODULATE);
+            if (removed != completion.amount()) {
+                Data_Energistics.LOGGER.error(
+                        "Trinity CPU {} virtual completion ledger changed while applying {} x{}",
+                        this.cpu.number(),
+                        completion.what(),
+                        completion.amount());
+                return false;
+            }
+            long accepted;
+            try {
+                accepted = insert(completion.what(), completion.amount(), Actionable.MODULATE);
+            } catch (RuntimeException exception) {
+                this.pendingVirtualCompletions.insert(
+                        completion.what(),
+                        completion.amount(),
+                        Actionable.MODULATE);
+                Data_Energistics.LOGGER.error(
+                        "Trinity CPU {} failed to apply accepted virtual completion {} x{}",
+                        this.cpu.number(),
+                        completion.what(),
+                        completion.amount(),
+                        exception);
+                return false;
+            }
+            if (accepted < 0L || accepted > completion.amount()) {
+                Data_Energistics.LOGGER.error(
+                        "Trinity CPU {} received invalid acceptance {} for virtual completion {} x{}",
+                        this.cpu.number(),
+                        accepted,
+                        completion.what(),
+                        completion.amount());
+                return false;
+            }
+            long remainder = completion.amount() - accepted;
+            if (remainder > 0L) {
+                if (completion.what().matches(currentJob.finalOutput)) {
+                    this.pendingVirtualCompletions.insert(completion.what(), remainder, Actionable.MODULATE);
+                } else {
+                    try {
+                        Math.addExact(this.inventory.list.get(completion.what()), remainder);
+                        this.inventory.insert(completion.what(), remainder, Actionable.MODULATE);
+                    } catch (RuntimeException exception) {
+                        this.pendingVirtualCompletions.insert(
+                                completion.what(),
+                                remainder,
+                                Actionable.MODULATE);
+                        Data_Energistics.LOGGER.error(
+                                "Trinity CPU {} could not retain virtual completion remainder {} x{}",
+                                this.cpu.number(),
+                                completion.what(),
+                                remainder,
+                                exception);
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private void recoverVirtualCompletions() {
+        if (this.pendingVirtualCompletions.list.isEmpty()) {
+            return;
+        }
+        ArrayList<GenericStack> recoverable = new ArrayList<>();
+        for (var entry : this.pendingVirtualCompletions.list) {
+            recoverable.add(new GenericStack(entry.getKey(), entry.getLongValue()));
+        }
+        this.pendingVirtualCompletions.clear();
+        for (GenericStack completion : recoverable) {
+            try {
+                Math.addExact(this.inventory.list.get(completion.what()), completion.amount());
+                this.inventory.insert(completion.what(), completion.amount(), Actionable.MODULATE);
+            } catch (RuntimeException exception) {
+                this.pendingVirtualCompletions.insert(
+                        completion.what(),
+                        completion.amount(),
+                        Actionable.MODULATE);
+                Data_Energistics.LOGGER.error(
+                        "Trinity CPU {} could not recover accepted virtual completion {} x{}",
+                        this.cpu.number(),
+                        completion.what(),
+                        completion.amount(),
+                        exception);
+            }
+        }
+        this.cpu.markDirty();
+    }
+
     private static void addWaiting(TrinityDataCoreExecutingCraftingJob currentJob,
                                    List<GenericStack> additions) {
         for (GenericStack addition : additions) {
@@ -1754,6 +1912,7 @@ final class TrinityDataCoreCpuLogic {
     private record PreparedPatternCommit(long count,
                                          List<GenericStack> expectedOutputs,
                                          List<GenericStack> expectedContainerItems,
+                                         List<GenericStack> virtualOutputs,
                                          IPatternDetails scheduledRemoval,
                                          Set<AEKey> changedKeys) {}
 
@@ -2151,6 +2310,7 @@ final class TrinityDataCoreCpuLogic {
         CompoundTag data = new CompoundTag();
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.put(INVENTORY_TAG, this.inventory.writeToNBT(registries));
+        data.put(VIRTUAL_COMPLETIONS_TAG, this.pendingVirtualCompletions.writeToNBT(registries));
         if (this.job != null) {
             data.put(JOB_TAG, this.job.writeToTag(registries));
         }
@@ -2170,11 +2330,12 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion != SCHEMA_VERSION && schemaVersion != LEGACY_SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {}",
+                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or legacy {}",
                     schemaVersion,
-                    SCHEMA_VERSION);
+                    SCHEMA_VERSION,
+                    LEGACY_SCHEMA_VERSION);
             return;
         }
         Tag rawInventory = data.get(INVENTORY_TAG);
@@ -2185,6 +2346,31 @@ final class TrinityDataCoreCpuLogic {
         }
 
         this.inventory.readFromNBT(inventoryTag, registries);
+        if (schemaVersion == SCHEMA_VERSION) {
+            Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
+            if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
+                    (!virtualCompletionsTag.isEmpty() &&
+                            virtualCompletionsTag.getElementType() != Tag.TAG_COMPOUND)) {
+                Data_Energistics.LOGGER.error(
+                        "Ignoring Trinity Data Core CPU logic without a virtual completion ledger");
+                this.inventory.clear();
+                return;
+            }
+            try {
+                this.pendingVirtualCompletions.readFromNBT(virtualCompletionsTag, registries);
+                for (var entry : this.pendingVirtualCompletions.list) {
+                    if (entry.getLongValue() <= 0L) {
+                        throw new IllegalArgumentException("Virtual completion amount must be positive");
+                    }
+                }
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Ignoring Trinity Data Core CPU logic with a damaged virtual completion ledger",
+                        exception);
+                discardPersistedState();
+                return;
+            }
+        }
         if (!data.contains(JOB_TAG)) {
             return;
         }
@@ -2219,6 +2405,7 @@ final class TrinityDataCoreCpuLogic {
         this.proposalCoordinator.cancel();
         cancelPendingReplan();
         this.inventory.clear();
+        this.pendingVirtualCompletions.clear();
         this.job = null;
         this.capacitySliceCursor = 0;
         this.proposalRetryAt = -1L;
@@ -2231,7 +2418,8 @@ final class TrinityDataCoreCpuLogic {
 
     static boolean persistedHasRetainedState(CompoundTag data) {
         return data.contains(JOB_TAG) ||
-                !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty();
+                !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty() ||
+                !data.getList(VIRTUAL_COMPLETIONS_TAG, Tag.TAG_COMPOUND).isEmpty();
     }
 
     /**
@@ -2246,6 +2434,7 @@ final class TrinityDataCoreCpuLogic {
      */
     boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
         Preconditions.checkState(this.job == null, "CPU should not have a job while recovering inventory");
+        recoverVirtualCompletions();
         for (var entry : this.inventory.list) {
             long available = entry.getLongValue();
             long recovered = recovery.apply(entry.getKey(), available);
@@ -2302,6 +2491,7 @@ final class TrinityDataCoreCpuLogic {
         if (this.job == null) {
             return;
         }
+        recoverVirtualCompletions();
         this.proposalCoordinator.cancel();
         cancelPendingReplan();
         Set<AEKey> pendingOutputKeys = this.job.isTrinityPlan() ?

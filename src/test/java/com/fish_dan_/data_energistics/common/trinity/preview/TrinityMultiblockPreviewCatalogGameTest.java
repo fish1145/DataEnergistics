@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistrySnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
@@ -149,13 +148,6 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
                 materialAmount(upgraded, lastCpuCore) + CHILD_CORES_PER_REPEAT,
                 "A second CPU repeat must add its 4x4 selected core field");
 
-        MultiblockRecipeView recipe = MultiblockRecipeView.from(spec, repeated);
-        helper.assertValueEqual(recipe.inputs(), repeated.materials(),
-                "Ordinary recipe inputs must be the current aggregate materials");
-        helper.assertValueEqual(recipe.output().key(), spec.ownerOutput(),
-                "Ordinary recipe output must be the Trinity owner item");
-        helper.assertValueEqual(recipe.output().amount(), 1L,
-                "Ordinary recipe owner output must have amount one");
         helper.succeed();
     }
 

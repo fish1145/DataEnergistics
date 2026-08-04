@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeV
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
+import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
@@ -103,6 +104,12 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addGuiContainerHandler(
                 DataRipperReassemblerScreen.class,
                 new PatternEncodingGenericStackJeiHandler<>());
+        registration.addGuiContainerHandler(
+                OrderPackageScreen.class,
+                new PatternEncodingGenericStackJeiHandler<>());
+        registration.addGhostIngredientHandler(
+                OrderPackageScreen.class,
+                new OrderPackageJeiGhostIngredientHandler());
     }
 
     @Override

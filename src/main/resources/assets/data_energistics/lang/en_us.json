@@ -1,4 +1,6 @@
 {
+	"item.data_energistics.order_package": "Order Package",
+	"tooltip.data_energistics.order_package.target": "Target: %s",
 	"itemGroup.data_energistics": "Data_Energistics",
 	"itemGroup.data_energistics.multiblock": "Data_Energistics Multiblocks",
 	"dimension.data_energistics.meteorite_cluster": "Meteorite Cluster",
