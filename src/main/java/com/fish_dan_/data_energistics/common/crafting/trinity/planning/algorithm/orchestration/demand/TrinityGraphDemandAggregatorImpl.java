@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import net.minecraft.network.chat.Component;
 
@@ -55,7 +55,7 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
                                                                         Map<AEKey, BigInteger> available,
-                                                                        TrinityCraftingConfig.Settings settings,
+                                                                        TrinityCrafting settings,
                                                                         TrinityPlanningControl control) {
         if (topology == null || target == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || quantityMode == null || available == null || settings == null ||
@@ -81,7 +81,7 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
         private final AEKey target;
         private final CraftingQuantityMode quantityMode;
         private final LinkedHashMap<AEKey, BigInteger> inventory;
-        private final TrinityCraftingConfig.Settings settings;
+        private final TrinityCrafting settings;
         private final TrinityPlanningControl control;
         private final Map<Integer, Integer> topologicalPositions;
         private final RouteSearchBudget routeSearchBudget;
@@ -99,7 +99,7 @@ final class TrinityGraphDemandAggregatorImpl implements TrinityGraphDemandAggreg
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
                                     Map<AEKey, BigInteger> available,
-                                    TrinityCraftingConfig.Settings settings,
+                                    TrinityCrafting settings,
                                     TrinityPlanningControl control) {
             this.topology = topology;
             this.target = target;

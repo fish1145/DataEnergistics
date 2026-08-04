@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.config.Config;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -101,8 +102,9 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
         }
 
         String blockId = BuiltInRegistries.BLOCK.getKey(target.getBlockState().getBlock()).toString();
-        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
-        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled);
+        DataRipper settings = DataEnergisticsConfiguration.INSTANCE.dataRipper();
+        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, settings.multipliers());
+        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, settings.blacklist());
     }
 
     private void updateEffectiveSpeed() {

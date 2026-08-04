@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -20,7 +20,7 @@ public final class ServerLifecycleEventHandler {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         stoppingServer = null;
-        TrinityPlanningGatewayLifecycle.start(TrinityCraftingConfig.settings());
+        TrinityPlanningGatewayLifecycle.start(DataEnergisticsConfiguration.INSTANCE.trinityCrafting());
         try {
             TrinityDispatchProposalLifecycle.start();
         } catch (RuntimeException exception) {

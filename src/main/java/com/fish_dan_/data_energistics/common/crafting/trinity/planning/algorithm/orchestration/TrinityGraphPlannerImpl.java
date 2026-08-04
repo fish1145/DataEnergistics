@@ -18,7 +18,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import net.minecraft.network.chat.Component;
 
@@ -67,7 +67,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                             BigInteger requestedAmount,
                                                             CraftingQuantityMode quantityMode,
                                                             Map<AEKey, BigInteger> available,
-                                                            TrinityCraftingConfig.Settings settings,
+                                                            TrinityCrafting settings,
                                                             TrinityPlanningControl control) {
         if (snapshot == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
                 quantityMode == null || available == null || settings == null || control == null) {
@@ -96,7 +96,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                   BigInteger requestedAmount,
                                                                   CraftingQuantityMode quantityMode,
                                                                   Map<AEKey, BigInteger> available,
-                                                                  TrinityCraftingConfig.Settings settings,
+                                                                  TrinityCrafting settings,
                                                                   TrinityPlanningControl control) {
         long requestedLong = requestedAmount.longValueExact();
         StopState initialState = stopState(control);
@@ -179,7 +179,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                              BigInteger requestedAmount,
                                                                              CraftingQuantityMode quantityMode,
                                                                              Map<AEKey, BigInteger> available,
-                                                                             TrinityCraftingConfig.Settings settings,
+                                                                             TrinityCrafting settings,
                                                                              TrinityPlanningControl control) {
         TrinityAlgorithmResult<TrinityGraphDemandSolution> solved = this.demandAggregator.aggregate(
                 topology,
@@ -201,7 +201,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
                                                                           Map<AEKey, BigInteger> available,
-                                                                          TrinityCraftingConfig.Settings settings,
+                                                                          TrinityCrafting settings,
                                                                           TrinityPlanningControl control) {
         TrinityAlgorithmResult<TrinityAcyclicPlan> propagated = this.acyclicDemandPropagator.propagate(
                 topology,

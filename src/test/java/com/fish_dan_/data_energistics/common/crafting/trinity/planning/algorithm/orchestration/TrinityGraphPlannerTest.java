@@ -12,7 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -79,7 +79,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.valueOf(100L),
                 CraftingQuantityMode.NET_NEW,
                 Map.of(rawSeed, BigInteger.ONE, rawFuel, BigInteger.valueOf(100L)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful());
@@ -158,7 +158,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.valueOf(2L),
                 CraftingQuantityMode.NET_NEW,
                 Map.of(material, BigInteger.valueOf(2L)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(fullyStocked.successful(), () -> fullyStocked.diagnostic().message().getString());
@@ -173,7 +173,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.valueOf(4L),
                 CraftingQuantityMode.NET_NEW,
                 Map.of(material, BigInteger.valueOf(2L), fuel, BigInteger.ONE),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(partiallyStocked.successful(), () -> partiallyStocked.diagnostic().message().getString());
@@ -193,7 +193,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(material, BigInteger.TWO, fuel, BigInteger.ONE),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(residualOutputs.successful(), () -> residualOutputs.diagnostic().message().getString());
@@ -258,7 +258,7 @@ public final class TrinityGraphPlannerTest {
                         second, BigInteger.ONE,
                         parallel, BigInteger.ONE,
                         parallelFuel, BigInteger.TWO),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
@@ -306,7 +306,7 @@ public final class TrinityGraphPlannerTest {
                 requested,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(first, BigInteger.ONE),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
@@ -356,7 +356,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.TWO,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(material, BigInteger.ONE, fuel, BigInteger.ONE),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
@@ -398,7 +398,7 @@ public final class TrinityGraphPlannerTest {
                 requested,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(raw, BigInteger.valueOf(7_500_000L)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful());
@@ -454,7 +454,7 @@ public final class TrinityGraphPlannerTest {
                         chargedCertus, BigInteger.valueOf(256L),
                         certusDust, BigInteger.valueOf(320L),
                         water, BigInteger.valueOf(2_147_483_647_000L)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
@@ -576,7 +576,7 @@ public final class TrinityGraphPlannerTest {
                         rawDust, BigInteger.valueOf(64L),
                         water, BigInteger.valueOf(260_000L),
                         casing, BigInteger.valueOf(121L)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
@@ -734,7 +734,7 @@ public final class TrinityGraphPlannerTest {
                     BigInteger.ONE,
                     CraftingQuantityMode.NET_NEW,
                     available,
-                    TrinityCraftingConfig.Settings.defaults(4),
+                    TrinityCraftingSettings.defaults(4),
                     unlimitedControl());
 
             assertTrue(result.successful(), () -> result.diagnostic().code() + " " + result.diagnostic().metadata());
@@ -773,7 +773,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(a, BigInteger.TWO),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertFalse(result.successful(), "A partial firing vector must not expose an internal cycle intermediate");
@@ -797,7 +797,7 @@ public final class TrinityGraphPlannerTest {
                 BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE),
                 CraftingQuantityMode.NET_NEW,
                 Map.of(raw, BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE)),
-                TrinityCraftingConfig.Settings.defaults(4),
+                TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertFalse(result.successful());

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -43,7 +43,7 @@ public final class BiologyDataCarrierData {
 
         stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
                 entityId,
-                Math.max(1.0F, DataExtractorConfig.mobRequiredDamage),
+                DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobRequiredDamage(),
                 0.0F));
         return true;
     }
@@ -135,22 +135,10 @@ public final class BiologyDataCarrierData {
                 Math.max(0.0F, tag.getFloat(TAG_COLLECTED_DAMAGE)));
     }
 
-    public static boolean canRecordEntity(ResourceLocation entityId) {
+    public static boolean canRecordEntity(@Nullable ResourceLocation entityId) {
         if (entityId == null) {
             return false;
         }
-        return !containsId(DataExtractorConfig.mobDataBlacklist, entityId);
-    }
-
-    private static boolean containsId(String csv, ResourceLocation id) {
-        if (csv == null || csv.isBlank()) {
-            return false;
-        }
-        for (String token : csv.split(",")) {
-            if (id.toString().equals(token.trim())) {
-                return true;
-            }
-        }
-        return false;
+        return !DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobDataBlacklist().contains(entityId);
     }
 }

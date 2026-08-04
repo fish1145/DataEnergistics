@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
@@ -32,8 +34,6 @@ import appeng.parts.automation.UpgradeablePart;
 
 public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, DataSolarPanelMenuHost {
 
-    private static final double DAY_GENERATION_AE_PER_TICK = 2500.0D;
-    private static final double NIGHT_GENERATION_AE_PER_TICK = 750.0D;
     private static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_off");
     private static final ResourceLocation MODEL_ON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_on");
     private static final String STORED_POWER_TAG = "storedPower";
@@ -48,6 +48,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
     private static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_ON);
 
     private double storedPower;
+    private double maxPower;
     private boolean redstoneControlled;
 
     public MeSolarPanelPart(IPartItem<?> partItem) {
@@ -56,6 +57,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setIdlePowerUsage(0.0D)
                 .addService(IGridTickable.class, this);
+        this.maxPower = DataSolarPanelBlockEntity.computeMaxPower(this.getUpgrades());
     }
 
     @Override
@@ -117,9 +119,9 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
     @Override
     public void upgradesChanged() {
-        double maxPower = getAEMaxPower();
-        if (this.storedPower > maxPower) {
-            this.storedPower = maxPower;
+        this.maxPower = DataSolarPanelBlockEntity.computeMaxPower(this.getUpgrades());
+        if (this.storedPower > this.maxPower) {
+            this.storedPower = this.maxPower;
         }
         markForSaveAndUpdate();
     }
@@ -127,7 +129,8 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
     @Override
     public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
         super.readFromNBT(data, registries);
-        this.storedPower = Math.max(0.0D, Math.min(data.getDouble(STORED_POWER_TAG), getAEMaxPower()));
+        this.maxPower = DataSolarPanelBlockEntity.computeMaxPower(this.getUpgrades());
+        this.storedPower = Math.max(0.0D, Math.min(data.getDouble(STORED_POWER_TAG), this.maxPower));
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
     }
 
@@ -156,7 +159,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
     @Override
     public double getAEMaxPower() {
-        return DataSolarPanelBlockEntity.computeMaxPower(this.getUpgrades());
+        return this.maxPower;
     }
 
     @Override
@@ -175,8 +178,12 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
             return 0.0D;
         }
 
-        double baseGeneration = specialNightGenerationDimension || !level.isDay() ? NIGHT_GENERATION_AE_PER_TICK : DAY_GENERATION_AE_PER_TICK;
-        double adjustedGeneration = DataSolarPanelBlockEntity.applySpeedUpgrades(baseGeneration, this.getUpgrades());
+        SolarPanel settings = DataEnergisticsConfiguration.INSTANCE.solarPanel();
+        double baseGeneration = specialNightGenerationDimension || !level.isDay() ? settings.nightGenerationAEPerTick() : settings.dayGenerationAEPerTick();
+        double adjustedGeneration = DataSolarPanelBlockEntity.applySpeedUpgrades(
+                baseGeneration,
+                this.getUpgrades(),
+                settings);
         return adjustedGeneration * getFacingGenerationMultiplier();
     }
 

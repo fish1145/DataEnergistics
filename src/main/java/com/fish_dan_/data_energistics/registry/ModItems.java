@@ -2,10 +2,8 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
 import com.fish_dan_.data_energistics.item.AdaptivePatternProviderUpgradeItem;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
-import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
@@ -115,10 +113,7 @@ public final class ModItems {
     public static final DeferredItem<AdaptivePatternProviderUpgradeItem> ADAPTIVE_PATTERN_PROVIDER_UPGRADE = ITEMS.register(
             "adaptive_pattern_provider_upgrade",
             () -> new AdaptivePatternProviderUpgradeItem(new Item.Properties()));
-    public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.register(
-            "tnt_configurable",
-            () -> new ConfigurableTntBlockItem(ModBlocks.TNT_CONFIGURABLE.get(), new Item.Properties(),
-                    () -> FlatteningTntConfig.configurableTntDisplayName));
+    public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_CONFIGURABLE);
     public static final DeferredItem<BlockItem> DATA_NUKE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_NUKE);
     public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);

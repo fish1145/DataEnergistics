@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 /**
  * Owns the single bounded planning pool for one logical server lifetime.
@@ -20,7 +20,7 @@ public final class TrinityPlanningGatewayLifecycle {
      *
      * @param settings immutable planning budgets for this server lifetime
      */
-    public static synchronized void start(TrinityCraftingConfig.Settings settings) {
+    public static synchronized void start(TrinityCrafting settings) {
         if (gateway != null) {
             throw new IllegalStateException("The Trinity planning gateway is already running");
         }

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
-import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
@@ -52,11 +52,11 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     @GuiSync(764)
     public int collectionMaxProgress;
     @GuiSync(765)
-    public int workIntervalSeconds = DataExtractorConfig.workIntervalSeconds;
+    public int workIntervalSeconds = DataEnergisticsConfiguration.INSTANCE.dataExtractor().workIntervalSeconds();
     @GuiSync(766)
     public int targetCount;
     @GuiSync(767)
-    public int targetLimit = DataExtractorConfig.baseTargetLimit;
+    public int targetLimit = DataEnergisticsConfiguration.INSTANCE.dataExtractor().baseTargetLimit();
     @GuiSync(768)
     public boolean redstoneControlled;
     @GuiSync(769)

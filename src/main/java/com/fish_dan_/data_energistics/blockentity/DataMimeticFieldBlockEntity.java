@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;

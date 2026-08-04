@@ -1,6 +1,7 @@
 [versions]
 ae2 = "19.2.17"
 ae2wt = "19.5.1"
+configuration = "3.1.1-neoforge"
 
 jei = "19.25.1.328"
 emi = "1.1.24+1.21.1"
@@ -58,6 +59,7 @@ athena = "dJgL278E"
 mdlib = "0.0.1"
 
 [libraries]
+configuration         = { module = "dev.toma.configuration:configuration-1.21.1", version.ref = "configuration" }
 guideme             = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
 ae2                 = { module = "org.appliedenergistics:appliedenergistics2", version.ref = "ae2" }
 ae2wt               = { module = "de.mari_023:ae2wtlib", version.ref = "ae2wt"}

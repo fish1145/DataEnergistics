@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.RandomSource;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -32,8 +31,8 @@ public class Data_Energistics {
 
     public static final Logger LOGGER = LogManager.getLogger(MODNAME);
 
-    public Data_Energistics(IEventBus modEventBus, ModContainer modContainer) {
-        CommonBootstrap.init(modEventBus, modContainer);
+    public Data_Energistics(IEventBus modEventBus) {
+        CommonBootstrap.init(modEventBus);
         String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.info(selectedLogPair[1]),

@@ -44,7 +44,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -392,6 +393,7 @@ final class TrinityDataCoreCpuLogic {
 
         TrinityPlanExecution execution = currentJob.trinityExecution();
         long currentTick = TickHandler.instance().getCurrentTick();
+        TrinityCrafting settings = DataEnergisticsConfiguration.INSTANCE.trinityCrafting();
         if (execution.status() == TrinityPlanExecution.Status.PLANNING) {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
@@ -435,7 +437,7 @@ final class TrinityDataCoreCpuLogic {
             execution.deferProvider(
                     work,
                     currentTick,
-                    TrinityCraftingConfig.settings().dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks());
             return CraftingExecutionOutcome.NONE;
         }
         if (!(resolution instanceof TrinityPatternResolver.Matched(IPatternDetails pattern))) {
@@ -449,11 +451,10 @@ final class TrinityDataCoreCpuLogic {
             execution.deferProvider(
                     work,
                     currentTick,
-                    TrinityCraftingConfig.settings().dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks());
             return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
-        TrinityCraftingConfig.Settings settings = TrinityCraftingConfig.settings();
         TrinityPatternSelector.Result selection = this.patternSelector.select(
                 pattern,
                 work.plannedVariantOrdinal(),
@@ -571,7 +572,7 @@ final class TrinityDataCoreCpuLogic {
         if (activeGrid == null) {
             return;
         }
-        TrinityCraftingConfig.Settings settings = TrinityCraftingConfig.settings();
+        TrinityCrafting settings = DataEnergisticsConfiguration.INSTANCE.trinityCrafting();
         MEStorage network = activeGrid.getStorageService().getInventory();
         Optional<TrinityCraftingGraphSnapshot> graphSnapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot();
         TrinityRemainingPlanCalculation.Result result = this.remainingPlanCalculation.advance(

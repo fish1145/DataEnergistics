@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.DataFlowCellHandler;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
@@ -35,7 +34,6 @@ public final class ModUpgrades {
     private ModUpgrades() {}
 
     public static void init() {
-        DataExtractorRuleTable.load();
         UniversalTerminalAdapters.discoverFromRegisteredItems();
         DataFlowBusStrategies.register();
         ((AdaptivePatternProviderBlock<?>) ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();

@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.stacks.AEKey;
 
@@ -33,6 +33,6 @@ public interface TrinityGraphDemandAggregator {
                                                                  BigInteger requestedAmount,
                                                                  CraftingQuantityMode quantityMode,
                                                                  Map<AEKey, BigInteger> available,
-                                                                 TrinityCraftingConfig.Settings settings,
+                                                                 TrinityCrafting settings,
                                                                  TrinityPlanningControl control);
 }

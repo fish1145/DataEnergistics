@@ -3,7 +3,9 @@ package com.fish_dan_.data_energistics.part;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.config.Config;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
@@ -70,6 +72,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     private int cachedSaberSpeedCards = -1;
     private int cachedSpeedProduct = -1;
     private int cachedEnergyCards = -1;
+    private long cachedConfigurationRevision = Long.MIN_VALUE;
     @Nullable
     private TickContext cachedTickContext;
 
@@ -257,14 +260,20 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private TickContext getTickContext(Level level, BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
+        DataEnergisticsSettings configuration = DataEnergisticsConfiguration.INSTANCE;
+        if (configuration.revision() != this.cachedConfigurationRevision) {
+            this.cachedConfigurationRevision = configuration.revision();
+            this.cachedTickContext = null;
+        }
         TickContext tickContext = this.cachedTickContext;
         if (tickContext != null && tickContext.matches(level, targetPos, targetState, targetBlockEntity)) {
             return tickContext;
         }
 
         String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
-        boolean blacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled);
-        double powerMultiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
+        DataRipper settings = configuration.dataRipper();
+        boolean blacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, settings.blacklist());
+        double powerMultiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, settings.multipliers());
         RandomTickTarget randomTickTarget = this.getRandomTickTarget(level, targetPos, targetState);
         BlockEntityTicker<BlockEntity> ticker = targetBlockEntity != null ? this.getTicker(level, targetState, targetBlockEntity) : null;
         GridTickTarget gridTickTarget = targetBlockEntity != null ? this.getGridTickTarget(targetBlockEntity) : null;
