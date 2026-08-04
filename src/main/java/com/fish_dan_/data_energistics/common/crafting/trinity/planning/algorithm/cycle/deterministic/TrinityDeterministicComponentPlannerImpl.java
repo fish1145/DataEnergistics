@@ -56,7 +56,8 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
         }
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         Set<AEKey> producible = Set.copyOf(producibleInputs);
-        ArrayList<TrinityDeterministicCandidate> candidates = new ArrayList<>();
+        ArrayList<TrinityDeterministicCandidate> completeCandidates = new ArrayList<>();
+        ArrayList<TrinityDeterministicCandidate> localCandidates = new ArrayList<>();
         boolean rejectedReservoir = false;
         boolean basisLocalCandidate = false;
 
@@ -85,7 +86,11 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                     assessed.basis(),
                     control);
             if (!calculated.successful()) {
-                return handleFailure(calculated);
+                TrinityPlanningAttempt<TrinityDeterministicComponentPlan> failure = handleFailure(calculated);
+                if (failure.kind() == TrinityPlanningAttempt.Kind.TERMINAL) {
+                    return failure;
+                }
+                continue;
             }
             TrinityAlgorithmResult<TrinityDeterministicCandidate> assembled = this.proofAssembler.assemble(
                     component,
@@ -96,27 +101,39 @@ final class TrinityDeterministicComponentPlannerImpl implements TrinityDetermini
                     maxStates,
                     control);
             if (!assembled.successful()) {
-                return handleFailure(assembled);
+                TrinityPlanningAttempt<TrinityDeterministicComponentPlan> failure = handleFailure(assembled);
+                if (failure.kind() == TrinityPlanningAttempt.Kind.TERMINAL) {
+                    return failure;
+                }
+                continue;
             }
             if (calculated.value().completeComponentProof()) {
-                return TrinityPlanningAttempt.provedOptimal(assembled.value().plan());
+                if (assembled.value().plan().macro().isPresent()) {
+                    return TrinityPlanningAttempt.provedOptimal(assembled.value().plan());
+                }
+                completeCandidates.add(assembled.value());
+                continue;
             }
             basisLocalCandidate |= calculated.value().leastFiringsProven() &&
                     !calculated.value().completeComponentProof();
-            candidates.add(assembled.value());
+            localCandidates.add(assembled.value());
+        }
+        if (!completeCandidates.isEmpty()) {
+            completeCandidates.sort(TrinityDeterministicCandidate.ORDER);
+            return TrinityPlanningAttempt.provedOptimal(completeCandidates.getFirst().plan());
         }
         if (rejectedReservoir && basisLocalCandidate) {
             return TrinityDeterministicDiagnostics.notApplicable();
         }
-        if (candidates.isEmpty()) {
+        if (localCandidates.isEmpty()) {
             return TrinityDeterministicDiagnostics.notApplicable();
         }
-        TrinityFiringVector firstVector = candidates.getFirst().objective().identity();
-        if (candidates.stream().anyMatch(candidate -> !candidate.objective().identity().equals(firstVector))) {
+        TrinityFiringVector firstVector = localCandidates.getFirst().objective().identity();
+        if (localCandidates.stream().anyMatch(candidate -> !candidate.objective().identity().equals(firstVector))) {
             return TrinityDeterministicDiagnostics.notApplicable();
         }
-        candidates.sort(TrinityDeterministicCandidate.ORDER);
-        return TrinityPlanningAttempt.provedOptimal(candidates.getFirst().plan());
+        localCandidates.sort(TrinityDeterministicCandidate.ORDER);
+        return TrinityPlanningAttempt.provedOptimal(localCandidates.getFirst().plan());
     }
 
     private static TrinityPlanningAttempt<TrinityDeterministicComponentPlan> handleFailure(

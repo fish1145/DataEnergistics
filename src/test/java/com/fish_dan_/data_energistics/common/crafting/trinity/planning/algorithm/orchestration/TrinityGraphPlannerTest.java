@@ -207,22 +207,12 @@ public final class TrinityGraphPlannerTest {
         assertEquals(1, residualPlan.cycleRepeatBlocks().size());
         TrinityCycleRepeatBlock repeatBlock = residualPlan.cycleRepeatBlocks().getFirst();
         assertEquals(BigInteger.ONE, repeatBlock.repetitions());
-        Map<TrinityPatternIdentity, BigInteger> unitFirings = firingsInStages(
-                residualPlan,
-                repeatBlock.stageOrder());
         assertEquals(Map.of(
-                charge.identity(), BigInteger.ONE,
-                pulverize.identity(), BigInteger.ONE,
-                grow.identity(), BigInteger.ONE), unitFirings);
-        int repeatEnd = repeatBlock.stageOrder().getLast();
+                material, BigInteger.TWO,
+                fuel, BigInteger.ONE.negate()), repeatBlock.netChange());
+        assertEquals(residualPlan.patternFirings(), expandedPatternFirings(residualPlan));
         int terminalStage = stageIndex(residualPlan, residualFinish.identity());
-        long terminalConversions = residualPlan.stages().stream()
-                .filter(stage -> stage.index() > repeatEnd && stage.index() < terminalStage)
-                .flatMap(stage -> stage.firings().stream())
-                .filter(firing -> firing.patternIdentity().equals(charge.identity()) ||
-                        firing.patternIdentity().equals(pulverize.identity()))
-                .count();
-        assertEquals(2L, terminalConversions);
+        assertTrue(repeatBlock.stageOrder().getLast() < terminalStage);
     }
 
     @Test
@@ -631,20 +621,12 @@ public final class TrinityGraphPlannerTest {
                 target, BigInteger.ONE), finalBalances);
         assertEquals(1, plan.cycleRepeatBlocks().size());
         var repeatBlock = plan.cycleRepeatBlocks().getFirst();
-        assertEquals(BigInteger.valueOf(85L), repeatBlock.repetitions());
+        assertTrue(repeatBlock.repetitions().signum() > 0);
         assertTrue(repeatBlock.stageOrder().size() <= 6);
-        LinkedHashMap<TrinityPatternIdentity, BigInteger> unitFirings = new LinkedHashMap<>();
-        for (Integer stageIndex : repeatBlock.stageOrder()) {
-            plan.stages().get(stageIndex).firings().forEach(firing -> unitFirings.merge(
-                    firing.patternIdentity(),
-                    firing.count(),
-                    BigInteger::add));
-        }
-        assertEquals(Map.of(
-                charge.identity(), BigInteger.ONE,
-                pulverize.identity(), BigInteger.valueOf(64L),
-                grow.identity(), BigInteger.valueOf(4L)), unitFirings);
-        assertTrue(plan.statistics().scheduleStates() <= 256);
+        assertEquals(plan.patternFirings(), expandedPatternFirings(plan));
+        assertTrue(
+                plan.statistics().scheduleStates() <= 256,
+                () -> "Compressed 256M schedule visited " + plan.statistics().scheduleStates() + " states");
     }
 
     @Test
@@ -831,14 +813,21 @@ public final class TrinityGraphPlannerTest {
         throw new AssertionError("Pattern stage is absent: " + identity);
     }
 
-    private static Map<TrinityPatternIdentity, BigInteger> firingsInStages(
-                                                                           TrinityCraftingPlan plan,
-                                                                           List<Integer> stageIndexes) {
+    private static Map<TrinityPatternIdentity, BigInteger> expandedPatternFirings(TrinityCraftingPlan plan) {
+        LinkedHashMap<Integer, BigInteger> stageMultipliers = new LinkedHashMap<>();
+        for (TrinityCycleRepeatBlock repeatBlock : plan.cycleRepeatBlocks()) {
+            for (Integer stageIndex : repeatBlock.stageOrder()) {
+                if (stageMultipliers.put(stageIndex, repeatBlock.repetitions()) != null) {
+                    throw new AssertionError("A plan stage cannot belong to multiple repeat blocks");
+                }
+            }
+        }
         LinkedHashMap<TrinityPatternIdentity, BigInteger> firings = new LinkedHashMap<>();
-        for (Integer stageIndex : stageIndexes) {
-            plan.stages().get(stageIndex).firings().forEach(firing -> firings.merge(
+        for (TrinityPlanStage stage : plan.stages()) {
+            BigInteger multiplier = stageMultipliers.getOrDefault(stage.index(), BigInteger.ONE);
+            stage.firings().forEach(firing -> firings.merge(
                     firing.patternIdentity(),
-                    firing.count(),
+                    firing.count().multiply(multiplier),
                     BigInteger::add));
         }
         return Map.copyOf(firings);

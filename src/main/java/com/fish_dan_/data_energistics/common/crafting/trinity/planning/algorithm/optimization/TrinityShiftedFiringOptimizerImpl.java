@@ -67,11 +67,13 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         }
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
         List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
-        if (!firingUpperBound.keySet().containsAll(variants) || variants.stream()
-                .anyMatch(variant -> firingUpperBound.get(variant) == null ||
-                        firingUpperBound.get(variant).signum() < 0)) {
+        if (!Set.copyOf(variants).containsAll(firingUpperBound.keySet()) || firingUpperBound.values().stream()
+                .anyMatch(amount -> amount == null || amount.signum() < 0)) {
             return notApplicable(UNSUPPORTED_PATTERN_KEY);
         }
+        Map<TrinityPatternVariant, BigInteger> completeFiringUpperBound = completeFiringVector(
+                variants,
+                firingUpperBound);
         Set<AEKey> externalCostKeys = externalReserveKeys(variants, internalKeys, demand);
         LinkedHashSet<AEKey> finiteExternal = new LinkedHashSet<>();
         externalCostKeys.stream()
@@ -94,8 +96,8 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 Set.copyOf(producibleInputs),
                 demand,
                 available,
-                firingUpperBound,
-                netChange(firingUpperBound));
+                completeFiringUpperBound,
+                netChange(completeFiringUpperBound));
         int passes = 0;
         TrinityAlgorithmResult<SolvedShift> external = solve(
                 context,
@@ -125,7 +127,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 demand,
                 available,
                 producibleInputs,
-                firingUpperBound,
+                completeFiringUpperBound,
                 seed.value().reductions(),
                 externallyFixed);
         if (complemented.isPresent()) {
@@ -171,7 +173,7 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
         }
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
         for (TrinityPatternVariant variant : variants) {
-            BigInteger firingCount = firingUpperBound.get(variant)
+            BigInteger firingCount = completeFiringUpperBound.get(variant)
                     .subtract(canonical.reductions().getOrDefault(variant, ZERO));
             if (firingCount.signum() < 0) {
                 return notApplicable(inexact("firing_lower", variant.patternIdentity().publicationEncoding())
@@ -456,6 +458,14 @@ final class TrinityShiftedFiringOptimizerImpl implements TrinityShiftedFiringOpt
                 (key, amount) -> net.merge(key, amount.multiply(count), BigInteger::add)));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
         return Collections.unmodifiableMap(net);
+    }
+
+    private static Map<TrinityPatternVariant, BigInteger> completeFiringVector(
+                                                                               List<TrinityPatternVariant> variants,
+                                                                               Map<TrinityPatternVariant, BigInteger> sparse) {
+        LinkedHashMap<TrinityPatternVariant, BigInteger> complete = new LinkedHashMap<>();
+        variants.forEach(variant -> complete.put(variant, sparse.getOrDefault(variant, ZERO)));
+        return Collections.unmodifiableMap(complete);
     }
 
     private static boolean satisfiesDemand(Map<AEKey, BigInteger> net, TrinityCycleDemand demand) {

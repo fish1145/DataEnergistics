@@ -66,15 +66,16 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
         TrinityDeterministicBasis basis = firingSolution.basis();
         Map<TrinityPatternVariant, BigInteger> firings = firingSolution.firings();
         Map<AEKey, BigInteger> totalNet = firingSolution.totalNet();
-        CycleDecomposition decomposition = decompose(
-                basis.primitiveFirings(),
-                firings,
-                basis.reservoir(),
-                basis.residualTopology().executionOrder());
         LinkedHashMap<AEKey, BigInteger> conservationInputs = conservationInputs(
                 component,
                 demand,
                 totalNet);
+        CycleDecomposition decomposition = decompose(
+                basis.primitiveFirings(),
+                firings,
+                basis.reservoir(),
+                basis.residualTopology().executionOrder(),
+                firingSolution.globalOptimization().isPresent());
         LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(conservationInputs);
         applyRequiredPrefix(decomposition.prefixOrder(), initialInputs);
         if (exceedsAvailable(initialInputs, available, producibleInputs)) {
@@ -105,28 +106,90 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
             return TrinityDeterministicDiagnostics.unsupported();
         }
 
-        TrinityAlgorithmResult<TrinityCompressedSchedule> scheduled = schedule(
-                decomposition.prefixOrder(),
-                normalized.value().order(),
-                decomposition.repetitions(),
-                decomposition.suffixOrder(),
-                initialInputs,
-                Math.subtractExact(maxStates, normalized.value().statesVisited()),
-                control);
-        if (!scheduled.successful()) {
-            return TrinityAlgorithmResult.failure(scheduled.diagnostic());
-        }
         int totalStates = Math.addExact(
                 normalized.value().statesVisited(),
-                Math.addExact(firingSolution.balancePasses(), scheduled.value().statesVisited()));
+                firingSolution.balancePasses());
         if (totalStates > maxStates) {
             return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
         }
-        Map<AEKey, BigInteger> scheduleSeed = minimumSeed(
-                scheduled.value().batches(),
-                component.keys());
         Map<AEKey, BigInteger> minimumSeed = internalAmounts(initialInputs, component.keys());
         BigInteger actualSeed = TrinityDeterministicFiringMath.sum(minimumSeed);
+        BigInteger externalTotal = sumExternal(initialInputs, component.keys());
+        boolean globalScheduleRepaired = false;
+        TrinityAlgorithmResult<TrinityCompressedSchedule> scheduled;
+        if (firingSolution.leastFiringsProven()) {
+            int remainingStates = Math.subtractExact(maxStates, totalStates);
+            if (remainingStates <= 0) {
+                return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
+            }
+            scheduled = schedule(
+                    decomposition.prefixOrder(),
+                    normalized.value().order(),
+                    decomposition.repetitions(),
+                    decomposition.suffixOrder(),
+                    initialInputs,
+                    remainingStates,
+                    control);
+            if (!scheduled.successful()) {
+                return TrinityAlgorithmResult.failure(scheduled.diagnostic());
+            }
+            totalStates = Math.addExact(totalStates, scheduled.value().statesVisited());
+        } else {
+            var global = firingSolution.globalOptimization().orElseThrow(() -> new IllegalStateException(
+                    "A non-minimal Trinity firing vector requires a global objective proof"));
+            if (!actualSeed.equals(global.minimumSeedLowerBound()) ||
+                    !externalTotal.equals(global.minimumExternalInput())) {
+                int remainingStates = Math.subtractExact(maxStates, totalStates);
+                if (remainingStates <= 0) {
+                    return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
+                }
+                TrinityAlgorithmResult<GlobalScheduleRepair> repaired = repairGlobalSchedule(
+                        component,
+                        basis,
+                        decomposition,
+                        normalized.value(),
+                        available,
+                        producibleInputs,
+                        conservationInputs,
+                        actualSeed,
+                        externalTotal,
+                        global.minimumSeedLowerBound(),
+                        global.minimumExternalInput(),
+                        remainingStates,
+                        control);
+                if (!repaired.successful()) {
+                    return TrinityAlgorithmResult.failure(repaired.diagnostic());
+                }
+                decomposition = repaired.value().decomposition();
+                initialInputs = new LinkedHashMap<>(repaired.value().initialInputs());
+                scheduled = TrinityAlgorithmResult.success(repaired.value().schedule());
+                minimumSeed = repaired.value().minimumSeed();
+                actualSeed = TrinityDeterministicFiringMath.sum(minimumSeed);
+                externalTotal = sumExternal(initialInputs, component.keys());
+                totalStates = Math.addExact(totalStates, repaired.value().statesVisited());
+                globalScheduleRepaired = true;
+            } else {
+                int remainingStates = Math.subtractExact(maxStates, totalStates);
+                if (remainingStates <= 0) {
+                    return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
+                }
+                scheduled = schedule(
+                        decomposition.prefixOrder(),
+                        normalized.value().order(),
+                        decomposition.repetitions(),
+                        decomposition.suffixOrder(),
+                        initialInputs,
+                        remainingStates,
+                        control);
+                if (!scheduled.successful()) {
+                    return TrinityAlgorithmResult.failure(scheduled.diagnostic());
+                }
+                totalStates = Math.addExact(totalStates, scheduled.value().statesVisited());
+            }
+        }
+        if (totalStates > maxStates) {
+            return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
+        }
         Optional<TrinityCycleMacro> macro = deterministicMacro(
                 component,
                 decomposition,
@@ -140,7 +203,7 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
             if (remainingStates <= 0) {
                 return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
             }
-            TrinityAlgorithmResult<TrinityMinimumSeedSchedule> startupProof = proveStartupSeed(
+            TrinityAlgorithmResult<StartupProof> startupProof = proveStartupSeed(
                     component,
                     basis,
                     decomposition,
@@ -155,19 +218,15 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
                 return TrinityAlgorithmResult.failure(startupProof.diagnostic());
             }
             provenSeedLowerBound = TrinityDeterministicFiringMath.sum(
-                    startupProof.value().minimumSeed());
+                    startupProof.value().seedSchedule().minimumSeed());
             totalStates = Math.addExact(
                     totalStates,
-                    startupProof.value().schedule().statesVisited());
+                    startupProof.value().seedSchedule().schedule().statesVisited());
         } else if (firingSolution.leastFiringsProven() &&
                 zeroExternalFiringsCannotReduce(component, conservationSeed)) {
                     provenSeedLowerBound = provenSeedLowerBound.max(
                             TrinityDeterministicFiringMath.sum(conservationSeed));
                 }
-        if (TrinityDeterministicFiringMath.sum(scheduleSeed).compareTo(actualSeed) > 0) {
-            return TrinityDeterministicDiagnostics.unsupported();
-        }
-        BigInteger externalTotal = sumExternal(initialInputs, component.keys());
         if (firingSolution.leastFiringsProven()) {
             if (!actualSeed.equals(provenSeedLowerBound) ||
                     !externalTotal.equals(minimumExternalReserve(component, demand, totalNet))) {
@@ -176,10 +235,18 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
         } else {
             var global = firingSolution.globalOptimization().orElseThrow(() -> new IllegalStateException(
                     "A non-minimal Trinity firing vector requires a global objective proof"));
-            if (!actualSeed.equals(global.minimumSeedLowerBound()) ||
-                    !externalTotal.equals(global.minimumExternalInput())) {
+            boolean validSeed = globalScheduleRepaired ?
+                    actualSeed.compareTo(global.minimumSeedLowerBound()) >= 0 :
+                    actualSeed.equals(global.minimumSeedLowerBound());
+            if (!validSeed || !externalTotal.equals(global.minimumExternalInput())) {
                 return TrinityDeterministicDiagnostics.unsupported();
             }
+        }
+        Map<AEKey, BigInteger> scheduleSeed = minimumSeed(
+                scheduled.value().batches(),
+                component.keys());
+        if (TrinityDeterministicFiringMath.sum(scheduleSeed).compareTo(actualSeed) > 0) {
+            return TrinityDeterministicDiagnostics.unsupported();
         }
         TrinityCompressedSchedule completeSchedule = new TrinityCompressedSchedule(
                 scheduled.value().batches(),
@@ -212,17 +279,17 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
      * deficit. Every omitted primitive unit has non-negative internal net and can therefore be appended without
      * changing the minimum initial marking.
      */
-    private TrinityAlgorithmResult<TrinityMinimumSeedSchedule> proveStartupSeed(
-                                                                                TrinityStronglyConnectedComponent component,
-                                                                                TrinityDeterministicBasis basis,
-                                                                                CycleDecomposition decomposition,
-                                                                                Map<AEKey, BigInteger> available,
-                                                                                Set<AEKey> producibleInputs,
-                                                                                Map<AEKey, BigInteger> conservationInputs,
-                                                                                BigInteger incumbentSeed,
-                                                                                BigInteger externalTotal,
-                                                                                int maxStates,
-                                                                                TrinityPlanningControl control) {
+    private TrinityAlgorithmResult<StartupProof> proveStartupSeed(
+                                                                  TrinityStronglyConnectedComponent component,
+                                                                  TrinityDeterministicBasis basis,
+                                                                  CycleDecomposition decomposition,
+                                                                  Map<AEKey, BigInteger> available,
+                                                                  Set<AEKey> producibleInputs,
+                                                                  Map<AEKey, BigInteger> conservationInputs,
+                                                                  BigInteger incumbentSeed,
+                                                                  BigInteger externalTotal,
+                                                                  int maxStates,
+                                                                  TrinityPlanningControl control) {
         Map<TrinityPatternVariant, BigInteger> residualFirings = TrinityDeterministicFiringMath.aggregate(
                 combinedOrder(decomposition.prefixOrder(), decomposition.suffixOrder()));
         Map<AEKey, BigInteger> residualNet = TrinityDeterministicFiringMath.netChange(residualFirings);
@@ -257,7 +324,7 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
                 conservationInputs,
                 incumbentSeed,
                 externalTotal);
-        return this.seedScheduler.findWithinExternalTotal(
+        TrinityAlgorithmResult<TrinityMinimumSeedSchedule> scheduled = this.seedScheduler.findWithinExternalTotal(
                 kernelFirings,
                 externalKeys,
                 internalKeys,
@@ -266,6 +333,71 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
                 externalTotal,
                 maxStates,
                 control);
+        if (!scheduled.successful()) {
+            return TrinityAlgorithmResult.failure(scheduled.diagnostic());
+        }
+        return TrinityAlgorithmResult.success(new StartupProof(scheduled.value()));
+    }
+
+    private TrinityAlgorithmResult<GlobalScheduleRepair> repairGlobalSchedule(
+                                                                              TrinityStronglyConnectedComponent component,
+                                                                              TrinityDeterministicBasis basis,
+                                                                              CycleDecomposition decomposition,
+                                                                              NormalizedCycle normalized,
+                                                                              Map<AEKey, BigInteger> available,
+                                                                              Set<AEKey> producibleInputs,
+                                                                              Map<AEKey, BigInteger> conservationInputs,
+                                                                              BigInteger incumbentSeed,
+                                                                              BigInteger externalTotal,
+                                                                              BigInteger requiredSeed,
+                                                                              BigInteger requiredExternal,
+                                                                              int maxStates,
+                                                                              TrinityPlanningControl control) {
+        TrinityAlgorithmResult<StartupProof> proved = proveStartupSeed(
+                component,
+                basis,
+                decomposition,
+                available,
+                producibleInputs,
+                conservationInputs,
+                incumbentSeed,
+                externalTotal,
+                maxStates,
+                control);
+        if (!proved.successful()) {
+            return TrinityAlgorithmResult.failure(proved.diagnostic());
+        }
+        StartupProof proof = proved.value();
+        TrinityMinimumSeedSchedule seedSchedule = proof.seedSchedule();
+        if (TrinityDeterministicFiringMath.sum(seedSchedule.minimumSeed()).compareTo(requiredSeed) < 0 ||
+                !TrinityDeterministicFiringMath.sum(seedSchedule.externalInputs()).equals(requiredExternal)) {
+            return TrinityDeterministicDiagnostics.unsupported();
+        }
+        LinkedHashMap<AEKey, BigInteger> repairedInputs = new LinkedHashMap<>(seedSchedule.externalInputs());
+        repairedInputs.putAll(seedSchedule.minimumSeed());
+        int remainingStates = Math.subtractExact(maxStates, seedSchedule.schedule().statesVisited());
+        if (remainingStates <= 0) {
+            return TrinityDeterministicDiagnostics.searchLimit(maxStates, seedSchedule.schedule().statesVisited());
+        }
+        TrinityAlgorithmResult<TrinityCompressedSchedule> repairedSchedule = schedule(
+                decomposition.prefixOrder(),
+                normalized.order(),
+                decomposition.repetitions(),
+                decomposition.suffixOrder(),
+                repairedInputs,
+                remainingStates,
+                control);
+        if (!repairedSchedule.successful()) {
+            return TrinityAlgorithmResult.failure(repairedSchedule.diagnostic());
+        }
+        return TrinityAlgorithmResult.success(new GlobalScheduleRepair(
+                decomposition,
+                Collections.unmodifiableMap(repairedInputs),
+                seedSchedule.minimumSeed(),
+                repairedSchedule.value(),
+                Math.addExact(
+                        seedSchedule.schedule().statesVisited(),
+                        repairedSchedule.value().statesVisited())));
     }
 
     private static List<TrinityVariantFiring> combinedOrder(
@@ -452,7 +584,8 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
                                                 Map<TrinityPatternVariant, BigInteger> primitiveFirings,
                                                 Map<TrinityPatternVariant, BigInteger> firings,
                                                 AEKey reservoir,
-                                                List<TrinityPatternVariant> topologicalOrder) {
+                                                List<TrinityPatternVariant> topologicalOrder,
+                                                boolean residualAfterPrimitive) {
         BigInteger repetitions = null;
         for (Map.Entry<TrinityPatternVariant, BigInteger> primitive : primitiveFirings.entrySet()) {
             BigInteger available = firings.getOrDefault(
@@ -481,7 +614,8 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
         ArrayList<TrinityVariantFiring> suffix = new ArrayList<>();
         residual.forEach((variant, count) -> {
             TrinityVariantFiring firing = new TrinityVariantFiring(variant, count);
-            if (variant.netChange().getOrDefault(reservoir, TrinityDeterministicFiringMath.ZERO).signum() > 0) {
+            if (!residualAfterPrimitive &&
+                    variant.netChange().getOrDefault(reservoir, TrinityDeterministicFiringMath.ZERO).signum() > 0) {
                 prefix.add(firing);
             } else {
                 suffix.add(firing);
@@ -808,6 +942,15 @@ final class TrinityDeterministicProofAssemblerImpl implements TrinityDeterminist
                 .min(BigInteger::compareTo)
                 .orElse(TrinityDeterministicFiringMath.ZERO);
     }
+
+    private record StartupProof(TrinityMinimumSeedSchedule seedSchedule) {}
+
+    private record GlobalScheduleRepair(
+                                        CycleDecomposition decomposition,
+                                        Map<AEKey, BigInteger> initialInputs,
+                                        Map<AEKey, BigInteger> minimumSeed,
+                                        TrinityCompressedSchedule schedule,
+                                        int statesVisited) {}
 
     private record NormalizedCycle(
                                    List<TrinityVariantFiring> order,

@@ -38,8 +38,9 @@ public record TrinityDeterministicFiringSolution(
     public TrinityDeterministicFiringSolution {
         firings = Collections.unmodifiableMap(new LinkedHashMap<>(firings));
         totalNet = Collections.unmodifiableMap(new LinkedHashMap<>(totalNet));
-        if (completeComponentProof && !leastFiringsProven) {
-            throw new IllegalArgumentException("A complete Trinity component proof must establish least firings");
+        if (completeComponentProof && !leastFiringsProven && globalOptimization.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "A complete Trinity component proof requires either least firings or global optimization");
         }
         if (globalOptimization.isPresent() && !globalOptimization.orElseThrow().firings().equals(firings)) {
             throw new IllegalArgumentException("A Trinity global firing proof must match its selected vector");

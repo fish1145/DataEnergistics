@@ -137,7 +137,6 @@ final class TrinityDeterministicFiringCalculatorImpl implements TrinityDetermini
             }
             globalOptimization = Optional.of(optimized.value());
             firings = optimized.value().firings();
-            leastFiringsProven = completeComponentProof;
         }
         Map<AEKey, BigInteger> totalNet = TrinityDeterministicFiringMath.netChange(firings);
         if (violatesLowerBounds(totalNet, netLowerBounds)) {
