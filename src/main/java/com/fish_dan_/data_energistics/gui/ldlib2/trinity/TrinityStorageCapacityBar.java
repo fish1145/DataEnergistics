@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 
 import net.minecraft.ChatFormatting;
@@ -129,14 +130,15 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
     private List<Component> tooltipLines() {
         Component capacity = this.value.unlimited() ?
                 Component.translatable("gui.data_energistics.trinity.unlimited") :
-                Component.literal(this.value.amountCapacity().toString());
-        Component stored = Component.literal(this.value.totalAmount() + "/").append(capacity);
+                Component.literal(TrinityAmountFormatter.format(this.value.amountCapacity()));
+        Component stored = Component.literal(TrinityAmountFormatter.format(this.value.totalAmount()) + "/")
+                .append(capacity);
         return List.of(
-                exactAmountLine("gui.ae2.Items", this.value.itemAmount().toString()),
-                exactAmountLine("gui.ae2.Fluids", this.value.fluidAmount().toString()),
+                exactAmountLine("gui.ae2.Items", TrinityAmountFormatter.format(this.value.itemAmount())),
+                exactAmountLine("gui.ae2.Fluids", TrinityAmountFormatter.format(this.value.fluidAmount())),
                 Component.translatable(
                         "screen.data_energistics.trinity_data_core.storage_other_keys",
-                        this.value.otherKeyAmount()).withStyle(ChatFormatting.GRAY),
+                        TrinityAmountFormatter.format(this.value.otherKeyAmount())).withStyle(ChatFormatting.GRAY),
                 Component.translatable("screen.data_energistics.trinity_data_core.storage_amount", stored)
                         .withStyle(ChatFormatting.GRAY));
     }
