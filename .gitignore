@@ -21,8 +21,8 @@ classes/
 .codex
 .settings
 *.launch
-.architectury-transformer/debug.log
-src/generated/resources/.cache/
+/logs/
+/src/generated/resources/.cache/
 
 *.patch
 *.DS_Store

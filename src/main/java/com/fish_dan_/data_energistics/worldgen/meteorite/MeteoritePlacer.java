@@ -260,7 +260,7 @@ public final class MeteoritePlacer {
                                 this.putter.put(this.level, pos, dy < 0 ? coreColumn.lowerMotherRock() : coreColumn.upperMotherRock());
                             }
                         } else if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(dz) > 1) {
-                            this.putter.put(this.level, pos, this.pickOuterMeteoriteBlock(dy));
+                            this.putter.put(this.level, pos, this.pickOuterMeteoriteBlock(distance));
                         }
                     }
                 }
@@ -313,21 +313,20 @@ public final class MeteoritePlacer {
         return this.quartzGrowthStages.get(this.random.nextInt(this.quartzGrowthStages.size()));
     }
 
-    private BlockState pickOuterMeteoriteBlock(int dy) {
-        float heightFactor = (float) dy / 8.0F;
+    private BlockState pickOuterMeteoriteBlock(double distance) {
+        double normalizedDistance = Math.sqrt(distance / this.squaredMeteoriteSize);
+        double surfaceFactor = normalizedDistance * normalizedDistance * normalizedDistance;
 
-        float shatteredWeight = Math.max(0.0F, 1.0F - heightFactor) * 0.15F;
-        float exposedWeight = Math.max(0.0F, 0.5F - Math.abs(heightFactor - 0.3F)) * 2.0F;
-        float crackedWeight = Math.max(0.0F, heightFactor + 0.3F) * 2.0F;
-        float skyStoneWeight = Math.max(0.0F, heightFactor + 0.7F) * 2.0F;
+        double shatteredWeight = 0.02D + surfaceFactor * 0.43D;
+        double exposedWeight = 0.08D + surfaceFactor * 0.22D;
+        double crackedWeight = 0.75D - surfaceFactor * 0.55D;
+        double skyStoneWeight = 0.15D - surfaceFactor * 0.10D;
 
-        float totalWeight = shatteredWeight + exposedWeight + crackedWeight + skyStoneWeight;
-        if (totalWeight == 0.0F) totalWeight = 1.0F;
+        double totalWeight = shatteredWeight + exposedWeight + crackedWeight + skyStoneWeight;
 
         shatteredWeight /= totalWeight;
         exposedWeight /= totalWeight;
         crackedWeight /= totalWeight;
-        skyStoneWeight /= totalWeight;
 
         float roll = this.random.nextFloat();
         if (roll < shatteredWeight) {

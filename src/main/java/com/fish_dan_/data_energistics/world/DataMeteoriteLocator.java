@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -28,7 +29,8 @@ public final class DataMeteoriteLocator {
 
     public static Optional<BlockPos> findOrDiscoverClosest(ServerLevel level, ChunkPos chunkPos, int y) {
         DataMeteoriteSavedData meteorites = DataMeteoriteSavedData.get(level);
-        Optional<BlockPos> closest = Optional.ofNullable(meteorites.findClosest(chunkPos));
+        Optional<BlockPos> closest = Optional.ofNullable(
+                meteorites.findClosest(chunkPos, pos -> isTargetStillPresent(level, pos)));
         if (closest.isPresent()) {
             return closest;
         }
@@ -44,7 +46,7 @@ public final class DataMeteoriteLocator {
                 METEORITE_STRUCTURES,
                 origin,
                 SEARCH_RADIUS_CHUNKS,
-                false));
+                false)).filter(pos -> isTargetStillPresent(level, pos));
         closest.ifPresent(meteorites::add);
         return closest;
     }
@@ -115,6 +117,10 @@ public final class DataMeteoriteLocator {
                                     chunk.getPos().getMinBlockX() + localX,
                                     minY + localY,
                                     chunk.getPos().getMinBlockZ() + localZ);
+                            if (!isDataMeteoriteCenter(level, pos)) {
+                                continue;
+                            }
+
                             double distance = origin.distSqr(pos.atY(0));
                             if (distance < closestDistance) {
                                 closest = pos;
@@ -126,5 +132,35 @@ public final class DataMeteoriteLocator {
             }
         }
         return closest;
+    }
+
+    private static boolean isTargetStillPresent(ServerLevel level, BlockPos pos) {
+        ChunkPos chunkPos = new ChunkPos(pos);
+        LevelChunk chunk = level.getChunkSource().getChunk(chunkPos.x, chunkPos.z, false);
+        return chunk == null || chunk.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block());
+    }
+
+    private static boolean isDataMeteoriteCenter(ServerLevel level, BlockPos center) {
+        for (int axis = 0; axis < 3; axis++) {
+            for (int offset = -2; offset <= 2; offset += 4) {
+                BlockPos nearby = switch (axis) {
+                    case 0 -> center.offset(offset, 0, 0);
+                    case 1 -> center.offset(0, offset, 0);
+                    case 2 -> center.offset(0, 0, offset);
+                    default -> throw new IllegalStateException("Unexpected axis: " + axis);
+                };
+
+                ChunkPos chunkPos = new ChunkPos(nearby);
+                LevelChunk chunk = level.getChunkSource().getChunk(chunkPos.x, chunkPos.z, false);
+                if (chunk != null && isDataMeteoriteBlock(chunk.getBlockState(nearby).getBlock())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isDataMeteoriteBlock(Block block) {
+        return block == ModBlocks.ENDER_COHESION_METEORITE_0.get() || block == ModBlocks.ENDER_COHESION_METEORITE_1.get() || block == ModBlocks.ENDER_COHESION_METEORITE_2.get();
     }
 }
