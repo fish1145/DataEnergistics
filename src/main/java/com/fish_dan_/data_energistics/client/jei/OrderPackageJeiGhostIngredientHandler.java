@@ -1,11 +1,13 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.client.OrderPackageGhostIngredient;
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
 
 import net.minecraft.client.renderer.Rect2i;
 
+import appeng.api.stacks.GenericStack;
 import appeng.menu.slot.FakeSlot;
 import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
@@ -20,7 +22,7 @@ final class OrderPackageJeiGhostIngredientHandler implements IGhostIngredientHan
     @Override
     public <I> List<Target<I>> getTargetsTyped(OrderPackageScreen screen, ITypedIngredient<I> ingredient,
                                                boolean doStart) {
-        var converted = OrderPackageGhostIngredient.toGenericStack(ingredient.getIngredient());
+        var converted = toGenericStack(ingredient);
         if (converted == null) {
             return List.of();
         }
@@ -49,7 +51,7 @@ final class OrderPackageJeiGhostIngredientHandler implements IGhostIngredientHan
 
             @Override
             public void accept(I droppedIngredient) {
-                var dropped = OrderPackageGhostIngredient.toGenericStack(droppedIngredient);
+                var dropped = toGenericStack(droppedIngredient);
                 if (dropped == null) {
                     return;
                 }
@@ -59,6 +61,17 @@ final class OrderPackageJeiGhostIngredientHandler implements IGhostIngredientHan
                 }
             }
         });
+    }
+
+    private static <I> GenericStack toGenericStack(ITypedIngredient<I> ingredient) {
+        return toGenericStack(ingredient.getIngredient());
+    }
+
+    private static GenericStack toGenericStack(Object ingredient) {
+        if (ingredient instanceof DataResourceJeiIngredient dataResourceIngredient) {
+            return dataResourceIngredient.asGenericStack();
+        }
+        return OrderPackageGhostIngredient.toGenericStack(ingredient);
     }
 
     @Override

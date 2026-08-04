@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.emi;
+package com.fish_dan_.data_energistics.client.xei.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
@@ -14,11 +14,11 @@ import lombok.experimental.Accessors;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Identifies every Data Energistics custom AE resource that has a native EMI stack.
+ * Identifies every Data Energistics custom AE resource shared by recipe viewer adapters.
  */
 @Getter
 @Accessors(fluent = true)
-public enum DataResourceEmiKey {
+public enum DataResourceKey {
 
     DATA(DataKey.ID, DataKey.of()),
     DATA_FLOW(DataFlowKey.ID, DataFlowKey.of()),
@@ -27,33 +27,33 @@ public enum DataResourceEmiKey {
     private final ResourceLocation id;
     private final AEKey aeKey;
 
-    DataResourceEmiKey(ResourceLocation id, AEKey aeKey) {
+    DataResourceKey(ResourceLocation id, AEKey aeKey) {
         if (!ModAE2Keys.isCustomKey(aeKey) || !id.equals(aeKey.getId())) {
-            throw invalid("EMI identity is not backed by a matching Data Energistics custom key: " + id);
+            throw invalid("Data resource key is not backed by a matching Data Energistics custom key: " + id);
         }
         this.id = id;
         this.aeKey = aeKey;
     }
 
-    public static DataResourceEmiKey fromId(ResourceLocation id) {
-        for (DataResourceEmiKey key : values()) {
+    public static DataResourceKey fromId(ResourceLocation id) {
+        for (DataResourceKey key : values()) {
             if (key.id.equals(id)) {
                 return key;
             }
         }
-        throw invalid("Unsupported Data Energistics EMI stack id: " + id);
+        throw invalid("Unsupported Data Energistics resource key id: " + id);
     }
 
-    public static @Nullable DataResourceEmiKey fromAeKey(AEKey aeKey) {
+    public static @Nullable DataResourceKey fromAeKey(AEKey aeKey) {
         if (!ModAE2Keys.isCustomKey(aeKey)) {
             return null;
         }
-        for (DataResourceEmiKey key : values()) {
+        for (DataResourceKey key : values()) {
             if (key.aeKey.equals(aeKey)) {
                 return key;
             }
         }
-        throw invalid("Missing native EMI identity for Data Energistics custom key: " + aeKey);
+        throw invalid("Missing shared identity for Data Energistics custom key: " + aeKey);
     }
 
     private static IllegalArgumentException invalid(String message) {

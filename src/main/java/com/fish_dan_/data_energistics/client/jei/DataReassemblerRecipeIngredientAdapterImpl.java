@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.recipe.DataReassemblerRecipeIngredientAdapter;
 
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +19,7 @@ import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,13 +30,11 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
 
     @Override
     public void registerItemSlot(ItemSlot element, IngredientIO role, List<ItemStack> candidates) {
-        LDLibJEIPlugin.recipeIngredient(element, role, () -> candidates.stream()
-                .map(DataReassemblerRecipeIngredientAdapterImpl::toTypedItem)
-                .toList());
+        LDLibJEIPlugin.recipeIngredient(element, role, () -> toTypedItems(candidates));
         LDLibJEIPlugin.recipeSlot(
                 element,
                 () -> toTypedItem(element.getValue()),
-                () -> candidates.stream().map(DataReassemblerRecipeIngredientAdapterImpl::toTypedItem).toList());
+                () -> toTypedItems(candidates));
     }
 
     @Override
@@ -52,12 +52,28 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
                 .orElseThrow(() -> rejectedIngredient("item", stack));
     }
 
+    private static List<ITypedIngredient<?>> toTypedItems(List<ItemStack> candidates) {
+        List<ITypedIngredient<?>> typedIngredients = new ArrayList<>(candidates.size());
+        for (ItemStack candidate : candidates) {
+            typedIngredients.add(toTypedItem(candidate));
+        }
+        return typedIngredients;
+    }
+
     private static ITypedIngredient<?> toTypedGenericStack(GenericStack stack) {
         if (stack.what() instanceof AEFluidKey fluidKey) {
             int renderAmount = (int) Math.min(Integer.MAX_VALUE, stack.amount());
             FluidStack fluidStack = fluidKey.toStack(renderAmount);
             return LDLibJEIPlugin.createTypedIngredient(NeoForgeTypes.FLUID_STACK, fluidStack)
                     .orElseThrow(() -> rejectedIngredient("fluid", fluidStack));
+        }
+
+        DataResourceJeiIngredient dataResourceIngredient = DataResourceJeiIngredient.from(stack);
+        if (dataResourceIngredient != null) {
+            return LDLibJEIPlugin.createTypedIngredient(
+                    DataResourceJeiIngredient.TYPE,
+                    dataResourceIngredient)
+                    .orElseThrow(() -> rejectedIngredient("data resource", dataResourceIngredient));
         }
 
         ItemStack wrapped = WrappedGenericStack.wrap(stack);

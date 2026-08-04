@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.client.emi;
+package com.fish_dan_.data_energistics.client.emi.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +29,7 @@ public final class DataResourceEmiStackSerializer implements EmiStackSerializer<
         if (!componentChanges.isEmpty()) {
             throw invalid("Data resource EMI stacks do not support components: " + id);
         }
-        return new DataResourceEmiStack(DataResourceEmiKey.fromId(id), amount);
+        return new DataResourceEmiStack(DataResourceKey.fromId(id), amount);
     }
 
     private static IllegalArgumentException invalid(String message) {

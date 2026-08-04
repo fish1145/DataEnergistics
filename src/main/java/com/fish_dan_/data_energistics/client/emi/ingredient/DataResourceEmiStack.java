@@ -1,8 +1,9 @@
-package com.fish_dan_.data_energistics.client.emi;
+package com.fish_dan_.data_energistics.client.emi.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -27,9 +28,9 @@ import java.util.List;
  */
 public final class DataResourceEmiStack extends EmiStack {
 
-    private final DataResourceEmiKey key;
+    private final DataResourceKey key;
 
-    public DataResourceEmiStack(DataResourceEmiKey key, long amount) {
+    public DataResourceEmiStack(DataResourceKey key, long amount) {
         if (amount <= 0L) {
             throw invalid("Data resource EMI stack amount must be positive: " + amount);
         }
@@ -58,7 +59,7 @@ public final class DataResourceEmiStack extends EmiStack {
     }
 
     @Override
-    public DataResourceEmiKey getKey() {
+    public DataResourceKey getKey() {
         return key;
     }
 

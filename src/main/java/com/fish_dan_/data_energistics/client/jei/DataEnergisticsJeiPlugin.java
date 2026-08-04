@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
@@ -45,6 +48,7 @@ import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
+import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
@@ -72,6 +76,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public ResourceLocation getPluginUid() {
         return Data_Energistics.id("jei_plugin");
+    }
+
+    @Override
+    public void registerIngredients(IModIngredientRegistration registration) {
+        registration.register(
+                DataResourceJeiIngredient.TYPE,
+                DataResourceJeiIngredient.ALL_INGREDIENTS,
+                DataResourceJeiIngredientHelper.INSTANCE,
+                DataResourceJeiIngredientRenderer.INSTANCE,
+                DataResourceJeiIngredient.CODEC);
     }
 
     @Override

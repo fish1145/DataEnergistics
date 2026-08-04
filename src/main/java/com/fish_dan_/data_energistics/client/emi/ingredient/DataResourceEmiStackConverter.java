@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.client.emi;
+package com.fish_dan_.data_energistics.client.emi.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 
 import appeng.api.integrations.emi.EmiStackConverter;
 import appeng.api.stacks.GenericStack;
@@ -18,12 +19,12 @@ public final class DataResourceEmiStackConverter implements EmiStackConverter {
 
     @Override
     public Class<?> getKeyType() {
-        return DataResourceEmiKey.class;
+        return DataResourceKey.class;
     }
 
     @Override
     public @Nullable EmiStack toEmiStack(GenericStack stack) {
-        DataResourceEmiKey key = DataResourceEmiKey.fromAeKey(stack.what());
+        DataResourceKey key = DataResourceKey.fromAeKey(stack.what());
         if (key == null) {
             return null;
         }
@@ -41,7 +42,7 @@ public final class DataResourceEmiStackConverter implements EmiStackConverter {
         if (stack.isEmpty()) {
             return null;
         }
-        DataResourceEmiKey key = stack.getKeyOfType(DataResourceEmiKey.class);
+        DataResourceKey key = stack.getKeyOfType(DataResourceKey.class);
         if (key == null) {
             return null;
         }

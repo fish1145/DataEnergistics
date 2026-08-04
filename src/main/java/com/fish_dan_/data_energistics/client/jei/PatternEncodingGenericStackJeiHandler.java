@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.jei;
 
+import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -34,6 +35,12 @@ final class PatternEncodingGenericStackJeiHandler<T extends AbstractContainerScr
         if (stack.what() instanceof AEFluidKey fluidKey) {
             FluidStack fluidStack = fluidKey.toStack((int) Math.max(1L, Math.min(Integer.MAX_VALUE, stack.amount())));
             return builder.createBuilder(NeoForgeTypes.FLUID_STACK, fluidStack).buildWithArea(hovered.bounds());
+        }
+
+        DataResourceJeiIngredient dataResourceIngredient = DataResourceJeiIngredient.from(stack);
+        if (dataResourceIngredient != null) {
+            return builder.createBuilder(DataResourceJeiIngredient.TYPE, dataResourceIngredient)
+                    .buildWithArea(hovered.bounds());
         }
 
         return builder.createBuilder(stack.what().wrapForDisplayOrFilter()).buildWithArea(hovered.bounds());
