@@ -3,9 +3,13 @@ package com.fish_dan_.data_energistics.client;
 import com.fish_dan_.data_energistics.network.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
+
+import appeng.core.definitions.AEBlocks;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -30,12 +34,19 @@ public final class DataMeteoriteCompassClientCache {
     public static BlockPos getClosestMeteorite(ChunkPos chunkPos, boolean prefetch) {
         long now = System.currentTimeMillis();
         expireOldResults(now);
+        ClientLevel level = Minecraft.getInstance().level;
 
         CachedResult cached = REQUESTS.get(chunkPos.toLong());
         BlockPos result = cached == null ? null : cached.closestMeteoritePos();
+        if (!isTargetStillPresent(level, result)) {
+            REQUESTS.remove(chunkPos.toLong());
+            cached = null;
+            result = null;
+        }
+
         boolean request = cached == null || shouldRefresh(cached, now);
         if (result == null) {
-            result = findClosestKnownResult(chunkPos);
+            result = findClosestKnownResult(level, chunkPos);
         }
 
         if (request) {
@@ -71,12 +82,12 @@ public final class DataMeteoriteCompassClientCache {
     }
 
     @Nullable
-    private static BlockPos findClosestKnownResult(ChunkPos chunkPos) {
+    private static BlockPos findClosestKnownResult(@Nullable ClientLevel level, ChunkPos chunkPos) {
         long closestDistance = Long.MAX_VALUE;
         BlockPos result = null;
         for (Map.Entry<Long, CachedResult> entry : REQUESTS.entrySet()) {
             BlockPos closestPos = entry.getValue().closestMeteoritePos();
-            if (closestPos != null) {
+            if (closestPos != null && isTargetStillPresent(level, closestPos)) {
                 long distance = chunkPos.distanceSquared(entry.getKey());
                 if (distance < closestDistance) {
                     closestDistance = distance;
@@ -85,6 +96,13 @@ public final class DataMeteoriteCompassClientCache {
             }
         }
         return result;
+    }
+
+    private static boolean isTargetStillPresent(@Nullable ClientLevel level, @Nullable BlockPos pos) {
+        return pos == null
+                || level == null
+                || !level.hasChunkAt(pos)
+                || level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block());
     }
 
     private record CachedResult(@Nullable BlockPos closestMeteoritePos, long received) {}
