@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
@@ -35,11 +34,6 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     private static final float CRYSTAL_MODEL_OFFSET_Y = -1.75f;
     private static final float CRYSTAL_MODEL_OFFSET_Z = -0.5f;
     private static final double RENDER_BOX_HEIGHT = 4.0d;
-    private static final double RANGE_LINE_INSET = 0.03125d;
-    private static final float RANGE_LINE_RED = 0.2f;
-    private static final float RANGE_LINE_GREEN = 0.85f;
-    private static final float RANGE_LINE_BLUE = 1.0f;
-    private static final float RANGE_LINE_ALPHA = 0.5f;
     private static final ModelResourceLocation CRYSTAL_OFFLINE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off"));
     private static final ModelResourceLocation CRYSTAL_ONLINE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on"));
 
@@ -55,16 +49,6 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     public void render(@NotNull DataDistributionTowerBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
         renderCrystal(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
-
-        if (blockEntity.isRangeDisplayEnabled()) {
-            AABB aabb = blockEntity.getCoverageAabb().move(
-                    -blockEntity.getBlockPos().getX(),
-                    -blockEntity.getBlockPos().getY(),
-                    -blockEntity.getBlockPos().getZ()).deflate(RANGE_LINE_INSET);
-
-            var consumer = buffer.getBuffer(RenderType.lines());
-            LevelRenderer.renderLineBox(poseStack, consumer, aabb, RANGE_LINE_RED, RANGE_LINE_GREEN, RANGE_LINE_BLUE, RANGE_LINE_ALPHA);
-        }
     }
 
     @Override
