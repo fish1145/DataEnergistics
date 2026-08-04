@@ -31,7 +31,7 @@ public record MultiblockXeiIngredient(IngredientIO io, PreviewMaterial material)
     }
 
     /**
-     * Maps all selected materials to INPUT and appends exactly one owner/controller OUTPUT.
+     * Maps all selected structure and controller materials to INPUT and appends one marked order-package OUTPUT.
      */
     public static List<MultiblockXeiIngredient> from(MultiblockRecipeView view) {
         if (view == null) {

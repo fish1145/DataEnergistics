@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
+import com.fish_dan_.data_energistics.item.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
@@ -35,6 +36,7 @@ import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
 import com.fish_dan_.data_energistics.menu.MeVacuumMenu;
+import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
@@ -128,6 +130,11 @@ public final class ModMenus {
             .create(MeVacuumMenu::new, MeVacuumMenuHost.class)
             .withMenuTitle(host -> Component.translatable("item." + Data_Energistics.MODID + ".me_vacuum"))
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_vacuum")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<OrderPackageMenu>> ORDER_PACKAGE = MENUS.register("order_package", () -> MenuTypeBuilder
+            .create(OrderPackageMenu::new, OrderPackageMenuHost.class)
+            .withMenuTitle(host -> Component.translatable("item." + Data_Energistics.MODID + ".order_package"))
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "order_package")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR = MENUS.register("data_teleport_anchor", () -> MenuTypeBuilder
             .create(DataTeleportAnchorMenu::new, DataTeleportAnchorBlockEntity.class)
