@@ -119,6 +119,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final int OUTPUT_PER_SPEED_CARD = 800;
     private static final int OUTPUT_REDUCTION_DIVISOR = 7;
     private static final int OUTPUT_SCALE = 2;
+    /** Number of real biology loot simulations sampled before scaling a work-cycle result. */
+    private static final int BIOLOGY_LOOT_SAMPLE_ROLLS = 10;
+    /** Server ticks before cached biology loot samples are refreshed. */
+    private static final int BIOLOGY_LOOT_SAMPLE_REFRESH_INTERVAL_TICKS = 200;
     private static final int PENDING_OUTPUT_FLUSH_INTERVAL_TICKS = 5;
     private static final int PENDING_OUTPUT_OFFER_BUDGET = 64;
     private static final int UPGRADE_SLOTS = 6;
@@ -177,6 +181,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private boolean adjacentHandlersDirty = true;
     private Player cachedFakePlayer;
     private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
+    /** Reuses sampled biology results between refreshes to keep entity simulation off the hot work-cycle path. */
+    private final Map<BiologyLootSampleKey, BiologyLootSamples> biologyLootSamples = new HashMap<>();
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -999,6 +1005,23 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return new GeneratedLoot(repeatStacks(fixedOutputs, getBiologyLootRollsPerCycle()), 0);
         }
 
+        int targetRolls = getBiologyLootRollsPerCycle();
+        List<GeneratedLoot> samples = getBiologyLootSamples(serverLevel, entityId, entityType, fixedOutputs);
+        return scaleGeneratedLoot(samples, targetRolls);
+    }
+
+    private List<GeneratedLoot> getBiologyLootSamples(
+                                                      ServerLevel serverLevel,
+                                                      ResourceLocation entityId,
+                                                      EntityType<?> entityType,
+                                                      List<ItemStack> fixedOutputs) {
+        BiologyLootSampleKey cacheKey = new BiologyLootSampleKey(entityId, !fixedOutputs.isEmpty());
+        long gameTime = serverLevel.getGameTime();
+        BiologyLootSamples cached = this.biologyLootSamples.get(cacheKey);
+        if (cached != null && gameTime >= cached.refreshedAt() && gameTime - cached.refreshedAt() < BIOLOGY_LOOT_SAMPLE_REFRESH_INTERVAL_TICKS) {
+            return cached.samples();
+        }
+
         Player fakePlayer = getFakePlayer(serverLevel);
         fakePlayer.moveTo(
                 this.worldPosition.getX() + 0.5,
@@ -1007,11 +1030,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 fakePlayer.getYRot(),
                 fakePlayer.getXRot());
 
-        ArrayList<ItemStack> drops = new ArrayList<>();
-        long experience = 0L;
-        for (int roll = 0; roll < getBiologyLootRollsPerCycle(); roll++) {
+        int sampleRolls = Math.min(BIOLOGY_LOOT_SAMPLE_ROLLS, getBiologyLootRollsPerCycle());
+        List<GeneratedLoot> samples = new ArrayList<>(sampleRolls);
+        for (int roll = 0; roll < sampleRolls; roll++) {
+            GeneratedLoot rollLoot = GeneratedLoot.empty();
             Entity entity = entityType.create(serverLevel);
             if (!(entity instanceof LivingEntity livingEntity)) {
+                samples.add(rollLoot);
                 continue;
             }
 
@@ -1029,22 +1054,22 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
             if (fixedOutputs.isEmpty()) {
                 for (LivingEntity simulatedEntity : simulatedEntities) {
-                    GeneratedLoot generatedLoot = simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer);
-                    drops.addAll(generatedLoot.stacks());
-                    experience = saturatedAdd(experience, generatedLoot.experience());
+                    rollLoot = rollLoot.merge(simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer));
                 }
             } else {
-                addCopies(drops, fixedOutputs);
+                rollLoot = new GeneratedLoot(List.copyOf(fixedOutputs), 0L);
                 for (LivingEntity simulatedEntity : simulatedEntities) {
-                    GeneratedLoot generatedLoot = simulateEntityExperience(serverLevel, simulatedEntity, fakePlayer);
-                    experience = saturatedAdd(experience, generatedLoot.experience());
+                    rollLoot = rollLoot.merge(simulateEntityExperience(serverLevel, simulatedEntity, fakePlayer));
                 }
             }
             for (LivingEntity simulatedEntity : simulatedEntities) {
                 simulatedEntity.discard();
             }
+            samples.add(rollLoot);
         }
-        return new GeneratedLoot(drops, experience);
+        List<GeneratedLoot> refreshed = List.copyOf(samples);
+        this.biologyLootSamples.put(cacheKey, new BiologyLootSamples(refreshed, gameTime));
+        return refreshed;
     }
 
     private static List<ItemStack> getBuiltInBiologyMimeticOutputs(ServerLevel serverLevel, ResourceLocation entityId) {
@@ -1089,6 +1114,28 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 target.add(stack.copy());
             }
         }
+    }
+
+    /**
+     * Scales sampled biology rolls to the configured work-cycle count while retaining each sample's output shape.
+     *
+     * @param samples     one generated result per real sample roll
+     * @param targetRolls configured number of logical rolls in the work cycle
+     * @return scaled item and experience output
+     */
+    private static GeneratedLoot scaleGeneratedLoot(List<GeneratedLoot> samples, int targetRolls) {
+        if (samples.isEmpty() || targetRolls <= 0) {
+            return GeneratedLoot.empty();
+        }
+
+        int baseRepetitions = targetRolls / samples.size();
+        int remainder = targetRolls % samples.size();
+        GeneratedLoot scaled = GeneratedLoot.empty();
+        for (int sample = 0; sample < samples.size(); sample++) {
+            int repetitions = baseRepetitions + (sample < remainder ? 1 : 0);
+            scaled = scaled.merge(samples.get(sample).repeat(repetitions));
+        }
+        return scaled;
     }
 
     private List<LivingEntity> collectSimulatedLivingEntities(LivingEntity rootEntity) {
@@ -1883,6 +1930,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         private final EnumMap<Direction, Integer> nextSlots = new EnumMap<>(Direction.class);
     }
 
+    /** Identifies one cached biology sample set by entity and fixed-output mode. */
+    private record BiologyLootSampleKey(ResourceLocation entityId, boolean hasFixedOutputs) {}
+
+    /** Caches sampled biology results until the next refresh timestamp. */
+    private record BiologyLootSamples(List<GeneratedLoot> samples, long refreshedAt) {}
+
     /**
      * Captures the item and experience output of one or more simulated loot rolls.
      *
@@ -1904,6 +1957,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             mergedStacks.addAll(this.stacks);
             mergedStacks.addAll(other.stacks);
             return new GeneratedLoot(mergedStacks, saturatedAdd(this.experience, other.experience));
+        }
+
+        private GeneratedLoot repeat(int repetitions) {
+            if (repetitions <= 0) {
+                return empty();
+            }
+            return new GeneratedLoot(repeatStacks(this.stacks, repetitions), saturatedMultiply(this.experience, repetitions));
         }
     }
 
