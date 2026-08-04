@@ -653,6 +653,17 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     /**
+     * Replaces the worker's transient schedule after its persisted suspension state changes.
+     */
+    void workerSuspensionChanged(TrinityDataCoreVirtualCpu worker) {
+        if (this.retainedWorkers.get(worker.number()) != worker) {
+            return;
+        }
+        cacheLastModified(worker);
+        scheduleFromEvent(worker);
+    }
+
+    /**
      * Enqueues one background proposal completion without touching worker or grid state off-thread.
      */
     void workerProposalCompleted(int workerNumber) {

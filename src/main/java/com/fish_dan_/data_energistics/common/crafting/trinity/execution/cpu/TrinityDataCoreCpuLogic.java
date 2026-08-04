@@ -2000,10 +2000,11 @@ final class TrinityDataCoreCpuLogic {
      * Suspends or resumes only this worker's active job without changing host lifecycle state.
      *
      * @param suspended requested scheduling state
+     * @return whether the active job changed scheduling state
      */
-    void setJobSuspended(boolean suspended) {
+    boolean setJobSuspended(boolean suspended) {
         if (this.job == null || this.job.suspended == suspended) {
-            return;
+            return false;
         }
         this.proposalCoordinator.cancel();
         this.proposalRetryAt = -1L;
@@ -2011,6 +2012,7 @@ final class TrinityDataCoreCpuLogic {
         this.job.suspended = suspended;
         this.lastModifiedOnTick = TickHandler.instance().getCurrentTick();
         this.cpu.markDirty();
+        return true;
     }
 
     /**

@@ -254,21 +254,22 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 fixture.grid());
         restoredHost.setLevel(helper.getLevel());
         restoredHost.loadTag(saved, helper.getLevel().registryAccess());
-        TrinityDataCoreVirtualCpu restoredCpu = singleBusyWorker(restoredHost.getCraftingRuntime());
+        TrinityDataCoreCraftingRuntime restoredRuntime = restoredHost.getCraftingRuntime();
+        TrinityDataCoreVirtualCpu restoredCpu = singleBusyWorker(restoredRuntime);
 
         helper.assertValueEqual(
                 restoredCpu.insert(fixture.output(), 1L, Actionable.MODULATE),
                 1L,
                 "The restored worker must accept the pre-reload in-flight output");
         restoredCpu.setJobSuspended(true);
-        restoredCpu.tick(
+        restoredRuntime.tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
                 CraftingDispatchWindow.create(oneAttempt));
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "A suspended restored worker must not dispatch new provider work");
         restoredCpu.setJobSuspended(false);
-        restoredCpu.tick(
+        restoredRuntime.tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
                 CraftingDispatchWindow.create(oneAttempt));
@@ -278,7 +279,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 restoredCpu.insert(fixture.output(), 1L, Actionable.MODULATE),
                 1L,
                 "The restored worker must accept the final output once");
-        restoredCpu.tick(
+        restoredRuntime.tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
                 CraftingDispatchWindow.create(oneAttempt));

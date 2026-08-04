@@ -365,8 +365,8 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param suspended requested scheduling state
      */
     public void setJobSuspended(boolean suspended) {
-        if (number() != 0) {
-            this.logic.setJobSuspended(suspended);
+        if (number() != 0 && this.logic.setJobSuspended(suspended)) {
+            this.runtime.workerSuspensionChanged(this);
         }
     }
 
