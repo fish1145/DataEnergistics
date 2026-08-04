@@ -25,6 +25,7 @@ import java.util.Set;
 public class EnderCohesionMeteoriteBlock extends Block {
 
     private static final String USELESS_MOD_ID = "useless_mod";
+    private static final int MAX_FORTUNE_LEVEL = 3;
     private static final int TELEPORT_HALF_RANGE = 3;
     private final float dispersingDataChance;
     private final float enderDustChance;
@@ -81,9 +82,10 @@ public class EnderCohesionMeteoriteBlock extends Block {
     }
 
     public static int getFortuneLevel(ServerLevel level, ItemStack tool) {
-        return EnchantmentHelper.getItemEnchantmentLevel(
+        int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
                 tool);
+        return capFortuneLevel(fortuneLevel);
     }
 
     private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {
@@ -108,9 +110,13 @@ public class EnderCohesionMeteoriteBlock extends Block {
     }
 
     private static int getFortuneScaledRolls(float baseChance, int fortuneLevel, RandomSource random) {
-        float scaledChance = baseChance * (Math.max(0, fortuneLevel) + 1);
+        float scaledChance = baseChance * (capFortuneLevel(fortuneLevel) + 1);
         int rolls = (int) scaledChance;
         return random.nextFloat() < scaledChance - rolls ? rolls + 1 : rolls;
+    }
+
+    private static int capFortuneLevel(int fortuneLevel) {
+        return Math.min(MAX_FORTUNE_LEVEL, Math.max(0, fortuneLevel));
     }
 
     private static void teleportRandomly(ServerLevel level, ServerPlayer player, RandomSource random) {
