@@ -10,7 +10,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.core.definitions.AEBlocks;
-
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -99,10 +98,7 @@ public final class DataMeteoriteCompassClientCache {
     }
 
     private static boolean isTargetStillPresent(@Nullable ClientLevel level, @Nullable BlockPos pos) {
-        return pos == null
-                || level == null
-                || !level.hasChunkAt(pos)
-                || level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block());
+        return pos == null || level == null || !level.hasChunkAt(pos) || level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block());
     }
 
     private record CachedResult(@Nullable BlockPos closestMeteoritePos, long received) {}

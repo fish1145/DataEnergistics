@@ -30,9 +30,7 @@ public final class DataMeteoriteCompassTargetInvalidation {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (event.isCanceled()
-                || !(event.getLevel() instanceof ServerLevel level)
-                || !event.getState().is(AEBlocks.MYSTERIOUS_CUBE.block())) {
+        if (event.isCanceled() || !(event.getLevel() instanceof ServerLevel level) || !event.getState().is(AEBlocks.MYSTERIOUS_CUBE.block())) {
             return;
         }
 

@@ -161,8 +161,6 @@ public final class DataMeteoriteLocator {
     }
 
     private static boolean isDataMeteoriteBlock(Block block) {
-        return block == ModBlocks.ENDER_COHESION_METEORITE_0.get()
-                || block == ModBlocks.ENDER_COHESION_METEORITE_1.get()
-                || block == ModBlocks.ENDER_COHESION_METEORITE_2.get();
+        return block == ModBlocks.ENDER_COHESION_METEORITE_0.get() || block == ModBlocks.ENDER_COHESION_METEORITE_1.get() || block == ModBlocks.ENDER_COHESION_METEORITE_2.get();
     }
 }
