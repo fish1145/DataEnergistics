@@ -256,7 +256,7 @@ final class TrinityCyclePlanSelectorImpl implements TrinityCyclePlanSelector {
         boolean internallySettled = internalKeys.stream().allMatch(key -> {
             BigInteger amount = netChange.getOrDefault(key, BigInteger.ZERO);
             BigInteger requested = demand.requiredNetChangeLowerBounds().get(key);
-            return requested == null ? amount.signum() == 0 : amount.compareTo(requested) >= 0;
+            return requested == null ? amount.signum() <= 0 : amount.compareTo(requested) >= 0;
         });
         netChange.forEach((key, amount) -> {
             if (amount.signum() > 0 &&

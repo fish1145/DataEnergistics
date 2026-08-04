@@ -314,8 +314,9 @@ minimum seed 必须等于“任意首个 transition 的最小输入”这一弱�
 修复：增加 proof-carrying `TrinityCycleMacro`，只对 primitive 内部净变化非负、请求边界输出已完整结算且 residual 为唯一生产者
 DAG 的 SCC 生效。重复次数由聚合边界需求一次求得；有 residual 时只搜索“完整 residual + 覆盖其 reservoir 亏空所需的最少
 primitive 单元”这一证明核，其余单元直接保留为 `BigInteger` repeat count。下游只能看到计划显式证明的 settled export，内部
-stage 余额和 seed 保持私有。通用 joint 候选在请求内部 key 时还要求其它内部 key 精确归零；只请求环外输出时允许保留非负
-内部工作余额，但不允许导出。unit order 合并相邻同样板 firing；输入替代在展开前按聚合消耗与余留物效果合并等价绑定，
+stage 余额和 seed 保持私有。请求内部 key 时，未请求内部 key 的正净增继续阻止导出；经过最终余额约束验证的负净变化只代表
+消耗预留库存，不再被误判为未结算。只请求环外输出时允许保留非负内部工作余额，但不允许导出。unit order 合并相邻同样板 firing；
+输入替代在展开前按聚合消耗与余留物效果合并等价绑定，
 预算按 distinct transition effect 和证明核余额断点计数。
 
 直接证据是一套有限原料的完整 256M 风格链路：两个有限 seed 原料、有限流体与外壳、三段增殖循环和四层上游组件全部参与

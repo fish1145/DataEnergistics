@@ -71,6 +71,7 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
 
         validateFiringAggregation(this.patternFirings, this.stages, this.cycleRepeatBlocks);
         validateNetChange(this.targetNetChange, this.stages, this.cycleRepeatBlocks);
+        validateGlobalMinimumSeed(this.minimumSeed, this.cycleRepeatBlocks);
         validateExecutionBalances(
                 this.initialExpectedInputs,
                 this.stages,
@@ -269,6 +270,14 @@ public final class TrinityCraftingPlanImpl implements TrinityCraftingPlan {
 
     private static void removeZeros(Map<AEKey, BigInteger> amounts) {
         amounts.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
+    }
+
+    private static void validateGlobalMinimumSeed(
+                                                  Map<AEKey, BigInteger> expected,
+                                                  List<TrinityCycleRepeatBlock> repeatBlocks) {
+        if (repeatBlocks.isEmpty() && !expected.isEmpty()) {
+            throw new IllegalArgumentException("A Trinity plan without cycle blocks cannot declare a minimum seed");
+        }
     }
 
     private static void validateExecutionBalances(

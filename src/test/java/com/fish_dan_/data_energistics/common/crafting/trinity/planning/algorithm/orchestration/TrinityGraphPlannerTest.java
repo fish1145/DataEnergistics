@@ -648,6 +648,121 @@ public final class TrinityGraphPlannerTest {
     }
 
     @Test
+    void plansDeepAcyclicTargetsThatConsumeMultipleOutputsOfOneGrowthCycle() {
+        AEKey crystal = AEItemKey.of(Items.QUARTZ);
+        AEKey charged = AEItemKey.of(Items.AMETHYST_SHARD);
+        AEKey dust = AEItemKey.of(Items.SUGAR);
+        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
+        AEKey glass = AEItemKey.of(Items.GLASS);
+        AEKey redstone = AEItemKey.of(Items.REDSTONE);
+        AEKey glowstone = AEItemKey.of(Items.GLOWSTONE_DUST);
+        AEKey skyDust = AEItemKey.of(Items.LAPIS_LAZULI);
+        AEKey enderDust = AEItemKey.of(Items.BLAZE_POWDER);
+        AEKey matter = AEItemKey.of(Items.ENDER_PEARL);
+        AEKey logic = AEItemKey.of(Items.COMPARATOR);
+        AEKey calculation = AEItemKey.of(Items.REPEATER);
+        AEKey accumulation = AEItemKey.of(Items.NETHER_STAR);
+        AEKey quartzGlass = AEItemKey.of(Items.WHITE_STAINED_GLASS);
+        AEKey vibrantGlass = AEItemKey.of(Items.TINTED_GLASS);
+        AEKey component1k = AEItemKey.of(Items.IRON_NUGGET);
+        AEKey component4k = AEItemKey.of(Items.GOLD_NUGGET);
+        AEKey component16k = AEItemKey.of(Items.COPPER_INGOT);
+        AEKey component64k = AEItemKey.of(Items.IRON_INGOT);
+        AEKey component256k = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey component1m = AEItemKey.of(Items.COPPER_BLOCK);
+        AEKey component4m = AEItemKey.of(Items.IRON_BLOCK);
+        AEKey component16m = AEItemKey.of(Items.GOLD_BLOCK);
+        AEKey component64m = AEItemKey.of(Items.EMERALD);
+        AEKey component256m = AEItemKey.of(Items.DIAMOND);
+
+        List<TrinityCraftingGraphPattern> patterns = List.of(
+                pattern("deep-charge", Items.PAPER,
+                        List.of(stack(crystal, 64L), stack(water, 1_000L)),
+                        List.of(stack(charged, 64L))),
+                pattern("deep-pulverize", Items.MAP,
+                        List.of(stack(crystal, 1L)),
+                        List.of(stack(dust, 1L))),
+                pattern("deep-grow", Items.BOOK,
+                        List.of(stack(charged, 16L), stack(dust, 16L), stack(water, 500L)),
+                        List.of(stack(crystal, 64L))),
+                pattern("deep-quartz-glass", Items.GLASS_PANE,
+                        List.of(stack(dust, 5L), stack(glass, 4L)),
+                        List.of(stack(quartzGlass, 4L))),
+                pattern("deep-vibrant-glass", Items.GLOWSTONE,
+                        List.of(stack(glowstone, 2L), stack(quartzGlass, 1L)),
+                        List.of(stack(vibrantGlass, 1L))),
+                pattern("deep-1k", Items.IRON_NUGGET,
+                        List.of(stack(crystal, 4L), stack(redstone, 4L), stack(logic, 1L)),
+                        List.of(stack(component1k, 1L))),
+                pattern("deep-4k", Items.GOLD_NUGGET,
+                        List.of(stack(component1k, 3L), stack(redstone, 4L), stack(calculation, 1L),
+                                stack(quartzGlass, 1L)),
+                        List.of(stack(component4k, 1L))),
+                pattern("deep-16k", Items.COPPER_INGOT,
+                        List.of(stack(component4k, 3L), stack(glowstone, 4L), stack(calculation, 1L),
+                                stack(quartzGlass, 1L)),
+                        List.of(stack(component16k, 1L))),
+                pattern("deep-64k", Items.IRON_INGOT,
+                        List.of(stack(component16k, 3L), stack(glowstone, 4L), stack(calculation, 1L),
+                                stack(quartzGlass, 1L)),
+                        List.of(stack(component64k, 1L))),
+                pattern("deep-256k", Items.GOLD_INGOT,
+                        List.of(stack(component64k, 3L), stack(skyDust, 4L), stack(calculation, 1L),
+                                stack(quartzGlass, 1L)),
+                        List.of(stack(component256k, 1L))),
+                pattern("deep-1m", Items.COPPER_BLOCK,
+                        List.of(stack(component256k, 3L), stack(skyDust, 4L), stack(accumulation, 1L),
+                                stack(vibrantGlass, 1L)),
+                        List.of(stack(component1m, 1L))),
+                pattern("deep-4m", Items.IRON_BLOCK,
+                        List.of(stack(component1m, 3L), stack(enderDust, 4L), stack(accumulation, 1L),
+                                stack(vibrantGlass, 1L)),
+                        List.of(stack(component4m, 1L))),
+                pattern("deep-16m", Items.GOLD_BLOCK,
+                        List.of(stack(component4m, 3L), stack(enderDust, 4L), stack(accumulation, 1L),
+                                stack(vibrantGlass, 1L)),
+                        List.of(stack(component16m, 1L))),
+                pattern("deep-64m", Items.EMERALD,
+                        List.of(stack(component16m, 3L), stack(matter, 4L), stack(accumulation, 1L),
+                                stack(vibrantGlass, 1L)),
+                        List.of(stack(component64m, 1L))),
+                pattern("deep-256m", Items.DIAMOND,
+                        List.of(stack(component64m, 3L), stack(matter, 4L), stack(accumulation, 1L),
+                                stack(vibrantGlass, 1L)),
+                        List.of(stack(component256m, 1L))));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(257L, patterns);
+        Map<AEKey, BigInteger> available = Map.ofEntries(
+                Map.entry(charged, BigInteger.valueOf(256L)),
+                Map.entry(dust, BigInteger.valueOf(320L)),
+                Map.entry(water, BigInteger.valueOf(20_000_000L)),
+                Map.entry(glass, BigInteger.valueOf(20_000_000L)),
+                Map.entry(redstone, BigInteger.valueOf(20_000_000L)),
+                Map.entry(glowstone, BigInteger.valueOf(20_000_000L)),
+                Map.entry(skyDust, BigInteger.valueOf(20_000_000L)),
+                Map.entry(enderDust, BigInteger.valueOf(20_000_000L)),
+                Map.entry(matter, BigInteger.valueOf(20_000_000L)),
+                Map.entry(logic, BigInteger.valueOf(20_000_000L)),
+                Map.entry(calculation, BigInteger.valueOf(20_000_000L)),
+                Map.entry(accumulation, BigInteger.valueOf(20_000_000L)));
+
+        for (AEKey target : List.of(component64m, component256m)) {
+            TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                    snapshot,
+                    target,
+                    BigInteger.ONE,
+                    CraftingQuantityMode.NET_NEW,
+                    available,
+                    TrinityCraftingConfig.Settings.defaults(4),
+                    unlimitedControl());
+
+            assertTrue(result.successful(), () -> result.diagnostic().code() + " " + result.diagnostic().metadata());
+            assertEquals(BigInteger.ONE, result.value().targetNetChange().get(target));
+            assertEquals(1, result.value().cycleRepeatBlocks().size());
+            assertTrue(result.value().statistics().scheduleStates() <= 256);
+        }
+    }
+
+    @Test
     void doesNotExportAnUnsettledIntermediateFromInsideACycle() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         AEKey b = AEItemKey.of(Items.GOLD_INGOT);
