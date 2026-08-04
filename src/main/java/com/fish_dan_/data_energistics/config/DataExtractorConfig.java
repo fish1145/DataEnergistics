@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.config;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -130,5 +131,6 @@ public final class DataExtractorConfig {
         cropDataBlacklist = CROP_DATA_BLACKLIST.get();
         cropDataWhitelist = CROP_DATA_WHITELIST.get();
         cropInputMappings = CROP_INPUT_MAPPINGS.get();
+        LegacyConfigBridge.refresh();
     }
 }

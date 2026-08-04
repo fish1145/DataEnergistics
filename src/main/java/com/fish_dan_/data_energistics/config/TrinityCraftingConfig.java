@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.config;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -136,6 +137,7 @@ public final class TrinityCraftingConfig {
                 PLANNER_QUEUE_CAPACITY.get(),
                 DYNAMIC_RETRY_MAX_TICKS.get(),
                 DEFAULT_QUANTITY.get());
+        LegacyConfigBridge.refresh();
     }
 
     static int migrateBindingVariantLimit(int configuredLimit) {

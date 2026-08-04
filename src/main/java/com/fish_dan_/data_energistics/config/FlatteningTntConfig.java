@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.config;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -69,6 +70,7 @@ public final class FlatteningTntConfig {
         configurableTnt = CONFIGURABLE_ENTRY.resolve("tnt_configurable");
         configurableTntDisplayName = CONFIGURABLE_TNT_DISPLAY_NAME.get();
         dataNuke = DATA_NUKE_ENTRY.resolve();
+        LegacyConfigBridge.refresh();
     }
 
     public record Definition(

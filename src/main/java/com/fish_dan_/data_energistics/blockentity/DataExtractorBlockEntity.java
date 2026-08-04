@@ -3,8 +3,9 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
-import com.fish_dan_.data_energistics.config.DataExtractorConfig;
 import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataExtractor;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -476,14 +477,18 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         if (targetCount <= 0) {
             return 0;
         }
+        DataExtractor settings = extractorSettings();
         int damagePerCycle = getDamagePerCycle();
-        int baseDataFlow = DataExtractorConfig.baseDataFlowPerCycle + getCachedEnergyCardCount() * DATA_FLOW_PER_ENERGY_CARD + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
-        double multiplier = 1.0D + Math.max(0, targetCount - 1) * DataExtractorConfig.extraTargetDataFlowMultiplier;
+        int baseDataFlow = settings.baseDataFlowPerCycle() +
+                getCachedEnergyCardCount() * DATA_FLOW_PER_ENERGY_CARD +
+                Math.max(0, damagePerCycle) * settings.dataFlowPerSwordDamage();
+        double multiplier = 1.0D + Math.max(0, targetCount - 1) * settings.extraTargetDataFlowMultiplier();
         return (int) Math.round(baseDataFlow * multiplier);
     }
 
     public int getTargetLimit() {
-        return DataExtractorConfig.baseTargetLimit + getCapacityCardCount() * DataExtractorConfig.targetLimitPerCapacityCard;
+        DataExtractor settings = extractorSettings();
+        return settings.baseTargetLimit() + getCapacityCardCount() * settings.targetLimitPerCapacityCard();
     }
 
     public boolean isRedstoneControlled() {
@@ -519,7 +524,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeDamagePerCycle(ItemStack sword, @Nullable HolderLookup.Provider registries) {
-        return Math.round(DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
+        return Math.round(extractorSettings().baseDamage() +
+                getSwordInheritedDamage(sword) +
+                getStaticSwordEnchantmentDamage(sword, registries));
     }
 
     public static boolean isOreOrRawOre(ItemStack stack) {
@@ -550,7 +557,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeTargetLimit(IUpgradeInventory upgrades) {
-        return DataExtractorConfig.baseTargetLimit + computeCapacityCardCount(upgrades) * DataExtractorConfig.targetLimitPerCapacityCard;
+        DataExtractor settings = extractorSettings();
+        return settings.baseTargetLimit() + computeCapacityCardCount(upgrades) * settings.targetLimitPerCapacityCard();
     }
 
     public static int computeEnergyCardCount(IUpgradeInventory upgrades) {
@@ -558,11 +566,12 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades) {
-        return computeBaseDataFlowPerCycle(upgrades, DataExtractorConfig.baseDamage);
+        DataExtractor settings = extractorSettings();
+        return computeBaseDataFlowPerCycle(upgrades, settings.baseDamage(), settings);
     }
 
     public static int computeBaseDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle) {
-        return DataExtractorConfig.baseDataFlowPerCycle + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
+        return computeBaseDataFlowPerCycle(upgrades, damagePerCycle, extractorSettings());
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle, int targetCount) {
@@ -570,8 +579,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return 0;
         }
 
-        int baseDataFlow = computeBaseDataFlowPerCycle(upgrades, damagePerCycle);
-        double multiplier = 1.0D + Math.max(0, targetCount - 1) * DataExtractorConfig.extraTargetDataFlowMultiplier;
+        DataExtractor settings = extractorSettings();
+        int baseDataFlow = computeBaseDataFlowPerCycle(upgrades, damagePerCycle, settings);
+        double multiplier = 1.0D + Math.max(0, targetCount - 1) * settings.extraTargetDataFlowMultiplier();
         return (int) Math.round(baseDataFlow * multiplier);
     }
 
@@ -588,7 +598,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeWorkIntervalSeconds(int speedCardCount) {
-        int baseWorkIntervalSeconds = Math.max(MIN_WORK_INTERVAL_SECONDS, DataExtractorConfig.workIntervalSeconds);
+        int baseWorkIntervalSeconds = Math.max(MIN_WORK_INTERVAL_SECONDS, extractorSettings().workIntervalSeconds());
         int effectiveSpeedCards = Math.min(Math.max(0, speedCardCount), baseWorkIntervalSeconds - MIN_WORK_INTERVAL_SECONDS);
         return baseWorkIntervalSeconds - effectiveSpeedCards;
     }
@@ -871,7 +881,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 damaged = attackResult.damaged();
                 sword = attackResult.updatedSword();
             } else {
-                damaged = entity.hurt(serverLevel.damageSources().magic(), DataExtractorConfig.baseDamage);
+                damaged = entity.hurt(serverLevel.damageSources().magic(), extractorSettings().baseDamage());
             }
             if (!damaged) {
                 continue;
@@ -1684,7 +1694,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 fakePlayer.getXRot());
 
         DamageSource damageSource = level.damageSources().playerAttack(fakePlayer);
-        float totalDamage = DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword);
+        float totalDamage = extractorSettings().baseDamage() + getSwordInheritedDamage(sword);
         totalDamage += sword.getItem().getAttackDamageBonus(target, totalDamage, damageSource);
         totalDamage = EnchantmentHelper.modifyDamage(level, sword, target, damageSource, totalDamage);
 
@@ -1757,6 +1767,19 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private record ExperienceOrbValue(ExperienceOrb orb, long experience) {}
 
     private record SwordAttackResult(boolean damaged, ItemStack updatedSword) {}
+
+    private static int computeBaseDataFlowPerCycle(
+                                                   IUpgradeInventory upgrades,
+                                                   int damagePerCycle,
+                                                   DataExtractor settings) {
+        return settings.baseDataFlowPerCycle() +
+                computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD +
+                Math.max(0, damagePerCycle) * settings.dataFlowPerSwordDamage();
+    }
+
+    private static DataExtractor extractorSettings() {
+        return GameplayConfiguration.current().dataExtractor();
+    }
 
     private void onUpgradesChanged() {
         this.cachedCapacityCardCount = -1;

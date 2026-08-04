@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.configuration.ConfigurationSnapshot.CropInputMapping;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -75,7 +76,7 @@ public final class CropDataCarrierData {
                 itemId,
                 Optional.ofNullable(sourceBlockId),
                 Optional.ofNullable(lootTableId),
-                Math.max(1.0F, DataExtractorConfig.cropRequiredAmount),
+                GameplayConfiguration.current().dataExtractor().cropRequiredAmount(),
                 0.0F));
         return true;
     }
@@ -181,7 +182,7 @@ public final class CropDataCarrierData {
 
         CropInputMapping mapping = getConfiguredInputMapping(itemId);
         if (mapping != null) {
-            return mapping.recordedCropId();
+            return mapping.recordedItem();
         }
 
         return itemId;
@@ -210,22 +211,8 @@ public final class CropDataCarrierData {
     }
 
     public static boolean canRecordCrop(ResourceLocation itemId) {
-        if (itemId == null) {
-            return false;
-        }
-        return isAllowedCropItem(itemId) && !containsId(DataExtractorConfig.cropDataBlacklist, itemId);
-    }
-
-    private static boolean containsId(String csv, ResourceLocation id) {
-        if (csv == null || csv.isBlank()) {
-            return false;
-        }
-        for (String token : csv.split(",")) {
-            if (id.toString().equals(token.trim())) {
-                return true;
-            }
-        }
-        return false;
+        return isAllowedCropItem(itemId) &&
+                !GameplayConfiguration.current().dataExtractor().cropDataBlacklist().contains(itemId);
     }
 
     private static @Nullable CropDataCarrierItemData getData(ItemStack stack) {
@@ -304,7 +291,7 @@ public final class CropDataCarrierData {
             return true;
         }
 
-        if (containsId(DataExtractorConfig.cropDataWhitelist, itemId)) {
+        if (GameplayConfiguration.current().dataExtractor().cropDataWhitelist().contains(itemId)) {
             return true;
         }
 
@@ -350,54 +337,6 @@ public final class CropDataCarrierData {
 
     @Nullable
     private static CropInputMapping getConfiguredInputMapping(ResourceLocation inputItemId) {
-        if (inputItemId == null || DataExtractorConfig.cropInputMappings == null || DataExtractorConfig.cropInputMappings.isBlank()) {
-            return null;
-        }
-
-        for (String token : DataExtractorConfig.cropInputMappings.split(",")) {
-            CropInputMapping mapping = parseInputMapping(token);
-            if (mapping != null && mapping.inputItemId().equals(inputItemId)) {
-                return mapping;
-            }
-        }
-
-        return null;
+        return GameplayConfiguration.current().dataExtractor().cropInputMappings().get(inputItemId);
     }
-
-    @Nullable
-    private static CropInputMapping parseInputMapping(String raw) {
-        if (raw == null) {
-            return null;
-        }
-
-        String entry = raw.trim();
-        if (entry.isEmpty()) {
-            return null;
-        }
-
-        int equalsIndex = entry.indexOf('=');
-        int atIndex = entry.indexOf('@', equalsIndex + 1);
-        if (equalsIndex <= 0 || atIndex <= equalsIndex + 1 || atIndex >= entry.length() - 1) {
-            return null;
-        }
-
-        ResourceLocation inputItemId = ResourceLocation.tryParse(entry.substring(0, equalsIndex).trim());
-        ResourceLocation recordedCropId = ResourceLocation.tryParse(entry.substring(equalsIndex + 1, atIndex).trim());
-        if (inputItemId == null || recordedCropId == null) {
-            return null;
-        }
-
-        try {
-            float progressPerItem = Float.parseFloat(entry.substring(atIndex + 1).trim());
-            if (progressPerItem <= 0.0F || !Float.isFinite(progressPerItem)) {
-                return null;
-            }
-            return new CropInputMapping(inputItemId, recordedCropId, progressPerItem);
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private record CropInputMapping(ResourceLocation inputItemId, ResourceLocation recordedCropId,
-                                    float progressPerItem) {}
 }

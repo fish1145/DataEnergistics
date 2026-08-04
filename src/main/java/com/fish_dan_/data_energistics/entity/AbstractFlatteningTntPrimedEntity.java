@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
+import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.FlatteningTnt;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -43,7 +43,7 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
             return;
         }
 
-        FlatteningTntConfig.Definition definition = getDefinition();
+        FlatteningTnt definition = getDefinition();
         Level level = this.level();
         BlockPos center = this.origin.offset(definition.explosionCenterOffset());
         int minY = Math.max(level.getMinBuildHeight(), center.getY() + definition.clearStartYOffset());
@@ -140,5 +140,5 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
         }
     }
 
-    protected abstract FlatteningTntConfig.Definition getDefinition();
+    protected abstract FlatteningTnt getDefinition();
 }

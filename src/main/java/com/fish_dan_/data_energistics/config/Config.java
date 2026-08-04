@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.config;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 
 import net.neoforged.bus.api.SubscribeEvent;
@@ -63,14 +64,14 @@ public class Config {
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
-    public static int dataRipperBaseCost;
-    public static int dataDistributionTowerRange;
-    public static int dataSanctumInterfaceItemLimit;
-    public static int dataSanctumInterfaceFluidBuckets;
-    public static int dataSanctumInterfaceReturnItemLimit;
-    public static int dataSanctumInterfaceReturnFluidBuckets;
-    public static List<String> dataRipperBlacklist;
-    public static List<String> dataRipperMultipliers;
+    public static int dataRipperBaseCost = 512;
+    public static int dataDistributionTowerRange = 1;
+    public static int dataSanctumInterfaceItemLimit = 2048;
+    public static int dataSanctumInterfaceFluidBuckets = 2048;
+    public static int dataSanctumInterfaceReturnItemLimit = 2048;
+    public static int dataSanctumInterfaceReturnFluidBuckets = 2048;
+    public static List<String> dataRipperBlacklist = List.of();
+    public static List<String> dataRipperMultipliers = List.of("minecraft:hopper=1.5", "appeng:.*=2.0");
     public static List<Pattern> dataRipperBlacklistCompiled = List.of();
     public static List<DataRipperConfigParsingUtils.MultiplierEntry> dataRipperMultipliersCompiled = List.of();
 
@@ -86,5 +87,6 @@ public class Config {
         dataRipperMultipliers = List.copyOf(DATA_RIPPER_MULTIPLIERS.get().stream().map(String::valueOf).toList());
         dataRipperBlacklistCompiled = DataRipperConfigParsingUtils.precompilePatterns(dataRipperBlacklist);
         dataRipperMultipliersCompiled = DataRipperConfigParsingUtils.precompileMultipliers(dataRipperMultipliers);
+        LegacyConfigBridge.refresh();
     }
 }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.config;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -51,5 +52,6 @@ public final class SolarPanelConfig {
         nightGenerationAEPerTick = NIGHT_GENERATION_AE_PER_TICK.get();
         speedCardBonusRatio = SPEED_CARD_BONUS_RATIO.get();
         energyCardCapacityBonusAE = ENERGY_CARD_CAPACITY_BONUS_AE.get();
+        LegacyConfigBridge.refresh();
     }
 }

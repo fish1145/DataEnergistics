@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
-import com.fish_dan_.data_energistics.config.SolarPanelConfig;
+import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.SolarPanel;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -126,8 +127,9 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
             return 0.0D;
         }
 
-        double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? SolarPanelConfig.nightGenerationAEPerTick : SolarPanelConfig.dayGenerationAEPerTick;
-        return applySpeedUpgrades(baseGeneration, this.upgrades);
+        SolarPanel settings = GameplayConfiguration.current().solarPanel();
+        double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? settings.nightGenerationAEPerTick() : settings.dayGenerationAEPerTick();
+        return applySpeedUpgrades(baseGeneration, this.upgrades, settings);
     }
 
     @Override
@@ -180,11 +182,19 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public static double computeMaxPower(IUpgradeInventory upgrades) {
-        return ENERGY_CAPACITY + getEnergyCardCount(upgrades) * SolarPanelConfig.energyCardCapacityBonusAE;
+        return computeMaxPower(upgrades, GameplayConfiguration.current().solarPanel());
+    }
+
+    public static double computeMaxPower(IUpgradeInventory upgrades, SolarPanel settings) {
+        return ENERGY_CAPACITY + getEnergyCardCount(upgrades) * settings.energyCardCapacityBonusAE();
     }
 
     public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades) {
-        return baseGeneration * (1.0D + getSpeedCardCount(upgrades) * SolarPanelConfig.speedCardBonusRatio);
+        return applySpeedUpgrades(baseGeneration, upgrades, GameplayConfiguration.current().solarPanel());
+    }
+
+    public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades, SolarPanel settings) {
+        return baseGeneration * (1.0D + getSpeedCardCount(upgrades) * settings.speedCardBonusRatio());
     }
 
     public static int getSpeedCardCount(IUpgradeInventory upgrades) {

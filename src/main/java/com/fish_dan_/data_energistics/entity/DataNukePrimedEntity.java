@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
+import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataNuke;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 
@@ -160,7 +161,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
-        this.expansionRadius = Math.max(0, Math.min(getDefinition().maxRadius(), tag.getInt(TAG_EXPANSION_RADIUS)));
+        this.expansionRadius = Math.max(0, Math.min(
+                GameplayConfiguration.current().dataNuke().maxRadius(),
+                tag.getInt(TAG_EXPANSION_RADIUS)));
     }
 
     private void activate() {
@@ -194,20 +197,21 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
         try {
             Level level = this.level();
-            consumeCenterEntities(level);
+            DataNuke settings = GameplayConfiguration.current().dataNuke();
+            consumeCenterEntities(level, settings);
             this.workTicks++;
-            if (this.workTicks < getDefinition().workIntervalTicks()) {
+            if (this.workTicks < settings.workIntervalTicks()) {
                 return;
             }
 
             this.workTicks = 0;
-            int nextRadius = getNextExpansionRadius();
-            if (!consumeSurfaceBlocks(level, nextRadius)) {
+            int nextRadius = getNextExpansionRadius(settings);
+            if (!consumeSurfaceBlocks(level, nextRadius, settings)) {
                 return;
             }
             this.expansionRadius = nextRadius;
             consumeExpandedEntities(level, this.expansionRadius);
-            if (isFinished()) {
+            if (isFinished(settings)) {
                 LOGGER.info("Data nuke finished at {} in dimension {}.", this.origin, level.dimension().location());
                 this.discard();
             }
@@ -218,22 +222,22 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
     }
 
-    private boolean isFinished() {
-        return this.expansionRadius >= getDefinition().maxRadius();
+    private boolean isFinished(DataNuke settings) {
+        return this.expansionRadius >= settings.maxRadius();
     }
 
-    private int getNextExpansionRadius() {
-        int maxRadius = getDefinition().maxRadius();
+    private int getNextExpansionRadius(DataNuke settings) {
+        int maxRadius = settings.maxRadius();
         return this.expansionRadius < maxRadius ? this.expansionRadius + 1 : maxRadius;
     }
 
-    private boolean consumeSurfaceBlocks(Level level, int radius) {
+    private boolean consumeSurfaceBlocks(Level level, int radius, DataNuke settings) {
         if (radius <= 0) {
             return true;
         }
 
         int innerRadius = Math.max(0, radius - SURFACE_INNER_MARGIN);
-        int outerRadius = Math.min(getDefinition().maxRadius(), radius + SURFACE_OUTER_MARGIN);
+        int outerRadius = Math.min(settings.maxRadius(), radius + SURFACE_OUTER_MARGIN);
         double innerRadiusSqr = innerRadius * innerRadius;
         double outerRadiusSqr = outerRadius * outerRadius;
         int minOffsetY = Math.max(level.getMinBuildHeight() - this.origin.getY(),
@@ -290,8 +294,8 @@ public class DataNukePrimedEntity extends PrimedTnt {
         return true;
     }
 
-    private int consumeCenterEntities(Level level) {
-        return consumeEntities(level, getDefinition().centerEntityConsumeRadius());
+    private int consumeCenterEntities(Level level, DataNuke settings) {
+        return consumeEntities(level, settings.centerEntityConsumeRadius());
     }
 
     private int consumeExpandedEntities(Level level, int radius) {
@@ -410,10 +414,6 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 this.getUUID(),
                 true);
         this.forcedChunk = null;
-    }
-
-    private FlatteningTntConfig.DataNukeDefinition getDefinition() {
-        return FlatteningTntConfig.dataNuke;
     }
 
     private static double distanceToCenterSqr(Entity entity, double centerX, double centerY, double centerZ) {

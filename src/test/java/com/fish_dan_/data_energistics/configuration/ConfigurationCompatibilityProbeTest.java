@@ -66,7 +66,7 @@ final class ConfigurationCompatibilityProbeTest {
 
         IConfigValue<String[]> aliases = holder.getConfigValue("nested.aliases", String[].class).orElseThrow();
         assertArrayEquals(
-                new String[] {"Aliases accepted by the probe.", "探针接受的别名。"}, aliases.getFileComments());
+                new String[] { "Aliases accepted by the probe.", "探针接受的别名。" }, aliases.getFileComments());
         assertEquals(
                 List.of("Aliases accepted by the probe.", "探针接受的别名。"),
                 aliases.getDescription().stream().map(component -> component.getString()).toList());
@@ -74,6 +74,7 @@ final class ConfigurationCompatibilityProbeTest {
         assertEquals("config." + CONFIG_ID + ".option.nested.aliases", title.getKey());
         assertEquals("beta", holder.getValue("nested.aliases.1", String.class).orElseThrow());
 
+        // spotless:off
         Files.writeString(
                 yamlFile,
                 """
@@ -88,10 +89,11 @@ final class ConfigurationCompatibilityProbeTest {
 
                 """,
                 StandardCharsets.UTF_8);
+        // spotless:on
         read(holder, yamlFile);
 
         ProbeSchema schema = holder.getConfigInstance();
-        assertArrayEquals(new String[] {"gamma", "delta"}, schema.nested.aliases);
+        assertArrayEquals(new String[] { "gamma", "delta" }, schema.nested.aliases);
         assertEquals(ProbeMode.FINAL_TOTAL, schema.nested.mode);
         assertEquals(6, schema.plannerThreads);
     }
@@ -142,6 +144,7 @@ final class ConfigurationCompatibilityProbeTest {
         try {
             synchronized (holderLock) {
                 assertTrue(Thread.holdsLock(holderLock));
+                // spotless:off
                 Files.writeString(
                         configFile,
                         """
@@ -155,12 +158,13 @@ final class ConfigurationCompatibilityProbeTest {
 
                         """,
                         StandardCharsets.UTF_8);
+                // spotless:on
                 Thread.sleep(1_500L);
-                assertArrayEquals(new String[] {"alpha", "beta"}, schema.nested.aliases);
+                assertArrayEquals(new String[] { "alpha", "beta" }, schema.nested.aliases);
             }
 
             await(Duration.ofSeconds(8), () -> schema.nested.aliases.length == 1);
-            assertArrayEquals(new String[] {"watched"}, schema.nested.aliases);
+            assertArrayEquals(new String[] { "watched" }, schema.nested.aliases);
             assertEquals(ProbeMode.FINAL_TOTAL, schema.nested.mode);
         } finally {
             Files.deleteIfExists(configFile);
@@ -212,8 +216,8 @@ final class ConfigurationCompatibilityProbeTest {
         public static final class NestedSchema {
 
             @Configurable(key = Configurable.LocalizationKey.FULL)
-            @Configurable.Comment({"Aliases accepted by the probe.", "探针接受的别名。"})
-            public String[] aliases = {"alpha", "beta"};
+            @Configurable.Comment({ "Aliases accepted by the probe.", "探针接受的别名。" })
+            public String[] aliases = { "alpha", "beta" };
 
             @Configurable(key = Configurable.LocalizationKey.FULL)
             public ProbeMode mode = ProbeMode.NET_NEW;

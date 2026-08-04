@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -40,7 +40,7 @@ public final class OreDataCarrierData {
 
         stack.set(ModDataComponents.ORE_DATA_CARRIER.get(), new OreDataCarrierItemData(
                 itemId,
-                Math.max(1.0F, DataExtractorConfig.oreRequiredAmount),
+                GameplayConfiguration.current().dataExtractor().oreRequiredAmount(),
                 0.0F));
         return true;
     }
@@ -136,22 +136,10 @@ public final class OreDataCarrierData {
                 Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT)));
     }
 
-    public static boolean canRecordOre(ResourceLocation itemId) {
+    public static boolean canRecordOre(@Nullable ResourceLocation itemId) {
         if (itemId == null) {
             return false;
         }
-        return !containsId(DataExtractorConfig.oreDataBlacklist, itemId);
-    }
-
-    private static boolean containsId(String csv, ResourceLocation id) {
-        if (csv == null || csv.isBlank()) {
-            return false;
-        }
-        for (String token : csv.split(",")) {
-            if (id.toString().equals(token.trim())) {
-                return true;
-            }
-        }
-        return false;
+        return !GameplayConfiguration.current().dataExtractor().oreDataBlacklist().contains(itemId);
     }
 }

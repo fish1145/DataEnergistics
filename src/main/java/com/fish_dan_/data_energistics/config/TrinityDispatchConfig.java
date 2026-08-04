@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sch
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchGovernorSettings;
+import com.fish_dan_.data_energistics.configuration.LegacyConfigBridge;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -144,6 +145,7 @@ public final class TrinityDispatchConfig {
                 TRANSITION_WINDOWS.get(),
                 COOLDOWN_TICKS.get(),
                 SAFE_HOLD_TICKS.get());
+        LegacyConfigBridge.refresh();
     }
 
     /**

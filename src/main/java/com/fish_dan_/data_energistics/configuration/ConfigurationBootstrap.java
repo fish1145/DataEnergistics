@@ -54,6 +54,7 @@ public final class ConfigurationBootstrap {
             DataExtractorRuleTable.load(
                     configRoot.resolve("data_energistics-data_extractor_rules.json"),
                     ruleDefaults);
+            GameplayConfiguration.activateConfigurationSnapshots();
             registeredHolder = holder;
             state = State.READY;
             Data_Energistics.LOGGER.info(

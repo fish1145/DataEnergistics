@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.config.Config;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import appeng.api.upgrades.IUpgradeInventory;
@@ -32,7 +32,9 @@ public final class DataRipperPowerUtils {
             return 0.0D;
         }
 
-        return (basePower / 4.0D) * getRemainingRatio(energyCardCount) * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST) * DATA_FLOW_COST_RATIO;
+        int configuredBaseCost = GameplayConfiguration.current().dataRipper().baseCost();
+        return (basePower / 4.0D) * getRemainingRatio(energyCardCount) *
+                ((double) configuredBaseCost / DEFAULT_BASE_COST) * DATA_FLOW_COST_RATIO;
     }
 
     public static double getRemainingRatio(int energyCardCount) {

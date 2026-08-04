@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
-import com.fish_dan_.data_energistics.config.Config;
+import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -30,7 +30,8 @@ public final class TowerCoverageImpl implements TowerCoverage {
 
     @Override
     public int computeChunkRadius(int boosterCount) {
-        return Math.max(0, Config.dataDistributionTowerRange - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
+        int baseRange = GameplayConfiguration.current().dataDistributionTower().range();
+        return Math.max(0, baseRange - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
     }
 
     @Override
