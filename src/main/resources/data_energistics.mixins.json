@@ -26,6 +26,7 @@
 		"core.AEBaseMenuActionAccessor",
 		"core.AEBaseMenuMixin",
 		"core.AEBasePartNameAccessor",
+		"core.AEProcessingPatternVirtualOutputMixin",
 		"core.AnvilMenuMixin",
 		"core.BasicCellHandlerMixin",
 		"core.BlockRedstonePulseMixin",
