@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
@@ -41,7 +40,6 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
         if (!state.hasProperty(DataSanctumBlock.ACTIVE) || !state.hasProperty(DataSanctumBlock.MODE) || !state.hasProperty(DataSanctumBlock.FACING)) {
             return;
         }
-        renderRange(blockEntity, poseStack, buffer);
         if (!state.getValue(DataSanctumBlock.ACTIVE)) {
             return;
         }
@@ -64,23 +62,7 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
 
     @Override
     public @NotNull AABB getRenderBoundingBox(@NotNull DataSanctumBlockEntity blockEntity) {
-        if (blockEntity.canDisplayBlackHoleRange()) {
-            return blockEntity.getBlackHoleCoverageAabb();
-        }
         return new AABB(blockEntity.getBlockPos()).inflate(3.0D, 0.0D, 3.0D).expandTowards(0.0D, 5.0D, 0.0D);
-    }
-
-    private static void renderRange(DataSanctumBlockEntity blockEntity, PoseStack poseStack, MultiBufferSource buffer) {
-        if (!blockEntity.canDisplayBlackHoleRange()) {
-            return;
-        }
-
-        AABB aabb = blockEntity.getBlackHoleCoverageAabb().move(
-                -blockEntity.getBlockPos().getX(),
-                -blockEntity.getBlockPos().getY(),
-                -blockEntity.getBlockPos().getZ());
-        var consumer = buffer.getBuffer(RenderType.lines());
-        LevelRenderer.renderLineBox(poseStack, consumer, aabb, 0.55f, 0.25f, 1.0f, 0.9f);
     }
 
     private static BakedModel getEffectModel(int mode) {
