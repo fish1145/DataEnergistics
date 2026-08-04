@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.accessor;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
@@ -31,4 +33,21 @@ public interface PatternProviderBatchBridge {
                                                                   KeyCounter[] prototype,
                                                                   long requestedCount,
                                                                   Runnable afterCommit);
+
+    /**
+     * Prepares AE2's standard route with target filtering and explicit rejection facts.
+     *
+     * @param patternDetails     exact pattern selected by the crafting plan
+     * @param prototype          one exact per-craft input prototype
+     * @param requestedCount     positive maximum logical craft count
+     * @param afterCommit        callback invoked after AE2 has accepted and flushed the physical submission
+     * @param targetAvailability current-window target filter
+     * @return accepted admission or explicit rejection facts
+     */
+    CountedCraftingPreparation dataEnergistics$prepareStandardBatch(
+                                                                    IPatternDetails patternDetails,
+                                                                    KeyCounter[] prototype,
+                                                                    long requestedCount,
+                                                                    Runnable afterCommit,
+                                                                    CraftingDispatchTargetAvailability targetAvailability);
 }

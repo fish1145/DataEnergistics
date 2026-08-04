@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 

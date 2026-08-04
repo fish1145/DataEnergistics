@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
 import com.fish_dan_.data_energistics.network.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
@@ -88,9 +89,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private static final String DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS = "dataEnergistics$depositCarriedBlankPatterns";
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS = "dataEnergistics$pickupBlankPatterns";
-    @Unique
-    private static final int DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS = 5;
-
     @GuiSync(791)
     @Unique
     public SyncedPatternProviderList dataEnergistics$syncedPatternProviders = SyncedPatternProviderList.EMPTY;
@@ -108,7 +106,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private long dataEnergistics$nextSyncedPatternProviderId = 1;
 
     @Unique
-    private int dataEnergistics$lastPatternProviderSyncTick = Integer.MIN_VALUE;
+    private final PatternProviderSyncTracker dataEnergistics$patternProviderSyncTracker = new PatternProviderSyncTracker();
     @Unique
     @Nullable
     private ResourceLocation dataEnergistics$pendingPatternSource;
@@ -732,7 +730,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                     this.dataEnergistics$lastEncodedPatternSource);
             dataEnergistics$flushBlankPatternSlotToNetwork();
             dataEnergistics$syncPatternProvidersFromNetwork();
-            this.dataEnergistics$lastPatternProviderSyncTick = this.getPlayer().tickCount;
         }
     }
 
@@ -844,47 +841,86 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Unique
     private void dataEnergistics$syncPatternProvidersIfNeeded() {
-        if (dataEnergistics$getActiveGrid() == null) {
-            dataEnergistics$clearSyncedPatternProviders();
-            return;
-        }
-
-        int currentTick = this.getPlayer().tickCount;
-        if (currentTick - this.dataEnergistics$lastPatternProviderSyncTick < DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS) {
-            return;
-        }
-
-        dataEnergistics$syncPatternProvidersFromNetwork();
-        this.dataEnergistics$lastPatternProviderSyncTick = currentTick;
-    }
-
-    @Unique
-    private void dataEnergistics$forceSyncPatternProviders() {
-        if (dataEnergistics$getActiveGrid() == null) {
-            dataEnergistics$clearSyncedPatternProviders();
-            return;
-        }
-
-        dataEnergistics$syncPatternProvidersFromNetwork();
-        this.dataEnergistics$lastPatternProviderSyncTick = this.getPlayer().tickCount;
-    }
-
-    @Unique
-    private void dataEnergistics$syncPatternProvidersFromNetwork() {
-        var grid = dataEnergistics$getActiveGrid();
+        IGrid grid = dataEnergistics$getActiveGrid();
         if (grid == null) {
             dataEnergistics$clearSyncedPatternProviders();
             return;
         }
 
+        var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
+        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
+        ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        long currentTick = this.getPlayer().level().getGameTime();
+        if (!this.dataEnergistics$patternProviderSyncTracker.needsRefresh(
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                this.mode,
+                encodedPattern)) {
+            return;
+        }
+
+        dataEnergistics$syncPatternProvidersFromNetwork(
+                grid,
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                encodedPattern);
+    }
+
+    @Unique
+    private void dataEnergistics$forceSyncPatternProviders() {
+        IGrid grid = dataEnergistics$getActiveGrid();
+        if (grid == null) {
+            dataEnergistics$clearSyncedPatternProviders();
+            return;
+        }
+
+        dataEnergistics$syncPatternProvidersFromNetwork(grid);
+    }
+
+    @Unique
+    private void dataEnergistics$syncPatternProvidersFromNetwork() {
+        IGrid grid = dataEnergistics$getActiveGrid();
+        if (grid == null) {
+            dataEnergistics$clearSyncedPatternProviders();
+            return;
+        }
+
+        dataEnergistics$syncPatternProvidersFromNetwork(grid);
+    }
+
+    @Unique
+    private void dataEnergistics$syncPatternProvidersFromNetwork(IGrid grid) {
+        dataEnergistics$syncPatternProvidersFromNetwork(
+                grid,
+                PatternProviderSyncTracker.capturePublicationVersion(grid),
+                this.getPlayer().level().getGameTime(),
+                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
+                this.encodedPatternSlot.getItem());
+    }
+
+    @Unique
+    private void dataEnergistics$syncPatternProvidersFromNetwork(
+                                                                 IGrid grid,
+                                                                 PatternProviderSyncTracker.PublicationVersion publication,
+                                                                 long currentTick,
+                                                                 @Nullable ResourceLocation preferredWorkstationId,
+                                                                 ItemStack encodedPattern) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
+                preferredWorkstationId,
                 this.mode,
-                this.encodedPatternSlot.getItem());
+                encodedPattern);
+        this.dataEnergistics$patternProviderSyncTracker.refreshed(
+                publication,
+                currentTick,
+                preferredWorkstationId,
+                this.mode,
+                encodedPattern);
     }
 
     @Unique
@@ -892,7 +928,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         this.dataEnergistics$syncedPatternProviderIds.clear();
         this.dataEnergistics$syncedPatternProvidersById.clear();
         this.dataEnergistics$syncedPatternProviders = SyncedPatternProviderList.EMPTY;
-        this.dataEnergistics$lastPatternProviderSyncTick = Integer.MIN_VALUE;
+        this.dataEnergistics$patternProviderSyncTracker.clear();
     }
 
     @Unique

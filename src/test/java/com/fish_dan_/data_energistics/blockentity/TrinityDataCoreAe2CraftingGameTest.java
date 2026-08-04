@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
@@ -71,8 +74,58 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static final int STRUCTURE_PAUSE_PATTERN_SLOT = 40;
     private static final int SAME_TICK_STORAGE_PATTERN_SLOT = 41;
     private static final int ADMISSION_INVALIDATION_PATTERN_SLOT = 42;
+    private static final int GRAPH_SNAPSHOT_PATTERN_SLOT = 43;
+    private static final int SELF_MULTIPLICATION_PATTERN_SLOT = 44;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
+
+    @TestHolder("trinity_grid_publishes_revision_consistent_crafting_graph")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void publishesRevisionConsistentGridCraftingGraph(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        ServerLevel level = helper.getLevel();
+        AEKey target = AEItemKey.of(Items.CRAFTING_TABLE);
+        helper.assertTrue(
+                core.patternCapacity() > GRAPH_SNAPSHOT_PATTERN_SLOT,
+                "Selected P core should expose the graph snapshot test slot");
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            core.trySetPattern(GRAPH_SNAPSHOT_PATTERN_SLOT, craftingTablePattern(level)),
+                            "Graph snapshot test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                    IGrid grid = fixture.grid();
+                    if (!(grid.getCraftingService() instanceof TrinityCraftingGraphAccess graphAccess)) {
+                        throw new GameTestAssertException("AE2 crafting service does not expose the Trinity graph");
+                    }
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot().orElse(null);
+                    IPatternDetails decoded = core.decodedPattern(GRAPH_SNAPSHOT_PATTERN_SLOT);
+                    if (snapshot == null || decoded == null || snapshot.patternsProducing(target).stream()
+                            .noneMatch(pattern -> pattern.definition().equals(decoded.getDefinition()))) {
+                        throw new GameTestAssertException(
+                                "Trinity graph has not published the installed pattern yet");
+                    }
+                })
+                .thenExecute(() -> {
+                    TrinityCraftingGraphAccess graphAccess = (TrinityCraftingGraphAccess) fixture.grid().getCraftingService();
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot().orElseThrow();
+                    helper.assertTrue(snapshot.revision() >= 0L,
+                            "Published Trinity graph must carry a non-negative provider revision");
+                    helper.assertTrue(!snapshot.patternsProducing(target).isEmpty(),
+                            "Published Trinity graph must index the installed target pattern");
+                })
+                .thenSucceed();
+    }
 
     @TestHolder("trinity_data_core_access_withdrawal_is_synchronous_with_storage")
     @EmptyTemplate("50x32x50")
@@ -393,6 +446,18 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     fixture.refreshPatternPublication();
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), tableRoute);
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CAKE), cakeRoute);
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            TABLE_PATTERN_SLOT,
+                            AEItemKey.of(Items.CRAFTING_TABLE));
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            CAKE_PATTERN_SLOT,
+                            AEItemKey.of(Items.CAKE));
                 })
                 .thenExecute(() -> {
                     insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 512L);
@@ -401,6 +466,9 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenWaitUntil(tablePlan::await)
                 .thenExecute(() -> {
                     ICraftingPlan plan = tablePlan.plan();
+                    helper.assertTrue(
+                            plan instanceof TrinityCraftingPlan,
+                            "A qualified Trinity CPU and current graph should prefer the Trinity plan");
                     assertPlan(helper, plan, tableRoute, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
                     helper.assertValueEqual(
                             plan.usedItems().get(AEItemKey.of(Items.CRIMSON_PLANKS)),
@@ -438,6 +506,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenIdle(1)
                 .thenExecute(() -> {
                     host.serverTick();
+                    tickCraftingRuntime(fixture);
                     helper.assertValueEqual(core.queuedBatchCount(TABLE_PATTERN_SLOT), 0,
                             "Both same-slot batches should execute on the next tick");
                     helper.assertTrue(core.pendingOutputs(tableRoute).isEmpty(),
@@ -501,6 +570,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenIdle(1)
                 .thenExecute(() -> {
                     host.serverTick();
+                    tickCraftingRuntime(fixture);
                     helper.assertValueEqual(core.queuedBatchCount(CAKE_PATTERN_SLOT), 0,
                             "Cake batch should execute on the next tick");
                     helper.assertTrue(core.pendingOutputs(cakeRoute).isEmpty(),
@@ -518,6 +588,89 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.EGG), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.WHEAT), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("trinity_data_core_executes_single_pattern_self_multiplication")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 400)
+    public static void executesSinglePatternSelfMultiplication(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        ServerLevel level = helper.getLevel();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        AEItemKey target = AEItemKey.of(Items.AMETHYST_SHARD);
+        long requested = 31L;
+        helper.assertTrue(
+                core.patternCapacity() > SELF_MULTIPLICATION_PATTERN_SLOT,
+                "Selected P core should expose the self-multiplication test slot");
+
+        PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), SELF_MULTIPLICATION_PATTERN_SLOT);
+        PendingCraftingPlan pendingPlan = new PendingCraftingPlan(level, target, requested);
+        AtomicReference<TrinityDataCoreVirtualCpu> activeWorker = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            core.trySetPattern(SELF_MULTIPLICATION_PATTERN_SLOT, selfMultiplicationPattern(level)),
+                            "Self-multiplication pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                    assertPublishedRoute(helper, fixture.grid(), target, route);
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            SELF_MULTIPLICATION_PATTERN_SLOT,
+                            target);
+                })
+                .thenExecute(() -> {
+                    insertIntoNetwork(helper, fixture, target, 1L);
+                    pendingPlan.start(fixture.grid(), host.accessActionSource());
+                })
+                .thenWaitUntil(pendingPlan::await)
+                .thenExecute(() -> {
+                    if (!(pendingPlan.plan() instanceof TrinityCraftingPlan plan)) {
+                        throw new GameTestAssertException(
+                                "A productive self-cycle with one seed should produce a Trinity plan");
+                    }
+                    helper.assertValueEqual(
+                            plan.initialExpectedInputs().get(target),
+                            BigInteger.ONE,
+                            "Self-multiplication should reserve exactly one initial seed");
+                    helper.assertValueEqual(
+                            plan.minimumSeed().get(target),
+                            BigInteger.ONE,
+                            "Self-multiplication should retain the one-item prefix seed");
+                    helper.assertValueEqual(
+                            plan.cycleRepeatBlocks().size(),
+                            1,
+                            "One self-cycle pattern should form one compact repeat block");
+                    helper.assertValueEqual(
+                            plan.cycleRepeatBlocks().getFirst().repetitions(),
+                            BigInteger.valueOf(requested),
+                            "NET_NEW self-multiplication should repeat once per requested net item");
+                    activeWorker.set(submitAndDispatch(helper, fixture, plan));
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    tickCraftingRuntime(fixture);
+                    if (activeWorker.get().isBusy()) {
+                        throw new GameTestAssertException("Trinity self-multiplication is still executing");
+                    }
+                })
+                .thenExecute(() -> {
+                    helper.assertValueEqual(
+                            core.queuedBatchCount(SELF_MULTIPLICATION_PATTERN_SLOT),
+                            0,
+                            "Completed self-multiplication should leave no queued P-core batch");
+                    assertHostStorage(helper, fixture, target, Math.addExact(requested, 1L));
                 })
                 .thenSucceed();
     }
@@ -705,6 +858,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenWaitUntil(() -> {
                     host.serverTick();
                     fixture.refreshPatternPublication();
+                    tickCraftingRuntime(fixture);
 
                     helper.assertTrue(host.isCraftingStructureFormed(),
                             "Restored crafting structure should pass a real host recheck");
@@ -763,6 +917,23 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         helper.assertTrue(published, "AE2 crafting service should publish route " + expectedRoute);
     }
 
+    private static void assertGraphPatternPublished(GameTestHelper helper,
+                                                    IGrid grid,
+                                                    TrinityPatternCore core,
+                                                    int patternSlot,
+                                                    AEKey output) {
+        if (!(grid.getCraftingService() instanceof TrinityCraftingGraphAccess graphAccess)) {
+            throw new GameTestAssertException("AE2 crafting service does not expose the Trinity graph");
+        }
+        TrinityCraftingGraphSnapshot snapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot().orElse(null);
+        IPatternDetails decoded = core.decodedPattern(patternSlot);
+        boolean published = snapshot != null &&
+                decoded != null &&
+                snapshot.patternsProducing(output).stream()
+                        .anyMatch(pattern -> pattern.definition().equals(decoded.getDefinition()));
+        helper.assertTrue(published, "Trinity graph should publish pattern slot " + patternSlot);
+    }
+
     private static RoutedCraftingPatternDetails requireSinglePublishedRoute(GameTestHelper helper,
                                                                             IGrid grid,
                                                                             AEKey output,
@@ -801,13 +972,25 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                                    PatternRoute expectedRoute,
                                    AEKey expectedOutput,
                                    long expectedTimes) {
-        helper.assertFalse(plan.simulation(), "Real AE2 crafting plan should contain no missing ingredients");
-        helper.assertTrue(plan.missingItems().isEmpty(), "Real AE2 crafting plan should report no missing keys");
+        helper.assertFalse(plan.simulation(), "Crafting plan should contain no missing ingredients");
+        helper.assertTrue(plan.missingItems().isEmpty(), "Crafting plan should report no missing keys");
         helper.assertValueEqual(plan.finalOutput().what(), expectedOutput, "Crafting plan should target the requested key");
         helper.assertValueEqual(
                 plan.finalOutput().amount(),
                 expectedTimes,
                 "Crafting plan should preserve the requested output amount");
+        if (plan instanceof TrinityCraftingPlan trinityPlan) {
+            helper.assertValueEqual(
+                    trinityPlan.patternFirings().size(),
+                    1,
+                    "Trinity plan should retain one stable routed pattern identity");
+            helper.assertValueEqual(
+                    trinityPlan.patternFirings().values().iterator().next(),
+                    BigInteger.valueOf(expectedTimes),
+                    "Trinity plan should retain the expected pattern count");
+            return;
+        }
+
         helper.assertValueEqual(plan.patternTimes().size(), 1, "Crafting plan should use one exact routed pattern");
 
         Map.Entry<IPatternDetails, Long> entry = plan.patternTimes().entrySet().iterator().next();
@@ -843,14 +1026,19 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         helper.assertTrue(craftingService.getCpus().contains(worker),
                 "AE2 should publish the allocated busy Trinity worker");
         helper.assertTrue(worker.isBusy(), "Allocated Trinity worker should own the submitted job");
-        if (!(craftingService instanceof CraftingService concreteService)) {
+        tickCraftingRuntime(fixture);
+        return worker;
+    }
+
+    private static void tickCraftingRuntime(TrinityDataCoreGameTestFixture fixture) {
+        IGrid grid = fixture.grid();
+        if (!(grid.getCraftingService() instanceof CraftingService craftingService)) {
             throw new IllegalStateException("Trinity CPU requires AE2 CraftingService for dispatch");
         }
         fixture.host().getCraftingRuntime().tick(
                 grid.getEnergyService(),
-                concreteService,
+                craftingService,
                 CraftingDispatchWindow.create());
-        return worker;
     }
 
     private static TrinityDataCoreVirtualCpu reservedCpu(TrinityDataCoreBlockEntity host) {
@@ -970,14 +1158,38 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 false);
     }
 
+    private static ItemStack selfMultiplicationPattern(ServerLevel level) {
+        ArrayList<ItemStack> inputs = emptyCraftingGrid();
+        inputs.set(0, new ItemStack(Items.AMETHYST_SHARD));
+        return encodePattern(
+                level,
+                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_self_multiplication"),
+                inputs,
+                new ItemStack(Items.AMETHYST_SHARD, 2),
+                false);
+    }
+
     private static ItemStack encodePattern(ServerLevel level,
                                            String recipePath,
                                            List<ItemStack> inputs,
                                            ItemStack output,
                                            boolean allowSubstitutes) {
+        return encodePattern(
+                level,
+                ResourceLocation.withDefaultNamespace(recipePath),
+                inputs,
+                output,
+                allowSubstitutes);
+    }
+
+    private static ItemStack encodePattern(ServerLevel level,
+                                           ResourceLocation recipeId,
+                                           List<ItemStack> inputs,
+                                           ItemStack output,
+                                           boolean allowSubstitutes) {
         RecipeHolder<?> recipe = level.getRecipeManager()
-                .byKey(ResourceLocation.withDefaultNamespace(recipePath))
-                .orElseThrow(() -> new IllegalStateException("Missing crafting recipe: " + recipePath));
+                .byKey(recipeId)
+                .orElseThrow(() -> new IllegalStateException("Missing crafting recipe: " + recipeId));
         if (!(recipe.value() instanceof CraftingRecipe craftingRecipe)) {
             throw new IllegalStateException("Recipe is not a crafting recipe: " + recipe.id());
         }

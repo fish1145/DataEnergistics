@@ -9,11 +9,12 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuProfile;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
+import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Context;
@@ -1088,10 +1089,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public TrinityDataCoreCraftingStatus getCraftingStatus() {
-        IGrid grid = accessGrid();
-        if (grid == null) {
+        TrinityCraftingExecutionRoute route = craftingExecutionRoute();
+        if (route == null) {
             return TrinityDataCoreCraftingStatus.EMPTY;
         }
+        IGrid grid = route.serviceGrid();
 
         int busyCpuCount = 0;
         CraftingJobStatus selectedJob = null;
@@ -1148,6 +1150,21 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
         return hatch == null ? null : hatch.connectedGrid();
+    }
+
+    /**
+     * Resolves the crafting service route separately from the physical grid retained by {@link #accessGrid()}.
+     *
+     * @return immutable current CPU route, or {@code null} while no executable lease is published
+     */
+    public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
+        reevaluateAccessLease();
+        TrinityAccessLease lease = this.accessLease;
+        if (!isCpuProviderAvailable() || lease == null || lease.grid() == null) {
+            return null;
+        }
+        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
+        return hatch == null ? null : hatch.resolveCraftingExecutionRoute(lease.epoch());
     }
 
     public IActionSource accessActionSource() {
@@ -1499,11 +1516,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (!isPatternProviderAvailable() || !(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
-        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
-        IGrid grid = hatch == null ? null : hatch.connectedGrid();
-        if (grid == null) {
+        TrinityCraftingExecutionRoute route = craftingExecutionRoute();
+        if (route == null) {
             return;
         }
+        IGrid grid = route.serviceGrid();
         if (!(grid.getCraftingService() instanceof CraftingService craftingService)) {
             LOGGER.error("Trinity host {} cannot route pattern outputs because its AE crafting service is unsupported",
                     this.worldPosition);

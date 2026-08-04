@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.mixin;
 
 import java.util.EnumSet;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -52,7 +51,6 @@ public final class Ae2LtCompatibilityPolicy {
      * @param features discovered runtime features
      */
     public Ae2LtCompatibilityPolicy(Set<Feature> features) {
-        Objects.requireNonNull(features, "features");
         this.features = features.isEmpty() ? EnumSet.noneOf(Feature.class) : EnumSet.copyOf(features);
     }
 
@@ -63,7 +61,6 @@ public final class Ae2LtCompatibilityPolicy {
      * @return whether the mixin should be applied
      */
     public boolean shouldApply(MixinRole role) {
-        Objects.requireNonNull(role, "role");
         return switch (role) {
             case GENERAL -> true;
             case LEGACY_WIRELESS -> !has(Feature.WIRELESS_HOST_API);

@@ -57,18 +57,24 @@ final class TrinityDataCoreStoragePanel {
     }
 
     static Component typesLine(TrinityDataCoreStorageStatus status) {
+        Object value = status.unlimited() ?
+                Component.literal(status.typeCount() + "/")
+                        .append(Component.translatable("gui.data_energistics.trinity.unlimited")) :
+                status.typeCount() + "/" + status.typeCapacity();
         return Component.translatable(
                 "screen.data_energistics.trinity_data_core.storage_types",
-                status.typeCount() + "/" + (status.unlimited() ? "MAX" : status.typeCapacity()));
+                value);
     }
 
     static Component amountLine(TrinityDataCoreStorageStatus status) {
         String amount = TrinityDataCoreStatusPanel.compactNumber(status.totalAmount().toString());
-        String capacity = status.unlimited() ?
-                "MAX" : TrinityDataCoreStatusPanel.compactNumber(status.amountCapacity().toString());
+        Object value = status.unlimited() ?
+                Component.literal(amount + "/")
+                        .append(Component.translatable("gui.data_energistics.trinity.unlimited")) :
+                amount + "/" + TrinityDataCoreStatusPanel.compactNumber(status.amountCapacity().toString());
         return Component.translatable(
                 "screen.data_energistics.trinity_data_core.storage_amount",
-                amount + "/" + capacity);
+                value);
     }
 
     private static Label label(String id,

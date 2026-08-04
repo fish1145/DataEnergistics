@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtVersionPolicy;
 
 public final class ModFlags {
 
@@ -23,11 +24,11 @@ public final class ModFlags {
     }
 
     public static boolean isAe2LtRuntimeSupportLoaded() {
-        return isAe2LtLoaded();
+        return isAe2LtLoaded() && Ae2LtVersionPolicy.unsupportedInstalledVersion().isEmpty();
     }
 
     public static boolean isAe2LtWirelessSupportLoaded() {
-        return isAe2LtLoaded();
+        return isAe2LtRuntimeSupportLoaded();
     }
 
     public static boolean isAe2LtPackagedProviderLoaded() {

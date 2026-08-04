@@ -695,11 +695,12 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
                                      HolderLookup.Provider registries,
                                      boolean initialHydration) {
         UUID previousCoreId = this.core.coreId();
+        boolean migrated;
         try {
             if (initialHydration) {
-                this.core.hydrateFromTag(data, registries);
+                migrated = this.core.hydrateFromTagAndReportMigration(data, registries);
             } else {
-                this.core.readFromTag(data, registries);
+                migrated = this.core.readFromTagAndReportMigration(data, registries);
             }
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
@@ -710,6 +711,12 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
         if (!previousCoreId.equals(this.core.coreId())) {
             releasePatternHost();
+        }
+        if (migrated && this.level != null && !this.level.isClientSide()) {
+            setChanged();
+            Data_Energistics.LOGGER.info(
+                    "Migrated Trinity pattern core state at {} to the current versioned schema",
+                    this.worldPosition);
         }
         return true;
     }

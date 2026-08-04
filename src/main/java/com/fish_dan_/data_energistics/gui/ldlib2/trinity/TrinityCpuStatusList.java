@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -87,7 +87,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final int TARGET_ICON_SIZE = 11;
     private static final float TARGET_RENDER_SCALE = 0.666F;
     private static final float TARGET_RENDER_DEPTH = 0.0F;
-    private static final String UNLIMITED_TEXT = "MAX";
+    private static final String UNLIMITED_KEY = "gui.data_energistics.trinity.unlimited";
     private static final int TEXT_COLOR = 0xFF413F54;
     private static final int PROGRESS_FILL_COLOR = 0xFFACE9FF;
     private static final int SCROLL_TRACK_COLOR = 0xFF4D4D67;
@@ -238,7 +238,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                     statusIcon(cpu, "processor", PROCESSOR_ICON_TEXTURE, PROCESSOR_ICON_LEFT),
                     label(
                             rowPartId(cpu, "processor_count"),
-                            Component.literal(formatCoProcessors(cpu.coProcessors())),
+                            formatCoProcessors(cpu.coProcessors()),
                             PROCESSOR_TEXT_LEFT,
                             DETAIL_TEXT_TOP,
                             STORAGE_ICON_LEFT - PROCESSOR_TEXT_LEFT));
@@ -247,7 +247,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                 statusIcon(cpu, "storage", STORAGE_ICON_TEXTURE, STORAGE_ICON_LEFT),
                 label(
                         rowPartId(cpu, "storage_amount"),
-                        Component.literal(formatStorage(cpu.storage())),
+                        formatStorage(cpu.storage()),
                         STORAGE_TEXT_LEFT,
                         DETAIL_TEXT_TOP,
                         MODE_ICON_LEFT - STORAGE_TEXT_LEFT));
@@ -403,36 +403,41 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         });
     }
 
-    private static String formatStorage(long storage) {
+    private static Component formatStorage(long storage) {
         if (storage == Long.MAX_VALUE) {
-            return UNLIMITED_TEXT;
+            return Component.translatable(UNLIMITED_KEY);
         }
         if (storage >= 1024L * 1024L) {
-            return storage / (1024L * 1024L) + "M";
+            return Component.literal(storage / (1024L * 1024L) + "M");
         }
-        return storage / 1024L + "k";
+        return Component.literal(storage / 1024L + "k");
     }
 
-    private static String formatCoProcessors(int coProcessors) {
-        return coProcessors == Integer.MAX_VALUE ? UNLIMITED_TEXT : Integer.toString(coProcessors);
+    private static Component formatCoProcessors(int coProcessors) {
+        return coProcessors == Integer.MAX_VALUE ?
+                Component.translatable(UNLIMITED_KEY) :
+                Component.literal(Integer.toString(coProcessors));
     }
 
-    private static String formatElapsed(long elapsedTimeNanos) {
+    private static Component formatElapsed(long elapsedTimeNanos) {
         long seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTimeNanos);
         long days = seconds / 86_400L;
         long hours = seconds % 86_400L / 3_600L;
         long minutes = seconds % 3_600L / 60L;
         long remainingSeconds = seconds % 60L;
         if (days > 0L) {
-            return days + "d " + hours + "h";
+            return Component.translatable("gui.data_energistics.trinity.duration.days_hours", days, hours);
         }
         if (hours > 0L) {
-            return hours + "h " + minutes + "m";
+            return Component.translatable("gui.data_energistics.trinity.duration.hours_minutes", hours, minutes);
         }
         if (minutes > 0L) {
-            return minutes + "m " + remainingSeconds + "s";
+            return Component.translatable(
+                    "gui.data_energistics.trinity.duration.minutes_seconds",
+                    minutes,
+                    remainingSeconds);
         }
-        return remainingSeconds + "s";
+        return Component.translatable("gui.data_energistics.trinity.duration.seconds", remainingSeconds);
     }
 
     private static void configureVerticalScroller(Scroller scroller) {

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 
 import java.math.BigInteger;
 import java.util.Collection;

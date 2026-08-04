@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
 import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
@@ -10,10 +11,21 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTargetAvailability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -76,6 +88,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -86,6 +99,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                            implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolverImpl();
+    /** Stable target identity for the bound Trinity pattern catalog. */
+    private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
     private static final String TERMINAL_CONFIG_TAG = "terminal_config";
 
     private final MEStorage networkStorage = new HatchStorage();
@@ -754,7 +770,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         if (host == null) {
             return TargetState.STALE_ROUTE;
         }
-        return target.currentState(host.getHostId(), boundCraftingRuntime(), accessGrid());
+        return target.currentState(host.getHostId(), boundCraftingRuntime(), craftingExecutionRoute());
     }
 
     /**
@@ -772,7 +788,29 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             throw new IllegalArgumentException("Trinity CPU status target cannot be null");
         }
         TrinityDataCoreBlockEntity host = boundHost(false);
-        return host != null && target.isRouteCurrent(host.getHostId(), boundCraftingRuntime(), accessGrid());
+        return host != null && target.isRouteCurrent(
+                host.getHostId(),
+                boundCraftingRuntime(),
+                craftingExecutionRoute());
+    }
+
+    /**
+     * Resolves the current CPU execution route while retaining {@link #accessGrid()} as the physical lease identity.
+     *
+     * @return immutable execution route, or {@code null} while this hatch does not own a usable CPU lease
+     */
+    public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host == null || !host.isLeaseOwner(this) ? null : host.craftingExecutionRoute();
+    }
+
+    /** Resolves this exact hatch node against the lease epoch already validated by its host. */
+    @Nullable
+    TrinityCraftingExecutionRoute resolveCraftingExecutionRoute(long leaseEpoch) {
+        if (!isCandidateOnline()) {
+            return null;
+        }
+        return CRAFTING_ROUTE_RESOLVER.resolve(this.getMainNode().getNode(), leaseEpoch);
     }
 
     public @Nullable IGrid connectedGrid() {
@@ -1019,7 +1057,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return withdrawUntrackedCraftingCpuPublicationAndNotify();
         }
 
-        boolean published = desired.registry().publish(desired.node(), desired.runtime());
+        boolean published = desired.registry().data_energistics$publish(desired.node(), desired.runtime());
         this.cpuPublication = desired;
         boolean notified = false;
         if (withdrawn != null && !withdrawn.hasSameNotificationTarget(desired)) {
@@ -1036,18 +1074,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private CpuPublication resolveCraftingCpuPublication() {
         TrinityDataCoreCraftingRuntime runtime = boundCraftingRuntime();
-        if (runtime == null) {
+        TrinityCraftingExecutionRoute route = craftingExecutionRoute();
+        if (runtime == null || route == null) {
             return null;
         }
 
         IGridNode node = this.getMainNode().getNode();
-        IGrid grid = node.getGrid();
-        if (!(grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry)) {
+        IGrid serviceGrid = route.serviceGrid();
+        if (!(serviceGrid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry)) {
             LOGGER.error("Cannot publish Trinity CPU at {} because the AE2 crafting service has no runtime registry",
                     this.worldPosition);
             return null;
         }
-        return new CpuPublication(registry, grid, node, runtime);
+        return new CpuPublication(registry, route, node, runtime);
     }
 
     @Nullable
@@ -1057,7 +1096,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return null;
         }
         this.cpuPublication = null;
-        return publication.registry().withdraw(publication.node()) ? publication : null;
+        return publication.registry().data_energistics$withdraw(publication.node()) ? publication : null;
     }
 
     private void withdrawCraftingCpuPublicationAndNotify() {
@@ -1076,7 +1115,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return false;
         }
         IGrid grid = node.getGrid();
-        if (grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry && registry.withdraw(node)) {
+        if (grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry && registry.data_energistics$withdraw(node)) {
             grid.postEvent(new GridCraftingCpuChange(node));
             return true;
         }
@@ -1084,7 +1123,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     private static void notifyCraftingCpuChanged(CpuPublication publication) {
-        publication.grid().postEvent(new GridCraftingCpuChange(publication.node()));
+        publication.route().serviceGrid().postEvent(new GridCraftingCpuChange(publication.node()));
     }
 
     private void refreshTerminalPartitionsSafely() {
@@ -1196,17 +1235,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     private record CpuPublication(TrinityCraftingRuntimeRegistry registry,
-                                  IGrid grid,
+                                  TrinityCraftingExecutionRoute route,
                                   IGridNode node,
                                   TrinityDataCoreCraftingRuntime runtime) {
 
         private boolean matches(CpuPublication other) {
-            return this.registry == other.registry && this.grid == other.grid && this.node == other.node &&
+            return this.registry == other.registry && this.route.isCurrent(other.route) && this.node == other.node &&
                     this.runtime == other.runtime;
         }
 
         private boolean hasSameNotificationTarget(CpuPublication other) {
-            return this.grid == other.grid && this.node == other.node;
+            return this.route.serviceGrid() == other.route.serviceGrid() && this.node == other.node;
         }
     }
 
@@ -1226,7 +1265,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private final class HatchCraftingProvider implements CountedCraftingProvider {
+    private final class HatchCraftingProvider implements TargetedCountedCraftingProvider {
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
@@ -1244,6 +1283,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         public @Nullable CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
                                                                KeyCounter[] prototype,
                                                                long requestedCount) {
+            return prepareBatch(
+                    patternDetails,
+                    prototype,
+                    requestedCount,
+                    CraftingDispatchTargetAvailability.all()).admission();
+        }
+
+        @Override
+        public CountedCraftingPreparation prepareBatch(
+                                                       IPatternDetails patternDetails,
+                                                       KeyCounter[] prototype,
+                                                       long requestedCount,
+                                                       CraftingDispatchTargetAvailability targetAvailability) {
             if (patternDetails == null) {
                 throw new IllegalArgumentException("Trinity pattern details must not be null");
             }
@@ -1253,9 +1305,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             if (requestedCount <= 0L) {
                 throw new IllegalArgumentException("requestedCount must be positive");
             }
+            if (targetAvailability == null) {
+                throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+            }
+            if (!targetAvailability.canAttempt(CRAFTING_CATALOG_TARGET)) {
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(
+                                CraftingDispatchStatus.NO_CAPACITY,
+                                CRAFTING_CATALOG_TARGET));
+            }
             TrinityDataCoreBlockEntity host = patternProviderHost();
             if (host == null || level == null || level.isClientSide()) {
-                return null;
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.scoped(CraftingDispatchStatus.OFFLINE));
             }
             CraftingAdmissionToken token = host.issueCraftingAdmission(
                     TrinityAccessHatchBlockEntity.this,
@@ -1263,12 +1325,58 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                     level.getGameTime(),
                     requestedCount);
             if (token == null) {
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(
+                                CraftingDispatchStatus.NO_CAPACITY,
+                                CRAFTING_CATALOG_TARGET));
+            }
+            return CountedCraftingPreparation.accepted(
+                    new HatchCraftingAdmission(
+                            host,
+                            token,
+                            prototype),
+                    CRAFTING_CATALOG_TARGET);
+        }
+
+        @Override
+        public List<ProviderCapacitySnapshot> snapshotCapacity(
+                                                               CraftingProviderId providerId,
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCrafts,
+                                                               String patternIdentity,
+                                                               long publicationRevision,
+                                                               long capacityRevision,
+                                                               long captureTick) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || level == null || level.isClientSide() ||
+                    !host.getPatternCatalog().getAvailablePatterns().contains(patternDetails)) {
+                return List.of();
+            }
+            return List.of(new ProviderCapacitySnapshot(
+                    providerId,
+                    CRAFTING_CATALOG_TARGET,
+                    Optional.empty(),
+                    patternIdentity,
+                    publicationRevision,
+                    capacityRevision,
+                    captureTick,
+                    ProviderRoutingMode.TARGETED,
+                    new DispatchCapacity.Known(requestedCrafts),
+                    new DispatchCapacity.Known(requestedCrafts)));
+        }
+
+        @Override
+        @Nullable
+        public CountedCraftingAdmission prepareBatchForTarget(
+                                                              IPatternDetails patternDetails,
+                                                              KeyCounter[] prototype,
+                                                              long requestedCount,
+                                                              CraftingDispatchTarget target) {
+            if (!CRAFTING_CATALOG_TARGET.equals(target)) {
                 return null;
             }
-            return new HatchCraftingAdmission(
-                    host,
-                    token,
-                    prototype);
+            return prepareBatch(patternDetails, prototype, requestedCount);
         }
 
         @Override

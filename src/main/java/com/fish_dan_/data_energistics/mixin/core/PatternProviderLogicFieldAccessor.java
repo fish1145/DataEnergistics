@@ -40,6 +40,10 @@ public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicF
     List<IPatternDetails> dataEnergistics$getPatterns();
 
     @Override
+    @Accessor("patternInputs")
+    Set<AEKey> dataEnergistics$getPatternInputs();
+
+    @Override
     @Accessor("sendList")
     List<GenericStack> dataEnergistics$getSendList();
 
@@ -69,10 +73,6 @@ public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicF
     @Invoker("findAdapter")
     @Nullable
     PatternProviderTarget dataEnergistics$invokeFindAdapter(Direction side);
-
-    @Override
-    @Invoker("addToSendList")
-    void dataEnergistics$invokeAddToSendList(AEKey what, long amount);
 
     @Override
     @Invoker("sendStacksOut")

@@ -3,8 +3,9 @@ package com.fish_dan_.data_energistics.network;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
@@ -12,7 +13,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
-import appeng.api.networking.IGrid;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.menu.me.crafting.CraftingStatusMenu;
@@ -88,7 +88,7 @@ public final class TrinityOpenCpuStatusPayloadHandler {
             return null;
         }
         TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
-        TrinityOpenCpuStatusValidator.Resolution<TrinityDataCoreVirtualCpu, TrinityAccessHatchBlockEntity, IGrid> resolution = TrinityOpenCpuStatusValidator.resolve(
+        TrinityOpenCpuStatusValidator.Resolution<TrinityDataCoreVirtualCpu, TrinityAccessHatchBlockEntity, TrinityCraftingExecutionRoute> resolution = TrinityOpenCpuStatusValidator.resolve(
                 payload.hostId(),
                 payload.cpuNumber(),
                 host.getHostId(),
@@ -96,8 +96,9 @@ public final class TrinityOpenCpuStatusPayloadHandler {
                 runtime.publishedCpus(),
                 TrinityDataCoreVirtualCpu::number,
                 host::getActiveAccessHatch,
-                hatch -> host.isLeaseOwner(hatch) && hatch.boundCraftingRuntime() == runtime ? hatch.accessGrid() : null,
-                (grid, cpu) -> grid.getCraftingService().getCpus().contains(cpu));
+                hatch -> host.isLeaseOwner(hatch) && hatch.boundCraftingRuntime() == runtime ?
+                        hatch.craftingExecutionRoute() : null,
+                (route, cpu) -> route != null && route.serviceGrid().getCraftingService().getCpus().contains(cpu));
         if (!resolution.isResolved()) {
             logRejected(resolution.rejection().name(), player, menu, payload);
             return null;

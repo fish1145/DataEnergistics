@@ -33,6 +33,9 @@ public interface PatternProviderBatchAccess {
     /** Returns the currently published patterns. */
     List<IPatternDetails> dataEnergistics$getPatterns();
 
+    /** Returns the normalized input keys used by AE2 Blocking Mode. */
+    Set<AEKey> dataEnergistics$getPatternInputs();
+
     /** Returns pending inputs that AE2 still needs to send to the selected target. */
     List<GenericStack> dataEnergistics$getSendList();
 
@@ -52,8 +55,18 @@ public interface PatternProviderBatchAccess {
     @Nullable
     PatternProviderTarget dataEnergistics$invokeFindAdapter(Direction side);
 
-    /** Adds an input remainder to AE2's persistent send list. */
-    void dataEnergistics$invokeAddToSendList(AEKey what, long amount);
+    /**
+     * Wakes the provider after a complete counted batch has been placed in its persistent send list.
+     *
+     * <p>
+     * Counted dispatch installs the full list in one operation before transferring CPU ownership, so it cannot use
+     * AE2's per-stack {@code addToSendList} helper to perform this wake-up.
+     * </p>
+     */
+    default void dataEnergistics$alertPendingSendList() {
+        this.dataEnergistics$getMainNode().ifPresent(
+                (grid, node) -> grid.getTickManager().alertDevice(node));
+    }
 
     /** Immediately retries AE2's pending send list against its fixed target side. */
     boolean dataEnergistics$invokeSendStacksOut();

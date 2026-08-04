@@ -1,15 +1,23 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
+
+import net.minecraft.core.Direction;
+
 import appeng.api.config.Actionable;
+import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,12 +78,24 @@ public final class PatternProviderBatchingTest {
     }
 
     @Test
+    void preservesSingleCraftRoutingForBlockingLocksAndDedicatedMachines() {
+        assertFalse(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.NONE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(true, LockCraftingMode.NONE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.LOCK_UNTIL_RESULT, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.LOCK_UNTIL_PULSE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.NONE, true));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PatternProviderBatching.selectsSingleCraftPath(false, null, false));
+    }
+
+    @Test
     void expandsOnceAndQueuesActualRemainderWithoutMutatingPrototype() {
         AEKey data = DataKey.of();
         AEKey dataFlow = DataFlowKey.of();
         KeyCounter[] prototype = counters(counter(data, 2L), counter(dataFlow, 1L));
         SharedCapacityTarget target = new SharedCapacityTarget(9L);
-        KeyCounter remainder = new KeyCounter();
+        TargetBatchAccess access = new TargetBatchAccess(target);
         RecordingPattern pattern = new RecordingPattern();
         AtomicBoolean transferredInputOwnership = new AtomicBoolean();
 
@@ -83,16 +104,18 @@ public final class PatternProviderBatchingTest {
                 pattern,
                 prototype,
                 4L,
-                target,
-                () -> transferredInputOwnership.set(true),
-                remainder::add);
+                access,
+                Direction.NORTH,
+                () -> transferredInputOwnership.set(true));
 
         assertTrue(transferredInputOwnership.get());
+        assertTrue(access.alerted);
         assertEquals(1, pattern.pushCalls);
         assertEquals(2L, total(pattern.pushedInputs, data));
         assertEquals(1L, total(pattern.pushedInputs, dataFlow));
         assertEquals(9L, target.inserted);
-        assertEquals(3L, total(remainder));
+        assertEquals(3L, total(access.sendList));
+        assertEquals(Direction.NORTH, access.sendDirection);
         assertEquals(2L, prototype[0].get(data));
         assertEquals(1L, prototype[1].get(dataFlow));
     }
@@ -104,23 +127,25 @@ public final class PatternProviderBatchingTest {
         KeyCounter[] prototype = counters(counter(data, 2L), counter(dataFlow, 1L));
         SparseSingleCraftPattern pattern = new SparseSingleCraftPattern(data, dataFlow);
         RecordingInsertTarget target = new RecordingInsertTarget();
-        KeyCounter remainder = new KeyCounter();
+        TargetBatchAccess access = new TargetBatchAccess(target);
         AtomicBoolean transferredInputOwnership = new AtomicBoolean();
 
         PatternProviderBatching.pushExpanded(
                 pattern,
                 prototype,
                 4L,
-                target,
-                () -> transferredInputOwnership.set(true),
-                remainder::add);
+                access,
+                Direction.SOUTH,
+                () -> transferredInputOwnership.set(true));
 
         assertTrue(transferredInputOwnership.get());
+        assertTrue(access.alerted);
         assertEquals(2L, pattern.receivedInputs.get(data));
         assertEquals(1L, pattern.receivedInputs.get(dataFlow));
         assertEquals(8L, target.inserted.get(data));
         assertEquals(4L, target.inserted.get(dataFlow));
-        assertEquals(0L, total(remainder));
+        assertTrue(access.sendList.isEmpty());
+        assertNull(access.sendDirection);
         assertEquals(2L, prototype[0].get(data));
         assertEquals(1L, prototype[1].get(dataFlow));
     }
@@ -145,6 +170,7 @@ public final class PatternProviderBatchingTest {
         AEKey data = DataKey.of();
         KeyCounter[] prototype = counters(counter(data, 1L));
         RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        TargetBatchAccess access = new TargetBatchAccess(target);
         RecordingPattern pattern = new RecordingPattern();
         ICraftingProvider provider = new NoopCraftingProvider();
 
@@ -160,9 +186,9 @@ public final class PatternProviderBatchingTest {
                         null,
                         prototype,
                         1L,
-                        target,
-                        () -> {},
-                        (what, amount) -> {}));
+                        access,
+                        Direction.NORTH,
+                        () -> {}));
         assertIllegalArgument(
                 "Pattern-provider input prototype must not be null when scaling a batch",
                 () -> PatternProviderBatching.scalePrototype(null, 1L));
@@ -178,20 +204,21 @@ public final class PatternProviderBatchingTest {
     void rejectsNullExpansionCollaboratorsAtTheirMethodBoundary() {
         AEKey data = DataKey.of();
         KeyCounter[] prototype = counters(counter(data, 1L));
-        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        TargetBatchAccess access = new TargetBatchAccess(new RecordingTarget(Map.of(data, 1L)));
         RecordingPattern pattern = new RecordingPattern();
 
         assertIllegalArgument(
-                "Pattern-provider expansion target must not be null",
+                "Pattern-provider batch access must not be null",
                 () -> PatternProviderBatching.pushExpanded(
-                        pattern, prototype, 1L, null, () -> {}, (what, amount) -> {}));
+                        pattern, prototype, 1L, null, Direction.NORTH, () -> {}));
+        assertIllegalArgument(
+                "Pattern-provider batch direction must not be null",
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern, prototype, 1L, access, null, () -> {}));
         assertIllegalArgument(
                 "Pattern-provider ownership callback must not be null",
                 () -> PatternProviderBatching.pushExpanded(
-                        pattern, prototype, 1L, target, null, (what, amount) -> {}));
-        assertIllegalArgument(
-                "Pattern-provider remainder sink must not be null",
-                () -> PatternProviderBatching.pushExpanded(pattern, prototype, 1L, target, () -> {}, null));
+                        pattern, prototype, 1L, access, Direction.NORTH, null));
     }
 
     @Test
@@ -238,6 +265,7 @@ public final class PatternProviderBatchingTest {
         AEKey dataFlow = DataFlowKey.of();
         KeyCounter[] prototype = counters(counter(data, 1L), counter(dataFlow, Long.MAX_VALUE));
         RecordingInsertTarget target = new RecordingInsertTarget();
+        TargetBatchAccess access = new TargetBatchAccess(target);
         AtomicBoolean transferredInputOwnership = new AtomicBoolean();
 
         assertThrows(
@@ -246,12 +274,15 @@ public final class PatternProviderBatchingTest {
                         new OrderedPattern(data, dataFlow),
                         prototype,
                         2L,
-                        target,
-                        () -> transferredInputOwnership.set(true),
-                        (what, amount) -> {}));
+                        access,
+                        Direction.NORTH,
+                        () -> transferredInputOwnership.set(true)));
 
         assertFalse(transferredInputOwnership.get());
         assertEquals(0L, total(target.inserted));
+        assertTrue(access.sendList.isEmpty());
+        assertNull(access.sendDirection);
+        assertFalse(access.alerted);
         assertEquals(1L, prototype[0].get(data));
         assertEquals(Long.MAX_VALUE, prototype[1].get(dataFlow));
     }
@@ -262,6 +293,7 @@ public final class PatternProviderBatchingTest {
         KeyCounter[] prototype = counters(counter(data, 1L));
         RecordingPattern pattern = new RecordingPattern();
         RecordingInsertTarget target = new RecordingInsertTarget();
+        TargetBatchAccess access = new TargetBatchAccess(target);
         AtomicBoolean transferredInputOwnership = new AtomicBoolean();
 
         assertThrows(
@@ -270,21 +302,23 @@ public final class PatternProviderBatchingTest {
                         pattern,
                         prototype,
                         0L,
-                        target,
-                        () -> transferredInputOwnership.set(true),
-                        (what, amount) -> {}));
+                        access,
+                        Direction.NORTH,
+                        () -> transferredInputOwnership.set(true)));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> PatternProviderBatching.pushExpanded(
                         pattern,
                         prototype,
                         -1L,
-                        target,
-                        () -> transferredInputOwnership.set(true),
-                        (what, amount) -> {}));
+                        access,
+                        Direction.NORTH,
+                        () -> transferredInputOwnership.set(true)));
 
         assertEquals(0, pattern.pushCalls);
         assertEquals(0L, total(target.inserted));
+        assertTrue(access.sendList.isEmpty());
+        assertNull(access.sendDirection);
         assertFalse(transferredInputOwnership.get());
         assertEquals(1L, prototype[0].get(data));
     }
@@ -310,31 +344,36 @@ public final class PatternProviderBatchingTest {
     }
 
     @Test
-    void marksOwnershipBeforeASecondModulatedInputThrows() {
+    void retainsCompleteBatchWhenSecondModulatedInputThrows() {
         AEKey data = DataKey.of();
         AEKey dataFlow = DataFlowKey.of();
         KeyCounter[] prototype = counters(counter(data, 2L), counter(dataFlow, 1L));
         OrderedPattern pattern = new OrderedPattern(data, dataFlow);
         FaultingTarget target = new FaultingTarget();
-        KeyCounter remainder = new KeyCounter();
+        TargetBatchAccess access = new TargetBatchAccess(target);
         var admission = PatternProviderBatching.ownershipAwareAdmission(3L, prototype,
                 (inputs, transferOwnership) -> {
                     PatternProviderBatching.pushExpanded(
                             pattern,
                             inputs,
                             3L,
-                            target,
-                            transferOwnership,
-                            remainder::add);
-                    transferOwnership.run();
+                            access,
+                            Direction.WEST,
+                            transferOwnership);
                     return true;
                 });
 
         assertFalse(admission.hasTransferredInputOwnership());
         assertThrows(InjectedDispatchException.class, () -> admission.commit(prototype));
         assertTrue(admission.hasTransferredInputOwnership());
-        assertEquals(6L, target.inserted);
-        assertEquals(0L, total(remainder));
+        assertTrue(access.alerted);
+        assertEquals(6L, access.queuedBeforeFirstMutation.get(data));
+        assertEquals(3L, access.queuedBeforeFirstMutation.get(dataFlow));
+        assertEquals(6L, target.inserted.get(data));
+        assertEquals(0L, target.inserted.get(dataFlow));
+        assertEquals(0L, total(access.sendList, data));
+        assertEquals(3L, total(access.sendList, dataFlow));
+        assertEquals(Direction.WEST, access.sendDirection);
         assertEquals(2L, prototype[0].get(data));
         assertEquals(1L, prototype[1].get(dataFlow));
     }
@@ -367,6 +406,24 @@ public final class PatternProviderBatchingTest {
         return total;
     }
 
+    private static long total(List<GenericStack> stacks, AEKey key) {
+        long total = 0L;
+        for (GenericStack stack : stacks) {
+            if (stack.what().equals(key)) {
+                total = Math.addExact(total, stack.amount());
+            }
+        }
+        return total;
+    }
+
+    private static long total(List<GenericStack> stacks) {
+        long total = 0L;
+        for (GenericStack stack : stacks) {
+            total = Math.addExact(total, stack.amount());
+        }
+        return total;
+    }
+
     private static long total(KeyCounter counter) {
         long total = 0L;
         for (var entry : counter) {
@@ -378,6 +435,114 @@ public final class PatternProviderBatchingTest {
     private static void assertIllegalArgument(String message, Runnable action) {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action::run);
         assertEquals(message, exception.getMessage());
+    }
+
+    private static final class TargetBatchAccess implements PatternProviderBatchAccess {
+
+        private final PatternProviderTarget target;
+        private final List<GenericStack> sendList = new ArrayList<>();
+        private final KeyCounter queuedBeforeFirstMutation = new KeyCounter();
+        private Direction sendDirection;
+        private boolean alerted;
+        private boolean capturedQueuedBatch;
+
+        private TargetBatchAccess(PatternProviderTarget target) {
+            this.target = target;
+        }
+
+        @Override
+        public PatternProviderLogicHost dataEnergistics$getHost() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public IManagedGridNode dataEnergistics$getMainNode() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public List<IPatternDetails> dataEnergistics$getPatterns() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public Set<AEKey> dataEnergistics$getPatternInputs() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public List<GenericStack> dataEnergistics$getSendList() {
+            return this.sendList;
+        }
+
+        @Override
+        public int dataEnergistics$getRoundRobinIndex() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public void dataEnergistics$setRoundRobinIndex(int roundRobinIndex) {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public void dataEnergistics$setSendDirection(Direction direction) {
+            this.sendDirection = direction;
+        }
+
+        @Override
+        public Set<Direction> dataEnergistics$invokeGetActiveSides() {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public PatternProviderTarget dataEnergistics$invokeFindAdapter(Direction side) {
+            throw unexpectedAccess();
+        }
+
+        @Override
+        public void dataEnergistics$alertPendingSendList() {
+            this.alerted = true;
+        }
+
+        @Override
+        public boolean dataEnergistics$invokeSendStacksOut() {
+            if (this.sendDirection == null) {
+                throw new IllegalStateException("Test batch has no fixed send direction");
+            }
+            if (!this.capturedQueuedBatch) {
+                for (GenericStack stack : this.sendList) {
+                    this.queuedBeforeFirstMutation.add(stack.what(), stack.amount());
+                }
+                this.capturedQueuedBatch = true;
+            }
+
+            boolean didSomething = false;
+            for (var iterator = this.sendList.listIterator(); iterator.hasNext();) {
+                GenericStack stack = iterator.next();
+                long inserted = this.target.insert(stack.what(), stack.amount(), Actionable.MODULATE);
+                if (inserted >= stack.amount()) {
+                    iterator.remove();
+                    didSomething = true;
+                } else if (inserted > 0L) {
+                    iterator.set(new GenericStack(stack.what(), stack.amount() - inserted));
+                    didSomething = true;
+                }
+            }
+            if (this.sendList.isEmpty()) {
+                this.sendDirection = null;
+            }
+            return didSomething;
+        }
+
+        @Override
+        public void dataEnergistics$invokeOnPushPatternSuccess(IPatternDetails patternDetails) {
+            throw unexpectedAccess();
+        }
+
+        private AssertionError unexpectedAccess() {
+            return new AssertionError("Unexpected pattern-provider batch test access");
+        }
     }
 
     private static final class RecordingTarget implements PatternProviderTarget {
@@ -469,7 +634,7 @@ public final class PatternProviderBatchingTest {
     private static final class FaultingTarget implements PatternProviderTarget {
 
         private int modulatedInputs;
-        private long inserted;
+        private final KeyCounter inserted = new KeyCounter();
 
         @Override
         public long insert(AEKey what, long amount, Actionable type) {
@@ -480,7 +645,7 @@ public final class PatternProviderBatchingTest {
             if (this.modulatedInputs == 2) {
                 throw new InjectedDispatchException();
             }
-            this.inserted = Math.addExact(this.inserted, amount);
+            this.inserted.add(what, amount);
             return amount;
         }
 

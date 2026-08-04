@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -54,6 +54,9 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
     @Nullable
     private TrinityDataCoreVirtualCpu dataEnergistics$cpu;
 
+    @Unique
+    private boolean dataEnergistics$cachedSuspended;
+
     public CraftingCPUMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -64,6 +67,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
             this.dataEnergistics$cpu.removeListener(this.cpuChangeListener);
             this.dataEnergistics$cpu = null;
         }
+        this.dataEnergistics$cachedSuspended = false;
         if (!(c instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu)) {
             return;
         }
@@ -91,12 +95,20 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
         }
     }
 
+    @Inject(method = "toggleScheduling", at = @At("TAIL"))
+    private void dataEnergistics$toggleScheduling(CallbackInfo ci) {
+        if (isServerSide() && this.dataEnergistics$cpu != null) {
+            this.dataEnergistics$cpu.setJobSuspended(!this.dataEnergistics$cpu.isJobSuspended());
+        }
+    }
+
     @Inject(method = "removed", at = @At("TAIL"))
     private void dataEnergistics$removed(Player player, CallbackInfo ci) {
         if (this.dataEnergistics$cpu != null) {
             this.dataEnergistics$cpu.removeListener(this.cpuChangeListener);
             this.dataEnergistics$cpu = null;
         }
+        this.dataEnergistics$cachedSuspended = false;
     }
 
     @Inject(method = "broadcastChanges", at = @At("HEAD"))
@@ -107,18 +119,22 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
 
         this.schedulingMode = this.dataEnergistics$cpu.getSelectionMode();
         this.cantStoreItems = this.dataEnergistics$cpu.isCantStoreItems();
-        if (this.incrementalUpdateHelper.hasChanges()) {
+        boolean suspended = this.dataEnergistics$cpu.isJobSuspended();
+        if (this.incrementalUpdateHelper.hasChanges() || this.dataEnergistics$cachedSuspended != suspended) {
             CraftingStatus status = dataEnergistics$createStatus(
                     this.incrementalUpdateHelper,
-                    this.dataEnergistics$cpu);
+                    this.dataEnergistics$cpu,
+                    suspended);
             this.incrementalUpdateHelper.commitChanges();
+            this.dataEnergistics$cachedSuspended = suspended;
             sendPacketToClient(new CraftingStatusPacket(this.containerId, status));
         }
     }
 
     @Unique
     private static CraftingStatus dataEnergistics$createStatus(IncrementalUpdateHelper changes,
-                                                               TrinityDataCoreVirtualCpu cpu) {
+                                                               TrinityDataCoreVirtualCpu cpu,
+                                                               boolean suspended) {
         boolean full = changes.isFullUpdate();
         ImmutableList.Builder<CraftingStatusEntry> entries = ImmutableList.builder();
         for (AEKey what : changes) {
@@ -147,6 +163,6 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
                 cpu.getElapsedTimeNanos(),
                 cpu.getRemainingItemCount(),
                 cpu.getStartItemCount(),
-                entries.build(), false);
+                entries.build(), suspended);
     }
 }
