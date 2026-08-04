@@ -3,35 +3,35 @@ package com.fish_dan_.data_energistics.configuration.rules;
 import java.io.IOException;
 import java.nio.file.Path;
 
-/** Describes one precisely located validation failure in the Data Extractor rule file. */
+/** Describes one precisely located validation failure in either the active rule YAML or legacy rule JSON. */
 public final class RuleFormatException extends IOException {
 
     public RuleFormatException(
                                Path source,
-                               String jsonPath,
+                               String location,
                                String violation,
                                String actualValue,
                                String repairAdvice) {
-        super(message(source, jsonPath, violation, actualValue, repairAdvice));
+        super(message(source, location, violation, actualValue, repairAdvice));
     }
 
     public RuleFormatException(
                                Path source,
-                               String jsonPath,
+                               String location,
                                String violation,
                                String actualValue,
                                String repairAdvice,
                                Throwable cause) {
-        super(message(source, jsonPath, violation, actualValue, repairAdvice), cause);
+        super(message(source, location, violation, actualValue, repairAdvice), cause);
     }
 
     private static String message(
                                   Path source,
-                                  String jsonPath,
+                                  String location,
                                   String violation,
                                   String actualValue,
                                   String repairAdvice) {
-        return "Invalid Data Extractor rule file " + source.toAbsolutePath().normalize() + " at " + jsonPath + ": " + violation + "; actual=" + abbreviate(actualValue) + "; repair=" + repairAdvice;
+        return "Invalid Data Extractor rule file " + source.toAbsolutePath().normalize() + " at " + location + ": " + violation + "; actual=" + abbreviate(actualValue) + "; repair=" + repairAdvice;
     }
 
     private static String abbreviate(String value) {

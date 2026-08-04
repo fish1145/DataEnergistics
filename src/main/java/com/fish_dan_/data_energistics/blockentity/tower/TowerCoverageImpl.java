@@ -1,12 +1,14 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.IntSupplier;
 
 /**
  * Default coordinate implementation for Data Distribution Tower coverage.
@@ -18,6 +20,7 @@ public final class TowerCoverageImpl implements TowerCoverage {
     private static final int VERTICAL_RANGE_BELOW = 128;
 
     private final BlockPos origin;
+    private final IntSupplier baseRange;
 
     /**
      * Creates coverage math anchored at the tower base position.
@@ -25,13 +28,17 @@ public final class TowerCoverageImpl implements TowerCoverage {
      * @param origin tower base position used as coverage center
      */
     public TowerCoverageImpl(BlockPos origin) {
+        this(origin, () -> DataEnergisticsConfiguration.INSTANCE.dataDistributionTower().range());
+    }
+
+    TowerCoverageImpl(BlockPos origin, IntSupplier baseRange) {
         this.origin = origin.immutable();
+        this.baseRange = baseRange;
     }
 
     @Override
     public int computeChunkRadius(int boosterCount) {
-        int baseRange = GameplayConfiguration.current().dataDistributionTower().range();
-        return Math.max(0, baseRange - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
+        return Math.max(0, this.baseRange.getAsInt() - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
     }
 
     @Override

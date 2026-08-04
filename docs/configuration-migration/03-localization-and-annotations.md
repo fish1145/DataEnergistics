@@ -7,6 +7,7 @@ en_us 与 zh_cn 必须同时覆盖：
 - 配置界面标题；
 - 八个一级领域分组及两个 TNT 子分组；
 - 63 个目标 YAML 字段标签；
+- 独立规则 YAML 的两个分组与 10 个列数组标签；
 - GUI 中实际显示的格式、范围、危险和重启提示；
 - `CraftingQuantityMode` 的两个显示值。
 
@@ -18,7 +19,7 @@ en_us 与 zh_cn 必须同时覆盖：
 
 `config.data_energistics.option.<完整字段路径>`
 
-所有分组和叶字段显式采用 `Configurable.LocalizationKey.FULL`。en_us 与 zh_cn 的配置键集合必须完全相同，不使用 SHORT key 去重。
+所有分组和叶字段显式采用 `Configurable.LocalizationKey.FULL`。en_us 与 zh_cn 的配置键集合必须完全相同。Configuration 的数组虚拟条目不会继承父路径，因此另按框架实际约定提供 `<字段 id>.entry` 键。
 
 ## 序列化与显示分离
 
@@ -30,7 +31,7 @@ en_us 与 zh_cn 必须同时覆盖：
 
 ## 双语文件注释
 
-每个分组和 63 个叶字段都写入 literal 注释，顺序固定为英文在前、中文在后。注释至少说明行为，并按字段补充：
+每个分组、主配置 63 个叶字段及独立规则 10 个数组都写入 literal 注释，顺序固定为英文在前、中文在后。注释至少说明行为，并按字段补充：
 
 1. 单位：tick、秒、毫秒、AE/t 或桶；
 2. 范围或字符串语法；
@@ -59,28 +60,24 @@ en_us 与 zh_cn 必须同时覆盖：
 | 整数范围 | `Configurable.Range` | 与 01 清单一致 |
 | 浮点范围 | `Configurable.DecimalRange` | 领域层额外拒绝 NaN、Infinity 和窄化溢出 |
 | 固定格式字符串 | `Configurable.StringPattern` | 只承担可证明的词法检查 |
-| 高级字段 | `Configurable.Gui.Visibility(ADVANCED)` | 仍需完整风险注释 |
 | 小范围数值 | `Configurable.Gui.Slider` | 同时保留精确文本输入 |
 | 线程池参数 | `Configurable.UpdateRestriction(GAME_RESTART)` | 仅服务器启动创建资源 |
 | 跨字段约束 | 程序化验证与不可变快照 | 通过后才能发布 |
 
-不使用 `FixedSize`、`CharacterLimit`、会改变精度的 `NumberFormat` 或 4.x 才提供的 Validator 注解。不添加 `@Config.NoAutoSync`。
+不使用 `FixedSize`、`CharacterLimit`、会改变精度的 `NumberFormat` 或 4.x 才提供的 Validator 注解。主 YAML 与独立规则 YAML 均不添加 `@Config.NoAutoSync`；两者都由内置 watcher 驱动，并在服务器 tick 边界发布完整不可变实例。
 
 ## 字符串、列表和注册表字段
 
 - `fillBlock` 先用 `StringPattern` 验证 ResourceLocation 词法，再在注册表可用阶段确认方块存在。
-- `dataRipperMultipliers` 逐项验证等号分隔、有限倍率和可编译 regex。
-- Data Extractor CSV 与 `cropInputMappings` 由集中解析器验证并报告条目索引。
+- Data Ripper 倍率使用 `patterns[]` 与 `values[]` 两个原生数组按索引配对，运行期不解析 `pattern=value`。
+- Data Extractor 黑白名单使用一项一个注册表 ID 的原生数组。
+- 旧 `cropInputMappings` 移入独立规则配置的载体列数组；规则全部按原生字段列保存，不编码条目语法。
+- 所有数组同时提供框架约定的 `<字段 key>.entry` 本地化键，列表中的每项显示“索引 + 本地化条目名”，不得暴露原始 key。
 - 框架无法逐元素表达的数组约束全部放在领域转换层，不以宽松注解代替。
 
-## GUI 分层
+## GUI 可见性
 
-以下字段使用 Advanced 展示：
-
-- Data Ripper regex、倍率表；
-- Data Extractor CSV 与大型 mapping；
-- `replaceUnbreakableBlocks`、TNT 大范围和偏移参数；
-- Trinity 的尝试次数、预算、窗口、队列、退避和 EWMA 调参项。
+主配置 63 个字段和独立规则配置 10 个字段默认全部可见，不要求玩家切换 Advanced 模式。分组只负责按领域导航，不承担隐藏字段的职责。
 
 `ewmaAlpha`、小范围 TNT 半径与偏移、`speedCardBonusRatio` 使用可精确输入的 Slider。上限为 `Integer.MAX_VALUE` 或 `Double.MAX_VALUE` 的字段不使用 Slider。
 
@@ -95,7 +92,7 @@ GUI 与注释使用与实现一致的混合策略：
 - Trinity Dispatch：下一 grid tick，Governor 历史重置；
 - Data Extractor 已持久化 requiredAmount：不追溯；
 - 其他主 YAML 字段：有效快照发布后的下一次对应读取；
-- 规则 JSON：下一次启动。
+- 规则 YAML：内置 watcher 重读并通过主线程严格核对后的下一服务器 tick。
 
 ## enum 显示适配
 
@@ -105,12 +102,12 @@ GUI 与注释使用与实现一致的混合策略：
 - 保存时仍输出 `Enum.name()`；
 - 对未知值由严格 YAML 解析直接拒绝，不提供兜底标签；
 - 只在客户端初始化路径注册；
-- 通过真实 GUI 或框架公开编辑器入口测试，不使用反射。
+- 通过一次真实 GUI 启动检查显示，不使用反射或专项控件测试。
 
 ## 验收
 
-- 从 schema 元数据得到 63 个字段及所有分组的 FULL key。
+- 从 schema 元数据得到主配置 63 个字段、独立规则 10 个字段及所有分组的 FULL key。
 - 解析 en_us.json、zh_cn.json 并比较精确键集合；禁止重复、空值和错误 Mod ID。
 - 生成 YAML 后重新解析双语 literal 注释，字节级确认 UTF-8 无 BOM。
-- 英文和简体中文 GUI 均检查标题、分组、字段、Advanced、Slider、enum 和重启提示。
+- 英文和简体中文 GUI 均检查标题、分组、全部默认可见字段、Slider、enum 和重启提示。
 - 专用服务器启动证明不会加载枚举显示适配器的客户端类。

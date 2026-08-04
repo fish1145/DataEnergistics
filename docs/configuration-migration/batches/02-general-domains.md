@@ -4,21 +4,21 @@
 
 切换 41 个目标 YAML 字段：
 
-- 通用 8；
-- Data Extractor 15；
+- 通用 9；
+- Data Extractor 14；
 - Flattening TNT / Data Nuke 14；
 - Solar 4。
 
-Trinity 的 22 项留在批次 03。规则 JSON 继续独立，由批次 01 的启动加载边界提供。
+Trinity 的 22 项留在批次 03。规则 YAML 继续独立，由批次 01 注册为单独的 Configuration 配置，并在运行期通过内置 watcher 实时更新。
 
 ## 领域读取边界
 
-为 Data Ripper、Tower、Sanctum、Data Extractor、TNT/Data Nuke 和 Solar 定义窄接口。由 `SnapshotBacked...` 职责型类型从同一根快照提供数据；业务代码不得读取 schema 或 Holder。
+为 Data Ripper、Tower、Sanctum、Data Extractor、TNT/Data Nuke 和 Solar 定义窄接口。`DataEnergisticsConfiguration.INSTANCE` 指向同一不可变根快照并提供这些领域视图；业务代码不得读取可变框架实例或 `INTERNAL_INSTANCE`。
 
 集中转换：
 
 - Data Ripper regex 和 multiplier 预编译；
-- Data Extractor CSV、mapping 和 double → float 可表示性；
+- Data Extractor 黑白名单数组、mapping 数组和 double → float 可表示性；
 - fillBlock 的词法及注册表存在性；
 - 所有派生集合一次构造为不可变值。
 
@@ -38,16 +38,13 @@ Trinity 的 22 项留在批次 03。规则 JSON 继续独立，由批次 01 的�
 
 ## 切换顺序
 
-每个领域依次完成全部调用点搜索、接口替换、逻辑测试与旧静态入口消费检查。一个领域切换后不得回退到 legacy-backed 值，旧 spec 仅留给尚未切换的领域。
+每个领域依次完成全部调用点搜索、接口替换与旧静态入口消费检查。一个领域切换后不得回退到 legacy-backed 值，旧 spec 仅留给尚未切换的领域。
 
-## 测试与门禁
+## 验收门禁
 
-- 41 项默认、自定义、边界和 TOML → YAML → 领域端到端测试；
-- regex、倍率、CSV、mapping、ResourceLocation 与 float 窄化错误；
-- TNT 单次操作只观察一个修订；
-- Data Nuke 跨 tick 能切换但单 tick 内一致；
-- Solar 发电与容量的不同生效边界；
-- Data Ripper 缓存修订失效；
+- 现有业务测试只适配新的只读 Settings 类型，不增加配置字段测试；
+- 静态调用点审查确认 41 项消费者均从同一实例读取；
+- 客户端生成文件确认 regex、倍率与 ID 黑白名单为原生数组；
 - 不直接修改静态字段，不使用反射。
 
-门禁：41 项消费者全部通过领域边界读取，规则 JSON 行为未被破坏，Trinity 未被顺带重构。
+门禁：41 项消费者全部通过领域边界读取，规则 YAML 行为未被破坏，Trinity 未被顺带重构。

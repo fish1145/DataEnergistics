@@ -17,38 +17,39 @@
 | Trinity Crafting | `data_energistics-trinity_crafting.toml` |
 | Trinity Dispatch | `data_energistics-trinity_dispatch.toml` |
 
-导入器按下面的历史兼容清单识别 64 个 TOML 输入；目标 YAML 清单为 63 个叶字段。两者不得再混称为同一计数。
+导入器按下面的 `ae910ee2` 基线清单识别 64 个 TOML 输入，并额外识别更早版本的废弃 `mipTimeoutMs`；目标 YAML 清单为 63 个叶字段。两者不得再混称为同一计数。
 
 ## 计数对照
 
 | 领域 | 旧 TOML 输入 | 目标 YAML | 差异 |
 | --- | ---: | ---: | --- |
-| 通用 | 8 | 8 | 全部迁移 |
-| Data Extractor | 15 | 15 | 全部迁移 |
+| 通用 | 8 | 9 | 旧倍率行拆成正则与数值两个原生数组 |
+| Data Extractor | 15 | 14 | 旧作物映射移入独立规则配置 |
 | Flattening TNT / Data Nuke | 15 | 14 | 丢弃历史 `displayName` |
 | Solar Panel | 4 | 4 | 全部迁移 |
-| Trinity Crafting | 9 | 8 | 忽略历史 `mipTimeoutMs` |
-| Trinity Dispatch | 13 | 14 | 新增 `safeRetryBackoffTicks=8` |
-| 合计 | 64 | 63 | 删除两个历史字段，增加一个目标字段 |
+| Trinity Crafting | 8 | 8 | 更早版本的额外 `mipTimeoutMs` 仅作兼容识别 |
+| Trinity Dispatch | 14 | 14 | 更早版本缺少 `safeRetryBackoffTicks` 时补 8 |
+| 合计 | 64 | 63 | 丢弃基线 `displayName`；额外兼容不计入基线的 `mipTimeoutMs` |
 
-## 通用：8 → 8
+## 通用：8 → 9
 
 | 旧字段 | 目标路径 | 类型 | 默认值 | 范围或格式 |
 | --- | --- | --- | --- | --- |
 | dataRipperBaseCost | dataRipper.baseCost | int | 512 | 1..MAX |
 | dataRipperBlacklist | dataRipper.blacklist | 字符串列表 | 空 | ResourceLocation 或规则字符串 |
-| dataRipperMultipliers | dataRipper.multipliers | 字符串列表 | minecraft:hopper=1.5、appeng:.*=2.0 | pattern=multiplier |
+| dataRipperMultipliers | dataRipper.multipliers.patterns | 字符串数组 | minecraft:hopper、appeng:.* | 每项一个正则 |
+| dataRipperMultipliers | dataRipper.multipliers.values | double 数组 | 1.5、2.0 | 与 patterns 按索引配对，有限且大于 0 |
 | dataDistributionTowerRange | dataDistributionTower.range | int | 1 | 1..128 |
 | dataSanctumInterfaceItemLimit | dataSanctumInterface.itemLimit | int | 2048 | 1..268435455 |
 | dataSanctumInterfaceFluidBuckets | dataSanctumInterface.fluidBuckets | int | 2048 | 1..268435455 |
 | dataSanctumInterfaceReturnItemLimit | dataSanctumInterface.returnItemLimit | int | 2048 | 1..268435455 |
 | dataSanctumInterfaceReturnFluidBuckets | dataSanctumInterface.returnFluidBuckets | int | 2048 | 1..268435455 |
 
-`dataRipperMultipliers` 在快照构造时解析并预编译正则；格式、有限数值和正则错误都必须带条目索引失败。
+旧 `dataRipperMultipliers` 的 `pattern=value` 只在 TOML 导入边界拆成两个原生数组；运行期直接按索引配对并预编译正则，不再解析组合字符串。
 
-## Data Extractor：15 → 15
+## Data Extractor：15 → 14
 
-目标前缀统一为 `dataExtractor`，叶字段名保持不变。
+目标前缀统一为 `dataExtractor`；4 个黑白名单改为原生数组，旧 `cropInputMappings` 移入独立规则 YAML。
 
 | 字段 | 类型 | 默认值 | 范围或格式 |
 | --- | --- | --- | --- |
@@ -60,15 +61,14 @@
 | targetLimitPerCapacityCard | int | 5 | 0..MAX |
 | extraTargetDataFlowMultiplier | double | 0.25 | 0..Double.MAX_VALUE，有限 |
 | mobRequiredDamage | double schema、float 消费 | 1024 | 1..Double.MAX_VALUE，须可窄化 |
-| mobDataBlacklist | CSV 字符串 | 空 | 实体 ID |
+| mobDataBlacklist | 字符串数组 | 空数组 | 每项一个实体 ID |
 | oreRequiredAmount | double schema、float 消费 | 4096 | 1..Double.MAX_VALUE，须可窄化 |
-| oreDataBlacklist | CSV 字符串 | 空 | 方块或标签 |
+| oreDataBlacklist | 字符串数组 | 空数组 | 每项一个物品 ID |
 | cropRequiredAmount | double schema、float 消费 | 4096 | 1..Double.MAX_VALUE，须可窄化 |
-| cropDataBlacklist | CSV 字符串 | 空 | 作物 ID |
-| cropDataWhitelist | CSV 字符串 | 空 | 作物 ID |
-| cropInputMappings | 映射字符串 | 36 条内置映射 | input_item=recorded_crop@progress |
+| cropDataBlacklist | 字符串数组 | 空数组 | 每项一个作物物品 ID |
+| cropDataWhitelist | 字符串数组 | 空数组 | 每项一个作物物品 ID |
 
-规则 JSON 中的作物映射与本表的配置字符串含义不同；两者均保留，但规则 JSON 使用独立的 v1 迁移流程。
+旧 TOML 的 36 条默认作物映射直接转换为规则配置中各载体列的原生数组；主 YAML 不再保留第二份映射真值。旧 JSON 仅在规则 YAML 不存在时执行独立导入。
 
 ## Flattening TNT / Data Nuke：15 → 14
 
@@ -121,7 +121,7 @@
 | dynamicRetryMaxTicks | int | 200 | 1..MAX，tick |
 | defaultQuantityMode | enum | NET_NEW | NET_NEW、FINAL_TOTAL |
 
-旧 TOML 的 `mipTimeoutMs` 是第 9 个历史输入，只识别并忽略。旧 TOML 的 `maxBindingVariants=512` 升级为 32768；其他显式正整数保持。该特殊规则只针对 TOML 来源，YAML 中显式写 512 必须保留。
+更早 TOML 的额外 `mipTimeoutMs` 不属于 `ae910ee2` 的 64 项基线，只识别并忽略。旧 TOML 的 `maxBindingVariants=512` 升级为 32768；其他显式正整数保持。该特殊规则只针对 TOML 来源，YAML 中显式写 512 必须保留。
 
 ## Trinity Dispatch：目标 14 项
 
@@ -144,7 +144,7 @@
 | cooldownTicks | int | 60 | 0..MAX |
 | safeHoldTicks | int | 200 | 1..MAX |
 
-旧 Dispatch 输入中没有 `safeRetryBackoffTicks`；导入时补 8。完整快照必须满足：
+`ae910ee2` 的 Dispatch 输入已包含 `safeRetryBackoffTicks` 并按显式值迁移；更早文件缺失时保留目标默认值 8。完整快照必须满足：
 
 - `safeGridAttempts <= hardGridAttempts`；
 - `safeProviderAttempts <= hardProviderAttempts`；
@@ -153,14 +153,14 @@
 
 ## 独立规则文件
 
-`config/data_energistics-data_extractor_rules.json` 不属于目标 YAML。目标格式固定为 `schema_version: 1`，包含 `carrier_rules` 和 `output_rules`；无版本文件作为 v0 迁移。完整结构、兼容键、备份和严格验证见 `06-data-extractor-rules-v1.md`。
+活动规则位于 `config/data_energistics/data_extractor_rules.yaml`，包含 `carrierRules` 与 `outputRules` 两个分组、合计 10 个原生数组，不属于主 YAML 的 63 项。旧 `config/data_energistics-data_extractor_rules.json` 支持 v0/v1 首次导入。完整结构、兼容键、备份和严格验证见 `06-data-extractor-rules.md`。
 
 ## 需要覆盖的现有缺口
 
-- 63 个 YAML 字段的默认值、自定义值、边界、往返和消费行为；
-- 64 个 TOML 输入的映射、废弃键和特殊升级规则；
+- schema 元数据核对 63 个 YAML 字段，并以少量代表值覆盖往返和消费行为；
+- 一份完整迁移案例覆盖 64 个 TOML 输入，另保留特殊升级和失败路径；
 - watcher 后台重载到主线程原子快照发布；
 - 第一个与第二个单人世界的内置 watcher 生命周期；
 - FULL 本地化键、双语注释和 enum 客户端显示适配；
-- JSON v0/v1/future 版本、重复键、未知键和备份冲突；
-- 客户端、专用服务器、GameTest 与打包依赖。
+- 旧 JSON 导入、备份冲突与活动规则 YAML 优先级；
+- 一次客户端启动、生成文件、GUI、日志与打包依赖。

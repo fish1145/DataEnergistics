@@ -2,7 +2,7 @@
 
 ## 目标
 
-建立完整 Configuration 基础、主 YAML 迁移器和 Data Extractor JSON v1 迁移器，但暂不切换生产消费者。过渡期由职责型 legacy-backed 入口提供唯一旧值视图；本批次不可单独发布。
+建立完整 Configuration 基础、主 YAML 迁移器、Data Extractor 规则 YAML 和旧 JSON 导入器，但暂不切换生产消费者。过渡期由职责型 legacy-backed 入口提供唯一旧值视图；本批次不可单独发布。
 
 ## 构建接入
 
@@ -29,26 +29,25 @@
 - 同目录临时文件、UTF-8 无 BOM、flush/fsync、重读验证和原子移动。
 - 目标 YAML 已存在时不再读取旧 TOML。
 
-## 规则 JSON 迁移
+## 规则配置迁移
 
-- 实现 v1 严格 schema 和无版本 v0 迁移。
+- 规则 YAML 使用两个 Configuration 分组、合计 10 个原生数组；实现旧 JSON v1 严格读取和无版本 v0 迁移。
 - 原始字节备份为 `data_energistics-data_extractor_rules.v0.json`，已有备份必须一致。
 - 保留 `_...` 元数据层级，`_mob_rule_examples` 不执行。
 - 以不可变 `LoadedRules` 为发布单位；本批次只完成启动加载边界。
 
 ## 注册顺序
 
-`预校验/迁移主 YAML → 注册 Configuration → 核对 Holder → 发布根快照 → 迁移并加载规则 JSON`
+`预校验/迁移主 YAML → 注册主 Configuration → 核对 Holder → 发布根快照 → 预校验规则 YAML 或导入旧 JSON → 注册规则 Configuration Holder → 发布 LoadedRules`
 
 旧 `ConfigHolder.init` 在过渡期继续注册旧 specs，消费者仍经 `LegacyConfigBridge` 使用旧值。新 schema 不得成为第二份生产真值。
 
-## TDD 与验收
+## 实现与验收
 
-- 类型安全参数化覆盖 63 个 schema 字段。
-- 参数化覆盖 64 个 TOML 输入及特殊转换。
-- 临时目录覆盖全新、完整、部分、损坏、临时恢复和二次启动。
-- JSON 覆盖 v0/v1/future、备份冲突、重复键、未知键和原子迁移。
-- 客户端、专用服务器与打包 jar 验证依赖和元数据。
+- 不新增 Configuration 专项测试，不逐字段或按非法输入排列复制框架行为。
+- 通过 schema 审查、一次真实旧文件迁移、生成 YAML 重读和二次启动核对 63/64 映射。
+- 通过客户端日志确认主配置与规则配置注册、旧 JSON 导入和内置 watcher。
+- 打包 jar 核对嵌入依赖和元数据。
 - 禁止反射、源码 contains、空壳 adapter 或占位实现。
 
 门禁：63/64 两套计数均精确、迁移原子幂等、旧文件哈希不变、新配置注册不改变旧消费者行为。

@@ -13,9 +13,9 @@
 - 64 个旧 TOML 输入；
 - 63 个目标 YAML 字段；
 - Crafting 8 项，Dispatch 14 项；
-- 历史 `displayName`、`mipTimeoutMs` 与新增 `safeRetryBackoffTicks=8` 的转换；
+- 基线 `displayName`、额外历史 `mipTimeoutMs`，以及旧文件缺少 `safeRetryBackoffTicks` 时补 8 的转换；
 - `maxBindingVariants` 的 TOML 512 → 32768 特例；
-- Data Extractor JSON v1 协议。
+- Data Extractor 原生规则 YAML 与旧 JSON v0/v1 导入协议。
 
 ## 探针矩阵
 
@@ -30,7 +30,7 @@
 | enum | 磁盘保持 enum name；客户端显示适配器能本地化选项 |
 | restart restriction | 两个 planner 资源字段使用 GAME_RESTART |
 | Holder 锁 | 能在锁内复制完整 saved/pending 候选并读取稳定指纹 |
-| watcher | 注册 Holder 自动加入 `FileWatchManager`；不添加 `NoAutoSync` |
+| watcher | 主 YAML 与规则 YAML Holder 均自动加入 `FileWatchManager`；不添加 `NoAutoSync` |
 | 无效 YAML | 项目预校验先于框架注册，坏文件不会被默认值覆盖 |
 | 专用服务器 | schema 和加载链不触发客户端类加载 |
 
@@ -54,7 +54,7 @@
 
 - 可重复运行的框架集成探针；
 - 依赖、元数据、路径、FULL key、Holder 锁和 watcher 生命周期证据；
-- 64 → 63 字段清单与 JSON v1 文档；
+- 64 → 63 字段清单与独立规则配置文档；
 - 客户端、专用服务器与打包验证结果。
 
 所有结论均通过公开 API 或真实生命周期验证，不使用反射、源码 contains 或临时项目 watcher。任一探针失败必须在批次 01 前修复。

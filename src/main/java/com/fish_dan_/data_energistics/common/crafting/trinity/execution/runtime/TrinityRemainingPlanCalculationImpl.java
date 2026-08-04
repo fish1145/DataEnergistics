@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.stacks.AEKey;
 
@@ -41,7 +41,7 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
-                          TrinityCraftingConfig.Settings settings,
+                          TrinityCrafting settings,
                           long currentTick) {
         if (currentTick < 0L) {
             throw new IllegalArgumentException("A Trinity remaining-plan calculation requires a non-negative tick");
@@ -144,7 +144,7 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                                                     BigInteger requestedAmount,
                                                     CraftingQuantityMode quantityMode,
                                                     Map<AEKey, BigInteger> available,
-                                                    TrinityCraftingConfig.Settings settings) {
+                                                    TrinityCrafting settings) {
         TrinityPlanningControl control = TrinityPlanningControl.unbounded();
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
                 graph,

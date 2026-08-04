@@ -19,10 +19,19 @@ public final class DataExtractorRuleMigrator {
 
     private DataExtractorRuleMigrator() {}
 
+    /** Imports an existing legacy JSON or returns in-memory defaults without creating another legacy file. */
+    public static LoadedRules loadLegacyOrDefaults(Path legacySource, DefaultRuleValues defaults) throws IOException {
+        Path normalizedSource = legacySource.toAbsolutePath().normalize();
+        if (Files.notExists(normalizedSource)) {
+            return DataExtractorRuleCodec.createDefaults(defaults, normalizedSource);
+        }
+        return prepare(normalizedSource, defaults);
+    }
+
     /**
      * Loads a rule snapshot from an explicit path, creating defaults or atomically migrating v0 when required.
      */
-    public static LoadedRules load(Path target, DefaultRuleValues defaults) throws IOException {
+    public static LoadedRules prepare(Path target, DefaultRuleValues defaults) throws IOException {
         Path normalizedTarget = target.toAbsolutePath().normalize();
         Files.createDirectories(normalizedTarget.getParent());
         if (Files.notExists(normalizedTarget)) {

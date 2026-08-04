@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
@@ -61,7 +61,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
 
     @GuiSync(791)
     @Unique
-    public int dataEnergistics$quantityMode = TrinityCraftingConfig.settings().defaultQuantityMode().ordinal();
+    public int dataEnergistics$quantityMode = DataEnergisticsConfiguration.INSTANCE.trinityCrafting().defaultQuantityMode().ordinal();
 
     @GuiSync(792)
     @Unique

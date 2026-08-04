@@ -23,7 +23,7 @@
 
 ## watcher 生命周期
 
-不添加 `NoAutoSync`，不创建项目 `WatchService`。自动化与人工测试固定覆盖：
+主 YAML 与独立规则 YAML 均不添加 `NoAutoSync`，不创建项目 `WatchService`。两份 Holder 候选都只在服务器主线程完成严格核对后发布完整不可变实例。文档固定说明：
 
 - 第一个服务器生命周期内热重载；
 - 退出第一个单人世界后内置 watcher 永久关闭；
@@ -39,7 +39,7 @@
 ## GUI 与编码验收
 
 - English 与简体中文各检查一次界面；
-- 标题、分组、63 个字段、Advanced、Slider 和 enum 无原始 key；
+- 标题、分组、默认可见的 63 个字段、Slider 和 enum 无原始 key；
 - 两个 planner 字段明确显示 GAME_RESTART；
 - 保存后 YAML 顺序、双语注释和 Unicode 可重读；
 - UTF-8 无 BOM；
@@ -47,4 +47,4 @@
 
 ## 门禁
 
-语言键集合、双语注释、枚举显示、严格候选校验、原子发布和 watcher 两世界生命周期全部通过；规则 JSON 的 v1 行为由独立文档与批次 01 测试保持。
+语言键集合、双语注释、枚举显示、严格候选校验和原子发布通过静态审查与一次真实客户端启动验收；watcher 两世界生命周期作为框架限制记录，规则 YAML 与旧 JSON 导入行为由独立文档保持。

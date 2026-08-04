@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.part;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataRipper;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
@@ -260,7 +260,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private TickContext getTickContext(Level level, BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
-        DataEnergisticsSettings configuration = GameplayConfiguration.current();
+        DataEnergisticsSettings configuration = DataEnergisticsConfiguration.INSTANCE;
         if (configuration.revision() != this.cachedConfigurationRevision) {
             this.cachedConfigurationRevision = configuration.revision();
             this.cachedTickContext = null;

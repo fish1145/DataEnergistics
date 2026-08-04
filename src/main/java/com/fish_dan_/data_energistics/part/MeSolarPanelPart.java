@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.SolarPanel;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
@@ -178,7 +178,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
             return 0.0D;
         }
 
-        SolarPanel settings = GameplayConfiguration.current().solarPanel();
+        SolarPanel settings = DataEnergisticsConfiguration.INSTANCE.solarPanel();
         double baseGeneration = specialNightGenerationDimension || !level.isDay() ? settings.nightGenerationAEPerTick() : settings.dayGenerationAEPerTick();
         double adjustedGeneration = DataSolarPanelBlockEntity.applySpeedUpgrades(
                 baseGeneration,

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.networking.crafting.ICraftingPlan;
 
@@ -19,7 +19,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @param settings planner worker, queue and timeout budgets
      * @return independently owned gateway
      */
-    static TrinityPlanningGateway create(TrinityCraftingConfig.Settings settings) {
+    static TrinityPlanningGateway create(TrinityCrafting settings) {
         return new TrinityPlanningGatewayImpl(settings);
     }
 

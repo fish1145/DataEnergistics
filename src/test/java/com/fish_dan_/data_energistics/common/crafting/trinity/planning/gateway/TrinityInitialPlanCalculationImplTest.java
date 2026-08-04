@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
 
 import net.minecraft.network.chat.Component;
 
@@ -49,7 +49,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 .requestedAmount(BigInteger.ONE)
                 .quantityMode(CraftingQuantityMode.NET_NEW)
                 .available(Map.of())
-                .settings(TrinityCraftingConfig.Settings.defaults(4))
+                .settings(TrinityCraftingSettings.defaults(4))
                 .maxTrinityBytes(10L)
                 .build();
 
@@ -80,7 +80,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 .requestedAmount(requested)
                 .quantityMode(CraftingQuantityMode.NET_NEW)
                 .available(Map.of(INPUT, available))
-                .settings(TrinityCraftingConfig.Settings.defaults(4))
+                .settings(TrinityCraftingSettings.defaults(4))
                 .maxTrinityBytes(Long.MAX_VALUE)
                 .build();
 

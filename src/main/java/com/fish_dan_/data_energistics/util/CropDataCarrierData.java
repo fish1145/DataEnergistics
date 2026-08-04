@@ -1,8 +1,10 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.ConfigurationSnapshot.CropInputMapping;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ItemRule;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.Slot;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -76,7 +78,7 @@ public final class CropDataCarrierData {
                 itemId,
                 Optional.ofNullable(sourceBlockId),
                 Optional.ofNullable(lootTableId),
-                GameplayConfiguration.current().dataExtractor().cropRequiredAmount(),
+                DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropRequiredAmount(),
                 0.0F));
         return true;
     }
@@ -180,9 +182,9 @@ public final class CropDataCarrierData {
             return null;
         }
 
-        CropInputMapping mapping = getConfiguredInputMapping(itemId);
+        ItemRule mapping = getConfiguredInputMapping(itemId);
         if (mapping != null) {
-            return mapping.recordedItem();
+            return mapping.recordedItemId();
         }
 
         return itemId;
@@ -194,7 +196,7 @@ public final class CropDataCarrierData {
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        CropInputMapping mapping = itemId == null ? null : getConfiguredInputMapping(itemId);
+        ItemRule mapping = itemId == null ? null : getConfiguredInputMapping(itemId);
         if (mapping != null) {
             return mapping.progressPerItem();
         }
@@ -212,7 +214,7 @@ public final class CropDataCarrierData {
 
     public static boolean canRecordCrop(ResourceLocation itemId) {
         return isAllowedCropItem(itemId) &&
-                !GameplayConfiguration.current().dataExtractor().cropDataBlacklist().contains(itemId);
+                !DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropDataBlacklist().contains(itemId);
     }
 
     private static @Nullable CropDataCarrierItemData getData(ItemStack stack) {
@@ -291,7 +293,7 @@ public final class CropDataCarrierData {
             return true;
         }
 
-        if (GameplayConfiguration.current().dataExtractor().cropDataWhitelist().contains(itemId)) {
+        if (DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropDataWhitelist().contains(itemId)) {
             return true;
         }
 
@@ -336,7 +338,12 @@ public final class CropDataCarrierData {
     }
 
     @Nullable
-    private static CropInputMapping getConfiguredInputMapping(ResourceLocation inputItemId) {
-        return GameplayConfiguration.current().dataExtractor().cropInputMappings().get(inputItemId);
+    private static ItemRule getConfiguredInputMapping(ResourceLocation inputItemId) {
+        for (ItemRule rule : DataExtractorRuleTable.snapshot().inputRules()) {
+            if (rule.slot() == Slot.CROP && rule.inputItemId().equals(inputItemId)) {
+                return rule;
+            }
+        }
+        return null;
     }
 }

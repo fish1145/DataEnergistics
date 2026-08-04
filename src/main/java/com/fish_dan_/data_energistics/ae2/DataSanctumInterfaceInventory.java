@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataSanctumInterface;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataSanctumInterface;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEFluidKey;
@@ -104,7 +104,7 @@ public class DataSanctumInterfaceInventory extends ConfigInventory {
     }
 
     private static long getConfiguredCapacity(AEKey key, int capacityCardCount) {
-        DataSanctumInterface settings = GameplayConfiguration.current().dataSanctumInterface();
+        DataSanctumInterface settings = DataEnergisticsConfiguration.INSTANCE.dataSanctumInterface();
         long baseCapacity;
         if (key.getType() == AEKeyType.items()) {
             baseCapacity = settings.itemLimit();

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
@@ -36,7 +36,7 @@ public abstract class CraftAmountMenuMixin extends AEBaseMenu implements Trinity
 
     @GuiSync(791)
     @Unique
-    public int dataEnergistics$quantityMode = TrinityCraftingConfig.settings().defaultQuantityMode().ordinal();
+    public int dataEnergistics$quantityMode = DataEnergisticsConfiguration.INSTANCE.trinityCrafting().defaultQuantityMode().ordinal();
 
     protected CraftAmountMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);

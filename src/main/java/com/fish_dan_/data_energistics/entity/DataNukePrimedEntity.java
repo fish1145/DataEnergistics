@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataNuke;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 
@@ -162,7 +162,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
         this.expansionRadius = Math.max(0, Math.min(
-                GameplayConfiguration.current().dataNuke().maxRadius(),
+                DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius(),
                 tag.getInt(TAG_EXPANSION_RADIUS)));
     }
 
@@ -197,7 +197,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
         try {
             Level level = this.level();
-            DataNuke settings = GameplayConfiguration.current().dataNuke();
+            DataNuke settings = DataEnergisticsConfiguration.INSTANCE.dataNuke();
             consumeCenterEntities(level, settings);
             this.workTicks++;
             if (this.workTicks < settings.workIntervalTicks()) {

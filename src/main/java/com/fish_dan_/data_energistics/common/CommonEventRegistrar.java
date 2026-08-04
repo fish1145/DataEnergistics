@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEventHandler;
+import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.effect.DataDisorderControlLogic;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtCompatibilityWarning;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
@@ -20,7 +21,8 @@ final class CommonEventRegistrar {
 
     private CommonEventRegistrar() {}
 
-    static void register() {
+    static void register(HolderFingerprintBridge configurationReload) {
+        NeoForge.EVENT_BUS.register(configurationReload);
         NeoForge.EVENT_BUS.register(new ServerLifecycleEventHandler());
         NeoForge.EVENT_BUS.register(new PoweredToolAttributeModifierHandler());
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());

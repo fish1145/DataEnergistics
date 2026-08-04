@@ -12,7 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanByteEstimator;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.stacks.AEKey;
 
@@ -52,6 +52,6 @@ public interface TrinityGraphPlanner {
                                                      BigInteger requestedAmount,
                                                      CraftingQuantityMode quantityMode,
                                                      Map<AEKey, BigInteger> available,
-                                                     TrinityCraftingConfig.Settings settings,
+                                                     TrinityCrafting settings,
                                                      TrinityPlanningControl control);
 }

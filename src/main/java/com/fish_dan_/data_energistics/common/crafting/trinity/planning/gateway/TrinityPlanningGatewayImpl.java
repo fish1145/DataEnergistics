@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import net.minecraft.network.chat.Component;
 
@@ -36,7 +36,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     private final ExecutorService plannerExecutor;
     private final boolean ownsExecutor;
 
-    TrinityPlanningGatewayImpl(TrinityCraftingConfig.Settings settings) {
+    TrinityPlanningGatewayImpl(TrinityCrafting settings) {
         this(createExecutor(settings), true);
     }
 
@@ -45,7 +45,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
         this.ownsExecutor = ownsExecutor;
     }
 
-    private static ExecutorService createExecutor(TrinityCraftingConfig.Settings settings) {
+    private static ExecutorService createExecutor(TrinityCrafting settings) {
         ThreadFactory threadFactory = task -> {
             Thread thread = new Thread(task, "DataEnergistics-TrinityPlanner-" + THREAD_SEQUENCE.incrementAndGet());
             thread.setDaemon(true);

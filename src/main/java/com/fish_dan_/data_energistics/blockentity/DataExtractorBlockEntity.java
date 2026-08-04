@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.DataExtractor;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -1778,7 +1778,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private static DataExtractor extractorSettings() {
-        return GameplayConfiguration.current().dataExtractor();
+        return DataEnergisticsConfiguration.INSTANCE.dataExtractor();
     }
 
     private void onUpgradesChanged() {

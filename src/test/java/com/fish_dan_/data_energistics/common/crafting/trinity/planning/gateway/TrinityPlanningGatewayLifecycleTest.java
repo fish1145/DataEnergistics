@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,13 +18,13 @@ public final class TrinityPlanningGatewayLifecycleTest {
     @Test
     void ownsExactlyOneBoundedGatewayPerServerLifetime() {
         TrinityPlanningGatewayLifecycle.stop();
-        TrinityPlanningGatewayLifecycle.start(TrinityCraftingConfig.Settings.defaults(4));
+        TrinityPlanningGatewayLifecycle.start(TrinityCraftingSettings.defaults(4));
         TrinityPlanningGateway first = TrinityPlanningGatewayLifecycle.gateway();
 
         assertSame(first, TrinityPlanningGatewayLifecycle.gateway());
         assertThrows(
                 IllegalStateException.class,
-                () -> TrinityPlanningGatewayLifecycle.start(TrinityCraftingConfig.Settings.defaults(4)));
+                () -> TrinityPlanningGatewayLifecycle.start(TrinityCraftingSettings.defaults(4)));
 
         TrinityPlanningGatewayLifecycle.stop();
         assertThrows(IllegalStateException.class, TrinityPlanningGatewayLifecycle::gateway);

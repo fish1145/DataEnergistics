@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.configuration.rules;
 
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.ConfiguredStack;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.DataType;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.ItemRule;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.OutputRule;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.Slot;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ConfiguredStack;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.DataType;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ItemRule;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.OutputRule;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.Slot;
+import com.fish_dan_.data_energistics.configuration.rules.DefaultRuleValues.CropRule;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -81,6 +82,11 @@ public final class DataExtractorRuleCodec {
 
     private DataExtractorRuleCodec() {}
 
+    /** Builds the functional defaults used when neither the new rules YAML nor a legacy JSON exists. */
+    public static LoadedRules createDefaults(DefaultRuleValues values, Path source) throws RuleFormatException {
+        return decodeV1(createDefault(values, source), source);
+    }
+
     static DecodedDocument decode(byte[] content, Path source) throws RuleFormatException {
         JsonElement parsed = parseStrictJson(content, source);
         if (!parsed.isJsonObject()) {
@@ -109,27 +115,32 @@ public final class DataExtractorRuleCodec {
 
         JsonArray carriers = new JsonArray();
         Set<ResourceLocation> configuredInputs = new HashSet<>();
-        String[] mappings = values.cropInputMappings().split(",", -1);
-        for (int index = 0; index < mappings.length; index++) {
-            String mapping = mappings[index].trim();
-            if (mapping.isEmpty()) {
-                continue;
-            }
-            JsonObject carrier = parseDefaultCropMapping(mapping, values.cropRequiredAmount(), source, index);
-            ResourceLocation inputId = parseResourceLocation(
-                    carrier.get("input_item"),
-                    source,
-                    "$default.cropInputMappings[" + index + "]",
-                    "input item");
-            if (!configuredInputs.add(inputId)) {
+        List<CropRule> cropRules = values.cropRules();
+        for (int index = 0; index < cropRules.size(); index++) {
+            CropRule cropRule = cropRules.get(index);
+            if (!Float.isFinite(cropRule.progressPerItem()) || cropRule.progressPerItem() <= 0.0F) {
                 throw new RuleFormatException(
                         source,
-                        "$default.cropInputMappings[" + index + "]",
+                        "$default.cropRules[" + index + "].progressPerItem",
+                        "progress must be a finite positive number",
+                        Float.toString(cropRule.progressPerItem()),
+                        "replace it with a finite number greater than zero");
+            }
+            if (!configuredInputs.add(cropRule.inputItem())) {
+                throw new RuleFormatException(
+                        source,
+                        "$default.cropRules[" + index + "]",
                         "the input item is mapped more than once",
-                        inputId.toString(),
+                        cropRule.inputItem().toString(),
                         "keep exactly one mapping for each input item");
             }
-            carriers.add(carrier);
+            carriers.add(carrierJson(
+                    "crop",
+                    "crop",
+                    cropRule.inputItem().toString(),
+                    cropRule.recordedItem().toString(),
+                    cropRule.progressPerItem(),
+                    values.cropRequiredAmount()));
         }
 
         ResourceLocation oakSapling = ResourceLocation.parse("minecraft:oak_sapling");
@@ -526,49 +537,6 @@ public final class DataExtractorRuleCodec {
             }
         }
         return true;
-    }
-
-    private static JsonObject parseDefaultCropMapping(
-                                                      String mapping,
-                                                      float requiredAmount,
-                                                      Path source,
-                                                      int index) throws RuleFormatException {
-        String path = "$default.cropInputMappings[" + index + "]";
-        int equalsIndex = mapping.indexOf('=');
-        int atIndex = mapping.indexOf('@', equalsIndex + 1);
-        if (equalsIndex <= 0 || atIndex <= equalsIndex + 1 || atIndex >= mapping.length() - 1 || mapping.indexOf('=', equalsIndex + 1) >= 0 || mapping.indexOf('@', atIndex + 1) >= 0) {
-            throw new RuleFormatException(
-                    source,
-                    path,
-                    "invalid crop mapping syntax",
-                    mapping,
-                    "use input_item=recorded_item@positive_progress");
-        }
-        String inputItem = mapping.substring(0, equalsIndex).trim();
-        String recordedItem = mapping.substring(equalsIndex + 1, atIndex).trim();
-        parseResourceLocation(new JsonPrimitive(inputItem), source, path + ".input_item", "input item");
-        parseResourceLocation(new JsonPrimitive(recordedItem), source, path + ".recorded_item", "recorded item");
-        float progress;
-        try {
-            progress = Float.parseFloat(mapping.substring(atIndex + 1).trim());
-        } catch (NumberFormatException exception) {
-            throw new RuleFormatException(
-                    source,
-                    path + ".progress_per_item",
-                    "progress must be a finite positive number",
-                    mapping.substring(atIndex + 1).trim(),
-                    "replace it with a finite number greater than zero",
-                    exception);
-        }
-        if (!Float.isFinite(progress) || progress <= 0.0F) {
-            throw new RuleFormatException(
-                    source,
-                    path + ".progress_per_item",
-                    "progress must be a finite positive number",
-                    Float.toString(progress),
-                    "replace it with a finite number greater than zero");
-        }
-        return carrierJson("crop", "crop", inputItem, recordedItem, progress, requiredAmount);
     }
 
     private static JsonObject carrierJson(

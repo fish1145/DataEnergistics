@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
-import com.fish_dan_.data_energistics.configuration.DataEnergisticsSettings.SolarPanel;
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -127,7 +127,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
             return 0.0D;
         }
 
-        SolarPanel settings = GameplayConfiguration.current().solarPanel();
+        SolarPanel settings = DataEnergisticsConfiguration.INSTANCE.solarPanel();
         double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? settings.nightGenerationAEPerTick() : settings.dayGenerationAEPerTick();
         return applySpeedUpgrades(baseGeneration, this.upgrades, settings);
     }
@@ -182,7 +182,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public static double computeMaxPower(IUpgradeInventory upgrades) {
-        return computeMaxPower(upgrades, GameplayConfiguration.current().solarPanel());
+        return computeMaxPower(upgrades, DataEnergisticsConfiguration.INSTANCE.solarPanel());
     }
 
     public static double computeMaxPower(IUpgradeInventory upgrades, SolarPanel settings) {
@@ -190,7 +190,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades) {
-        return applySpeedUpgrades(baseGeneration, upgrades, GameplayConfiguration.current().solarPanel());
+        return applySpeedUpgrades(baseGeneration, upgrades, DataEnergisticsConfiguration.INSTANCE.solarPanel());
     }
 
     public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades, SolarPanel settings) {

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.configuration.rules;
 
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.ItemRule;
-import com.fish_dan_.data_energistics.config.DataExtractorRuleTable.OutputRule;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ItemRule;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.OutputRule;
 
 import java.util.List;
 

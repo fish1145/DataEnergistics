@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -43,7 +43,7 @@ public final class BiologyDataCarrierData {
 
         stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
                 entityId,
-                GameplayConfiguration.current().dataExtractor().mobRequiredDamage(),
+                DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobRequiredDamage(),
                 0.0F));
         return true;
     }
@@ -139,6 +139,6 @@ public final class BiologyDataCarrierData {
         if (entityId == null) {
             return false;
         }
-        return !GameplayConfiguration.current().dataExtractor().mobDataBlacklist().contains(entityId);
+        return !DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobDataBlacklist().contains(entityId);
     }
 }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.configuration.GameplayConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -40,7 +40,7 @@ public final class OreDataCarrierData {
 
         stack.set(ModDataComponents.ORE_DATA_CARRIER.get(), new OreDataCarrierItemData(
                 itemId,
-                GameplayConfiguration.current().dataExtractor().oreRequiredAmount(),
+                DataEnergisticsConfiguration.INSTANCE.dataExtractor().oreRequiredAmount(),
                 0.0F));
         return true;
     }
@@ -140,6 +140,6 @@ public final class OreDataCarrierData {
         if (itemId == null) {
             return false;
         }
-        return !GameplayConfiguration.current().dataExtractor().oreDataBlacklist().contains(itemId);
+        return !DataEnergisticsConfiguration.INSTANCE.dataExtractor().oreDataBlacklist().contains(itemId);
     }
 }

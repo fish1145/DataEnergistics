@@ -45,9 +45,9 @@
 
 `defaultQuantityMode` 磁盘值保持 `NET_NEW`、`FINAL_TOTAL`。领域快照只携带 enum；客户端本地化显示适配器在批次 04 注册，专用服务器不加载该类。
 
-## 测试
+## 验收
 
-### Crafting
+### Crafting 行为审查
 
 - 8 项默认与非默认往返；
 - 不同 CPU 数的动态 `plannerThreads`；
@@ -56,7 +56,7 @@
 - 两个线程池字段运行中不重建、重启后生效；
 - reload 与规划并发时只使用单一完整 Settings。
 
-### Dispatch
+### Dispatch 行为审查
 
 - 14 项默认与非默认往返，包括缺失旧值补 `safeRetryBackoffTicks=8`；
 - 四条跨字段约束；
@@ -66,4 +66,4 @@
 
 ### 端到端门禁
 
-两份旧 Trinity TOML → 目标 YAML → Settings 行为一致；真实 crafting 请求、专用服务器启动停止及 Governor 模式转换通过。测试只使用接口和公开生命周期，不使用反射。
+两份旧 Trinity TOML → 目标 YAML → Settings 映射一致；仓库原有 crafting 与 Governor 业务测试继续通过，不增加 Configuration 专项测试，也不使用反射。

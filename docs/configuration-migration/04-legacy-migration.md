@@ -2,32 +2,35 @@
 
 ## 迁移目标
 
-导入器识别六份 COMMON TOML 的 64 个历史输入，生成恰好 63 个叶字段的：
+导入器识别六份 COMMON TOML 的 64 个基线输入，并额外兼容更早版本的废弃 `mipTimeoutMs`，生成恰好 63 个叶字段的：
 
 `config/data_energistics/data_energistics.yaml`
 
-Data Extractor 规则 JSON 使用独立的 v0 → v1 迁移，见 `06-data-extractor-rules-v1.md`。
+Data Extractor 规则使用独立 YAML；旧 JSON v0/v1 仅作首次导入，见 `06-data-extractor-rules.md`。
 
 ## 文件映射
 
 | 旧文件 | 历史输入数 | 目标前缀 | 目标字段数 |
 | --- | ---: | --- | ---: |
-| data_energistics-common.toml | 8 | dataRipper、dataDistributionTower、dataSanctumInterface | 8 |
-| data_energistics-data_extractor.toml | 15 | dataExtractor | 15 |
+| data_energistics-common.toml | 8 | dataRipper、dataDistributionTower、dataSanctumInterface | 9 |
+| data_energistics-data_extractor.toml | 15 | dataExtractor | 14 |
 | data_energistics-tnt.toml | 15 | flatteningTnt | 14 |
 | data_energistics-solar_panel.toml | 4 | solarPanel | 4 |
-| data_energistics-trinity_crafting.toml | 9 | trinityCrafting | 8 |
-| data_energistics-trinity_dispatch.toml | 13 | trinityDispatch | 14 |
+| data_energistics-trinity_crafting.toml | 8 | trinityCrafting | 8 |
+| data_energistics-trinity_dispatch.toml | 14 | trinityDispatch | 14 |
 | 合计 | 64 |  | 63 |
 
 ## 特殊兼容规则
 
 - `flatteningTnt.tntConfigurable.displayName`：识别、丢弃并警告使用 `block.data_energistics.tnt_configurable` 语言键。
-- `trinityCrafting.mipTimeoutMs`：识别为历史废弃项并忽略。
+- 更早版本的 `trinityCrafting.mipTimeoutMs`：作为基线清单之外的历史废弃项识别并忽略。
 - TOML 来源的 `trinityCrafting.maxBindingVariants=512`：升级为 32768。
 - 其他 TOML `maxBindingVariants` 正整数：原值保留。
 - YAML 中显式 `maxBindingVariants=512`：原值保留，不套用 TOML 兼容规则。
-- 旧 Dispatch 缺少 `safeRetryBackoffTicks`：目标写入默认值 8。
+- 基线 Dispatch 的 `safeRetryBackoffTicks`：显式值正常迁移；更早文件缺失时目标保留默认值 8。
+- 旧 `dataRipperMultipliers` 的 `pattern=value` 行只在导入边界转换为 `patterns[]` 与 `values[]`。
+- Data Extractor 旧 TOML 的 4 个黑白名单历史逗号字符串只在导入边界转换为主 YAML 字符串数组。
+- 旧 `cropInputMappings` 只在导入边界转换为规则 YAML 的载体列数组；主 YAML 不保留副本，生产路径不存在组合字符串分割。
 
 ## 固定启动顺序
 
@@ -91,7 +94,7 @@ Configuration 注册必须晚于已有 YAML 的预校验或导入发布，防止
 - 一份完整有效的正式 YAML 就是成功标志，不创建额外 marker。
 - 正式 YAML 存在后，后续启动永不重新导入 TOML。
 - 六份旧 TOML 不删除、不截断、不重命名、不写回。
-- 写入前后记录旧文件哈希并在测试中断言不变。
+- 写入前后核对旧文件未被修改。
 - 临时文件与目标在同一目录，名称包含 migration 和进程唯一后缀。
 - 每个输入状态至少运行两次，第二次结果与第一次逐项一致。
 
