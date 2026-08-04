@@ -1,9 +1,13 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack;
+import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackConverter;
+import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackSerializer;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -67,8 +71,9 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
             LOGGER.error(exception.getMessage());
             throw exception;
         }
-        registry.addEmiStack(new DataResourceEmiStack(DataResourceEmiKey.DATA, 1L));
-        registry.addEmiStack(new DataResourceEmiStack(DataResourceEmiKey.DATA_FLOW, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
         registry.addDragDropHandler(OrderPackageScreen.class, new OrderPackageEmiDragDropHandler());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
