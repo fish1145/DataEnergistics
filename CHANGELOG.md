@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Version [v2.4.3](https://github.com/fish1145/DataEnergistics/compare/v2.4.2-1.21...v2.4.3-1.21)
+### Fixed
+
+- 修复空 AE2 网格上的三位一体 tick by @QiuYe-123 in [#167](https://github.com/fish1145/DataEnergistics/pull/167)
+
+ 
 ## Version [v2.4.2](https://github.com/fish1145/DataEnergistics/compare/v2.4.1-1.21...v2.4.2-1.21)
 ### Fixed
 
