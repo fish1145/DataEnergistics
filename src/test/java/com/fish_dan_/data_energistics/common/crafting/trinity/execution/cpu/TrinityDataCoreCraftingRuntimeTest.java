@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.Cr
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
@@ -15,6 +16,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndexImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipantImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityCpuExecutablePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
@@ -1016,17 +1019,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_cpu_runtime_rotates_worker_dispatch_priority")
+    @TestHolder("trinity_data_core_cpu_runtime_interleaves_workers_per_physical_call")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void cpuRuntimeRotatesWorkerDispatchPriority(GameTestHelper helper) {
-        int historicalProviderAttempts = 16;
-        CraftingDispatchLimits historicalLimits = new CraftingDispatchLimits(
-                256,
-                historicalProviderAttempts,
+    public static void cpuRuntimeInterleavesWorkersPerPhysicalCall(GameTestHelper helper) {
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(
+                4,
+                4,
                 Long.MAX_VALUE,
                 Long.MAX_VALUE);
-        long taskCount = historicalProviderAttempts * 2L;
         PendingPatternDetails firstPattern = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
         PendingPatternDetails secondPattern = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
         SequencedCraftingProvider provider = new SequencedCraftingProvider(List.of(firstPattern, secondPattern));
@@ -1043,7 +1044,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(
                 reserveCpu.submitJob(
                         grid,
-                        patternPlan(firstPattern, taskCount),
+                        patternPlan(firstPattern, 2L),
                         IActionSource.empty(),
                         null)
                         .successful(),
@@ -1051,32 +1052,18 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(
                 reserveCpu.submitJob(
                         grid,
-                        patternPlan(secondPattern, taskCount),
+                        patternPlan(secondPattern, 2L),
                         IActionSource.empty(),
                         null)
                         .successful(),
                 "Second fairness worker job should be accepted");
 
         TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
-        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create(historicalLimits));
+        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create(limits));
         helper.assertValueEqual(
-                provider.pushCount(firstPattern),
-                (long) historicalProviderAttempts,
-                "First tick should give worker 1 the shared provider window");
-        helper.assertValueEqual(
-                provider.pushCount(secondPattern),
-                0L,
-                "First tick should leave worker 2 behind the exhausted shared provider window");
-
-        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create(historicalLimits));
-        helper.assertValueEqual(
-                provider.pushCount(firstPattern),
-                (long) historicalProviderAttempts,
-                "Second tick must not let worker 1 take the new provider window again");
-        helper.assertValueEqual(
-                provider.pushCount(secondPattern),
-                (long) historicalProviderAttempts,
-                "Second tick should rotate the new provider window to worker 2");
+                provider.pushedPatterns(),
+                List.of(firstPattern, secondPattern, firstPattern, secondPattern),
+                "Workers must alternate after every real provider call");
         runtime.cancelAllJobs();
         helper.succeed();
     }
@@ -1571,17 +1558,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_cpu_multi_runtime_worker_rotation_avoids_phase_lock")
+    @TestHolder("trinity_data_core_cpu_participant_interleaves_runtimes_and_workers")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void cpuMultiRuntimeWorkerRotationAvoidsPhaseLock(GameTestHelper helper) {
-        int historicalProviderAttempts = 16;
-        CraftingDispatchLimits historicalLimits = new CraftingDispatchLimits(
-                256,
-                historicalProviderAttempts,
+    public static void cpuParticipantInterleavesRuntimesAndWorkers(GameTestHelper helper) {
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(
+                4,
+                4,
                 Long.MAX_VALUE,
                 Long.MAX_VALUE);
-        long taskCount = historicalProviderAttempts * 4L;
         PendingPatternDetails firstA = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
         PendingPatternDetails secondA = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
         PendingPatternDetails firstB = new PendingPatternDetails(AEItemKey.of(Items.GOLD_INGOT));
@@ -1599,31 +1584,45 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         TrinityDataCoreVirtualCpu coordinatorA = hostA.getCpuPartitions().getFirst();
         TrinityDataCoreVirtualCpu coordinatorB = hostB.getCpuPartitions().getFirst();
         helper.assertTrue(
-                coordinatorA.submitJob(grid, patternPlan(firstA, taskCount), IActionSource.empty(), null).successful(),
+                coordinatorA.submitJob(grid, patternPlan(firstA, 1L), IActionSource.empty(), null).successful(),
                 "Runtime A worker 1 should be allocated");
         helper.assertTrue(
-                coordinatorA.submitJob(grid, patternPlan(secondA, taskCount), IActionSource.empty(), null).successful(),
+                coordinatorA.submitJob(grid, patternPlan(secondA, 1L), IActionSource.empty(), null).successful(),
                 "Runtime A worker 2 should be allocated");
         helper.assertTrue(
-                coordinatorB.submitJob(grid, patternPlan(firstB, taskCount), IActionSource.empty(), null).successful(),
+                coordinatorB.submitJob(grid, patternPlan(firstB, 1L), IActionSource.empty(), null).successful(),
                 "Runtime B worker 1 should be allocated");
         helper.assertTrue(
-                coordinatorB.submitJob(grid, patternPlan(secondB, taskCount), IActionSource.empty(), null).successful(),
+                coordinatorB.submitJob(grid, patternPlan(secondB, 1L), IActionSource.empty(), null).successful(),
                 "Runtime B worker 2 should be allocated");
 
         TrinityDataCoreCraftingRuntime runtimeA = hostA.getCraftingRuntime();
         TrinityDataCoreCraftingRuntime runtimeB = hostB.getCraftingRuntime();
-        tickRuntimes(grid, CraftingDispatchWindow.create(historicalLimits), runtimeA, runtimeB);
-        tickRuntimes(grid, CraftingDispatchWindow.create(historicalLimits), runtimeB, runtimeA);
-        tickRuntimes(grid, CraftingDispatchWindow.create(historicalLimits), runtimeA, runtimeB);
-        tickRuntimes(grid, CraftingDispatchWindow.create(historicalLimits), runtimeB, runtimeA);
+        runtimeA.prepareTick();
+        runtimeB.prepareTick();
+        CraftingDispatchWindow window = CraftingDispatchWindow.create(limits);
+        CraftingDispatchParticipantImpl participant = new CraftingDispatchParticipantImpl(
+                "game-test-grid",
+                List.of(runtimeA, runtimeB),
+                0,
+                grid.energyService(),
+                grid.craftingService(),
+                window,
+                CraftingDispatchBudget.legacyFixedHard(),
+                ignored -> {},
+                () -> {},
+                (source, failure) -> {
+                    throw failure;
+                });
+        CraftingDispatchStepResult result;
+        do {
+            result = participant.dispatchStep();
+        } while (result.progressed() && result.hasReadyWork() && !result.windowExhausted());
 
-        for (IPatternDetails pattern : List.of(firstA, secondA, firstB, secondB)) {
-            helper.assertValueEqual(
-                    provider.pushCount(pattern),
-                    (long) historicalProviderAttempts,
-                    "Every runtime worker must receive one complete physical window without phase-lock starvation");
-        }
+        helper.assertValueEqual(
+                provider.pushedPatterns(),
+                List.of(firstA, firstB, secondA, secondB),
+                "Runtimes and workers must alternate after every real provider call");
         runtimeA.cancelAllJobs();
         runtimeB.cancelAllJobs();
         helper.succeed();
@@ -3086,14 +3085,6 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 Map.of(pattern, taskCount));
     }
 
-    private static void tickRuntimes(TestGrid grid,
-                                     CraftingDispatchWindow dispatchWindow,
-                                     TrinityDataCoreCraftingRuntime first,
-                                     TrinityDataCoreCraftingRuntime second) {
-        first.tick(grid.energyService(), grid.craftingService(), dispatchWindow);
-        second.tick(grid.energyService(), grid.craftingService(), dispatchWindow);
-    }
-
     private static void assertOfflineWithoutExtraction(GameTestHelper helper,
                                                        TrinityDataCoreVirtualCpu cpu,
                                                        TestGrid grid,
@@ -3707,6 +3698,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private long pushCount(IPatternDetails pattern) {
             return this.pushedPatterns.stream().filter(pushed -> pushed == pattern).count();
+        }
+
+        private List<IPatternDetails> pushedPatterns() {
+            return List.copyOf(this.pushedPatterns);
         }
 
         @Override

@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipantImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
@@ -368,21 +369,67 @@ public abstract class CraftingServiceMixin
                 TrinityServerTickMetrics.dispatchBudget(server));
         long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
         List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
+        List<TrinityDataCoreCraftingRuntime> preparedRuntimes = runtimes;
+        try {
+            for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
+                runtime.prepareTick();
+            }
+        } catch (RuntimeException failure) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity Grid publication scope {} failed while preparing its server dispatch participant",
+                    gridGeneration,
+                    failure);
+            governor.recordUnexpectedFailure("Grid dispatch preparation", failure);
+            preparedRuntimes = List.of();
+        }
+        List<TrinityDataCoreCraftingRuntime> dispatchRuntimes = preparedRuntimes;
+        CraftingDispatchParticipantImpl participant = new CraftingDispatchParticipantImpl(
+                "publicationScope=" + gridGeneration + ", gridIdentity=" + System.identityHashCode(this.grid),
+                dispatchRuntimes,
+                this.dataEnergistics$nextTrinityRuntimeTickStart,
+                this.energyGrid,
+                service,
+                dispatchWindow,
+                dispatchBudget,
+                nextCursor -> this.dataEnergistics$nextTrinityRuntimeTickStart = nextCursor,
+                () -> dataEnergistics$completeTrinityDispatchTick(
+                        server,
+                        gridGeneration,
+                        runtimes,
+                        dispatchWindow,
+                        governor),
+                (source, failure) -> governor.recordUnexpectedFailure(
+                        source + " for Grid publication scope " + gridGeneration,
+                        failure));
+        try {
+            TrinityServerTickMetrics.registerDispatchParticipant(server, participant);
+        } catch (RuntimeException failure) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity Grid publication scope {} could not register its server dispatch participant",
+                    gridGeneration,
+                    failure);
+            governor.recordUnexpectedFailure("server dispatch registration", failure);
+            try {
+                participant.completeTick();
+            } catch (RuntimeException completionFailure) {
+                Data_Energistics.LOGGER.error(
+                        "Trinity Grid publication scope {} failed while completing an unregistered dispatch tick",
+                        gridGeneration,
+                        completionFailure);
+                governor.recordUnexpectedFailure("unregistered dispatch completion", completionFailure);
+            }
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$completeTrinityDispatchTick(MinecraftServer server,
+                                                            long gridGeneration,
+                                                            List<TrinityDataCoreCraftingRuntime> runtimes,
+                                                            CraftingDispatchWindow dispatchWindow,
+                                                            CraftingDispatchGovernor governor) {
         long latestChange = 0L;
         for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
             latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
-        }
-        if (!runtimes.isEmpty()) {
-            int start = Math.floorMod(this.dataEnergistics$nextTrinityRuntimeTickStart, runtimes.size());
-            this.dataEnergistics$nextTrinityRuntimeTickStart = (start + 1) % runtimes.size();
-            for (int offset = 0; offset < runtimes.size(); offset++) {
-                TrinityDataCoreCraftingRuntime runtime = runtimes.get((start + offset) % runtimes.size());
-                runtime.tick(this.energyGrid, service, dispatchWindow, dispatchBudget);
-                latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
-                if (dispatchWindow.isExhausted()) {
-                    break;
-                }
-            }
         }
         if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {
             this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;

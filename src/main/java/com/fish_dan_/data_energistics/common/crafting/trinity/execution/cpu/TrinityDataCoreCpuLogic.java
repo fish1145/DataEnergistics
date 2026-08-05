@@ -262,6 +262,59 @@ final class TrinityDataCoreCpuLogic {
         return stepResult(before, currentTick, physicalAttempts, dispatchWindow);
     }
 
+    /**
+     * Retains the historical complete-worker pass for direct compatibility callers outside the central scheduler.
+     */
+    void tickCraftingLogic(IEnergyService energyService,
+                           CraftingService craftingService,
+                           CraftingDispatchWindow dispatchWindow,
+                           CraftingDispatchBudget dispatchBudget) {
+        long currentTick = TickHandler.instance().getCurrentTick();
+        prepareTick(currentTick, dispatchBudget);
+        if (!readyForDispatch(currentTick) || dispatchWindow.isExhausted()) {
+            return;
+        }
+
+        TrinityDataCoreExecutingCraftingJob currentJob = this.job;
+        if (currentJob == null) {
+            return;
+        }
+        int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick);
+        int started = remainingOperations;
+        TrinityPlanExecution execution = currentJob.isTrinityPlan() ? currentJob.trinityExecution() : null;
+        long durableRevision = execution == null ? 0L : execution.durableRevision();
+        Level level = this.cpu.level();
+        if (level == null) {
+            Data_Energistics.LOGGER.warn("Trinity Data Core CPU cannot tick crafting job without a level");
+            return;
+        }
+
+        try {
+            while (remainingOperations > 0 && !dispatchWindow.isExhausted()) {
+                CraftingExecutionOutcome outcome = executeCrafting(
+                        remainingOperations,
+                        craftingService,
+                        energyService,
+                        level,
+                        dispatchWindow,
+                        dispatchBudget);
+                int physicalAttempts = outcome.physicalAttempts();
+                if (physicalAttempts <= 0) {
+                    break;
+                }
+                remainingOperations -= physicalAttempts;
+                if (!outcome.dispatched()) {
+                    break;
+                }
+            }
+            this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
+        } finally {
+            if (execution != null && execution.durableRevision() != durableRevision) {
+                this.cpu.markDirty();
+            }
+        }
+    }
+
     private void prepareTick(long currentTick, CraftingDispatchBudget dispatchBudget) {
         if (this.preparedServerTick == currentTick) {
             return;

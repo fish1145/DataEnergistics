@@ -468,6 +468,13 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     /**
+     * @return whether an event-selected worker remains eligible for another current-tick server rotation
+     */
+    public boolean hasReadyDispatchWork() {
+        return !this.paused && this.mainStructureFormed && this.profile.active() && !this.readyWorkers.isEmpty();
+    }
+
+    /**
      * Retains the pre-Governor execution contract with deterministic hard limits.
      */
     public void tick(IEnergyService energyService,
@@ -714,6 +721,7 @@ public final class TrinityDataCoreCraftingRuntime {
             refreshWorkerWaiting(worker);
             rebuildPublishedCpus();
         }
+        removeWorkerIfReleasable(worker.number(), worker);
     }
 
     /**

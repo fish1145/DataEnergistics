@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.TrinityServerDispatchScheduler;
+
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -10,9 +13,9 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * Captures the last complete logical-server tick from Minecraft's monotonic tick ring.
  *
  * <p>
- * Minecraft records the current complete sample immediately before {@link ServerTickEvent.Post}. Grid dispatch
- * therefore consumes that sample on the next tick. The sample is diagnostic input only and is never a correctness
- * deadline.
+ * Minecraft records the current complete sample immediately before {@link ServerTickEvent.Post}. The LOWEST Post
+ * handler captures that sample, runs the central Grid rotation, and then completes the shared server budget. The
+ * sample is diagnostic input only and is never a correctness deadline.
  * </p>
  */
 public final class TrinityServerTickMetrics {
@@ -23,6 +26,8 @@ public final class TrinityServerTickMetrics {
             System::nanoTime,
             TARGET_TICK_NANOS,
             OVERLOADED_TRICKLE_NANOS);
+    private static final TrinityServerDispatchScheduler SERVER_DISPATCH_SCHEDULER =
+            TrinityServerDispatchScheduler.create();
     private static volatile MinecraftServer sampledServer;
     private static volatile long lastCompletedNanos;
 
@@ -30,6 +35,7 @@ public final class TrinityServerTickMetrics {
     public void onServerTickPre(ServerTickEvent.Pre event) {
         sampledServer = event.getServer();
         SERVER_DISPATCH_BUDGET.beginTick();
+        SERVER_DISPATCH_SCHEDULER.beginTick();
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -41,7 +47,11 @@ public final class TrinityServerTickMetrics {
         }
         sampledServer = server;
         lastCompletedNanos = tickTimes[Math.floorMod(server.getTickCount(), tickTimes.length)];
-        SERVER_DISPATCH_BUDGET.completeTick(lastCompletedNanos);
+        try {
+            SERVER_DISPATCH_SCHEDULER.dispatchTick();
+        } finally {
+            SERVER_DISPATCH_BUDGET.completeTick(lastCompletedNanos);
+        }
     }
 
     @SubscribeEvent
@@ -49,6 +59,7 @@ public final class TrinityServerTickMetrics {
         if (sampledServer == event.getServer()) {
             sampledServer = null;
             lastCompletedNanos = 0L;
+            SERVER_DISPATCH_SCHEDULER.reset();
             SERVER_DISPATCH_BUDGET.reset();
         }
     }
@@ -65,5 +76,19 @@ public final class TrinityServerTickMetrics {
      */
     public static CraftingServerDispatchBudget dispatchBudget(MinecraftServer server) {
         return sampledServer == server ? SERVER_DISPATCH_BUDGET : CraftingServerDispatchBudget.unbounded();
+    }
+
+    /**
+     * Registers one prepared AE Grid for the current server-wide physical-call rotation.
+     *
+     * @param server      logical server that owns the Grid
+     * @param participant prepared one-tick Grid dispatch participant
+     */
+    public static void registerDispatchParticipant(MinecraftServer server,
+                                                   CraftingDispatchParticipant participant) {
+        if (sampledServer != server) {
+            throw new IllegalStateException("Trinity dispatch participant belongs to an inactive logical server");
+        }
+        SERVER_DISPATCH_SCHEDULER.register(participant);
     }
 }

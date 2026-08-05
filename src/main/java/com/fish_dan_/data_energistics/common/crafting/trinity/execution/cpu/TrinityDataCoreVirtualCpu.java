@@ -121,10 +121,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
                      CraftingService craftingService,
                      CraftingDispatchWindow dispatchWindow,
                      CraftingDispatchBudget dispatchBudget) {
-        CraftingDispatchStepResult result;
-        do {
-            result = dispatchStep(energyService, craftingService, dispatchWindow, dispatchBudget);
-        } while (result.progressed() && result.hasReadyWork() && !result.windowExhausted());
+        boolean wasBusy = isBusy();
+        this.logic.tickCraftingLogic(energyService, craftingService, dispatchWindow, dispatchBudget);
+        this.runtime.workerOperationCompleted(this, wasBusy);
     }
 
     /**
