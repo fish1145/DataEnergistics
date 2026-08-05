@@ -1,0 +1,521 @@
+/*
+ * Declarative geometry for the complete Trinity LDLib2 UI family.
+ * Behavior and synchronized data sources remain in Java; all placement belongs here.
+ */
+
+.trinity-data-core-root {
+    width: 256px;
+    height: 212px;
+    background: group(#FFE3E3EA, border(-1, #FF696D88));
+}
+
+.trinity-data-core-title {
+    position: absolute;
+    left: 15px;
+    top: 7px;
+    width: 218px;
+    height: 9px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-color: #FF404040;
+    text-shadow: false;
+}
+
+.trinity-data-core-player-inventory-title {
+    position: absolute;
+    left: 6px;
+    top: 119px;
+    width: 162px;
+    height: 9px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-color: #FF404040;
+    text-shadow: false;
+}
+
+.trinity-data-core-player-inventory {
+    position: absolute;
+    left: 5px;
+    top: 129px;
+    width: 162px;
+    height: 76px;
+}
+
+.trinity-data-core-player-inventory .__inventory_hotbar__ {
+    margin-top: 4px;
+}
+
+.trinity-data-core-player-inventory item-slot {
+    background: group(sprite(data_energistics:textures/guis/trinity_data_core/inventory_slot.png, 0, 0, 16, 16), border(-1, #FF696D88));
+}
+
+#trinity_cpu_status_list {
+    position: absolute;
+    left: 168px;
+    top: 129px;
+}
+
+.trinity-cpu-status-list {
+    width: 84px;
+    height: 76px;
+    background: sprite(data_energistics:textures/guis/trinity_data_core/cpu_panel.png, 0, 0, 84, 76);
+}
+
+.trinity-cpu-status-scroller {
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    width: 76px;
+    height: 69px;
+}
+
+.trinity-cpu-status-viewport {
+    padding: 0px;
+}
+
+.trinity-cpu-status-row {
+    width: 67px;
+    height: 22px;
+    padding: 0px;
+}
+
+.trinity-cpu-label {
+    position: absolute;
+    height: 6px;
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 6;
+    horizontal-align: left;
+    vertical-align: top;
+    text-wrap: none;
+    text-color: #FF413F54;
+    text-shadow: false;
+}
+
+.trinity-cpu-name {
+    left: 3px;
+    top: 2px;
+    width: 62px;
+}
+
+.trinity-cpu-processor-count {
+    left: 14px;
+    top: 13px;
+    width: 13px;
+}
+
+.trinity-cpu-storage-amount {
+    left: 39px;
+    top: 13px;
+    width: 16px;
+}
+
+.trinity-cpu-craft-amount {
+    left: 14px;
+    top: 13px;
+    width: 41px;
+}
+
+.trinity-cpu-icon {
+    position: absolute;
+    top: 9px;
+    width: 10px;
+    height: 10px;
+}
+
+.trinity-cpu-processor-icon,
+.trinity-cpu-craft-icon {
+    left: 2px;
+}
+
+.trinity-cpu-storage-icon {
+    left: 27px;
+}
+
+.trinity-cpu-mode-icon {
+    left: 55px;
+}
+
+.trinity-cpu-target-icon {
+    position: absolute;
+    left: 55px;
+    top: 9px;
+    width: 11px;
+    height: 11px;
+}
+
+.trinity-cpu-progress {
+    position: absolute;
+    left: 1px;
+    top: 19px;
+    height: 1px;
+    background: rect(#FFACE9FF);
+}
+
+.trinity-cpu-task-overlay {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 67px;
+    height: 22px;
+}
+
+.trinity-cpu-scrollbar {
+    width: 5px;
+}
+
+.trinity-cpu-scroll-track {
+    background: rect(#FF4D4D67);
+}
+
+#trinity_data_core_status {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 256px;
+    height: 114px;
+}
+
+#trinity_data_core_structure_status {
+    position: absolute;
+    left: 5px;
+    top: 15px;
+    width: 128px;
+    height: 99px;
+    background: sprite(data_energistics:textures/guis/trinity_data_core/status_panel.png, 0, 0, 128, 99);
+}
+
+#trinity_data_core_cpu_summary {
+    position: absolute;
+    left: 134px;
+    top: 15px;
+    width: 117px;
+    height: 64px;
+    background: group(#FFA7ADBF, border(-1, #FFF2F2F2));
+}
+
+.trinity-status-line {
+    position: absolute;
+    height: 9px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-wrap: hover_roll;
+    text-color: #FFFFFFFF;
+    text-shadow: false;
+}
+
+#trinity_data_core_structure_status .trinity-status-line {
+    left: 4px;
+    width: 120px;
+}
+
+#trinity_status_online { top: 4px; }
+#trinity_status_main_structure { top: 18px; }
+#trinity_status_main_blocks { top: 32px; }
+#trinity_status_cpu_structure { top: 46px; }
+#trinity_status_crafting_structure { top: 60px; }
+#trinity_status_failure { top: 74px; }
+
+#trinity_data_core_cpu_summary .trinity-status-line {
+    left: 2px;
+    width: 113px;
+}
+
+#trinity_status_busy_cpus { top: 2px; }
+#trinity_status_cpu_partitions { top: 13px; }
+#trinity_status_cpu_storage { top: 24px; }
+#trinity_status_cpu_coprocessors { top: 35px; }
+#trinity_status_crafting { top: 46px; }
+
+#trinity_data_core_storage_status {
+    position: absolute;
+    left: 134px;
+    top: 82px;
+    width: 117px;
+    height: 32px;
+    background: group(#FFA7ADBF, border(-1, #FFF2F2F2));
+}
+
+.trinity-storage-line {
+    position: absolute;
+    left: 2px;
+    width: 113px;
+    height: 9px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-wrap: hover_roll;
+    text-color: #FF080C1B;
+    text-shadow: false;
+}
+
+#trinity_storage_amount { top: 2px; }
+#trinity_storage_types { top: 12px; }
+
+.trinity-storage-capacity-bar {
+    position: absolute;
+    left: 0px;
+    top: 24px;
+    width: 116px;
+    height: 6px;
+}
+
+.trinity-storage-capacity-track {
+    width: 100%;
+    height: 100%;
+}
+
+.trinity-storage-capacity-segment {
+    position: absolute;
+    top: 1px;
+    height: 4px;
+}
+
+#trinity_data_core_host_launchers {
+    position: absolute;
+    left: 238px;
+    top: 1px;
+    width: 14px;
+    height: 14px;
+    z-index: 400;
+}
+
+.trinity-data-core-auto-build-launcher {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 14px;
+    height: 14px;
+}
+
+.trinity-pattern-core-root {
+    width: 176px;
+    height: 256px;
+    background: sprite(ae2:textures/guis/me_digital_pattern_processing_core.png, 0, 0, 176, 256);
+}
+
+.trinity-pattern-core-panel {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 176px;
+    height: 172px;
+}
+
+.trinity-pattern-core-title {
+    position: absolute;
+    left: 8px;
+    top: 5px;
+    width: 160px;
+    height: 9px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-shadow: false;
+}
+
+.trinity-pattern-core-grid {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 144px;
+    height: 144px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.trinity-pattern-core-slot {
+    width: 18px;
+    height: 18px;
+}
+
+.trinity-pattern-core-previous-page,
+.trinity-pattern-core-next-page,
+.trinity-pattern-core-refund-all {
+    position: absolute;
+    top: 160px;
+    width: 16px;
+    height: 12px;
+}
+
+.trinity-pattern-core-previous-page { left: 16px; }
+.trinity-pattern-core-next-page { left: 124px; }
+.trinity-pattern-core-refund-all { left: 144px; }
+
+.trinity-pattern-core-page-info {
+    position: absolute;
+    left: 36px;
+    top: 161px;
+    width: 84px;
+    height: 10px;
+    adaptive-width: false;
+    adaptive-height: false;
+    horizontal-align: center;
+    vertical-align: center;
+    text-shadow: false;
+}
+
+.trinity-pattern-player-inventory {
+    position: absolute;
+    left: 7px;
+    top: 171px;
+    width: 162px;
+    height: 77px;
+}
+
+.trinity-pattern-player-inventory-grid,
+.trinity-pattern-player-hotbar-grid {
+    position: absolute;
+    left: 0px;
+    width: 162px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.trinity-pattern-player-inventory-grid {
+    top: 0px;
+    height: 54px;
+}
+
+.trinity-pattern-player-hotbar-grid {
+    top: 58px;
+    height: 18px;
+}
+
+.trinity-pattern-player-inventory-slot {
+    width: 18px;
+    height: 18px;
+}
+
+.trinity-hosted-window {
+    position: absolute;
+    left: -8px;
+    top: 0px;
+    width: 292px;
+    height: 210px;
+}
+
+.trinity-auto-build-drag-handle {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 272px;
+    height: 16px;
+}
+
+.trinity-auto-build-window-title {
+    position: absolute;
+    left: 5px;
+    top: 0px;
+    width: 262px;
+    height: 16px;
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 8.5;
+    text-color: #FFFFFFFF;
+    vertical-align: center;
+    text-wrap: hover_roll;
+    text-shadow: false;
+    overflow: hidden;
+}
+
+.trinity-auto-build-window-close {
+    position: absolute;
+    left: 274px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+}
+
+.trinity-hosted-preview {
+    position: absolute;
+    left: 4px;
+    top: 22px;
+    width: 196px;
+    height: 184px;
+}
+
+.trinity-hosted-side-panel {
+    position: absolute;
+    left: 204px;
+    top: 22px;
+    width: 84px;
+    height: 184px;
+}
+
+.trinity-auto-build-panel {
+    width: 84px;
+    height: 184px;
+}
+
+.trinity-auto-build-structure-selector {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 84px;
+    height: 38px;
+    background: rect(#FF303040);
+}
+
+.trinity-auto-build-structure-previous,
+.trinity-auto-build-structure-next {
+    position: absolute;
+    top: 10px;
+    width: 18px;
+    height: 18px;
+}
+
+.trinity-auto-build-structure-previous { left: 0px; }
+.trinity-auto-build-structure-next { left: 66px; }
+
+.trinity-auto-build-structure-title {
+    position: absolute;
+    left: 20px;
+    top: 0px;
+    width: 44px;
+    height: 38px;
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 7.5;
+    horizontal-align: center;
+    vertical-align: center;
+    text-wrap: wrap;
+    text-shadow: false;
+    overflow: hidden;
+}
+
+.trinity-auto-build-requested {
+    position: absolute;
+    left: 0px;
+    top: 44px;
+    width: 84px;
+    height: 20px;
+}
+
+.trinity-auto-build-toggle-label {
+    flex: 0;
+    width: 62px;
+    adaptive-width: false;
+    adaptive-height: false;
+    text-wrap: hover_roll;
+    overflow: hidden;
+}
+
+.trinity-auto-build-confirm {
+    position: absolute;
+    left: 0px;
+    top: 166px;
+    width: 84px;
+    height: 18px;
+    overflow: hidden;
+}
+
+.trinity-auto-build-confirm .__button_text__ {
+    flex: 0;
+    width: 62px;
+    adaptive-width: false;
+    adaptive-height: false;
+    horizontal-align: left;
+    text-wrap: hover_roll;
+    overflow: hidden;
+}

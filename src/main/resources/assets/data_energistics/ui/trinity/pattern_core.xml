@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui>
+    <stylesheet location="data_energistics:lss/trinity_ui"/>
+    <root id="trinity_pattern_core_root" class="trinity-pattern-core-root"/>
+</ui>
