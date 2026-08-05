@@ -4,7 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Server-thread-confined scheduler that switches Grid after every real physical provider call.
@@ -86,6 +88,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     }
 
     private void dispatchParticipants(List<CraftingDispatchParticipant> participants) {
+        Map<CraftingDispatchParticipant, String> successorIdentities = successorIdentities(participants);
         ArrayDeque<CraftingDispatchParticipant> ready = new ArrayDeque<>(participants);
         int remainingInRound = ready.size();
         boolean roundProgressed = false;
@@ -103,7 +106,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
             }
 
             if (result.physicalAttempted()) {
-                this.nextParticipantIdentity = successorIdentity(participants, participant);
+                this.nextParticipantIdentity = successorIdentities.get(participant);
             }
             roundProgressed |= result.progressed();
             if (result.progressed() && result.hasReadyWork() && !result.windowExhausted()) {
@@ -121,14 +124,14 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
         }
     }
 
-    private static String successorIdentity(List<CraftingDispatchParticipant> participants,
-                                            CraftingDispatchParticipant participant) {
-        int participantIndex = participants.indexOf(participant);
-        if (participantIndex < 0) {
-            throw new IllegalStateException("Dispatched participant is absent from the Grid rotation");
+    private static Map<CraftingDispatchParticipant, String> successorIdentities(
+            List<CraftingDispatchParticipant> participants) {
+        Map<CraftingDispatchParticipant, String> successors = new IdentityHashMap<>(participants.size());
+        for (int index = 0; index < participants.size(); index++) {
+            int successorIndex = (index + 1) % participants.size();
+            successors.put(participants.get(index), participants.get(successorIndex).diagnosticIdentity());
         }
-        int successorIndex = (participantIndex + 1) % participants.size();
-        return participants.get(successorIndex).diagnosticIdentity();
+        return successors;
     }
 
     private static void completeParticipants(List<CraftingDispatchParticipant> participants) {
