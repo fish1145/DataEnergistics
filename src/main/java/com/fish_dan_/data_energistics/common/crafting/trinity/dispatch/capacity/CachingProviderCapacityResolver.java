@@ -33,12 +33,12 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
     }
 
     @Override
-    public List<ProviderCapacitySnapshot> capture(CraftingProviderPublicationIndex publications,
-                                                  IPatternDetails pattern,
-                                                  KeyCounter[] prototype,
-                                                  long requestedCrafts,
-                                                  String patternIdentity,
-                                                  long captureTick) {
+    public ProviderCapacityCapture capture(CraftingProviderPublicationIndex publications,
+                                            IPatternDetails pattern,
+                                            KeyCounter[] prototype,
+                                            long requestedCrafts,
+                                            String patternIdentity,
+                                            long captureTick) {
         ProviderCapacityCaptureKey key = ProviderCapacityCaptureKey.capture(
                 publications,
                 pattern,
@@ -87,14 +87,14 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
                 validationTick);
     }
 
-    private List<ProviderCapacitySnapshot> captureAndValidate(ProviderCapacityCaptureKey key,
-                                                              CraftingProviderPublicationIndex publications,
-                                                              IPatternDetails pattern,
-                                                              KeyCounter[] prototype,
-                                                              long requestedCrafts,
-                                                              String patternIdentity,
-                                                              long captureTick) {
-        List<ProviderCapacitySnapshot> snapshots = this.delegate.capture(
+    private ProviderCapacityCapture captureAndValidate(ProviderCapacityCaptureKey key,
+                                                        CraftingProviderPublicationIndex publications,
+                                                        IPatternDetails pattern,
+                                                        KeyCounter[] prototype,
+                                                        long requestedCrafts,
+                                                        String patternIdentity,
+                                                        long captureTick) {
+        ProviderCapacityCapture capture = this.delegate.capture(
                 publications,
                 pattern,
                 prototype,
@@ -107,16 +107,10 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
                 !publications.providerIdsFor(pattern).equals(key.providerFingerprint())) {
             throw new IllegalStateException("Provider capacity cache context changed while capturing capacity");
         }
-        for (ProviderCapacitySnapshot snapshot : snapshots) {
-            if (snapshot.providerId().publicationScope() != key.gridScope() ||
-                    snapshot.publicationRevision() != key.publicationRevision() ||
-                    snapshot.capacityRevision() != key.capacityRevision() ||
-                    snapshot.captureTick() != key.capacityEpoch() ||
-                    !snapshot.patternIdentity().equals(key.patternIdentity())) {
-                throw new IllegalStateException("Provider capacity cache result escaped its immutable key context");
-            }
+        if (!capture.key().equals(key)) {
+            throw new IllegalStateException("Provider capacity cache result escaped its immutable key context");
         }
-        return List.copyOf(snapshots);
+        return capture;
     }
 
     private static RuntimeException propagate(Throwable failure) {

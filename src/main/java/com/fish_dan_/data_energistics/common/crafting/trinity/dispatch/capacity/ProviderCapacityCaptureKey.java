@@ -25,7 +25,7 @@ import java.util.Map;
  * @param inputPrototype    exact per-slot input counters used for provider capacity
  * @param requestedMaximum  positive maximum logical crafts requested from providers
  */
-record ProviderCapacityCaptureKey(
+public record ProviderCapacityCaptureKey(
                                   long gridScope,
                                   long publicationRevision,
                                   long capacityRevision,
@@ -35,7 +35,7 @@ record ProviderCapacityCaptureKey(
                                   List<Map<AEKey, Long>> inputPrototype,
                                   long requestedMaximum) {
 
-    ProviderCapacityCaptureKey {
+    public ProviderCapacityCaptureKey {
         if (gridScope <= 0L || publicationRevision < 0L || capacityRevision < 0L || capacityEpoch < 0L) {
             throw new IllegalArgumentException("Provider capacity cache revisions must be valid");
         }

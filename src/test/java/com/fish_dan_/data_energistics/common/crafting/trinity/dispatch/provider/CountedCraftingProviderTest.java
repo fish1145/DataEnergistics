@@ -163,7 +163,7 @@ public final class CountedCraftingProviderTest {
                 new KeyCounter[0],
                 8L,
                 "routing-contract",
-                1L);
+                1L).snapshots();
 
         assertEquals(1, snapshots.size());
         ProviderCapacitySnapshot snapshot = snapshots.getFirst();

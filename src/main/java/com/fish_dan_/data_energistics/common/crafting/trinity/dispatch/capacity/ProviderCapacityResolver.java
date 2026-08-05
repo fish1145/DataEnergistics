@@ -47,13 +47,13 @@ public interface ProviderCapacityResolver {
      * @param captureTick     current server tick
      * @return immutable capacity snapshots in publication and provider-target order
      */
-    List<ProviderCapacitySnapshot> capture(
-                                           CraftingProviderPublicationIndex publications,
-                                           IPatternDetails pattern,
-                                           KeyCounter[] prototype,
-                                           long requestedCrafts,
-                                           String patternIdentity,
-                                           long captureTick);
+    ProviderCapacityCapture capture(
+                                    CraftingProviderPublicationIndex publications,
+                                    IPatternDetails pattern,
+                                    KeyCounter[] prototype,
+                                    long requestedCrafts,
+                                    String patternIdentity,
+                                    long captureTick);
 
     /**
      * Revalidates registration, capability revision, pattern identity and exact target immediately before preparation.

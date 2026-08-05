@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.Wo
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlice;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
@@ -1045,7 +1046,7 @@ final class TrinityDataCoreCpuLogic {
                             prototype.inputHolder(),
                             maximumCount,
                             patternIdentity,
-                            currentTick) :
+                            currentTick).snapshots() :
                     List.of(selectedProposal.target());
         }
         if (snapshots.isEmpty()) {

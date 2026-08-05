@@ -24,18 +24,25 @@ import java.util.Optional;
 final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
 
     @Override
-    public List<ProviderCapacitySnapshot> capture(
-                                                  CraftingProviderPublicationIndex publications,
-                                                  IPatternDetails pattern,
-                                                  KeyCounter[] prototype,
-                                                  long requestedCrafts,
-                                                  String patternIdentity,
-                                                  long captureTick) {
+    public ProviderCapacityCapture capture(
+                                           CraftingProviderPublicationIndex publications,
+                                           IPatternDetails pattern,
+                                           KeyCounter[] prototype,
+                                           long requestedCrafts,
+                                           String patternIdentity,
+                                           long captureTick) {
         validateCapture(requestedCrafts, patternIdentity, captureTick);
-        long publicationRevision = publications.publicationRevision();
-        long capacityRevision = CountedCraftingProviderAdapters.mutationRevision();
+        ProviderCapacityCaptureKey captureKey = ProviderCapacityCaptureKey.capture(
+                publications,
+                pattern,
+                prototype,
+                requestedCrafts,
+                patternIdentity,
+                captureTick);
+        long publicationRevision = captureKey.publicationRevision();
+        long capacityRevision = captureKey.capacityRevision();
         ArrayList<ProviderCapacitySnapshot> snapshots = new ArrayList<>();
-        for (var providerId : publications.providerIdsFor(pattern)) {
+        for (var providerId : captureKey.providerFingerprint()) {
             ICraftingProvider provider = publications.resolveLiveProvider(providerId);
             if (provider == null) {
                 throw new IllegalStateException("Current crafting-provider publication did not resolve its provider");
@@ -81,7 +88,7 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
                 CountedCraftingProviderAdapters.mutationRevision() != capacityRevision) {
             throw new IllegalStateException("Crafting-provider revisions changed during capacity capture");
         }
-        return List.copyOf(snapshots);
+        return new ProviderCapacityCapture(captureKey, snapshots);
     }
 
     @Override

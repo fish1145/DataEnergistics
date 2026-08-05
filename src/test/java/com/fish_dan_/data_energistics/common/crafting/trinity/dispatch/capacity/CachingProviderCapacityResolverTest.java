@@ -34,14 +34,14 @@ final class CachingProviderCapacityResolverTest {
         IPatternDetails pattern = new TestPattern();
         KeyCounter[] prototype = { new KeyCounter() };
         try {
-            List<ProviderCapacitySnapshot> first = resolver.capture(
+            ProviderCapacityCapture first = resolver.capture(
                     publications,
                     pattern,
                     prototype,
                     8L,
                     "pattern",
                     40L);
-            List<ProviderCapacitySnapshot> repeated = resolver.capture(
+            ProviderCapacityCapture repeated = resolver.capture(
                     publications,
                     pattern,
                     prototype,
@@ -59,7 +59,7 @@ final class CachingProviderCapacityResolverTest {
                     prototype,
                     1L,
                     "pattern",
-                    first.getFirst(),
+                    first.snapshots().getFirst(),
                     40L));
             assertSame(delegate.provider, resolver.resolveCurrent(
                     publications,
@@ -67,7 +67,7 @@ final class CachingProviderCapacityResolverTest {
                     prototype,
                     1L,
                     "pattern",
-                    first.getFirst(),
+                    first.snapshots().getFirst(),
                     40L));
             assertEquals(2, delegate.resolveCalls.get());
         } finally {
@@ -82,14 +82,21 @@ final class CachingProviderCapacityResolverTest {
         private final AtomicInteger resolveCalls = new AtomicInteger();
 
         @Override
-        public List<ProviderCapacitySnapshot> capture(CraftingProviderPublicationIndex publications,
-                                                      IPatternDetails pattern,
-                                                      KeyCounter[] prototype,
-                                                      long requestedCrafts,
-                                                      String patternIdentity,
-                                                      long captureTick) {
+        public ProviderCapacityCapture capture(CraftingProviderPublicationIndex publications,
+                                                IPatternDetails pattern,
+                                                KeyCounter[] prototype,
+                                                long requestedCrafts,
+                                                String patternIdentity,
+                                                long captureTick) {
             this.captureCalls.incrementAndGet();
-            return List.of(new ProviderCapacitySnapshot(
+            ProviderCapacityCaptureKey key = ProviderCapacityCaptureKey.capture(
+                    publications,
+                    pattern,
+                    prototype,
+                    requestedCrafts,
+                    patternIdentity,
+                    captureTick);
+            return new ProviderCapacityCapture(key, List.of(new ProviderCapacitySnapshot(
                     publications.providerIdsFor(pattern).getFirst(),
                     CraftingDispatchTarget.provider(),
                     Optional.empty(),
@@ -99,7 +106,7 @@ final class CachingProviderCapacityResolverTest {
                     captureTick,
                     ProviderRoutingMode.TARGETED,
                     new DispatchCapacity.Known(requestedCrafts),
-                    new DispatchCapacity.Known(requestedCrafts)));
+                    new DispatchCapacity.Known(requestedCrafts))));
         }
 
         @Override
