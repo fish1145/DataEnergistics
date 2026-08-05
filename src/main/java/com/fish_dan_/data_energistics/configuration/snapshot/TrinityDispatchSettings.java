@@ -49,7 +49,7 @@ public record TrinityDispatchSettings(
                         this.hardGridAttempts,
                         this.hardProviderAttempts,
                         TimeUnit.MILLISECONDS.toNanos(this.hardCommitBudgetMs)),
-                DispatchProposalLimits.DEFAULT_PER_GRID_OUTSTANDING,
+                CraftingDispatchBudget.actorPermitsFor(this.hardGridAttempts),
                 this.hardProviderAttempts,
                 DispatchProposalLimits.DEFAULT_QUEUE_CAPACITY,
                 1,
@@ -76,7 +76,7 @@ public record TrinityDispatchSettings(
     }
 
     public static TrinityDispatchSettings defaults() {
-        return new TrinityDispatchSettings(256, 16, 30, 16, 2, 2, 1, 8, 200, 20, 0.25D, 3, 60, 200);
+        return new TrinityDispatchSettings(32_768, 32_768, 30, 16, 2, 2, 1, 8, 200, 20, 0.25D, 3, 60, 200);
     }
 
     public static TrinityDispatchSettings copyOf(TrinityDispatch settings) {

@@ -24,7 +24,7 @@ public record CraftingDispatchBudget(
 
     private static final CraftingDispatchBudget LEGACY_FIXED_HARD = new CraftingDispatchBudget(
             CraftingDispatchLimits.DEFAULT,
-            DispatchProposalLimits.DEFAULT_PER_GRID_OUTSTANDING,
+            actorPermitsFor(CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_GRID),
             CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
             DispatchProposalLimits.DEFAULT_QUEUE_CAPACITY,
             1,
@@ -51,6 +51,20 @@ public record CraftingDispatchBudget(
                 this.providerQuantum,
                 this.proposalHighWater,
                 this.asynchronousEnabled);
+    }
+
+    /**
+     * Scales one grid's outstanding asynchronous work with its current physical-attempt window.
+     *
+     * @param maxAttemptsPerGrid current physical-attempt ceiling
+     * @return bounded outstanding proposal permits
+     */
+    public static int actorPermitsFor(int maxAttemptsPerGrid) {
+        if (maxAttemptsPerGrid <= 0) {
+            throw new IllegalArgumentException("Grid crafting dispatch limit must be positive");
+        }
+        int permits = Math.floorDiv(maxAttemptsPerGrid - 1, 256) + 1;
+        return Math.min(DispatchProposalLimits.DEFAULT_PER_GRID_OUTSTANDING, permits);
     }
 
     /**

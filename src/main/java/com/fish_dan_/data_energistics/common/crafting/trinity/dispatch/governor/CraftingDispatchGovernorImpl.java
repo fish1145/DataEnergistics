@@ -208,15 +208,16 @@ final class CraftingDispatchGovernorImpl implements CraftingDispatchGovernor {
     private CraftingDispatchBudget decreaseBudget(CraftingDispatchBudget current) {
         CraftingDispatchBudget safe = this.settings.safeBudget();
         CraftingDispatchLimits limits = current.dispatchLimits();
+        int gridAttempts = decrease(limits.maxAttemptsPerGrid(), safe.dispatchLimits().maxAttemptsPerGrid());
         int providerAttempts = decrease(limits.maxAttemptsPerProvider(), safe.dispatchLimits().maxAttemptsPerProvider());
         return new CraftingDispatchBudget(
                 new CraftingDispatchLimits(
-                        decrease(limits.maxAttemptsPerGrid(), safe.dispatchLimits().maxAttemptsPerGrid()),
+                        gridAttempts,
                         providerAttempts,
                         decrease(limits.maxServerSubmissionNanos(), safe.dispatchLimits().maxServerSubmissionNanos()),
                         limits.maxCapacityCaptureNanos()),
-                decrease(current.actorPermits(), safe.actorPermits()),
-                Math.min(providerAttempts, decrease(current.providerQuantum(), safe.providerQuantum())),
+                CraftingDispatchBudget.actorPermitsFor(gridAttempts),
+                providerAttempts,
                 decrease(current.proposalHighWater(), safe.proposalHighWater()),
                 increase(current.retryBackoffTicks(), safe.retryBackoffTicks(), 1),
                 true);
@@ -225,20 +226,24 @@ final class CraftingDispatchGovernorImpl implements CraftingDispatchGovernor {
     private CraftingDispatchBudget increaseBudget(CraftingDispatchBudget current) {
         CraftingDispatchBudget hard = this.settings.hardBudget();
         CraftingDispatchLimits limits = current.dispatchLimits();
+        int gridAttempts = increase(
+                limits.maxAttemptsPerGrid(),
+                hard.dispatchLimits().maxAttemptsPerGrid(),
+                8);
         int providerAttempts = increase(
                 limits.maxAttemptsPerProvider(),
                 hard.dispatchLimits().maxAttemptsPerProvider(),
                 1);
         return new CraftingDispatchBudget(
                 new CraftingDispatchLimits(
-                        increase(limits.maxAttemptsPerGrid(), hard.dispatchLimits().maxAttemptsPerGrid(), 8),
+                        gridAttempts,
                         providerAttempts,
                         increase(
                                 limits.maxServerSubmissionNanos(),
                                 hard.dispatchLimits().maxServerSubmissionNanos()),
                         limits.maxCapacityCaptureNanos()),
-                increase(current.actorPermits(), hard.actorPermits(), 1),
-                Math.min(providerAttempts, increase(current.providerQuantum(), hard.providerQuantum(), 1)),
+                CraftingDispatchBudget.actorPermitsFor(gridAttempts),
+                providerAttempts,
                 increase(current.proposalHighWater(), hard.proposalHighWater(), 8),
                 decreaseToward(current.retryBackoffTicks(), hard.retryBackoffTicks()),
                 true);

@@ -43,14 +43,15 @@ public final class CraftingDispatchWindowImplTest {
 
     @Test
     void accountsByProviderIdentityInsteadOfEquality() {
-        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
+        CraftingDispatchLimits historicalLimits = new CraftingDispatchLimits(256, 16, Long.MAX_VALUE, Long.MAX_VALUE);
+        CraftingDispatchWindow window = fixedWindow(historicalLimits);
         ICraftingProvider first = new EqualCraftingProvider();
         ICraftingProvider second = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
         assertNotSame(first, second);
 
-        for (int attempt = 0; attempt < CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER; attempt++) {
+        for (int attempt = 0; attempt < historicalLimits.maxAttemptsPerProvider(); attempt++) {
             assertTrue(acquire(window, first, pattern, target));
         }
 
@@ -165,6 +166,22 @@ public final class CraftingDispatchWindowImplTest {
         ICraftingProvider extraProvider = new EqualCraftingProvider();
         assertEquals(3, window.attemptCount());
         assertFalse(window.canAttempt(extraProvider, pattern));
+        assertEquals(CraftingDispatchExhaustion.GRID_CALL_BUDGET, window.exhaustion());
+    }
+
+    @Test
+    void defaultLimitsAllowExactly32768PhysicalAttempts() {
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchTarget target = target("bulk");
+
+        for (int attempt = 0; attempt < 32_768; attempt++) {
+            assertTrue(acquire(window, provider, pattern, target), "attempt " + attempt);
+        }
+
+        assertEquals(32_768, window.attemptCount());
+        assertFalse(window.canAttempt(provider, pattern, target));
         assertEquals(CraftingDispatchExhaustion.GRID_CALL_BUDGET, window.exhaustion());
     }
 

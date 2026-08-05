@@ -14,11 +14,11 @@ public record CraftingDispatchLimits(
                                      long maxServerSubmissionNanos,
                                      long maxCapacityCaptureNanos) {
 
-    /** Baseline provider ceiling retained from the pre-reorganization dispatch window. */
-    public static final int DEFAULT_MAX_ATTEMPTS_PER_PROVIDER = 16;
+    /** Production provider ceiling for one complete grid tick. */
+    public static final int DEFAULT_MAX_ATTEMPTS_PER_PROVIDER = 32_768;
 
-    /** Baseline grid ceiling supports sixteen providers at their complete provider quota. */
-    public static final int DEFAULT_MAX_ATTEMPTS_PER_GRID = DEFAULT_MAX_ATTEMPTS_PER_PROVIDER * 16;
+    /** Production grid ceiling for one complete grid tick. */
+    public static final int DEFAULT_MAX_ATTEMPTS_PER_GRID = 32_768;
 
     /**
      * Preliminary server submission budget calibrated above the observed Phase 0 256-worker maximum.
