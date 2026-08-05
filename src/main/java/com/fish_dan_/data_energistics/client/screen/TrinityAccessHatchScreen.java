@@ -42,16 +42,6 @@ import java.util.Objects;
 public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAccessHatchMenu>
                                       implements Ae2NativeSlotHighlight {
 
-    private static final int TERMINAL_WIDTH = 195;
-    private static final int SIDEBAR_GAP = 3;
-    private static final int SIDEBAR_WIDTH = 82;
-    private static final int SIDEBAR_X = TERMINAL_WIDTH + SIDEBAR_GAP;
-    private static final int SIDEBAR_PADDING = 3;
-    private static final int BUTTON_WIDTH = SIDEBAR_WIDTH - SIDEBAR_PADDING * 2;
-    private static final int BUTTON_HEIGHT = 18;
-    private static final int SEARCH_MODE_Y = 25;
-    private static final int REFUND_PATTERNS_Y = 55;
-    private static final int REFUND_RETAINED_ITEMS_Y = 77;
     private static final int PANEL_BACKGROUND = 0xFFE3E3EA;
     private static final int PANEL_BORDER = 0xFF696D88;
     private static final int PANEL_TEXT = 0xFF404040;
@@ -61,6 +51,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     private static final String REFUND_PATTERNS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.patterns";
     private static final String REFUND_RETAINED_ITEMS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.retained_items";
     private static final TrinityPatternSearchMatcher SEARCH_MATCHER = new TrinityPatternSearchMatcherImpl();
+    private static final TrinityAccessHatchLayout LAYOUT = TrinityAccessHatchLayout.load();
 
     private final Map<AEItemKey, PatternSearchNames> patternSearchNamesByDefinition = new HashMap<>();
     private TrinityPatternSearchMode searchMode = TrinityPatternSearchMode.INPUT_OUTPUT;
@@ -80,7 +71,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
                                     Component title,
                                     ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.imageWidth = TERMINAL_WIDTH + SIDEBAR_GAP + SIDEBAR_WIDTH;
+        this.imageWidth = LAYOUT.screenWidth();
     }
 
     /**
@@ -89,28 +80,27 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     @Override
     public void init() {
         super.init();
-        int buttonX = this.leftPos + SIDEBAR_X + SIDEBAR_PADDING;
+        TrinityAccessHatchLayout.Button searchModeLayout = LAYOUT.searchModeButton();
         this.searchModeButton = addRenderableWidget(new ManagementButton(
-                buttonX,
-                this.topPos + SEARCH_MODE_Y,
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT,
+                managementButtonX(searchModeLayout),
+                this.topPos + searchModeLayout.top(),
+                searchModeLayout,
                 searchModeMessage(),
                 Component.translatable("button.data_energistics.trinity_access_hatch.search_mode.hint"),
                 this::cycleSearchMode));
+        TrinityAccessHatchLayout.Button refundPatternsLayout = LAYOUT.refundPatternsButton();
         this.refundPatternsButton = addRenderableWidget(new ManagementButton(
-                buttonX,
-                this.topPos + REFUND_PATTERNS_Y,
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT,
+                managementButtonX(refundPatternsLayout),
+                this.topPos + refundPatternsLayout.top(),
+                refundPatternsLayout,
                 Component.translatable("button.data_energistics.trinity_data_core.refund_patterns"),
                 Component.translatable("button.data_energistics.trinity_data_core.refund_patterns"),
                 this.menu::requestRefundPatterns));
+        TrinityAccessHatchLayout.Button refundRetainedItemsLayout = LAYOUT.refundRetainedItemsButton();
         this.refundRetainedItemsButton = addRenderableWidget(new ManagementButton(
-                buttonX,
-                this.topPos + REFUND_RETAINED_ITEMS_Y,
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT,
+                managementButtonX(refundRetainedItemsLayout),
+                this.topPos + refundRetainedItemsLayout.top(),
+                refundRetainedItemsLayout,
                 Component.translatable("button.data_energistics.trinity_data_core.refund_retained_items"),
                 Component.translatable("button.data_energistics.trinity_data_core.refund_retained_items"),
                 this.menu::requestRefundRetainedItems));
@@ -128,8 +118,8 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
                        int mouseY,
                        float partialTicks) {
         super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-        int panelLeft = offsetX + SIDEBAR_X;
-        int panelRight = panelLeft + SIDEBAR_WIDTH;
+        int panelLeft = offsetX + LAYOUT.managementPanel().left();
+        int panelRight = panelLeft + LAYOUT.managementPanel().width();
         int panelBottom = offsetY + this.imageHeight;
         guiGraphics.fill(panelLeft, offsetY, panelRight, panelBottom, PANEL_BORDER);
         guiGraphics.fill(panelLeft + 1, offsetY + 1, panelRight - 1, panelBottom - 1, PANEL_BACKGROUND);
@@ -145,8 +135,8 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         guiGraphics.drawString(
                 this.font,
                 Component.translatable("screen.data_energistics.trinity_access_hatch.management"),
-                SIDEBAR_X + SIDEBAR_PADDING,
-                8,
+                LAYOUT.title().left(),
+                LAYOUT.title().top(),
                 PANEL_TEXT,
                 false);
     }
@@ -247,6 +237,11 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         PatternAccessTermScreenAccessor accessor = (PatternAccessTermScreenAccessor) this;
         clearNativeSearchCaches();
         accessor.dataEnergistics$refreshList();
+    }
+
+    /** Resolves one XML-declared button's local x-coordinate against the current native screen origin. */
+    private int managementButtonX(TrinityAccessHatchLayout.Button layout) {
+        return this.leftPos + LAYOUT.managementPanel().left() + layout.left();
     }
 
     private void drawPatternSearchFeedback(GuiGraphics guiGraphics) {
@@ -417,20 +412,20 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         private static final int DISABLED_BORDER = 0xFF686B78;
         private static final int ACTIVE_TEXT = 0xFF2C3040;
         private static final int DISABLED_TEXT = 0xFF555866;
-        private static final float TEXT_SCALE = 0.75F;
-        private static final int TEXT_LEFT_PADDING = 4;
-
         private final Runnable action;
+        private final int textLeftPadding;
+        private final float textScale;
 
         private ManagementButton(int x,
-                                 int y,
-                                 int width,
-                                 int height,
-                                 Component message,
-                                 Component tooltip,
-                                 Runnable action) {
-            super(x, y, width, height, message);
+                                  int y,
+                                  TrinityAccessHatchLayout.Button layout,
+                                  Component message,
+                                  Component tooltip,
+                                  Runnable action) {
+            super(x, y, layout.width(), layout.height(), message);
             this.action = Objects.requireNonNull(action, "management button action must not be null");
+            this.textLeftPadding = layout.textLeftPadding();
+            this.textScale = layout.textScale();
             setTooltip(Tooltip.create(Objects.requireNonNull(
                     tooltip,
                     "management button tooltip must not be null")));
@@ -484,15 +479,15 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
             Font font = Minecraft.getInstance().font;
             int rawTextWidth = Math.max(
                     0,
-                    (int) Math.floor((this.getWidth() - TEXT_LEFT_PADDING * 2) / TEXT_SCALE));
+                    (int) Math.floor((this.getWidth() - this.textLeftPadding * 2) / this.textScale));
             String text = font.plainSubstrByWidth(this.getMessage().getString(), rawTextWidth);
-            float scaledTextHeight = font.lineHeight * TEXT_SCALE;
-            float textX = this.getX() + TEXT_LEFT_PADDING;
+            float scaledTextHeight = font.lineHeight * this.textScale;
+            float textX = this.getX() + this.textLeftPadding;
             float textY = this.getY() + (this.getHeight() - scaledTextHeight) / 2.0F;
 
             guiGraphics.pose().pushPose();
             guiGraphics.pose().translate(textX, textY, 0.0F);
-            guiGraphics.pose().scale(TEXT_SCALE, TEXT_SCALE, 1.0F);
+            guiGraphics.pose().scale(this.textScale, this.textScale, 1.0F);
             guiGraphics.drawString(font, text, 0, 0, color, false);
             guiGraphics.pose().popPose();
         }
