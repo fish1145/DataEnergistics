@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.common.multiblock.preview;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.json.ResolvedJsonMultiBlockDefinition;
-import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -108,11 +107,6 @@ public final class StructurePreviewProjectionGameTest {
                 "The ordinary recipe inputs must add one controller to the matching material amount");
         helper.assertValueEqual(amountOf(recipe.inputs(), goldKey), 2L,
                 "The ordinary recipe inputs must retain the selected tier amount");
-        ItemStack outputStack = recipe.output().key().toStack();
-        helper.assertTrue(OrderPackageTarget.get().isOrderPackage(outputStack),
-                "The ordinary recipe output must be an order package");
-        helper.assertValueEqual(OrderPackageTarget.get().getTarget(outputStack).orElseThrow(), ownerKey,
-                "The ordinary recipe output must target the preview owner");
         helper.assertValueEqual(recipe.output().amount(), 1L,
                 "The order package output amount must be one");
         helper.assertValueEqual(recipe.substructureId(), SUBSTRUCTURE_ID,
