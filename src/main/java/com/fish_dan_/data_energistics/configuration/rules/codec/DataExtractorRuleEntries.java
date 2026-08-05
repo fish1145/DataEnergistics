@@ -30,51 +30,6 @@ public final class DataExtractorRuleEntries {
         return new LoadedRules(parseCarriers(carriers, source), parseOutputs(outputs, source));
     }
 
-    public static CarrierArrays encodeCarriers(LoadedRules rules) {
-        List<ItemRule> inputRules = rules.inputRules();
-        Slot[] slots = new Slot[inputRules.size()];
-        DataType[] dataTypes = new DataType[inputRules.size()];
-        String[] inputItems = new String[inputRules.size()];
-        String[] recordedItems = new String[inputRules.size()];
-        Float[] progressPerItems = new Float[inputRules.size()];
-        Float[] requiredAmounts = new Float[inputRules.size()];
-        for (int index = 0; index < inputRules.size(); index++) {
-            ItemRule rule = inputRules.get(index);
-            slots[index] = rule.slot();
-            dataTypes[index] = rule.dataType();
-            inputItems[index] = rule.inputItemId().toString();
-            recordedItems[index] = rule.recordedItemId().toString();
-            progressPerItems[index] = rule.progressPerItem();
-            requiredAmounts[index] = rule.requiredAmount();
-        }
-        return new CarrierArrays(
-                slots,
-                dataTypes,
-                inputItems,
-                recordedItems,
-                progressPerItems,
-                requiredAmounts);
-    }
-
-    public static OutputArrays encodeOutputs(LoadedRules rules) {
-        int rowCount = rules.outputRules().stream().mapToInt(rule -> rule.outputs().size()).sum();
-        DataType[] dataTypes = new DataType[rowCount];
-        String[] recordedItems = new String[rowCount];
-        String[] items = new String[rowCount];
-        Integer[] counts = new Integer[rowCount];
-        int index = 0;
-        for (OutputRule rule : rules.outputRules()) {
-            for (ConfiguredStack output : rule.outputs()) {
-                dataTypes[index] = rule.dataType();
-                recordedItems[index] = rule.recordedId().toString();
-                items[index] = output.itemId().toString();
-                counts[index] = output.count();
-                index++;
-            }
-        }
-        return new OutputArrays(dataTypes, recordedItems, items, counts);
-    }
-
     private static List<ItemRule> parseCarriers(CarrierRuleSchema schema, Path source) throws RuleFormatException {
         int rowCount = schema.slots.length;
         requireLength(source, "carrierRules.dataTypes", rowCount, schema.dataTypes.length);
@@ -192,20 +147,6 @@ public final class DataExtractorRuleEntries {
                                                String repair) {
         return new RuleFormatException(source, path, violation, actual, repair);
     }
-
-    public record CarrierArrays(
-                                Slot[] slots,
-                                DataType[] dataTypes,
-                                String[] inputItems,
-                                String[] recordedItems,
-                                Float[] progressPerItems,
-                                Float[] requiredAmounts) {}
-
-    public record OutputArrays(
-                               DataType[] dataTypes,
-                               String[] recordedItems,
-                               String[] items,
-                               Integer[] counts) {}
 
     private record CarrierKey(Slot slot, ResourceLocation inputItem) {}
 

@@ -1,21 +1,19 @@
 package com.fish_dan_.data_energistics.configuration.rules.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.io.StrictYamlReader;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.DataType;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.Slot;
 import com.fish_dan_.data_energistics.configuration.rules.DefaultRuleValues;
 import com.fish_dan_.data_energistics.configuration.rules.LoadedRules;
 import com.fish_dan_.data_energistics.configuration.rules.codec.DataExtractorRuleEntries;
-import com.fish_dan_.data_energistics.configuration.rules.io.DataExtractorRulesYamlStore;
-import com.fish_dan_.data_energistics.configuration.rules.io.DataExtractorRulesYamlStore.LoadedRuleConfiguration;
-import com.fish_dan_.data_energistics.configuration.rules.io.DataExtractorRulesYamlStore.PreparedRules;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import dev.toma.configuration.Configuration;
 import dev.toma.configuration.config.Config;
 import dev.toma.configuration.config.ConfigHolder;
 import dev.toma.configuration.config.Configurable;
 import dev.toma.configuration.config.format.ConfigFormats;
+import dev.toma.configuration.config.io.ConfigIO;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.io.IOException;
@@ -49,7 +47,7 @@ public final class DataExtractorRulesConfiguration {
             "Carrier rule columns. Values at the same array index form one row.",
             "载体规则列；各数组中相同索引的值组成一行。"
     })
-    public CarrierRuleSchema carrierRules = new CarrierRuleSchema();
+    public CarrierRuleSchema carrierRules = new CarrierRuleSchema(defaultRuleValues());
 
     @Configurable(key = Configurable.LocalizationKey.FULL)
     @Configurable.Comment({
@@ -61,33 +59,31 @@ public final class DataExtractorRulesConfiguration {
     private volatile LoadedRules loadedRules;
 
     /** Registers the standalone YAML and exposes the framework-owned schema instance directly. */
-    public static synchronized void init(Path configRoot, DefaultRuleValues defaults) throws IOException {
+    public static synchronized void init() throws IOException {
         if (initialized) {
             throw new IllegalStateException("Data Extractor rule configuration is already initialized");
         }
 
-        PreparedRules prepared = DataExtractorRulesYamlStore.prepare(configRoot, defaults);
         ConfigHolder<DataExtractorRulesConfiguration> internal = Configuration.registerConfig(
                 DataExtractorRulesConfiguration.class,
                 ConfigFormats.YAML);
+        Path source = ConfigIO.getConfigFile(internal).toPath();
         synchronized (internal.getLock()) {
-            StrictYamlReader.readInto(prepared.target(), internal);
             DataExtractorRulesConfiguration configuration = internal.getConfigInstance();
             LoadedRules loadedByConfiguration = DataExtractorRuleEntries.compile(
                     configuration.carrierRules,
                     configuration.outputRules,
-                    prepared.target());
-            if (!loadedByConfiguration.equals(prepared.rules())) {
-                throw new IllegalStateException(
-                        "Configuration loaded Data Extractor rules that differ from the prevalidated YAML");
-            }
-            attach(internal, prepared.target(), loadedByConfiguration);
+                    source);
+            attach(internal, source, loadedByConfiguration);
         }
-        Data_Energistics.LOGGER.info(
-                "Loaded Data Extractor rule YAML {}{}{}",
-                prepared.target(),
-                prepared.importedLegacyJson() ? " after importing legacy JSON" : "",
-                prepared.recoveredTemporary() ? " after recovering a migration temporary" : "");
+        Data_Energistics.LOGGER.info("Loaded Data Extractor rule YAML {}", source);
+    }
+
+    private static DefaultRuleValues defaultRuleValues() {
+        return new DefaultRuleValues(
+                DefaultRuleValues.builtInCropRules(),
+                (float) DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropRequiredAmount(),
+                (float) DataEnergisticsConfiguration.INSTANCE.dataExtractor().oreRequiredAmount());
     }
 
     /** Returns the complete immutable rules currently used by gameplay. */
@@ -105,38 +101,29 @@ public final class DataExtractorRulesConfiguration {
             }
         }
 
-        LoadedRuleConfiguration strictCandidate;
         try {
-            strictCandidate = DataExtractorRulesYamlStore.read(source);
+            LoadedRules candidate;
+            RuleSource after;
+            synchronized (INTERNAL_INSTANCE.getLock()) {
+                DataExtractorRulesConfiguration current = INTERNAL_INSTANCE.getConfigInstance();
+                candidate = DataExtractorRuleEntries.compile(current.carrierRules, current.outputRules, source);
+                after = capture(current);
+                if (!before.equals(after)) {
+                    return;
+                }
+                current.loadedRules = candidate;
+                INSTANCE = current;
+                publishedSource = after;
+                lastRejection = "";
+            }
+            Data_Energistics.LOGGER.info(
+                    "Published Data Extractor rule YAML {} with fingerprint {}",
+                    source,
+                    before.hashCode());
         } catch (IOException | RuntimeException exception) {
             reject(exception.toString(), exception);
             return;
         }
-
-        RuleSource yamlCandidate;
-        synchronized (strictCandidate.holder().getLock()) {
-            yamlCandidate = capture(strictCandidate.holder().getConfigInstance());
-        }
-
-        synchronized (INTERNAL_INSTANCE.getLock()) {
-            DataExtractorRulesConfiguration current = INTERNAL_INSTANCE.getConfigInstance();
-            RuleSource after = capture(current);
-            if (!before.equals(after)) {
-                return;
-            }
-            if (!before.equals(yamlCandidate)) {
-                reject("Holder and strict rule YAML disagree");
-                return;
-            }
-            current.loadedRules = strictCandidate.rules();
-            INSTANCE = current;
-            publishedSource = after;
-            lastRejection = "";
-        }
-        Data_Energistics.LOGGER.info(
-                "Published Data Extractor rule YAML {} with fingerprint {}",
-                source,
-                before.hashCode());
     }
 
     static synchronized void attach(

@@ -4,7 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
-/** Carries atomic values used only when no active or legacy rule file exists. */
+/** Carries the built-in values used to initialize the native rule schema. */
 public record DefaultRuleValues(
                                 List<CropRule> cropRules,
                                 float cropRequiredAmount,

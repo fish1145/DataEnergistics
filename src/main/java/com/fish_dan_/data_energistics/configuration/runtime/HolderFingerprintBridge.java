@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.configuration.runtime;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.io.ConfigurationYamlStore;
-import com.fish_dan_.data_energistics.configuration.io.ConfigurationYamlStore.LoadedConfiguration;
 import com.fish_dan_.data_energistics.configuration.rules.schema.DataExtractorRulesConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapshot;
+import com.fish_dan_.data_energistics.configuration.snapshot.SnapshotAssembler;
 
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -52,55 +52,38 @@ public final class HolderFingerprintBridge {
     }
 
     private void refreshMainConfiguration() {
-        HolderState before;
-        int activePlannerThreads;
-        int activePlannerQueueCapacity;
-        synchronized (this.holder.getLock()) {
-            before = capture(this.holder);
-            if (before.values().equals(this.publishedState.values())) {
-                return;
-            }
-            activePlannerThreads = activeInteger(this.holder, "trinityCrafting.plannerThreads");
-            activePlannerQueueCapacity = activeInteger(this.holder, "trinityCrafting.plannerQueueCapacity");
-        }
-
-        long revision = DataEnergisticsConfiguration.INSTANCE.revision() + 1L;
-        LoadedConfiguration strictCandidate;
         try {
-            strictCandidate = ConfigurationYamlStore.read(
+            HolderState before;
+            HolderState after;
+            ConfigurationSnapshot snapshot;
+            long revision;
+            synchronized (this.holder.getLock()) {
+                before = capture(this.holder);
+                if (before.values().equals(this.publishedState.values())) {
+                    return;
+                }
+                revision = DataEnergisticsConfiguration.INSTANCE.revision() + 1L;
+                snapshot = SnapshotAssembler.assemble(
+                        this.holder.getConfigInstance(),
+                        this.source,
+                        revision);
+                after = capture(this.holder);
+                if (!before.values().equals(after.values())) {
+                    return;
+                }
+                DataEnergisticsConfiguration.publish(snapshot);
+                this.publishedState = after;
+                this.lastRejection = "";
+            }
+            Data_Energistics.LOGGER.info(
+                    "Published Configuration YAML {} at revision {} with holder fingerprint {}",
                     this.source,
                     revision,
-                    activePlannerThreads,
-                    activePlannerQueueCapacity);
+                    before.fingerprint());
         } catch (IOException | RuntimeException exception) {
             reject(exception.toString(), exception);
             return;
         }
-
-        HolderState yamlCandidate;
-        synchronized (strictCandidate.holder().getLock()) {
-            yamlCandidate = capture(strictCandidate.holder());
-        }
-
-        synchronized (this.holder.getLock()) {
-            HolderState after = capture(this.holder);
-            if (!before.values().equals(after.values())) {
-                return;
-            }
-            String mismatch = mismatch(before.values(), yamlCandidate.values());
-            if (!mismatch.isEmpty()) {
-                reject(mismatch);
-                return;
-            }
-            DataEnergisticsConfiguration.publish(strictCandidate.snapshot());
-            this.publishedState = after;
-            this.lastRejection = "";
-        }
-        Data_Energistics.LOGGER.info(
-                "Published Configuration YAML {} at revision {} with holder fingerprint {}",
-                this.source,
-                revision,
-                before.fingerprint());
     }
 
     private void reject(String reason) {
@@ -126,17 +109,6 @@ public final class HolderFingerprintBridge {
                 DataEnergisticsConfiguration.INSTANCE.revision(),
                 reason,
                 cause);
-    }
-
-    private static String mismatch(Map<String, Object> holderValues, Map<String, Object> yamlValues) {
-        for (Map.Entry<String, Object> entry : holderValues.entrySet()) {
-            Object yamlValue = yamlValues.get(entry.getKey());
-            if (!entry.getValue().equals(yamlValue)) {
-                return "Holder and strict YAML disagree at " + entry.getKey() +
-                        ": holder=" + entry.getValue() + ", file=" + yamlValue;
-            }
-        }
-        return "";
     }
 
     private static HolderState capture(ConfigHolder<DataEnergisticsConfiguration> holder) {
@@ -174,12 +146,6 @@ public final class HolderFingerprintBridge {
             return enumeration.name();
         }
         return value;
-    }
-
-    private static int activeInteger(ConfigHolder<DataEnergisticsConfiguration> holder, String path) {
-        ConfigValue<?> value = (ConfigValue<?>) holder.getConfigValue(path, Integer.class)
-                .orElseThrow(() -> new IllegalStateException("Missing restart-restricted field " + path));
-        return (Integer) value.getActiveValue();
     }
 
     private record HolderState(Map<String, Object> values, int fingerprint) {}

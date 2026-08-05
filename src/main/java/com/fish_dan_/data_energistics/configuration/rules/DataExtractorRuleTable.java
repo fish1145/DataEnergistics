@@ -51,52 +51,15 @@ public final class DataExtractorRuleTable {
 
     public enum Slot {
 
-        ORE("ore"),
-        CROP("crop");
-
-        private final String serializedName;
-
-        Slot(String serializedName) {
-            this.serializedName = serializedName;
-        }
-
-        @Nullable
-        public static Slot byName(String name) {
-            for (Slot value : values()) {
-                if (value.serializedName.equals(name)) {
-                    return value;
-                }
-            }
-            return null;
-        }
+        ORE,
+        CROP
     }
 
     public enum DataType {
 
-        MOB("mob"),
-        ORE("ore"),
-        CROP("crop");
-
-        private final String serializedName;
-
-        DataType(String serializedName) {
-            this.serializedName = serializedName;
-        }
-
-        @Nullable
-        public static DataType byName(String name) {
-            for (DataType value : values()) {
-                if (value.serializedName.equals(name)) {
-                    return value;
-                }
-            }
-            return switch (name) {
-                case "mob_data_carrier" -> MOB;
-                case "ore_data_carrier" -> ORE;
-                case "crop_data_carrier" -> CROP;
-                default -> null;
-            };
-        }
+        MOB,
+        ORE,
+        CROP
     }
 
     public record ItemRule(
