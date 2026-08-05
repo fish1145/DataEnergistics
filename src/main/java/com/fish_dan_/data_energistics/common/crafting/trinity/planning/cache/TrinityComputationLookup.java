@@ -8,15 +8,12 @@ import java.util.concurrent.Future;
  *
  * @param future     caller-owned wait handle whose cancellation never cancels shared work
  * @param cacheHit   whether an existing completed or in-flight entry supplied the calculation
- * @param registered whether the new calculation occupies a Grid LRU entry
+ * @param registered whether the shared calculation occupies a Grid LRU entry instead of an in-flight bypass slot
  * @param <V>        result type
  */
 public record TrinityComputationLookup<V>(Future<V> future, boolean cacheHit, boolean registered) {
 
     public TrinityComputationLookup {
         Objects.requireNonNull(future, "A Trinity computation lookup requires a caller future");
-        if (cacheHit && !registered) {
-            throw new IllegalArgumentException("A Trinity cache hit must refer to a registered entry");
-        }
     }
 }

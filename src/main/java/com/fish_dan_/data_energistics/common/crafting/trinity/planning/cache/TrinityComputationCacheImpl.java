@@ -1,14 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -52,22 +49,42 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         GridPartition partition;
         CacheEntry<V> entry;
         boolean registered;
+        TrinityComputationLookup<V> existingLookup = null;
+        List<CacheEntry<?>> cancelled = new ArrayList<>();
         synchronized (this.cacheLock) {
             requireOpen();
             partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
+            boolean staleRevision = advanceRevision(partition, namespace, revision, cancelled);
             CacheEntry<?> existing = partition.entries.get(scopedKey);
+            boolean existingRegistered = true;
+            if (existing == null) {
+                existing = partition.bypassEntries.get(scopedKey);
+                existingRegistered = false;
+            }
             if (existing != null) {
-                return lookup(castEntry(existing), true, true);
-            }
-
-            registered = reserveRegisteredSlot(partition);
-            entry = new CacheEntry<>(partition, scopedKey, calculation, registered);
-            if (registered) {
-                partition.entries.put(scopedKey, entry);
+                existingLookup = lookup(castEntry(existing), true, existingRegistered);
+                entry = null;
+                registered = existingRegistered;
+            } else if (staleRevision) {
+                CompletableFuture<V> stale = new CompletableFuture<>();
+                stale.cancel(false);
+                existingLookup = new TrinityComputationLookup<>(stale, false, false);
+                entry = null;
+                registered = false;
             } else {
-                partition.bypassEntries.add(entry);
+                registered = reserveRegisteredSlot(partition);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered);
+                if (registered) {
+                    partition.entries.put(scopedKey, entry);
+                } else {
+                    partition.bypassEntries.put(scopedKey, entry);
+                }
             }
+        }
+        cancelled.forEach(CacheEntry::cancelUnderlying);
+        if (existingLookup != null) {
+            return existingLookup;
         }
 
         try {
@@ -92,15 +109,27 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         CacheEntry<V> entry;
         boolean cacheHit;
         boolean registered;
+        boolean staleRevision;
+        List<CacheEntry<?>> cancelled = new ArrayList<>();
         synchronized (this.cacheLock) {
             requireOpen();
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
+            staleRevision = advanceRevision(partition, namespace, revision, cancelled);
             CacheEntry<?> existing = partition.entries.get(scopedKey);
+            boolean existingRegistered = true;
+            if (existing == null) {
+                existing = partition.bypassEntries.get(scopedKey);
+                existingRegistered = false;
+            }
             if (existing != null) {
                 entry = castEntry(existing);
                 cacheHit = true;
-                registered = true;
+                registered = existingRegistered;
+            } else if (staleRevision) {
+                entry = null;
+                cacheHit = false;
+                registered = false;
             } else {
                 cacheHit = false;
                 registered = reserveRegisteredSlot(partition);
@@ -108,9 +137,14 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 if (registered) {
                     partition.entries.put(scopedKey, entry);
                 } else {
-                    partition.bypassEntries.add(entry);
+                    partition.bypassEntries.put(scopedKey, entry);
                 }
             }
+        }
+        cancelled.forEach(CacheEntry::cancelUnderlying);
+
+        if (staleRevision && entry == null) {
+            throw new CancellationException("The Trinity computation revision is obsolete");
         }
 
         if (!cacheHit) {
@@ -132,15 +166,33 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             throw new IllegalArgumentException("A detached Trinity computation requires scope, revision, and calculation");
         }
         CacheEntry<V> entry;
+        List<CacheEntry<?>> cancelled = new ArrayList<>();
+        boolean staleRevision;
         synchronized (this.cacheLock) {
             requireOpen();
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
-            entry = new CacheEntry<>(
+            staleRevision = advanceRevision(
                     partition,
-                    new ScopedKey(TrinityComputationNamespace.SOLVED_PLAN, revision, new Object()),
-                    () -> TrinityCachedComputation.transientValue(calculation.call()),
-                    false);
-            partition.bypassEntries.add(entry);
+                    TrinityComputationNamespace.SOLVED_PLAN,
+                    revision,
+                    cancelled);
+            if (staleRevision) {
+                entry = null;
+            } else {
+                ScopedKey scopedKey = new ScopedKey(TrinityComputationNamespace.SOLVED_PLAN, revision, new Object());
+                entry = new CacheEntry<>(
+                        partition,
+                        scopedKey,
+                        () -> TrinityCachedComputation.transientValue(calculation.call()),
+                        false);
+                partition.bypassEntries.put(scopedKey, entry);
+            }
+        }
+        cancelled.forEach(CacheEntry::cancelUnderlying);
+        if (staleRevision) {
+            CompletableFuture<V> stale = new CompletableFuture<>();
+            stale.cancel(false);
+            return stale;
         }
         try {
             this.executor.execute(entry.execution);
@@ -159,20 +211,12 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         List<CacheEntry<?>> cancelled = new ArrayList<>();
         synchronized (this.cacheLock) {
             requireOpen();
-            GridPartition partition = this.partitions.get(gridScope);
-            if (partition == null) {
-                return;
-            }
-            removeObsoleteEntries(partition.entries.entrySet().iterator(), currentRevision, cancelled);
-            Iterator<CacheEntry<?>> bypass = partition.bypassEntries.iterator();
-            while (bypass.hasNext()) {
-                CacheEntry<?> entry = bypass.next();
-                if (isObsolete(entry.key, currentRevision)) {
-                    bypass.remove();
-                    cancelled.add(entry);
-                }
-            }
-            removeEmptyPartition(gridScope, partition);
+            GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
+            advanceRevision(
+                    partition,
+                    TrinityComputationNamespace.SOLVED_PLAN,
+                    currentRevision,
+                    cancelled);
         }
         cancelled.forEach(CacheEntry::cancelUnderlying);
     }
@@ -235,7 +279,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         }
         Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> entries = partition.entries.entrySet().iterator();
         while (entries.hasNext()) {
-            if (!entries.next().getValue().inFlight) {
+            if (entries.next().getValue().result.isDone()) {
                 entries.remove();
                 return true;
             }
@@ -257,11 +301,38 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private static boolean isObsolete(ScopedKey key, long currentRevision) {
-        return key.namespace().revisionBound() && key.revision() != currentRevision;
+        return key.namespace().revisionBound() && key.revision() < currentRevision;
+    }
+
+    private static boolean advanceRevision(
+                                           GridPartition partition,
+                                           TrinityComputationNamespace namespace,
+                                           long revision,
+                                           List<CacheEntry<?>> cancelled) {
+        if (!namespace.revisionBound()) {
+            return false;
+        }
+        if (revision < partition.currentRevision) {
+            return true;
+        }
+        if (revision == partition.currentRevision) {
+            return false;
+        }
+        partition.currentRevision = revision;
+        removeObsoleteEntries(partition.entries.entrySet().iterator(), revision, cancelled);
+        Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> bypass = partition.bypassEntries.entrySet().iterator();
+        while (bypass.hasNext()) {
+            Map.Entry<ScopedKey, CacheEntry<?>> mapped = bypass.next();
+            if (isObsolete(mapped.getKey(), revision)) {
+                bypass.remove();
+                cancelled.add(mapped.getValue());
+            }
+        }
+        return false;
     }
 
     private void removeEmptyPartition(long gridScope, GridPartition partition) {
-        if (partition.entries.isEmpty() && partition.bypassEntries.isEmpty()) {
+        if (partition.currentRevision < 0L && partition.entries.isEmpty() && partition.bypassEntries.isEmpty()) {
             this.partitions.remove(gridScope, partition);
         }
     }
@@ -302,7 +373,6 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private final boolean registered;
         private final CompletableFuture<V> result = new CompletableFuture<>();
         private final FutureTask<Void> execution = new FutureTask<>(this::execute);
-        private boolean inFlight = true;
 
         private CacheEntry(GridPartition partition,
                            ScopedKey key,
@@ -335,21 +405,26 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         }
 
         private void publish(TrinityCachedComputation<V> computed) {
+            if (!computed.cacheable()) {
+                synchronized (TrinityComputationCacheImpl.this.cacheLock) {
+                    removeFromPartition();
+                }
+                this.result.complete(computed.value());
+                return;
+            }
             this.result.complete(computed.value());
-            synchronized (TrinityComputationCacheImpl.this.cacheLock) {
-                this.inFlight = false;
-                if (!this.registered || !computed.cacheable()) {
+            if (!this.registered) {
+                synchronized (TrinityComputationCacheImpl.this.cacheLock) {
                     removeFromPartition();
                 }
             }
         }
 
         private void fail(Throwable failure) {
-            this.result.completeExceptionally(failure);
             synchronized (TrinityComputationCacheImpl.this.cacheLock) {
-                this.inFlight = false;
                 removeFromPartition();
             }
+            this.result.completeExceptionally(failure);
         }
 
         private void reject(RejectedExecutionException failure) {
@@ -361,7 +436,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             if (this.registered) {
                 this.partition.entries.remove(this.key, this);
             } else {
-                this.partition.bypassEntries.remove(this);
+                this.partition.bypassEntries.remove(this.key, this);
             }
             removeEmptyPartition(this.partition.gridScope, this.partition);
         }
@@ -369,9 +444,6 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private void cancelUnderlying() {
             this.result.cancel(false);
             this.execution.cancel(true);
-            synchronized (TrinityComputationCacheImpl.this.cacheLock) {
-                this.inFlight = false;
-            }
         }
     }
 
@@ -379,7 +451,8 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
 
         private final long gridScope;
         private final LinkedHashMap<ScopedKey, CacheEntry<?>> entries = new LinkedHashMap<>(16, 0.75F, true);
-        private final Set<CacheEntry<?>> bypassEntries = Collections.newSetFromMap(new IdentityHashMap<>());
+        private final Map<ScopedKey, CacheEntry<?>> bypassEntries = new HashMap<>();
+        private long currentRevision = -1L;
 
         private GridPartition(long gridScope) {
             this.gridScope = gridScope;
@@ -387,7 +460,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
 
         private List<CacheEntry<?>> allEntries() {
             ArrayList<CacheEntry<?>> all = new ArrayList<>(this.entries.values());
-            all.addAll(this.bypassEntries);
+            all.addAll(this.bypassEntries.values());
             return List.copyOf(all);
         }
 

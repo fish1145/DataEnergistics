@@ -99,25 +99,45 @@ final class TrinityComputationCacheTest {
         TrinityComputationLookup<String> second = blocking(cache, "second", entered, release);
         assertTrue(entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
+        CountDownLatch bypassEntered = new CountDownLatch(1);
+        CountDownLatch bypassRelease = new CountDownLatch(1);
         AtomicInteger bypassCalculations = new AtomicInteger();
         TrinityComputationLookup<String> bypass = cache.compute(
                 1L,
                 TrinityComputationNamespace.SOLVED_PLAN,
                 1L,
                 "bypass",
-                () -> TrinityCachedComputation.cacheable("bypass-" + bypassCalculations.incrementAndGet()));
+                () -> {
+                    int attempt = bypassCalculations.incrementAndGet();
+                    bypassEntered.countDown();
+                    assertTrue(bypassRelease.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+                    return TrinityCachedComputation.cacheable("bypass-" + attempt);
+                });
         assertFalse(bypass.registered());
-        assertEquals("bypass-1", get(bypass.future()));
+        assertTrue(bypassEntered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
         TrinityComputationLookup<String> repeated = cache.compute(
                 1L,
                 TrinityComputationNamespace.SOLVED_PLAN,
                 1L,
                 "bypass",
-                () -> TrinityCachedComputation.cacheable("bypass-" + bypassCalculations.incrementAndGet()));
-        assertFalse(repeated.cacheHit());
+                () -> TrinityCachedComputation.cacheable("unexpected"));
+        assertTrue(repeated.cacheHit());
         assertFalse(repeated.registered());
-        assertEquals("bypass-2", get(repeated.future()));
+        bypassRelease.countDown();
+        assertEquals("bypass-1", get(bypass.future()));
+        assertEquals("bypass-1", get(repeated.future()));
+        assertEquals(1, bypassCalculations.get());
+
+        TrinityComputationLookup<String> afterCompletion = cache.compute(
+                1L,
+                TrinityComputationNamespace.SOLVED_PLAN,
+                1L,
+                "bypass",
+                () -> TrinityCachedComputation.cacheable("bypass-" + bypassCalculations.incrementAndGet()));
+        assertFalse(afterCompletion.cacheHit());
+        assertFalse(afterCompletion.registered());
+        assertEquals("bypass-2", get(afterCompletion.future()));
 
         release.countDown();
         assertEquals("first", get(first.future()));
@@ -179,6 +199,22 @@ final class TrinityComputationCacheTest {
 
         cache.invalidateRevision(10L, 2L);
 
+        assertEquals("solved-2", get(cache.compute(
+                10L,
+                TrinityComputationNamespace.SOLVED_PLAN,
+                2L,
+                "plan",
+                () -> TrinityCachedComputation.cacheable("solved-" + solvedCalculations.incrementAndGet())).future()));
+        cache.invalidateRevision(10L, 1L);
+        TrinityComputationLookup<String> currentRevision = cache.compute(
+                10L,
+                TrinityComputationNamespace.SOLVED_PLAN,
+                2L,
+                "plan",
+                () -> TrinityCachedComputation.cacheable("unexpected"));
+        assertTrue(currentRevision.cacheHit());
+        assertEquals("solved-2", get(currentRevision.future()));
+
         TrinityComputationLookup<String> oldRevision = cache.compute(
                 10L,
                 TrinityComputationNamespace.SOLVED_PLAN,
@@ -186,7 +222,9 @@ final class TrinityComputationCacheTest {
                 "plan",
                 () -> TrinityCachedComputation.cacheable("solved-" + solvedCalculations.incrementAndGet()));
         assertFalse(oldRevision.cacheHit());
-        assertEquals("solved-2", get(oldRevision.future()));
+        assertFalse(oldRevision.registered());
+        assertThrows(CancellationException.class, oldRevision.future()::get);
+        assertEquals(2, solvedCalculations.get());
         TrinityComputationLookup<String> compiled = cache.compute(
                 10L,
                 TrinityComputationNamespace.COMPILED_GRAPH,
