@@ -16,7 +16,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -52,7 +51,6 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
     private static final SpriteTexture FLUID_TEXTURE = fillTexture("storage_fluid_fill.png");
     private static final SpriteTexture OTHER_TEXTURE = fillTexture("storage_other_fill.png");
 
-    private final UIElement track;
     private final UIElement itemSegment;
     private final UIElement fluidSegment;
     private final UIElement otherSegment;
@@ -61,19 +59,17 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
 
     /** Creates a registry-instantiable capacity component with its complete internal LDLib2 hierarchy. */
     public TrinityStorageCapacityBar() {
-        this.track = createLayer(TRACK_ID, TRACK_TEXTURE, 0, DEFAULT_HEIGHT);
-        this.itemSegment = createLayer(ITEM_SEGMENT_ID, ITEM_TEXTURE, TRACK_BORDER, FILL_HEIGHT);
-        this.fluidSegment = createLayer(FLUID_SEGMENT_ID, FLUID_TEXTURE, TRACK_BORDER, FILL_HEIGHT);
-        this.otherSegment = createLayer(OTHER_SEGMENT_ID, OTHER_TEXTURE, TRACK_BORDER, FILL_HEIGHT);
+        addClass("trinity-storage-capacity-bar");
+        UIElement track = createLayer(TRACK_ID, TRACK_TEXTURE, "trinity-storage-capacity-track");
+        this.itemSegment = createLayer(ITEM_SEGMENT_ID, ITEM_TEXTURE, "trinity-storage-capacity-segment");
+        this.fluidSegment = createLayer(FLUID_SEGMENT_ID, FLUID_TEXTURE, "trinity-storage-capacity-segment");
+        this.otherSegment = createLayer(OTHER_SEGMENT_ID, OTHER_TEXTURE, "trinity-storage-capacity-segment");
         this.neutralSegment = createLayer(
                 NEUTRAL_SEGMENT_ID,
                 new ColorRectTexture(NEUTRAL_COLOR),
-                TRACK_BORDER,
-                FILL_HEIGHT);
+                "trinity-storage-capacity-segment");
 
-        layout(layout -> layout.width(DEFAULT_WIDTH).height(DEFAULT_HEIGHT));
-        this.track.layout(layout -> layout.widthPercent(100).heightPercent(100));
-        addChildren(this.track, this.itemSegment, this.fluidSegment, this.otherSegment, this.neutralSegment);
+        addChildren(track, this.itemSegment, this.fluidSegment, this.otherSegment, this.neutralSegment);
         addEventListener(UIEvents.HOVER_TOOLTIPS, event -> event.hoverTooltips = new HoverTooltips(
                 tooltipLines(), null, null, null));
         internalSetup();
@@ -151,24 +147,18 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
                 .withStyle(ChatFormatting.GRAY);
     }
 
-    private static UIElement createLayer(String id, IGuiTexture texture, int top, int height) {
+    private static UIElement createLayer(String id, IGuiTexture texture, String layoutClass) {
         UIElement layer = new UIElement();
         layer.setId(id);
+        layer.addClass(layoutClass);
         layer.setAllowHitTest(false);
         layer.getStyle().backgroundTexture(texture);
-        layer.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(top)
-                .width(0)
-                .height(height));
         return layer;
     }
 
     private static void placeSegment(UIElement segment, int left, int width) {
         segment.setVisible(width > 0);
         segment.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
                 .left(left)
                 .width(width));
     }

@@ -14,15 +14,10 @@ import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -39,13 +34,6 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
     static final String BUILD_REQUESTED_TOGGLE_ID = PANEL_ID + "_build_requested";
     static final String BUILD_REQUESTED_BUTTON_ID = BUILD_REQUESTED_TOGGLE_ID + "_button";
     static final String CONFIRM_BUTTON_ID = PANEL_ID + "_confirm";
-
-    private static final int WIDTH = TrinityHostedWindowChrome.SIDE_WIDTH;
-    private static final int HEIGHT = TrinityHostedWindowChrome.CONTENT_HEIGHT;
-    private static final int CONTROL_SIZE = 18;
-    private static final int ACTION_TEXT_WIDTH = WIDTH - CONTROL_SIZE - 4;
-    private static final int SELECTOR_HEIGHT = 38;
-    private static final int SELECTOR_BUTTON_TOP = 10;
 
     private final StructurePreviewUi preview;
     private final HostSubUiContext context;
@@ -78,26 +66,23 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         this.context = context;
         this.hostedAutoBuildAction = hostedAutoBuildAction;
         this.hostedAutoBuildPending = hostedAutoBuildPending;
-        this.previousStructureButton = iconButton(
-                STRUCTURE_PREVIOUS_ID,
-                Icons.LEFT_ARROW_NO_BAR,
-                () -> selectRelativeStructure(-1));
-        this.nextStructureButton = iconButton(
-                STRUCTURE_NEXT_ID,
-                Icons.RIGHT_ARROW_NO_BAR,
-                () -> selectRelativeStructure(1));
-        this.buildRequestedToggle = buildRequestedToggle();
-        this.confirmButton = confirmButton();
+        UIElement template = TrinityUiXmlLayouts.loadRoot("auto_build_panel");
+        this.previousStructureButton = TrinityUiXmlLayouts.require(template, STRUCTURE_PREVIOUS_ID, Button.class);
+        this.nextStructureButton = TrinityUiXmlLayouts.require(template, STRUCTURE_NEXT_ID, Button.class);
+        this.buildRequestedToggle = TrinityUiXmlLayouts.require(template, BUILD_REQUESTED_TOGGLE_ID, Toggle.class);
+        this.confirmButton = TrinityUiXmlLayouts.require(template, CONFIRM_BUTTON_ID, Button.class);
+        configureIconButton(this.previousStructureButton, Icons.LEFT_ARROW_NO_BAR, () -> selectRelativeStructure(-1));
+        configureIconButton(this.nextStructureButton, Icons.RIGHT_ARROW_NO_BAR, () -> selectRelativeStructure(1));
+        configureBuildRequestedToggle(this.buildRequestedToggle);
+        configureConfirmButton(this.confirmButton);
         this.preview.panel().setSelectionChangeListener(this::replacePreviewSelection);
         refreshStructureNavigationTooltips();
 
         setId(PANEL_ID);
-        layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .width(WIDTH)
-                .height(HEIGHT));
-        style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        addChildren(structureSelector(), this.buildRequestedToggle, this.confirmButton);
+        addClass("trinity-auto-build-panel");
+        TrinityUiXmlLayouts.moveChildren(template, this);
+        TrinityUiXmlLayouts.require(this, PANEL_ID + "_structure_title", Label.class)
+                .bindDataSource(SupplierDataSource.of(this::structureTitle));
     }
 
     @Override
@@ -126,100 +111,24 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         }
     }
 
-    private UIElement structureSelector() {
-        UIElement row = new UIElement();
-        row.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(WIDTH)
-                .height(SELECTOR_HEIGHT));
-        row.style(style -> style.backgroundTexture(Sprites.RECT_DARK));
-        this.previousStructureButton.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(SELECTOR_BUTTON_TOP)
-                .width(CONTROL_SIZE)
-                .height(CONTROL_SIZE));
-        Label structure = new Label();
-        structure.bindDataSource(SupplierDataSource.of(this::structureTitle));
-        structure.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .fontSize(7.5f)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.WRAP)
-                .textShadow(false));
-        structure.setOverflowVisible(false);
-        structure.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTROL_SIZE + 2)
-                .top(0)
-                .width(WIDTH - CONTROL_SIZE * 2 - 4)
-                .height(SELECTOR_HEIGHT));
-        this.nextStructureButton.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(WIDTH - CONTROL_SIZE)
-                .top(SELECTOR_BUTTON_TOP)
-                .width(CONTROL_SIZE)
-                .height(CONTROL_SIZE));
-        row.addChildren(this.previousStructureButton, structure, this.nextStructureButton);
-        return row;
-    }
-
-    private Toggle buildRequestedToggle() {
-        Toggle toggle = new Toggle();
-        toggle.setId(BUILD_REQUESTED_TOGGLE_ID);
+    private void configureBuildRequestedToggle(Toggle toggle) {
         toggle.toggleButton.setId(BUILD_REQUESTED_BUTTON_ID);
+        toggle.toggleButton.addClass("trinity-auto-build-toggle-button");
+        toggle.toggleLabel.addClass("trinity-auto-build-toggle-label");
         toggle.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.build_requested"));
         toggle.setOn(this.draft.activeBuildRequested(), false);
         toggle.setOnToggleChanged(buildRequested -> this.draft = this.draft.withBuildRequested(buildRequested));
-        toggle.toggleLabel.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textWrap(TextWrap.HOVER_ROLL));
-        toggle.toggleLabel.setOverflowVisible(false);
-        toggle.toggleLabel.getLayout()
-                .flex(0)
-                .width(ACTION_TEXT_WIDTH);
         toggle.toggleLabel.addEventListener(UIEvents.CLICK, event -> {
             if (event.button == 0 && toggle.isActive()) {
                 toggle.setOn(!toggle.isOn(), true);
             }
         });
-        toggle.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(44)
-                .width(WIDTH)
-                .height(20));
-        return toggle;
     }
 
-    private Button confirmButton() {
-        Button button = new Button();
-        button.setId(CONFIRM_BUTTON_ID);
+    private void configureConfirmButton(Button button) {
         button.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
         button.addPreIcon(Icons.CHECK);
-        button.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textAlignHorizontal(Horizontal.LEFT)
-                .textWrap(TextWrap.HOVER_ROLL));
-        button.text.setOverflowVisible(false);
-        button.text.getLayout()
-                .flex(0)
-                .width(ACTION_TEXT_WIDTH);
-        button.setOverflowVisible(false);
         button.setOnClick(event -> submit());
-        button.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(HEIGHT - CONTROL_SIZE)
-                .width(WIDTH)
-                .height(CONTROL_SIZE));
-        return button;
     }
 
     void selectRelativeStructure(int direction) {
@@ -291,13 +200,10 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
                 "screen.data_energistics.trinity_data_core.auto_build.structure." + structureKey);
     }
 
-    private static Button iconButton(String id, IGuiTexture icon, Runnable action) {
-        Button button = new Button();
-        button.setId(id);
+    private static void configureIconButton(Button button, IGuiTexture icon, Runnable action) {
         button.noText();
         button.addPreIcon(icon);
         button.setOnClick(event -> action.run());
-        return button;
     }
 
     private static void validateSupportedSelection(MultiblockPreviewSpec spec, PreviewSelection selection) {

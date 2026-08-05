@@ -52,6 +52,44 @@ public final class AePlayerInventoryPanel {
     }
 
     /**
+     * Creates a player inventory panel whose complete geometry is supplied by LSS classes.
+     *
+     * @param menu               menu that owns the existing player slots
+     * @param bridge             bridge responsible for preserving every slot identity
+     * @param panelClass         LSS class for the panel
+     * @param inventoryGridClass LSS class for the three-row inventory grid
+     * @param hotbarGridClass    LSS class for the one-row hotbar grid
+     * @param slotClass          LSS class applied to every wrapped slot
+     * @return fresh panel containing 36 wrapped slots
+     */
+    public static UIElement createFlow(AEBaseMenu menu,
+                                       AeMenuBridge bridge,
+                                       String panelClass,
+                                       String inventoryGridClass,
+                                       String hotbarGridClass,
+                                       String slotClass) {
+        if (menu == null || bridge == null || isBlank(panelClass) || isBlank(inventoryGridClass) ||
+                isBlank(hotbarGridClass) || isBlank(slotClass)) {
+            throw invalid("menu, bridge, and all LSS layout classes must be present");
+        }
+        List<Slot> inventory = menu.getSlots(SlotSemantics.PLAYER_INVENTORY);
+        List<Slot> hotbar = menu.getSlots(SlotSemantics.PLAYER_HOTBAR);
+        requireSlotCount("player inventory", inventory, INVENTORY_SLOT_COUNT);
+        requireSlotCount("hotbar", hotbar, HOTBAR_SLOT_COUNT);
+        requireDistinctSlots(inventory, hotbar);
+
+        UIElement panel = new UIElement();
+        panel.setId(PANEL_ID);
+        panel.addClass(panelClass);
+        UIElement inventoryGrid = flowGrid(inventoryGridClass);
+        UIElement hotbarGrid = flowGrid(hotbarGridClass);
+        addFlowGrid(inventoryGrid, bridge, inventory, INVENTORY_SLOT_ID_PREFIX, slotClass);
+        addFlowGrid(hotbarGrid, bridge, hotbar, HOTBAR_SLOT_ID_PREFIX, slotClass);
+        panel.addChildren(inventoryGrid, hotbarGrid);
+        return panel;
+    }
+
+    /**
      * Creates one player inventory panel with a caller-owned modular slot surface.
      *
      * @param menu           menu that owns the existing player slots
@@ -109,6 +147,26 @@ public final class AePlayerInventoryPanel {
         }
     }
 
+    private static UIElement flowGrid(String layoutClass) {
+        UIElement grid = new UIElement();
+        grid.addClass(layoutClass);
+        return grid;
+    }
+
+    private static void addFlowGrid(UIElement grid,
+                                    AeMenuBridge bridge,
+                                    List<Slot> slots,
+                                    String idPrefix,
+                                    String slotClass) {
+        for (int index = 0; index < slots.size(); index++) {
+            AeItemSlot wrapper = bridge.wrap(slots.get(index));
+            wrapper.setId(idPrefix + index);
+            wrapper.addClass(slotClass);
+            wrapper.getStyle().backgroundTexture(IGuiTexture.EMPTY);
+            grid.addChild(wrapper);
+        }
+    }
+
     private static void requireSlotCount(String group, List<Slot> slots, int expected) {
         if (slots.size() != expected) {
             throw invalid(group + " must contain " + expected + " slots, found " + slots.size());
@@ -132,5 +190,9 @@ public final class AePlayerInventoryPanel {
     private static IllegalStateException invalid(String message) {
         Data_Energistics.LOGGER.error("AE player inventory LDLib2 panel invariant failed: {}", message);
         return new IllegalStateException(message);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

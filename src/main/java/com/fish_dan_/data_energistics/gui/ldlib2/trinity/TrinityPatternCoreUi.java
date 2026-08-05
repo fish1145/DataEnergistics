@@ -2,13 +2,11 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryLayout;
 import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -33,10 +31,6 @@ public final class TrinityPatternCoreUi {
     /** Stable identifier of the atomic refund button. */
     public static final String REFUND_ALL_ID = "trinity_pattern_core_refund_all";
 
-    private static final int WIDTH = 176;
-    private static final int HEIGHT = 256;
-    private static final AePlayerInventoryLayout PLAYER_INVENTORY_LAYOUT = new AePlayerInventoryLayout(8, 172, 230);
-
     private TrinityPatternCoreUi() {}
 
     /**
@@ -54,16 +48,18 @@ public final class TrinityPatternCoreUi {
 
         try {
             AeMenuBridge bridge = AeMenuBridge.create(menu);
-            UIElement root = new UIElement();
-            root.setId(ROOT_ID);
-            root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
-            root.style(style -> style.backgroundTexture(SpriteTexture
-                    .of("ae2:textures/guis/me_digital_pattern_processing_core.png")
-                    .setSprite(0, 0, WIDTH, HEIGHT)));
+            UI ui = TrinityUiXmlLayouts.load("pattern_core");
+            UIElement root = ui.rootElement;
             root.addChild(TrinityPatternCorePanel.create(menu, bridge, title));
-            root.addChild(AePlayerInventoryPanel.create(menu, bridge, PLAYER_INVENTORY_LAYOUT));
+            root.addChild(AePlayerInventoryPanel.createFlow(
+                    menu,
+                    bridge,
+                    "trinity-pattern-player-inventory",
+                    "trinity-pattern-player-inventory-grid",
+                    "trinity-pattern-player-hotbar-grid",
+                    "trinity-pattern-player-inventory-slot"));
 
-            ModularUI modularUI = ModularUI.of(UI.of(root), menu.getPlayer());
+            ModularUI modularUI = ModularUI.of(ui, menu.getPlayer());
             bridge.mount(modularUI);
             return modularUI;
         } catch (RuntimeException | Error failure) {

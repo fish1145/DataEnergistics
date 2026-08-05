@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui>
+    <stylesheet location="data_energistics:lss/trinity_ui"/>
+    <root id="trinity_data_core_status" class="trinity-data-core-status">
+        <element id="trinity_data_core_structure_status" class="trinity-data-core-status-left">
+            <label id="trinity_status_online" class="trinity-status-line"/>
+            <label id="trinity_status_main_structure" class="trinity-status-line"/>
+            <label id="trinity_status_main_blocks" class="trinity-status-line"/>
+            <label id="trinity_status_cpu_structure" class="trinity-status-line"/>
+            <label id="trinity_status_crafting_structure" class="trinity-status-line"/>
+            <label id="trinity_status_failure" class="trinity-status-line"/>
+        </element>
+        <element id="trinity_data_core_cpu_summary" class="trinity-data-core-status-right">
+            <label id="trinity_status_busy_cpus" class="trinity-status-line"/>
+            <label id="trinity_status_cpu_partitions" class="trinity-status-line"/>
+            <label id="trinity_status_cpu_storage" class="trinity-status-line"/>
+            <label id="trinity_status_cpu_coprocessors" class="trinity-status-line"/>
+            <label id="trinity_status_crafting" class="trinity-status-line"/>
+        </element>
+    </root>
+</ui>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui>
+    <stylesheet location="data_energistics:lss/trinity_ui"/>
+    <root id="trinity_auto_build_hosted_window_controls" class="trinity-auto-build-panel">
+        <element id="trinity_auto_build_hosted_window_controls_structure_selector" class="trinity-auto-build-structure-selector">
+            <button id="trinity_auto_build_hosted_window_controls_structure_previous" class="trinity-auto-build-structure-previous" text=""/>
+            <label id="trinity_auto_build_hosted_window_controls_structure_title" class="trinity-auto-build-structure-title"/>
+            <button id="trinity_auto_build_hosted_window_controls_structure_next" class="trinity-auto-build-structure-next" text=""/>
+        </element>
+        <toggle id="trinity_auto_build_hosted_window_controls_build_requested" class="trinity-auto-build-requested"/>
+        <button id="trinity_auto_build_hosted_window_controls_confirm" class="trinity-auto-build-confirm" text=""/>
+    </root>
+</ui>
