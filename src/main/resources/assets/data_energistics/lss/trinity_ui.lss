@@ -58,7 +58,6 @@
 .trinity-cpu-status-list {
     width: 84px;
     height: 76px;
-    background: sprite(data_energistics:textures/guis/trinity_data_core/cpu_panel.png, 0, 0, 84, 76);
 }
 
 .trinity-cpu-status-scroller {
