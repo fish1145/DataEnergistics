@@ -15,6 +15,7 @@ final class TrinityDataCoreHostLauncherPanel {
 
     static final String PANEL_ID = "trinity_data_core_host_launchers";
     static final String AUTO_BUILD_ID = "trinity_data_core_open_auto_build";
+
     private TrinityDataCoreHostLauncherPanel() {}
 
     /**

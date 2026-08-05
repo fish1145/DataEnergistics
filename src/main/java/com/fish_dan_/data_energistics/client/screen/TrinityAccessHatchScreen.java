@@ -417,11 +417,11 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         private final float textScale;
 
         private ManagementButton(int x,
-                                  int y,
-                                  TrinityAccessHatchLayout.Button layout,
-                                  Component message,
-                                  Component tooltip,
-                                  Runnable action) {
+                                 int y,
+                                 TrinityAccessHatchLayout.Button layout,
+                                 Component message,
+                                 Component tooltip,
+                                 Runnable action) {
             super(x, y, layout.width(), layout.height(), message);
             this.action = Objects.requireNonNull(action, "management button action must not be null");
             this.textLeftPadding = layout.textLeftPadding();

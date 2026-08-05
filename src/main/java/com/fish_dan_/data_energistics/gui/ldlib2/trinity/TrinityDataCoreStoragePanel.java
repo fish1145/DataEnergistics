@@ -16,6 +16,7 @@ final class TrinityDataCoreStoragePanel {
 
     static final String TYPES_ID = "trinity_storage_types";
     static final String AMOUNT_ID = "trinity_storage_amount";
+
     private TrinityDataCoreStoragePanel() {}
 
     /** Creates the complete capacity region from one LDLib2 synchronized provider. */
@@ -57,7 +58,7 @@ final class TrinityDataCoreStoragePanel {
 
     private static void bind(Label label,
                              IDataProvider<TrinityDataCoreStorageStatus> statusProvider,
-                              Function<TrinityDataCoreStorageStatus, Component> text) {
+                             Function<TrinityDataCoreStorageStatus, Component> text) {
         label.bindDataSource(SupplierDataSource
                 .of(() -> requireStatus(statusProvider.getValue()))
                 .map(text));

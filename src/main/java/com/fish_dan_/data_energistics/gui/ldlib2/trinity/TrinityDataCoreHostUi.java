@@ -35,6 +35,7 @@ public final class TrinityDataCoreHostUi {
     static final String TITLE_ID = "trinity_data_core_title";
     static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
     static final String PLAYER_INVENTORY_ID = "trinity_data_core_player_inventory";
+
     private TrinityDataCoreHostUi() {}
 
     /**

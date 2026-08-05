@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.lowdragmc.lowdraglib2.utils.XmlUtils;
 
+import com.lowdragmc.lowdraglib2.utils.XmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;

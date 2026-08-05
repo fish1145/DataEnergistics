@@ -10,8 +10,10 @@ import org.w3c.dom.Document;
 /**
  * Loads the declarative XML trees used by the Trinity UI family.
  *
- * <p>Coordinates, dimensions, and visual layout rules belong in the paired {@code lss/trinity_ui.lss}
- * stylesheet. Java callers only locate typed elements here to attach data sources and game actions.</p>
+ * <p>
+ * Coordinates, dimensions, and visual layout rules belong in the paired {@code lss/trinity_ui.lss}
+ * stylesheet. Java callers only locate typed elements here to attach data sources and game actions.
+ * </p>
  */
 final class TrinityUiXmlLayouts {
 
