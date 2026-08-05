@@ -6,9 +6,9 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server;
 public interface CraftingDispatchParticipant {
 
     /**
-     * Returns a stable diagnostic label for failures isolated to this Grid tick.
+     * Returns the stable Grid identity used for diagnostics and the server-level cross-tick cursor.
      *
-     * @return non-blank Grid identity suitable for structured logs
+     * @return non-blank identity that remains stable while the Grid is registered on subsequent ticks
      */
     String diagnosticIdentity();
 

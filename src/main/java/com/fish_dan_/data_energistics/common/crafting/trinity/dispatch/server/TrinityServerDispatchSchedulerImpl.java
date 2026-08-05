@@ -15,6 +15,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     private static final String COMPLETION_FAILURE_SOURCE = "server dispatch completion";
 
     private final List<CraftingDispatchParticipant> registeredParticipants = new ArrayList<>();
+    private String nextParticipantIdentity;
     private boolean tickOpen;
 
     @Override
@@ -50,7 +51,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
         List<CraftingDispatchParticipant> participants = List.copyOf(this.registeredParticipants);
         this.registeredParticipants.clear();
         try {
-            dispatchParticipants(participants);
+            dispatchParticipants(participantsFromPersistentCursor(participants));
         } finally {
             completeParticipants(participants);
         }
@@ -59,10 +60,32 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     @Override
     public void reset() {
         this.registeredParticipants.clear();
+        this.nextParticipantIdentity = null;
         this.tickOpen = false;
     }
 
-    private static void dispatchParticipants(List<CraftingDispatchParticipant> participants) {
+    private List<CraftingDispatchParticipant> participantsFromPersistentCursor(
+            List<CraftingDispatchParticipant> participants) {
+        if (participants.size() < 2 || this.nextParticipantIdentity == null) {
+            return participants;
+        }
+        int start = -1;
+        for (int index = 0; index < participants.size(); index++) {
+            if (this.nextParticipantIdentity.equals(participants.get(index).diagnosticIdentity())) {
+                start = index;
+                break;
+            }
+        }
+        if (start <= 0) {
+            return participants;
+        }
+        List<CraftingDispatchParticipant> rotated = new ArrayList<>(participants.size());
+        rotated.addAll(participants.subList(start, participants.size()));
+        rotated.addAll(participants.subList(0, start));
+        return List.copyOf(rotated);
+    }
+
+    private void dispatchParticipants(List<CraftingDispatchParticipant> participants) {
         ArrayDeque<CraftingDispatchParticipant> ready = new ArrayDeque<>(participants);
         int remainingInRound = ready.size();
         boolean roundProgressed = false;
@@ -79,6 +102,9 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
                 result = CraftingDispatchStepResult.IDLE;
             }
 
+            if (result.physicalAttempted()) {
+                this.nextParticipantIdentity = successorIdentity(participants, participant);
+            }
             roundProgressed |= result.progressed();
             if (result.progressed() && result.hasReadyWork() && !result.windowExhausted()) {
                 ready.addLast(participant);
@@ -93,6 +119,16 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
                 roundProgressed = false;
             }
         }
+    }
+
+    private static String successorIdentity(List<CraftingDispatchParticipant> participants,
+                                            CraftingDispatchParticipant participant) {
+        int participantIndex = participants.indexOf(participant);
+        if (participantIndex < 0) {
+            throw new IllegalStateException("Dispatched participant is absent from the Grid rotation");
+        }
+        int successorIndex = (participantIndex + 1) % participants.size();
+        return participants.get(successorIndex).diagnosticIdentity();
     }
 
     private static void completeParticipants(List<CraftingDispatchParticipant> participants) {

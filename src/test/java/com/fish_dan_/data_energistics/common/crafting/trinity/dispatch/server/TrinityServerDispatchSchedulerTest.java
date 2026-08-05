@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public final class TrinityServerDispatchSchedulerTest {
 
     @Test
-    void alternatesGridsAfterEveryPhysicalAttempt() {
+    void alternatesGridsAfterEveryPhysicalAttemptAndRetainsTheNextGridAcrossTicks() {
         TrinityServerDispatchScheduler scheduler = TrinityServerDispatchScheduler.create();
         List<String> order = new ArrayList<>();
         RecordingParticipant first = RecordingParticipant.physical("first", 3, order);
@@ -25,6 +25,17 @@ public final class TrinityServerDispatchSchedulerTest {
         assertEquals(List.of("first", "second", "first", "second", "first"), order);
         assertEquals(1, first.completions);
         assertEquals(1, second.completions);
+
+        RecordingParticipant nextFirst = RecordingParticipant.physical("first", 1, order);
+        RecordingParticipant nextSecond = RecordingParticipant.physical("second", 1, order);
+        scheduler.beginTick();
+        scheduler.register(nextSecond);
+        scheduler.register(nextFirst);
+        scheduler.dispatchTick();
+
+        assertEquals(List.of("first", "second", "first", "second", "first", "second", "first"), order);
+        assertEquals(1, nextFirst.completions);
+        assertEquals(1, nextSecond.completions);
     }
 
     @Test
@@ -44,16 +55,29 @@ public final class TrinityServerDispatchSchedulerTest {
     }
 
     @Test
-    void logicalProgressCanRequeueOnceBeforeACompleteNoProgressRoundStops() {
+    void logicalProgressCanRequeueButDoesNotAdvanceThePersistentGridCursor() {
         TrinityServerDispatchScheduler scheduler = TrinityServerDispatchScheduler.create();
-        RecordingParticipant participant = RecordingParticipant.oneStateTransition();
+        List<String> order = new ArrayList<>();
 
         scheduler.beginTick();
-        scheduler.register(participant);
+        scheduler.register(RecordingParticipant.physical("first", 1, order));
+        scheduler.register(RecordingParticipant.stalled("second"));
         scheduler.dispatchTick();
 
-        assertEquals(2, participant.steps);
-        assertEquals(1, participant.completions);
+        RecordingParticipant transition = RecordingParticipant.secondStateTransition();
+        scheduler.beginTick();
+        scheduler.register(RecordingParticipant.stalled("first"));
+        scheduler.register(transition);
+        scheduler.dispatchTick();
+
+        scheduler.beginTick();
+        scheduler.register(RecordingParticipant.physical("first", 1, order));
+        scheduler.register(RecordingParticipant.physical("second", 1, order));
+        scheduler.dispatchTick();
+
+        assertEquals(2, transition.steps);
+        assertEquals(1, transition.completions);
+        assertEquals(List.of("first", "second", "first"), order);
     }
 
     @Test
@@ -114,8 +138,8 @@ public final class TrinityServerDispatchSchedulerTest {
             return new RecordingParticipant(identity, 0, List.of(), Mode.STALLED);
         }
 
-        private static RecordingParticipant oneStateTransition() {
-            return new RecordingParticipant("transition", 0, List.of(), Mode.STATE_TRANSITION);
+        private static RecordingParticipant secondStateTransition() {
+            return new RecordingParticipant("second", 0, List.of(), Mode.STATE_TRANSITION);
         }
 
         private static RecordingParticipant failed() {
