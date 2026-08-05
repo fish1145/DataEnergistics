@@ -320,8 +320,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 if (computed == null) {
                     throw new IllegalStateException("A Trinity computation returned no publication result");
                 }
-                finish(computed.cacheable());
-                this.result.complete(computed.value());
+                publish(computed);
                 return null;
             } catch (Error error) {
                 fail(error);
@@ -335,21 +334,22 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             }
         }
 
-        private void finish(boolean cacheable) {
+        private void publish(TrinityCachedComputation<V> computed) {
+            this.result.complete(computed.value());
             synchronized (TrinityComputationCacheImpl.this.cacheLock) {
                 this.inFlight = false;
-                if (!this.registered || !cacheable) {
+                if (!this.registered || !computed.cacheable()) {
                     removeFromPartition();
                 }
             }
         }
 
         private void fail(Throwable failure) {
+            this.result.completeExceptionally(failure);
             synchronized (TrinityComputationCacheImpl.this.cacheLock) {
                 this.inFlight = false;
                 removeFromPartition();
             }
-            this.result.completeExceptionally(failure);
         }
 
         private void reject(RejectedExecutionException failure) {
