@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
@@ -338,44 +339,56 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
-        PatternEncodingSourceHelper.resolveAndApplyDataRipperRecipeKeyInput((PatternEncodingTermMenu) (Object) this);
-        PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
-        PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
+        EaepPatternEncodingHandoff handoff = this instanceof EaepPatternEncodingHandoff value ? value : null;
+        if (handoff != null) {
+            handoff.beginEaepEncodeHandoff(this.dataEnergistics$uploadEnabled);
+        }
+        boolean encodedSuccessfully = false;
+        try {
+            PatternEncodingSourceHelper.resolveAndApplyDataRipperRecipeKeyInput((PatternEncodingTermMenu) (Object) this);
+            PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
+            PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
 
-        ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
-        if (encodedPattern == null) {
-            this.dataEnergistics$invokeClearPattern();
+            ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
+            if (encodedPattern == null) {
+                this.dataEnergistics$invokeClearPattern();
+                PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+                PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
+                ci.cancel();
+                return;
+            }
+
+            ItemStack encodeOutput = this.encodedPatternSlot.getItem();
+            if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
+                PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+                PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
+                ci.cancel();
+                return;
+            }
+
+            if (encodeOutput.isEmpty() && !dataEnergistics$consumeOneBlankPatternFromNetwork()) {
+                PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+                PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
+                ci.cancel();
+                return;
+            }
+
+            if (this instanceof PatternEncodingSourceAware sourceAware) {
+                PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
+                        PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            }
+
+            this.encodedPatternSlot.set(encodedPattern);
+            encodedSuccessfully = true;
+            dataEnergistics$forceSyncPatternProviders();
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
-            return;
+        } finally {
+            if (handoff != null) {
+                handoff.finishEaepEncodeHandoff(encodedSuccessfully);
+            }
         }
-
-        ItemStack encodeOutput = this.encodedPatternSlot.getItem();
-        if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
-            PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
-            PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
-            ci.cancel();
-            return;
-        }
-
-        if (encodeOutput.isEmpty() && !dataEnergistics$consumeOneBlankPatternFromNetwork()) {
-            PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
-            PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
-            ci.cancel();
-            return;
-        }
-
-        if (this instanceof PatternEncodingSourceAware sourceAware) {
-            PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
-                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
-        }
-
-        this.encodedPatternSlot.set(encodedPattern);
-        dataEnergistics$forceSyncPatternProviders();
-        PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
-        PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
-        ci.cancel();
     }
 
     @Unique

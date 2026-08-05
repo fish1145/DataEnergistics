@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
+import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -151,28 +152,40 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
 
-        ItemStack encodedPattern = encodePatternVirtual();
-        if (encodedPattern == null) {
-            clearEncodedPatternSlot();
-            return;
+        EaepPatternEncodingHandoff handoff = this instanceof EaepPatternEncodingHandoff value ? value : null;
+        if (handoff != null) {
+            handoff.beginEaepEncodeHandoff(this.uploadEnabled);
         }
+        boolean encodedSuccessfully = false;
+        try {
+            ItemStack encodedPattern = encodePatternVirtual();
+            if (encodedPattern == null) {
+                clearEncodedPatternSlot();
+                return;
+            }
 
-        var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
-        ItemStack encodeOutput = encodedPatternInv.getStackInSlot(0);
-        if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
-            return;
-        }
+            var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
+            ItemStack encodeOutput = encodedPatternInv.getStackInSlot(0);
+            if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
+                return;
+            }
 
-        if (encodeOutput.isEmpty() && !consumeOneBlankPattern()) {
-            return;
-        }
+            if (encodeOutput.isEmpty() && !consumeOneBlankPattern()) {
+                return;
+            }
 
-        if (this instanceof PatternEncodingSourceAware sourceAware) {
-            PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
-                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            if (this instanceof PatternEncodingSourceAware sourceAware) {
+                PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
+                        PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            }
+            encodedPatternInv.setItemDirect(0, encodedPattern);
+            encodedSuccessfully = true;
+            syncPatternProvidersIfNeeded(true);
+        } finally {
+            if (handoff != null) {
+                handoff.finishEaepEncodeHandoff(encodedSuccessfully);
+            }
         }
-        encodedPatternInv.setItemDirect(0, encodedPattern);
-        syncPatternProvidersIfNeeded(true);
     }
 
     @Override
