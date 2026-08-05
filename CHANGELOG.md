@@ -1,5 +1,37 @@
 # ChangeLog
 
+## Version [v2.4.0](https://github.com/fish1145/DataEnergistics/compare/v2.3.2-1.21...v2.4.0-1.21)
+### Added
+
+- 重构数据机器交互与 Trinity 核心集成 by @fish1145 in [#138](https://github.com/fish1145/DataEnergistics/pull/138)
+- 修复数据散射聚合与 ME 真空能量能力 by @fish1145 in [#139](https://github.com/fish1145/DataEnergistics/pull/139)
+- 扩展数据流元件回响存储与回响产出平衡 by @QiuYe-123 in [#146](https://github.com/fish1145/DataEnergistics/pull/146)
+- 调整监守者声波回响捕获机制 by @fish1145 in [#148](https://github.com/fish1145/DataEnergistics/pull/148)
+- 扩展数据重组器并行升级与存储容量 by @fish1145 in [#149](https://github.com/fish1145/DataEnergistics/pull/149)
+- 新增订单包裹与 CPU 虚拟完成接入 by @QiuYe-123 in [#151](https://github.com/fish1145/DataEnergistics/pull/151)
+- 将范围框迁移到持久世界渲染 by @QiuYe-123 in [#154](https://github.com/fish1145/DataEnergistics/pull/154)
+- 优化生物拟生场产出模拟性能 by @QiuYe-123 in [#158](https://github.com/fish1145/DataEnergistics/pull/158)
+
+### Fixed
+
+- 修复 AE2LT 非 CPU 兼容问题 (#144) by @QiuYe-123 in [#145](https://github.com/fish1145/DataEnergistics/pull/145)
+- 修复普通世界 AE2 陨石重复生成 by @QiuYe-123 in [#150](https://github.com/fish1145/DataEnergistics/pull/150)
+- 修复数据溢出导致的问题 by @QiuYe-123 in [#152](https://github.com/fish1145/DataEnergistics/pull/152)
+- 修复 JEI 与 EMI 自定义资源注册 by @QiuYe-123 in [#155](https://github.com/fish1145/DataEnergistics/pull/155)
+- 修复数位陨石罗盘与陨石掉落逻辑 by @QiuYe-123 in [#156](https://github.com/fish1145/DataEnergistics/pull/156)
+- 修复三位一体存储 tooltip 数量格式 by @QiuYe-123 in [#157](https://github.com/fish1145/DataEnergistics/pull/157)
+
+### Changed
+
+- 完成缺陷审计修复 by @QiuYe-123 in [#140](https://github.com/fish1145/DataEnergistics/pull/140)
+- 调整数据平衡、回响与母岩生成 by @QiuYe-123 in [#141](https://github.com/fish1145/DataEnergistics/pull/141)
+- 新增访问仓样板管理、搜索与统一数字格式 by @QiuYe-123 in [#143](https://github.com/fish1145/DataEnergistics/pull/143)
+- 修复 AE2LT 非 CPU 兼容问题 (#144) by @QiuYe-123 in [#145](https://github.com/fish1145/DataEnergistics/pull/145)
+- 重构数据均分塔虚拟频道与 FE 均分 by @QiuYe-123 in [#147](https://github.com/fish1145/DataEnergistics/pull/147)
+- 重构 Trinity CPU 派发并实现增殖循环规划与执行 by @QiuYe-123 in [#142](https://github.com/fish1145/DataEnergistics/pull/142)
+- 迁移配置系统到 Configuration by @QiuYe-123 in [#153](https://github.com/fish1145/DataEnergistics/pull/153)
+
+ 
 ## Version [v2.3.2](https://github.com/fish1145/DataEnergistics/compare/v2.3.1-1.21...v2.3.2-1.21)
 ### Added
 
