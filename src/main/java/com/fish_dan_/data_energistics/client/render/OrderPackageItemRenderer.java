@@ -102,7 +102,7 @@ public final class OrderPackageItemRenderer extends BlockEntityWithoutLevelRende
         try {
             poseStack.translate(0.5F, 0.5F, depth);
             if (reverse) {
-                poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+                applyReverseFaceTransform(poseStack);
             }
             AEKeyRendering.drawOnBlockFace(poseStack, bufferSource, target, 1.0F, combinedLight, level);
         } finally {
@@ -126,7 +126,7 @@ public final class OrderPackageItemRenderer extends BlockEntityWithoutLevelRende
         try {
             poseStack.translate(0.5F, 0.0F, depth);
             if (reverse) {
-                poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+                applyReverseFaceTransform(poseStack);
             }
             poseStack.scale(0.5F, 0.5F, 0.02F);
             renderBakedModel(minecraft.getItemRenderer(), stack, badge, poseStack, bufferSource, combinedLight,
@@ -134,6 +134,11 @@ public final class OrderPackageItemRenderer extends BlockEntityWithoutLevelRende
         } finally {
             poseStack.popPose();
         }
+    }
+
+    private static void applyReverseFaceTransform(PoseStack poseStack) {
+        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+        poseStack.scale(-1.0F, 1.0F, 1.0F);
     }
 
     private static BakedModel getBaseModel(Minecraft minecraft) {
