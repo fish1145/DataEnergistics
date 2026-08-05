@@ -138,6 +138,11 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     }
 
     @Override
+    public TrinityComputationCache computationCache() {
+        return this.computationCache;
+    }
+
+    @Override
     public void clearGrid(long gridScope) {
         this.computationCache.clearGrid(gridScope);
     }

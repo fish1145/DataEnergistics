@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 /**
@@ -35,6 +36,13 @@ public final class TrinityPlanningGatewayLifecycle {
             throw new IllegalStateException("The Trinity planning gateway is not running");
         }
         return gateway;
+    }
+
+    /**
+     * @return server-lifetime cache shared by planning and pure dispatch computations
+     */
+    public static synchronized TrinityComputationCache computationCache() {
+        return gateway().computationCache();
     }
 
     /**

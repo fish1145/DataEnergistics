@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
@@ -66,6 +67,16 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      */
     TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
             throws InterruptedException, ExecutionException;
+
+    /**
+     * Shares the server-lifetime computation partition with pure dispatch calculations without transferring cache
+     * ownership to the dispatch executor.
+     *
+     * @return cache owned and closed by this gateway
+     */
+    default TrinityComputationCache computationCache() {
+        throw new UnsupportedOperationException("This Trinity planning gateway does not expose a computation cache");
+    }
 
     /**
      * Cancels cached and in-flight work owned by one unloaded Grid publication scope.

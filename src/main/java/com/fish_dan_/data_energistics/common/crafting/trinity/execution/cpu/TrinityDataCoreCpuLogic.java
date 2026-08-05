@@ -117,7 +117,8 @@ final class TrinityDataCoreCpuLogic {
 
     private final TrinityDataCoreVirtualCpu cpu;
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
-    private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create();
+    private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create(
+            TrinityPlanningGatewayLifecycle::computationCache);
     private final CapacitySlicePlanner capacitySlicePlanner = CapacitySlicePlanner.create();
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();

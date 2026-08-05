@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -9,6 +10,7 @@ import appeng.api.stacks.KeyCounter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Server-thread boundary that captures immutable provider capacity and resolves it again immediately before commit.
@@ -22,6 +24,16 @@ public interface ProviderCapacityResolver {
      */
     static ProviderCapacityResolver create() {
         return new ProviderCapacityResolverImpl();
+    }
+
+    /**
+     * Creates a resolver that reuses immutable capacity captures while preserving real-time commit validation.
+     *
+     * @param cache server-lifetime shared cache supplier resolved only when capacity is captured
+     * @return caching capture boundary with an uncached {@link #resolveCurrent} path
+     */
+    static ProviderCapacityResolver create(Supplier<TrinityComputationCache> cache) {
+        return new CachingProviderCapacityResolver(new ProviderCapacityResolverImpl(), cache);
     }
 
     /**
