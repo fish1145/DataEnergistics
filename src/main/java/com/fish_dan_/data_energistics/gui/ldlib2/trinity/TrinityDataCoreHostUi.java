@@ -14,17 +14,11 @@ import net.minecraft.world.inventory.Slot;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
-import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,24 +35,6 @@ public final class TrinityDataCoreHostUi {
     static final String TITLE_ID = "trinity_data_core_title";
     static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
     static final String PLAYER_INVENTORY_ID = "trinity_data_core_player_inventory";
-    private static final int WIDTH = 256;
-    private static final int HEIGHT = 212;
-    static final int CPU_LIST_LEFT = 168;
-    static final int CPU_LIST_TOP = 129;
-    private static final int PLAYER_INVENTORY_LEFT = 5;
-    private static final int PLAYER_INVENTORY_TOP = 129;
-    private static final int PLAYER_INVENTORY_WIDTH = 162;
-    private static final int PLAYER_INVENTORY_HEIGHT = 76;
-    private static final int PLAYER_HOTBAR_MARGIN_TOP = 4;
-    private static final int TITLE_COLOR = 0xFF404040;
-    private static final IGuiTexture ROOT_BACKGROUND = GuiTextureGroup.of(
-            new ColorRectTexture(0xFFE3E3EA),
-            new ColorBorderTexture(-1, 0xFF696D88));
-    private static final IGuiTexture PLAYER_SLOT_BACKGROUND = GuiTextureGroup.of(
-            SpriteTexture.of("data_energistics:textures/guis/trinity_data_core/inventory_slot.png")
-                    .setSprite(0, 0, 16, 16),
-            new ColorBorderTexture(-1, 0xFF696D88));
-
     private TrinityDataCoreHostUi() {}
 
     /**
@@ -81,37 +57,26 @@ public final class TrinityDataCoreHostUi {
 
         IModularUIHolderMenu holder = requireUnmountedMenu(menu);
         TrinityDataCoreUiSync sync = TrinityDataCoreUiSync.create(menu);
-        UIElement root = new UIElement();
-        root.setId(ROOT_ID);
-        root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
-        root.style(style -> style.backgroundTexture(ROOT_BACKGROUND));
+        UI ui = TrinityUiXmlLayouts.load("data_core");
+        UIElement root = ui.rootElement;
         HostUiExtension hostUi = HostUiExtension.create(root);
         HostModularUI modularUI = null;
         try {
             registerProviders(menu, hostUi);
-            root.addChild(title(
-                    TITLE_ID,
-                    Component.translatable("block.data_energistics.trinity_data_core"),
-                    15,
-                    7,
-                    218));
-            root.addChild(title(
-                    PLAYER_INVENTORY_TITLE_ID,
-                    Component.translatable("container.inventory"),
-                    PLAYER_INVENTORY_LEFT + 1,
-                    PLAYER_INVENTORY_TOP - 10,
-                    PLAYER_INVENTORY_WIDTH));
+            TrinityUiXmlLayouts.require(root, TITLE_ID, Label.class)
+                    .setText(Component.translatable("block.data_energistics.trinity_data_core"));
+            TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_TITLE_ID, Label.class)
+                    .setText(Component.translatable("container.inventory"));
             root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
-            InventorySlots playerInventorySlots = playerInventorySlots();
-            root.addChild(playerInventorySlots);
+            InventorySlots playerInventorySlots = playerInventorySlots(root);
             root.addChild(cpuList(menu, sync.cpuListStatusProvider(), sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreHostLauncherPanel.create(hostUi));
             HostUiCoordinator coordinator = coordinatorFactory.apply(hostUi);
             if (coordinator == null || coordinator.hostUi() != hostUi) {
                 throw new IllegalStateException("Trinity Data Core coordinator must own the mounted host extension");
             }
-            modularUI = hostUi.createModularUI(UI.of(root), menu.getPlayer());
+            modularUI = hostUi.createModularUI(ui, menu.getPlayer());
             sync.register(modularUI);
             mountNativePlayerInventory(menu, holder, modularUI, playerInventorySlots);
             return coordinator;
@@ -135,18 +100,8 @@ public final class TrinityDataCoreHostUi {
         }
     }
 
-    private static InventorySlots playerInventorySlots() {
-        InventorySlots inventorySlots = new InventorySlots();
-        inventorySlots.setId(PLAYER_INVENTORY_ID);
-        inventorySlots.hotbar.getLayout().marginTop(PLAYER_HOTBAR_MARGIN_TOP);
-        inventorySlots.apply(slot -> slot.getStyle().backgroundTexture(PLAYER_SLOT_BACKGROUND));
-        inventorySlots.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(PLAYER_INVENTORY_LEFT)
-                .top(PLAYER_INVENTORY_TOP)
-                .width(PLAYER_INVENTORY_WIDTH)
-                .height(PLAYER_INVENTORY_HEIGHT));
-        return inventorySlots;
+    private static InventorySlots playerInventorySlots(UIElement root) {
+        return TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_ID, InventorySlots.class);
     }
 
     /** Validates every invariant that can be checked before LDLib2 mutates the menu. */
@@ -234,24 +189,6 @@ public final class TrinityDataCoreHostUi {
         return new IllegalStateException(message);
     }
 
-    private static Label title(String id, Component text, int left, int top, int width) {
-        Label label = new Label();
-        label.setId(id);
-        label.setText(text);
-        label.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textColor(TITLE_COLOR)
-                .textShadow(false));
-        label.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(9));
-        return label;
-    }
-
     private static TrinityCpuStatusList cpuList(TrinityDataCoreMenu menu,
                                                 IDataProvider<TrinityCpuListStatus> statusProvider,
                                                 IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider) {
@@ -261,12 +198,6 @@ public final class TrinityDataCoreHostUi {
                 cpuNumber,
                 menu::sendOpenCpuStatus));
         cpuList.bindDataSource(statusProvider);
-        cpuList.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(CPU_LIST_LEFT)
-                .top(CPU_LIST_TOP)
-                .width(TrinityCpuStatusList.DEFAULT_WIDTH)
-                .height(TrinityCpuStatusList.DEFAULT_HEIGHT));
         return cpuList;
     }
 

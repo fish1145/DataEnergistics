@@ -6,29 +6,16 @@ import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.Function;
 
 /** Composes the synchronized storage summary and native Trinity capacity component. */
 final class TrinityDataCoreStoragePanel {
 
-    static final String PANEL_ID = "trinity_data_core_storage_status";
     static final String TYPES_ID = "trinity_storage_types";
     static final String AMOUNT_ID = "trinity_storage_amount";
-    static final int LEFT = 134;
-    static final int TOP = 82;
-    static final int WIDTH = 117;
-    static final int HEIGHT = 32;
-
-    private static final int TEXT_COLOR = 0xFF080C1B;
-
     private TrinityDataCoreStoragePanel() {}
 
     /** Creates the complete capacity region from one LDLib2 synchronized provider. */
@@ -38,21 +25,12 @@ final class TrinityDataCoreStoragePanel {
         }
         requireStatus(statusProvider.getValue());
 
-        UIElement panel = new UIElement();
-        panel.setId(PANEL_ID);
-        panel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(LEFT)
-                .top(TOP)
-                .width(WIDTH)
-                .height(HEIGHT));
-        panel.style(style -> style.backgroundTexture(GuiTextureGroup.of(
-                new ColorRectTexture(0xFFA7ADBF),
-                new ColorBorderTexture(-1, 0xFFF2F2F2))));
-        panel.addChildren(
-                label(AMOUNT_ID, statusProvider, TrinityDataCoreStoragePanel::amountLine, 2),
-                label(TYPES_ID, statusProvider, TrinityDataCoreStoragePanel::typesLine, 12),
-                capacityBar(statusProvider));
+        UIElement panel = TrinityUiXmlLayouts.loadRoot("data_core_storage");
+        bind(TrinityUiXmlLayouts.require(panel, AMOUNT_ID, Label.class), statusProvider,
+                TrinityDataCoreStoragePanel::amountLine);
+        bind(TrinityUiXmlLayouts.require(panel, TYPES_ID, Label.class), statusProvider,
+                TrinityDataCoreStoragePanel::typesLine);
+        panel.addChild(capacityBar(statusProvider));
         return panel;
     }
 
@@ -77,40 +55,19 @@ final class TrinityDataCoreStoragePanel {
                 value);
     }
 
-    private static Label label(String id,
-                               IDataProvider<TrinityDataCoreStorageStatus> statusProvider,
-                               Function<TrinityDataCoreStorageStatus, Component> text,
-                               int top) {
-        Label label = new Label();
-        label.setId(id);
+    private static void bind(Label label,
+                             IDataProvider<TrinityDataCoreStorageStatus> statusProvider,
+                              Function<TrinityDataCoreStorageStatus, Component> text) {
         label.bindDataSource(SupplierDataSource
                 .of(() -> requireStatus(statusProvider.getValue()))
                 .map(text));
-        label.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textWrap(TextWrap.HOVER_ROLL)
-                .textColor(TEXT_COLOR)
-                .textShadow(false));
-        label.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(2)
-                .top(top)
-                .width(WIDTH - 4)
-                .height(9));
-        return label;
     }
 
     private static TrinityStorageCapacityBar capacityBar(
                                                          IDataProvider<TrinityDataCoreStorageStatus> statusProvider) {
         TrinityStorageCapacityBar bar = new TrinityStorageCapacityBar();
         bar.bindDataSource(statusProvider);
-        bar.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(24)
-                .width(116)
-                .height(6));
+        bar.addClass("trinity-storage-capacity-bar");
         return bar;
     }
 

@@ -10,16 +10,10 @@ import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
-import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,36 +24,18 @@ import java.util.function.Function;
  */
 final class TrinityDataCoreStatusPanel {
 
-    static final String PANEL_ID = "trinity_data_core_status";
-    static final String LEFT_PANEL_ID = "trinity_data_core_structure_status";
-    static final String RIGHT_PANEL_ID = "trinity_data_core_cpu_summary";
     static final String ONLINE_ID = "trinity_status_online";
     static final String MAIN_STRUCTURE_ID = "trinity_status_main_structure";
     static final String FAILURE_ID = "trinity_status_failure";
     static final String CPU_PARTITIONS_ID = "trinity_status_cpu_partitions";
     static final String CRAFTING_ID = "trinity_status_crafting";
 
-    private static final String STATUS_PANEL_TEXTURE = "data_energistics:textures/guis/trinity_data_core/status_panel.png";
     private static final int LABEL_COLOR = 0x080C1B;
     private static final int VALUE_COLOR = 0x246082;
     private static final int SUCCESS_COLOR = 0x207A35;
     private static final int WARNING_COLOR = 0x9A5A00;
     private static final int ERROR_COLOR = 0xA12424;
     private static final int BUSY_COLOR = 0x8A6300;
-    private static final int LEFT_PANEL_X = 5;
-    private static final int LEFT_PANEL_Y = 15;
-    private static final int LEFT_PANEL_WIDTH = 128;
-    private static final int LEFT_PANEL_HEIGHT = 99;
-    private static final int RIGHT_PANEL_X = 134;
-    private static final int RIGHT_PANEL_Y = 15;
-    private static final int RIGHT_PANEL_WIDTH = 117;
-    private static final int RIGHT_PANEL_HEIGHT = 64;
-    private static final int LEFT_LABEL_X = 4;
-    private static final int LEFT_LABEL_WIDTH = 120;
-    private static final int LEFT_LINE_HEIGHT = 14;
-    private static final int RIGHT_LABEL_X = 2;
-    private static final int RIGHT_LABEL_WIDTH = 113;
-    private static final int RIGHT_LINE_HEIGHT = 11;
 
     private TrinityDataCoreStatusPanel() {}
 
@@ -70,17 +46,45 @@ final class TrinityDataCoreStatusPanel {
         }
         requireStatus(statusProvider.getValue());
 
-        UIElement panel = new UIElement();
-        panel.setId(PANEL_ID);
+        UIElement panel = TrinityUiXmlLayouts.loadRoot("data_core_status");
         panel.setAllowHitTest(false);
-        panel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(256)
-                .height(114));
-        panel.addChildren(leftPanel(statusProvider), rightPanel(statusProvider));
+        bind(TrinityUiXmlLayouts.require(panel, ONLINE_ID, Label.class), statusProvider, TrinityDataCoreStatusPanel::onlineLine);
+        bind(TrinityUiXmlLayouts.require(panel, MAIN_STRUCTURE_ID, Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::mainStructureLine);
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_main_blocks", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::mainBlockLine);
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_structure", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::cpuStructureLine);
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_crafting_structure", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::craftingStructureLine);
+        Label failure = TrinityUiXmlLayouts.require(panel, FAILURE_ID, Label.class);
+        bind(failure, statusProvider, TrinityDataCoreStatusPanel::failureLineText);
+        failure.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+            List<Component> tooltip = failureTooltip(requireStatus(statusProvider.getValue()));
+            if (!tooltip.isEmpty()) {
+                event.hoverTooltips = new HoverTooltips(tooltip, null, null, null);
+            }
+        });
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_busy_cpus", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::busyCpuLine);
+        bind(TrinityUiXmlLayouts.require(panel, CPU_PARTITIONS_ID, Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::cpuPartitionLine);
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_storage", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::cpuStorageLine);
+        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_coprocessors", Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::cpuCoprocessorLine);
+        bind(TrinityUiXmlLayouts.require(panel, CRAFTING_ID, Label.class), statusProvider,
+                TrinityDataCoreStatusPanel::craftingLine);
         return panel;
+    }
+
+    /** Binds behavior to a declaratively positioned status label. */
+    private static void bind(Label label,
+                             IDataProvider<TrinityDataCoreHostStatus> statusProvider,
+                             Function<TrinityDataCoreHostStatus, Component> text) {
+        label.bindDataSource(SupplierDataSource
+                .of(() -> requireStatus(statusProvider.getValue()))
+                .map(text));
     }
 
     static Component onlineLine(TrinityDataCoreHostStatus status) {
@@ -134,103 +138,6 @@ final class TrinityDataCoreStatusPanel {
 
     static String compactNumber(String value) {
         return TrinityAmountFormatter.format(value);
-    }
-
-    private static UIElement leftPanel(IDataProvider<TrinityDataCoreHostStatus> statusProvider) {
-        UIElement panel = new UIElement();
-        panel.setId(LEFT_PANEL_ID);
-        panel.getStyle().backgroundTexture(
-                SpriteTexture.of(STATUS_PANEL_TEXTURE).setSprite(0, 0, LEFT_PANEL_WIDTH, LEFT_PANEL_HEIGHT));
-        panel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(LEFT_PANEL_X)
-                .top(LEFT_PANEL_Y)
-                .width(LEFT_PANEL_WIDTH)
-                .height(LEFT_PANEL_HEIGHT));
-        panel.addChildren(
-                line(ONLINE_ID, statusProvider, TrinityDataCoreStatusPanel::onlineLine,
-                        LEFT_LABEL_X, 4, LEFT_LABEL_WIDTH),
-                line(MAIN_STRUCTURE_ID, statusProvider, TrinityDataCoreStatusPanel::mainStructureLine,
-                        LEFT_LABEL_X, 4 + LEFT_LINE_HEIGHT, LEFT_LABEL_WIDTH),
-                line("trinity_status_main_blocks", statusProvider, TrinityDataCoreStatusPanel::mainBlockLine,
-                        LEFT_LABEL_X, 4 + LEFT_LINE_HEIGHT * 2, LEFT_LABEL_WIDTH),
-                line("trinity_status_cpu_structure", statusProvider, TrinityDataCoreStatusPanel::cpuStructureLine,
-                        LEFT_LABEL_X, 4 + LEFT_LINE_HEIGHT * 3, LEFT_LABEL_WIDTH),
-                line("trinity_status_crafting_structure", statusProvider,
-                        TrinityDataCoreStatusPanel::craftingStructureLine,
-                        LEFT_LABEL_X, 4 + LEFT_LINE_HEIGHT * 4, LEFT_LABEL_WIDTH),
-                failureLine(statusProvider));
-        return panel;
-    }
-
-    private static UIElement rightPanel(IDataProvider<TrinityDataCoreHostStatus> statusProvider) {
-        UIElement panel = new UIElement();
-        panel.setId(RIGHT_PANEL_ID);
-        panel.style(style -> style.backgroundTexture(GuiTextureGroup.of(
-                new ColorRectTexture(0xFFA7ADBF),
-                new ColorBorderTexture(-1, 0xFFF2F2F2))));
-        panel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(RIGHT_PANEL_X)
-                .top(RIGHT_PANEL_Y)
-                .width(RIGHT_PANEL_WIDTH)
-                .height(RIGHT_PANEL_HEIGHT));
-        panel.addChildren(
-                line("trinity_status_busy_cpus", statusProvider, TrinityDataCoreStatusPanel::busyCpuLine,
-                        RIGHT_LABEL_X, 2, RIGHT_LABEL_WIDTH),
-                line(CPU_PARTITIONS_ID, statusProvider, TrinityDataCoreStatusPanel::cpuPartitionLine,
-                        RIGHT_LABEL_X, 2 + RIGHT_LINE_HEIGHT, RIGHT_LABEL_WIDTH),
-                line("trinity_status_cpu_storage", statusProvider, TrinityDataCoreStatusPanel::cpuStorageLine,
-                        RIGHT_LABEL_X, 2 + RIGHT_LINE_HEIGHT * 2, RIGHT_LABEL_WIDTH),
-                line("trinity_status_cpu_coprocessors", statusProvider,
-                        TrinityDataCoreStatusPanel::cpuCoprocessorLine,
-                        RIGHT_LABEL_X, 2 + RIGHT_LINE_HEIGHT * 3, RIGHT_LABEL_WIDTH),
-                line(CRAFTING_ID, statusProvider, TrinityDataCoreStatusPanel::craftingLine,
-                        RIGHT_LABEL_X, 2 + RIGHT_LINE_HEIGHT * 4, RIGHT_LABEL_WIDTH));
-        return panel;
-    }
-
-    private static Label line(String id,
-                              IDataProvider<TrinityDataCoreHostStatus> statusProvider,
-                              Function<TrinityDataCoreHostStatus, Component> text,
-                              int left,
-                              int top,
-                              int width) {
-        Label label = new Label();
-        label.setId(id);
-        label.bindDataSource(SupplierDataSource
-                .of(() -> requireStatus(statusProvider.getValue()))
-                .map(text));
-        label.textStyle(style -> style
-                .adaptiveHeight(false)
-                .adaptiveWidth(false)
-                .textWrap(TextWrap.HOVER_ROLL)
-                .textColor(0xFFFFFFFF)
-                .textShadow(false));
-        label.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(9));
-        return label;
-    }
-
-    private static Label failureLine(IDataProvider<TrinityDataCoreHostStatus> statusProvider) {
-        Label label = line(
-                FAILURE_ID,
-                statusProvider,
-                TrinityDataCoreStatusPanel::failureLineText,
-                LEFT_LABEL_X,
-                4 + LEFT_LINE_HEIGHT * 5,
-                LEFT_LABEL_WIDTH);
-        label.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-            List<Component> tooltip = failureTooltip(requireStatus(statusProvider.getValue()));
-            if (!tooltip.isEmpty()) {
-                event.hoverTooltips = new HoverTooltips(tooltip, null, null, null);
-            }
-        });
-        return label;
     }
 
     private static Component mainBlockLine(TrinityDataCoreHostStatus status) {
