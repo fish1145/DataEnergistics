@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.order;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CraftingVirtualCompletionDispatch;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputRegistration;
 import com.fish_dan_.data_energistics.item.OrderPackageTarget;
@@ -33,5 +34,10 @@ public final class OrderPackageVirtualOutputAdapter implements VirtualCraftingOu
     @Override
     public Optional<AEKey> resolveTarget(GenericStack declaredOutput) {
         return OrderPackageTarget.get().resolveMarkedTarget(declaredOutput);
+    }
+
+    @Override
+    public VirtualCraftingCompletionMode completionMode(GenericStack declaredOutput) {
+        return VirtualCraftingCompletionMode.COMPLETE_WITHOUT_OUTPUT;
     }
 }

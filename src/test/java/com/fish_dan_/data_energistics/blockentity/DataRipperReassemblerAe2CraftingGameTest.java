@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
@@ -20,7 +19,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -141,76 +139,6 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
                             "The real AE2 crafting job must submit successfully: " + result.errorCode());
                 })
                 .thenWaitUntil(() -> assertReassemblerReceivedPatternInputs(helper, reassembler))
-                .thenSucceed();
-    }
-
-    @TestHolder("order_package_completes_real_ae2_job_without_physical_package")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 300)
-    public static void orderPackageCompletesRealAe2JobWithoutPhysicalPackage(GameTestHelper helper) {
-        helper.setBlock(PATTERN_SINK_POS, Blocks.CHEST.defaultBlockState());
-        PatternProviderBlockEntity provider = placePatternProvider(helper);
-        DriveBlockEntity drive = placeDrive(helper);
-        CraftingBlockEntity craftingStorage = placeCraftingCpu(helper);
-        AEItemKey input = itemKey(ModItems.DATA_CRYSTAL.toStack());
-        AEItemKey target = AEItemKey.of(Items.DIAMOND);
-        if (target == null) {
-            throw new GameTestAssertException("The real AE2 order-package target must produce an item key");
-        }
-        AEItemKey packageKey = itemKey(OrderPackageTarget.get().createMarkedPackage(target));
-        ItemStack encodedPattern = PatternDetailsHelper.encodeProcessingPattern(
-                List.of(new GenericStack(input, 1L)),
-                List.of(new GenericStack(packageKey, 2L)));
-        IActionSource actionSource = IActionSource.ofMachine(provider);
-        AtomicReference<Future<ICraftingPlan>> planFuture = new AtomicReference<>();
-        AtomicReference<ICraftingPlan> completedPlan = new AtomicReference<>();
-
-        drive.getInternalInventory().setItemDirect(0, AEItems.ITEM_CELL_64K.stack());
-        helper.startSequence()
-                .thenWaitUntil(() -> awaitRealNetwork(helper, provider, drive, craftingStorage))
-                .thenExecute(() -> {
-                    IGrid grid = requireGrid(provider);
-                    insertIntoNetwork(helper, grid, input, 1L);
-                    provider.getLogic().getPatternInv().setItemDirect(0, encodedPattern);
-                    provider.getLogic().updatePatterns();
-                })
-                .thenWaitUntil(() -> helper.assertTrue(
-                        !requireGrid(provider).getCraftingService().getCraftingFor(target).isEmpty(),
-                        "The marked order package has not published its target to the real AE2 network"))
-                .thenExecute(() -> planFuture.set(requireGrid(provider)
-                        .getCraftingService()
-                        .beginCraftingCalculation(
-                                helper.getLevel(),
-                                () -> actionSource,
-                                target,
-                                2L,
-                                CalculationStrategy.REPORT_MISSING_ITEMS)))
-                .thenWaitUntil(() -> completedPlan.set(awaitPlan(planFuture.get())))
-                .thenExecute(() -> {
-                    IGrid grid = requireGrid(provider);
-                    ICraftingCPU cpu = grid.getCraftingService().getCpus().stream()
-                            .filter(candidate -> !candidate.isBusy())
-                            .findFirst()
-                            .orElseThrow(() -> new GameTestAssertException("The real AE2 crafting CPU is not idle"));
-                    ICraftingSubmitResult result = grid.getCraftingService().submitJob(
-                            completedPlan.get(),
-                            null,
-                            cpu,
-                            true,
-                            actionSource);
-                    helper.assertTrue(result.successful(),
-                            "The order-package AE2 job must submit successfully: " + result.errorCode());
-                })
-                .thenWaitUntil(() -> {
-                    IGrid grid = requireGrid(provider);
-                    helper.assertTrue(
-                            grid.getCraftingService().getCpus().stream().noneMatch(ICraftingCPU::isBusy),
-                            "The real AE2 CPU is still waiting for a physical order package");
-                    helper.assertValueEqual(networkStored(grid, target), 2L,
-                            "The standalone virtual target must continue into network storage");
-                    helper.assertValueEqual(networkStored(grid, packageKey), 0L,
-                            "The marked order package must never enter network storage");
-                })
                 .thenSucceed();
     }
 

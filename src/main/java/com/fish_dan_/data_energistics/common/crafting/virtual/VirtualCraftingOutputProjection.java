@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.virtual;
 
+import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
+
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
@@ -16,12 +19,12 @@ import java.util.Map;
 public final class VirtualCraftingOutputProjection {
 
     private final List<GenericStack> logicalOutputs;
-    private final List<GenericStack> virtualOutputsPerCraft;
+    private final List<VirtualCraftingCompletion> virtualCompletionsPerCraft;
 
     VirtualCraftingOutputProjection(List<GenericStack> logicalOutputs,
-                                    List<GenericStack> virtualOutputsPerCraft) {
+                                    List<VirtualCraftingCompletion> virtualCompletionsPerCraft) {
         this.logicalOutputs = List.copyOf(logicalOutputs);
-        this.virtualOutputsPerCraft = List.copyOf(virtualOutputsPerCraft);
+        this.virtualCompletionsPerCraft = List.copyOf(virtualCompletionsPerCraft);
     }
 
     /**
@@ -39,29 +42,40 @@ public final class VirtualCraftingOutputProjection {
      * @return whether this projection has a dispatch-time result
      */
     public boolean hasVirtualOutputs() {
-        return !this.virtualOutputsPerCraft.isEmpty();
+        return !this.virtualCompletionsPerCraft.isEmpty();
     }
 
     /**
-     * Computes the exact immutable virtual result for an accepted logical batch.
+     * Computes the exact immutable completion tokens for an accepted logical batch.
      *
      * @param acceptedLogicalCrafts positive logical craft count accepted by the provider
-     * @return aggregated target outputs scaled by the accepted count
+     * @return aggregated completion tokens scaled by the accepted count
      * @throws ArithmeticException when a scaled result cannot be represented by AE2's positive {@code long} amount
      */
-    public List<GenericStack> virtualOutputs(long acceptedLogicalCrafts) {
+    public List<VirtualCraftingCompletion> virtualCompletions(long acceptedLogicalCrafts) {
         if (acceptedLogicalCrafts <= 0L) {
             throw new IllegalArgumentException("Accepted virtual crafting count must be positive");
         }
-        LinkedHashMap<AEKey, BigInteger> scaled = new LinkedHashMap<>();
+        LinkedHashMap<CompletionIdentity, BigInteger> scaled = new LinkedHashMap<>();
         BigInteger count = BigInteger.valueOf(acceptedLogicalCrafts);
-        for (GenericStack output : this.virtualOutputsPerCraft) {
+        for (VirtualCraftingCompletion completion : this.virtualCompletionsPerCraft) {
+            GenericStack output = completion.stack();
             scaled.merge(
-                    output.what(),
+                    new CompletionIdentity(output.what(), completion.mode()),
                     BigInteger.valueOf(output.amount()).multiply(count),
                     BigInteger::add);
         }
-        return immutableStacks(scaled);
+        ArrayList<VirtualCraftingCompletion> completions = new ArrayList<>(scaled.size());
+        scaled.forEach((identity, amount) -> {
+            long exactAmount = amount.longValueExact();
+            if (exactAmount <= 0L) {
+                throw new ArithmeticException("Virtual crafting completion amount must remain positive");
+            }
+            completions.add(new VirtualCraftingCompletion(
+                    new GenericStack(identity.key(), exactAmount),
+                    identity.mode()));
+        });
+        return Collections.unmodifiableList(completions);
     }
 
     static List<GenericStack> immutableStacks(Map<AEKey, BigInteger> amounts) {
@@ -75,4 +89,6 @@ public final class VirtualCraftingOutputProjection {
         });
         return Collections.unmodifiableList(stacks);
     }
+
+    private record CompletionIdentity(AEKey key, VirtualCraftingCompletionMode mode) {}
 }

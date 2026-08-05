@@ -14,7 +14,6 @@ import appeng.api.stacks.GenericStack;
 import appeng.crafting.pattern.AEProcessingPattern;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,14 +23,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.List;
 
 /**
- * Publishes virtual targets as the logical outputs of an encoded processing pattern while retaining its encoded
- * package outputs for terminals and tooltips.
+ * Captures virtual completion metadata without replacing the declared processing-pattern output exposed to AE2.
  */
 @SuppressWarnings("AddedMixinMembersNamePattern")
 @Mixin(AEProcessingPattern.class)
 public abstract class AEProcessingPatternVirtualOutputMixin implements VirtualCraftingPatternOutputs {
 
-    @Mutable
     @Shadow
     @Final
     private List<GenericStack> condensedOutputs;
@@ -46,9 +43,6 @@ public abstract class AEProcessingPatternVirtualOutputMixin implements VirtualCr
     private void dataEnergistics$projectVirtualOutputs(AEItemKey definition, CallbackInfo ci) {
         this.dataEnergistics$encodedOutputs = List.copyOf(this.condensedOutputs);
         this.dataEnergistics$virtualOutputProjection = VirtualCraftingOutputAdapters.project(this.condensedOutputs);
-        if (this.dataEnergistics$virtualOutputProjection.hasVirtualOutputs()) {
-            this.condensedOutputs = this.dataEnergistics$virtualOutputProjection.logicalOutputs();
-        }
     }
 
     @Override
