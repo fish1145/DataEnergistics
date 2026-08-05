@@ -69,6 +69,8 @@ public final class TrinityPlanningGatewayImplTest {
 
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> TrinityPlanningAttempt.success(trinityPlan),
                 () -> {
                     ae2Started.set(true);
@@ -89,6 +91,8 @@ public final class TrinityPlanningGatewayImplTest {
 
         ICraftingPlan selected = gateway.begin(
                 false,
+                1L,
+                1L,
                 () -> {
                     trinityStarted.set(true);
                     return TrinityPlanningAttempt.success(trinityPlan());
@@ -110,6 +114,8 @@ public final class TrinityPlanningGatewayImplTest {
 
         ICraftingPlan selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> TrinityPlanningAttempt.failure(diagnostic),
                 () -> CompletableFuture.completedFuture(simulation)).get();
 
@@ -140,6 +146,8 @@ public final class TrinityPlanningGatewayImplTest {
 
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> TrinityPlanningAttempt.authoritativeSimulation(trinitySimulation),
                 () -> ae2);
         manualExecutor.runNext();
@@ -160,6 +168,8 @@ public final class TrinityPlanningGatewayImplTest {
         CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> TrinityPlanningAttempt.failure(diagnostic),
                 () -> ae2);
         manualExecutor.runNext();
@@ -178,6 +188,8 @@ public final class TrinityPlanningGatewayImplTest {
         CountDownLatch release = new CountDownLatch(1);
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> {
                     release.await();
                     return TrinityPlanningAttempt.success(trinityPlan());
@@ -189,22 +201,39 @@ public final class TrinityPlanningGatewayImplTest {
     }
 
     @Test
-    void cancellationPropagatesToBothPlanningTracks() {
+    void cancellationCancelsAe2CallerWithoutInterruptingSharedTrinityWork() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean();
         CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> {
-                    release.await();
-                    return TrinityPlanningAttempt.success(trinityPlan());
+                    entered.countDown();
+                    try {
+                        release.await();
+                        return TrinityPlanningAttempt.success(trinityPlan());
+                    } catch (InterruptedException exception) {
+                        interrupted.set(true);
+                        throw exception;
+                    } finally {
+                        finished.countDown();
+                    }
                 },
                 () -> ae2);
 
+        assertTrue(entered.await(1L, TimeUnit.SECONDS));
         assertTrue(selected.cancel(true));
         assertTrue(selected.isCancelled());
         assertTrue(ae2.isCancelled());
+        release.countDown();
+        assertTrue(finished.await(1L, TimeUnit.SECONDS));
+        assertFalse(interrupted.get());
     }
 
     @Test
@@ -214,6 +243,8 @@ public final class TrinityPlanningGatewayImplTest {
 
         ICraftingPlan selected = gateway.begin(
                 true,
+                1L,
+                1L,
                 () -> TrinityPlanningAttempt.success(trinityPlan()),
                 () -> CompletableFuture.completedFuture(ae2Plan(true))).get();
 
@@ -227,7 +258,7 @@ public final class TrinityPlanningGatewayImplTest {
         TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
         TrinityCraftingPlan plan = trinityPlan();
 
-        TrinityPlanningAttempt attempt = gateway.beginTrinity(
+        TrinityPlanningAttempt attempt = gateway.beginTrinity(1L, 1L,
                 () -> TrinityPlanningAttempt.success(plan)).get(1L, TimeUnit.SECONDS);
 
         assertTrue(attempt.successful());
@@ -238,7 +269,7 @@ public final class TrinityPlanningGatewayImplTest {
     void reportsQueueFullForRejectedTrinityOnlyContinuation() throws Exception {
         TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(new RejectingExecutor(), false);
 
-        TrinityPlanningAttempt attempt = gateway.beginTrinity(
+        TrinityPlanningAttempt attempt = gateway.beginTrinity(1L, 1L,
                 () -> TrinityPlanningAttempt.success(trinityPlan())).get();
 
         assertFalse(attempt.successful());

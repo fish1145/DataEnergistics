@@ -6,6 +6,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 
@@ -14,32 +17,48 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Production calculation with exact post-plan CPU-capacity validation and structured outcome logging.
  */
 final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalculation {
 
-    private final TrinityGraphPlanner planner;
+    private final PlanningAlgorithm algorithm;
+
+    TrinityInitialPlanCalculationImpl(Supplier<TrinityPlanningGateway> gatewaySupplier) {
+        if (gatewaySupplier == null) {
+            throw new IllegalArgumentException("A Trinity initial calculation requires a gateway supplier");
+        }
+        this.algorithm = request -> gatewaySupplier.get().calculateTrinity(input(request));
+    }
 
     TrinityInitialPlanCalculationImpl(TrinityGraphPlanner planner) {
-        this.planner = planner;
+        if (planner == null) {
+            throw new IllegalArgumentException("A Trinity initial calculation requires a planner");
+        }
+        this.algorithm = request -> new TrinityPlanningComputationResult(
+                planner.plan(
+                        request.graph(),
+                        request.target(),
+                        request.requestedAmount(),
+                        request.quantityMode(),
+                        request.available(),
+                        request.settings(),
+                        TrinityPlanningControl.unbounded()),
+                PlanningCachePath.MISS);
     }
 
     @Override
-    public TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) {
-        TrinityPlanningControl control = TrinityPlanningControl.unbounded();
-        TrinityAlgorithmResult<TrinityCraftingPlan> result = this.planner.plan(
-                request.graph(),
-                request.target(),
-                request.requestedAmount(),
-                request.quantityMode(),
-                request.available(),
-                request.settings(),
-                control);
+    public TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) throws Exception {
+        if (request == null) {
+            throw new IllegalArgumentException("A Trinity initial calculation requires a request");
+        }
+        TrinityPlanningComputationResult computation = this.algorithm.calculate(request);
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = computation.result();
         if (!result.successful()) {
             TrinityPlanningAttempt failedAttempt = failedAttempt(request, result.diagnostic());
-            logFallback(request, failedAttempt.diagnostic());
+            logFallback(request, failedAttempt.diagnostic(), computation.cachePath());
             return failedAttempt;
         }
 
@@ -54,17 +73,18 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
                     Map.of(
                             "planBytes", Long.toString(plan.bytes()),
                             "maxTrinityBytes", Long.toString(request.maxTrinityBytes())));
-            logFallback(request, diagnostic);
+            logFallback(request, diagnostic, computation.cachePath());
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
         TrinityPlanningStatistics statistics = plan.statistics();
         Data_Energistics.LOGGER.info(
-                "Trinity planning selected request={} target={} mode={} revision={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
+                "Trinity planning selected request={} target={} mode={} revision={} cachePath={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
                 request.requestId(),
                 request.target(),
                 request.quantityMode(),
                 request.graph().revision(),
+                computation.cachePath(),
                 statistics.sccCount(),
                 statistics.variantCount(),
                 statistics.planningNanos(),
@@ -93,14 +113,33 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
 
     private static void logFallback(
                                     TrinityInitialPlanningRequest request,
-                                    TrinityPlanningDiagnostic diagnostic) {
+                                    TrinityPlanningDiagnostic diagnostic,
+                                    PlanningCachePath cachePath) {
         Data_Energistics.LOGGER.info(
-                "Trinity planning fallback request={} target={} mode={} revision={} reason={} metadata={}",
+                "Trinity planning fallback request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
                 request.requestId(),
                 request.target(),
                 request.quantityMode(),
                 request.graph().revision(),
+                cachePath,
                 diagnostic.code(),
                 diagnostic.metadata());
+    }
+
+    private static TrinityPlanningInput input(TrinityInitialPlanningRequest request) {
+        return new TrinityPlanningInput(
+                request.gridScope(),
+                request.graph(),
+                request.target(),
+                request.requestedAmount(),
+                request.quantityMode(),
+                request.available(),
+                request.settings());
+    }
+
+    @FunctionalInterface
+    private interface PlanningAlgorithm {
+
+        TrinityPlanningComputationResult calculate(TrinityInitialPlanningRequest request) throws Exception;
     }
 }

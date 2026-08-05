@@ -107,7 +107,8 @@ public abstract class CraftingServiceMixin
     private static final TrinityPlanAdmission DATA_ENERGISTICS_PLAN_ADMISSION = TrinityPlanAdmission.create();
 
     @Unique
-    private static final TrinityInitialPlanCalculation DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION = TrinityInitialPlanCalculation.create();
+    private static final TrinityInitialPlanCalculation DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION = TrinityInitialPlanCalculation.create(
+            TrinityPlanningGatewayLifecycle::gateway);
 
     @Unique
     private static final AtomicLong DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE = new AtomicLong();
@@ -149,6 +150,12 @@ public abstract class CraftingServiceMixin
      */
     @Unique
     private long dataEnergistics$lastLoggedGraphFailureRevision = Long.MIN_VALUE;
+
+    /**
+     * Ensures an empty Grid releases its server-lifetime planning partition exactly once until it becomes active again.
+     */
+    @Unique
+    private boolean dataEnergistics$planningGridCleared;
 
     @Shadow
     @Final
@@ -212,9 +219,17 @@ public abstract class CraftingServiceMixin
                 .map(this::dataEnergistics$capturePlanningInventory)
                 .orElse(Map.of());
 
+        CraftingProviderPublicationIndex publications = data_energistics$craftingProviderPublicationIndex();
+        long gridScope = publications.publicationScope();
+        long graphRevision = graph
+                .map(TrinityCraftingGraphSnapshot::revision)
+                .orElse(publications.publicationRevision());
         return TrinityPlanningGatewayLifecycle.gateway().begin(
                 true,
+                gridScope,
+                graphRevision,
                 () -> dataEnergistics$calculateInitialTrinityPlan(
+                        gridScope,
                         requestId,
                         graph,
                         what,
@@ -228,6 +243,7 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private TrinityPlanningAttempt dataEnergistics$calculateInitialTrinityPlan(
+                                                                               long gridScope,
                                                                                long requestId,
                                                                                Optional<TrinityCraftingGraphSnapshot> graph,
                                                                                AEKey target,
@@ -235,7 +251,7 @@ public abstract class CraftingServiceMixin
                                                                                CraftingQuantityMode quantityMode,
                                                                                Map<AEKey, BigInteger> available,
                                                                                long maxTrinityBytes,
-                                                                               TrinityCrafting settings) {
+                                                                               TrinityCrafting settings) throws Exception {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
@@ -252,6 +268,7 @@ public abstract class CraftingServiceMixin
         }
 
         TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
+                .gridScope(gridScope)
                 .requestId(requestId)
                 .graph(graph.orElseThrow())
                 .target(target)
@@ -461,8 +478,10 @@ public abstract class CraftingServiceMixin
     @Inject(method = "onServerEndTick", at = @At("TAIL"))
     private void dataEnergistics$advanceTrinityCraftingGraph(CallbackInfo ci) {
         if (this.grid.isEmpty()) {
+            dataEnergistics$clearEmptyGridPlanningState();
             return;
         }
+        this.dataEnergistics$planningGridCleared = false;
         try {
             if (this.dataEnergistics$trinityCraftingGraphRebuilder == null) {
                 this.dataEnergistics$trinityCraftingGraphRebuilder = new TrinityCraftingGraphRebuilder(
@@ -484,6 +503,24 @@ public abstract class CraftingServiceMixin
                         revision,
                         exception);
             }
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$clearEmptyGridPlanningState() {
+        if (this.dataEnergistics$planningGridCleared) {
+            return;
+        }
+        long gridScope = data_energistics$craftingProviderPublicationIndex().publicationScope();
+        try {
+            TrinityPlanningGatewayLifecycle.gateway().clearGrid(gridScope);
+            this.dataEnergistics$trinityCraftingGraphRebuilder = null;
+            this.dataEnergistics$planningGridCleared = true;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to clear Trinity planning state for unloaded Grid publication scope {}",
+                    gridScope,
+                    exception);
         }
     }
 

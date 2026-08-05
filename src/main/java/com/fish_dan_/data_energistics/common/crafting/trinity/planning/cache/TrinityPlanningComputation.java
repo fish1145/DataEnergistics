@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanningPipeline;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
@@ -29,4 +30,15 @@ public interface TrinityPlanningComputation {
      * @return caller-owned future; cancellation does not cancel shared bottom calculations
      */
     Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input);
+
+    /**
+     * Enters the cache layers on the current accepted planner worker without submitting nested work.
+     *
+     * @param input immutable pure-planning input
+     * @return algorithm result and selected cache path
+     * @throws InterruptedException when this worker is interrupted while waiting for a shared calculation
+     * @throws ExecutionException   when a shared bottom calculation fails
+     */
+    TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
+            throws InterruptedException, ExecutionException;
 }

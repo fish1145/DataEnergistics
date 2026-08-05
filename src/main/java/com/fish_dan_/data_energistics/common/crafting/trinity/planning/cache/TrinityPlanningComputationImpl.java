@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityCompiledGraph;
@@ -39,18 +38,18 @@ final class TrinityPlanningComputationImpl implements TrinityPlanningComputation
 
     @Override
     public Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input) {
-        if (input == null) {
-            throw new IllegalArgumentException("A Trinity planning computation requires an input");
-        }
-        this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
+        validateInput(input);
         return this.cache.submit(
                 input.gridScope(),
                 input.graph().revision(),
                 () -> calculate(input));
     }
 
-    private TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
+    @Override
+    public TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
             throws InterruptedException, ExecutionException {
+        validateInput(input);
+        this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningControl control = TrinityPlanningControl.unbounded();
         TrinityComputationValue<TrinityCraftingGraphSnapshot> reachable = this.cache.computeInline(
                 input.gridScope(),
@@ -108,18 +107,17 @@ final class TrinityPlanningComputationImpl implements TrinityPlanningComputation
         return new TrinityPlanningComputationResult(solved.value(), path);
     }
 
-    private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cached(
-                                                                                TrinityAlgorithmResult<V> result) {
-        return result.successful() || cacheable(result.diagnostic().code()) ?
-                TrinityCachedComputation.cacheable(result) :
-                TrinityCachedComputation.transientValue(result);
+    private static void validateInput(TrinityPlanningInput input) {
+        if (input == null) {
+            throw new IllegalArgumentException("A Trinity planning computation requires an input");
+        }
     }
 
-    private static boolean cacheable(TrinityPlanningDiagnosticCode code) {
-        return switch (code) {
-            case PLANNER_QUEUE_FULL, CALCULATION_CANCELLED, MIP_TIMEOUT, INTERNAL_ERROR -> false;
-            default -> true;
-        };
+    private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cached(
+                                                                                TrinityAlgorithmResult<V> result) {
+        return result.successful() || !result.diagnostic().code().transientPlanningFailure() ?
+                TrinityCachedComputation.cacheable(result) :
+                TrinityCachedComputation.transientValue(result);
     }
 
     private static List<InventoryAmount> projectInventory(

@@ -722,6 +722,7 @@ final class TrinityDataCoreCpuLogic {
         Optional<TrinityCraftingGraphSnapshot> graphSnapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot();
         TrinityRemainingPlanCalculation.Result result = this.remainingPlanCalculation.advance(
                 graphSnapshot,
+                craftingProviderPublications(craftingService).publicationScope(),
                 () -> graphSnapshot
                         .map(snapshot -> captureReplanAvailability(snapshot, network))
                         .orElseGet(Map::of),

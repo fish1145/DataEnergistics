@@ -22,6 +22,7 @@ import java.util.Map;
 public final class TrinityInitialPlanningRequest {
 
     private final TrinityCraftingGraphSnapshot graph;
+    private final long gridScope;
     private final long requestId;
     private final AEKey target;
     private final BigInteger requestedAmount;
@@ -35,9 +36,10 @@ public final class TrinityInitialPlanningRequest {
                 builder.quantityMode == null || builder.available == null || builder.settings == null) {
             throw new IllegalStateException("A Trinity initial planning request is incomplete");
         }
-        if (builder.requestId <= 0L || builder.requestedAmount.signum() <= 0 || builder.maxTrinityBytes <= 0L) {
+        if (builder.gridScope <= 0L || builder.requestId <= 0L || builder.requestedAmount.signum() <= 0 ||
+                builder.maxTrinityBytes <= 0L) {
             throw new IllegalStateException(
-                    "A Trinity initial planning request requires positive identity, amount, and CPU capacity");
+                    "A Trinity initial planning request requires positive Grid scope, identity, amount, and CPU capacity");
         }
 
         LinkedHashMap<AEKey, BigInteger> copiedAvailable = new LinkedHashMap<>();
@@ -49,6 +51,7 @@ public final class TrinityInitialPlanningRequest {
         });
 
         this.graph = builder.graph;
+        this.gridScope = builder.gridScope;
         this.requestId = builder.requestId;
         this.target = builder.target;
         this.requestedAmount = builder.requestedAmount;
@@ -67,6 +70,10 @@ public final class TrinityInitialPlanningRequest {
 
     public TrinityCraftingGraphSnapshot graph() {
         return this.graph;
+    }
+
+    public long gridScope() {
+        return this.gridScope;
     }
 
     public long requestId() {
@@ -103,6 +110,7 @@ public final class TrinityInitialPlanningRequest {
     public static final class Builder {
 
         private TrinityCraftingGraphSnapshot graph;
+        private long gridScope;
         private long requestId;
         private AEKey target;
         private BigInteger requestedAmount;
@@ -115,6 +123,11 @@ public final class TrinityInitialPlanningRequest {
 
         public Builder graph(TrinityCraftingGraphSnapshot graph) {
             this.graph = graph;
+            return this;
+        }
+
+        public Builder gridScope(long gridScope) {
+            this.gridScope = gridScope;
             return this;
         }
 

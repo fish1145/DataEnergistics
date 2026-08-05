@@ -60,6 +60,7 @@ public interface TrinityRemainingPlanCalculation {
      * Polls a pending calculation or starts one for a newer immutable graph revision.
      *
      * @param snapshot          current immutable graph, if one has been published
+     * @param gridScope         owning Grid publication scope
      * @param availableSupplier server-thread capture of CPU and network material
      * @param target            remaining requested key
      * @param requestedAmount   remaining delivery amount
@@ -69,6 +70,7 @@ public interface TrinityRemainingPlanCalculation {
      * @return current advancement result
      */
     Result advance(Optional<TrinityCraftingGraphSnapshot> snapshot,
+                   long gridScope,
                    Supplier<Map<AEKey, BigInteger>> availableSupplier,
                    AEKey target,
                    BigInteger requestedAmount,
