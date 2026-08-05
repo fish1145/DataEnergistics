@@ -71,7 +71,8 @@
 		"core.ProjectileUtilMixin",
 		"core.ResultSlotMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
-		"extendedae.ExtendedInscriberThreadMixin"
+		"extendedae.ExtendedInscriberThreadMixin",
+		"extendedaeplus.EaepPatternEncodingTermMenuMixin"
 	],
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",
