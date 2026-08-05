@@ -29,4 +29,20 @@ public interface VirtualCraftingOutputAdapter {
      * @return represented target identity, or empty when this adapter does not own the output
      */
     Optional<AEKey> resolveTarget(GenericStack declaredOutput);
+
+    /**
+     * Selects the completion accounting policy for an adapter-claimed output.
+     *
+     * <p>
+     * The default preserves the original virtual-target behavior. An adapter that represents a control token rather
+     * than a physical result may return {@link VirtualCraftingCompletionMode#COMPLETE_WITHOUT_OUTPUT}; its declared
+     * key remains the logical and accounting key, and no CPU, requester, or network inventory receives an item.
+     * </p>
+     *
+     * @param declaredOutput complete declared output identity and per-craft amount
+     * @return completion accounting mode
+     */
+    default VirtualCraftingCompletionMode completionMode(GenericStack declaredOutput) {
+        return VirtualCraftingCompletionMode.DELIVER_TARGET;
+    }
 }
