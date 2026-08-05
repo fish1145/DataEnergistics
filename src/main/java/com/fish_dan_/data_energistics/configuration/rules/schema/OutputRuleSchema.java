@@ -7,6 +7,32 @@ import dev.toma.configuration.config.Configurable;
 /** Native arrays whose matching indexes form Data Mimetic output rows. */
 public final class OutputRuleSchema {
 
+    /** Creates the native default output rows used when the framework creates a new rule file. */
+    public OutputRuleSchema() {
+        dataTypes = new DataType[] {
+                DataType.CROP,
+                DataType.CROP,
+                DataType.CROP,
+                DataType.CROP,
+                DataType.ORE
+        };
+        recordedItems = new String[] {
+                "minecraft:oak_sapling",
+                "minecraft:oak_sapling",
+                "minecraft:oak_sapling",
+                "minecraft:oak_sapling",
+                "minecraft:gold_ore"
+        };
+        items = new String[] {
+                "minecraft:oak_log",
+                "minecraft:oak_leaves",
+                "minecraft:stick",
+                "minecraft:apple",
+                "minecraft:gold_ore"
+        };
+        counts = new int[] { 4, 2, 2, 1, 1 };
+    }
+
     @Configurable(key = Configurable.LocalizationKey.FULL)
     @Configurable.Comment({
             "Recorded data type for each output row. All output arrays must have the same length.",

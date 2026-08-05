@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.configuration.rules;
 import java.io.IOException;
 import java.nio.file.Path;
 
-/** Describes one precisely located validation failure in either the active rule YAML or legacy rule JSON. */
+/** Describes one precisely located validation failure in the active rule YAML. */
 public final class RuleFormatException extends IOException {
 
     public RuleFormatException(
