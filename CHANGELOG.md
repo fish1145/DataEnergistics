@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Version [v2.4.2](https://github.com/fish1145/DataEnergistics/compare/v2.4.1-1.21...v2.4.2-1.21)
+### Fixed
+
+- 修复订单包裹虚拟完成与背面镜像 by @QiuYe-123 in [#164](https://github.com/fish1145/DataEnergistics/pull/164)
+- 移除旧配置迁移并改用原生默认值 by @QiuYe-123 in [#165](https://github.com/fish1145/DataEnergistics/pull/165)
+
+ 
 ## Version [v2.4.1](https://github.com/fish1145/DataEnergistics/compare/v2.4.0-1.21...v2.4.1-1.21)
 ### Fixed
 
