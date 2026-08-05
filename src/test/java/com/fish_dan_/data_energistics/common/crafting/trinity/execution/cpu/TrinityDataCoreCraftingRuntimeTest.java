@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndexImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityCpuExecutablePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
@@ -383,6 +384,68 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 2L,
                 "The first doubled output must return to Trinity working inventory");
         helper.runAfterDelay(1L, () -> runSecondSelfCycleBatch(helper, fixture, oneAttempt));
+    }
+
+    @TestHolder("trinity_data_core_compact_cycle_distributes_sparse_shared_seed_across_paths")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactCycleDistributesSparseSharedSeedAcrossPaths(GameTestHelper helper) {
+        AEItemKey seed = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey intermediate = AEItemKey.of(Items.GOLD_INGOT);
+        AEItemKey target = AEItemKey.of(Items.DIAMOND);
+        CountedPatternDetails firstPattern = new CountedPatternDetails(seed, intermediate);
+        SharedSeedCycleSecondPatternDetails secondPattern = new SharedSeedCycleSecondPatternDetails(
+                seed,
+                intermediate,
+                target);
+        RecordingBatchCraftingProvider firstProvider = new RecordingBatchCraftingProvider(
+                firstPattern,
+                seed,
+                BatchPushOutcome.ACCEPT);
+        RecordingBatchCraftingProvider secondProvider = new RecordingBatchCraftingProvider(
+                secondPattern,
+                seed,
+                BatchPushOutcome.ACCEPT);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProviders(List.of(firstProvider, secondProvider));
+        grid.energyService().setStoredPower(4L);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("trinity_shared_seed", TrinityDataCoreCpuContribution.of(4096L, 2, 1));
+        seedStorage(grid.storage(), seed, 2L);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult submission = reserveCpu.submitJob(
+                grid,
+                sharedSeedCyclePlan(helper, firstPattern, secondPattern, seed, intermediate, target),
+                IActionSource.empty(),
+                null);
+        helper.assertTrue(submission.successful(), "The shared-seed cycle fixture must reserve both seed items");
+        TrinityDataCoreVirtualCpu worker = singleBusyWorker(host.getCraftingRuntime());
+        CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+
+        worker.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(
+                firstProvider.lastBatchCount(),
+                1L,
+                "Two seed items must start exactly one complete shared-seed cycle, not dispatch both into its first path");
+        helper.assertValueEqual(
+                secondProvider.batchPushCount(),
+                0,
+                "The dependent path must wait for the first path's intermediate output");
+        helper.assertValueEqual(
+                worker.insert(intermediate, 1L, Actionable.MODULATE),
+                1L,
+                "The first path's intermediate output must return to the CPU");
+
+        helper.runAfterDelay(1L, () -> {
+            worker.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create(oneAttempt));
+            helper.assertValueEqual(
+                    secondProvider.lastBatchCount(),
+                    1L,
+                    "The established shared-seed wave must let its second path finish the same single cycle");
+            helper.succeed();
+        });
     }
 
     @TestHolder("trinity_data_core_compact_plan_cancel_returns_owned_seed")
@@ -870,6 +933,115 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 grid.craftingService(),
                 CraftingDispatchWindow.create());
         helper.assertValueEqual(worker.getStored(iron), 0L, "Hidden worker should retry inventory return while online");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_runtime_round_trips_virtual_completion_only_worker")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeRoundTripsVirtualCompletionOnlyWorker(GameTestHelper helper) {
+        AEItemKey target = AEItemKey.of(Items.DIAMOND);
+        TestGrid grid = new TestGrid();
+        grid.storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
+        NetworkedTestHost originalHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        originalHost.setLevel(helper.getLevel());
+        originalHost.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        originalHost.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        TrinityDataCoreVirtualCpu reserveCpu = originalHost.getCpuPartitions().getFirst();
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                "Virtual-completion persistence setup must allocate a worker");
+        TrinityDataCoreVirtualCpu worker = singleBusyWorker(originalHost.getCraftingRuntime());
+        installVirtualCompletionOnlyState(worker, target, 7L, helper);
+
+        CompoundTag saved = new CompoundTag();
+        originalHost.getCraftingRuntime().writeToTag(saved, helper.getLevel().registryAccess());
+        helper.assertValueEqual(
+                saved.getList("partitions", 10).size(),
+                1,
+                "A worker retaining only virtual completions must be serialized");
+
+        NetworkedTestHost restoredHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(3, 1, 1)), grid);
+        restoredHost.setLevel(helper.getLevel());
+        restoredHost.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        restoredHost.getCraftingRuntime().readFromTag(saved, helper.getLevel().registryAccess());
+
+        TrinityDataCoreVirtualCpu restoredReserveCpu = restoredHost.getCpuPartitions().getFirst();
+        helper.assertValueEqual(
+                restoredReserveCpu.getOccupiedWorkerCount(),
+                1,
+                "Reload must retain a worker that owns only virtual completions");
+        CompoundTag resaved = new CompoundTag();
+        restoredHost.getCraftingRuntime().writeToTag(resaved, helper.getLevel().registryAccess());
+        helper.assertValueEqual(
+                resaved.getList("partitions", 10).size(),
+                1,
+                "A restored virtual-completion worker must survive the next save");
+        restoredHost.getCraftingRuntime().tick(
+                grid.energyService(),
+                grid.craftingService(),
+                CraftingDispatchWindow.create());
+        helper.assertValueEqual(
+                grid.storage().getStored(target),
+                7L,
+                "A restored virtual-completion worker must be scheduled to recover its material");
+        helper.assertValueEqual(
+                restoredReserveCpu.getOccupiedWorkerCount(),
+                0,
+                "The worker must release only after recovering its virtual completion");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_submission_failure_after_extraction_recovers_worker_inventory")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuSubmissionFailureAfterExtractionRecoversWorkerInventory(GameTestHelper helper) {
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        seedStorage(grid.storage(), iron, 2L);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+
+        assertThrows(
+                helper,
+                IllegalStateException.class,
+                () -> reserveCpu.submitJob(
+                        grid,
+                        new ThrowingFinalOutputCraftingPlan(ingredientPlan(iron, 2L)),
+                        IActionSource.empty(),
+                        null),
+                "Submission failure after initial extraction must remain visible to the caller");
+        helper.assertValueEqual(
+                grid.storage().getStored(iron),
+                0L,
+                "The extracted ingredients must remain owned by the retained worker before rollback");
+        CompoundTag saved = new CompoundTag();
+        host.getCraftingRuntime().writeToTag(saved, helper.getLevel().registryAccess());
+        helper.assertValueEqual(
+                saved.getList("partitions", 10).size(),
+                1,
+                "A failed submission with extracted ingredients must remain persistable");
+        helper.assertValueEqual(
+                saved.getList("partitions", 10).getCompound(0).getCompound("logic")
+                        .getList("inventory", 10).getCompound(0).getLong("#"),
+                2L,
+                "The persistable failed-submission worker must retain every extracted ingredient");
+
+        host.getCraftingRuntime().tick(
+                grid.energyService(),
+                grid.craftingService(),
+                CraftingDispatchWindow.create());
+        helper.assertValueEqual(
+                grid.storage().getStored(iron),
+                2L,
+                "The failed-submission worker must be scheduled to return its extracted ingredients");
+        helper.assertValueEqual(
+                reserveCpu.getOccupiedWorkerCount(),
+                0,
+                "The recovered failed-submission worker must be released after its inventory returns");
         helper.succeed();
     }
 
@@ -2553,6 +2725,23 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 Map.of());
     }
 
+    private static void installVirtualCompletionOnlyState(TrinityDataCoreVirtualCpu worker,
+                                                          AEItemKey target,
+                                                          long amount,
+                                                          GameTestHelper helper) {
+        CompoundTag state = worker.logic().writeToTag(helper.getLevel().registryAccess());
+        state.remove("job");
+        state.put("inventory", new ListTag());
+        ListTag ledger = new ListTag();
+        CompoundTag completion = target.toTagGeneric(helper.getLevel().registryAccess());
+        completion.putLong("#", amount);
+        ledger.add(completion);
+        state.put("virtual_completions", ledger);
+        worker.logic().readFromTag(state, helper.getLevel().registryAccess());
+        helper.assertFalse(worker.logic().hasJob(), "Virtual-completion test worker must not retain a job");
+        helper.assertTrue(worker.hasRetainedState(), "Virtual completions must retain their owning worker");
+    }
+
     private static CountedBatchFixture countedBatchFixture(GameTestHelper helper,
                                                            BlockPos hostPos,
                                                            double availableEnergy,
@@ -2721,6 +2910,63 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 .cycleRepeatBlocks(List.of(repeatBlock))
                 .minimumSeed(seed)
                 .targetNetChange(Map.of(pattern.key(), repeated))
+                .build();
+    }
+
+    private static TrinityCraftingPlan sharedSeedCyclePlan(GameTestHelper helper,
+                                                           CountedPatternDetails firstPattern,
+                                                           SharedSeedCycleSecondPatternDetails secondPattern,
+                                                           AEItemKey seed,
+                                                           AEItemKey intermediate,
+                                                           AEItemKey target) {
+        BigInteger repetitions = BigInteger.TWO;
+        TrinityPatternIdentity firstIdentity = TrinityPatternIdentity.capture(
+                TrinityPatternPublicationSignature.capture(firstPattern),
+                helper.getLevel().registryAccess());
+        TrinityPatternIdentity secondIdentity = TrinityPatternIdentity.capture(
+                TrinityPatternPublicationSignature.capture(secondPattern),
+                helper.getLevel().registryAccess());
+        TrinityPlanStage firstStage = new TrinityPlanStage(
+                0,
+                true,
+                Set.of(),
+                List.of(new TrinityPlanPatternFiring(
+                        firstIdentity,
+                        intermediate,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(intermediate, BigInteger.ONE))),
+                Map.of(seed, BigInteger.ONE),
+                Map.of(seed, BigInteger.ONE.negate(), intermediate, BigInteger.ONE));
+        TrinityPlanStage secondStage = new TrinityPlanStage(
+                1,
+                true,
+                Set.of(0),
+                List.of(new TrinityPlanPatternFiring(
+                        secondIdentity,
+                        target,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(seed, BigInteger.ONE, target, BigInteger.ONE))),
+                Map.of(seed, BigInteger.ONE, intermediate, BigInteger.ONE),
+                Map.of(seed, BigInteger.ONE, intermediate, BigInteger.ONE.negate(), target, BigInteger.ONE));
+        return TrinityCraftingPlanImpl.builder()
+                .finalOutput(new GenericStack(target, repetitions.longValueExact()))
+                .bytes(1L)
+                .catalogRevision(1L)
+                .quantityMode(CraftingQuantityMode.NET_NEW)
+                .initialExpectedInputs(Map.of(seed, BigInteger.TWO))
+                .patternFirings(Map.of(firstIdentity, repetitions, secondIdentity, repetitions))
+                .stages(List.of(firstStage, secondStage))
+                .stageOrder(List.of(0, 1))
+                .cycleRepeatBlocks(List.of(new TrinityCycleRepeatBlock(
+                        0,
+                        List.of(0, 1),
+                        repetitions,
+                        Map.of(seed, BigInteger.TWO),
+                        Map.of(target, repetitions))))
+                .minimumSeed(Map.of(seed, BigInteger.TWO))
+                .targetNetChange(Map.of(target, repetitions))
                 .build();
     }
 
@@ -3975,6 +4221,32 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
     }
 
+    private record SharedSeedCycleSecondPatternDetails(AEItemKey seed,
+                                                       AEItemKey intermediate,
+                                                       AEItemKey target)
+            implements IPatternDetails {
+
+        @Override
+        public AEItemKey getDefinition() {
+            return AEItemKey.of(Items.CRAFTING_TABLE);
+        }
+
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[] {
+                    new ExactPatternInput(this.seed),
+                    new ExactPatternInput(this.intermediate)
+            };
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return List.of(
+                    new GenericStack(this.seed, 1L),
+                    new GenericStack(this.target, 1L));
+        }
+    }
+
     private record CountedSelfCyclePatternDetails(AEItemKey key) implements IPatternDetails {
 
         @Override
@@ -3998,6 +4270,49 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public GenericStack finalOutput() {
             return this.delegate.finalOutput();
+        }
+
+        @Override
+        public long bytes() {
+            return this.delegate.bytes();
+        }
+
+        @Override
+        public boolean simulation() {
+            return this.delegate.simulation();
+        }
+
+        @Override
+        public boolean multiplePaths() {
+            return this.delegate.multiplePaths();
+        }
+
+        @Override
+        public KeyCounter usedItems() {
+            return this.delegate.usedItems();
+        }
+
+        @Override
+        public KeyCounter emittedItems() {
+            return this.delegate.emittedItems();
+        }
+
+        @Override
+        public KeyCounter missingItems() {
+            return this.delegate.missingItems();
+        }
+
+        @Override
+        public Map<IPatternDetails, Long> patternTimes() {
+            return this.delegate.patternTimes();
+        }
+    }
+
+    private record ThrowingFinalOutputCraftingPlan(ICraftingPlan delegate) implements TrinityCpuExecutablePlan {
+
+        @Override
+        public GenericStack finalOutput() {
+            throw new IllegalStateException("Test failure after CPU initial-item extraction");
         }
 
         @Override

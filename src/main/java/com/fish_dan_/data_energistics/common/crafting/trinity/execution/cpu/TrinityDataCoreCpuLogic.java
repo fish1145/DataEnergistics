@@ -175,6 +175,9 @@ final class TrinityDataCoreCpuLogic {
             return CraftingSubmitResult.missingIngredient(missingIngredient);
         }
 
+        // Initial ingredient extraction transfers ownership before the executable job can be constructed.
+        this.cpu.markDirty();
+
         Integer playerId = source.player()
                 .map(player -> player instanceof ServerPlayer serverPlayer ? IPlayerRegistry.getPlayerId(serverPlayer) : null)
                 .orElse(null);
@@ -455,11 +458,37 @@ final class TrinityDataCoreCpuLogic {
             return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
+        long maximumLogicalFirings = work.maximumLogicalFirings();
+        if (work.cycle()) {
+            TrinityPlanExecution.CycleWaveLimit cycleWaveLimit;
+            try {
+                cycleWaveLimit = execution.maximumCycleLogicalFirings(
+                        work,
+                        key -> combinedCycleSeedAvailability(network, key));
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Trinity CPU {} failed to calculate the seed-safe cycle wave for compact job {}",
+                        this.cpu.number(),
+                        currentJob.link.getCraftingID(),
+                        exception);
+                execution.fail("CYCLE_SEED_LIMIT: " + exception.getClass().getSimpleName());
+                return CraftingExecutionOutcome.NONE;
+            }
+            maximumLogicalFirings = cycleWaveLimit.maximumLogicalFirings();
+            if (maximumLogicalFirings == 0L) {
+                execution.deferDynamicInput(
+                        work,
+                        cycleWaveLimit.observedKeys(),
+                        currentTick,
+                        settings.dynamicRetryMaxTicks());
+                return CraftingExecutionOutcome.NONE;
+            }
+        }
         TrinityPatternSelector.Result selection = this.patternSelector.select(
                 pattern,
                 work.plannedVariantOrdinal(),
                 work.cycle(),
-                work.maximumLogicalFirings(),
+                maximumLogicalFirings,
                 this.inventory.list::get,
                 key -> work.cycle() ? simulateNetworkExtraction(network, key) : 0L,
                 settings.maxBindingVariants());
@@ -512,7 +541,7 @@ final class TrinityDataCoreCpuLogic {
                     currentJob,
                     pattern,
                     selected.extractionPattern(),
-                    Math.min(work.maximumLogicalFirings(), selected.maximumCrafts()),
+                    Math.min(maximumLogicalFirings, selected.maximumCrafts()),
                     work,
                     work.generation(),
                     false,
@@ -676,6 +705,18 @@ final class TrinityDataCoreCpuLogic {
                     exception);
             return 0L;
         }
+    }
+
+    /**
+     * Returns the saturated combined CPU and network amount used to decide whether a whole cycle wave can start.
+     */
+    private long combinedCycleSeedAvailability(MEStorage network, AEKey key) {
+        long cpuAmount = this.inventory.list.get(key);
+        long networkAmount = simulateNetworkExtraction(network, key);
+        if (cpuAmount < 0L || networkAmount < 0L) {
+            throw new IllegalStateException("Trinity cycle seed availability cannot be negative");
+        }
+        return Long.MAX_VALUE - cpuAmount < networkAmount ? Long.MAX_VALUE : cpuAmount + networkAmount;
     }
 
     /**
@@ -2150,6 +2191,45 @@ final class TrinityDataCoreCpuLogic {
     }
 
     /**
+     * Aborts a job submission that threw after initial materials became CPU-owned.
+     *
+     * <p>
+     * The caller did not receive a successful submission result, so no provider work can have been dispatched. Keep
+     * the extracted inventory durable and schedulable for normal idle recovery rather than retaining a partially bound
+     * job.
+     * </p>
+     */
+    void abortFailedSubmission() {
+        TrinityDataCoreExecutingCraftingJob failedJob = this.job;
+        this.proposalCoordinator.cancel();
+        cancelPendingReplan();
+        this.job = null;
+        this.jobRevision = Math.incrementExact(this.jobRevision);
+        this.capacitySliceCursor = 0;
+        this.proposalRetryAt = -1L;
+        this.cpu.markDirty();
+        if (failedJob == null) {
+            return;
+        }
+        try {
+            failedJob.link.cancel();
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity CPU {} could not cancel a partially submitted crafting link",
+                    this.cpu.number(),
+                    exception);
+        }
+        try {
+            notifyJobOwner(failedJob, CraftingJobStatusPacket.Status.CANCELLED);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity CPU {} could not notify the owner of a failed crafting submission",
+                    this.cpu.number(),
+                    exception);
+        }
+    }
+
+    /**
      * @return whether the active job is suspended through the AE2 CPU scheduling control
      */
     boolean isJobSuspended() {
@@ -2186,7 +2266,7 @@ final class TrinityDataCoreCpuLogic {
      * Returns whether this worker owns state that must survive hiding, saving, and pool reuse.
      */
     boolean hasRetainedState() {
-        return this.job != null || !this.inventory.list.isEmpty();
+        return this.job != null || !this.inventory.list.isEmpty() || !this.pendingVirtualCompletions.list.isEmpty();
     }
 
     /**
@@ -2211,7 +2291,7 @@ final class TrinityDataCoreCpuLogic {
         }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
-            return this.inventory.list.isEmpty() ?
+            return this.inventory.list.isEmpty() && this.pendingVirtualCompletions.list.isEmpty() ?
                     TrinityWorkerSchedulingHint.idle() :
                     TrinityWorkerSchedulingHint.ready();
         }

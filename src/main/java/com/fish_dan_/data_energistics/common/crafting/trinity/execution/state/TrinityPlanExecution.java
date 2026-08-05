@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.function.ToLongFunction;
 
 /**
  * Event-driven, persistence-safe execution cursor for a compact Trinity crafting plan.
@@ -88,6 +89,23 @@ public interface TrinityPlanExecution {
                     maximumLogicalFirings <= 0L) {
                 throw new IllegalArgumentException("A Trinity execution work offer must be complete and positive");
             }
+        }
+    }
+
+    /**
+     * Immutable seed-aware limit for the current cycle work offer.
+     *
+     * @param maximumLogicalFirings safe provider offer count; zero means the wave cannot start yet
+     * @param observedKeys          repeat minimum-seed keys whose changes may make the wave startable
+     */
+    record CycleWaveLimit(long maximumLogicalFirings, Set<AEKey> observedKeys) {
+
+        /** Validates the non-negative limit and isolates the wake-key set from callers. */
+        public CycleWaveLimit {
+            if (maximumLogicalFirings < 0L || observedKeys == null) {
+                throw new IllegalArgumentException("A Trinity cycle wave limit requires a non-negative count and key set");
+            }
+            observedKeys = Set.copyOf(observedKeys);
         }
     }
 
@@ -255,6 +273,22 @@ public interface TrinityPlanExecution {
      * @return immutable exact seed reserve captured from the current plan
      */
     Map<AEKey, Long> seedReserve();
+
+    /**
+     * Calculates the largest logical firing count that may start the current cycle wave without consuming the
+     * repeat block's required seed before the rest of that wave has been accounted for.
+     *
+     * <p>
+     * This is a pure query over the caller's combined CPU/network availability. It returns zero when the first stage
+     * of an unstarted wave lacks its minimum seed. Once a provider has accepted part of a wave, the established wave
+     * is returned unchanged so later stages and partial dispatches cannot be re-truncated by changing availability.
+     * </p>
+     *
+     * @param work            current leased cycle work
+     * @param availableAmount non-negative currently available amount for one key
+     * @return safe maximum and the seed keys that can wake an unstartable wave
+     */
+    CycleWaveLimit maximumCycleLogicalFirings(Work work, ToLongFunction<AEKey> availableAmount);
 
     /**
      * Reconstructs the exact pattern-declared outputs of every undispatched firing without expanding cycle repeats.

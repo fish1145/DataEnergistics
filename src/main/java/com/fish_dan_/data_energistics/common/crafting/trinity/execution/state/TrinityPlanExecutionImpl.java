@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.function.ToLongFunction;
 
 /**
  * Deterministic execution implementation with transient event indexes and versioned persistence.
@@ -129,7 +130,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             }
         }
         for (RepeatBlock repeatSnapshot : snapshot.repeatBlocks()) {
-            RepeatState repeat = RepeatState.fromSnapshot(repeatSnapshot);
+            RepeatState repeat = RepeatState.fromSnapshot(repeatSnapshot, restored.stages);
             if (restored.repeatBlocks.putIfAbsent(repeat.index, repeat) != null) {
                 throw new IllegalArgumentException("A Trinity execution contains duplicate repeat indexes");
             }
@@ -481,6 +482,37 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     @Override
     public Map<AEKey, Long> seedReserve() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(this.seedReserve));
+    }
+
+    @Override
+    public CycleWaveLimit maximumCycleLogicalFirings(Work work, ToLongFunction<AEKey> availableAmount) {
+        if (availableAmount == null) {
+            throw new IllegalArgumentException("A Trinity cycle seed query requires material availability");
+        }
+        StageState stage = requireCurrentWork(work);
+        if (!stage.cycle) {
+            throw new IllegalArgumentException("Only Trinity cycle work has a seed-limited wave");
+        }
+        RepeatState repeat = requireRepeat(stage.index);
+        if (repeat.waveCount > 0L) {
+            return new CycleWaveLimit(work.maximumLogicalFirings(), repeat.minimumSeed.keySet());
+        }
+        if (repeat.cursor != 0 || repeat.stageOrder.getFirst() != stage.index || stage.currentFiring != 0) {
+            throw new IllegalStateException("An unstarted Trinity cycle wave must begin at its first stage and firing");
+        }
+
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        long repetitions = repeat.remainingRepetitions;
+        for (Map.Entry<AEKey, Long> seed : repeat.minimumSeed.entrySet()) {
+            long available = availableAmount.applyAsLong(seed.getKey());
+            if (available < 0L) {
+                throw new IllegalArgumentException("A Trinity cycle seed availability cannot be negative");
+            }
+            repetitions = Math.min(repetitions, available / seed.getValue());
+        }
+        return new CycleWaveLimit(
+                Math.multiplyExact(firing.plannedCount, repetitions),
+                repeat.minimumSeed.keySet());
     }
 
     @Override
@@ -1198,6 +1230,47 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         return 1L + (amount - 1L) / divisor;
     }
 
+    /**
+     * Rebuilds the exact one-wave seed lower bound from durable stage balances.
+     *
+     * <p>
+     * Repeat-block NBT predates a dedicated seed field. Keeping this reconstruction here preserves every existing
+     * schema while retaining the resource contract required to start a newly restored cycle wave.
+     * </p>
+     */
+    private static Map<AEKey, Long> reconstructMinimumSeed(List<Integer> stageOrder,
+                                                           Map<Integer, StageState> stages) {
+        LinkedHashMap<AEKey, Long> seed = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, Long> balances = new LinkedHashMap<>();
+        for (Integer stageIndex : stageOrder) {
+            StageState stage = stages.get(stageIndex);
+            if (stage == null || !stage.cycle) {
+                throw new IllegalArgumentException("A Trinity repeat block references an invalid cycle stage");
+            }
+            for (Map.Entry<AEKey, Long> required : stage.requiredAtStart.entrySet()) {
+                long balance = balances.getOrDefault(required.getKey(), 0L);
+                if (balance >= required.getValue()) {
+                    continue;
+                }
+                long deficit = Math.subtractExact(required.getValue(), balance);
+                seed.merge(required.getKey(), deficit, Math::addExact);
+                balances.put(required.getKey(), Math.addExact(balance, deficit));
+            }
+            for (Map.Entry<AEKey, Long> change : stage.netChange.entrySet()) {
+                long updated = Math.addExact(balances.getOrDefault(change.getKey(), 0L), change.getValue());
+                if (updated < 0L) {
+                    throw new IllegalArgumentException("A Trinity repeat block has an impossible negative stage balance");
+                }
+                if (updated == 0L) {
+                    balances.remove(change.getKey());
+                } else {
+                    balances.put(change.getKey(), updated);
+                }
+            }
+        }
+        return Collections.unmodifiableMap(seed);
+    }
+
     private record RetryEntry(long retryAt, int stageIndex, long version, WaitKind waitKind) {}
 
     private static final class FiringState {
@@ -1411,17 +1484,20 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
 
         private final int index;
         private final ArrayList<Integer> stageOrder;
+        private final Map<AEKey, Long> minimumSeed;
         private long remainingRepetitions;
         private int cursor;
         private long waveCount;
 
         private RepeatState(int index,
                             List<Integer> stageOrder,
+                            Map<AEKey, Long> minimumSeed,
                             long remainingRepetitions,
                             int cursor,
                             long waveCount) {
             if (index < 0 || stageOrder.isEmpty() || remainingRepetitions < 0L ||
-                    cursor < 0 || cursor >= stageOrder.size() || waveCount < 0L || waveCount > remainingRepetitions) {
+                    minimumSeed == null || cursor < 0 || cursor >= stageOrder.size() || waveCount < 0L ||
+                    waveCount > remainingRepetitions) {
                 throw new IllegalArgumentException("A Trinity repeat state contains an invalid cursor or count");
             }
             HashSet<Integer> uniqueStages = new HashSet<>();
@@ -1432,19 +1508,29 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             }
             this.index = index;
             this.stageOrder = new ArrayList<>(stageOrder);
+            this.minimumSeed = copyMinimumSeed(minimumSeed);
             this.remainingRepetitions = remainingRepetitions;
             this.cursor = cursor;
             this.waveCount = waveCount;
         }
 
         private static RepeatState fromPlan(TrinityCycleRepeatBlock block) {
-            return new RepeatState(block.index(), block.stageOrder(), block.repetitions().longValueExact(), 0, 0L);
+            LinkedHashMap<AEKey, Long> minimumSeed = new LinkedHashMap<>();
+            block.minimumSeed().forEach((key, amount) -> minimumSeed.put(key, amount.longValueExact()));
+            return new RepeatState(
+                    block.index(),
+                    block.stageOrder(),
+                    minimumSeed,
+                    block.repetitions().longValueExact(),
+                    0,
+                    0L);
         }
 
-        private static RepeatState fromSnapshot(RepeatBlock snapshot) {
+        private static RepeatState fromSnapshot(RepeatBlock snapshot, Map<Integer, StageState> stages) {
             return new RepeatState(
                     snapshot.index(),
                     snapshot.stageOrder(),
+                    reconstructMinimumSeed(snapshot.stageOrder(), stages),
                     snapshot.remainingRepetitions(),
                     snapshot.cursor(),
                     snapshot.waveCount());
@@ -1457,6 +1543,17 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                     this.remainingRepetitions,
                     this.cursor,
                     this.waveCount);
+        }
+
+        private static Map<AEKey, Long> copyMinimumSeed(Map<AEKey, Long> source) {
+            LinkedHashMap<AEKey, Long> copied = new LinkedHashMap<>();
+            source.forEach((key, amount) -> {
+                if (key == null || amount == null || amount <= 0L) {
+                    throw new IllegalArgumentException("A Trinity repeat minimum seed must be positive");
+                }
+                copied.put(key, amount);
+            });
+            return Collections.unmodifiableMap(copied);
         }
     }
 }

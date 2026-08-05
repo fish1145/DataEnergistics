@@ -339,10 +339,12 @@ public final class TrinityDataCoreCraftingRuntime {
             }
             return result;
         } catch (RuntimeException exception) {
+            worker.logic().abortFailedSubmission();
             removeWorkerIfReleasable(workerNumber, worker);
             if (this.retainedWorkers.get(workerNumber) == worker) {
                 refreshWorkerWaiting(worker);
                 cacheLastModified(worker);
+                scheduleFromEvent(worker);
                 rebuildPublishedCpus();
             }
             Data_Energistics.LOGGER.error(
