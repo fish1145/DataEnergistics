@@ -614,6 +614,18 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     }
 
     @Override
+    public void completeVirtually(long amount) {
+        if (!productionComplete() || this.failed || this.completionSealed || amount != this.deliveryRemaining) {
+            throw new IllegalStateException(
+                    "A Trinity virtual completion requires the exact remaining target after production completes");
+        }
+        this.completionSealed = true;
+        this.completionBuffer = 0L;
+        this.deliveryRemaining = 0L;
+        markDurableMutation();
+    }
+
+    @Override
     public Optional<GenericStack> completionOffer() {
         return this.completionBuffer == 0L ? Optional.empty() :
                 Optional.of(new GenericStack(this.targetKey, this.completionBuffer));

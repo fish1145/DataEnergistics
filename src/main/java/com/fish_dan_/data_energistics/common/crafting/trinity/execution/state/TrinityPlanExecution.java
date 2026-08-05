@@ -316,6 +316,18 @@ public interface TrinityPlanExecution {
     void sealCompletion(long amount);
 
     /**
+     * Marks the exact final target as completed without creating a completion buffer or delivering an item.
+     *
+     * <p>
+     * This is reserved for declared control-token outputs such as marked order packages. Production must already be
+     * complete so the operation remains persistence-compatible with the ordinary sealed-completion state.
+     * </p>
+     *
+     * @param amount exact remaining target amount completed virtually
+     */
+    void completeVirtually(long amount);
+
+    /**
      * @return immutable offer from the isolated completion buffer
      */
     Optional<GenericStack> completionOffer();
