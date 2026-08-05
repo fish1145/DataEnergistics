@@ -205,4 +205,54 @@ final class TrinityExecutionStateTestSupport {
                 .targetNetChange(Map.of(seed, repeated))
                 .build();
     }
+
+    static TrinityCraftingPlan sharedSeedCyclePlan() {
+        AEKey seed = data();
+        AEKey intermediate = flow();
+        AEKey target = echo();
+        BigInteger repetitions = BigInteger.TWO;
+        TrinityPlanStage first = new TrinityPlanStage(
+                0,
+                true,
+                Set.of(),
+                List.of(new TrinityPlanPatternFiring(
+                        FIRST,
+                        intermediate,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(intermediate, BigInteger.ONE))),
+                Map.of(seed, BigInteger.ONE),
+                Map.of(seed, BigInteger.ONE.negate(), intermediate, BigInteger.ONE));
+        TrinityPlanStage second = new TrinityPlanStage(
+                1,
+                true,
+                Set.of(0),
+                List.of(new TrinityPlanPatternFiring(
+                        SECOND,
+                        target,
+                        0,
+                        BigInteger.ONE,
+                        Map.of(seed, BigInteger.TWO, target, BigInteger.ONE))),
+                Map.of(seed, BigInteger.ONE, intermediate, BigInteger.ONE),
+                Map.of(seed, BigInteger.ONE, intermediate, BigInteger.ONE.negate(), target, BigInteger.ONE));
+        TrinityCycleRepeatBlock block = new TrinityCycleRepeatBlock(
+                0,
+                List.of(0, 1),
+                repetitions,
+                Map.of(seed, BigInteger.TWO),
+                Map.of(target, repetitions));
+        return TrinityCraftingPlanImpl.builder()
+                .finalOutput(new GenericStack(target, repetitions.longValueExact()))
+                .bytes(32L)
+                .catalogRevision(11L)
+                .quantityMode(CraftingQuantityMode.NET_NEW)
+                .initialExpectedInputs(Map.of(seed, BigInteger.TWO))
+                .patternFirings(Map.of(FIRST, repetitions, SECOND, repetitions))
+                .stages(List.of(first, second))
+                .stageOrder(List.of(0, 1))
+                .cycleRepeatBlocks(List.of(block))
+                .minimumSeed(Map.of(seed, BigInteger.TWO))
+                .targetNetChange(Map.of(target, repetitions))
+                .build();
+    }
 }

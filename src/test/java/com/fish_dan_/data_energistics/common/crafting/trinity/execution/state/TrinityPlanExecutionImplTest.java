@@ -225,6 +225,62 @@ public final class TrinityPlanExecutionImplTest {
     }
 
     @Test
+    void cycleSeedLimitPreventsTheFirstPathFromConsumingSharedSeedAndSurvivesRoundTrip() {
+        AEKey seed = TrinityExecutionStateTestSupport.data();
+        TrinityPlanExecution execution = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.sharedSeedCyclePlan(),
+                0L);
+        TrinityPlanExecution.Work first = execution.poll(0L).orElseThrow();
+        long durableRevision = execution.durableRevision();
+
+        assertEquals(2L, first.maximumLogicalFirings());
+        TrinityPlanExecution.CycleWaveLimit initialLimit = execution.maximumCycleLogicalFirings(
+                first,
+                key -> key.equals(seed) ? 2L : 0L);
+        assertEquals(1L, initialLimit.maximumLogicalFirings());
+        assertEquals(Set.of(seed), initialLimit.observedKeys());
+        assertEquals(0L, execution.maximumCycleLogicalFirings(first, ignored -> 0L).maximumLogicalFirings());
+        assertEquals(durableRevision, execution.durableRevision());
+
+        TrinityPlanExecution restored = roundTrip(execution, 0L);
+        TrinityPlanExecution.Work restoredFirst = restored.poll(0L).orElseThrow();
+        assertEquals(1L, restored.maximumCycleLogicalFirings(
+                restoredFirst,
+                key -> key.equals(seed) ? 2L : 0L).maximumLogicalFirings());
+
+        CompoundTag clockSchemaTag = execution.save(RegistryAccess.EMPTY, 0L);
+        clockSchemaTag.putInt("schema_version", 3);
+        removeFiringOutputs(clockSchemaTag);
+        TrinityPlanExecution clockSchemaRestored = TrinityPlanExecution.restore(
+                clockSchemaTag,
+                RegistryAccess.EMPTY,
+                0L);
+        assertEquals(1L, clockSchemaRestored.maximumCycleLogicalFirings(
+                clockSchemaRestored.poll(0L).orElseThrow(),
+                key -> key.equals(seed) ? 2L : 0L).maximumLogicalFirings());
+
+        CompoundTag legacySchemaTag = clockSchemaTag.copy();
+        legacySchemaTag.putInt("schema_version", 2);
+        legacySchemaTag.remove("saved_at_tick");
+        TrinityPlanExecution legacySchemaRestored = TrinityPlanExecution.restore(
+                legacySchemaTag,
+                RegistryAccess.EMPTY,
+                0L);
+        assertEquals(1L, legacySchemaRestored.maximumCycleLogicalFirings(
+                legacySchemaRestored.poll(0L).orElseThrow(),
+                key -> key.equals(seed) ? 2L : 0L).maximumLogicalFirings());
+
+        restored.recordAccepted(restoredFirst, 1L);
+        TrinityPlanExecution.Work establishedWave = restored.poll(0L).orElseThrow();
+        assertEquals(1, establishedWave.stageIndex());
+        TrinityPlanExecution.CycleWaveLimit establishedLimit = restored.maximumCycleLogicalFirings(
+                establishedWave,
+                ignored -> 0L);
+        assertEquals(1L, establishedLimit.maximumLogicalFirings());
+        assertEquals(Set.of(seed), establishedLimit.observedKeys());
+    }
+
+    @Test
     void multiStepCycleCarriesEstablishedWaveAcrossStages() {
         TrinityPlanExecution execution = TrinityPlanExecution.create(
                 TrinityExecutionStateTestSupport.multiStepCyclePlan(),
