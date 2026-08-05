@@ -28,6 +28,13 @@ public interface TrinityGraphPlanner {
      * @return stateless planner composed from the exact bounded algorithm implementations
      */
     static TrinityGraphPlanner create() {
+        return pipeline();
+    }
+
+    /**
+     * @return stateless planner exposing cacheable structural and dynamic stages
+     */
+    static TrinityGraphPlanningPipeline pipeline() {
         return new TrinityGraphPlannerImpl(
                 TrinityPatternVariantExpander.create(),
                 TrinityGraphTopologyAnalyzer.create(),
