@@ -13,6 +13,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -75,6 +77,78 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             throw exception;
         }
         return lookup(entry, false, registered);
+    }
+
+    @Override
+    public <K, V> TrinityComputationValue<V> computeInline(
+                                                              long gridScope,
+                                                              TrinityComputationNamespace namespace,
+                                                              long revision,
+                                                              K key,
+                                                              Callable<TrinityCachedComputation<V>> calculation)
+            throws InterruptedException, ExecutionException {
+        validateRequest(gridScope, namespace, revision, key, calculation);
+
+        CacheEntry<V> entry;
+        boolean cacheHit;
+        boolean registered;
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
+            ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
+            CacheEntry<?> existing = partition.entries.get(scopedKey);
+            if (existing != null) {
+                entry = castEntry(existing);
+                cacheHit = true;
+                registered = true;
+            } else {
+                cacheHit = false;
+                registered = reserveRegisteredSlot(partition);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered);
+                if (registered) {
+                    partition.entries.put(scopedKey, entry);
+                } else {
+                    partition.bypassEntries.add(entry);
+                }
+            }
+        }
+
+        if (!cacheHit) {
+            entry.execution.run();
+        }
+        try {
+            return new TrinityComputationValue<>(entry.result.get(), cacheHit, registered);
+        } catch (ExecutionException exception) {
+            if (exception.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw exception;
+        }
+    }
+
+    @Override
+    public <V> Future<V> submit(long gridScope, long revision, Callable<V> calculation) {
+        if (gridScope < 0L || revision < 0L || calculation == null) {
+            throw new IllegalArgumentException("A detached Trinity computation requires scope, revision, and calculation");
+        }
+        CacheEntry<V> entry;
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
+            entry = new CacheEntry<>(
+                    partition,
+                    new ScopedKey(TrinityComputationNamespace.SOLVED_PLAN, revision, new Object()),
+                    () -> TrinityCachedComputation.transientValue(calculation.call()),
+                    false);
+            partition.bypassEntries.add(entry);
+        }
+        try {
+            this.executor.execute(entry.execution);
+        } catch (RejectedExecutionException exception) {
+            entry.reject(exception);
+            throw exception;
+        }
+        return lookup(entry, false, false).future();
     }
 
     @Override
