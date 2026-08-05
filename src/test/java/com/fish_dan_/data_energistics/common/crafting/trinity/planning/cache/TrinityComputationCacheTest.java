@@ -183,6 +183,7 @@ final class TrinityComputationCacheTest {
         TrinityComputationCache cache = cache(executor, 8);
         AtomicInteger solvedCalculations = new AtomicInteger();
         AtomicInteger compiledCalculations = new AtomicInteger();
+        AtomicInteger dispatchCalculations = new AtomicInteger();
 
         assertEquals("solved-1", get(cache.compute(
                 10L,
@@ -196,6 +197,12 @@ final class TrinityComputationCacheTest {
                 TrinityComputationCache.SEMANTIC_REVISION,
                 "graph",
                 () -> TrinityCachedComputation.cacheable("compiled-" + compiledCalculations.incrementAndGet())).future()));
+        assertEquals("dispatch-1", get(cache.compute(
+                10L,
+                TrinityComputationNamespace.CAPACITY_CAPTURE,
+                9L,
+                "capacity",
+                () -> TrinityCachedComputation.cacheable("dispatch-" + dispatchCalculations.incrementAndGet())).future()));
 
         cache.invalidateRevision(10L, 2L);
 
@@ -233,6 +240,29 @@ final class TrinityComputationCacheTest {
                 () -> TrinityCachedComputation.cacheable("compiled-" + compiledCalculations.incrementAndGet()));
         assertTrue(compiled.cacheHit());
         assertEquals("compiled-1", get(compiled.future()));
+        TrinityComputationLookup<String> dispatch = cache.compute(
+                10L,
+                TrinityComputationNamespace.CAPACITY_CAPTURE,
+                9L,
+                "capacity",
+                () -> TrinityCachedComputation.cacheable("unexpected"));
+        assertTrue(dispatch.cacheHit());
+        assertEquals("dispatch-1", get(dispatch.future()));
+
+        assertEquals("dispatch-2", get(cache.compute(
+                10L,
+                TrinityComputationNamespace.CAPACITY_CAPTURE,
+                10L,
+                "capacity",
+                () -> TrinityCachedComputation.cacheable("dispatch-" + dispatchCalculations.incrementAndGet())).future()));
+        TrinityComputationLookup<String> planningAfterDispatchRevision = cache.compute(
+                10L,
+                TrinityComputationNamespace.SOLVED_PLAN,
+                2L,
+                "plan",
+                () -> TrinityCachedComputation.cacheable("unexpected"));
+        assertTrue(planningAfterDispatchRevision.cacheHit());
+        assertEquals("solved-2", get(planningAfterDispatchRevision.future()));
 
         TrinityComputationLookup<String> otherGrid = cache.compute(
                 11L,

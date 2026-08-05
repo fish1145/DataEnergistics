@@ -6,33 +6,49 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 public enum TrinityComputationNamespace {
 
     /** Target-reachable graph derived from one publication revision. */
-    REACHABLE_GRAPH(true),
+    REACHABLE_GRAPH(RevisionDomain.PLANNING),
 
     /** Binding and topology structure keyed entirely by pattern semantics. */
-    COMPILED_GRAPH(false),
+    COMPILED_GRAPH(null),
 
     /** Quantity and inventory-sensitive solved planning result. */
-    SOLVED_PLAN(true),
+    SOLVED_PLAN(RevisionDomain.PLANNING),
 
     /** Provider capacity snapshot captured for one publication and capacity epoch. */
-    CAPACITY_CAPTURE(true),
+    CAPACITY_CAPTURE(RevisionDomain.DISPATCH),
 
     /** Pure capacity allocation derived from a captured snapshot. */
-    CAPACITY_SLICE(true),
+    CAPACITY_SLICE(RevisionDomain.DISPATCH),
 
     /** Immutable proposal candidate ordering derived from a capacity slice. */
-    PROPOSAL_CANDIDATE(true);
+    PROPOSAL_CANDIDATE(RevisionDomain.DISPATCH);
 
-    private final boolean revisionBound;
+    private final RevisionDomain revisionDomain;
 
-    TrinityComputationNamespace(boolean revisionBound) {
-        this.revisionBound = revisionBound;
+    TrinityComputationNamespace(RevisionDomain revisionDomain) {
+        this.revisionDomain = revisionDomain;
     }
 
     /**
      * @return whether publication revision changes invalidate entries in this namespace
      */
     public boolean revisionBound() {
-        return this.revisionBound;
+        return this.revisionDomain != null;
+    }
+
+    /**
+     * Keeps graph publication revisions independent from provider-capacity publication revisions while both families
+     * still share the same per-Grid LRU.
+     *
+     * @return revision family, or {@code null} for a fully semantic namespace
+     */
+    RevisionDomain revisionDomain() {
+        return this.revisionDomain;
+    }
+
+    /** Independent monotonic revision sources represented inside one Grid partition. */
+    enum RevisionDomain {
+        PLANNING,
+        DISPATCH
     }
 }

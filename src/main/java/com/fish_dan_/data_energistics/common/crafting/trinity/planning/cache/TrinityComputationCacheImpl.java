@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -288,20 +289,23 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private static void removeObsoleteEntries(
-                                                 Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> entries,
-                                                 long currentRevision,
-                                                 List<CacheEntry<?>> cancelled) {
+                                                  Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> entries,
+                                                  TrinityComputationNamespace.RevisionDomain revisionDomain,
+                                                  long currentRevision,
+                                                  List<CacheEntry<?>> cancelled) {
         while (entries.hasNext()) {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = entries.next();
-            if (isObsolete(mapped.getKey(), currentRevision)) {
+            if (isObsolete(mapped.getKey(), revisionDomain, currentRevision)) {
                 entries.remove();
                 cancelled.add(mapped.getValue());
             }
         }
     }
 
-    private static boolean isObsolete(ScopedKey key, long currentRevision) {
-        return key.namespace().revisionBound() && key.revision() < currentRevision;
+    private static boolean isObsolete(ScopedKey key,
+                                      TrinityComputationNamespace.RevisionDomain revisionDomain,
+                                      long currentRevision) {
+        return key.namespace().revisionDomain() == revisionDomain && key.revision() < currentRevision;
     }
 
     private static boolean advanceRevision(
@@ -312,18 +316,20 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         if (!namespace.revisionBound()) {
             return false;
         }
-        if (revision < partition.currentRevision) {
+        TrinityComputationNamespace.RevisionDomain revisionDomain = namespace.revisionDomain();
+        long currentRevision = partition.currentRevisions.getOrDefault(revisionDomain, -1L);
+        if (revision < currentRevision) {
             return true;
         }
-        if (revision == partition.currentRevision) {
+        if (revision == currentRevision) {
             return false;
         }
-        partition.currentRevision = revision;
-        removeObsoleteEntries(partition.entries.entrySet().iterator(), revision, cancelled);
+        partition.currentRevisions.put(revisionDomain, revision);
+        removeObsoleteEntries(partition.entries.entrySet().iterator(), revisionDomain, revision, cancelled);
         Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> bypass = partition.bypassEntries.entrySet().iterator();
         while (bypass.hasNext()) {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = bypass.next();
-            if (isObsolete(mapped.getKey(), revision)) {
+            if (isObsolete(mapped.getKey(), revisionDomain, revision)) {
                 bypass.remove();
                 cancelled.add(mapped.getValue());
             }
@@ -332,7 +338,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private void removeEmptyPartition(long gridScope, GridPartition partition) {
-        if (partition.currentRevision < 0L && partition.entries.isEmpty() && partition.bypassEntries.isEmpty()) {
+        if (partition.currentRevisions.isEmpty() && partition.entries.isEmpty() && partition.bypassEntries.isEmpty()) {
             this.partitions.remove(gridScope, partition);
         }
     }
@@ -452,7 +458,8 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private final long gridScope;
         private final LinkedHashMap<ScopedKey, CacheEntry<?>> entries = new LinkedHashMap<>(16, 0.75F, true);
         private final Map<ScopedKey, CacheEntry<?>> bypassEntries = new HashMap<>();
-        private long currentRevision = -1L;
+        private final Map<TrinityComputationNamespace.RevisionDomain, Long> currentRevisions =
+                new EnumMap<>(TrinityComputationNamespace.RevisionDomain.class);
 
         private GridPartition(long gridScope) {
             this.gridScope = gridScope;
@@ -467,6 +474,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private void clear() {
             this.entries.clear();
             this.bypassEntries.clear();
+            this.currentRevisions.clear();
         }
     }
 
