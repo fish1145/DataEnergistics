@@ -9,13 +9,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.MachineTargetId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 
+import java.math.BigInteger;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -24,19 +27,16 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
 
-    private final ReentrantLock[] shards;
-    private final Object reservationLock = new Object();
-    private final Map<ProviderRouteKey, Long> reservedByProviderRoute = new HashMap<>();
-    private final Map<CraftingProviderId, Integer> reservedProposalsByProvider = new HashMap<>();
-    private final Map<MachineTargetId, ReservationImpl> reservedMachines = new HashMap<>();
+    private final ProviderShard[] shards;
+    private final Map<MachineTargetId, ReservationImpl> reservedMachines = new ConcurrentHashMap<>();
 
     ProviderShardDispatcherImpl(int shardCount) {
         if (shardCount <= 0) {
             throw new IllegalArgumentException("Provider shard count must be positive");
         }
-        this.shards = new ReentrantLock[shardCount];
+        this.shards = new ProviderShard[shardCount];
         for (int index = 0; index < shardCount; index++) {
-            this.shards[index] = new ReentrantLock(true);
+            this.shards[index] = new ProviderShard();
         }
     }
 
@@ -55,88 +55,90 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
             throw new IllegalArgumentException("Provider shard proposal quantum must be positive");
         }
 
-        Set<ProviderRouteKey> inspected = new HashSet<>();
-        int cursor = request.cursor();
-        while (inspected.size() < request.candidates().size()) {
-            CapacitySlicePlan plan = planner.plan(
-                    maskInspected(request, inspected),
-                    request.remainingCrafts(),
-                    1,
-                    cursor);
-            if (plan.slices().isEmpty()) {
-                return NoCapacity.INSTANCE;
-            }
-            CapacitySlice slice = plan.slices().getFirst();
-            ProviderCapacitySnapshot target = originalTarget(request, slice.target());
-            ProviderRouteKey routeKey = ProviderRouteKey.from(target);
-            inspected.add(routeKey);
-            cursor = plan.nextCursor();
-
-            ReentrantLock shard = this.shards[shardIndex(target.providerId())];
-            shard.lock();
+        List<ReservationCandidate> candidates = reservationCandidates(request, planner);
+        long maximumCount = request.remainingCrafts().longValueExact();
+        for (ReservationCandidate candidate : candidates) {
+            ProviderCapacitySnapshot target = candidate.target();
+            ProviderShard shard = this.shards[shardIndex(target.providerId())];
+            shard.lock.lock();
             try {
-                long requested = offeredCount(target, slice, request.remainingCrafts().longValueExact());
-                ReservationImpl reservation = reserve(routeKey, target, requested, providerQuantum);
+                ReservationImpl reservation = reserve(
+                        shard,
+                        ProviderRouteKey.from(target),
+                        target,
+                        offeredCount(target, maximumCount),
+                        providerQuantum);
                 if (reservation != null) {
-                    return new Reserved(target, reservation.logicalCrafts, cursor, reservation);
+                    return new Reserved(
+                            target,
+                            reservation.logicalCrafts,
+                            candidate.nextCursor(),
+                            reservation);
                 }
             } finally {
-                shard.unlock();
+                shard.lock.unlock();
             }
         }
         return NoCapacity.INSTANCE;
     }
 
-    private ReservationImpl reserve(ProviderRouteKey routeKey,
+    private ReservationImpl reserve(ProviderShard shard,
+                                    ProviderRouteKey routeKey,
                                     ProviderCapacitySnapshot target,
                                     long requested,
                                     int providerQuantum) {
-        synchronized (this.reservationLock) {
-            int reservedProposals = this.reservedProposalsByProvider.getOrDefault(target.providerId(), 0);
-            if (reservedProposals >= providerQuantum) {
-                return null;
-            }
-            long alreadyReserved = this.reservedByProviderRoute.getOrDefault(routeKey, 0L);
-            long available = availableCapacity(target.capacity(), alreadyReserved);
-            long logicalCrafts = Math.min(requested, available);
-            Optional<MachineTargetId> machineTarget = target.machineTargetId();
-            if (logicalCrafts <= 0L || machineTarget.filter(this.reservedMachines::containsKey).isPresent()) {
-                return null;
-            }
-
-            ReservationImpl reservation = new ReservationImpl(
-                    this,
-                    routeKey,
-                    target.providerId(),
-                    machineTarget,
-                    logicalCrafts);
-            this.reservedByProviderRoute.put(routeKey, Math.addExact(alreadyReserved, logicalCrafts));
-            this.reservedProposalsByProvider.put(target.providerId(), Math.incrementExact(reservedProposals));
-            machineTarget.ifPresent(machine -> this.reservedMachines.put(machine, reservation));
-            return reservation;
+        int reservedProposals = shard.reservedProposalsByProvider.getOrDefault(target.providerId(), 0);
+        if (reservedProposals >= providerQuantum) {
+            return null;
         }
+        long alreadyReserved = shard.reservedByProviderRoute.getOrDefault(routeKey, 0L);
+        long available = availableCapacity(target.capacity(), alreadyReserved);
+        long logicalCrafts = Math.min(requested, available);
+        if (logicalCrafts <= 0L) {
+            return null;
+        }
+
+        ReservationImpl reservation = new ReservationImpl(
+                this,
+                routeKey,
+                target.providerId(),
+                target.machineTargetId(),
+                logicalCrafts);
+        Optional<MachineTargetId> machineTarget = target.machineTargetId();
+        if (machineTarget.isPresent() &&
+                this.reservedMachines.putIfAbsent(machineTarget.orElseThrow(), reservation) != null) {
+            return null;
+        }
+        shard.reservedByProviderRoute.put(routeKey, Math.addExact(alreadyReserved, logicalCrafts));
+        shard.reservedProposalsByProvider.put(target.providerId(), Math.incrementExact(reservedProposals));
+        return reservation;
     }
 
     private void release(ReservationImpl reservation) {
-        synchronized (this.reservationLock) {
-            long reserved = this.reservedByProviderRoute.getOrDefault(reservation.routeKey, 0L);
+        ProviderShard shard = this.shards[shardIndex(reservation.providerId)];
+        shard.lock.lock();
+        try {
+            long reserved = shard.reservedByProviderRoute.getOrDefault(reservation.routeKey, 0L);
             long remaining = Math.subtractExact(reserved, reservation.logicalCrafts);
             if (remaining == 0L) {
-                this.reservedByProviderRoute.remove(reservation.routeKey);
+                shard.reservedByProviderRoute.remove(reservation.routeKey);
             } else {
-                this.reservedByProviderRoute.put(reservation.routeKey, remaining);
+                shard.reservedByProviderRoute.put(reservation.routeKey, remaining);
             }
-            int providerProposals = Math.decrementExact(this.reservedProposalsByProvider.get(reservation.providerId));
+            int providerProposals = Math.decrementExact(
+                    shard.reservedProposalsByProvider.get(reservation.providerId));
             if (providerProposals == 0) {
-                this.reservedProposalsByProvider.remove(reservation.providerId);
+                shard.reservedProposalsByProvider.remove(reservation.providerId);
             } else {
-                this.reservedProposalsByProvider.put(reservation.providerId, providerProposals);
+                shard.reservedProposalsByProvider.put(reservation.providerId, providerProposals);
             }
             reservation.machineTarget.ifPresent(machine -> {
                 if (!this.reservedMachines.remove(machine, reservation)) {
                     throw new IllegalStateException("Provider shard machine reservation ownership was lost");
                 }
             });
+        } finally {
+            shard.lock.unlock();
         }
     }
 
@@ -153,46 +155,61 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         return alreadyReserved == 0L ? 1L : 0L;
     }
 
-    private static long offeredCount(ProviderCapacitySnapshot target,
-                                     CapacitySlice slice,
-                                     long maximumCount) {
+    private static long offeredCount(ProviderCapacitySnapshot target, long maximumCount) {
         return switch (target.routingMode()) {
-            case TARGETED -> Math.min(slice.logicalCrafts(), maximumCount);
+            case TARGETED -> Math.min(effectiveTargetCapacity(target), maximumCount);
             case AGGREGATE -> maximumCount;
             case ORDERED, UNKNOWN -> 1L;
         };
     }
 
-    private static List<ProviderCapacitySnapshot> maskInspected(
-                                                                CraftingDispatchProposalRequest request,
-                                                                Set<ProviderRouteKey> inspected) {
-        return request.candidates().stream()
-                .map(candidate -> inspected.contains(ProviderRouteKey.from(candidate)) ? mask(candidate) : candidate)
-                .toList();
-    }
-
-    private static ProviderCapacitySnapshot mask(ProviderCapacitySnapshot candidate) {
-        return new ProviderCapacitySnapshot(
-                candidate.providerId(),
-                candidate.route(),
-                candidate.machineTargetId(),
-                candidate.patternIdentity(),
-                candidate.publicationRevision(),
-                candidate.capacityRevision(),
-                candidate.captureTick(),
-                candidate.routingMode(),
-                new DispatchCapacity.Known(0L),
-                candidate.maximumSingleBatch());
-    }
-
-    private static ProviderCapacitySnapshot originalTarget(CraftingDispatchProposalRequest request,
-                                                           ProviderCapacitySnapshot selected) {
-        for (ProviderCapacitySnapshot candidate : request.candidates()) {
-            if (candidate.providerId().equals(selected.providerId()) && candidate.route().equals(selected.route())) {
-                return candidate;
-            }
+    private static long effectiveTargetCapacity(ProviderCapacitySnapshot target) {
+        if (isKnownZero(target.capacity()) || isKnownZero(target.maximumSingleBatch())) {
+            return 0L;
         }
-        throw new IllegalStateException("Provider shard selected a target outside its request");
+        if (target.routingMode() != ProviderRoutingMode.TARGETED) {
+            return 1L;
+        }
+        if (!(target.capacity() instanceof DispatchCapacity.Known(long capacity)) ||
+                !(target.maximumSingleBatch() instanceof DispatchCapacity.Known(long maximumSingleBatch))) {
+            return 1L;
+        }
+        return Math.min(capacity, maximumSingleBatch);
+    }
+
+    private static List<ReservationCandidate> reservationCandidates(
+                                                                     CraftingDispatchProposalRequest request,
+                                                                     CapacitySlicePlanner planner) {
+        int targetCount = request.candidates().size();
+        long eligibleTargetCount = request.candidates().stream()
+                .filter(target -> effectiveTargetCapacity(target) > 0L)
+                .count();
+        CapacitySlicePlan plan = planner.plan(
+                request.candidates(),
+                BigInteger.valueOf(eligibleTargetCount),
+                targetCount,
+                request.cursor());
+        Map<ProviderCapacitySnapshot, ArrayDeque<Integer>> originalIndexes = new HashMap<>();
+        for (int index = 0; index < targetCount; index++) {
+            ProviderCapacitySnapshot target = request.candidates().get(index);
+            originalIndexes.computeIfAbsent(target, ignored -> new ArrayDeque<>()).addLast(index);
+        }
+        ArrayList<ReservationCandidate> candidates = new ArrayList<>(plan.slices().size());
+        for (CapacitySlice slice : plan.slices()) {
+            ArrayDeque<Integer> matching = originalIndexes.get(slice.target());
+            if (matching == null || matching.isEmpty()) {
+                throw new IllegalStateException("Provider shard planner selected a target outside its request");
+            }
+            int selectedIndex = matching.removeFirst();
+            candidates.add(new ReservationCandidate(
+                    request.candidates().get(selectedIndex),
+                    Math.floorMod(selectedIndex + 1, targetCount)));
+        }
+        return List.copyOf(candidates);
+    }
+
+    private static boolean isKnownZero(DispatchCapacity capacity) {
+        return capacity instanceof DispatchCapacity.Known(long logicalCrafts) && logicalCrafts == 0L;
     }
 
     /**
@@ -203,6 +220,21 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         private static ProviderRouteKey from(ProviderCapacitySnapshot target) {
             return new ProviderRouteKey(target.providerId(), target.route());
         }
+    }
+
+    /**
+     * Immutable linear reservation order produced by exactly one pure planner call.
+     */
+    private record ReservationCandidate(ProviderCapacitySnapshot target, int nextCursor) {}
+
+    /**
+     * Provider route and quantum state guarded by one fair shard lock.
+     */
+    private static final class ProviderShard {
+
+        private final ReentrantLock lock = new ReentrantLock(true);
+        private final Map<ProviderRouteKey, Long> reservedByProviderRoute = new HashMap<>();
+        private final Map<CraftingProviderId, Integer> reservedProposalsByProvider = new HashMap<>();
     }
 
     /**
