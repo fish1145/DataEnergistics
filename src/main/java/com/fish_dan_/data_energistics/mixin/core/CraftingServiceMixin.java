@@ -355,6 +355,9 @@ public abstract class CraftingServiceMixin
 
     @Inject(method = "onServerEndTick", at = @At("HEAD"))
     private void dataEnergistics$tickTrinityDataCoreCpuClusters(CallbackInfo ci) {
+        if (this.grid.isEmpty()) {
+            return;
+        }
         dataEnergistics$reloadDispatchGovernor();
         CraftingService service = (CraftingService) (Object) this;
         CraftingDispatchGovernor governor = this.dataEnergistics$dispatchGovernorState.governor();
@@ -410,6 +413,9 @@ public abstract class CraftingServiceMixin
 
     @Inject(method = "onServerEndTick", at = @At("TAIL"))
     private void dataEnergistics$advanceTrinityCraftingGraph(CallbackInfo ci) {
+        if (this.grid.isEmpty()) {
+            return;
+        }
         try {
             if (this.dataEnergistics$trinityCraftingGraphRebuilder == null) {
                 this.dataEnergistics$trinityCraftingGraphRebuilder = new TrinityCraftingGraphRebuilder(
