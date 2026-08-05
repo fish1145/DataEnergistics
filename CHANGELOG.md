@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Version [v2.4.1](https://github.com/fish1145/DataEnergistics/compare/v2.4.0-1.21...v2.4.1-1.21)
+### Fixed
+
+- 修复三位一体执行状态恢复与失败回收 by @QiuYe-123 in [#161](https://github.com/fish1145/DataEnergistics/pull/161)
+
+ 
 ## Version [v2.4.0](https://github.com/fish1145/DataEnergistics/compare/v2.3.2-1.21...v2.4.0-1.21)
 ### Added
 
