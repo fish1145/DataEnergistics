@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.menu.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
+import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
@@ -36,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
@@ -44,6 +47,7 @@ import java.util.regex.Pattern;
 public final class PatternProviderSyncHelper {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    private static final ProviderIdentityResolver PROVIDER_IDENTITY_RESOLVER = ProviderIdentityResolver.create();
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
@@ -95,6 +99,22 @@ public final class PatternProviderSyncHelper {
                                                                                                      @Nullable ResourceLocation preferredWorkstationId,
                                                                                                      @Nullable EncodingMode encodingMode,
                                                                                                      ItemStack currentEncodedPattern) {
+        return collectSyncedPatternProviders(grid, syncedPatternProviderIds, syncedProviderTargetsById,
+                nextIdSupplier, preferredWorkstationId, encodingMode, currentEncodedPattern, Map.of());
+    }
+
+    /**
+     * Discovers providers and applies the supplied per-leaf history before grouping rows.
+     */
+    public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
+                                                                                                     @Nullable IGrid grid,
+                                                                                                     Map<PatternContainer, Long> syncedPatternProviderIds,
+                                                                                                     Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                                                                     LongSupplier nextIdSupplier,
+                                                                                                     @Nullable ResourceLocation preferredWorkstationId,
+                                                                                                     @Nullable EncodingMode encodingMode,
+                                                                                                     ItemStack currentEncodedPattern,
+                                                                                                     Map<String, Long> leafClickCounts) {
         syncedProviderTargetsById.clear();
         if (grid == null) {
             syncedPatternProviderIds.clear();
@@ -127,7 +147,7 @@ public final class PatternProviderSyncHelper {
         syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.containsKey(provider));
 
         return aggregateSyncedPatternProviders(
-                discoveredProviders, syncedProviderTargetsById, primaryWorkbenchOrdering);
+                discoveredProviders, syncedProviderTargetsById, primaryWorkbenchOrdering, leafClickCounts);
     }
 
     /**
@@ -138,10 +158,20 @@ public final class PatternProviderSyncHelper {
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Map<Long, List<PatternContainer>> syncedProviderTargetsById,
                                                                                                 boolean primaryWorkbenchOrdering) {
+        return aggregateSyncedPatternProviders(discoveredProviders, syncedProviderTargetsById,
+                primaryWorkbenchOrdering, Map.of());
+    }
+
+    /** Aggregates rows while ranking each unique provider leaf by its recorded success count. */
+    static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
+                                                                                                List<PatternProviderAggregationEntry> discoveredProviders,
+                                                                                                Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                                                                boolean primaryWorkbenchOrdering,
+                                                                                                Map<String, Long> leafClickCounts) {
         syncedProviderTargetsById.clear();
         List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(
-                discoveredProviders, primaryWorkbenchOrdering);
-        aggregatedProviders.sort(createAggregatedProviderComparator(primaryWorkbenchOrdering));
+                discoveredProviders, primaryWorkbenchOrdering, leafClickCounts);
+        aggregatedProviders.sort(createAggregatedProviderComparator(primaryWorkbenchOrdering, leafClickCounts));
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(aggregatedProviders.size());
         for (var provider : aggregatedProviders) {
@@ -153,7 +183,8 @@ public final class PatternProviderSyncHelper {
                     provider.useAeButtonStyle(),
                     provider.renameable(),
                     provider.patternSlotCount(),
-                    provider.usedPatternSlotCount()));
+                    provider.usedPatternSlotCount(),
+                    provider.leafDigests()));
         }
 
         return providers.isEmpty() ? PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY :
@@ -370,15 +401,16 @@ public final class PatternProviderSyncHelper {
 
     public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {
         if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
-            return new TransferResult(encodedPattern, false, false);
+            return new TransferResult(encodedPattern, false, false, null);
         }
 
         if (containsEquivalentEncodedPattern(containers, encodedPattern)) {
-            return new TransferResult(encodedPattern, false, true);
+            return new TransferResult(encodedPattern, false, true, null);
         }
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
+        PatternContainer firstCommittedContainer = null;
         for (var container : containers) {
             if (remainder.isEmpty()) {
                 break;
@@ -387,11 +419,14 @@ public final class PatternProviderSyncHelper {
             ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
             if (nextRemainder.getCount() != remainder.getCount()) {
                 transferred = true;
+                if (firstCommittedContainer == null) {
+                    firstCommittedContainer = container;
+                }
             }
             remainder = nextRemainder;
         }
 
-        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false);
+        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false, firstCommittedContainer);
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
@@ -416,7 +451,9 @@ public final class PatternProviderSyncHelper {
         return false;
     }
 
-    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound) {}
+    /** Result of one upload attempt, including the first inventory that actually accepted a pattern. */
+    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound,
+                                 @Nullable PatternContainer firstCommittedContainer) {}
 
     private static void collectDirectPatternProviders(
                                                       IGrid grid,
@@ -435,7 +472,9 @@ public final class PatternProviderSyncHelper {
                         activeProviders, discoveredProviderSet, preferredWorkstationId, encodingMode, currentEncodedPattern,
                         primaryWorkbenchOrdering);
             }
-        } catch (Exception ignored) {}
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.error("Failed to enumerate direct pattern providers from the active grid", exception);
+        }
     }
 
     private static void addProviderIfVisible(
@@ -482,7 +521,34 @@ public final class PatternProviderSyncHelper {
                 getRecordedDeviceScore(container, displayName, iconItemId, preferredWorkstationId,
                         primaryWorkbenchOrdering),
                 getPreferredProviderScore(container, displayName, iconItemId, patternInventory.size(), usedPatternSlots,
-                        preferredWorkstationId, encodingMode, currentEncodedPattern, primaryWorkbenchOrdering)));
+                        preferredWorkstationId, encodingMode, currentEncodedPattern, primaryWorkbenchOrdering),
+                resolveProviderDigest(container, displayName, iconItemId)));
+    }
+
+    /**
+     * Resolves a server-side provider identity once during discovery. Broken physical metadata is downgraded to a
+     * deterministic virtual identity so one malformed provider cannot abort the whole upload page.
+     */
+    public static String resolveProviderDigest(PatternContainer container) {
+        Component displayName = resolveProviderDisplayName(container);
+        ResourceLocation iconItemId = resolveProviderIconItemId(container);
+        return resolveProviderDigest(container, displayName, iconItemId);
+    }
+
+    private static String resolveProviderDigest(PatternContainer container, Component displayName,
+                                                ResourceLocation iconItemId) {
+        try {
+            return PROVIDER_IDENTITY_RESOLVER.resolve(container).digest();
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.warn("Could not resolve physical identity for pattern provider {}; using virtual identity",
+                    container, exception);
+            Optional<ResourceLocation> icon = iconItemId == null || Items.AIR.equals(BuiltInRegistries.ITEM.get(iconItemId))
+                    ? Optional.empty() : Optional.of(iconItemId);
+            String componentEncoding = container.getTerminalGroup() != null && container.getTerminalGroup().name() != null
+                    ? container.getTerminalGroup().name().toString()
+                    : displayName.getString() + "|" + container.getClass().getName();
+            return new ProviderIdentity.Virtual(icon, componentEncoding).digest();
+        }
     }
 
     private static boolean isProviderContainer(PatternContainer container) {
@@ -542,9 +608,10 @@ public final class PatternProviderSyncHelper {
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
-                                                                                boolean primaryWorkbenchOrdering) {
+                                                                                boolean primaryWorkbenchOrdering,
+                                                                                Map<String, Long> leafClickCounts) {
         List<PatternProviderAggregationEntry> sortedProviders = new ArrayList<>(discoveredProviders);
-        sortedProviders.sort(createDiscoveredProviderComparator(primaryWorkbenchOrdering));
+        sortedProviders.sort(createDiscoveredProviderComparator(primaryWorkbenchOrdering, leafClickCounts));
 
         Map<String, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
 
@@ -562,18 +629,21 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<AggregatedPatternProvider> createAggregatedProviderComparator(
-                                                                                            boolean primaryWorkbenchOrdering) {
+                                                                                             boolean primaryWorkbenchOrdering,
+                                                                                             Map<String, Long> leafClickCounts) {
         Comparator<AggregatedPatternProvider> comparator;
+        comparator = Comparator.<AggregatedPatternProvider>comparingLong(provider -> provider.leafCountScore(leafClickCounts))
+                .reversed();
         if (primaryWorkbenchOrdering) {
-            comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::recordedDeviceScore)
+            comparator = comparator.thenComparing(Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::recordedDeviceScore)
                     .reversed()
                     .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed())
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::workbenchLinePriority).reversed());
+                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::workbenchLinePriority).reversed()));
         } else {
-            comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::workbenchLinePriority)
+            comparator = comparator.thenComparing(Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::workbenchLinePriority)
                     .reversed()
                     .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::recordedDeviceScore).reversed())
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed());
+                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed()));
         }
 
         return comparator.thenComparingLong(AggregatedPatternProvider::sortOrder)
@@ -581,18 +651,22 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<PatternProviderAggregationEntry> createDiscoveredProviderComparator(
-                                                                                                  boolean primaryWorkbenchOrdering) {
+                                                                                                   boolean primaryWorkbenchOrdering,
+                                                                                                   Map<String, Long> leafClickCounts) {
         Comparator<PatternProviderAggregationEntry> comparator;
+        comparator = Comparator.<PatternProviderAggregationEntry>comparingLong(provider ->
+                        leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
+                .reversed();
         if (primaryWorkbenchOrdering) {
-            comparator = Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::recordedDeviceScore)
+            comparator = comparator.thenComparing(Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::recordedDeviceScore)
                     .reversed()
                     .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::preferredScore).reversed())
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::workbenchLinePriority).reversed());
+                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::workbenchLinePriority).reversed()));
         } else {
-            comparator = Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::workbenchLinePriority)
+            comparator = comparator.thenComparing(Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::workbenchLinePriority)
                     .reversed()
                     .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::recordedDeviceScore).reversed())
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::preferredScore).reversed());
+                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::preferredScore).reversed()));
         }
 
         return comparator.thenComparingLong(PatternProviderAggregationEntry::sortOrder)
@@ -1657,7 +1731,28 @@ public final class PatternProviderSyncHelper {
                                            int usedPatternSlotCount,
                                            int workbenchLinePriority,
                                            int recordedDeviceScore,
-                                           int preferredScore) {}
+                                           int preferredScore,
+                                           String providerDigest) {
+
+        /** Compatibility constructor for callers that do not yet have an explicit leaf digest. */
+        PatternProviderAggregationEntry(PatternContainer container,
+                                        long id,
+                                        long sortOrder,
+                                        Component displayName,
+                                        ResourceLocation iconItemId,
+                                        @Nullable String specialAggregationKey,
+                                        boolean useAeButtonStyle,
+                                        boolean renameable,
+                                        int patternSlotCount,
+                                        int usedPatternSlotCount,
+                                        int workbenchLinePriority,
+                                        int recordedDeviceScore,
+                                        int preferredScore) {
+            this(container, id, sortOrder, displayName, iconItemId, specialAggregationKey, useAeButtonStyle,
+                    renameable, patternSlotCount, usedPatternSlotCount, workbenchLinePriority, recordedDeviceScore,
+                    preferredScore, resolveProviderDigest(container, displayName, iconItemId));
+        }
+    }
 
     private static final class AggregatedPatternProvider {
 
@@ -1674,6 +1769,7 @@ public final class PatternProviderSyncHelper {
         private int preferredScore;
         private int representationPriority;
         private final List<PatternContainer> containers = new ArrayList<>();
+        private final Set<String> leafDigests = new LinkedHashSet<>();
 
         private AggregatedPatternProvider(PatternProviderAggregationEntry provider) {
             this.id = provider.id();
@@ -1683,6 +1779,7 @@ public final class PatternProviderSyncHelper {
             this.useAeButtonStyle = provider.useAeButtonStyle();
             this.renameable = provider.renameable();
             this.representationPriority = getRepresentationPriority(provider);
+            this.leafDigests.add(provider.providerDigest());
         }
 
         private void include(PatternProviderAggregationEntry provider) {
@@ -1714,6 +1811,7 @@ public final class PatternProviderSyncHelper {
                 this.representationPriority = incomingPriority;
             }
             this.containers.add(provider.container());
+            this.leafDigests.add(provider.providerDigest());
         }
 
         private long id() {
@@ -1762,6 +1860,22 @@ public final class PatternProviderSyncHelper {
 
         private List<PatternContainer> containers() {
             return this.containers;
+        }
+
+        private List<String> leafDigests() {
+            return this.leafDigests.stream().sorted().toList();
+        }
+
+        private long leafCountScore(Map<String, Long> leafClickCounts) {
+            long score = 0L;
+            for (String digest : this.leafDigests) {
+                long count = leafClickCounts.getOrDefault(digest, 0L);
+                if (Long.MAX_VALUE - score < count) {
+                    return Long.MAX_VALUE;
+                }
+                score += count;
+            }
+            return score;
         }
 
         private int getRepresentationPriority(PatternProviderAggregationEntry provider) {

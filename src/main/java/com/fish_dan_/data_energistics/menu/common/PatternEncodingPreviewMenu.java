@@ -60,9 +60,22 @@ public interface PatternEncodingPreviewMenu {
                                  Component displayName,
                                  ResourceLocation iconItemId,
                                  boolean useAeButtonStyle,
-                                 boolean renameable,
-                                 int patternSlotCount,
-                                 int usedPatternSlotCount) {
+                                  boolean renameable,
+                                  int patternSlotCount,
+                                  int usedPatternSlotCount,
+                                  List<String> leafDigests) {
+
+        public SyncedPatternProvider {
+            leafDigests = List.copyOf(leafDigests);
+        }
+
+        /** Compatibility constructor for callers that do not carry provider history yet. */
+        public SyncedPatternProvider(long id, Component displayName, ResourceLocation iconItemId,
+                                     boolean useAeButtonStyle, boolean renameable, int patternSlotCount,
+                                     int usedPatternSlotCount) {
+            this(id, displayName, iconItemId, useAeButtonStyle, renameable, patternSlotCount,
+                    usedPatternSlotCount, List.of());
+        }
 
         public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
             this(
@@ -72,7 +85,8 @@ public interface PatternEncodingPreviewMenu {
                     data.readBoolean(),
                     data.readBoolean(),
                     data.readVarInt(),
-                    data.readVarInt());
+                    data.readVarInt(),
+                    readLeafDigests(data));
         }
 
         private void writeToPacket(RegistryFriendlyByteBuf data) {
@@ -83,6 +97,26 @@ public interface PatternEncodingPreviewMenu {
             data.writeBoolean(this.renameable);
             data.writeVarInt(this.patternSlotCount);
             data.writeVarInt(this.usedPatternSlotCount);
+            data.writeVarInt(this.leafDigests.size());
+            for (String digest : this.leafDigests) {
+                data.writeUtf(digest, 71);
+            }
+        }
+
+        private static List<String> readLeafDigests(RegistryFriendlyByteBuf data) {
+            int size = data.readVarInt();
+            if (size < 0 || size > 2048) {
+                throw new IllegalArgumentException("Pattern provider leaf digest count is outside [0, 2048]: " + size);
+            }
+            List<String> digests = new ArrayList<>(size);
+            for (int index = 0; index < size; index++) {
+                String digest = data.readUtf(71);
+                if (!digest.matches("sha256:[0-9a-f]{64}")) {
+                    throw new IllegalArgumentException("Invalid pattern provider leaf digest: " + digest);
+                }
+                digests.add(digest);
+            }
+            return List.copyOf(digests);
         }
     }
 }

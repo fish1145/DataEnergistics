@@ -21,6 +21,7 @@ import com.mojang.serialization.JsonOps;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -65,6 +66,13 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
         if (provider instanceof TrinityPatternTerminalPartition partition) {
             TrinityPatternTerminalPartition.PartitionKey key = partition.key();
             return new ProviderIdentity.Trinity(key.hostId(), key.coreId(), key.partitionIndex());
+        }
+        if (isAssemblerMatrix(provider)) {
+            BlockEntity blockEntity = resolveMatrixBlockEntity(provider);
+            return new ProviderIdentity.Matrix(
+                    this.dimensionIdResolver.apply(blockEntity),
+                    blockEntity.getBlockPos(),
+                    isPlusAssemblerMatrix(provider));
         }
         if (provider instanceof PatternProviderLogicHost logicHost) {
             BlockEntity blockEntity = requireBlockEntity(logicHost);
@@ -121,6 +129,36 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
                 ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, name).getOrThrow());
         Optional<ResourceLocation> iconItemId = Optional.ofNullable(group.icon()).map(icon -> icon.getId());
         return new ProviderIdentity.Virtual(iconItemId, componentEncoding);
+    }
+
+    /** Identifies ExtendedAE matrix implementations without loading their optional classes. */
+    private static boolean isAssemblerMatrix(PatternContainer provider) {
+        String className = provider.getClass().getSimpleName().toLowerCase(Locale.ROOT);
+        return className.contains("assemblermatrix") || className.contains("matrixpattern");
+    }
+
+    private static BlockEntity resolveMatrixBlockEntity(PatternContainer provider) {
+        if (provider instanceof PatternProviderLogicHost logicHost) {
+            return requireBlockEntity(logicHost);
+        }
+        if (provider instanceof BlockEntity blockEntity) {
+            return blockEntity;
+        }
+        throw new IllegalStateException("Assembler matrix provider has no block entity: " + provider);
+    }
+
+    /** Distinguishes ordinary and Plus matrices using stable class and terminal-icon metadata. */
+    private static boolean isPlusAssemblerMatrix(PatternContainer provider) {
+        String className = provider.getClass().getName().toLowerCase(Locale.ROOT);
+        if (className.contains("plus")) {
+            return true;
+        }
+        PatternContainerGroup group = provider.getTerminalGroup();
+        if (group != null && group.icon() != null) {
+            ResourceLocation iconId = group.icon().getId();
+            return "extendedae_plus".equals(iconId.getNamespace());
+        }
+        return false;
     }
 
     /**
