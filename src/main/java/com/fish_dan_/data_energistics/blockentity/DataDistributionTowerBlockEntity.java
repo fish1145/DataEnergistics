@@ -1531,7 +1531,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
         IGrid grid = node.getGrid();
         TowerNetworkDomain nextDomain = grid.getService(TowerNetworkDomain.class);
-        if (this.registeredTowerDomain != null && this.registeredTowerDomain != nextDomain) {
+        if (nextDomain != null && this.registeredTowerDomain == nextDomain) {
+            return;
+        }
+        if (this.registeredTowerDomain != null) {
             this.registeredTowerDomain.unregisterTower(this);
         }
         this.registeredTowerDomain = nextDomain;
