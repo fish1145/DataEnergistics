@@ -18,6 +18,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchCompletion;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchCompletionImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipantImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
@@ -377,15 +379,25 @@ public abstract class CraftingServiceMixin
             return;
         }
         dataEnergistics$reloadDispatchGovernor();
-        CraftingService service = (CraftingService) (Object) this;
         CraftingDispatchGovernor governor = this.dataEnergistics$dispatchGovernorState.governor();
-        CraftingDispatchBudget dispatchBudget = governor.budget();
         MinecraftServer server = this.grid.getPivot().getLevel().getServer();
+        long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
+        List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
+        if (runtimes.isEmpty()) {
+            CraftingDispatchCompletion completion = new CraftingDispatchCompletionImpl(
+                    "publicationScope=" + gridGeneration + ", gridIdentity=" + System.identityHashCode(this.grid),
+                    () -> dataEnergistics$completeEmptyTrinityDispatchTick(server, gridGeneration, governor),
+                    (source, failure) -> governor.recordUnexpectedFailure(
+                            source + " for Grid publication scope " + gridGeneration,
+                            failure));
+            dataEnergistics$registerTrinityDispatchCompletion(server, gridGeneration, governor, completion);
+            return;
+        }
+        CraftingService service = (CraftingService) (Object) this;
+        CraftingDispatchBudget dispatchBudget = governor.budget();
         CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create(
                 dispatchBudget.dispatchLimits(),
                 TrinityServerTickMetrics.dispatchBudget(server));
-        long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
-        List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
         List<TrinityDataCoreCraftingRuntime> preparedRuntimes = runtimes;
         try {
             for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
@@ -418,23 +430,91 @@ public abstract class CraftingServiceMixin
                 (source, failure) -> governor.recordUnexpectedFailure(
                         source + " for Grid publication scope " + gridGeneration,
                         failure));
+        dataEnergistics$registerTrinityDispatchParticipant(server, gridGeneration, governor, participant);
+    }
+
+    @Unique
+    private void dataEnergistics$registerTrinityDispatchParticipant(
+                                                                      MinecraftServer server,
+                                                                      long gridGeneration,
+                                                                      CraftingDispatchGovernor governor,
+                                                                      CraftingDispatchParticipantImpl participant) {
         try {
             TrinityServerTickMetrics.registerDispatchParticipant(server, participant);
         } catch (RuntimeException failure) {
-            Data_Energistics.LOGGER.error(
-                    "Trinity Grid publication scope {} could not register its server dispatch participant",
+            dataEnergistics$handleTrinityDispatchRegistrationFailure(
                     gridGeneration,
+                    governor,
+                    participant,
                     failure);
-            governor.recordUnexpectedFailure("server dispatch registration", failure);
-            try {
-                participant.completeTick();
-            } catch (RuntimeException completionFailure) {
-                Data_Energistics.LOGGER.error(
-                        "Trinity Grid publication scope {} failed while completing an unregistered dispatch tick",
-                        gridGeneration,
-                        completionFailure);
-                governor.recordUnexpectedFailure("unregistered dispatch completion", completionFailure);
-            }
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$registerTrinityDispatchCompletion(MinecraftServer server,
+                                                                    long gridGeneration,
+                                                                    CraftingDispatchGovernor governor,
+                                                                    CraftingDispatchCompletion completion) {
+        try {
+            TrinityServerTickMetrics.registerDispatchCompletion(server, completion);
+        } catch (RuntimeException failure) {
+            dataEnergistics$handleTrinityDispatchRegistrationFailure(
+                    gridGeneration,
+                    governor,
+                    completion,
+                    failure);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$handleTrinityDispatchRegistrationFailure(
+                                                                            long gridGeneration,
+                                                                            CraftingDispatchGovernor governor,
+                                                                            CraftingDispatchCompletion completion,
+                                                                            RuntimeException failure) {
+        Data_Energistics.LOGGER.error(
+                "Trinity Grid publication scope {} could not register its server dispatch boundary",
+                gridGeneration,
+                failure);
+        governor.recordUnexpectedFailure("server dispatch registration", failure);
+        try {
+            completion.completeTick();
+        } catch (RuntimeException completionFailure) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity Grid publication scope {} failed while completing an unregistered dispatch tick",
+                    gridGeneration,
+                    completionFailure);
+            governor.recordUnexpectedFailure("unregistered dispatch completion", completionFailure);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$completeEmptyTrinityDispatchTick(MinecraftServer server,
+                                                                  long gridGeneration,
+                                                                  CraftingDispatchGovernor governor) {
+        dataEnergistics$refreshLastProcessedTrinityCraftingLogicChange(0L);
+        DispatchProposalMetrics proposalMetrics = TrinityDispatchProposalLifecycle.scheduler()
+                .snapshotAndResetMetrics(gridGeneration);
+        governor.observe(CraftingDispatchMetrics.captureWithoutDispatch(
+                TrinityServerTickMetrics.lastCompletedNanos(server),
+                proposalMetrics));
+    }
+
+    @Unique
+    private void dataEnergistics$refreshLastProcessedTrinityCraftingLogicChange(
+                                                                                List<TrinityDataCoreCraftingRuntime> runtimes) {
+        long latestChange = 0L;
+        for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
+            latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
+        }
+        dataEnergistics$refreshLastProcessedTrinityCraftingLogicChange(latestChange);
+    }
+
+    @Unique
+    private void dataEnergistics$refreshLastProcessedTrinityCraftingLogicChange(long latestChange) {
+        if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {
+            this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;
+            this.lastProcessedCraftingLogicChangeTick = -1L;
         }
     }
 
@@ -444,14 +524,7 @@ public abstract class CraftingServiceMixin
                                                              List<TrinityDataCoreCraftingRuntime> runtimes,
                                                              CraftingDispatchWindow dispatchWindow,
                                                              CraftingDispatchGovernor governor) {
-        long latestChange = 0L;
-        for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
-            latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
-        }
-        if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {
-            this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;
-            this.lastProcessedCraftingLogicChangeTick = -1L;
-        }
+        dataEnergistics$refreshLastProcessedTrinityCraftingLogicChange(runtimes);
         TrinityWorkerDispatchActivity workerActivity = TrinityWorkerDispatchActivity.EMPTY;
         for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
             workerActivity = workerActivity.combine(runtime.dispatchActivity());
