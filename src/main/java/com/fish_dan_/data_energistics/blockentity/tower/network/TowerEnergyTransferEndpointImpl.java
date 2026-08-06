@@ -23,6 +23,11 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
     /** Optional BrandonsCore long-width bridge. */
     private final BrandonsCoreEnergyBridge brandonsCore = new BrandonsCoreEnergyBridge();
 
+    /**
+     * Stable storage-contract classification, resolved lazily inside the existing transfer failure boundary.
+     */
+    private Boolean brandonsCoreSupported;
+
     /** Verified typed direct access for standard and explicitly unlimited storages. */
     private final UnlimitedEnergyAccess unlimitedEnergy = new UnlimitedEnergyAccessImpl();
 
@@ -45,12 +50,11 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
         try {
-            boolean brandonsCoreSupported = this.brandonsCore.supports(storage);
             long stored;
             long capacity;
             boolean canExtract;
             boolean canReceive;
-            if (brandonsCoreSupported) {
+            if (brandonsCoreSupported(storage)) {
                 stored = this.brandonsCore.stored(storage);
                 capacity = this.brandonsCore.capacity(storage);
                 canExtract = this.brandonsCore.canExtract(storage);
@@ -99,7 +103,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         IEnergyStorage storage = this.endpoint.storage();
         try {
             long restored;
-            if (this.brandonsCore.supports(storage)) {
+            if (brandonsCoreSupported(storage)) {
                 restored = this.brandonsCore.canReceive(storage) ? this.brandonsCore.insert(storage, amount, false) : 0;
             } else {
                 restored = this.unlimitedEnergy.rollbackExtraction(storage, amount);
@@ -131,7 +135,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
     public void publishMutation() {
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
-        if (!this.brandonsCore.supports(storage)) {
+        if (!brandonsCoreSupported(storage)) {
             this.unlimitedEnergy.notifyStorageChanged(storage);
         }
         BlockEntity blockEntity = this.endpoint.location().level().getBlockEntity(
@@ -158,7 +162,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         IEnergyStorage storage = this.endpoint.storage();
         try {
             long transferred;
-            if (this.brandonsCore.supports(storage)) {
+            if (brandonsCoreSupported(storage)) {
                 transferred = inserting ? this.brandonsCore.insert(storage, amount, simulate) : this.brandonsCore.extract(storage, amount, simulate);
             } else {
                 transferred = inserting ? this.unlimitedEnergy.insert(storage, amount, simulate) : this.unlimitedEnergy.extract(storage, amount, simulate);
@@ -202,6 +206,23 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
                     "Int-width energy source cannot provide one long-width transaction of " + amount + " FE");
         }
         return storage.extractEnergy((int) amount, simulate);
+    }
+
+    /**
+     * Resolves the stable optional capability classification once for this topology endpoint.
+     *
+     * <p>
+     * The result is intentionally not persisted across a new endpoint topology, while mutable permissions and energy
+     * amounts remain queried on every operation.
+     * </p>
+     */
+    private boolean brandonsCoreSupported(IEnergyStorage storage) {
+        Boolean cached = this.brandonsCoreSupported;
+        if (cached == null) {
+            cached = this.brandonsCore.supports(storage);
+            this.brandonsCoreSupported = cached;
+        }
+        return cached;
     }
 
     /** Ensures no capability query can force-load an unloaded chunk. */
