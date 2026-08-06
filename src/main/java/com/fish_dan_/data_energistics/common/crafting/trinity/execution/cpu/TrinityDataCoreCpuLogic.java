@@ -761,6 +761,22 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
+        long availableStorage = this.cpu.getAvailableStorage();
+        if (ready.plan().bytes() > availableStorage) {
+            Data_Energistics.LOGGER.warn(
+                    "Trinity CPU {} retained job {} because replacement plan at catalog revision {} requires {} bytes but the worker currently has {}",
+                    this.cpu.number(),
+                    currentJob.link.getCraftingID(),
+                    ready.revision(),
+                    ready.plan().bytes(),
+                    availableStorage);
+            this.remainingPlanCalculation.retrySameRevision(
+                    ready.revision(),
+                    currentTick,
+                    settings.dynamicRetryMaxTicks());
+            return;
+        }
+
         Optional<TrinityBorrowingTransaction> reservation = reserveReplacementInputs(
                 ready.plan(),
                 network,
