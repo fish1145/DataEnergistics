@@ -191,6 +191,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
     private boolean endpointCacheValid;
     private long targetDisplayStateRevision;
+    /** Reuses one immutable full target snapshot across menus during the same level tick. */
+    private long cachedBoundTargetSummariesTick = Long.MIN_VALUE;
+    private long cachedBoundTargetSummariesRevision = Long.MIN_VALUE;
+    private List<BoundTargetSummary> cachedBoundTargetSummaries = List.of();
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
     private int diagnosticSimulatedExtractCalls;
@@ -932,6 +936,40 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (maxEntries <= 0) {
             return List.of();
         }
+        List<BoundTargetSummary> summaries = boundTargetSummariesForCurrentTick();
+        if (maxEntries >= summaries.size()) {
+            return summaries;
+        }
+        return List.copyOf(summaries.subList(0, maxEntries));
+    }
+
+    /**
+     * Resolves the complete target snapshot at most once per level tick and display-state revision.
+     */
+    private List<BoundTargetSummary> boundTargetSummariesForCurrentTick() {
+        Level currentLevel = this.level;
+        if (currentLevel == null) {
+            return resolveBoundTargetSummaries();
+        }
+
+        long gameTime = currentLevel.getGameTime();
+        long stateRevision = this.targetDisplayStateRevision;
+        if (this.cachedBoundTargetSummariesTick == gameTime
+                && this.cachedBoundTargetSummariesRevision == stateRevision) {
+            return this.cachedBoundTargetSummaries;
+        }
+
+        List<BoundTargetSummary> summaries = resolveBoundTargetSummaries();
+        this.cachedBoundTargetSummariesTick = gameTime;
+        this.cachedBoundTargetSummariesRevision = this.targetDisplayStateRevision;
+        this.cachedBoundTargetSummaries = summaries;
+        return summaries;
+    }
+
+    /**
+     * Builds the immutable complete target snapshot from current discovery and network-domain state.
+     */
+    private List<BoundTargetSummary> resolveBoundTargetSummaries() {
         List<BoundTargetSummary> baseSummaries = this.targetDisplayResolver.boundTargetSummaries(Integer.MAX_VALUE);
         Map<DisplayTargetKey, List<BoundTargetSummary>> baseByLocation = new LinkedHashMap<>();
         for (BoundTargetSummary summary : baseSummaries) {
@@ -959,17 +997,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                     result.add(createDeviceSummary(bindingSnapshot, device));
                 }
             }
-            if (result.size() >= maxEntries) {
-                return List.copyOf(result.subList(0, maxEntries));
-            }
         }
 
         for (BoundTargetSummary summary : baseSummaries) {
             if (!consumedBindings.contains(new DisplayTargetKey(summary.dimensionId(), summary.pos()))) {
                 result.add(summary);
-                if (result.size() >= maxEntries) {
-                    break;
-                }
             }
         }
         return List.copyOf(result);
