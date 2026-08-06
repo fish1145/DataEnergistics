@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import java.util.function.Supplier;
 
 /**
  * Converts one immutable initial request into an executable attempt with cooperative cancellation.
@@ -8,15 +8,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 public interface TrinityInitialPlanCalculation {
 
     /**
-     * @return stateless calculation composed with the production graph planner
+     * @param gatewaySupplier lazy access to the server-lifetime cached planning gateway
+     * @return stateless calculation composed with the production cached planner
      */
-    static TrinityInitialPlanCalculation create() {
-        return new TrinityInitialPlanCalculationImpl(TrinityGraphPlanner.create());
+    static TrinityInitialPlanCalculation create(Supplier<TrinityPlanningGateway> gatewaySupplier) {
+        return new TrinityInitialPlanCalculationImpl(gatewaySupplier);
     }
 
     /**
      * @param request immutable server-thread capture
      * @return executable plan or an explicit AE2 fallback diagnostic
      */
-    TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request);
+    TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) throws Exception;
 }

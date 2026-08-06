@@ -56,7 +56,7 @@ public final class CraftingDispatchGovernorTest {
         assertEquals(48, firstDownshift.dispatchLimits().maxAttemptsPerGrid());
         assertEquals(6, firstDownshift.dispatchLimits().maxAttemptsPerProvider());
         assertEquals(TimeUnit.MILLISECONDS.toNanos(9L), firstDownshift.dispatchLimits().maxServerSubmissionNanos());
-        assertEquals(6, firstDownshift.actorPermits());
+        assertEquals(1, firstDownshift.actorPermits());
         assertEquals(6, firstDownshift.providerQuantum());
         assertEquals(24, firstDownshift.proposalHighWater());
         assertEquals(2, firstDownshift.retryBackoffTicks());
@@ -114,6 +114,15 @@ public final class CraftingDispatchGovernorTest {
         budget.beginTick();
         assertTrue(budget.canStart(TimeUnit.MICROSECONDS.toNanos(999L)));
         assertFalse(budget.canStart(TimeUnit.MILLISECONDS.toNanos(1L)));
+    }
+
+    @Test
+    void actorPermitsScaleWithTheCurrentGridAttemptWindow() {
+        assertEquals(1, CraftingDispatchBudget.actorPermitsFor(1));
+        assertEquals(1, CraftingDispatchBudget.actorPermitsFor(256));
+        assertEquals(2, CraftingDispatchBudget.actorPermitsFor(257));
+        assertEquals(128, CraftingDispatchBudget.actorPermitsFor(32_768));
+        assertEquals(256, CraftingDispatchBudget.actorPermitsFor(Integer.MAX_VALUE));
     }
 
     private static CraftingDispatchBudget budget(

@@ -1,13 +1,12 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.stacks.AEKey;
@@ -37,14 +36,16 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
 
     @Override
     public Result advance(Optional<TrinityCraftingGraphSnapshot> snapshot,
+                          long gridScope,
                           Supplier<Map<AEKey, BigInteger>> availableSupplier,
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
                           TrinityCrafting settings,
                           long currentTick) {
-        if (currentTick < 0L) {
-            throw new IllegalArgumentException("A Trinity remaining-plan calculation requires a non-negative tick");
+        if (gridScope <= 0L || currentTick < 0L) {
+            throw new IllegalArgumentException(
+                    "A Trinity remaining-plan calculation requires a positive Grid scope and non-negative tick");
         }
         if (this.pending != null) {
             return pollPending(currentTick, settings.dynamicRetryMaxTicks());
@@ -65,7 +66,10 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
 
         Map<AEKey, BigInteger> available = availableSupplier.get();
         this.attemptedRevision = graph.revision();
-        this.pending = this.gatewaySupplier.get().beginTrinity(() -> calculate(
+        TrinityPlanningGateway gateway = this.gatewaySupplier.get();
+        this.pending = gateway.beginTrinity(gridScope, graph.revision(), () -> calculate(
+                gateway,
+                gridScope,
                 graph,
                 target,
                 requestedAmount,
@@ -83,6 +87,9 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
         this.pending = null;
         try {
             TrinityPlanningAttempt attempt = completed.get();
+            if (!attempt.successful() && attempt.diagnostic().code().transientPlanningFailure()) {
+                scheduleRetry(this.attemptedRevision, currentTick, maxRetryTicks);
+            }
             return attempt.successful() ?
                     new Ready(attempt.plan(), this.attemptedRevision) :
                     new Rejected(attempt.diagnostic(), this.attemptedRevision);
@@ -139,24 +146,40 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
         this.nextRetryDelay = 1;
     }
 
-    private static TrinityPlanningAttempt calculate(TrinityCraftingGraphSnapshot graph,
+    private static TrinityPlanningAttempt calculate(TrinityPlanningGateway gateway,
+                                                    long gridScope,
+                                                    TrinityCraftingGraphSnapshot graph,
                                                     AEKey target,
                                                     BigInteger requestedAmount,
                                                     CraftingQuantityMode quantityMode,
                                                     Map<AEKey, BigInteger> available,
                                                     TrinityCrafting settings) {
-        TrinityPlanningControl control = TrinityPlanningControl.unbounded();
-        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
-                graph,
-                target,
-                requestedAmount,
-                quantityMode,
-                available,
-                settings,
-                control);
-        return result.successful() ?
-                TrinityPlanningAttempt.success(result.value()) :
-                TrinityPlanningAttempt.failure(result.diagnostic());
+        try {
+            TrinityPlanningComputationResult computation = gateway.calculateTrinity(new TrinityPlanningInput(
+                    gridScope,
+                    graph,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    available,
+                    settings));
+            Data_Energistics.LOGGER.info(
+                    "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
+                    target,
+                    quantityMode,
+                    graph.revision(),
+                    computation.cachePath(),
+                    computation.result().successful() ?
+                            "SELECTED" : computation.result().diagnostic().code());
+            return computation.result().successful() ?
+                    TrinityPlanningAttempt.success(computation.result().value()) :
+                    TrinityPlanningAttempt.failure(computation.result().diagnostic());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Trinity remaining planning was interrupted", exception);
+        } catch (ExecutionException exception) {
+            throw new IllegalStateException("Trinity remaining planning failed", exception.getCause());
+        }
     }
 
     @Override

@@ -21,5 +21,17 @@ public enum TrinityPlanningDiagnosticCode {
     UNSUPPORTED_PATTERN,
     CALCULATION_CANCELLED,
     RUNTIME_DEADLOCK,
-    INTERNAL_ERROR
+    INTERNAL_ERROR;
+
+    /**
+     * Identifies failures that may succeed when the same immutable request is retried later.
+     *
+     * @return whether the result must stay out of completed caches and may be retried without a graph change
+     */
+    public boolean transientPlanningFailure() {
+        return switch (this) {
+            case PLANNER_QUEUE_FULL, CALCULATION_CANCELLED, MIP_TIMEOUT, INTERNAL_ERROR -> true;
+            default -> false;
+        };
+    }
 }

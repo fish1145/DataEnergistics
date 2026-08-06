@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
@@ -36,13 +38,10 @@ final class TrinityInitialPlanCalculationImplTest {
     private static final AEKey INPUT = DataFlowKey.of();
 
     @Test
-    void rejectsPlanThatExceedsEveryEligibleTrinityCpuCapturedAtRequestStart() {
+    void rejectsPlanThatExceedsEveryEligibleTrinityCpuCapturedAtRequestStart() throws Exception {
         TrinityCraftingPlan oversizedPlan = oversizedPlan();
-        TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, available, settings, control) -> {
-            assertFalse(control.deadlineConfigured());
-            return TrinityAlgorithmResult.success(oversizedPlan);
-        };
         TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
+                .gridScope(1L)
                 .requestId(7L)
                 .graph(new TrinityCraftingGraphSnapshot(19L, List.of()))
                 .target(TARGET)
@@ -52,8 +51,12 @@ final class TrinityInitialPlanCalculationImplTest {
                 .settings(TrinityCraftingSettings.defaults(4))
                 .maxTrinityBytes(10L)
                 .build();
+        TrinityInitialPlanCalculationImpl calculation = new TrinityInitialPlanCalculationImpl(
+                ignored -> new TrinityPlanningComputationResult(
+                        TrinityAlgorithmResult.success(oversizedPlan),
+                        PlanningCachePath.EXACT_HIT));
 
-        TrinityPlanningAttempt attempt = new TrinityInitialPlanCalculationImpl(planner).calculate(request);
+        TrinityPlanningAttempt attempt = calculation.calculate(request);
 
         assertFalse(attempt.successful());
         assertEquals(TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU, attempt.diagnostic().code());
@@ -62,7 +65,7 @@ final class TrinityInitialPlanCalculationImplTest {
     }
 
     @Test
-    void turnsExactCycleShortageIntoAStandaloneDiagnosticSimulation() {
+    void turnsExactCycleShortageIntoAStandaloneDiagnosticSimulation() throws Exception {
         BigInteger requested = BigInteger.valueOf(1_256_000_000L);
         BigInteger required = BigInteger.valueOf(8_792_000_000L);
         BigInteger available = BigInteger.valueOf(2_147_483_821L);
@@ -74,6 +77,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 new TrinityPlanningDiagnostic.InputShortage(INPUT, required, available, missing));
         TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, inventory, settings, control) -> TrinityAlgorithmResult.failure(diagnostic);
         TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
+                .gridScope(1L)
                 .requestId(8L)
                 .graph(new TrinityCraftingGraphSnapshot(20L, List.of()))
                 .target(TARGET)

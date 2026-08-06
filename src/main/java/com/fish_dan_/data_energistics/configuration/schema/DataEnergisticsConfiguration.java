@@ -427,12 +427,12 @@ public final class DataEnergisticsConfiguration {
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum physical provider attempts per grid tick.", "每个网格每 tick 的最大 provider 物理调用次数。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int hardGridAttempts = 256;
+        public int hardGridAttempts = 32_768;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum attempts per provider and grid tick.", "单个 provider 每个网格 tick 的最大调用次数。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int hardProviderAttempts = 16;
+        public int hardProviderAttempts = 32_768;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum dispatch commit time per grid tick in milliseconds.", "每个网格 tick 的派发提交时间上限，单位毫秒。" })

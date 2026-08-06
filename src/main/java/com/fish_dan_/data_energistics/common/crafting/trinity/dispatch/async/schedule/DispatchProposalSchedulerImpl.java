@@ -5,14 +5,17 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard.ProviderShardDispatcher;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -21,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Fixed bounded implementation enforcing one proposal per worker and a separate per-grid outstanding limit.
@@ -31,7 +35,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
     private final Object admissionLock = new Object();
     private final DispatchProposalLimits limits;
-    private final CapacitySlicePlanner slicePlanner;
+    private final DispatchProposalCandidatePlanner candidatePlanner;
     private final ProviderShardDispatcher shardDispatcher;
     private final ThreadPoolExecutor executor;
     private final Set<WorkerKey> outstandingWorkers = new HashSet<>();
@@ -40,19 +44,20 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final Set<TicketImpl> tickets = new HashSet<>();
     private boolean closed;
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits) {
-        this(limits, CapacitySlicePlanner.create());
+    DispatchProposalSchedulerImpl(DispatchProposalLimits limits, Supplier<TrinityComputationCache> computationCache) {
+        this(limits, DispatchProposalCandidatePlanner.create(computationCache));
     }
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits, CapacitySlicePlanner slicePlanner) {
+    DispatchProposalSchedulerImpl(DispatchProposalLimits limits,
+                                  DispatchProposalCandidatePlanner candidatePlanner) {
         if (limits == null) {
             throw new IllegalArgumentException("Dispatch proposal limits must not be null");
         }
-        if (slicePlanner == null) {
-            throw new IllegalArgumentException("Dispatch proposal slice planner must not be null");
+        if (candidatePlanner == null) {
+            throw new IllegalArgumentException("Dispatch proposal candidate planner must not be null");
         }
         this.limits = limits;
-        this.slicePlanner = slicePlanner;
+        this.candidatePlanner = candidatePlanner;
         this.shardDispatcher = ProviderShardDispatcher.create(limits.shardCount());
         this.executor = createExecutor(limits);
     }
@@ -152,6 +157,23 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     }
 
     @Override
+    public void clearGrid(long gridGeneration) {
+        if (gridGeneration <= 0L) {
+            throw new IllegalArgumentException("Dispatch proposal Grid generation must be positive");
+        }
+        List<TicketImpl> gridTickets;
+        synchronized (this.admissionLock) {
+            gridTickets = this.tickets.stream()
+                    .filter(ticket -> ticket.lease.gridGeneration() == gridGeneration)
+                    .toList();
+        }
+        gridTickets.forEach(TicketImpl::close);
+        synchronized (this.admissionLock) {
+            this.metricsByGrid.remove(gridGeneration);
+        }
+    }
+
+    @Override
     public void close() {
         Set<TicketImpl> closing;
         synchronized (this.admissionLock) {
@@ -176,8 +198,9 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         try {
             ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(
                     request,
-                    this.slicePlanner,
-                    providerQuantum);
+                    this.candidatePlanner,
+                    providerQuantum,
+                    () -> !ticket.closed());
             switch (result) {
                 case ProviderShardDispatcher.NoCapacity ignored -> ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
                 case ProviderShardDispatcher.Reserved reserved -> {
@@ -188,6 +211,16 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                             reserved.logicalCrafts(),
                             reserved.nextCursor())));
                 }
+            }
+        } catch (CancellationException exception) {
+            if (!ticket.closed()) {
+                failed = true;
+                Data_Energistics.LOGGER.error(
+                        "Trinity dispatch proposal calculation was unexpectedly cancelled for worker {} job {}",
+                        request.lease().workerNumber(),
+                        request.lease().jobId(),
+                        exception);
+                ticket.complete(new DispatchProposalTicket.Failed(exception));
             }
         } catch (RuntimeException exception) {
             failed = true;
@@ -201,10 +234,12 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
             synchronized (this.admissionLock) {
-                metrics(request.lease().gridGeneration()).recordCompleted(
-                        queueWaitNanos,
-                        calculationNanos,
-                        failed);
+                if (!ticket.closed()) {
+                    metrics(request.lease().gridGeneration()).recordCompleted(
+                            queueWaitNanos,
+                            calculationNanos,
+                            failed);
+                }
             }
         }
     }
@@ -407,6 +442,10 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
         private boolean wakeupFailed() {
             return this.wakeupFailed.get();
+        }
+
+        private boolean closed() {
+            return this.closed.get();
         }
 
         private void attachReservation(ProviderShardDispatcher.Reservation reservation) {

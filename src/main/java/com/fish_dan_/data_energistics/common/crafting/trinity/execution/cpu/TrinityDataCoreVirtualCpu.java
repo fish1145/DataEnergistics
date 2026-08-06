@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
@@ -123,6 +124,31 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         boolean wasBusy = isBusy();
         this.logic.tickCraftingLogic(energyService, craftingService, dispatchWindow, dispatchBudget);
         this.runtime.workerOperationCompleted(this, wasBusy);
+    }
+
+    /**
+     * Advances this worker until at most one real provider call has occurred.
+     *
+     * @param energyService   AE2 energy service
+     * @param craftingService AE2 crafting service
+     * @param dispatchWindow  Grid-shared physical dispatch budget for this tick
+     * @param dispatchBudget  Governor policy captured for this Grid tick
+     * @return immutable physical and logical progress facts
+     */
+    public CraftingDispatchStepResult dispatchStep(IEnergyService energyService,
+                                                   CraftingService craftingService,
+                                                   CraftingDispatchWindow dispatchWindow,
+                                                   CraftingDispatchBudget dispatchBudget) {
+        boolean wasBusy = isBusy();
+        CraftingDispatchStepResult result = this.logic.dispatchStep(
+                energyService,
+                craftingService,
+                dispatchWindow,
+                dispatchBudget);
+        if (result.progressed()) {
+            this.runtime.workerOperationCompleted(this, wasBusy);
+        }
+        return result;
     }
 
     /**

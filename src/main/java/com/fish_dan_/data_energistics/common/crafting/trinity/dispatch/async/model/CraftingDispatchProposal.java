@@ -8,13 +8,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
  * @param lease         exact worker generation token copied from the request
  * @param target        selected immutable provider-capacity observation
  * @param logicalCrafts positive logical batch proposed for the physical call
- * @param nextCursor    fairness cursor to adopt after the server thread consumes this proposal
+ * @param nextCursor    provider and target cursor to adopt only after a real physical call
  */
 public record CraftingDispatchProposal(
                                        CraftingDispatchLease lease,
                                        ProviderCapacitySnapshot target,
                                        long logicalCrafts,
-                                       int nextCursor) {
+                                       CraftingDispatchCursor nextCursor) {
 
     public CraftingDispatchProposal {
         if (lease == null) {
@@ -29,8 +29,8 @@ public record CraftingDispatchProposal(
         if (logicalCrafts <= 0L) {
             throw new IllegalArgumentException("Crafting dispatch proposal count must be positive");
         }
-        if (nextCursor < 0) {
-            throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be negative");
+        if (nextCursor == null) {
+            throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be null");
         }
     }
 }

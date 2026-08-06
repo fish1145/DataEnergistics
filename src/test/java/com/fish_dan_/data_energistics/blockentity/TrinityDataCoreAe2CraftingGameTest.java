@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
@@ -1038,7 +1039,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         fixture.host().getCraftingRuntime().tick(
                 grid.getEnergyService(),
                 craftingService,
-                CraftingDispatchWindow.create());
+                CraftingDispatchWindow.create(CraftingDispatchLimits.DEFAULT, () -> 0L));
     }
 
     private static TrinityDataCoreVirtualCpu reservedCpu(TrinityDataCoreBlockEntity host) {

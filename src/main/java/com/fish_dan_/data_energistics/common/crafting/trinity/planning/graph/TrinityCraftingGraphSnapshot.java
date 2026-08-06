@@ -12,8 +12,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Atomically published, read-only derivation of every crafting transition visible on one grid revision.
@@ -29,7 +27,6 @@ public final class TrinityCraftingGraphSnapshot {
     private final List<TrinityCraftingGraphPattern> patterns;
     private final List<AEKey> keys;
     private final Map<AEKey, List<TrinityCraftingGraphPattern>> patternsByOutput;
-    private final ConcurrentMap<AEKey, TrinityCraftingGraphSnapshot> reachableSubgraphs = new ConcurrentHashMap<>();
 
     /**
      * Builds a deterministic graph and rejects duplicate semantic identities.
@@ -122,7 +119,8 @@ public final class TrinityCraftingGraphSnapshot {
      * <p>
      * Every producer route and every legal input alternative remains present. Patterns unrelated to the requested
      * output are excluded before binding expansion and SCC analysis, so planning work follows the request graph
-     * instead of the size of the whole grid catalog. The derived value is cached for this immutable revision.
+     * instead of the size of the whole grid catalog. Server-lifetime callers cache this pure derivation in the shared
+     * bounded computation cache.
      * </p>
      *
      * @param target requested output key
@@ -132,7 +130,7 @@ public final class TrinityCraftingGraphSnapshot {
         if (target == null) {
             throw new IllegalArgumentException("A Trinity reachable graph requires a target");
         }
-        return this.reachableSubgraphs.computeIfAbsent(target, this::deriveReachableSubgraph);
+        return deriveReachableSubgraph(target);
     }
 
     private TrinityCraftingGraphSnapshot deriveReachableSubgraph(AEKey target) {

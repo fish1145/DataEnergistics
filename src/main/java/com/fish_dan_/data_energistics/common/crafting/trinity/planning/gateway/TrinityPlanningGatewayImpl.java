@@ -3,6 +3,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import net.minecraft.network.chat.Component;
@@ -35,14 +40,23 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
     private final ExecutorService plannerExecutor;
     private final boolean ownsExecutor;
+    private final TrinityComputationCache computationCache;
+    private final TrinityPlanningComputation planningComputation;
 
     TrinityPlanningGatewayImpl(TrinityCrafting settings) {
         this(createExecutor(settings), true);
     }
 
     TrinityPlanningGatewayImpl(ExecutorService plannerExecutor, boolean ownsExecutor) {
+        if (plannerExecutor == null) {
+            throw new IllegalArgumentException("A Trinity planning gateway requires an executor");
+        }
         this.plannerExecutor = plannerExecutor;
         this.ownsExecutor = ownsExecutor;
+        this.computationCache = TrinityComputationCache.create(plannerExecutor);
+        this.planningComputation = TrinityPlanningComputation.create(
+                this.computationCache,
+                TrinityGraphPlanner.pipeline());
     }
 
     private static ExecutorService createExecutor(TrinityCrafting settings) {
@@ -64,12 +78,14 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     @Override
     public Future<ICraftingPlan> begin(
                                        boolean qualifiedTrinityCpu,
+                                       long gridScope,
+                                       long graphRevision,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
                                        Supplier<Future<ICraftingPlan>> ae2Calculation) {
         Future<TrinityPlanningAttempt> trinityFuture = null;
         if (qualifiedTrinityCpu) {
             try {
-                trinityFuture = this.plannerExecutor.submit(trinityCalculation);
+                trinityFuture = this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
             } catch (RejectedExecutionException exception) {
                 Data_Energistics.LOGGER.warn("Trinity planner queue rejected a calculation; falling back to AE2",
                         exception);
@@ -99,9 +115,12 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     }
 
     @Override
-    public Future<TrinityPlanningAttempt> beginTrinity(Callable<TrinityPlanningAttempt> trinityCalculation) {
+    public Future<TrinityPlanningAttempt> beginTrinity(
+                                                       long gridScope,
+                                                       long graphRevision,
+                                                       Callable<TrinityPlanningAttempt> trinityCalculation) {
         try {
-            return this.plannerExecutor.submit(trinityCalculation);
+            return this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
         } catch (RejectedExecutionException exception) {
             Data_Energistics.LOGGER.warn("Trinity planner queue rejected a continuation calculation", exception);
             return CompletableFuture.completedFuture(TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
@@ -113,9 +132,29 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     }
 
     @Override
+    public TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
+                                                                                         throws InterruptedException, ExecutionException {
+        return this.planningComputation.calculate(input);
+    }
+
+    @Override
+    public TrinityComputationCache computationCache() {
+        return this.computationCache;
+    }
+
+    @Override
+    public void clearGrid(long gridScope) {
+        this.computationCache.clearGrid(gridScope);
+    }
+
+    @Override
     public void close() {
-        if (this.ownsExecutor) {
-            this.plannerExecutor.shutdownNow();
+        try {
+            this.computationCache.close();
+        } finally {
+            if (this.ownsExecutor) {
+                this.plannerExecutor.shutdownNow();
+            }
         }
     }
 

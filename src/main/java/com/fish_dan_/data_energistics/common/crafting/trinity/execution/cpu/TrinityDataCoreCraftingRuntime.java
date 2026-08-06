@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
@@ -104,6 +105,10 @@ public final class TrinityDataCoreCraftingRuntime {
      * Transient dispatch cursor preserves round-robin priority across event-driven runtime passes.
      */
     private int nextWorkerTickStartNumber = 1;
+    /**
+     * Server tick whose proposal completions, retries and cleanup state have already been prepared.
+     */
+    private long preparedDispatchTick = Long.MIN_VALUE;
     private boolean mainStructureFormed;
     private boolean paused;
 
@@ -368,6 +373,26 @@ public final class TrinityDataCoreCraftingRuntime {
                      CraftingService craftingService,
                      CraftingDispatchWindow dispatchWindow,
                      CraftingDispatchBudget dispatchBudget) {
+        prepareTick();
+        CraftingDispatchStepResult result;
+        do {
+            result = dispatchStep(energyService, craftingService, dispatchWindow, dispatchBudget);
+        } while (result.progressed() && result.hasReadyWork() && !result.windowExhausted());
+    }
+
+    /**
+     * Applies runtime-level completion, retry and cleanup events exactly once for the current server tick.
+     */
+    public void prepareTick() {
+        long currentTick = TickHandler.instance().getCurrentTick();
+        if (this.preparedDispatchTick == currentTick) {
+            return;
+        }
+        if (this.preparedDispatchTick > currentTick) {
+            throw new IllegalStateException(
+                    "Trinity runtime tick moved backwards from " + this.preparedDispatchTick + " to " + currentTick);
+        }
+        this.preparedDispatchTick = currentTick;
         if (this.paused || !this.mainStructureFormed || !this.profile.active()) {
             return;
         }
@@ -375,12 +400,32 @@ public final class TrinityDataCoreCraftingRuntime {
         if (this.retainedWorkers.isEmpty()) {
             return;
         }
-        long currentTick = TickHandler.instance().getCurrentTick();
         drainProposalCompletions();
         activateDueWorkerRetries(currentTick);
         orderReadyWorkersFromCursor();
-        int lastSubmittingWorkerNumber = -1;
-        while (!this.readyWorkers.isEmpty() && !dispatchWindow.isExhausted()) {
+    }
+
+    /**
+     * Skips stale or non-progressing workers and performs at most one real provider call.
+     *
+     * @param energyService   AE2 energy service shared by this runtime's Grid
+     * @param craftingService AE2 crafting service used to resolve pattern providers
+     * @param dispatchWindow  physical provider-attempt budget shared by the complete Grid tick
+     * @param dispatchBudget  Governor policy captured for the complete Grid tick
+     * @return immutable progress facts for server-level round-robin scheduling
+     */
+    public CraftingDispatchStepResult dispatchStep(IEnergyService energyService,
+                                                   CraftingService craftingService,
+                                                   CraftingDispatchWindow dispatchWindow,
+                                                   CraftingDispatchBudget dispatchBudget) {
+        prepareTick();
+        if (this.paused || !this.mainStructureFormed || !this.profile.active()) {
+            return CraftingDispatchStepResult.IDLE;
+        }
+        int workersToInspect = this.readyWorkers.size();
+        long currentTick = TickHandler.instance().getCurrentTick();
+        while (workersToInspect > 0 && !this.readyWorkers.isEmpty() && !dispatchWindow.isExhausted()) {
+            workersToInspect--;
             WorkerScheduleEntry scheduled = this.readyWorkers.removeFirst();
             if (!consumeReadySchedule(scheduled)) {
                 continue;
@@ -390,19 +435,51 @@ public final class TrinityDataCoreCraftingRuntime {
                 continue;
             }
             int workerNumber = worker.number();
-            int submissionsBeforeWorker = dispatchWindow.serverSubmissionCount();
-            worker.tick(energyService, craftingService, dispatchWindow, dispatchBudget);
-            if (dispatchWindow.serverSubmissionCount() > submissionsBeforeWorker) {
-                lastSubmittingWorkerNumber = workerNumber;
+            CraftingDispatchStepResult result;
+            try {
+                result = worker.dispatchStep(
+                        energyService,
+                        craftingService,
+                        dispatchWindow,
+                        dispatchBudget);
+            } catch (RuntimeException failure) {
+                if (this.retainedWorkers.get(workerNumber) == worker) {
+                    scheduleAfterWorkerTick(worker, currentTick);
+                }
+                throw failure;
             }
             removeWorkerIfReleasable(workerNumber, worker);
-            if (this.retainedWorkers.get(workerNumber) == worker) {
+            if (this.retainedWorkers.get(workerNumber) == worker && !result.progressed()) {
                 scheduleAfterWorkerTick(worker, currentTick);
             }
+            if (result.physicalAttempted()) {
+                advanceWorkerTickStartAfter(workerNumber);
+                return new CraftingDispatchStepResult(
+                        true,
+                        result.stateChanged(),
+                        !this.readyWorkers.isEmpty(),
+                        dispatchWindow.isExhausted());
+            }
+            if (result.stateChanged()) {
+                return new CraftingDispatchStepResult(
+                        false,
+                        true,
+                        !this.readyWorkers.isEmpty(),
+                        dispatchWindow.isExhausted());
+            }
         }
-        if (lastSubmittingWorkerNumber >= 0) {
-            advanceWorkerTickStartAfter(lastSubmittingWorkerNumber);
-        }
+        return new CraftingDispatchStepResult(
+                false,
+                false,
+                !this.readyWorkers.isEmpty(),
+                dispatchWindow.isExhausted());
+    }
+
+    /**
+     * @return whether an event-selected worker remains eligible for another current-tick server rotation
+     */
+    public boolean hasReadyDispatchWork() {
+        return !this.paused && this.mainStructureFormed && this.profile.active() && !this.readyWorkers.isEmpty();
     }
 
     /**
@@ -652,6 +729,7 @@ public final class TrinityDataCoreCraftingRuntime {
             refreshWorkerWaiting(worker);
             rebuildPublishedCpus();
         }
+        removeWorkerIfReleasable(worker.number(), worker);
     }
 
     /**

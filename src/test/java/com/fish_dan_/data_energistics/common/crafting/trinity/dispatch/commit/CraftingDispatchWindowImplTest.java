@@ -43,14 +43,15 @@ public final class CraftingDispatchWindowImplTest {
 
     @Test
     void accountsByProviderIdentityInsteadOfEquality() {
-        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
+        CraftingDispatchLimits historicalLimits = new CraftingDispatchLimits(256, 16, Long.MAX_VALUE, Long.MAX_VALUE);
+        CraftingDispatchWindow window = fixedWindow(historicalLimits);
         ICraftingProvider first = new EqualCraftingProvider();
         ICraftingProvider second = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
         assertNotSame(first, second);
 
-        for (int attempt = 0; attempt < CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER; attempt++) {
+        for (int attempt = 0; attempt < historicalLimits.maxAttemptsPerProvider(); attempt++) {
             assertTrue(acquire(window, first, pattern, target));
         }
 
@@ -166,6 +167,45 @@ public final class CraftingDispatchWindowImplTest {
         assertEquals(3, window.attemptCount());
         assertFalse(window.canAttempt(extraProvider, pattern));
         assertEquals(CraftingDispatchExhaustion.GRID_CALL_BUDGET, window.exhaustion());
+    }
+
+    @Test
+    void defaultGridLimitAllowsExactly32768PhysicalAttempts() {
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchTarget target = target("bulk");
+
+        for (int attempt = 0; attempt < 32_768; attempt++) {
+            ICraftingProvider provider = new EqualCraftingProvider();
+            assertTrue(acquire(window, provider, pattern, target), "attempt " + attempt);
+        }
+
+        assertEquals(32_768, window.attemptCount());
+        assertFalse(window.canAttempt(new EqualCraftingProvider(), pattern, target));
+        assertEquals(CraftingDispatchExhaustion.GRID_CALL_BUDGET, window.exhaustion());
+    }
+
+    @Test
+    void providerLimitAllowsExactly32768PhysicalAttempts() {
+        CraftingDispatchWindow window = fixedWindow(new CraftingDispatchLimits(
+                32_769,
+                CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
+                Long.MAX_VALUE,
+                Long.MAX_VALUE));
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchTarget target = target("bulk");
+
+        for (int attempt = 0; attempt < 32_768; attempt++) {
+            assertTrue(acquire(window, provider, pattern, target), "attempt " + attempt);
+        }
+
+        assertEquals(32_768, window.attemptCount());
+        assertFalse(window.canAttempt(provider, pattern, target));
+        ICraftingProvider otherProvider = new EqualCraftingProvider();
+        assertTrue(window.canAttempt(otherProvider, pattern, target));
+        assertTrue(acquire(window, otherProvider, pattern, target));
+        assertEquals(32_769, window.attemptCount());
     }
 
     @Test
