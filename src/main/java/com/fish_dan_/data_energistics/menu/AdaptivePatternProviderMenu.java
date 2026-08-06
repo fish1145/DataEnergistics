@@ -4,11 +4,11 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
+import lombok.Getter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -45,31 +45,33 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
     private static final String ACTION_SET_REDSTONE_TUNING_MODE = "set_redstone_tuning_mode";
-    private static final String ACTION_TOGGLE_AE2LT_MODE = "toggle_ae2lt_mode";
-    private static final String ACTION_TOGGLE_AE2LT_RETURN_MODE = "toggle_ae2lt_return_mode";
-    private static final String ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH = "toggle_ae2lt_wireless_dispatch";
-    private static final String ACTION_TOGGLE_AE2LT_WIRELESS_SPEED = "toggle_ae2lt_wireless_speed";
     private static final int SLOTS_PER_PAGE = 36;
     private static final int DEFAULT_RETURN_SLOTS = 9;
     private static final int EXPANDED_RETURN_SLOTS = 18;
 
     public static final SlotSemantic PROVIDER_INPUT = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
-    public static final SlotSemantic AE2LTPP_ADAPTER = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_AE2LTPP_ADAPTER", false);
     public static final SlotSemantic PAGE_PATTERN = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
     public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
     private final AdaptivePatternProviderHost host;
+    @Getter
     private final PatternProviderLogic logic;
+    @Getter
     private final ToolboxMenu toolbox;
 
+    @Getter
     @GuiSync(3)
     public YesNo blockingMode = YesNo.NO;
+    @Getter
     @GuiSync(4)
     public YesNo showInAccessTerminal = YesNo.YES;
+    @Getter
     @GuiSync(5)
     public LockCraftingMode lockCraftingMode = LockCraftingMode.NONE;
+    @Getter
     @GuiSync(6)
     public LockCraftingMode craftingLockedReason = LockCraftingMode.NONE;
+    @Getter
     @GuiSync(7)
     public GenericStack unlockStack;
     @GuiSync(780)
@@ -80,22 +82,12 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
     public int totalPages = 1;
     @GuiSync(783)
     public boolean advancedAeFilteredImport;
-    @GuiSync(784)
-    public int ae2ltProviderMode;
-    @GuiSync(785)
-    public int ae2ltReturnMode;
-    @GuiSync(786)
-    public int ae2ltWirelessDispatchMode;
-    @GuiSync(787)
-    public int ae2ltWirelessSpeedMode;
+    @Getter
     @GuiSync(788)
     public boolean resonatingProviderSelected;
+    @Getter
     @GuiSync(789)
     public boolean resonatingPullEnabled;
-    @GuiSync(790)
-    public boolean ae2LtPackagedProviderSelected;
-    @GuiSync(791)
-    public boolean ae2LtPackagedWirelessProviderSelected;
     @GuiSync(792)
     public boolean hasRedstoneTuningCard;
     @GuiSync(793)
@@ -111,16 +103,11 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         registerClientAction(ACTION_SET_FILTERED_IMPORT, Boolean.class, this::setAdvancedAeFilteredImport);
         registerClientAction(ACTION_SET_RESONATING_PULL, Boolean.class, this::setResonatingPullEnabled);
         registerClientAction(ACTION_SET_REDSTONE_TUNING_MODE, Integer.class, this::applyRedstoneTuningMode);
-        registerClientAction(ACTION_TOGGLE_AE2LT_MODE, this::toggleAe2LtMode);
-        registerClientAction(ACTION_TOGGLE_AE2LT_RETURN_MODE, this::toggleAe2LtReturnMode);
-        registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH, this::toggleAe2LtWirelessDispatchMode);
-        registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_SPEED, this::toggleAe2LtWirelessSpeedMode);
 
         addUpgradeSlots();
         addPatternPageSlots();
         addReturnSlots();
         addProviderSlot();
-        addAe2LtPackagedAdapterSlot();
         this.createPlayerInventorySlots(playerInventory);
 
         refreshPatternPagination();
@@ -138,7 +125,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         var semantic = this.getSlotSemantic(slot);
         if (semantic == PROVIDER_INPUT) {
             returnOverflowPatternsToPlayer();
-            returnHiddenAe2LtPackagedAdapterToPlayer();
             refreshPatternPagination();
             updatePatternSlotVisibility();
         } else if (semantic == SlotSemantics.UPGRADE) {
@@ -248,22 +234,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         sendClientAction(ACTION_SET_RESONATING_PULL, enabled);
     }
 
-    public void sendToggleAe2LtMode() {
-        sendClientAction(ACTION_TOGGLE_AE2LT_MODE);
-    }
-
-    public void sendToggleAe2LtReturnMode() {
-        sendClientAction(ACTION_TOGGLE_AE2LT_RETURN_MODE);
-    }
-
-    public void sendToggleAe2LtWirelessDispatchMode() {
-        sendClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH);
-    }
-
-    public void sendToggleAe2LtWirelessSpeedMode() {
-        sendClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_SPEED);
-    }
-
     public Component getProviderDisplayName() {
         if (this.host != null) {
             return this.host.getGuiDisplayName();
@@ -273,36 +243,8 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         return !providerStack.isEmpty() ? providerStack.getHoverName() : Component.translatable("block.data_energistics.adaptive_pattern_provider");
     }
 
-    public ToolboxMenu getToolbox() {
-        return this.toolbox;
-    }
-
-    public PatternProviderLogic getLogic() {
-        return this.logic;
-    }
-
     public IUpgradeInventory getUpgrades() {
         return this.host != null ? this.host.getUpgrades() : UpgradeInventories.empty();
-    }
-
-    public YesNo getBlockingMode() {
-        return this.blockingMode;
-    }
-
-    public YesNo getShowInAccessTerminal() {
-        return this.showInAccessTerminal;
-    }
-
-    public LockCraftingMode getLockCraftingMode() {
-        return this.lockCraftingMode;
-    }
-
-    public LockCraftingMode getCraftingLockedReason() {
-        return this.craftingLockedReason;
-    }
-
-    public GenericStack getUnlockStack() {
-        return this.unlockStack;
     }
 
     public boolean isAdvancedAeProviderSelected() {
@@ -311,54 +253,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
 
     public boolean isAdvancedAeFilteredImportEnabled() {
         return this.advancedAeFilteredImport;
-    }
-
-    public boolean isAe2LtOverloadedProviderSelected() {
-        return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
-    }
-
-    public boolean isAe2LtPackagedProviderSelected() {
-        return this.ae2LtPackagedProviderSelected;
-    }
-
-    public boolean isAe2LtPackagedWirelessProviderSelected() {
-        return this.ae2LtPackagedWirelessProviderSelected;
-    }
-
-    public boolean isAe2LtProviderFamilySelected() {
-        return isAe2LtOverloadedProviderSelected() || isAe2LtPackagedProviderSelected();
-    }
-
-    public boolean isAe2LtModeSwitchVisible() {
-        return isAe2LtOverloadedProviderSelected();
-    }
-
-    public boolean isAe2LtWirelessControlsVisible() {
-        return isAe2LtOverloadedProviderSelected() && isAe2LtWirelessMode() || isAe2LtPackagedWirelessProviderSelected();
-    }
-
-    public boolean isResonatingProviderSelected() {
-        return this.resonatingProviderSelected;
-    }
-
-    public boolean isResonatingPullEnabled() {
-        return this.resonatingPullEnabled;
-    }
-
-    public boolean isAe2LtWirelessMode() {
-        return this.ae2ltProviderMode == AdaptivePatternProviderModes.Ae2LtProviderMode.WIRELESS.ordinal();
-    }
-
-    public boolean isAe2LtEvenDistributionMode() {
-        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
-    }
-
-    public boolean isAe2LtFastSpeedMode() {
-        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.FAST.ordinal();
-    }
-
-    public int getAe2LtReturnModeOrdinal() {
-        return this.ae2ltReturnMode;
     }
 
     @Override
@@ -442,46 +336,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         broadcastChanges();
     }
 
-    private void toggleAe2LtMode() {
-        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected()) {
-            return;
-        }
-
-        this.host.cycleAe2LtProviderMode();
-        syncStateFromHost();
-        broadcastChanges();
-    }
-
-    private void toggleAe2LtReturnMode() {
-        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected() && !this.host.isAe2LtPackagedProviderSelected()) {
-            return;
-        }
-
-        this.host.cycleAe2LtReturnMode();
-        syncStateFromHost();
-        broadcastChanges();
-    }
-
-    private void toggleAe2LtWirelessDispatchMode() {
-        if (this.host == null || !this.host.isAe2LtWirelessConnectableProviderSelected()) {
-            return;
-        }
-
-        this.host.cycleAe2LtWirelessDispatchMode();
-        syncStateFromHost();
-        broadcastChanges();
-    }
-
-    private void toggleAe2LtWirelessSpeedMode() {
-        if (this.host == null || !this.host.isAe2LtWirelessConnectableProviderSelected()) {
-            return;
-        }
-
-        this.host.cycleAe2LtWirelessSpeedMode();
-        syncStateFromHost();
-        broadcastChanges();
-    }
-
     private void refreshPatternPagination() {
         int slotCount = this.host != null ? this.host.getPatternSlotCountForMenu() : 0;
         this.visiblePatternSlots = slotCount;
@@ -502,12 +356,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
 
         this.resonatingProviderSelected = this.host.isResonatingProviderSelected();
         this.resonatingPullEnabled = this.host.isResonatingPullEnabled();
-        this.ae2LtPackagedProviderSelected = this.host.isAe2LtPackagedProviderSelected();
-        this.ae2LtPackagedWirelessProviderSelected = this.host.isAe2LtPackagedWirelessProviderSelected();
-        this.ae2ltProviderMode = this.host.getAe2LtProviderMode().ordinal();
-        this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
-        this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
-        this.ae2ltWirelessSpeedMode = this.host.getAe2LtWirelessSpeedMode().ordinal();
         syncRedstoneTuningFromHost();
     }
 
@@ -580,17 +428,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         this.addSlot(providerSlot, PROVIDER_INPUT);
     }
 
-    private void addAe2LtPackagedAdapterSlot() {
-        var adapterSlot = new AppEngSlot(
-                this.host != null ? this.host.getAe2LtPackagedAdapterInventory() : new AppEngInternalInventory(1),
-                0);
-        adapterSlot.setIcon(null);
-        adapterSlot.setNotDraggable();
-        adapterSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(
-                Component.translatable("ae2ltpp.gui.adapter_slot")));
-        this.addSlot(adapterSlot, AE2LTPP_ADAPTER);
-    }
-
     private void returnOverflowPatternsToPlayer() {
         if (this.logic == null) {
             return;
@@ -616,23 +453,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         this.host.markForClientUpdate();
     }
 
-    private void returnHiddenAe2LtPackagedAdapterToPlayer() {
-        if (this.host == null || this.host.isAe2LtPackagedProviderSelected()) {
-            return;
-        }
-
-        AppEngInternalInventory adapterInventory = this.host.getAe2LtPackagedAdapterInventory();
-        ItemStack adapterStack = adapterInventory.getStackInSlot(0);
-        if (adapterStack.isEmpty()) {
-            return;
-        }
-
-        adapterInventory.setItemDirect(0, ItemStack.EMPTY);
-        this.getPlayerInventory().placeItemBackInInventory(adapterStack);
-        this.host.saveChanges();
-        this.host.markForClientUpdate();
-    }
-
     private void updatePatternSlotVisibility() {
         for (var slot : this.getSlots(PAGE_PATTERN)) {
             if (slot instanceof AppEngSlot appEngSlot && slot instanceof PagedPatternSlot pagedPatternSlot) {
@@ -649,13 +469,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
             }
         }
 
-        boolean showAdapterSlot = isAe2LtPackagedProviderSelected();
-        for (var slot : this.getSlots(AE2LTPP_ADAPTER)) {
-            if (slot instanceof AppEngSlot appEngSlot) {
-                appEngSlot.setActive(showAdapterSlot);
-                appEngSlot.setSlotEnabled(showAdapterSlot);
-            }
-        }
     }
 
     private ItemStack getProviderStack() {
@@ -676,10 +489,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
 
         if (!stack.isEmpty() && AdaptivePatternProviderResolver.isSupportedProviderStack(stack)) {
             moveIntoSemanticSlots(PROVIDER_INPUT, stack);
-        }
-
-        if (!stack.isEmpty() && isAe2LtPackagedProviderSelected()) {
-            moveIntoSemanticSlots(AE2LTPP_ADAPTER, stack);
         }
 
         if (!stack.isEmpty() && isPatternLike(stack)) {
@@ -722,11 +531,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
     }
 
     private boolean isPatternLike(ItemStack stack) {
-        return PatternDetailsHelper.isEncodedPattern(stack) || AdaptivePatternProviderResolver.isAe2LightningTechOverloadPatternStack(stack);
-    }
-
-    private boolean shouldAllowLightningTechOverloadPattern(ItemStack stack) {
-        return AdaptivePatternProviderResolver.isAe2LightningTechOverloadPatternStack(stack) && this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
+        return PatternDetailsHelper.isEncodedPattern(stack);
     }
 
     private final class PagedPatternInventory implements InternalInventory {
@@ -771,7 +576,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             int backingIndex = getBackingIndex();
-            return backingIndex < this.backing.size() && (this.backing.isItemValid(backingIndex, stack) || AdaptivePatternProviderMenu.this.shouldAllowLightningTechOverloadPattern(stack));
+            return backingIndex < this.backing.size() && this.backing.isItemValid(backingIndex, stack);
         }
 
         @Override
@@ -806,7 +611,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
                 return false;
             }
 
-            return AdaptivePatternProviderMenu.this.shouldAllowLightningTechOverloadPattern(stack) || super.mayPlace(stack);
+            return super.mayPlace(stack);
         }
 
         @Override

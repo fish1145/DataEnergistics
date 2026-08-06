@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
@@ -58,15 +57,6 @@ import java.util.Optional;
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
 
     private static final int HIDDEN_SLOT_COORD = -9999;
-    private static final ResourceLocation EXTRA_PANELS_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/extra_panels.png");
-    private static final int EXTRA_PANELS_TEXTURE_SIZE = 128;
-    private static final int AE2LTPP_PANEL_U = 0;
-    private static final int AE2LTPP_PANEL_V = 0;
-    private static final int AE2LTPP_PANEL_WIDTH = 23;
-    private static final int AE2LTPP_PANEL_HEIGHT = 30;
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF = List.of(Component.translatable("ae2lt.gui.return_mode.off"));
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO = List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT = List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
     private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final Optional<VarHandle> WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
 
@@ -75,10 +65,6 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private final ToggleButton showInPatternAccessTerminalButton;
     private final ServerSettingToggleButton<YesNo> blockingModeButton;
     private final ServerSettingToggleButton<LockCraftingMode> lockCraftingModeButton;
-    private final Ae2LtTextureToggleButton ae2ltModeButton;
-    private final Ae2LtTextureToggleButton ae2ltReturnModeButton;
-    private final Ae2LtTextureToggleButton ae2ltWirelessStrategyButton;
-    private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
     private final AecsPullModeButton resonatingPullButton;
     private final PatternProviderRedstoneTuningButton redstoneTuningButton;
@@ -128,32 +114,6 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 this::goNextPage);
         this.addToLeftToolbar(this.previousPageButton);
         this.addToLeftToolbar(this.nextPageButton);
-
-        this.ae2ltModeButton = new Ae2LtTextureToggleButton(
-                Ae2LtTextureToggleButton.ButtonType.MODE,
-                ignored -> this.menu.sendToggleAe2LtMode());
-        this.ae2ltModeButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.provider_mode.wireless")));
-        this.ae2ltModeButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.provider_mode.normal")));
-        this.addToLeftToolbar(this.ae2ltModeButton);
-
-        this.ae2ltReturnModeButton = new Ae2LtTextureToggleButton(
-                Ae2LtTextureToggleButton.ButtonType.AUTO_RETURN,
-                ignored -> this.menu.sendToggleAe2LtReturnMode());
-        this.addToLeftToolbar(this.ae2ltReturnModeButton);
-
-        this.ae2ltWirelessStrategyButton = new Ae2LtTextureToggleButton(
-                Ae2LtTextureToggleButton.ButtonType.WIRELESS_STRATEGY,
-                ignored -> this.menu.sendToggleAe2LtWirelessDispatchMode());
-        this.ae2ltWirelessStrategyButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_strategy.even")));
-        this.ae2ltWirelessStrategyButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_strategy.single")));
-        this.addToLeftToolbar(this.ae2ltWirelessStrategyButton);
-
-        this.ae2ltWirelessSpeedButton = new Ae2LtTextureToggleButton(
-                Ae2LtTextureToggleButton.ButtonType.SPEED,
-                ignored -> this.menu.sendToggleAe2LtWirelessSpeedMode());
-        this.ae2ltWirelessSpeedButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_speed.fast")));
-        this.ae2ltWirelessSpeedButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_speed.normal")));
-        this.addToLeftToolbar(this.ae2ltWirelessSpeedButton);
 
         this.filteredImportButton = new DataExtractorToggleButton(
                 Icon.FILTER_ON_EXTRACT_ENABLED,
@@ -205,28 +165,6 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.resonatingPullButton.setVisibility(showResonatingPull);
         this.resonatingPullButton.setState(this.menu.isResonatingPullEnabled());
 
-        boolean showAe2LtControls = this.menu.isAe2LtProviderFamilySelected();
-        boolean showAe2LtMode = this.menu.isAe2LtModeSwitchVisible();
-        boolean showAe2LtWirelessControls = this.menu.isAe2LtWirelessControlsVisible();
-        this.ae2ltModeButton.visible = showAe2LtMode;
-        this.ae2ltModeButton.active = showAe2LtMode;
-        this.ae2ltModeButton.setState(this.menu.isAe2LtWirelessMode());
-
-        this.ae2ltReturnModeButton.visible = showAe2LtControls;
-        this.ae2ltReturnModeButton.active = showAe2LtControls;
-        this.ae2ltReturnModeButton.setTooltipAt(0, AE2LT_RETURN_MODE_TOOLTIP_OFF);
-        this.ae2ltReturnModeButton.setTooltipAt(1, AE2LT_RETURN_MODE_TOOLTIP_AUTO);
-        this.ae2ltReturnModeButton.setTooltipAt(2, AE2LT_RETURN_MODE_TOOLTIP_EJECT);
-        this.ae2ltReturnModeButton.setStateIndex(this.menu.getAe2LtReturnModeOrdinal());
-
-        this.ae2ltWirelessStrategyButton.visible = showAe2LtWirelessControls;
-        this.ae2ltWirelessStrategyButton.active = showAe2LtWirelessControls;
-        this.ae2ltWirelessStrategyButton.setState(this.menu.isAe2LtEvenDistributionMode());
-
-        this.ae2ltWirelessSpeedButton.visible = showAe2LtWirelessControls;
-        this.ae2ltWirelessSpeedButton.active = showAe2LtWirelessControls;
-        this.ae2ltWirelessSpeedButton.setState(this.menu.isAe2LtFastSpeedMode());
-
         this.setTextContent("dialog_title",
                 Component.translatable("block.data_energistics.adaptive_pattern_provider"));
         this.setTextContent("page_info", Component.translatable(
@@ -239,30 +177,13 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
         var semantic = this.menu.getSlotSemantic(slot);
-        if (slot.isActive() && semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER) {
-            guiGraphics.blit(
-                    EXTRA_PANELS_TEXTURE,
-                    slot.x - 2,
-                    slot.y - 6,
-                    0,
-                    AE2LTPP_PANEL_U,
-                    AE2LTPP_PANEL_V,
-                    AE2LTPP_PANEL_WIDTH,
-                    AE2LTPP_PANEL_HEIGHT,
-                    EXTRA_PANELS_TEXTURE_SIZE,
-                    EXTRA_PANELS_TEXTURE_SIZE);
-        }
-
         if (slot.isActive() && slot.getItem().isEmpty() && semantic == AdaptivePatternProviderMenu.PAGE_PATTERN) {
             Icon.BACKGROUND_BLANK_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
-        } else if (slot.isActive() && (semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty() || semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
-            String backgroundIcon = semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? "AE2LTPP_PROVIDER_COSE_BASE" : "BACKGROUND_BLOCK";
-            DataEnergisticsIcon.getBlitter(backgroundIcon)
-                    .dest(
-                            semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? slot.x - 1 : slot.x,
-                            semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? slot.y - 1 : slot.y)
+        } else if (slot.isActive() && semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty()) {
+            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
+                    .dest(slot.x, slot.y)
                     .blit(guiGraphics);
         }
         super.renderSlot(guiGraphics, slot);

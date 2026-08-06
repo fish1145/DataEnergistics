@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
@@ -38,12 +37,6 @@ public final class AdaptivePatternProviderResolver {
     private static final int SIMPLE_PATTERN_SLOTS = 5;
     private static final int EXTENDED_PATTERN_SLOTS = 36;
     private static final int METEORITE_PATTERN_SLOTS = 63;
-    private static final String AE2LT_NAMESPACE = "ae2lt";
-    private static final String AE2LT_OVERLOADED_PATTERN_PROVIDER = "overloaded_pattern_provider";
-    private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
-    private static final String AE2LTPP_NAMESPACE = "ae2ltpp";
-    private static final String AE2LTPP_PACKAGED_PATTERN_PROVIDER = "packaged_pattern_provider";
-    private static final String AE2LTPP_WIRELESS_PACKAGED_PATTERN_PROVIDER = "wireless_packaged_pattern_provider";
     private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
     private static final String EXTENDEDAE_NAMESPACE = "extendedae";
     private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
@@ -101,25 +94,6 @@ public final class AdaptivePatternProviderResolver {
     public static boolean isAdvancedAeProviderStack(ItemStack stack) {
         ProviderProfile profile = resolveProviderProfile(stack);
         return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED);
-    }
-
-    public static boolean isAe2LightningTechOverloadedProviderStack(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
-        return profile != null && profile.kind() == ProviderKind.AE2LT_OVERLOADED;
-    }
-
-    public static boolean isAe2LtPackagedProviderStack(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
-        return profile != null && (profile.kind() == ProviderKind.AE2LT_PACKAGED || profile.kind() == ProviderKind.AE2LT_WIRELESS_PACKAGED);
-    }
-
-    public static boolean isAe2LightningTechOverloadPatternStack(ItemStack stack) {
-        if (!ModFlags.isAe2LtRuntimeSupportLoaded() || stack.isEmpty()) {
-            return false;
-        }
-
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return itemId != null && AE2LT_NAMESPACE.equals(itemId.getNamespace()) && AE2LT_OVERLOAD_PATTERN.equals(itemId.getPath());
     }
 
     @Nullable
@@ -201,16 +175,6 @@ public final class AdaptivePatternProviderResolver {
             return profile;
         }
 
-        profile = resolveAe2LightningTechProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        profile = resolveAe2LtPackagedProviderProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
         profile = resolveAppliedCreateProfile(stack);
         if (profile != null) {
             return profile;
@@ -283,48 +247,6 @@ public final class AdaptivePatternProviderResolver {
             default -> ProviderKind.UNKNOWN;
         };
         return new ProviderProfile(kind, slotCount, icon, AEItemKey.of(icon), icon.getHoverName());
-    }
-
-    @Nullable
-    private static ProviderProfile resolveAe2LightningTechProfile(ItemStack stack) {
-        if (!ModFlags.isAe2LtRuntimeSupportLoaded()) {
-            return null;
-        }
-
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId == null || !AE2LT_NAMESPACE.equals(itemId.getNamespace())) {
-            return null;
-        }
-        if (!AE2LT_OVERLOADED_PATTERN_PROVIDER.equals(itemId.getPath())) {
-            return null;
-        }
-
-        ItemStack icon = new ItemStack(stack.getItem());
-        return new ProviderProfile(ProviderKind.AE2LT_OVERLOADED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
-    }
-
-    @Nullable
-    private static ProviderProfile resolveAe2LtPackagedProviderProfile(ItemStack stack) {
-        if (!ModFlags.isAe2LtPackagedProviderSupportLoaded()) {
-            return null;
-        }
-
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId == null || !AE2LTPP_NAMESPACE.equals(itemId.getNamespace())) {
-            return null;
-        }
-
-        ProviderKind kind = switch (itemId.getPath()) {
-            case AE2LTPP_PACKAGED_PATTERN_PROVIDER -> ProviderKind.AE2LT_PACKAGED;
-            case AE2LTPP_WIRELESS_PACKAGED_PATTERN_PROVIDER -> ProviderKind.AE2LT_WIRELESS_PACKAGED;
-            default -> null;
-        };
-        if (kind == null) {
-            return null;
-        }
-
-        ItemStack icon = new ItemStack(stack.getItem());
-        return new ProviderProfile(kind, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
     }
 
     @Nullable
@@ -456,9 +378,6 @@ public final class AdaptivePatternProviderResolver {
         EXTENDED,
         ADVANCED_SMALL,
         ADVANCED_EXTENDED,
-        AE2LT_OVERLOADED,
-        AE2LT_PACKAGED,
-        AE2LT_WIRELESS_PACKAGED,
         APPLIED_CREATE_ANDESITE,
         APPLIED_CREATE_BRASS,
         RESONATING,

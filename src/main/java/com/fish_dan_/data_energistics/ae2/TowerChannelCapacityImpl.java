@@ -33,32 +33,16 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
     @Override
     public int calculate(IGrid grid) {
         IPathingService pathingService = grid.getPathingService();
-        Set<BlockPos> allControllerPositions = new HashSet<>();
-        Set<BlockPos> normalControllerPositions = new HashSet<>();
-        int cableCapacityFactor = pathingService.getChannelMode().getCableCapacityFactor();
-        int overloadedControllerSupply = 0;
+        Set<BlockPos> controllerPositions = new HashSet<>();
         for (IGridNode node : grid.getNodes()) {
-            if (!(node.getOwner() instanceof ControllerBlockEntity controller)) {
-                continue;
-            }
-            BlockPos position = controller.getBlockPos().immutable();
-            allControllerPositions.add(position);
-            if (controller instanceof TowerOverloadedChannelSource source) {
-                int supply = source.getVirtualChannelSupply(cableCapacityFactor);
-                if (supply < 0) {
-                    throw new IllegalStateException("Overloaded controller supplied a negative channel capacity");
-                }
-                overloadedControllerSupply = Math.addExact(overloadedControllerSupply, supply);
-            } else {
-                normalControllerPositions.add(position);
+            if (node.getOwner() instanceof ControllerBlockEntity controller) {
+                controllerPositions.add(controller.getBlockPos().immutable());
             }
         }
-        return calculateCombined(
+        return calculate(
                 pathingService.getControllerState(),
                 pathingService.getChannelMode(),
-                normalControllerPositions,
-                allControllerPositions,
-                overloadedControllerSupply);
+                controllerPositions);
     }
 
     /**
@@ -70,21 +54,9 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
      * @return shared channel capacity
      */
     @Override
-    public int calculate(ControllerState controllerState, ChannelMode channelMode,
+    public int calculate(ControllerState controllerState,
+                         ChannelMode channelMode,
                          Iterable<BlockPos> controllerPositions) {
-        Set<BlockPos> positions = immutablePositionSet(controllerPositions);
-        return calculateCombined(controllerState, channelMode, positions, positions, 0);
-    }
-
-    /**
-     * Applies ordinary geometry only to normal controllers and adds overloaded controllers' per-controller supply.
-     */
-    @Override
-    public int calculateCombined(ControllerState controllerState,
-                                 ChannelMode channelMode,
-                                 Iterable<BlockPos> normalControllerPositions,
-                                 Iterable<BlockPos> allControllerPositions,
-                                 int overloadedControllerSupply) {
         if (controllerState == ControllerState.CONTROLLER_CONFLICT) {
             return 0;
         }
@@ -95,31 +67,22 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
             return Math.multiplyExact(CHANNELS_PER_EXPOSED_FACE, channelMode.getCableCapacityFactor());
         }
 
-        if (overloadedControllerSupply < 0) {
-            throw new IllegalArgumentException("Overloaded-controller supply must not be negative");
-        }
-
-        Set<BlockPos> allPositions = immutablePositionSet(allControllerPositions);
-        Set<BlockPos> normalPositions = immutablePositionSet(normalControllerPositions);
-        if (allPositions.isEmpty()) {
+        Set<BlockPos> positions = immutablePositionSet(controllerPositions);
+        if (positions.isEmpty()) {
             throw new IllegalArgumentException("An online controller grid must contain at least one controller position");
-        }
-        if (!allPositions.containsAll(normalPositions)) {
-            throw new IllegalArgumentException("Normal-controller positions must be included in all controller positions");
         }
 
         int exposedFaces = 0;
-        for (BlockPos position : normalPositions) {
+        for (BlockPos position : positions) {
             for (Direction direction : Direction.values()) {
-                if (!allPositions.contains(position.relative(direction))) {
+                if (!positions.contains(position.relative(direction))) {
                     exposedFaces = Math.addExact(exposedFaces, 1);
                 }
             }
         }
 
         int baseCapacity = Math.multiplyExact(exposedFaces, CHANNELS_PER_EXPOSED_FACE);
-        int normalCapacity = Math.multiplyExact(baseCapacity, channelMode.getCableCapacityFactor());
-        return Math.addExact(normalCapacity, overloadedControllerSupply);
+        return Math.multiplyExact(baseCapacity, channelMode.getCableCapacityFactor());
     }
 
     /**

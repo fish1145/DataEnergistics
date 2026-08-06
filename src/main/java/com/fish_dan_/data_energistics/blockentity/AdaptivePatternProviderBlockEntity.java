@@ -6,12 +6,10 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -27,7 +25,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Nameable;
@@ -105,11 +102,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public AppEngInternalInventory getProviderInventory() {
         return getAdaptiveState().getProviderInventory();
-    }
-
-    @Override
-    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
-        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
     }
 
     @Nullable
@@ -223,24 +215,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public boolean isAe2LightningTechOverloadedProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
-    }
-
-    @Override
-    public boolean isAe2LtPackagedProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED);
-    }
-
-    @Override
-    public boolean isAe2LtPackagedWirelessProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
-    }
-
-    @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
@@ -262,56 +236,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public boolean supportsFilteredImportToggle() {
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED);
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode() {
-        return getAdaptiveState().getAe2LtProviderMode();
-    }
-
-    @Override
-    public void cycleAe2LtProviderMode() {
-        getAdaptiveState().cycleAe2LtProviderMode();
-        this.onAe2LtStateChanged();
-    }
-
-    @Override
-    public boolean isAe2LtWirelessMode() {
-        return getAdaptiveState().isAe2LtWirelessMode();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode() {
-        return getAdaptiveState().getAe2LtReturnMode();
-    }
-
-    @Override
-    public void cycleAe2LtReturnMode() {
-        getAdaptiveState().cycleAe2LtReturnMode();
-        this.onAe2LtStateChanged();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
-        return getAdaptiveState().getAe2LtWirelessDispatchMode();
-    }
-
-    @Override
-    public void cycleAe2LtWirelessDispatchMode() {
-        getAdaptiveState().cycleAe2LtWirelessDispatchMode();
-        this.onAe2LtStateChanged();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
-        return getAdaptiveState().getAe2LtWirelessSpeedMode();
-    }
-
-    @Override
-    public void cycleAe2LtWirelessSpeedMode() {
-        getAdaptiveState().cycleAe2LtWirelessSpeedMode();
-        this.onAe2LtStateChanged();
+        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED);
     }
 
     @Override
@@ -348,56 +273,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         if (logic != null) {
             logic.onHostStateChanged();
         }
-    }
-
-    @Override
-    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        boolean accepted = getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
-        if (accepted) {
-            this.onAe2LtStateChanged();
-        }
-        return accepted;
-    }
-
-    @Override
-    public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
-        if (getAdaptiveState().removeConnection(dimension, pos)) {
-            this.onAe2LtStateChanged();
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public List<AdaptiveWirelessConnection> getConnections() {
-        return getAdaptiveState().getConnections();
-    }
-
-    /**
-     * Exposes the host position required by AE2LT 2.0's soft-attached provider interface.
-     *
-     * @return this provider's world position
-     */
-    public BlockPos getProviderPos() {
-        return getBlockPos();
-    }
-
-    /**
-     * Reports whether AE2LT may currently bind wireless endpoints to this adaptive provider.
-     *
-     * @return whether a wireless-compatible AE2LT provider mode is active
-     */
-    public boolean isWirelessProvider() {
-        return isAe2LtWirelessConnectableProviderSelected();
-    }
-
-    /**
-     * Keeps AE2LT 2.0's advertised capacity aligned with persistence and state-stream bounds.
-     *
-     * @return maximum stored wireless endpoints
-     */
-    public int getMaxWirelessConnections() {
-        return AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS;
     }
 
     @Override
@@ -467,7 +342,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             logic.updatePatterns();
         }
         if (stateChanged || patternInventoryChanged || patternSlotsReconciled) {
-            onAe2LtStateChanged();
+            onAdaptiveStateChanged();
         }
     }
 
@@ -571,7 +446,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
         boolean providerInventoryChanged = inv == getAdaptiveState().getProviderInventory();
-        boolean adapterInventoryChanged = inv == getAdaptiveState().getAe2LtPackagedAdapterInventory();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();
 
         if (inv == this.upgrades) {
@@ -585,7 +459,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         this.syncedPatternSlotCount = newSlotCount;
         this.saveChanges();
         this.markForClientUpdate();
-        if ((providerInventoryChanged || adapterInventoryChanged || inv == this.upgrades) && logic != null) {
+        if ((providerInventoryChanged || inv == this.upgrades) && logic != null) {
             logic.onHostStateChanged();
         }
     }
@@ -720,7 +594,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return AdaptivePatternProviderResolver.resolveProviderProfile(getAdaptiveState().getProviderStack());
     }
 
-    private void onAe2LtStateChanged() {
+    private void onAdaptiveStateChanged() {
         this.saveChanges();
         this.markForClientUpdate();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();

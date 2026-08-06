@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
-import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
 
 import net.minecraft.core.Direction;
 
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Set;
 
 @Mixin(PatternProviderLogic.class)
-public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicFieldAccess, PatternProviderBatchAccess {
+public interface PatternProviderLogicFieldAccessor extends PatternProviderBatchAccess {
 
     @Override
     @Accessor("host")
@@ -58,12 +57,6 @@ public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicF
     @Override
     @Accessor("sendDirection")
     void dataEnergistics$setSendDirection(Direction direction);
-
-    @Accessor("unlockStack")
-    GenericStack dataEnergistics$getUnlockStack();
-
-    @Accessor("unlockStack")
-    void dataEnergistics$setUnlockStack(GenericStack unlockStack);
 
     @Override
     @Invoker("getActiveSides")

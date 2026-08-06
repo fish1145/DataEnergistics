@@ -21,8 +21,5 @@ public final class DataEnergisticsDataGenerator {
         generator.addProvider(
                 event.includeServer(),
                 new ModRecipeProvider(packOutput, lookupProvider));
-        generator.addProvider(
-                event.includeServer(),
-                new ModAe2LtRecipeProvider(packOutput));
     }
 }
