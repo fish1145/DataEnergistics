@@ -247,7 +247,6 @@ public final class ModUpgrades {
                 "block.advanced_ae.small_adv_pattern_provider");
         registerExternalRedstoneTuningItemTarget("advanced_ae", "adv_pattern_provider_part",
                 "block.advanced_ae.adv_pattern_provider");
-        registerExternalRedstoneTuningTarget("ae2lt", "overloaded_pattern_provider", "block.ae2lt.overloaded_pattern_provider");
         registerExternalRedstoneTuningTarget("ae2cs", "simple_pattern_provider", "block.ae2cs.simple_pattern_provider");
         registerExternalRedstoneTuningTarget("ae2cs", "resonating_pattern_provider", "block.ae2cs.resonating_pattern_provider");
         registerExternalRedstoneTuningTarget("ae2cs", "extended_resonating_pattern_provider",

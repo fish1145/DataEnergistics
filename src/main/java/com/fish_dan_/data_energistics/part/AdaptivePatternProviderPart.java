@@ -7,30 +7,25 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
 
@@ -114,11 +109,6 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public AppEngInternalInventory getProviderInventory() {
         return getAdaptiveState().getProviderInventory();
-    }
-
-    @Override
-    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
-        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
     }
 
     @Override
@@ -210,22 +200,6 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public boolean isAe2LightningTechOverloadedProviderSelected() {
-        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
-    }
-
-    @Override
-    public boolean isAe2LtPackagedProviderSelected() {
-        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
-    }
-
-    @Override
-    public boolean isAe2LtPackagedWirelessProviderSelected() {
-        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
-    }
-
-    @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
@@ -243,56 +217,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public boolean supportsFilteredImportToggle() {
         var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED || kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode() {
-        return getAdaptiveState().getAe2LtProviderMode();
-    }
-
-    @Override
-    public void cycleAe2LtProviderMode() {
-        getAdaptiveState().cycleAe2LtProviderMode();
-        onAdaptiveStateChanged();
-    }
-
-    @Override
-    public boolean isAe2LtWirelessMode() {
-        return getAdaptiveState().isAe2LtWirelessMode();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode() {
-        return getAdaptiveState().getAe2LtReturnMode();
-    }
-
-    @Override
-    public void cycleAe2LtReturnMode() {
-        getAdaptiveState().cycleAe2LtReturnMode();
-        onAdaptiveStateChanged();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
-        return getAdaptiveState().getAe2LtWirelessDispatchMode();
-    }
-
-    @Override
-    public void cycleAe2LtWirelessDispatchMode() {
-        getAdaptiveState().cycleAe2LtWirelessDispatchMode();
-        onAdaptiveStateChanged();
-    }
-
-    @Override
-    public AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
-        return getAdaptiveState().getAe2LtWirelessSpeedMode();
-    }
-
-    @Override
-    public void cycleAe2LtWirelessSpeedMode() {
-        getAdaptiveState().cycleAe2LtWirelessSpeedMode();
-        onAdaptiveStateChanged();
+        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED;
     }
 
     @Override
@@ -319,29 +244,6 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return;
         }
         onAdaptiveStateChanged();
-    }
-
-    @Override
-    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        boolean accepted = getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
-        if (accepted) {
-            onAdaptiveStateChanged();
-        }
-        return accepted;
-    }
-
-    @Override
-    public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
-        if (getAdaptiveState().removeConnection(dimension, pos)) {
-            onAdaptiveStateChanged();
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public List<AdaptiveWirelessConnection> getConnections() {
-        return getAdaptiveState().getConnections();
     }
 
     @Override

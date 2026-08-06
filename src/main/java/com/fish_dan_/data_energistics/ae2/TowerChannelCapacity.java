@@ -29,20 +29,4 @@ public interface TowerChannelCapacity {
      * @return total channel capacity
      */
     int calculate(ControllerState controllerState, ChannelMode channelMode, Iterable<BlockPos> controllerPositions);
-
-    /**
-     * Combines ordinary exposed-face capacity with independently supplied overloaded-controller capacity.
-     *
-     * @param controllerState            controller validation result
-     * @param channelMode                active AE channel multiplier
-     * @param normalControllerPositions  ordinary controllers whose exposed faces provide channels
-     * @param allControllerPositions     all ordinary and overloaded controller blocks used for adjacency checks
-     * @param overloadedControllerSupply already-scaled sum supplied by overloaded controllers
-     * @return total channel capacity
-     */
-    int calculateCombined(ControllerState controllerState,
-                          ChannelMode channelMode,
-                          Iterable<BlockPos> normalControllerPositions,
-                          Iterable<BlockPos> allControllerPositions,
-                          int overloadedControllerSupply);
 }

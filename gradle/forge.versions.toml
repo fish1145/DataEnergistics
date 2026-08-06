@@ -36,8 +36,6 @@ ae2ji = "7727898"
 eae = "8511901"
 aae = "7849217"
 aecs = "8498888"
-aelt = "8458199"
-aeltpp = "8417755"
 actually-additions = "8281896"
 eco = "8463264"
 extendedae-plus = "8379620"
@@ -95,8 +93,6 @@ ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", vers
 eae                 = { module = "curse.maven:ex-pattern-provider-892005", version.ref = "eae"}
 aae                 = { module = "curse.maven:advancedae-1084104", version.ref = "aae" }
 aecs                = { module = "curse.maven:ae2-crystal-science-1435174", version.ref = "aecs" }
-aelt                = { module = "curse.maven:ae2-lightning-tech-1527395", version.ref = "aelt" }
-aeltpp              = { module = "curse.maven:ae2lt-packaged-pattern-provider-1572723", version.ref = "aeltpp" }
 actually-additions  = { module = "curse.maven:actually-additions-228404", version.ref = "actually-additions" }
 eco                 = { module = "curse.maven:neo-eco-ae-extension-1460639", version.ref = "eco" }
 extendedae-plus     = { module = "curse.maven:extendedae-plus-1337639", version.ref = "extendedae-plus" }

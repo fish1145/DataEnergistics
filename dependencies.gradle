@@ -24,8 +24,6 @@ dependencies {
     // AE2 addons
     compileOnly(forge.eae)
     compileOnly(forge.aecs)
-    compileOnly(forge.aelt)
-    compileOnly(forge.aeltpp)
     compileOnly(forge.actually.additions)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
@@ -91,12 +89,10 @@ dependencies {
 
     // Runtime AE2 addons
     extraLocalRuntime(forge.ae2ji)
-    extraLocalRuntime(forge.aeltpp)
     extraLocalRuntime(forge.actually.additions)
     extraLocalRuntime(forge.ae2wt)
     extraLocalRuntime(forge.eae)
     extraLocalRuntime(forge.aecs)
-    extraLocalRuntime(forge.aelt)
     extraLocalRuntime(forge.applied.flux)
     extraLocalRuntime(forge.aae)
     extraLocalRuntime(forge.eco)
