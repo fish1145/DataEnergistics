@@ -50,7 +50,7 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
             return this.cache.get().computeInline(
                     key.gridScope(),
                     TrinityComputationNamespace.CAPACITY_CAPTURE,
-                    key.publicationRevision(),
+                    key.capacityEpoch(),
                     key,
                     () -> TrinityCachedComputation.cacheable(captureAndValidate(
                             key,

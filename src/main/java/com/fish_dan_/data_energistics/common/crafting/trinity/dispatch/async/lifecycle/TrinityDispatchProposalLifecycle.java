@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 
 /**
  * Owns the independent bounded dispatch-proposal executor for one logical server lifetime.
@@ -16,7 +17,7 @@ public final class TrinityDispatchProposalLifecycle {
         if (scheduler != null) {
             throw new IllegalStateException("The Trinity dispatch proposal scheduler is already running");
         }
-        scheduler = DispatchProposalScheduler.create();
+        scheduler = DispatchProposalScheduler.create(TrinityPlanningGatewayLifecycle::computationCache);
     }
 
     /** @return running process-wide scheduler shared by all AE2 grids */

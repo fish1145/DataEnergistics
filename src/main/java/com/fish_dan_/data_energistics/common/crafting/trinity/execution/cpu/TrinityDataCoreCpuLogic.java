@@ -5,15 +5,15 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmis
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerProposalCoordinator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.WorkerOperationBudget;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlice;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchCapacityPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchCapacitySlicePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
@@ -120,7 +120,8 @@ final class TrinityDataCoreCpuLogic {
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
     private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create(
             TrinityPlanningGatewayLifecycle::computationCache);
-    private final CapacitySlicePlanner capacitySlicePlanner = CapacitySlicePlanner.create();
+    private final DispatchCapacityPlanner capacityPlanner = DispatchCapacityPlanner.create(
+            TrinityPlanningGatewayLifecycle::computationCache);
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
@@ -134,7 +135,7 @@ final class TrinityDataCoreCpuLogic {
     private final WorkerOperationBudget operationBudget = WorkerOperationBudget.create();
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
-    private int capacitySliceCursor;
+    private CraftingDispatchCursor capacitySliceCursor = CraftingDispatchCursor.initial();
     private long proposalRetryAt = -1L;
     private long jobRevision;
     private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
@@ -196,7 +197,7 @@ final class TrinityDataCoreCpuLogic {
                 this.cpu);
         this.job = new TrinityDataCoreExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
         this.jobRevision = Math.incrementExact(this.jobRevision);
-        this.capacitySliceCursor = 0;
+        this.capacitySliceCursor = CraftingDispatchCursor.initial();
         this.proposalRetryAt = -1L;
         this.cpu.markDirty();
         notifyJobOwner(this.job, CraftingJobStatusPacket.Status.STARTED);
@@ -1023,6 +1024,7 @@ final class TrinityDataCoreCpuLogic {
         ExtractedPatternInputs prototype;
         long maximumCount;
         long currentTick;
+        ProviderCapacityCapture capacityCapture = null;
         List<ProviderCapacitySnapshot> snapshots;
         try (CraftingDispatchWindow.CapacityCaptureScope ignored = dispatchWindow.beginProviderCapacityCapture()) {
             prototype = capturePatternInputPrototype(extractionDetails, level);
@@ -1039,15 +1041,18 @@ final class TrinityDataCoreCpuLogic {
             }
 
             currentTick = TickHandler.instance().getCurrentTick();
-            snapshots = selectedProposal == null ?
-                    this.capacityResolver.capture(
-                            publications,
-                            details,
-                            prototype.inputHolder(),
-                            maximumCount,
-                            patternIdentity,
-                            currentTick).snapshots() :
-                    List.of(selectedProposal.target());
+            if (selectedProposal == null) {
+                capacityCapture = this.capacityResolver.capture(
+                        publications,
+                        details,
+                        prototype.inputHolder(),
+                        maximumCount,
+                        patternIdentity,
+                        currentTick);
+                snapshots = capacityCapture.snapshots();
+            } else {
+                snapshots = List.of(selectedProposal.target());
+            }
         }
         if (snapshots.isEmpty()) {
             return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
@@ -1063,7 +1068,7 @@ final class TrinityDataCoreCpuLogic {
                 proposalDecision = this.proposalCoordinator.submit(
                         new CraftingDispatchProposalRequest(
                                 dispatchLease,
-                                snapshots,
+                                capacityCapture,
                                 BigInteger.valueOf(maximumCount),
                                 this.capacitySliceCursor),
                         workIdentity,
@@ -1089,26 +1094,31 @@ final class TrinityDataCoreCpuLogic {
 
         int physicalAttempts = 0;
         int inspectedSnapshots = 0;
-        int searchCursor = this.capacitySliceCursor;
+        CraftingDispatchCursor searchCursor = this.capacitySliceCursor;
         Set<ProviderCapacitySnapshot> inspectedTargets = new HashSet<>();
         while (inspectedSnapshots < snapshots.size() &&
                 physicalAttempts < physicalCallLimit &&
                 !dispatchWindow.isExhausted()) {
-            CapacitySlicePlan candidatePlan = this.capacitySlicePlanner.plan(
-                    snapshots,
-                    BigInteger.valueOf(maximumCount),
-                    1,
-                    searchCursor);
+            DispatchCapacitySlicePlan candidatePlan = asynchronousSelection ?
+                    new DispatchCapacitySlicePlan(List.of(new DispatchCapacitySlicePlan.Slice(
+                            selectedProposal.target(),
+                            Math.min(selectedProposal.logicalCrafts(), maximumCount),
+                            selectedProposal.nextCursor()))) :
+                    this.capacityPlanner.plan(
+                            capacityCapture,
+                            BigInteger.valueOf(maximumCount),
+                            1,
+                            searchCursor);
             if (candidatePlan.slices().isEmpty()) {
                 break;
             }
-            CapacitySlice slice = candidatePlan.slices().getFirst();
+            DispatchCapacitySlicePlan.Slice slice = candidatePlan.slices().getFirst();
             ProviderCapacitySnapshot snapshot = slice.target();
             if (!inspectedTargets.add(snapshot)) {
                 break;
             }
             inspectedSnapshots++;
-            searchCursor = candidatePlan.nextCursor();
+            searchCursor = slice.nextCursor();
             long prototypeOffer = offeredCount(snapshot, slice, maximumCount);
             ICraftingProvider provider = this.capacityResolver.resolveCurrent(
                     publications,
@@ -1293,7 +1303,7 @@ final class TrinityDataCoreCpuLogic {
                         physicalAttempts = Math.incrementExact(physicalAttempts);
                         this.capacitySliceCursor = asynchronousSelection ?
                                 selectedProposal.nextCursor() :
-                                candidatePlan.nextCursor();
+                                slice.nextCursor();
                     }
                     if (result.requiresJobAbort()) {
                         Data_Energistics.LOGGER.error(
@@ -1367,7 +1377,7 @@ final class TrinityDataCoreCpuLogic {
 
     private static long offeredCount(
                                      ProviderCapacitySnapshot snapshot,
-                                     CapacitySlice slice,
+                                     DispatchCapacitySlicePlan.Slice slice,
                                      long maximumCount) {
         return switch (snapshot.routingMode()) {
             case TARGETED -> Math.min(slice.logicalCrafts(), maximumCount);
@@ -2239,7 +2249,7 @@ final class TrinityDataCoreCpuLogic {
                                           long durableRevision,
                                           long lastModifiedOnTick,
                                           long proposalRetryAt,
-                                          int capacitySliceCursor,
+                                          CraftingDispatchCursor capacitySliceCursor,
                                           boolean cantStoreItems,
                                           boolean proposalOutstanding,
                                           TrinityWorkerSchedulingHint schedulingHint) {
@@ -2459,7 +2469,7 @@ final class TrinityDataCoreCpuLogic {
         cancelPendingReplan();
         this.job = null;
         this.jobRevision = Math.incrementExact(this.jobRevision);
-        this.capacitySliceCursor = 0;
+        this.capacitySliceCursor = CraftingDispatchCursor.initial();
         this.proposalRetryAt = -1L;
         this.cpu.markDirty();
         if (failedJob == null) {
@@ -2753,7 +2763,7 @@ final class TrinityDataCoreCpuLogic {
                     this::postChange,
                     this);
             this.jobRevision = Math.incrementExact(this.jobRevision);
-            this.capacitySliceCursor = 0;
+            this.capacitySliceCursor = CraftingDispatchCursor.initial();
             this.proposalRetryAt = -1L;
             if (this.job.finalOutput == null) {
                 finishJob(false);
@@ -2770,7 +2780,7 @@ final class TrinityDataCoreCpuLogic {
         this.inventory.clear();
         this.pendingVirtualCompletions.clear();
         this.job = null;
-        this.capacitySliceCursor = 0;
+        this.capacitySliceCursor = CraftingDispatchCursor.initial();
         this.proposalRetryAt = -1L;
         this.jobRevision = Math.incrementExact(this.jobRevision);
     }
@@ -2881,7 +2891,7 @@ final class TrinityDataCoreCpuLogic {
                 success ? CraftingJobStatusPacket.Status.FINISHED : CraftingJobStatusPacket.Status.CANCELLED);
         this.job = null;
         this.jobRevision = Math.incrementExact(this.jobRevision);
-        this.capacitySliceCursor = 0;
+        this.capacitySliceCursor = CraftingDispatchCursor.initial();
         this.proposalRetryAt = -1L;
         this.cpu.markDirty();
         storeItems();

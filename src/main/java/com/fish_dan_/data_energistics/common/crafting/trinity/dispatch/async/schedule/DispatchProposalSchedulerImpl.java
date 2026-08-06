@@ -5,7 +5,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard.ProviderShardDispatcher;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Fixed bounded implementation enforcing one proposal per worker and a separate per-grid outstanding limit.
@@ -31,7 +33,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
     private final Object admissionLock = new Object();
     private final DispatchProposalLimits limits;
-    private final CapacitySlicePlanner slicePlanner;
+    private final DispatchProposalCandidatePlanner candidatePlanner;
     private final ProviderShardDispatcher shardDispatcher;
     private final ThreadPoolExecutor executor;
     private final Set<WorkerKey> outstandingWorkers = new HashSet<>();
@@ -40,19 +42,20 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final Set<TicketImpl> tickets = new HashSet<>();
     private boolean closed;
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits) {
-        this(limits, CapacitySlicePlanner.create());
+    DispatchProposalSchedulerImpl(DispatchProposalLimits limits, Supplier<TrinityComputationCache> computationCache) {
+        this(limits, DispatchProposalCandidatePlanner.create(computationCache));
     }
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits, CapacitySlicePlanner slicePlanner) {
+    DispatchProposalSchedulerImpl(DispatchProposalLimits limits,
+                                  DispatchProposalCandidatePlanner candidatePlanner) {
         if (limits == null) {
             throw new IllegalArgumentException("Dispatch proposal limits must not be null");
         }
-        if (slicePlanner == null) {
-            throw new IllegalArgumentException("Dispatch proposal slice planner must not be null");
+        if (candidatePlanner == null) {
+            throw new IllegalArgumentException("Dispatch proposal candidate planner must not be null");
         }
         this.limits = limits;
-        this.slicePlanner = slicePlanner;
+        this.candidatePlanner = candidatePlanner;
         this.shardDispatcher = ProviderShardDispatcher.create(limits.shardCount());
         this.executor = createExecutor(limits);
     }
@@ -176,7 +179,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         try {
             ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(
                     request,
-                    this.slicePlanner,
+                    this.candidatePlanner,
                     providerQuantum);
             switch (result) {
                 case ProviderShardDispatcher.NoCapacity ignored -> ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);

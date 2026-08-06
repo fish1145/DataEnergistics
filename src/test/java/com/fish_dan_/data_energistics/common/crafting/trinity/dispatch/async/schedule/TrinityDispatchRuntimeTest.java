@@ -1,24 +1,30 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerProposalCoordinator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard.ProviderShardDispatcher;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.CapacitySlicePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCaptureKey;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.MachineTargetId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,9 +38,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityDispatchRuntimeTest {
 
+    private final List<TrinityComputationCache> computationCaches = new ArrayList<>();
+
+    @AfterEach
+    void closeComputationCaches() {
+        this.computationCaches.forEach(TrinityComputationCache::close);
+        this.computationCaches.clear();
+    }
+
     @Test
     void proposalLeaseSelectsOneImmutableTargetAndRejectsASecondWorkerTicket() throws InterruptedException {
-        DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(new DispatchProposalLimits(1, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(1, 4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             CraftingDispatchProposalRequest request = request(1L, runtimeId, 1, 0L, 6L);
@@ -52,7 +66,7 @@ public final class TrinityDispatchRuntimeTest {
                     DispatchProposalTicket.Ready.class,
                     accepted.ticket().state());
             assertEquals(request.lease(), ready.proposal().lease());
-            assertEquals(request.candidates().getFirst(), ready.proposal().target());
+            assertEquals(request.capacity().snapshots().getFirst(), ready.proposal().target());
             assertEquals(6L, ready.proposal().logicalCrafts());
 
             accepted.ticket().close();
@@ -75,8 +89,8 @@ public final class TrinityDispatchRuntimeTest {
     void queueRejectionReleasesWorkerAdmissionWithoutRunningResourceLogic() throws InterruptedException {
         CountDownLatch running = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CapacitySlicePlanner delegate = CapacitySlicePlanner.create();
-        CapacitySlicePlanner blockingPlanner = (snapshots, remainingCrafts, physicalCallLimit, cursor) -> {
+        DispatchProposalCandidatePlanner delegate = createCandidatePlanner();
+        DispatchProposalCandidatePlanner blockingPlanner = request -> {
             running.countDown();
             try {
                 if (!release.await(5L, TimeUnit.SECONDS)) {
@@ -86,7 +100,7 @@ public final class TrinityDispatchRuntimeTest {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Dispatch proposal worker was interrupted", exception);
             }
-            return delegate.plan(snapshots, remainingCrafts, physicalCallLimit, cursor);
+            return delegate.plan(request);
         };
         DispatchProposalSchedulerImpl scheduler = new DispatchProposalSchedulerImpl(
                 new DispatchProposalLimits(1, 2, 4, 16),
@@ -134,7 +148,7 @@ public final class TrinityDispatchRuntimeTest {
     @Test
     void governorPolicyControlsAsyncAdmissionAndProviderQuantumWithoutSplittingLogicalCrafts()
                                                                                                throws InterruptedException {
-        DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(new DispatchProposalLimits(2, 8, 8, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 8, 8, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             CraftingDispatchProposalRequest disabledRequest = request(5L, runtimeId, 1, 0L, 6L);
@@ -192,7 +206,7 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void coordinatorDiscardsACompletedProposalWhenAnyGenerationLeaseChanges() throws InterruptedException {
-        DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(new DispatchProposalLimits(1, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(1, 4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             TrinityWorkerProposalCoordinator coordinator = TrinityWorkerProposalCoordinator.create(() -> scheduler);
@@ -229,10 +243,10 @@ public final class TrinityDispatchRuntimeTest {
     @Test
     void busyCandidateFallsThroughWithOneImmutablePlannerPass() {
         AtomicInteger plannerCalls = new AtomicInteger();
-        CapacitySlicePlanner delegate = CapacitySlicePlanner.create();
-        CapacitySlicePlanner countingPlanner = (snapshots, remainingCrafts, physicalCallLimit, cursor) -> {
+        DispatchProposalCandidatePlanner delegate = createCandidatePlanner();
+        DispatchProposalCandidatePlanner countingPlanner = request -> {
             plannerCalls.incrementAndGet();
-            return delegate.plan(snapshots, remainingCrafts, physicalCallLimit, cursor);
+            return delegate.plan(request);
         };
         ProviderShardDispatcher dispatcher = ProviderShardDispatcher.create(4);
         UUID runtimeId = UUID.randomUUID();
@@ -280,7 +294,7 @@ public final class TrinityDispatchRuntimeTest {
             assertEquals(1, plannerCalls.get());
             assertEquals(available, selected.target());
             assertEquals(6L, selected.logicalCrafts());
-            assertEquals(0, selected.nextCursor());
+            assertEquals(new CraftingDispatchCursor(0, 1L), selected.nextCursor());
         } finally {
             selected.reservation().close();
             holder.reservation().close();
@@ -289,7 +303,7 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void providerShardsDoNotOversellProviderRoutesOrSharedMachines() throws InterruptedException {
-        DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(new DispatchProposalLimits(2, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             MachineTargetId firstMachine = MachineTargetId.forBlockTarget(
@@ -449,9 +463,38 @@ public final class TrinityDispatchRuntimeTest {
                 membershipGeneration);
         return new CraftingDispatchProposalRequest(
                 lease,
-                targets,
+                new ProviderCapacityCapture(
+                        new ProviderCapacityCaptureKey(
+                                scope,
+                                1L,
+                                1L,
+                                0L,
+                                targets.stream()
+                                        .map(ProviderCapacitySnapshot::providerId)
+                                        .distinct()
+                                        .toList(),
+                                "pattern",
+                                List.of(),
+                                remainingCrafts),
+                        targets),
                 BigInteger.valueOf(remainingCrafts),
-                0);
+                CraftingDispatchCursor.initial());
+    }
+
+    private DispatchProposalScheduler createScheduler(DispatchProposalLimits limits) {
+        TrinityComputationCache cache = createComputationCache();
+        return DispatchProposalScheduler.create(limits, () -> cache);
+    }
+
+    private DispatchProposalCandidatePlanner createCandidatePlanner() {
+        TrinityComputationCache cache = createComputationCache();
+        return DispatchProposalCandidatePlanner.create(() -> cache);
+    }
+
+    private TrinityComputationCache createComputationCache() {
+        TrinityComputationCache cache = TrinityComputationCache.create(Runnable::run);
+        this.computationCaches.add(cache);
+        return cache;
     }
 
     private static DispatchProposalScheduler.Accepted submitAndAwait(

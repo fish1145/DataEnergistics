@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
+
+import java.util.function.Supplier;
 
 /**
  * Independent bounded executor for pure dispatch-proposal calculations.
@@ -15,8 +18,8 @@ public interface DispatchProposalScheduler extends AutoCloseable {
     /**
      * @return scheduler using the architecture hard limits
      */
-    static DispatchProposalScheduler create() {
-        return create(DispatchProposalLimits.defaults());
+    static DispatchProposalScheduler create(Supplier<TrinityComputationCache> computationCache) {
+        return create(DispatchProposalLimits.defaults(), computationCache);
     }
 
     /**
@@ -25,8 +28,9 @@ public interface DispatchProposalScheduler extends AutoCloseable {
      * @param limits immutable executor limits
      * @return running scheduler
      */
-    static DispatchProposalScheduler create(DispatchProposalLimits limits) {
-        return new DispatchProposalSchedulerImpl(limits);
+    static DispatchProposalScheduler create(DispatchProposalLimits limits,
+                                            Supplier<TrinityComputationCache> computationCache) {
+        return new DispatchProposalSchedulerImpl(limits, computationCache);
     }
 
     /**
