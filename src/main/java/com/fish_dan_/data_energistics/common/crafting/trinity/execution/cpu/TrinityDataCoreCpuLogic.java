@@ -1198,6 +1198,19 @@ final class TrinityDataCoreCpuLogic {
                         }
                         continue;
                     }
+                    if (!dispatchContextCurrent(
+                            dispatchLease,
+                            currentJob,
+                            publications,
+                            workGeneration,
+                            snapshot)) {
+                        if (asynchronousSelection) {
+                            this.proposalCoordinator.discardStale();
+                        }
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, false));
+                    }
 
                     CountedCraftingPreparation preparation;
                     try {
@@ -1289,6 +1302,21 @@ final class TrinityDataCoreCpuLogic {
                     EnergyCharge energyCharge = chargeEnergy(energyService, powerPerCraft * count);
                     if (energyCharge == null) {
                         additionalInputs.rollback();
+                        return settleProposal(
+                                asynchronousSelection,
+                                new ProviderDispatchOutcome(physicalAttempts, false));
+                    }
+                    if (!dispatchContextCurrent(
+                            dispatchLease,
+                            currentJob,
+                            publications,
+                            workGeneration,
+                            snapshot)) {
+                        energyCharge.rollback();
+                        additionalInputs.rollback();
+                        if (asynchronousSelection) {
+                            this.proposalCoordinator.discardStale();
+                        }
                         return settleProposal(
                                 asynchronousSelection,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
@@ -1429,6 +1457,19 @@ final class TrinityDataCoreCpuLogic {
                 workGeneration,
                 route.leaseEpoch(),
                 route.membershipGeneration());
+    }
+
+    private boolean dispatchContextCurrent(CraftingDispatchLease expected,
+                                           TrinityDataCoreExecutingCraftingJob currentJob,
+                                           CraftingProviderPublicationIndex publications,
+                                           long workGeneration,
+                                           ProviderCapacitySnapshot snapshot) {
+        if (this.job != currentJob || currentJob.link.isCanceled() ||
+                publications.publicationRevision() != snapshot.publicationRevision() ||
+                CountedCraftingProviderAdapters.mutationRevision() != snapshot.capacityRevision()) {
+            return false;
+        }
+        return expected.equals(captureDispatchLease(currentJob, publications, workGeneration));
     }
 
     private static String capturePatternIdentity(IPatternDetails details, Level level) {
