@@ -55,8 +55,9 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         if (storage == null || !seenStorages.add(storage)) {
             return storageIdentity;
         }
-        boolean canExtract = this.brandonsCore.supports(storage) ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
-        boolean canReceive = this.brandonsCore.supports(storage) ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
+        boolean brandonsCoreSupported = this.brandonsCore.supports(storage);
+        boolean canExtract = brandonsCoreSupported ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
+        boolean canReceive = brandonsCoreSupported ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
         TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(canExtract, canReceive);
         if (direction == null) {
             return storageIdentity;
