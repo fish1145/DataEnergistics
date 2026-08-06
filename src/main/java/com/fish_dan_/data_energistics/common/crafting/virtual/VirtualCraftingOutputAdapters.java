@@ -60,7 +60,7 @@ public final class VirtualCraftingOutputAdapters {
     /**
      * Projects raw declared outputs without recursively resolving targets returned by an adapter.
      *
-     * @param declaredOutputs ordered complete raw outputs
+     * @param declaredOutputs ordered raw outputs; {@code null} entries are legal sparse-layout holes
      * @return immutable projection preserving first-key order after aggregation
      */
     public static VirtualCraftingOutputProjection project(List<GenericStack> declaredOutputs) {
@@ -76,6 +76,12 @@ public final class VirtualCraftingOutputAdapters {
         LinkedHashMap<AEKey, BigInteger> logical = new LinkedHashMap<>();
         ArrayList<VirtualCraftingCompletion> virtual = new ArrayList<>();
         for (GenericStack output : declaredOutputs) {
+            // AE2's encoded processing pattern deliberately preserves sparse slot positions with null entries.
+            // A routing/wrapper pattern may expose that same list through either its definition or live outputs.
+            // The hole carries no output semantics and must not be passed to the adapter or amount validation.
+            if (output == null) {
+                continue;
+            }
             if (output.amount() <= 0L) {
                 throw new IllegalArgumentException("A virtual crafting projection requires positive complete outputs");
             }
