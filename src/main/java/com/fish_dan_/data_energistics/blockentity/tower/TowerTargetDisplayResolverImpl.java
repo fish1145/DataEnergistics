@@ -32,11 +32,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Default target display resolver for Data Distribution Towers.
@@ -308,7 +308,6 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         }
 
         ArrayList<BlockPos> craftingPositions = new ArrayList<>();
-        HashMap<BlockPos, BlockPos> clusterRepresentatives = new HashMap<>();
         for (Map.Entry<BlockPos, TargetKind> entry : positions.entrySet()) {
             if (entry.getValue() != TargetKind.AE) {
                 continue;
@@ -320,23 +319,51 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
                 continue;
             }
 
-            BlockPos representativePos = findAeCraftingClusterRepresentative(blockEntity);
-            if (representativePos == null) {
-                continue;
-            }
-
             craftingPositions.add(pos);
-            clusterRepresentatives.put(pos, representativePos);
         }
 
         if (craftingPositions.size() <= 1) {
             return;
         }
 
-        for (BlockPos pos : craftingPositions) {
-            BlockPos representativePos = clusterRepresentatives.get(pos);
-            if (representativePos != null && !pos.equals(representativePos)) {
-                positions.remove(pos);
+        Set<BlockPos> visited = new HashSet<>();
+        for (BlockPos startPos : craftingPositions) {
+            if (!visited.add(startPos)) {
+                continue;
+            }
+
+            ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+            ArrayList<BlockPos> clusterPositions = new ArrayList<>();
+            queue.add(startPos);
+            BlockPos representative = startPos;
+            while (!queue.isEmpty()) {
+                BlockPos currentPos = queue.removeFirst();
+                BlockEntity currentEntity = level.getBlockEntity(currentPos);
+                if (compareAeCraftingDisplayTargets(currentPos, representative) < 0) {
+                    representative = currentPos;
+                }
+                if (positions.get(currentPos) == TargetKind.AE && isAeCraftingClusterComponent(currentEntity)) {
+                    clusterPositions.add(currentPos);
+                }
+
+                for (Direction direction : Direction.values()) {
+                    BlockPos neighborPos = currentPos.relative(direction);
+                    if (!visited.add(neighborPos)) {
+                        continue;
+                    }
+
+                    BlockEntity neighbor = level.getBlockEntity(neighborPos);
+                    if (!isAeCraftingClusterComponent(neighbor) && !this.aeCraftingDisplayBridge.isClusterBridge(neighbor)) {
+                        continue;
+                    }
+                    queue.addLast(neighborPos);
+                }
+            }
+
+            for (BlockPos clusterPos : clusterPositions) {
+                if (!clusterPos.equals(representative)) {
+                    positions.remove(clusterPos);
+                }
             }
         }
     }
@@ -383,44 +410,6 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
 
     private boolean isFallbackAirName(String displayName) {
         return displayName.equals(Items.AIR.getDescription().getString()) || displayName.equals(Blocks.AIR.getName().getString());
-    }
-
-    @Nullable
-    private BlockPos findAeCraftingClusterRepresentative(@Nullable BlockEntity blockEntity) {
-        Level level = this.context.level();
-        if (blockEntity == null || !isAeCraftingClusterComponent(blockEntity) || level == null) {
-            return null;
-        }
-
-        BlockPos startPos = blockEntity.getBlockPos();
-        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
-        HashSet<BlockPos> visited = new HashSet<>();
-        queue.add(startPos);
-        visited.add(startPos);
-        BlockPos representative = startPos;
-
-        while (!queue.isEmpty()) {
-            BlockPos currentPos = queue.removeFirst();
-            if (compareAeCraftingDisplayTargets(currentPos, representative) < 0) {
-                representative = currentPos;
-            }
-
-            for (Direction direction : Direction.values()) {
-                BlockPos neighborPos = currentPos.relative(direction);
-                if (!visited.add(neighborPos)) {
-                    continue;
-                }
-
-                BlockEntity neighbor = level.getBlockEntity(neighborPos);
-                if (!isAeCraftingClusterComponent(neighbor) && !this.aeCraftingDisplayBridge.isClusterBridge(neighbor)) {
-                    continue;
-                }
-
-                queue.addLast(neighborPos);
-            }
-        }
-
-        return representative;
     }
 
     private boolean isAeCraftingNoiseTarget(@Nullable BlockEntity blockEntity) {
