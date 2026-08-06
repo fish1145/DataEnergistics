@@ -9,6 +9,7 @@ import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.blockentity.networking.ControllerBlockEntity;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -25,6 +26,27 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
     private static final int CHANNELS_PER_EXPOSED_FACE = 32;
 
     /**
+     * The calculator is owned by one tower domain, so one scalar entry is sufficient and does not retain a global Grid
+     * partition. The pathing service identity protects against service replacement during a Grid lifecycle transition.
+     */
+    @Nullable
+    private IGrid cachedGrid;
+
+    @Nullable
+    private IPathingService cachedPathingService;
+
+    private long cachedPathingRevision = Long.MIN_VALUE;
+
+    @Nullable
+    private ControllerState cachedControllerState;
+
+    @Nullable
+    private ChannelMode cachedChannelMode;
+
+    private int cachedCapacity;
+    private boolean cacheValid;
+
+    /**
      * Reads the authoritative pathing state and controller nodes from the supplied grid.
      *
      * @param grid grid whose capacity is requested
@@ -33,6 +55,48 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
     @Override
     public int calculate(IGrid grid) {
         IPathingService pathingService = grid.getPathingService();
+        ControllerState controllerState = pathingService.getControllerState();
+        ChannelMode channelMode = pathingService.getChannelMode();
+        if (!(pathingService instanceof PathingTopologyRevision revisionBridge)) {
+            return calculateGridSnapshot(grid, controllerState, channelMode);
+        }
+
+        long pathingRevision = revisionBridge.dataEnergistics$pathingTopologyRevision();
+        if (this.cacheValid
+                && this.cachedGrid == grid
+                && this.cachedPathingService == pathingService
+                && this.cachedPathingRevision == pathingRevision
+                && this.cachedControllerState == controllerState
+                && this.cachedChannelMode == channelMode) {
+            return this.cachedCapacity;
+        }
+
+        int capacity = calculateGridSnapshot(grid, controllerState, channelMode);
+        this.cachedGrid = grid;
+        this.cachedPathingService = pathingService;
+        this.cachedPathingRevision = pathingRevision;
+        this.cachedControllerState = controllerState;
+        this.cachedChannelMode = channelMode;
+        this.cachedCapacity = capacity;
+        this.cacheValid = true;
+        return capacity;
+    }
+
+    /**
+     * Computes one snapshot without touching the revision cache.
+     *
+     * @param grid           grid whose controller geometry is requested
+     * @param controllerState current controller state
+     * @param channelMode    current channel mode
+     * @return total channel capacity
+     */
+    private int calculateGridSnapshot(IGrid grid,
+                                      ControllerState controllerState,
+                                      ChannelMode channelMode) {
+        if (controllerState == ControllerState.CONTROLLER_CONFLICT || channelMode == ChannelMode.INFINITE) {
+            return calculate(controllerState, channelMode, Set.of());
+        }
+
         Set<BlockPos> controllerPositions = new HashSet<>();
         for (IGridNode node : grid.getNodes()) {
             if (node.getOwner() instanceof ControllerBlockEntity controller) {
@@ -40,8 +104,8 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
             }
         }
         return calculate(
-                pathingService.getControllerState(),
-                pathingService.getChannelMode(),
+                controllerState,
+                channelMode,
                 controllerPositions);
     }
 
