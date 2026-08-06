@@ -62,12 +62,7 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
         }
 
         long pathingRevision = revisionBridge.dataEnergistics$pathingTopologyRevision();
-        if (this.cacheValid
-                && this.cachedGrid == grid
-                && this.cachedPathingService == pathingService
-                && this.cachedPathingRevision == pathingRevision
-                && this.cachedControllerState == controllerState
-                && this.cachedChannelMode == channelMode) {
+        if (this.cacheValid && this.cachedGrid == grid && this.cachedPathingService == pathingService && this.cachedPathingRevision == pathingRevision && this.cachedControllerState == controllerState && this.cachedChannelMode == channelMode) {
             return this.cachedCapacity;
         }
 
@@ -85,9 +80,9 @@ public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
     /**
      * Computes one snapshot without touching the revision cache.
      *
-     * @param grid           grid whose controller geometry is requested
+     * @param grid            grid whose controller geometry is requested
      * @param controllerState current controller state
-     * @param channelMode    current channel mode
+     * @param channelMode     current channel mode
      * @return total channel capacity
      */
     private int calculateGridSnapshot(IGrid grid,

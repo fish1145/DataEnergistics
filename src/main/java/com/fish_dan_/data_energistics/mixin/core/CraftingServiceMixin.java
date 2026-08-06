@@ -435,10 +435,10 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$registerTrinityDispatchParticipant(
-                                                                      MinecraftServer server,
-                                                                      long gridGeneration,
-                                                                      CraftingDispatchGovernor governor,
-                                                                      CraftingDispatchParticipantImpl participant) {
+                                                                    MinecraftServer server,
+                                                                    long gridGeneration,
+                                                                    CraftingDispatchGovernor governor,
+                                                                    CraftingDispatchParticipantImpl participant) {
         try {
             TrinityServerTickMetrics.registerDispatchParticipant(server, participant);
         } catch (RuntimeException failure) {
@@ -452,9 +452,9 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$registerTrinityDispatchCompletion(MinecraftServer server,
-                                                                    long gridGeneration,
-                                                                    CraftingDispatchGovernor governor,
-                                                                    CraftingDispatchCompletion completion) {
+                                                                   long gridGeneration,
+                                                                   CraftingDispatchGovernor governor,
+                                                                   CraftingDispatchCompletion completion) {
         try {
             TrinityServerTickMetrics.registerDispatchCompletion(server, completion);
         } catch (RuntimeException failure) {
@@ -468,10 +468,10 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$handleTrinityDispatchRegistrationFailure(
-                                                                            long gridGeneration,
-                                                                            CraftingDispatchGovernor governor,
-                                                                            CraftingDispatchCompletion completion,
-                                                                            RuntimeException failure) {
+                                                                          long gridGeneration,
+                                                                          CraftingDispatchGovernor governor,
+                                                                          CraftingDispatchCompletion completion,
+                                                                          RuntimeException failure) {
         Data_Energistics.LOGGER.error(
                 "Trinity Grid publication scope {} could not register its server dispatch boundary",
                 gridGeneration,

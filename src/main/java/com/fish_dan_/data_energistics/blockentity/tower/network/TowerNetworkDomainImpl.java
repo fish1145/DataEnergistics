@@ -886,9 +886,9 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                                boolean hasEnergyEndpoint) {}
 
     private record OwnedGridWork(TowerWork towerWork,
-                                BindingWork bindingWork,
-                                IGrid targetGrid,
-                                TowerResolvedGrid resolvedGrid) {}
+                                 BindingWork bindingWork,
+                                 IGrid targetGrid,
+                                 TowerResolvedGrid resolvedGrid) {}
 
     private record DeviceWork(TowerWork towerWork,
                               BindingWork bindingWork,

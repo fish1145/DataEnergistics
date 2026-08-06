@@ -97,8 +97,8 @@ public record CraftingDispatchMetrics(
      * @return immutable zero-work dispatch metrics retaining the proposal facts
      */
     public static CraftingDispatchMetrics captureWithoutDispatch(
-                                                                  long serverTickNanos,
-                                                                  DispatchProposalMetrics proposals) {
+                                                                 long serverTickNanos,
+                                                                 DispatchProposalMetrics proposals) {
         if (proposals == null) {
             throw new IllegalArgumentException("Dispatch proposal metrics are required");
         }

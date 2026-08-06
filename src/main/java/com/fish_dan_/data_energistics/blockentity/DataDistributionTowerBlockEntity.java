@@ -954,8 +954,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         long gameTime = currentLevel.getGameTime();
         long stateRevision = this.targetDisplayStateRevision;
-        if (this.cachedBoundTargetSummariesTick == gameTime
-                && this.cachedBoundTargetSummariesRevision == stateRevision) {
+        if (this.cachedBoundTargetSummariesTick == gameTime && this.cachedBoundTargetSummariesRevision == stateRevision) {
             return this.cachedBoundTargetSummaries;
         }
 

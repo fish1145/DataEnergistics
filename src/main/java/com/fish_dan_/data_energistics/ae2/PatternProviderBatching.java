@@ -593,8 +593,10 @@ public final class PatternProviderBatching {
     /**
      * Copies and aggregates a prototype in one validated pass for expansion.
      *
-     * <p>The expansion path needs both representations. Building them together avoids traversing every prototype
-     * counter twice while retaining the same live validation before pattern callbacks or target mutation.</p>
+     * <p>
+     * The expansion path needs both representations. Building them together avoids traversing every prototype
+     * counter twice while retaining the same live validation before pattern callbacks or target mutation.
+     * </p>
      */
     private static PrototypeSnapshot copyAndAggregatePrototype(KeyCounter[] prototype) {
         KeyCounter aggregated = new KeyCounter();

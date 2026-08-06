@@ -206,5 +206,4 @@ public final class TrinityServerDispatchSchedulerTest {
             FAILURE
         }
     }
-
 }

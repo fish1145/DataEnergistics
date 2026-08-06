@@ -41,9 +41,11 @@ public interface UnlimitedEnergyAccess {
     /**
      * Reads stored amount and capacity from one consistent access pass.
      *
-     * <p>Implementations with a verified direct representation should override this method so callers that need both
+     * <p>
+     * Implementations with a verified direct representation should override this method so callers that need both
      * values do not perform two independent state validations. The default keeps existing interface implementations
-     * source-compatible.</p>
+     * source-compatible.
+     * </p>
      *
      * @param storage energy storage being inspected
      * @return paired stored amount and capacity

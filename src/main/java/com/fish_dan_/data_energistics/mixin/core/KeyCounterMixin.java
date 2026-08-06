@@ -15,9 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Adds a short-lived overflow-safe accumulation mode to AE2's mutable key counter.
  *
- * <p>AE2's {@code MEStorage#getAvailableStacks} contract says each storage adds its amounts to the supplied counter.
+ * <p>
+ * AE2's {@code MEStorage#getAvailableStacks} contract says each storage adds its amounts to the supplied counter.
  * Running that contract directly against the network total avoids populating and traversing a second contribution
- * counter.</p>
+ * counter.
+ * </p>
  */
 @Mixin(KeyCounter.class)
 public abstract class KeyCounterMixin implements SaturatingKeyCounterBridge {

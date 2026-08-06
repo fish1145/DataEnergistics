@@ -43,8 +43,10 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
     /**
      * Attempts the complete equalization calculation with primitive non-negative {@code long} values.
      *
-     * <p>Every aggregate and proportional product is checked before it is used. An arithmetic overflow means that
-     * this path is not applicable to the snapshot; the caller then retries the unchanged exact calculation.</p>
+     * <p>
+     * Every aggregate and proportional product is checked before it is used. An arithmetic overflow means that
+     * this path is not applicable to the snapshot; the caller then retries the unchanged exact calculation.
+     * </p>
      *
      * @param snapshot ordered endpoint state captured before any transfer begins
      * @return immutable source and sink allocations when all intermediate values fit in {@code long}
@@ -164,7 +166,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @return target stored FE keyed by receiver identity
      */
     private static Map<TowerEnergyEndpointId, Long> apportionReceiverTargetsLong(List<ReceiverState> receivers,
-                                                                                  long desiredTotal) {
+                                                                                 long desiredTotal) {
         Map<TowerEnergyEndpointId, Long> targets = new HashMap<>();
         List<ReceiverState> active = new ArrayList<>();
         for (ReceiverState receiver : receivers) {
@@ -266,7 +268,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @return stable-order sink allocations
      */
     private static List<TowerEnergySinkAllocation> collectSinkAllocationsLong(
-            List<TowerEnergyEndpointSnapshot> endpoints, Map<TowerEnergyEndpointId, Long> targets) {
+                                                                              List<TowerEnergyEndpointSnapshot> endpoints, Map<TowerEnergyEndpointId, Long> targets) {
         List<TowerEnergySinkAllocation> sinks = new ArrayList<>();
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
             Long target = targets.get(endpoint.endpoint());
@@ -328,9 +330,9 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @return FE still required after bidirectional allocations
      */
     private static long collectBidirectionalAllocationsLong(List<TowerEnergyEndpointSnapshot> endpoints,
-                                                             Map<TowerEnergyEndpointId, Long> targets,
-                                                             long amountNeeded,
-                                                             List<TowerEnergySourceAllocation> sources) {
+                                                            Map<TowerEnergyEndpointId, Long> targets,
+                                                            long amountNeeded,
+                                                            List<TowerEnergySourceAllocation> sources) {
         long remaining = amountNeeded;
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
             if (remaining == 0) {

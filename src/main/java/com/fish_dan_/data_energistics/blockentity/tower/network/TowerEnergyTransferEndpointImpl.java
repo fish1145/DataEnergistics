@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
