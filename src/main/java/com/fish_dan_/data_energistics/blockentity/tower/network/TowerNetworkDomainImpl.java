@@ -249,9 +249,15 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
             if (towerWork == null) {
                 continue;
             }
-            BindingWork bindingWork = towerWork.bindingByTarget().get(owner.targetGrid());
-            if (bindingWork != null) {
-                ownedTargets.put(owner.targetGrid(), new OwnedGridWork(towerWork, bindingWork, owner.targetGrid()));
+            BindingTargetWork bindingTargetWork = towerWork.bindingByTarget().get(owner.targetGrid());
+            if (bindingTargetWork != null) {
+                ownedTargets.put(
+                        owner.targetGrid(),
+                        new OwnedGridWork(
+                                towerWork,
+                                bindingTargetWork.bindingWork(),
+                                owner.targetGrid(),
+                                bindingTargetWork.resolvedGrid()));
             }
         }
 
@@ -291,21 +297,25 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         for (VirtualChannelBindingAllocation<DeviceLeaseKey, IGridNode> binding : channelSnapshot.bindings()) {
             allocations.put(binding.bindingKey(), binding.nodes().getFirst());
         }
+        Map<IGrid, ArrayList<IGridNode>> activeNodesByTarget = new IdentityHashMap<>();
+        for (Map.Entry<DeviceLeaseKey, DeviceWork> entry : devicesByLease.entrySet()) {
+            VirtualChannelNodeState state = allocations.get(entry.getKey()).state();
+            if (state != VirtualChannelNodeState.LEASED && state != VirtualChannelNodeState.AVAILABLE_WITHOUT_CHANNEL) {
+                continue;
+            }
+            DeviceWork deviceWork = entry.getValue();
+            activeNodesByTarget.computeIfAbsent(deviceWork.targetGrid(), ignored -> new ArrayList<>())
+                    .add(deviceWork.device().node());
+        }
         Set<IGrid> bridgeFailures = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Map.Entry<IGrid, OwnedGridWork> entry : ownedTargets.entrySet()) {
             IGrid targetGrid = entry.getKey();
-            List<IGridNode> allNodes = entry.getValue().bindingWork().gridResult(targetGrid).devices().stream()
+            List<IGridNode> allNodes = entry.getValue().resolvedGrid().devices().stream()
                     .map(TowerResolvedDevice::node)
                     .toList();
-            ArrayList<IGridNode> activeNodes = new ArrayList<>();
-            for (Map.Entry<DeviceLeaseKey, DeviceWork> deviceEntry : devicesByLease.entrySet()) {
-                if (deviceEntry.getValue().targetGrid() != targetGrid) {
-                    continue;
-                }
-                VirtualChannelNodeState state = allocations.get(deviceEntry.getKey()).state();
-                if (state == VirtualChannelNodeState.LEASED || state == VirtualChannelNodeState.AVAILABLE_WITHOUT_CHANNEL) {
-                    activeNodes.add(deviceEntry.getValue().device().node());
-                }
+            List<IGridNode> activeNodes = activeNodesByTarget.get(targetGrid);
+            if (activeNodes == null) {
+                activeNodes = List.of();
             }
             try {
                 ((VirtualGridBridge) targetGrid).replaceVirtualMembers(this.grid, allNodes, activeNodes);
@@ -489,7 +499,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     .comparingInt((TowerBinding binding) -> binding.source() == TowerBindingSource.MANUAL ? 0 : 1)
                     .thenComparingLong(TowerBinding::fifoSequence));
             ArrayList<BindingWork> bindingWorks = new ArrayList<>(orderedBindings.size());
-            Map<IGrid, BindingWork> bindingByTarget = new IdentityHashMap<>();
+            Map<IGrid, BindingTargetWork> bindingByTarget = new IdentityHashMap<>();
             for (TowerBinding binding : orderedBindings) {
                 TowerTargetResolution resolution;
                 if (!participant.towerAllowsAe() || !participant.towerLevel().dimension().location().equals(binding.dimensionId()) || !participant.towerLevel().isLoaded(binding.anchor())) {
@@ -509,7 +519,8 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                 }
                 for (TowerResolvedGrid gridResult : resolution.grids()) {
                     if (gridResult.accepted()) {
-                        bindingByTarget.putIfAbsent(gridResult.grid(), bindingWork);
+                        bindingByTarget.putIfAbsent(
+                                gridResult.grid(), new BindingTargetWork(bindingWork, gridResult));
                     }
                 }
             }
@@ -523,7 +534,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         ArrayList<DeviceWork> devices = new ArrayList<>();
         for (Map.Entry<IGrid, OwnedGridWork> entry : ownedTargets.entrySet()) {
             OwnedGridWork ownedGrid = entry.getValue();
-            for (TowerResolvedDevice device : ownedGrid.bindingWork().gridResult(entry.getKey()).devices()) {
+            for (TowerResolvedDevice device : ownedGrid.resolvedGrid().devices()) {
                 if (seenNodes.add(device.node())) {
                     devices.add(new DeviceWork(
                             ownedGrid.towerWork(), ownedGrid.bindingWork(), entry.getKey(), device));
@@ -841,22 +852,19 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
     private record TowerWork(TowerNetworkParticipant participant,
                              List<BindingWork> bindings,
-                             Map<IGrid, BindingWork> bindingByTarget) {}
+                             Map<IGrid, BindingTargetWork> bindingByTarget) {}
+
+    private record BindingTargetWork(BindingWork bindingWork, TowerResolvedGrid resolvedGrid) {}
 
     private record BindingWork(TowerNetworkParticipant participant,
                                TowerBinding binding,
                                TowerTargetResolution resolution,
-                               boolean hasEnergyEndpoint) {
+                               boolean hasEnergyEndpoint) {}
 
-        private TowerResolvedGrid gridResult(IGrid grid) {
-            return this.resolution.grids().stream()
-                    .filter(result -> result.grid() == grid)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("Binding does not contain selected target grid"));
-        }
-    }
-
-    private record OwnedGridWork(TowerWork towerWork, BindingWork bindingWork, IGrid targetGrid) {}
+    private record OwnedGridWork(TowerWork towerWork,
+                                BindingWork bindingWork,
+                                IGrid targetGrid,
+                                TowerResolvedGrid resolvedGrid) {}
 
     private record DeviceWork(TowerWork towerWork,
                               BindingWork bindingWork,
