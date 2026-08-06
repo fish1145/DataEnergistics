@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
-import lombok.Getter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -38,6 +37,7 @@ import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
+import lombok.Getter;
 
 public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternProviderMenuAccessor {
 
@@ -468,7 +468,6 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
                 appEngSlot.setSlotEnabled(true);
             }
         }
-
     }
 
     private ItemStack getProviderStack() {

@@ -148,9 +148,7 @@ public final class AdaptivePatternProviderState {
 
     public boolean readFromStream(RegistryFriendlyByteBuf data) {
         CompoundTag providerStackTag = data.readNbt();
-        ItemStack providerStack = providerStackTag == null
-                ? ItemStack.EMPTY
-                : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
+        ItemStack providerStack = providerStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
         boolean advancedAeFilteredImport = data.readBoolean();
         boolean resonatingPullEnabled = data.readBoolean();
 

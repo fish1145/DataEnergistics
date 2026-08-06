@@ -565,7 +565,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean pushed;
 
-
         if (isAdvancedAeDirectionalPattern(patternDetails)) {
             pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, false);
             if (pushed) {
@@ -709,11 +708,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return super.isBusy();
     }
 
-
-
-
-
-
     @Override
     public void addDrops(List<ItemStack> drops) {
         super.addDrops(drops);
@@ -737,7 +731,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                 key.addDrops(amount, drops, this.host.getBlockEntity().getLevel(), this.host.getBlockEntity().getBlockPos());
             }
         }
-
     }
 
     @Override
@@ -867,9 +860,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return isAdvancedAeProviderSelected() && implementsAdvancedAePatternInterface(patternDetails) && hasDirectionalInputs(patternDetails);
     }
 
-
-
-
     private void rebuildPatternsForConfiguredSlots() {
         this.patterns.clear();
         this.patternInputs.clear();
@@ -899,11 +889,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAdvancedAeProviderSelected();
     }
 
-
-
-
-
-
     private boolean isAppliedCreateMechanicalProviderSelected() {
         return ModFlags.isAppliedCreateMechanicalProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
     }
@@ -911,21 +896,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private boolean isMeteoritePatternProvider() {
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isMeteoriteProviderSelected();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     private boolean pushAppliedCreateMechanicalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         if (super.isBusy() || !this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
@@ -1540,21 +1510,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return didSomething;
     }
 
-
     private boolean hasAdvancedDirectionalWork() {
         return !this.advancedDirectionalSendList.isEmpty();
     }
-
-
-
-
-
-
-
-
-
-
-
 
     private boolean implementsAdvancedAePatternInterface(IPatternDetails patternDetails) {
         return implementsNamedInterface(patternDetails, ADVANCED_AE_PATTERN_DETAILS_INTERFACE);
@@ -1578,9 +1536,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
         return false;
     }
-
-
-
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
         Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
@@ -1739,7 +1694,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return null;
     }
 
-
     private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
         try {
             Method method = type.getMethod(name, parameterTypes);
@@ -1774,13 +1728,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             }
         }
     }
-
-
-
-
-
-
-
 
     public void onHostStateChanged() {
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
@@ -1848,10 +1795,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                 getAvailablePatterns());
         return true;
     }
-
-
-
-
 
     @Nullable
     private MethodHandle findAe2CsAdjacentMeStorageMethod() {
@@ -2285,7 +2228,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
     }
 
-
     private <T> void rearrangeRoundRobin(List<T> list) {
         if (list.isEmpty()) {
             return;
@@ -2326,7 +2268,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                                        MethodHandle checkCompletedRecipe,
                                        MethodHandle getAllCraftersOfChain,
                                        MethodHandle getTargetingCrafter) {}
-
 
     private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
 
