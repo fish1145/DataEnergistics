@@ -60,10 +60,10 @@ public interface PatternEncodingPreviewMenu {
                                  Component displayName,
                                  ResourceLocation iconItemId,
                                  boolean useAeButtonStyle,
-                                  boolean renameable,
-                                  int patternSlotCount,
-                                  int usedPatternSlotCount,
-                                  List<String> leafDigests) {
+                                 boolean renameable,
+                                 int patternSlotCount,
+                                 int usedPatternSlotCount,
+                                 List<String> leafDigests) {
 
         public SyncedPatternProvider {
             leafDigests = List.copyOf(leafDigests);

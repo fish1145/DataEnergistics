@@ -1,12 +1,17 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
+import com.fish_dan_.data_energistics.menu.common.LegacyPatternEncodingPreferences;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
-import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
+import com.fish_dan_.data_energistics.menu.common.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.network.PatternUploadSource;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -17,6 +22,7 @@ import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -54,7 +60,7 @@ import java.util.Map;
 
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                                               implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware,
-                                              PatternEncodingPreviewLayoutAware {
+                                              PatternEncodingPreviewLayoutAware, PatternEncodingPreferenceMenu {
 
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
@@ -102,6 +108,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private final Map<PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
     private final Map<Long, List<PatternContainer>> syncedPatternProvidersById = new HashMap<>();
     private final PatternProviderSyncTracker patternProviderSyncTracker = new PatternProviderSyncTracker();
+    private long lastPreferenceRevision = -1L;
     private long nextSyncedPatternProviderId = 1;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
@@ -118,13 +125,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this::openPatternProviderMenuFromClient);
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::renamePatternProviderFromClient);
-        this.patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
-        this.uploadEnabled = PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
-        this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
-        this.previewPanelOffsetX = this.host.getPersistentPreviewPanelOffsetX();
-        this.previewPanelOffsetY = this.host.getPersistentPreviewPanelOffsetY();
         if (this.isServerSide()) {
-            PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(), this.lastEncodedPatternSource);
+            LegacyPatternEncodingPreferences legacyPreferences = LegacyPatternEncodingPreferences.capture(
+                    this.getPlayer(),
+                    true,
+                    this.host.isPersistentPatternSourceEnabled(),
+                    this.host.getPersistentLastEncodedPatternSource(),
+                    this.host.getPersistentPreviewPanelOffsetX(),
+                    this.host.getPersistentPreviewPanelOffsetY());
+            this.patternSourceEnabled = legacyPreferences.patternSourceEnabled();
+            this.uploadEnabled = legacyPreferences.uploadEnabled();
+            this.lastEncodedPatternSource = legacyPreferences.lastWorkstation();
+            this.previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
+            this.previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
         }
         writeFallbackPatternSourceEnabled(this.patternSourceEnabled);
         writeFallbackUploadEnabled(this.uploadEnabled);
@@ -153,8 +166,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         EaepPatternEncodingHandoff handoff = this instanceof EaepPatternEncodingHandoff value ? value : null;
+        boolean handoffStarted = false;
         if (handoff != null) {
-            handoff.beginEaepEncodeHandoff(this.uploadEnabled);
+            try {
+                handoff.beginEaepEncodeHandoff(this.uploadEnabled);
+                handoffStarted = true;
+            } catch (RuntimeException | LinkageError exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to begin the ExtendedAE-Plus Universal pattern encoding handoff", exception);
+            }
         }
         boolean encodedSuccessfully = false;
         try {
@@ -182,8 +202,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             encodedSuccessfully = true;
             syncPatternProvidersIfNeeded(true);
         } finally {
-            if (handoff != null) {
-                handoff.finishEaepEncodeHandoff(encodedSuccessfully);
+            if (handoffStarted) {
+                try {
+                    handoff.finishEaepEncodeHandoff(encodedSuccessfully);
+                } catch (RuntimeException | LinkageError exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Failed to finish the ExtendedAE-Plus Universal pattern encoding handoff", exception);
+                }
             }
         }
     }
@@ -265,6 +290,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         encodedPatternInv.setItemDirect(0, remainder.isEmpty() ? ItemStack.EMPTY : remainder);
+        if (transferResult.firstCommittedTarget() != null && this.getPlayer() instanceof ServerPlayer serverPlayer) {
+            PatternUploadRecorder.record(serverPlayer, this, transferResult.firstCommittedTarget(),
+                    PatternUploadSource.DATA_ENERGISTICS);
+        }
         syncPatternProvidersFromNetwork();
     }
 
@@ -313,6 +342,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public void data_energistics$setPendingPatternSource(@Nullable ResourceLocation workstationId) {
+        ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode);
+        data_energistics$getPreferenceSession().setRankingContext(
+                PatternEncodingSourceHelper.resolveFixedModeRankingContext(this.mode, fixedWorkstation));
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     workstationId != null ? workstationId.toString() : PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -384,7 +416,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public boolean data_energistics$isPatternSourceEnabled() {
         Boolean fallback = readFallbackPatternSourceEnabled();
-        return fallback != null ? fallback : PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
+        return fallback != null ? fallback : this.patternSourceEnabled;
     }
 
     @Override
@@ -396,18 +428,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         writeFallbackPatternSourceEnabled(enabled);
         if (!enabled) {
             writeFallbackPendingPatternSource(null);
-            this.lastEncodedPatternSource = null;
-            writeFallbackLastEncodedPatternSource(null);
-        }
-        if (this.isServerSide()) {
-            PatternEncodingSourceHelper.writePatternSourceEnabled(this.getPlayer(), enabled);
         }
     }
 
     @Override
     public boolean data_energistics$isUploadEnabled() {
         Boolean fallback = readFallbackUploadEnabled();
-        return fallback != null ? fallback : PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
+        return fallback != null ? fallback : this.uploadEnabled;
     }
 
     @Override
@@ -417,9 +444,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.uploadEnabled = enabled;
         writeFallbackUploadEnabled(enabled);
-        if (this.isServerSide()) {
-            PatternEncodingSourceHelper.writeUploadEnabled(this.getPlayer(), enabled);
-        }
     }
 
     @Override
@@ -440,9 +464,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = offsetX;
         this.previewPanelOffsetY = offsetY;
-        if (this.isServerSide()) {
-            this.host.setPersistentPreviewPanelOffset(offsetX, offsetY);
-        }
     }
 
     @Override
@@ -452,9 +473,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = 0;
         this.previewPanelOffsetY = 0;
-        if (this.isServerSide()) {
-            this.host.resetPersistentPreviewPanelOffset();
-        }
     }
 
     @Override
@@ -516,13 +534,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 () -> this.nextSyncedPatternProviderId++,
                 preferredWorkstationId,
                 this.getMode(),
-                encodedPattern);
+                encodedPattern,
+                data_energistics$getPreferenceSession().leafCounts());
         this.patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
                 preferredWorkstationId,
                 this.getMode(),
                 encodedPattern);
+        this.lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 
     private void syncPatternProvidersIfNeeded(boolean force) {
@@ -536,7 +556,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
         ItemStack encodedPattern = this.host.getLogic().getEncodedPatternInv().getStackInSlot(0);
         long currentTick = this.getPlayer().level().getGameTime();
-        if (!force && !this.patternProviderSyncTracker.needsRefresh(
+        long preferenceRevision = data_energistics$getPreferenceSession().revision();
+        if (!force && preferenceRevision == this.lastPreferenceRevision && !this.patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
                 preferredWorkstationId,
@@ -558,6 +579,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         this.syncedPatternProvidersById.clear();
         this.syncedPatternProviders = SyncedPatternProviderList.EMPTY;
         this.patternProviderSyncTracker.clear();
+        this.lastPreferenceRevision = -1L;
     }
 
     @Nullable
@@ -620,7 +642,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             long providerId = Long.parseLong(payload.substring(0, separator));
             String name = payload.substring(separator + 1);
             data_energistics$renamePatternProvider(providerId, name);
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException exception) {
+            Data_Energistics.LOGGER.warn("Rejected malformed Universal pattern provider rename payload: {}",
+                    payload, exception);
+        }
     }
 
     private void renamePatternProviders(List<PatternContainer> providers, @Nullable String name) {
@@ -641,7 +666,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         try {
             return field.get(target);
-        } catch (Throwable ignored) {
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Failed to read inherited Universal pattern encoding state", exception);
             return null;
         }
     }
@@ -653,7 +679,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         try {
             field.set(target, value);
-        } catch (Throwable ignored) {}
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Failed to write inherited Universal pattern encoding state", exception);
+        }
     }
 
     @Nullable

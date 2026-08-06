@@ -20,6 +20,10 @@ public class PatternEncodingLogicPreviewLayoutMixin implements PatternEncodingPr
     private int dataEnergistics$previewPanelOffsetX;
     @Unique
     private int dataEnergistics$previewPanelOffsetY;
+    @Unique
+    private int dataEnergistics$legacyPreviewPanelOffsetX;
+    @Unique
+    private int dataEnergistics$legacyPreviewPanelOffsetY;
 
     @Override
     public int data_energistics$getPreviewPanelOffsetX() {
@@ -35,7 +39,6 @@ public class PatternEncodingLogicPreviewLayoutMixin implements PatternEncodingPr
     public void data_energistics$setPreviewPanelOffset(int offsetX, int offsetY) {
         this.dataEnergistics$previewPanelOffsetX = offsetX;
         this.dataEnergistics$previewPanelOffsetY = offsetY;
-        ((PatternEncodingLogic) (Object) this).saveChanges();
     }
 
     @Override
@@ -46,15 +49,17 @@ public class PatternEncodingLogicPreviewLayoutMixin implements PatternEncodingPr
     @Inject(method = "readFromNBT", at = @At("TAIL"))
     private void dataEnergistics$readPreviewLayout(CompoundTag data, HolderLookup.Provider registries,
                                                    CallbackInfo ci) {
-        this.dataEnergistics$previewPanelOffsetX = PatternEncodingPreviewLayoutHelper.readOffsetX(data);
-        this.dataEnergistics$previewPanelOffsetY = PatternEncodingPreviewLayoutHelper.readOffsetY(data);
+        this.dataEnergistics$legacyPreviewPanelOffsetX = PatternEncodingPreviewLayoutHelper.readOffsetX(data);
+        this.dataEnergistics$legacyPreviewPanelOffsetY = PatternEncodingPreviewLayoutHelper.readOffsetY(data);
+        this.dataEnergistics$previewPanelOffsetX = this.dataEnergistics$legacyPreviewPanelOffsetX;
+        this.dataEnergistics$previewPanelOffsetY = this.dataEnergistics$legacyPreviewPanelOffsetY;
     }
 
     @Inject(method = "writeToNBT", at = @At("TAIL"))
     private void dataEnergistics$writePreviewLayout(CompoundTag data, HolderLookup.Provider registries,
                                                     CallbackInfo ci) {
         PatternEncodingPreviewLayoutHelper.writeOffset(data,
-                this.dataEnergistics$previewPanelOffsetX,
-                this.dataEnergistics$previewPanelOffsetY);
+                this.dataEnergistics$legacyPreviewPanelOffsetX,
+                this.dataEnergistics$legacyPreviewPanelOffsetY);
     }
 }

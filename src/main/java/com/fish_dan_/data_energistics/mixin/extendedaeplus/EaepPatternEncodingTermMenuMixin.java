@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.mixin.extendedaeplus;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
+import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternUploadScope;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -21,6 +24,7 @@ public abstract class EaepPatternEncodingTermMenuMixin implements EaepPatternEnc
 
     @Override
     public void beginEaepEncodeHandoff(boolean dataEnergisticsUploadEnabled) {
+        this.dataEnergistics$eaepUploadPending = false;
         boolean shiftUpload = ((IPatternEncodingShiftUploadSync) (Object) this).eap$consumeShiftUploadFlag();
         this.dataEnergistics$eaepUploadPending = !dataEnergisticsUploadEnabled && !shiftUpload;
     }
@@ -36,9 +40,7 @@ public abstract class EaepPatternEncodingTermMenuMixin implements EaepPatternEnc
         try {
             PatternEncodingTermMenu menu = (PatternEncodingTermMenu) (Object) this;
             EncodingMode mode = menu.getMode();
-            if (mode != EncodingMode.CRAFTING
-                    && mode != EncodingMode.SMITHING_TABLE
-                    && mode != EncodingMode.STONECUTTING) {
+            if (mode != EncodingMode.CRAFTING && mode != EncodingMode.SMITHING_TABLE && mode != EncodingMode.STONECUTTING) {
                 return;
             }
 
@@ -47,8 +49,12 @@ public abstract class EaepPatternEncodingTermMenuMixin implements EaepPatternEnc
                 return;
             }
 
+            PatternEncodingRankingContext rankingContext = PatternEncodingSourceHelper.resolveFixedModeRankingContext(
+                    mode, PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode));
+            EaepPatternUploadScope.UploadSnapshot snapshot = EaepPatternUploadScope.capture(
+                    serverPlayer, menu, rankingContext);
             serverPlayer.server.execute(() -> {
-                try {
+                try (EaepPatternUploadScope.ScopeToken ignored = EaepPatternUploadScope.open(snapshot)) {
                     ExtendedAEPatternUploadUtil.uploadFromEncodingMenuToMatrix(serverPlayer, menu);
                 } catch (RuntimeException | LinkageError exception) {
                     this.dataEnergistics$eaepUploadPending = false;

@@ -4,13 +4,19 @@ import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridge;
 import com.fish_dan_.data_energistics.client.gui.ldlib2.multiblock.StructurePreviewSceneBinderImpl;
 import com.fish_dan_.data_energistics.client.guideme.DataRipperReassemblerGuideRecipeBody;
 import com.fish_dan_.data_energistics.client.integration.Ae2WtLibClientCompat;
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesAckClientHandler;
+import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
 import com.fish_dan_.data_energistics.client.screen.MenuClientRefreshHandler;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalStateSyncClientHandler;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
+import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+
+import net.minecraft.world.entity.player.Player;
 
 import guideme.document.block.LytBlock;
 
@@ -49,6 +55,16 @@ public final class DataEnergisticsClientBridgeImpl implements DataEnergisticsCli
     @Override
     public void cacheSyncedCompassResult(DataMeteoriteCompassResponsePayload payload) {
         DataMeteoriteCompassClientCache.cacheSyncedCompassResult(payload);
+    }
+
+    @Override
+    public void handlePatternEncodingPreferencesAck(PatternEncodingPreferencesAckPayload payload, Player player) {
+        PatternEncodingPreferencesAckClientHandler.handle(payload, player);
+    }
+
+    @Override
+    public void handlePatternUploadSucceeded(PatternUploadSucceededPayload payload, Player player) {
+        PatternUploadSucceededClientHandler.handle(payload, player);
     }
 
     @Override

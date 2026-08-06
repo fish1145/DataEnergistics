@@ -769,5 +769,13 @@
 	"config.data_energistics.option.trinityDispatch.ewmaAlpha": "EWMA 平滑系数",
 	"config.data_energistics.option.trinityDispatch.transitionWindows": "切换所需窗口数",
 	"config.data_energistics.option.trinityDispatch.cooldownTicks": "冷却时长（Tick）",
-	"config.data_energistics.option.trinityDispatch.safeHoldTicks": "安全模式保持时长（Tick）"
+	"config.data_energistics.option.trinityDispatch.safeHoldTicks": "安全模式保持时长（Tick）",
+	"message.data_energistics.pattern_upload.success": "上传成功",
+	"message.data_energistics.pattern_upload.target": "，目标：",
+	"message.data_energistics.pattern_upload.coordinates": "，坐标：",
+	"message.data_energistics.pattern_upload.dimension": "，维度：",
+	"message.data_energistics.pattern_upload.time": "，时间：",
+	"message.data_energistics.pattern_upload.location_unavailable": "，位置不可用",
+	"message.data_energistics.pattern_upload.coordinates_hover": "点击填入传送指令",
+	"message.data_energistics.pattern_upload.dimension_hover": "点击填入包含维度的传送指令"
 }

@@ -22,8 +22,7 @@ final class ProviderIdentityDigest {
      */
     private static final String DIGEST_PREFIX = "sha256:";
 
-    private ProviderIdentityDigest() {
-    }
+    private ProviderIdentityDigest() {}
 
     /**
      * Hashes one identity's canonical binary representation.

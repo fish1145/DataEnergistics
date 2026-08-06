@@ -8,7 +8,19 @@ public final class ModPayloads {
     private ModPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("2");
+        registrar.playToServer(
+                PatternEncodingPreferencesSyncPayload.TYPE,
+                PatternEncodingPreferencesSyncPayload.STREAM_CODEC,
+                PatternEncodingPreferencesSyncPayload::handle);
+        registrar.playToClient(
+                PatternEncodingPreferencesAckPayload.TYPE,
+                PatternEncodingPreferencesAckPayload.STREAM_CODEC,
+                PatternEncodingPreferencesAckPayload::handle);
+        registrar.playToClient(
+                PatternUploadSucceededPayload.TYPE,
+                PatternUploadSucceededPayload.STREAM_CODEC,
+                PatternUploadSucceededPayload::handle);
         registrar.playToClient(
                 DataDistributionTowerTargetsPayload.TYPE,
                 DataDistributionTowerTargetsPayload.STREAM_CODEC,

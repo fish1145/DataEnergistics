@@ -3,8 +3,10 @@ package com.fish_dan_.data_energistics.integration.extendedaeplus;
 /**
  * Optional handoff boundary between Data Energistics' pattern encoder and ExtendedAE-Plus.
  *
- * <p>The interface intentionally contains no ExtendedAE-Plus types. The core encoder can therefore invoke the
- * boundary through an optional capability check while remaining loadable when ExtendedAE-Plus is absent.</p>
+ * <p>
+ * The interface intentionally contains no ExtendedAE-Plus types. The core encoder can therefore invoke the
+ * boundary through an optional capability check while remaining loadable when ExtendedAE-Plus is absent.
+ * </p>
  */
 public interface EaepPatternEncodingHandoff {
 

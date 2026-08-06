@@ -15,8 +15,11 @@ import com.google.gson.JsonParser;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -33,7 +36,9 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 
-/** JSON-backed client preference repository with bounded, atomic persistence. */
+/**
+ * JSON-backed client preference repository with bounded, atomic persistence.
+ */
 public final class PatternEncodingClientPreferencesImpl implements PatternEncodingClientPreferences {
 
     public static final int SCHEMA_VERSION = 1;
@@ -70,7 +75,9 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     @Nullable
     private String activeServerProfile;
 
-    /** Creates a repository whose thread and clock dependencies can be supplied directly by production and tests. */
+    /**
+     * Creates a repository whose thread and clock dependencies can be supplied directly by production and tests.
+     */
     public PatternEncodingClientPreferencesImpl(Path file, BooleanSupplier mainThreadCheck, Clock clock) {
         if (file == null || mainThreadCheck == null || clock == null) {
             throw new IllegalArgumentException("Pattern encoding preferences require a file, thread check, and clock");
@@ -164,28 +171,32 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     }
 
     @Override
-    public int applyMissingLegacyValues(boolean legacyUploadEnabled, boolean legacyPatternSourceEnabled,
+    public int applyMissingLegacyValues(int fieldMask, boolean legacyUploadEnabled, boolean legacyPatternSourceEnabled,
                                         @Nullable ResourceLocation legacyLastWorkstation,
                                         int legacyOffsetX, int legacyOffsetY) {
         ensureLoaded();
+        int knownMask = PRESENT_UPLOAD_ENABLED | PRESENT_PATTERN_SOURCE_ENABLED | PRESENT_LAST_WORKSTATION | PRESENT_PREVIEW_PANEL;
+        if ((fieldMask & ~knownMask) != 0) {
+            throw new IllegalArgumentException("Legacy preference field mask contains unknown bits: " + fieldMask);
+        }
         validatePanelOffset(legacyOffsetX, legacyOffsetY);
         int migratedMask = 0;
-        if (!this.uploadEnabledPresent) {
+        if ((fieldMask & PRESENT_UPLOAD_ENABLED) != 0 && !this.uploadEnabledPresent) {
             this.uploadEnabled = legacyUploadEnabled;
             this.uploadEnabledPresent = true;
             migratedMask |= PRESENT_UPLOAD_ENABLED;
         }
-        if (!this.patternSourceEnabledPresent) {
+        if ((fieldMask & PRESENT_PATTERN_SOURCE_ENABLED) != 0 && !this.patternSourceEnabledPresent) {
             this.patternSourceEnabled = legacyPatternSourceEnabled;
             this.patternSourceEnabledPresent = true;
             migratedMask |= PRESENT_PATTERN_SOURCE_ENABLED;
         }
-        if (!this.lastWorkstationPresent) {
+        if ((fieldMask & PRESENT_LAST_WORKSTATION) != 0 && !this.lastWorkstationPresent) {
             this.lastWorkstation = legacyLastWorkstation;
             this.lastWorkstationPresent = true;
             migratedMask |= PRESENT_LAST_WORKSTATION;
         }
-        if (!this.previewPanelPresent) {
+        if ((fieldMask & PRESENT_PREVIEW_PANEL) != 0 && !this.previewPanelPresent) {
             this.previewPanelOffsetX = legacyOffsetX;
             this.previewPanelOffsetY = legacyOffsetY;
             this.previewPanelPresent = true;
@@ -202,9 +213,10 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         ensureLoaded();
         validateProfileDigest(profileDigest);
         this.activeServerProfile = profileDigest;
+        long now = this.clock.millis();
         ServerProfile profile = this.serverProfiles.computeIfAbsent(
-                profileDigest, ignored -> new ServerProfile(this.clock.millis()));
-        profile.lastAccessEpochMillis = this.clock.millis();
+                profileDigest, ignored -> new ServerProfile(now));
+        profile.lastAccessEpochMillis = Math.max(profile.lastAccessEpochMillis, now);
         trimProfiles();
         save();
     }
@@ -249,10 +261,9 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         String key = incoming.stableKey();
         PatternProviderClickStatistic existing = profile.statistics.get(key);
         long mergedCount = existing == null ? incoming.count() : Math.max(existing.count(), incoming.count());
-        long mergedTime = existing == null ? incoming.lastUsedEpochMillis()
-                : Math.max(existing.lastUsedEpochMillis(), incoming.lastUsedEpochMillis());
+        long mergedTime = existing == null ? incoming.lastUsedEpochMillis() : Math.max(existing.lastUsedEpochMillis(), incoming.lastUsedEpochMillis());
         profile.statistics.put(key, new PatternProviderClickStatistic(context, providerDigest, mergedCount, mergedTime));
-        profile.lastAccessEpochMillis = Math.max(profile.lastAccessEpochMillis, successEpochMillis);
+        profile.lastAccessEpochMillis = Math.max(profile.lastAccessEpochMillis, this.clock.millis());
         trimStatistics();
         if (this.activeServerProfile != null) {
             save();
@@ -269,13 +280,21 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             return;
         }
         try {
-            if (Files.size(this.file) > MAX_FILE_BYTES) {
+            byte[] bytes;
+            try (var input = Files.newInputStream(this.file)) {
+                bytes = input.readNBytes((int) MAX_FILE_BYTES + 1);
+            }
+            if (bytes.length > MAX_FILE_BYTES) {
                 throw new IllegalArgumentException("Client preference file exceeds " + MAX_FILE_BYTES + " bytes");
             }
-            JsonElement rootElement;
-            try (var reader = Files.newBufferedReader(this.file, StandardCharsets.UTF_8)) {
-                rootElement = JsonParser.parseReader(reader);
+            if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+                throw new IllegalArgumentException("Client preference file must not contain a UTF-8 BOM");
             }
+            String json = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes)).toString();
+            JsonElement rootElement = JsonParser.parseString(json);
             if (!rootElement.isJsonObject()) {
                 throw new IllegalArgumentException("Client preference root must be a JSON object");
             }
@@ -329,15 +348,22 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         if (profiles == null) {
             return;
         }
+        if (profiles.size() > MAX_SERVER_PROFILES) {
+            throw new IllegalArgumentException("Client preference server profiles exceed " + MAX_SERVER_PROFILES);
+        }
+        int totalStatistics = 0;
         for (Map.Entry<String, JsonElement> entry : profiles.entrySet()) {
             validateProfileDigest(entry.getKey());
             if (!entry.getValue().isJsonObject()) {
                 throw new IllegalArgumentException("Server profile must be a JSON object: " + entry.getKey());
             }
-            this.serverProfiles.put(entry.getKey(), readProfile(entry.getValue().getAsJsonObject()));
+            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject());
+            totalStatistics += profile.statistics.size();
+            if (totalStatistics > MAX_STATISTICS_TOTAL) {
+                throw new IllegalArgumentException("Client preference statistics exceed " + MAX_STATISTICS_TOTAL);
+            }
+            this.serverProfiles.put(entry.getKey(), profile);
         }
-        trimProfiles();
-        trimStatistics();
     }
 
     private ServerProfile readProfile(JsonObject profileObject) {
@@ -347,6 +373,10 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         }
         ServerProfile profile = new ServerProfile(lastAccess);
         JsonArray statistics = readRequiredArray(profileObject, "clickStatistics");
+        if (statistics.size() > MAX_STATISTICS_PER_PROFILE) {
+            throw new IllegalArgumentException(
+                    "Client preference profile statistics exceed " + MAX_STATISTICS_PER_PROFILE);
+        }
         for (JsonElement statisticElement : statistics) {
             if (!statisticElement.isJsonObject()) {
                 throw new IllegalArgumentException("Click statistic must be a JSON object");
@@ -369,16 +399,34 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     private void recoverCorruptFile(Exception failure) {
         Data_Energistics.LOGGER.error("Failed to load Data Energistics client preferences from {}",
                 this.file, failure);
-        Path backup = this.file.resolveSibling(this.file.getFileName() + "." + this.clock.millis() + ".corrupt");
-        try {
-            Files.move(this.file, backup, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException backupFailure) {
-            Data_Energistics.LOGGER.error("Failed to preserve corrupt Data Energistics client preferences at {}",
-                    this.file, backupFailure);
+        Path backup = null;
+        long backupTimestamp = this.clock.millis();
+        for (int attempt = 0; attempt < 100; attempt++) {
+            String suffix = attempt == 0 ? "" : "-" + attempt;
+            Path candidate = this.file.resolveSibling(
+                    this.file.getFileName() + ".corrupt-" + backupTimestamp + suffix);
+            try {
+                Files.move(this.file, candidate);
+                backup = candidate;
+                break;
+            } catch (FileAlreadyExistsException ignored) {
+                Data_Energistics.LOGGER.debug("Corrupt client preference backup already exists at {}", candidate);
+            } catch (IOException backupFailure) {
+                Data_Energistics.LOGGER.error("Failed to preserve corrupt Data Energistics client preferences at {}",
+                        this.file, backupFailure);
+                resetToDefaults(true);
+                this.writesDisabled = true;
+                return;
+            }
+        }
+        if (backup == null) {
+            Data_Energistics.LOGGER.error("Failed to choose a unique corrupt Data Energistics client preference backup for {}",
+                    this.file);
             resetToDefaults(true);
             this.writesDisabled = true;
             return;
         }
+        Data_Energistics.LOGGER.warn("Moved corrupt Data Energistics client preferences to {}", backup);
         resetToDefaults(true);
         save();
     }
@@ -409,24 +457,41 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             throw new IllegalStateException("Client preference file must have a parent directory: " + this.file);
         }
         Path temporary = parent.resolve(this.file.getFileName() + ".tmp");
+        Map<String, ServerProfile> persistedProfiles = copyProfiles();
         try {
             Files.createDirectories(parent);
-            Files.writeString(temporary, GSON.toJson(writeRoot()), StandardCharsets.UTF_8,
+            Files.writeString(temporary, serializeWithinFileLimit(persistedProfiles), StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             Files.move(temporary, this.file,
                     StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            this.serverProfiles.clear();
+            this.serverProfiles.putAll(persistedProfiles);
         } catch (AtomicMoveNotSupportedException exception) {
             Data_Energistics.LOGGER.error("Atomic client preference replacement is not supported for {}",
                     this.file, exception);
             deleteTemporary(temporary);
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
             Data_Energistics.LOGGER.error("Failed to save Data Energistics client preferences to {}",
                     this.file, exception);
             deleteTemporary(temporary);
         }
     }
 
-    private JsonObject writeRoot() {
+    private String serializeWithinFileLimit(Map<String, ServerProfile> persistedProfiles) {
+        String json = GSON.toJson(writeRoot(persistedProfiles));
+        while (json.getBytes(StandardCharsets.UTF_8).length > MAX_FILE_BYTES) {
+            ProfileStatistic lowest = findLowestPersistedStatistic(persistedProfiles);
+            if (lowest == null) {
+                throw new IllegalStateException(
+                        "Client preference globals exceed the maximum file size without any evictable statistics");
+            }
+            lowest.profile().statistics.remove(lowest.statistic().stableKey());
+            json = GSON.toJson(writeRoot(persistedProfiles));
+        }
+        return json;
+    }
+
+    private JsonObject writeRoot(Map<String, ServerProfile> profilesToWrite) {
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", SCHEMA_VERSION);
         JsonObject preferences = new JsonObject();
@@ -452,7 +517,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         root.add("preferences", preferences);
 
         JsonObject profiles = new JsonObject();
-        this.serverProfiles.entrySet().stream()
+        profilesToWrite.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> profiles.add(entry.getKey(), writeProfile(entry.getValue())));
         root.add("serverProfiles", profiles);
@@ -486,6 +551,16 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
                 this.activeServerProfile, ignored -> new ServerProfile(this.clock.millis()));
     }
 
+    private Map<String, ServerProfile> copyProfiles() {
+        Map<String, ServerProfile> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, ServerProfile> entry : this.serverProfiles.entrySet()) {
+            ServerProfile profileCopy = new ServerProfile(entry.getValue().lastAccessEpochMillis);
+            profileCopy.statistics.putAll(entry.getValue().statistics);
+            copy.put(entry.getKey(), profileCopy);
+        }
+        return copy;
+    }
+
     private void trimProfiles() {
         while (this.serverProfiles.size() > MAX_SERVER_PROFILES) {
             String removable = this.serverProfiles.entrySet().stream()
@@ -499,20 +574,46 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     }
 
     private void trimStatistics() {
+        while (this.sessionProfile.statistics.size() > MAX_STATISTICS_PER_PROFILE) {
+            removeLowestStatistic(this.sessionProfile);
+        }
         for (ServerProfile profile : this.serverProfiles.values()) {
             while (profile.statistics.size() > MAX_STATISTICS_PER_PROFILE) {
                 removeLowestStatistic(profile);
             }
         }
         while (totalStatisticCount() > MAX_STATISTICS_TOTAL) {
-            ServerProfile profile = this.serverProfiles.values().stream()
-                    .filter(candidate -> !candidate.statistics.isEmpty())
-                    .min(Comparator.comparing(
-                            candidate -> candidate.statistics.values().stream().min(EVICTION_ORDER).orElseThrow(),
-                            EVICTION_ORDER))
-                    .orElseThrow();
-            removeLowestStatistic(profile);
+            ProfileStatistic lowest = findLowestPersistedStatistic();
+            if (lowest == null) {
+                throw new IllegalStateException("No persisted pattern statistic is available for eviction");
+            }
+            lowest.profile().statistics.remove(lowest.statistic().stableKey());
         }
+    }
+
+    @Nullable
+    private ProfileStatistic findLowestPersistedStatistic() {
+        return findLowestPersistedStatistic(this.serverProfiles);
+    }
+
+    @Nullable
+    private static ProfileStatistic findLowestPersistedStatistic(Map<String, ServerProfile> profiles) {
+        ProfileStatistic lowest = null;
+        for (Map.Entry<String, ServerProfile> profileEntry : profiles.entrySet()) {
+            for (PatternProviderClickStatistic statistic : profileEntry.getValue().statistics.values()) {
+                ProfileStatistic candidate = new ProfileStatistic(
+                        profileEntry.getKey(), profileEntry.getValue(), statistic);
+                if (lowest == null || compareProfileStatistic(candidate, lowest) < 0) {
+                    lowest = candidate;
+                }
+            }
+        }
+        return lowest;
+    }
+
+    private static int compareProfileStatistic(ProfileStatistic left, ProfileStatistic right) {
+        int comparison = EVICTION_ORDER.compare(left.statistic(), right.statistic());
+        return comparison != 0 ? comparison : left.profileDigest().compareTo(right.profileDigest());
     }
 
     private int totalStatisticCount() {
@@ -638,6 +739,9 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             this.lastAccessEpochMillis = lastAccessEpochMillis;
         }
     }
+
+    private record ProfileStatistic(String profileDigest, ServerProfile profile,
+                                    PatternProviderClickStatistic statistic) {}
 
     private static final class FutureSchemaException extends RuntimeException {
 

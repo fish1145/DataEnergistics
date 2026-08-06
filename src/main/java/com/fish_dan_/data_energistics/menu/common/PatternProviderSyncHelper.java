@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -38,7 +39,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
@@ -162,7 +162,9 @@ public final class PatternProviderSyncHelper {
                 primaryWorkbenchOrdering, Map.of());
     }
 
-    /** Aggregates rows while ranking each unique provider leaf by its recorded success count. */
+    /**
+     * Aggregates rows while ranking each unique provider leaf by its recorded success count.
+     */
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Map<Long, List<PatternContainer>> syncedProviderTargetsById,
@@ -224,7 +226,9 @@ public final class PatternProviderSyncHelper {
         return syncedProviderTargetsById.get(providerId);
     }
 
-    /** Renames every provider in one synchronized display group as a single transaction. */
+    /**
+     * Renames every provider in one synchronized display group as a single transaction.
+     */
     public static boolean renamePatternProviders(List<PatternContainer> providers, @Nullable String name) {
         if (providers == null) {
             return renamePatternProviderTargets(null, name);
@@ -410,7 +414,7 @@ public final class PatternProviderSyncHelper {
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
-        PatternContainer firstCommittedContainer = null;
+        PatternUploadTarget firstCommittedTarget = null;
         for (var container : containers) {
             if (remainder.isEmpty()) {
                 break;
@@ -419,14 +423,14 @@ public final class PatternProviderSyncHelper {
             ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
             if (nextRemainder.getCount() != remainder.getCount()) {
                 transferred = true;
-                if (firstCommittedContainer == null) {
-                    firstCommittedContainer = container;
+                if (firstCommittedTarget == null) {
+                    firstCommittedTarget = resolveProviderUploadTarget(container);
                 }
             }
             remainder = nextRemainder;
         }
 
-        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false, firstCommittedContainer);
+        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false, firstCommittedTarget);
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
@@ -451,9 +455,28 @@ public final class PatternProviderSyncHelper {
         return false;
     }
 
-    /** Result of one upload attempt, including the first inventory that actually accepted a pattern. */
+    /**
+     * Result of one upload attempt, including the first inventory that actually accepted a pattern.
+     */
     public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound,
-                                 @Nullable PatternContainer firstCommittedContainer) {}
+                                 @Nullable PatternUploadTarget firstCommittedTarget) {}
+
+    /**
+     * Stable successful upload target returned only after its inventory has actually changed.
+     */
+    public record PatternUploadTarget(String providerDigest, Component targetName,
+                                      @Nullable ResourceLocation dimensionId, @Nullable BlockPos position) {
+
+        public PatternUploadTarget {
+            if (providerDigest == null || targetName == null) {
+                throw new IllegalArgumentException("Pattern upload target identity and name must not be null");
+            }
+            if (dimensionId == null != (position == null)) {
+                throw new IllegalArgumentException("Pattern upload target location must be complete or absent");
+            }
+            position = position == null ? null : position.immutable();
+        }
+    }
 
     private static void collectDirectPatternProviders(
                                                       IGrid grid,
@@ -530,25 +553,71 @@ public final class PatternProviderSyncHelper {
      * deterministic virtual identity so one malformed provider cannot abort the whole upload page.
      */
     public static String resolveProviderDigest(PatternContainer container) {
-        Component displayName = resolveProviderDisplayName(container);
-        ResourceLocation iconItemId = resolveProviderIconItemId(container);
-        return resolveProviderDigest(container, displayName, iconItemId);
+        return resolveProviderUploadTarget(container).providerDigest();
     }
 
     private static String resolveProviderDigest(PatternContainer container, Component displayName,
                                                 ResourceLocation iconItemId) {
+        return resolveProviderIdentity(container, displayName, iconItemId).digest();
+    }
+
+    private static ProviderIdentity resolveProviderIdentity(PatternContainer container, Component displayName,
+                                                            ResourceLocation iconItemId) {
         try {
-            return PROVIDER_IDENTITY_RESOLVER.resolve(container).digest();
+            if (isAssemblerMatrixPatternContainer(container)) {
+                return PROVIDER_IDENTITY_RESOLVER.resolveMatrix(
+                        container, isPlusAssemblerMatrixPatternContainer(container));
+            }
+            return PROVIDER_IDENTITY_RESOLVER.resolve(container);
         } catch (RuntimeException | LinkageError exception) {
             LOGGER.warn("Could not resolve physical identity for pattern provider {}; using virtual identity",
                     container, exception);
-            Optional<ResourceLocation> icon = iconItemId == null || Items.AIR.equals(BuiltInRegistries.ITEM.get(iconItemId))
-                    ? Optional.empty() : Optional.of(iconItemId);
-            String componentEncoding = container.getTerminalGroup() != null && container.getTerminalGroup().name() != null
-                    ? container.getTerminalGroup().name().toString()
-                    : displayName.getString() + "|" + container.getClass().getName();
-            return new ProviderIdentity.Virtual(icon, componentEncoding).digest();
+            return ProviderIdentityResolver.virtualIdentity(iconItemId, displayName);
         }
+    }
+
+    /**
+     * Resolves stable identity, name, and optional physical location for an actual upload leaf.
+     */
+    public static PatternUploadTarget resolveProviderUploadTarget(PatternContainer container) {
+        if (container == null) {
+            throw new IllegalArgumentException("Pattern upload target must not be null");
+        }
+        Component displayName;
+        try {
+            displayName = resolveProviderDisplayName(container);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.warn("Could not resolve the display name for pattern provider {}", container, exception);
+            displayName = Component.literal(container.getClass().getSimpleName());
+        }
+        ResourceLocation iconItemId;
+        try {
+            iconItemId = resolveProviderIconItemId(container);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.warn("Could not resolve the icon for pattern provider {}", container, exception);
+            iconItemId = BuiltInRegistries.ITEM.getKey(Items.AIR);
+        }
+        ProviderIdentity identity = resolveProviderIdentity(container, displayName, iconItemId);
+        return switch (identity) {
+            case ProviderIdentity.Block block -> new PatternUploadTarget(
+                    identity.digest(), displayName, block.dimensionId(), block.blockPos());
+            case ProviderIdentity.Part part -> new PatternUploadTarget(
+                    identity.digest(), displayName, part.dimensionId(), part.blockPos());
+            case ProviderIdentity.Matrix matrix -> new PatternUploadTarget(
+                    identity.digest(), displayName, matrix.dimensionId(), matrix.blockPos());
+            case ProviderIdentity.Trinity ignored -> new PatternUploadTarget(
+                    identity.digest(), displayName, null, null);
+            case ProviderIdentity.Virtual ignored -> new PatternUploadTarget(
+                    identity.digest(), displayName, null, null);
+        };
+    }
+
+    private static boolean isPlusAssemblerMatrixPatternContainer(PatternContainer container) {
+        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
+        if (terminalIconItemId != null && isAssemblerMatrixPlusIcon(terminalIconItemId)) {
+            return true;
+        }
+        return isAssemblerMatrixPlusIcon(resolveBaseProviderIconItemId(container));
     }
 
     private static boolean isProviderContainer(PatternContainer container) {
@@ -629,8 +698,8 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<AggregatedPatternProvider> createAggregatedProviderComparator(
-                                                                                             boolean primaryWorkbenchOrdering,
-                                                                                             Map<String, Long> leafClickCounts) {
+                                                                                            boolean primaryWorkbenchOrdering,
+                                                                                            Map<String, Long> leafClickCounts) {
         Comparator<AggregatedPatternProvider> comparator;
         comparator = Comparator.<AggregatedPatternProvider>comparingLong(provider -> provider.leafCountScore(leafClickCounts))
                 .reversed();
@@ -651,11 +720,10 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<PatternProviderAggregationEntry> createDiscoveredProviderComparator(
-                                                                                                   boolean primaryWorkbenchOrdering,
-                                                                                                   Map<String, Long> leafClickCounts) {
+                                                                                                  boolean primaryWorkbenchOrdering,
+                                                                                                  Map<String, Long> leafClickCounts) {
         Comparator<PatternProviderAggregationEntry> comparator;
-        comparator = Comparator.<PatternProviderAggregationEntry>comparingLong(provider ->
-                        leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
+        comparator = Comparator.<PatternProviderAggregationEntry>comparingLong(provider -> leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
                 .reversed();
         if (primaryWorkbenchOrdering) {
             comparator = comparator.thenComparing(Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::recordedDeviceScore)
@@ -896,7 +964,8 @@ public final class PatternProviderSyncHelper {
         try {
             var inventory = container.getTerminalPatternInventory();
             return inventory == null ? 0 : inventory.size();
-        } catch (Exception ignored) {
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.warn("Failed to read pattern slot capacity from {}", container, exception);
             return 0;
         }
     }
@@ -1392,7 +1461,8 @@ public final class PatternProviderSyncHelper {
 
         try {
             return Integer.parseInt(tierKey.substring(1));
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException exception) {
+            LOGGER.debug("Failed to parse NeoEco provider tier from {}", tierKey, exception);
             return null;
         }
     }
@@ -1670,20 +1740,30 @@ public final class PatternProviderSyncHelper {
      */
     interface PatternProviderRenameTarget {
 
-        /** Returns whether this target may participate in a group rename. */
+        /**
+         * Returns whether this target may participate in a group rename.
+         */
         boolean canRename();
 
-        /** Returns the custom name that must be restored if a later target fails. */
+        /**
+         * Returns the custom name that must be restored if a later target fails.
+         */
         @Nullable
         Component customName();
 
-        /** Writes the requested custom name, or reports that the target rejected it. */
+        /**
+         * Writes the requested custom name, or reports that the target rejected it.
+         */
         boolean setCustomName(@Nullable Component customName);
 
-        /** Persists and publishes the most recently written custom name. */
+        /**
+         * Persists and publishes the most recently written custom name.
+         */
         void syncRename();
 
-        /** Identifies the target in failure logs. */
+        /**
+         * Identifies the target in failure logs.
+         */
         String description();
     }
 
@@ -1734,7 +1814,9 @@ public final class PatternProviderSyncHelper {
                                            int preferredScore,
                                            String providerDigest) {
 
-        /** Compatibility constructor for callers that do not yet have an explicit leaf digest. */
+        /**
+         * Compatibility constructor for callers that do not yet have an explicit leaf digest.
+         */
         PatternProviderAggregationEntry(PatternContainer container,
                                         long id,
                                         long sortOrder,

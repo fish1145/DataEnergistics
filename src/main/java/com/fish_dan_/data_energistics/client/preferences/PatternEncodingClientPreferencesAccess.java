@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.StableDigest;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.fml.loading.FMLPaths;
 
@@ -13,7 +14,9 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Locale;
 
-/** Provides the single client-thread-confined preference repository and connection profile lifecycle. */
+/**
+ * Provides the single client-thread-confined preference repository and connection profile lifecycle.
+ */
 public final class PatternEncodingClientPreferencesAccess {
 
     private static final PatternEncodingClientPreferences INSTANCE = new PatternEncodingClientPreferencesImpl(
@@ -23,12 +26,16 @@ public final class PatternEncodingClientPreferencesAccess {
 
     private PatternEncodingClientPreferencesAccess() {}
 
-    /** Returns the shared client preference repository. */
+    /**
+     * Returns the shared client preference repository.
+     */
     public static PatternEncodingClientPreferences get() {
         return INSTANCE;
     }
 
-    /** Selects an isolated profile for the currently connected remote or integrated server. */
+    /**
+     * Selects an isolated profile for the currently connected remote or integrated server.
+     */
     public static void activateCurrentServerProfile() {
         String profile = resolveCurrentServerProfile();
         if (profile == null) {
@@ -40,7 +47,9 @@ public final class PatternEncodingClientPreferencesAccess {
         INSTANCE.activateServerProfile(profile);
     }
 
-    /** Clears all connection-scoped preference state on disconnect. */
+    /**
+     * Clears all connection-scoped preference state on disconnect.
+     */
     public static void deactivateServerProfile() {
         INSTANCE.deactivateServerProfile();
     }
@@ -57,6 +66,17 @@ public final class PatternEncodingClientPreferencesAccess {
         if (serverData == null || serverData.ip == null || serverData.ip.isBlank()) {
             return null;
         }
-        return StableDigest.sha256("remote\0" + serverData.ip.trim().toLowerCase(Locale.ROOT));
+        String rawAddress = serverData.ip.trim();
+        if (!ServerAddress.isValidAddress(rawAddress)) {
+            Data_Energistics.LOGGER.warn("Unable to normalize invalid server address for pattern statistics: {}",
+                    rawAddress);
+            return null;
+        }
+        ServerAddress address = ServerAddress.parseString(rawAddress);
+        String host = address.getHost().toLowerCase(Locale.ROOT);
+        if (host.isBlank()) {
+            return null;
+        }
+        return StableDigest.sha256("remote\0" + host + '\0' + address.getPort());
     }
 }

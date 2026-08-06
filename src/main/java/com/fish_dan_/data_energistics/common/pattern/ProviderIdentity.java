@@ -20,8 +20,8 @@ import java.util.UUID;
  * </p>
  */
 public sealed interface ProviderIdentity
-        permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
-        ProviderIdentity.Virtual {
+                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
+                                         ProviderIdentity.Virtual {
 
     /**
      * Current canonical field schema used by every identity declared in this type.
@@ -51,6 +51,7 @@ public sealed interface ProviderIdentity
      * Provider categories with explicit, permanent codes for canonical binary encoding.
      */
     enum Kind {
+
         /**
          * In-world block entity provider.
          */
@@ -93,6 +94,7 @@ public sealed interface ProviderIdentity
      * Stable cable-bus mount location, including the center slot represented by a {@code null} AE2 side.
      */
     enum Mount {
+
         /**
          * Center cable slot.
          */
@@ -182,7 +184,8 @@ public sealed interface ProviderIdentity
      */
     record Block(ResourceLocation dimensionId,
                  BlockPos blockPos,
-                 ResourceLocation blockEntityTypeId) implements ProviderIdentity {
+                 ResourceLocation blockEntityTypeId)
+            implements ProviderIdentity {
 
         /**
          * Validates and defensively freezes the world-location fields.
@@ -210,7 +213,8 @@ public sealed interface ProviderIdentity
     record Part(ResourceLocation dimensionId,
                 BlockPos blockPos,
                 Mount mount,
-                ResourceLocation partItemId) implements ProviderIdentity {
+                ResourceLocation partItemId)
+            implements ProviderIdentity {
 
         /**
          * Validates and defensively freezes the host and part fields.
@@ -258,8 +262,8 @@ public sealed interface ProviderIdentity
      * Identity of an assembler matrix target that can receive an encoded pattern.
      *
      * @param dimensionId dimension containing the matrix
-     * @param blockPos immutable matrix position
-     * @param plus whether the matrix is the ExtendedAE-Plus variant
+     * @param blockPos    immutable matrix position
+     * @param plus        whether the matrix is the ExtendedAE-Plus variant
      */
     record Matrix(ResourceLocation dimensionId, BlockPos blockPos, boolean plus) implements ProviderIdentity {
 
@@ -282,7 +286,8 @@ public sealed interface ProviderIdentity
      * @param terminalGroupNameEncoding canonical JSON encoding of the structured terminal group name component
      */
     record Virtual(Optional<ResourceLocation> terminalGroupIconId,
-                   String terminalGroupNameEncoding) implements ProviderIdentity {
+                   String terminalGroupNameEncoding)
+            implements ProviderIdentity {
 
         /**
          * Rejects incomplete display semantics before they become a persistence key.

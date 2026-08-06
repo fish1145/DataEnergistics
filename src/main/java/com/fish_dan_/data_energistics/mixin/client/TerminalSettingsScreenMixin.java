@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 
 import net.minecraft.network.chat.Component;
@@ -64,8 +65,9 @@ public abstract class TerminalSettingsScreenMixin
             return;
         }
 
-        if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
-            sourceAware.data_energistics$setUploadEnabled(this.dataEnergistics$uploadEnabledCheckbox.isSelected());
+        if (this.menu instanceof PatternEncodingSourceAware) {
+            PatternEncodingPreferencesClient.setUploadEnabled(
+                    this.menu, this.dataEnergistics$uploadEnabledCheckbox.isSelected());
         }
 
         dataEnergistics$syncUploadEnabledCheckbox();

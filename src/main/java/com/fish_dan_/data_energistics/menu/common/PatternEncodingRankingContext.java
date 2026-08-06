@@ -7,8 +7,10 @@ import java.nio.charset.StandardCharsets;
 /**
  * Identifies the recipe and workstation pair for which provider upload history is relevant.
  *
- * <p>The pair is intentionally exact: history from a different recipe type or workstation must not influence
- * provider ordering.</p>
+ * <p>
+ * The pair is intentionally exact: history from a different recipe type or workstation must not influence
+ * provider ordering.
+ * </p>
  */
 public record PatternEncodingRankingContext(String recipeScope, ResourceLocation workstation) {
 
@@ -25,9 +27,7 @@ public record PatternEncodingRankingContext(String recipeScope, ResourceLocation
         if (recipeScope.getBytes(StandardCharsets.UTF_8).length > MAX_RECIPE_SCOPE_BYTES) {
             throw new IllegalArgumentException("Pattern ranking recipe scope exceeds " + MAX_RECIPE_SCOPE_BYTES + " UTF-8 bytes");
         }
-        String recipeId = recipeScope.startsWith(TYPE_PREFIX)
-                ? recipeScope.substring(TYPE_PREFIX.length())
-                : recipeScope.startsWith(RECIPE_PREFIX) ? recipeScope.substring(RECIPE_PREFIX.length()) : null;
+        String recipeId = recipeScope.startsWith(TYPE_PREFIX) ? recipeScope.substring(TYPE_PREFIX.length()) : recipeScope.startsWith(RECIPE_PREFIX) ? recipeScope.substring(RECIPE_PREFIX.length()) : null;
         if (recipeId == null || ResourceLocation.tryParse(recipeId) == null) {
             throw new IllegalArgumentException("Invalid pattern ranking recipe scope: " + recipeScope);
         }
@@ -41,7 +41,7 @@ public record PatternEncodingRankingContext(String recipeScope, ResourceLocation
 
     /** Builds the preferred recipe-type scope. */
     public static PatternEncodingRankingContext forRecipeType(ResourceLocation recipeTypeId,
-                                                               ResourceLocation workstation) {
+                                                              ResourceLocation workstation) {
         if (recipeTypeId == null) {
             throw new IllegalArgumentException("Recipe type id must not be null");
         }

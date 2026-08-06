@@ -4,24 +4,17 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalParti
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.IPartItem;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import com.mojang.serialization.JsonOps;
 
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -67,13 +60,6 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
             TrinityPatternTerminalPartition.PartitionKey key = partition.key();
             return new ProviderIdentity.Trinity(key.hostId(), key.coreId(), key.partitionIndex());
         }
-        if (isAssemblerMatrix(provider)) {
-            BlockEntity blockEntity = resolveMatrixBlockEntity(provider);
-            return new ProviderIdentity.Matrix(
-                    this.dimensionIdResolver.apply(blockEntity),
-                    blockEntity.getBlockPos(),
-                    isPlusAssemblerMatrix(provider));
-        }
         if (provider instanceof PatternProviderLogicHost logicHost) {
             BlockEntity blockEntity = requireBlockEntity(logicHost);
             if (provider instanceof IPart part) {
@@ -85,6 +71,16 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
             return resolveBlock(blockEntity);
         }
         return resolveVirtual(provider);
+    }
+
+    @Override
+    public ProviderIdentity.Matrix resolveMatrix(PatternContainer provider, boolean plus) {
+        Objects.requireNonNull(provider, "provider");
+        BlockEntity blockEntity = resolveMatrixBlockEntity(provider);
+        return new ProviderIdentity.Matrix(
+                this.dimensionIdResolver.apply(blockEntity),
+                blockEntity.getBlockPos(),
+                plus);
     }
 
     /**
@@ -121,20 +117,12 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
      * Encodes the terminal group structurally when no physical or dedicated persistent key is available.
      */
     private static ProviderIdentity.Virtual resolveVirtual(PatternContainer provider) {
-        PatternContainerGroup group = Objects.requireNonNull(
+        var group = Objects.requireNonNull(
                 provider.getTerminalGroup(),
                 "Pattern provider terminal group");
-        Component name = Objects.requireNonNull(group.name(), "Pattern provider terminal group name");
-        String componentEncoding = GsonHelper.toStableString(
-                ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, name).getOrThrow());
-        Optional<ResourceLocation> iconItemId = Optional.ofNullable(group.icon()).map(icon -> icon.getId());
-        return new ProviderIdentity.Virtual(iconItemId, componentEncoding);
-    }
-
-    /** Identifies ExtendedAE matrix implementations without loading their optional classes. */
-    private static boolean isAssemblerMatrix(PatternContainer provider) {
-        String className = provider.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-        return className.contains("assemblermatrix") || className.contains("matrixpattern");
+        return ProviderIdentityResolver.virtualIdentity(
+                group.icon() == null ? null : group.icon().getId(),
+                Objects.requireNonNull(group.name(), "Pattern provider terminal group name"));
     }
 
     private static BlockEntity resolveMatrixBlockEntity(PatternContainer provider) {
@@ -145,20 +133,6 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
             return blockEntity;
         }
         throw new IllegalStateException("Assembler matrix provider has no block entity: " + provider);
-    }
-
-    /** Distinguishes ordinary and Plus matrices using stable class and terminal-icon metadata. */
-    private static boolean isPlusAssemblerMatrix(PatternContainer provider) {
-        String className = provider.getClass().getName().toLowerCase(Locale.ROOT);
-        if (className.contains("plus")) {
-            return true;
-        }
-        PatternContainerGroup group = provider.getTerminalGroup();
-        if (group != null && group.icon() != null) {
-            ResourceLocation iconId = group.icon().getId();
-            return "extendedae_plus".equals(iconId.getNamespace());
-        }
-        return false;
     }
 
     /**
