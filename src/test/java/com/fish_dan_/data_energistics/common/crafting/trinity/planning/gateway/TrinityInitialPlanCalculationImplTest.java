@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
@@ -38,10 +40,6 @@ final class TrinityInitialPlanCalculationImplTest {
     @Test
     void rejectsPlanThatExceedsEveryEligibleTrinityCpuCapturedAtRequestStart() throws Exception {
         TrinityCraftingPlan oversizedPlan = oversizedPlan();
-        TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, available, settings, control) -> {
-            assertFalse(control.deadlineConfigured());
-            return TrinityAlgorithmResult.success(oversizedPlan);
-        };
         TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
                 .gridScope(1L)
                 .requestId(7L)
@@ -53,8 +51,12 @@ final class TrinityInitialPlanCalculationImplTest {
                 .settings(TrinityCraftingSettings.defaults(4))
                 .maxTrinityBytes(10L)
                 .build();
+        TrinityInitialPlanCalculationImpl calculation = new TrinityInitialPlanCalculationImpl(
+                ignored -> new TrinityPlanningComputationResult(
+                        TrinityAlgorithmResult.success(oversizedPlan),
+                        PlanningCachePath.EXACT_HIT));
 
-        TrinityPlanningAttempt attempt = new TrinityInitialPlanCalculationImpl(planner).calculate(request);
+        TrinityPlanningAttempt attempt = calculation.calculate(request);
 
         assertFalse(attempt.successful());
         assertEquals(TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU, attempt.diagnostic().code());

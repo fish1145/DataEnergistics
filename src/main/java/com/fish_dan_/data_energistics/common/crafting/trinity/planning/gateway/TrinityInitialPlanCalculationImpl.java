@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -47,6 +48,14 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
                         request.settings(),
                         TrinityPlanningControl.unbounded()),
                 PlanningCachePath.MISS);
+    }
+
+    TrinityInitialPlanCalculationImpl(
+                                       Function<TrinityPlanningInput, TrinityPlanningComputationResult> computation) {
+        if (computation == null) {
+            throw new IllegalArgumentException("A Trinity initial calculation requires a planning computation");
+        }
+        this.algorithm = request -> computation.apply(input(request));
     }
 
     @Override
