@@ -74,8 +74,6 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
             return List.of();
         }
 
-        this.context.cleanupInvalidDisplayTargets();
-
         ArrayList<BoundTargetSummary> results = new ArrayList<>();
         for (DisplayTarget target : collectDisplayTargets()) {
             BlockPos pos = target.pos();
