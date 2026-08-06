@@ -43,6 +43,7 @@
 		"core.IOBusPartWrappedKeyMigrationMixin",
 		"core.InterfaceLogicTickAccessor",
 		"core.InterfaceLogicUpgradesAccessor",
+		"core.KeyCounterMixin",
 		"core.LivingEntityDropInvoker",
 		"core.NetworkCraftingProviderStatePublicationMixin",
 		"core.NetworkCraftingProvidersPatternsForKeyMixin",

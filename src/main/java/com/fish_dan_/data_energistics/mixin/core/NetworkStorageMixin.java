@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.ae2.SaturatingKeyCounter;
+import com.fish_dan_.data_energistics.ae2.SaturatingKeyCounterBridge;
 
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
@@ -23,6 +24,16 @@ public abstract class NetworkStorageMixin {
                        value = "INVOKE",
                        target = "Lappeng/api/storage/MEStorage;getAvailableStacks(Lappeng/api/stacks/KeyCounter;)V"))
     private void dataEnergistics$mergeAvailableStacks(MEStorage storage, KeyCounter total) {
+        if ((Object) total instanceof SaturatingKeyCounterBridge bridge) {
+            bridge.dataEnergistics$beginSaturatingMerge();
+            try {
+                storage.getAvailableStacks(total);
+            } finally {
+                bridge.dataEnergistics$endSaturatingMerge();
+            }
+            return;
+        }
+
         this.dataEnergistics$storageContribution.clear();
         storage.getAvailableStacks(this.dataEnergistics$storageContribution);
         SaturatingKeyCounter.merge(total, this.dataEnergistics$storageContribution);
