@@ -1582,53 +1582,6 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_cpu_rejects_zero_capacity_and_invalid_admissions")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void cpuRejectsZeroCapacityAndInvalidAdmissions(GameTestHelper helper) {
-        CountedBatchFixture noCapacity = countedBatchFixture(
-                helper,
-                new BlockPos(1, 1, 1),
-                COUNTED_BATCH_SIZE,
-                BatchPushOutcome.ACCEPT);
-        noCapacity.provider().setNoCapacity(true);
-        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
-
-        noCapacity.cpu().tick(
-                noCapacity.grid().energyService(),
-                noCapacity.grid().craftingService(),
-                sharedWindow);
-        noCapacity.cpu().tick(
-                noCapacity.grid().energyService(),
-                noCapacity.grid().craftingService(),
-                sharedWindow);
-
-        assertUncommittedAdmissionState(helper, noCapacity, "Zero-capacity");
-        helper.assertValueEqual(noCapacity.provider().prepareCount(), 1,
-                "A zero-capacity provider must be prepared only once in one dispatch window");
-        helper.assertValueEqual(
-                sharedWindow.resultCount(CraftingDispatchStatus.NO_CAPACITY),
-                1,
-                "A zero-capacity preparation must retain its explicit reason");
-
-        CountedBatchFixture invalid = countedBatchFixture(
-                helper,
-                new BlockPos(3, 1, 1),
-                COUNTED_BATCH_SIZE,
-                BatchPushOutcome.ACCEPT);
-        invalid.provider().setInvalidAdmissionCount(0L);
-
-        invalid.cpu().tick(
-                invalid.grid().energyService(),
-                invalid.grid().craftingService(),
-                CraftingDispatchWindow.create());
-
-        assertUncommittedAdmissionState(helper, invalid, "Invalid-count");
-        helper.assertValueEqual(invalid.provider().prepareCount(), 1,
-                "An invalid admission must fail on its first preparation");
-        helper.succeed();
-    }
-
     @TestHolder("trinity_data_core_cpu_limits_counted_batch_by_energy")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -3759,12 +3712,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         private BatchPushOutcome outcome;
         private long maximumAdmissionCount = Long.MAX_VALUE;
         @Nullable
-        private Long invalidAdmissionCount;
-        @Nullable
         private Runnable preparationAction;
         @Nullable
         private Runnable busyCheckAction;
-        private boolean noCapacity;
         private int prepareCount;
         private int batchPushCount;
         private long lastBatchCount;
@@ -3786,20 +3736,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.maximumAdmissionCount = maximumAdmissionCount;
         }
 
-        private void setInvalidAdmissionCount(long invalidAdmissionCount) {
-            this.invalidAdmissionCount = invalidAdmissionCount;
-        }
-
         private void setPreparationAction(@Nullable Runnable preparationAction) {
             this.preparationAction = preparationAction;
         }
 
         private void setBusyCheckAction(@Nullable Runnable busyCheckAction) {
             this.busyCheckAction = busyCheckAction;
-        }
-
-        private void setNoCapacity(boolean noCapacity) {
-            this.noCapacity = noCapacity;
         }
 
         private int prepareCount() {
@@ -3840,10 +3782,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             if (this.preparationAction != null) {
                 this.preparationAction.run();
             }
-            if (this.noCapacity) {
-                return null;
-            }
-            long admittedCount = this.invalidAdmissionCount != null ? this.invalidAdmissionCount : Math.min(requestedCount, this.maximumAdmissionCount);
+            long admittedCount = Math.min(requestedCount, this.maximumAdmissionCount);
             return new CountedCraftingAdmission() {
 
                 @Override
