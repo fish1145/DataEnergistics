@@ -75,7 +75,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 registered = false;
             } else {
                 registered = reserveRegisteredSlot(partition);
-                entry = new CacheEntry<>(partition, scopedKey, calculation, registered);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true);
                 if (registered) {
                     partition.entries.put(scopedKey, entry);
                 } else {
@@ -83,7 +83,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 }
             }
         }
-        cancelled.forEach(CacheEntry::cancelUnderlying);
+        cancelled.forEach(CacheEntry::cancelObsolete);
         if (existingLookup != null) {
             return existingLookup;
         }
@@ -134,7 +134,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             } else {
                 cacheHit = false;
                 registered = reserveRegisteredSlot(partition);
-                entry = new CacheEntry<>(partition, scopedKey, calculation, registered);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true);
                 if (registered) {
                     partition.entries.put(scopedKey, entry);
                 } else {
@@ -142,7 +142,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 }
             }
         }
-        cancelled.forEach(CacheEntry::cancelUnderlying);
+        cancelled.forEach(CacheEntry::cancelObsolete);
 
         if (staleRevision && entry == null) {
             throw new CancellationException("The Trinity computation revision is obsolete");
@@ -185,11 +185,12 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                         partition,
                         scopedKey,
                         () -> TrinityCachedComputation.transientValue(calculation.call()),
+                        false,
                         false);
                 partition.bypassEntries.put(scopedKey, entry);
             }
         }
-        cancelled.forEach(CacheEntry::cancelUnderlying);
+        cancelled.forEach(CacheEntry::cancelObsolete);
         if (staleRevision) {
             CompletableFuture<V> stale = new CompletableFuture<>();
             stale.cancel(false);
@@ -219,7 +220,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                     currentRevision,
                     cancelled);
         }
-        cancelled.forEach(CacheEntry::cancelUnderlying);
+        cancelled.forEach(CacheEntry::cancelObsolete);
     }
 
     @Override
@@ -377,17 +378,20 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private final ScopedKey key;
         private final Callable<TrinityCachedComputation<V>> calculation;
         private final boolean registered;
+        private final boolean revisionCancellationInterrupts;
         private final CompletableFuture<V> result = new CompletableFuture<>();
         private final FutureTask<Void> execution = new FutureTask<>(this::execute);
 
         private CacheEntry(GridPartition partition,
                            ScopedKey key,
                            Callable<TrinityCachedComputation<V>> calculation,
-                           boolean registered) {
+                           boolean registered,
+                           boolean revisionCancellationInterrupts) {
             this.partition = partition;
             this.key = key;
             this.calculation = calculation;
             this.registered = registered;
+            this.revisionCancellationInterrupts = revisionCancellationInterrupts;
         }
 
         private Void execute() {
@@ -450,6 +454,11 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private void cancelUnderlying() {
             this.result.cancel(false);
             this.execution.cancel(true);
+        }
+
+        private void cancelObsolete() {
+            this.result.cancel(false);
+            this.execution.cancel(this.revisionCancellationInterrupts);
         }
     }
 

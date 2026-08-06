@@ -106,23 +106,36 @@ final class TrinityPlanningComputationTest {
     @Test
     void revisionChangeReusesSemanticStructureAndPublishesCurrentRevisionPlan() throws Exception {
         CountingPipeline pipeline = new CountingPipeline();
+        pipeline.compileEntered = new CountDownLatch(1);
+        pipeline.releaseCompile = new CountDownLatch(1);
         TrinityPlanningComputation computation = computation(pipeline, 2);
 
-        TrinityPlanningComputationResult first = get(computation.begin(input(
+        Future<TrinityPlanningComputationResult> obsolete = computation.begin(input(
                 7L,
                 10L,
                 BigInteger.ONE,
-                Map.of(inputKey, BigInteger.ONE))));
-        TrinityPlanningComputationResult revised = get(computation.begin(input(
+                Map.of(inputKey, BigInteger.ONE)));
+        assertTrue(pipeline.compileEntered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        Future<TrinityPlanningComputationResult> revisedFuture = computation.begin(input(
                 7L,
                 11L,
                 BigInteger.ONE,
+                Map.of(inputKey, BigInteger.ONE)));
+        assertTrue(obsolete.isCancelled());
+        pipeline.releaseCompile.countDown();
+
+        TrinityPlanningComputationResult revised = get(revisedFuture);
+        TrinityPlanningComputationResult nextRevision = get(computation.begin(input(
+                7L,
+                12L,
+                BigInteger.ONE,
                 Map.of(inputKey, BigInteger.ONE))));
 
-        assertEquals(PlanningCachePath.MISS, first.cachePath());
         assertEquals(PlanningCachePath.STRUCTURE_HIT, revised.cachePath());
-        assertEquals(10L, first.result().value().catalogRevision());
+        assertEquals(PlanningCachePath.STRUCTURE_HIT, nextRevision.cachePath());
+        assertTrue(revised.result().successful());
         assertEquals(11L, revised.result().value().catalogRevision());
+        assertEquals(12L, nextRevision.result().value().catalogRevision());
         assertEquals(1, pipeline.compilations.get());
         assertEquals(2, pipeline.solves.get());
     }
