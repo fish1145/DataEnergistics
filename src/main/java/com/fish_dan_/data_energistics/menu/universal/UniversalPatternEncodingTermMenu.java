@@ -464,6 +464,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = offsetX;
         this.previewPanelOffsetY = offsetY;
+        if (this.isServerSide()) {
+            this.host.setSessionPreviewPanelOffset(offsetX, offsetY);
+        }
     }
 
     @Override
@@ -473,6 +476,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = 0;
         this.previewPanelOffsetY = 0;
+        if (this.isServerSide()) {
+            this.host.resetSessionPreviewPanelOffset();
+        }
     }
 
     @Override
