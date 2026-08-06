@@ -21,7 +21,7 @@ import java.util.Optional;
  */
 public final class VirtualCraftingOutputAdapters {
 
-    private static final List<VirtualCraftingOutputAdapter> ADAPTERS = new ArrayList<>();
+    private static volatile List<VirtualCraftingOutputAdapter> ADAPTERS = List.of();
 
     private VirtualCraftingOutputAdapters() {}
 
@@ -35,7 +35,9 @@ public final class VirtualCraftingOutputAdapters {
         if (ADAPTERS.stream().anyMatch(registered -> registered == adapter)) {
             throw new IllegalStateException("Virtual crafting output adapter is already registered");
         }
-        ADAPTERS.add(adapter);
+        ArrayList<VirtualCraftingOutputAdapter> adapters = new ArrayList<>(ADAPTERS);
+        adapters.add(adapter);
+        ADAPTERS = List.copyOf(adapters);
         return new Registration(adapter);
     }
 
@@ -64,11 +66,7 @@ public final class VirtualCraftingOutputAdapters {
      * @return immutable projection preserving first-key order after aggregation
      */
     public static VirtualCraftingOutputProjection project(List<GenericStack> declaredOutputs) {
-        List<VirtualCraftingOutputAdapter> adapters;
-        synchronized (VirtualCraftingOutputAdapters.class) {
-            adapters = List.copyOf(ADAPTERS);
-        }
-        return project(declaredOutputs, adapters);
+        return project(declaredOutputs, ADAPTERS);
     }
 
     private static VirtualCraftingOutputProjection project(List<GenericStack> declaredOutputs,
@@ -115,11 +113,7 @@ public final class VirtualCraftingOutputAdapters {
      * @return whether completion must not materialize an item
      */
     public static boolean hasNoOutputCompletion(GenericStack declaredOutput) {
-        List<VirtualCraftingOutputAdapter> adapters;
-        synchronized (VirtualCraftingOutputAdapters.class) {
-            adapters = List.copyOf(ADAPTERS);
-        }
-        return resolveOutput(adapters, declaredOutput)
+        return resolveOutput(ADAPTERS, declaredOutput)
                 .map(value -> value.mode() == VirtualCraftingCompletionMode.COMPLETE_WITHOUT_OUTPUT)
                 .orElse(false);
     }
@@ -159,7 +153,9 @@ public final class VirtualCraftingOutputAdapters {
                 return;
             }
             synchronized (VirtualCraftingOutputAdapters.class) {
-                ADAPTERS.removeIf(registered -> registered == this.adapter);
+                ArrayList<VirtualCraftingOutputAdapter> adapters = new ArrayList<>(ADAPTERS);
+                adapters.removeIf(registered -> registered == this.adapter);
+                ADAPTERS = List.copyOf(adapters);
             }
             this.active = false;
         }
