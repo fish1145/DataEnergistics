@@ -7,7 +7,6 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,9 +39,14 @@ public final class CraftingProviderPublicationIndexImpl implements CraftingProvi
     private final Map<CraftingProviderId, LivePublication> publications = new LinkedHashMap<>();
 
     /**
-     * Identity-keyed immutable lookup rebuilt after each lifecycle mutation.
+     * Identity-keyed immutable publication buckets updated only for patterns touched by one lifecycle mutation.
+     *
+     * <p>
+     * The map itself is confined to the owning server thread. Every bucket is replaced with a fresh immutable list,
+     * so a caller that already captured a bucket can safely transfer that list to pure dispatch code.
+     * </p>
      */
-    private Map<IPatternDetails, List<CraftingProviderId>> providerIdsByPattern = Map.of();
+    private final IdentityHashMap<IPatternDetails, List<CraftingProviderId>> providerIdsByPattern = new IdentityHashMap<>();
 
     /**
      * Last registration sequence allocated in this publication scope.
@@ -77,7 +81,13 @@ public final class CraftingProviderPublicationIndexImpl implements CraftingProvi
                 nextRegistrationSequence);
 
         this.publications.put(providerId, new LivePublication(provider, patternSnapshot));
-        this.providerIdsByPattern = rebuildPatternIndex(this.publications);
+        for (IPatternDetails pattern : patternSnapshot) {
+            List<CraftingProviderId> current = this.providerIdsByPattern.get(pattern);
+            ArrayList<CraftingProviderId> next = current == null ?
+                    new ArrayList<>() : new ArrayList<>(current);
+            next.add(providerId);
+            this.providerIdsByPattern.put(pattern, List.copyOf(next));
+        }
         this.registrationSequence = nextRegistrationSequence;
         this.revision = nextRevision;
         return providerId;
@@ -89,12 +99,27 @@ public final class CraftingProviderPublicationIndexImpl implements CraftingProvi
      * @param providerId current ID returned by {@link #publish(ICraftingProvider, List)}
      */
     public void unpublish(CraftingProviderId providerId) {
-        if (!this.publications.containsKey(providerId)) {
+        LivePublication publication = this.publications.get(providerId);
+        if (publication == null) {
             throw new IllegalStateException("Crafting provider publication is not current: " + providerId);
         }
         long nextRevision = Math.incrementExact(this.revision);
         this.publications.remove(providerId);
-        this.providerIdsByPattern = rebuildPatternIndex(this.publications);
+        for (IPatternDetails pattern : publication.patterns()) {
+            List<CraftingProviderId> current = this.providerIdsByPattern.get(pattern);
+            if (current == null) {
+                throw new IllegalStateException("Crafting provider publication index lost pattern bucket: " + providerId);
+            }
+            ArrayList<CraftingProviderId> next = new ArrayList<>(current);
+            if (!next.remove(providerId)) {
+                throw new IllegalStateException("Crafting provider publication index lost provider ID: " + providerId);
+            }
+            if (next.isEmpty()) {
+                this.providerIdsByPattern.remove(pattern);
+            } else {
+                this.providerIdsByPattern.put(pattern, List.copyOf(next));
+            }
+        }
         this.revision = nextRevision;
     }
 
@@ -126,23 +151,6 @@ public final class CraftingProviderPublicationIndexImpl implements CraftingProvi
      */
     private static long allocatePublicationScope() {
         return PUBLICATION_SCOPE_SEQUENCE.updateAndGet(Math::incrementExact);
-    }
-
-    /**
-     * Rebuilds an identity-keyed immutable view while retaining publication and pattern-list multiplicity.
-     */
-    private static Map<IPatternDetails, List<CraftingProviderId>> rebuildPatternIndex(
-                                                                                      Map<CraftingProviderId, LivePublication> publications) {
-        IdentityHashMap<IPatternDetails, List<CraftingProviderId>> mutableIndex = new IdentityHashMap<>();
-        for (Map.Entry<CraftingProviderId, LivePublication> entry : publications.entrySet()) {
-            for (IPatternDetails pattern : entry.getValue().patterns()) {
-                mutableIndex.computeIfAbsent(pattern, ignored -> new ArrayList<>()).add(entry.getKey());
-            }
-        }
-
-        IdentityHashMap<IPatternDetails, List<CraftingProviderId>> immutableIndex = new IdentityHashMap<>();
-        mutableIndex.forEach((pattern, providerIds) -> immutableIndex.put(pattern, List.copyOf(providerIds)));
-        return Collections.unmodifiableMap(immutableIndex);
     }
 
     /**
