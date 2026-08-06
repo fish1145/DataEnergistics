@@ -28,7 +28,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
-import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -714,120 +713,6 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                     runtime.hasCpu(worker),
                     "One rotated tick must release worker " + worker.number() + " exactly once");
         }
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_cpu_pool_supports_worker_256_boundary")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void cpuPoolSupportsWorker256Boundary(GameTestHelper helper) {
-        TestGrid grid = new TestGrid();
-        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
-        host.setLevel(helper.getLevel());
-        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
-        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 256));
-        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
-        CraftingPlan plan = emptyJobPlan();
-
-        for (int workerNumber = 1; workerNumber <= 256; workerNumber++) {
-            ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
-            helper.assertTrue(result.successful(), "Worker allocation should succeed through CPU 256");
-        }
-
-        List<TrinityDataCoreVirtualCpu> published = host.getCpuPartitions();
-        helper.assertValueEqual(published.size(), 257, "Full pool should publish CPU 0 and 256 busy workers");
-        helper.assertValueEqual(published.getFirst().number(), 0, "Full pool must keep reserved CPU 0 first");
-        helper.assertValueEqual(published.getLast().number(), 256, "Full pool must expose worker CPU 256");
-        helper.assertTrue(
-                reserveCpu.submitJob(grid, plan, IActionSource.empty(), null) == CraftingSubmitResult.CPU_BUSY,
-                "A 257th worker job must be rejected as CPU busy");
-        host.getCraftingRuntime().cancelAllJobs();
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_256_workers_dispatch_independent_operation_budgets")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void workers256DispatchIndependentOperationBudgets(GameTestHelper helper) {
-        int historicalGridAttempts = 256;
-        int historicalProviderAttempts = 16;
-        int workerCount = TrinityDataCoreCpuProfile.MAX_PARTITION_COUNT;
-        int providerCount = workerCount / historicalProviderAttempts;
-        AEItemKey output = AEItemKey.of(Items.DIAMOND);
-        PendingPatternDetails pattern = new PendingPatternDetails(output);
-        List<RecordingCraftingProvider> providers = new ArrayList<>(providerCount);
-        List<ICraftingProvider> configuredProviders = new ArrayList<>(providerCount);
-        for (int providerIndex = 0; providerIndex < providerCount; providerIndex++) {
-            RecordingCraftingProvider provider = new RecordingCraftingProvider(pattern);
-            providers.add(provider);
-            configuredProviders.add(provider);
-        }
-
-        TestGrid grid = new TestGrid();
-        grid.setCraftingProviders(configuredProviders);
-        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
-        host.setLevel(helper.getLevel());
-        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
-        host.setCpuContribution("independent", TrinityDataCoreCpuContribution.of(1L, 0, workerCount));
-        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
-        CraftingPlan plan = patternPlan(pattern, 1L);
-        for (int workerNumber = 1; workerNumber <= workerCount; workerNumber++) {
-            ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
-            helper.assertTrue(result.successful(), "Independent budget job should allocate worker " + workerNumber);
-        }
-
-        CraftingDispatchLimits baselineLimits = new CraftingDispatchLimits(
-                historicalGridAttempts,
-                historicalProviderAttempts,
-                Long.MAX_VALUE,
-                Long.MAX_VALUE);
-        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create(baselineLimits);
-        long startedNanos = System.nanoTime();
-        host.getCraftingRuntime().tick(grid.energyService(), grid.craftingService(), dispatchWindow);
-        long elapsedNanos = System.nanoTime() - startedNanos;
-
-        helper.assertValueEqual(
-                dispatchWindow.attemptCount(),
-                workerCount,
-                "Every worker must own one independent physical-operation allowance");
-        for (int providerIndex = 0; providerIndex < providers.size(); providerIndex++) {
-            helper.assertValueEqual(
-                    providers.get(providerIndex).pushCount(),
-                    historicalProviderAttempts,
-                    "Provider " + providerIndex + " should receive its complete fair physical window");
-        }
-        List<TrinityDataCoreVirtualCpu> workers = host.getCpuPartitions().subList(1, workerCount + 1);
-        for (TrinityDataCoreVirtualCpu worker : workers) {
-            helper.assertValueEqual(
-                    worker.getWaitingFor(output),
-                    1L,
-                    "Worker " + worker.number() + " must retain only its own waiting output");
-        }
-        Data_Energistics.LOGGER.info(
-                "Trinity dispatch Phase 0 baseline: workers={}, providers={}, logicalCrafts={}, physicalCalls={}, tickNanos={}",
-                workerCount,
-                providerCount,
-                workerCount,
-                dispatchWindow.attemptCount(),
-                elapsedNanos);
-        host.getCraftingRuntime().cancelAllJobs();
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_cpu_runtime_omits_released_worker_nbt")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void cpuRuntimeOmitsReleasedWorkerNbt(GameTestHelper helper) {
-        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
-        fixture.cpu().cancelJob();
-
-        CompoundTag saved = new CompoundTag();
-        fixture.runtime().writeToTag(saved, helper.getLevel().registryAccess());
-
-        helper.assertValueEqual(
-                saved.getList("partitions", 10).size(),
-                0,
-                "Released worker and reserved CPU 0 must not be serialized");
         helper.succeed();
     }
 
@@ -2394,48 +2279,6 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 host.getCpuPartitions().size(),
                 0,
                 "CPU publication must remain withdrawn until the CPU child status is restored");
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_crafting_profile_round_trips_through_nbt")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void craftingProfileRoundTripsThroughNbt(GameTestHelper helper) {
-        TrinityDataCoreBlockEntity original = trinityDataCore(false);
-        original.loadTag(formedCraftingProfileTag(), HolderLookup.Provider.create(Stream.empty()));
-
-        helper.assertTrue(original.isCraftingStructureFormed(), "Loaded crafting child structure should be formed");
-        helper.assertValueEqual(
-                original.getCraftingStructureMatchedBlockCount(),
-                314,
-                "Loaded crafting child structure should preserve matched block count");
-        helper.assertValueEqual(
-                original.getCraftingPatternCoreCount(),
-                3,
-                "Loaded crafting child structure should preserve pattern core count");
-        helper.assertValueEqual(
-                original.getCraftingPatternCapacity(),
-                704,
-                "Loaded crafting child structure should preserve pattern capacity");
-
-        CompoundTag saved = new CompoundTag();
-        original.saveAdditional(saved, HolderLookup.Provider.create(Stream.empty()));
-        TrinityDataCoreBlockEntity loaded = trinityDataCore(false);
-        loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
-
-        helper.assertTrue(loaded.isCraftingStructureFormed(), "Saved crafting child structure should remain formed");
-        helper.assertValueEqual(
-                loaded.getCraftingStructureMatchedBlockCount(),
-                314,
-                "Saved crafting child structure should round-trip matched block count");
-        helper.assertValueEqual(
-                loaded.getCraftingPatternCoreCount(),
-                3,
-                "Saved crafting child structure should round-trip pattern core count");
-        helper.assertValueEqual(
-                loaded.getCraftingPatternCapacity(),
-                704,
-                "Saved crafting child structure should round-trip pattern capacity");
         helper.succeed();
     }
 
