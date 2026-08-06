@@ -88,7 +88,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1095,7 +1097,7 @@ final class TrinityDataCoreCpuLogic {
         int physicalAttempts = 0;
         int inspectedSnapshots = 0;
         CraftingDispatchCursor searchCursor = this.capacitySliceCursor;
-        Set<ProviderCapacitySnapshot> inspectedTargets = new HashSet<>();
+        Set<ProviderCapacitySnapshot> inspectedTargets = Collections.newSetFromMap(new IdentityHashMap<>());
         while (inspectedSnapshots < snapshots.size() &&
                 physicalAttempts < physicalCallLimit &&
                 !dispatchWindow.isExhausted()) {

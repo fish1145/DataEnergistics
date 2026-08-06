@@ -109,6 +109,26 @@ final class DispatchComputationCacheTest {
         DispatchProposalCandidatePlan initial = planner.plan(
                 request(capture, 6L, CraftingDispatchCursor.initial()));
         assertNotSame(initial, planner.plan(request(capture, 7L, CraftingDispatchCursor.initial())));
+
+        ProviderCapacitySnapshot firstDuplicate = capture.snapshots().getFirst();
+        ProviderCapacitySnapshot secondDuplicate = new ProviderCapacitySnapshot(
+                firstDuplicate.providerId(),
+                firstDuplicate.route(),
+                firstDuplicate.machineTargetId(),
+                firstDuplicate.patternIdentity(),
+                firstDuplicate.publicationRevision(),
+                firstDuplicate.capacityRevision(),
+                firstDuplicate.captureTick(),
+                firstDuplicate.routingMode(),
+                firstDuplicate.capacity(),
+                firstDuplicate.maximumSingleBatch());
+        ProviderCapacityCapture duplicateCapture = new ProviderCapacityCapture(
+                capture.key(),
+                List.of(firstDuplicate, secondDuplicate));
+        DispatchProposalCandidatePlan duplicates = planner.plan(
+                request(duplicateCapture, 6L, CraftingDispatchCursor.initial()));
+        assertEquals(2, duplicates.candidates().size());
+        assertNotSame(duplicates.candidates().getFirst().target(), duplicates.candidates().getLast().target());
         assertNotSame(initial, planner.plan(request(capture(51L, 8L, 8L), 6L, CraftingDispatchCursor.initial())));
     }
 
