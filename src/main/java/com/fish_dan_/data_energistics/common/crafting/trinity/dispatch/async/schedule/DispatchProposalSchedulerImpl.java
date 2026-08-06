@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -40,7 +42,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final ThreadPoolExecutor executor;
     private final Set<WorkerKey> outstandingWorkers = new HashSet<>();
     private final Map<Long, Integer> outstandingByGrid = new HashMap<>();
-    private final Map<Long, MutableMetrics> metricsByGrid = new HashMap<>();
+    private final ConcurrentMap<Long, MutableMetrics> metricsByGrid = new ConcurrentHashMap<>();
     private final Set<TicketImpl> tickets = new HashSet<>();
     private boolean closed;
 
@@ -79,35 +81,26 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
         WorkerKey workerKey = WorkerKey.from(request.lease());
         long gridGeneration = request.lease().gridGeneration();
+        MutableMetrics gridMetrics;
         long queuedAtNanos = System.nanoTime();
         TicketImpl ticket;
+        RejectionReason rejectionReason;
         synchronized (this.admissionLock) {
-            if (this.closed) {
-                metrics(gridGeneration).recordRejected();
-                return new Rejected(RejectionReason.CLOSED);
-            }
-            if (!policy.enabled()) {
-                metrics(gridGeneration).recordRejected();
-                return new Rejected(RejectionReason.DISABLED);
-            }
-            if (this.outstandingWorkers.contains(workerKey)) {
-                metrics(gridGeneration).recordRejected();
-                return new Rejected(RejectionReason.WORKER_BUSY);
-            }
+            gridMetrics = metrics(gridGeneration);
             int gridOutstanding = this.outstandingByGrid.getOrDefault(gridGeneration, 0);
-            if (gridOutstanding >= Math.min(this.limits.perGridOutstanding(), policy.actorPermits())) {
-                metrics(gridGeneration).recordRejected();
-                return new Rejected(RejectionReason.GRID_LIMIT);
+            rejectionReason = admissionRejection(workerKey, gridOutstanding, policy);
+            if (rejectionReason == null) {
+                ticket = new TicketImpl(this, request.lease(), workerKey, wakeup, gridMetrics);
+                this.outstandingWorkers.add(workerKey);
+                this.outstandingByGrid.put(gridGeneration, Math.incrementExact(gridOutstanding));
+                this.tickets.add(ticket);
+            } else {
+                ticket = null;
             }
-            if (policy.proposalHighWater() < this.limits.queueCapacity() &&
-                    this.executor.getQueue().size() >= policy.proposalHighWater()) {
-                metrics(gridGeneration).recordRejected();
-                return new Rejected(RejectionReason.HIGH_WATER);
-            }
-            ticket = new TicketImpl(this, request.lease(), workerKey, wakeup);
-            this.outstandingWorkers.add(workerKey);
-            this.outstandingByGrid.put(gridGeneration, Math.incrementExact(gridOutstanding));
-            this.tickets.add(ticket);
+        }
+        if (rejectionReason != null) {
+            gridMetrics.recordRejected();
+            return new Rejected(rejectionReason);
         }
 
         FutureTask<Void> task = new FutureTask<>(() -> {
@@ -117,43 +110,40 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         ticket.bind(task);
         try {
             this.executor.execute(task);
-            synchronized (this.admissionLock) {
-                metrics(gridGeneration).recordAdmitted();
-            }
+            gridMetrics.recordAdmitted();
             return new Accepted(ticket);
         } catch (RejectedExecutionException exception) {
             ticket.close();
-            synchronized (this.admissionLock) {
-                metrics(gridGeneration).recordRejected();
-            }
+            gridMetrics.recordRejected();
             return new Rejected(RejectionReason.QUEUE_FULL);
         }
     }
 
     @Override
     public DispatchProposalMetrics snapshotAndResetMetrics(long gridGeneration) {
+        int outstanding;
         synchronized (this.admissionLock) {
-            MutableMetrics metrics = this.metricsByGrid.remove(gridGeneration);
-            int queueDepth = this.executor.getQueue().size();
-            int outstanding = this.outstandingByGrid.getOrDefault(gridGeneration, 0);
-            if (metrics == null) {
-                return new DispatchProposalMetrics(
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0L,
-                        0L,
-                        queueDepth,
-                        this.limits.queueCapacity(),
-                        outstanding);
-            }
-            return metrics.snapshot(
+            outstanding = this.outstandingByGrid.getOrDefault(gridGeneration, 0);
+        }
+        int queueDepth = this.executor.getQueue().size();
+        MutableMetrics metrics = this.metricsByGrid.get(gridGeneration);
+        if (metrics == null) {
+            return new DispatchProposalMetrics(
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0L,
+                    0L,
                     queueDepth,
                     this.limits.queueCapacity(),
                     outstanding);
         }
+        return metrics.snapshotAndReset(
+                queueDepth,
+                this.limits.queueCapacity(),
+                outstanding);
     }
 
     @Override
@@ -162,15 +152,17 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             throw new IllegalArgumentException("Dispatch proposal Grid generation must be positive");
         }
         List<TicketImpl> gridTickets;
+        MutableMetrics retiredMetrics;
         synchronized (this.admissionLock) {
             gridTickets = this.tickets.stream()
                     .filter(ticket -> ticket.lease.gridGeneration() == gridGeneration)
                     .toList();
+            retiredMetrics = this.metricsByGrid.remove(gridGeneration);
+        }
+        if (retiredMetrics != null) {
+            retiredMetrics.retireAndReset();
         }
         gridTickets.forEach(TicketImpl::close);
-        synchronized (this.admissionLock) {
-            this.metricsByGrid.remove(gridGeneration);
-        }
     }
 
     @Override
@@ -233,13 +225,11 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         } finally {
             failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
-            synchronized (this.admissionLock) {
-                if (!ticket.closed()) {
-                    metrics(request.lease().gridGeneration()).recordCompleted(
-                            queueWaitNanos,
-                            calculationNanos,
-                            failed);
-                }
+            if (!ticket.closed()) {
+                ticket.metrics.recordCompleted(
+                        queueWaitNanos,
+                        calculationNanos,
+                        failed);
             }
         }
     }
@@ -263,6 +253,32 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private void cancelTask(FutureTask<Void> task) {
         task.cancel(true);
         this.executor.remove(task);
+    }
+
+    /**
+     * Evaluates the lock-protected admission state without recording metrics; {@code null} means admitted.
+     */
+    private RejectionReason admissionRejection(
+                                               WorkerKey workerKey,
+                                               int gridOutstanding,
+                                               DispatchProposalPolicy policy) {
+        if (this.closed) {
+            return RejectionReason.CLOSED;
+        }
+        if (!policy.enabled()) {
+            return RejectionReason.DISABLED;
+        }
+        if (this.outstandingWorkers.contains(workerKey)) {
+            return RejectionReason.WORKER_BUSY;
+        }
+        if (gridOutstanding >= Math.min(this.limits.perGridOutstanding(), policy.actorPermits())) {
+            return RejectionReason.GRID_LIMIT;
+        }
+        if (policy.proposalHighWater() < this.limits.queueCapacity() &&
+                this.executor.getQueue().size() >= policy.proposalHighWater()) {
+            return RejectionReason.HIGH_WATER;
+        }
+        return null;
     }
 
     private MutableMetrics metrics(long gridGeneration) {
@@ -306,7 +322,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     }
 
     /**
-     * Guarded by {@link #admissionLock}; values are drained once per grid tick.
+     * Per-Grid accumulator that keeps unrelated Grid completion paths off the global admission lock.
      */
     private static final class MutableMetrics {
 
@@ -317,33 +333,54 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private int stale;
         private long queueWaitNanos;
         private long calculationNanos;
+        /** Prevents late work owned by a cleared Grid from republishing metrics through a captured bucket. */
+        private boolean retired;
 
-        private void recordAdmitted() {
+        private synchronized void recordAdmitted() {
+            if (this.retired) {
+                return;
+            }
             this.admitted = Math.incrementExact(this.admitted);
         }
 
-        private void recordRejected() {
+        private synchronized void recordRejected() {
+            if (this.retired) {
+                return;
+            }
             this.rejected = Math.incrementExact(this.rejected);
         }
 
-        private void recordCompleted(long queueWaitNanos, long calculationNanos, boolean failed) {
-            this.completed = Math.incrementExact(this.completed);
-            if (failed) {
-                this.failed = Math.incrementExact(this.failed);
+        private synchronized void recordCompleted(long queueWaitNanos, long calculationNanos, boolean failed) {
+            if (this.retired) {
+                return;
             }
-            this.queueWaitNanos = Math.addExact(this.queueWaitNanos, queueWaitNanos);
-            this.calculationNanos = Math.addExact(this.calculationNanos, calculationNanos);
+            int nextCompleted = Math.incrementExact(this.completed);
+            int nextFailed = failed ? Math.incrementExact(this.failed) : this.failed;
+            long nextQueueWaitNanos = Math.addExact(this.queueWaitNanos, queueWaitNanos);
+            long nextCalculationNanos = Math.addExact(this.calculationNanos, calculationNanos);
+            this.completed = nextCompleted;
+            this.failed = nextFailed;
+            this.queueWaitNanos = nextQueueWaitNanos;
+            this.calculationNanos = nextCalculationNanos;
         }
 
-        private void recordStale() {
+        private synchronized void recordStale() {
+            if (this.retired) {
+                return;
+            }
             this.stale = Math.incrementExact(this.stale);
         }
 
-        private DispatchProposalMetrics snapshot(
-                                                 int queueDepth,
-                                                 int queueCapacity,
-                                                 int outstanding) {
-            return new DispatchProposalMetrics(
+        private synchronized void retireAndReset() {
+            this.retired = true;
+            reset();
+        }
+
+        private synchronized DispatchProposalMetrics snapshotAndReset(
+                                                                      int queueDepth,
+                                                                      int queueCapacity,
+                                                                      int outstanding) {
+            DispatchProposalMetrics snapshot = new DispatchProposalMetrics(
                     this.admitted,
                     this.rejected,
                     this.completed,
@@ -354,6 +391,18 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                     queueDepth,
                     queueCapacity,
                     outstanding);
+            reset();
+            return snapshot;
+        }
+
+        private void reset() {
+            this.admitted = 0;
+            this.rejected = 0;
+            this.completed = 0;
+            this.failed = 0;
+            this.stale = 0;
+            this.queueWaitNanos = 0L;
+            this.calculationNanos = 0L;
         }
     }
 
@@ -366,6 +415,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private final CraftingDispatchLease lease;
         private final WorkerKey workerKey;
         private final Runnable wakeup;
+        private final MutableMetrics metrics;
         private final AtomicReference<State> state = new AtomicReference<>(Pending.INSTANCE);
         private final AtomicReference<ProviderShardDispatcher.Reservation> reservation = new AtomicReference<>();
         private final AtomicBoolean closed = new AtomicBoolean();
@@ -373,13 +423,15 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private volatile FutureTask<Void> task;
 
         private TicketImpl(DispatchProposalSchedulerImpl owner,
-                           CraftingDispatchLease lease,
-                           WorkerKey workerKey,
-                           Runnable wakeup) {
+                            CraftingDispatchLease lease,
+                            WorkerKey workerKey,
+                            Runnable wakeup,
+                            MutableMetrics metrics) {
             this.owner = owner;
             this.lease = lease;
             this.workerKey = workerKey;
             this.wakeup = wakeup;
+            this.metrics = metrics;
         }
 
         @Override
@@ -394,9 +446,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
         @Override
         public void recordStale() {
-            synchronized (this.owner.admissionLock) {
-                this.owner.metrics(this.lease.gridGeneration()).recordStale();
-            }
+            this.metrics.recordStale();
         }
 
         @Override

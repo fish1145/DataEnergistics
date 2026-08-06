@@ -428,7 +428,7 @@ public final class TrinityDispatchRuntimeTest {
             }
         };
         DispatchProposalScheduler scheduler = new DispatchProposalSchedulerImpl(
-                new DispatchProposalLimits(2, 4, 4, 16),
+                new DispatchProposalLimits(1, 4, 4, 16),
                 delayedPlanner);
         try {
             UUID runtimeId = UUID.randomUUID();
@@ -467,6 +467,19 @@ public final class TrinityDispatchRuntimeTest {
             assertTrue(lateLookupFinished.await(5L, TimeUnit.SECONDS));
             assertInstanceOf(DispatchProposalTicket.Cancelled.class, late.ticket().state());
             assertTrue(assertInstanceOf(DispatchProposalCandidatePlan.class, latePlan.get()).candidates().isEmpty());
+            DispatchProposalScheduler.Accepted marker = submitAndAwait(
+                    scheduler,
+                    request(9L, runtimeId, 4, 0L, 1L));
+            marker.ticket().close();
+            DispatchProposalMetrics clearedMetrics = scheduler.snapshotAndResetMetrics(8L);
+            assertEquals(0, clearedMetrics.admitted());
+            assertEquals(0, clearedMetrics.rejected());
+            assertEquals(0, clearedMetrics.completed());
+            assertEquals(0, clearedMetrics.failed());
+            assertEquals(0, clearedMetrics.stale());
+            assertEquals(0L, clearedMetrics.queueWaitNanos());
+            assertEquals(0L, clearedMetrics.calculationNanos());
+            assertEquals(0, clearedMetrics.outstanding());
         } finally {
             releaseLateLookup.complete(null);
             scheduler.close();
