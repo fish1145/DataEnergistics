@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.emi;
 
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -23,10 +24,14 @@ public abstract class EmiEncodePatternHandlerMixin {
     private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu, RecipeHolder<?> holder,
                                                        EmiRecipe emiRecipe, boolean doTransfer,
                                                        CallbackInfoReturnable<Object> cir) {
+        if (!doTransfer) {
+            return;
+        }
         PatternEncodingSourceHelper.rememberTransferSource(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyInput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferFluidOutputs(menu, holder, emiRecipe);
+        PatternEncodingPreferencesClient.captureTransferredRecipe(menu);
     }
 }

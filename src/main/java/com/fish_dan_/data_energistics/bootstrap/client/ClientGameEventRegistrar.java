@@ -1,5 +1,10 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPreferencesAccess;
+import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
+
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 final class ClientGameEventRegistrar {
@@ -16,5 +21,19 @@ final class ClientGameEventRegistrar {
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenOpening);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenInitPost);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenRenderPost);
+        NeoForge.EVENT_BUS.addListener(ClientGameEventRegistrar::onLoggingIn);
+        NeoForge.EVENT_BUS.addListener(ClientGameEventRegistrar::onLoggingOut);
+    }
+
+    private static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        PatternEncodingClientPreferencesAccess.activateCurrentServerProfile();
+    }
+
+    private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        if (event.getPlayer() != null) {
+            PatternEncodingPreferenceSession.clearForMenu(event.getPlayer().containerMenu);
+        }
+        PatternUploadSucceededClientHandler.clear();
+        PatternEncodingClientPreferencesAccess.deactivateServerProfile();
     }
 }

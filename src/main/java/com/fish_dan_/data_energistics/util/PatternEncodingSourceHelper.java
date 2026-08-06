@@ -2,7 +2,9 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
@@ -18,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEFluidKey;
@@ -36,6 +39,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -47,6 +51,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -77,12 +82,15 @@ public final class PatternEncodingSourceHelper {
     private static final String TAG_PENDING_KEY_OUTPUT = "pending_key_output";
     private static final String WORKSTATION_MAPPINGS_RESOURCE = "data_energistics/pattern_workstation_mappings.json";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
+    private static final ResourceLocation CRAFTING_RECIPE_TYPE_ID = ResourceLocation.withDefaultNamespace("crafting");
     private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
     private static final ResourceLocation BLAST_FURNACE_ID = ResourceLocation.withDefaultNamespace("blast_furnace");
     private static final ResourceLocation SMOKER_ID = ResourceLocation.withDefaultNamespace("smoker");
     private static final ResourceLocation CAMPFIRE_ID = ResourceLocation.withDefaultNamespace("campfire");
     private static final ResourceLocation STONECUTTER_ID = ResourceLocation.withDefaultNamespace("stonecutter");
+    private static final ResourceLocation STONECUTTING_RECIPE_TYPE_ID = ResourceLocation.withDefaultNamespace("stonecutting");
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
+    private static final ResourceLocation SMITHING_RECIPE_TYPE_ID = ResourceLocation.withDefaultNamespace("smithing");
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
@@ -297,6 +305,11 @@ public final class PatternEncodingSourceHelper {
             if (shouldIgnoreWorkstationMemory(sourceAware)) {
                 sourceAware.data_energistics$setPendingPatternSource(null);
                 sourceAware.data_energistics$setLastEncodedPatternSource(null);
+                if (menu instanceof PatternEncodingPreferenceMenu preferenceMenu) {
+                    EncodingMode mode = menu.getMode();
+                    preferenceMenu.data_energistics$getPreferenceSession().setRankingContext(
+                            resolveFixedModeRankingContext(mode, resolveFallbackWorkstationForMode(mode)));
+                }
                 return;
             }
 
@@ -305,7 +318,116 @@ public final class PatternEncodingSourceHelper {
             if (sourceAware.data_energistics$isPatternSourceEnabled()) {
                 sourceAware.data_energistics$setLastEncodedPatternSource(workstationId);
             }
+            if (menu instanceof PatternEncodingPreferenceMenu preferenceMenu) {
+                preferenceMenu.data_energistics$getPreferenceSession().setRankingContext(
+                        resolveRankingContext(menu.getMode(), recipe, transferContext, workstationId));
+            }
         }
+    }
+
+    /**
+     * Resolves the exact history key for one successful recipe transfer.
+     */
+    @Nullable
+    public static PatternEncodingRankingContext resolveRankingContext(@Nullable EncodingMode mode,
+                                                                      @Nullable Object recipe,
+                                                                      @Nullable Object transferContext,
+                                                                      @Nullable ResourceLocation workstationId) {
+        if (!isResolvableWorkstation(workstationId)) {
+            return null;
+        }
+        PatternEncodingRankingContext resolved = resolveRankingContext(recipe, workstationId);
+        if (resolved == null) {
+            resolved = resolveRankingContext(transferContext, workstationId);
+        }
+        if (resolved != null || mode == EncodingMode.PROCESSING) {
+            return resolved;
+        }
+        return resolveFixedModeRankingContext(mode, workstationId);
+    }
+
+    /**
+     * Resolves the fixed vanilla recipe scope for non-processing encoder modes.
+     */
+    @Nullable
+    public static PatternEncodingRankingContext resolveFixedModeRankingContext(@Nullable EncodingMode mode,
+                                                                               @Nullable ResourceLocation workstationId) {
+        if (mode == null || !isResolvableWorkstation(workstationId)) {
+            return null;
+        }
+        ResourceLocation recipeTypeId = switch (mode) {
+            case CRAFTING -> CRAFTING_RECIPE_TYPE_ID;
+            case SMITHING_TABLE -> SMITHING_RECIPE_TYPE_ID;
+            case STONECUTTING -> STONECUTTING_RECIPE_TYPE_ID;
+            case PROCESSING -> null;
+        };
+        return recipeTypeId == null ? null : PatternEncodingRankingContext.forRecipeType(recipeTypeId, workstationId);
+    }
+
+    /**
+     * Verifies that a client ranking context describes the recipe mode and workstation currently owned by the menu.
+     * Fixed vanilla modes are derived entirely on the server; processing contexts must reference a loaded recipe type
+     * or recipe ID and the menu's current pending/last workstation.
+     */
+    public static boolean isRankingContextValid(PatternEncodingPreviewMenu previewMenu,
+                                                PatternEncodingSourceAware sourceAware,
+                                                @Nullable PatternEncodingRankingContext context,
+                                                Level level) {
+        if (previewMenu == null || sourceAware == null || level == null) {
+            throw new IllegalArgumentException("Pattern ranking validation requires a menu, source state, and level");
+        }
+        EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
+        ResourceLocation fixedWorkstation = resolveFallbackWorkstationForMode(mode);
+        if (fixedWorkstation != null) {
+            return Objects.equals(context, resolveFixedModeRankingContext(mode, fixedWorkstation));
+        }
+        if (mode != EncodingMode.PROCESSING) {
+            return context == null;
+        }
+        ResourceLocation workstation = sourceAware.data_energistics$getPendingPatternSource();
+        if (workstation == null) {
+            workstation = sourceAware.data_energistics$getLastEncodedPatternSource();
+        }
+        if (context == null) {
+            return true;
+        }
+        if (!Objects.equals(workstation, context.workstation()) || !isResolvableWorkstation(workstation)) {
+            return false;
+        }
+        String recipeScope = context.recipeScope();
+        if (recipeScope.startsWith("type:")) {
+            ResourceLocation recipeTypeId = ResourceLocation.tryParse(recipeScope.substring("type:".length()));
+            return recipeTypeId != null && BuiltInRegistries.RECIPE_TYPE.containsKey(recipeTypeId);
+        }
+        if (recipeScope.startsWith("recipe:")) {
+            ResourceLocation recipeId = ResourceLocation.tryParse(recipeScope.substring("recipe:".length()));
+            return recipeId != null && level.getRecipeManager().byKey(recipeId).isPresent();
+        }
+        return false;
+    }
+
+    private static boolean isResolvableWorkstation(@Nullable ResourceLocation workstationId) {
+        return workstationId != null && (BuiltInRegistries.BLOCK.containsKey(workstationId) ||
+                BuiltInRegistries.ITEM.containsKey(workstationId));
+    }
+
+    @Nullable
+    private static PatternEncodingRankingContext resolveRankingContext(@Nullable Object source,
+                                                                       ResourceLocation workstationId) {
+        if (source instanceof RecipeHolder<?> holder) {
+            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType());
+            if (typeId != null) {
+                return PatternEncodingRankingContext.forRecipeType(typeId, workstationId);
+            }
+            return PatternEncodingRankingContext.forRecipe(holder.id(), workstationId);
+        }
+        if (source instanceof Recipe<?> recipe) {
+            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
+            if (typeId != null) {
+                return PatternEncodingRankingContext.forRecipeType(typeId, workstationId);
+            }
+        }
+        return null;
     }
 
     public static void rememberTransferKeyInput(PatternEncodingTermMenu menu, @Nullable Object recipe,
@@ -944,7 +1066,8 @@ public final class PatternEncodingSourceHelper {
         try {
             CompoundTag tag = TagParser.parseTag(serializedKey);
             return GenericStack.readTag(menu.getPlayer().registryAccess(), tag);
-        } catch (CommandSyntaxException ignored) {
+        } catch (CommandSyntaxException exception) {
+            LOGGER.warn("Rejected malformed serialized pattern transfer key", exception);
             return null;
         }
     }
@@ -961,7 +1084,9 @@ public final class PatternEncodingSourceHelper {
             for (String key : root.getAllKeys()) {
                 try {
                     maxIndex = Math.max(maxIndex, Integer.parseInt(key));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException exception) {
+                    LOGGER.debug("Ignored non-slot key in serialized pattern transfer fluids: {}", key, exception);
+                }
             }
             if (maxIndex < 0) {
                 return List.of();
@@ -979,7 +1104,8 @@ public final class PatternEncodingSourceHelper {
                 }
             }
             return stacks;
-        } catch (CommandSyntaxException ignored) {
+        } catch (CommandSyntaxException exception) {
+            LOGGER.warn("Rejected malformed serialized pattern transfer fluids", exception);
             return List.of();
         }
     }
@@ -1011,7 +1137,21 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     public static ResourceLocation readLastEncodedPatternSource(Player player) {
-        return PatternEncodingSessionState.getLastEncodedPatternSource(player.getUUID());
+        ResourceLocation sessionValue = PatternEncodingSessionState.getLastEncodedPatternSource(player.getUUID());
+        return sessionValue != null ? sessionValue : readLegacyLastEncodedPatternSource(player);
+    }
+
+    /**
+     * Reads the pre-client-preference persisted workstation without mutating legacy NBT.
+     */
+    @Nullable
+    public static ResourceLocation readLegacyLastEncodedPatternSource(Player player) {
+        CompoundTag tag = getPatternSourceData(player, false);
+        if (tag == null) {
+            return null;
+        }
+        String value = tag.getString(TAG_LAST);
+        return value.isEmpty() ? null : ResourceLocation.tryParse(value);
     }
 
     public static void writeLastEncodedPatternSource(Player player, @Nullable ResourceLocation workstationId) {
@@ -1024,7 +1164,6 @@ public final class PatternEncodingSourceHelper {
         } else {
             PatternEncodingSessionState.setLastEncodedPatternSource(player.getUUID(), workstationId);
         }
-        clearPersistedLastEncodedPatternSource(player);
     }
 
     @Nullable
@@ -1188,6 +1327,14 @@ public final class PatternEncodingSourceHelper {
         return tag == null || !tag.contains(TAG_ENABLED) || tag.getBoolean(TAG_ENABLED);
     }
 
+    /**
+     * Returns whether the old player NBT explicitly stored the source preference.
+     */
+    public static boolean hasLegacyPatternSourceEnabled(Player player) {
+        CompoundTag tag = getPatternSourceData(player, false);
+        return tag != null && tag.contains(TAG_ENABLED);
+    }
+
     public static void writePatternSourceEnabled(Player player, boolean enabled) {
         CompoundTag tag = getPatternSourceData(player, true);
         tag.putBoolean(TAG_ENABLED, enabled);
@@ -1204,19 +1351,17 @@ public final class PatternEncodingSourceHelper {
         return tag == null || !tag.contains(TAG_UPLOAD_ENABLED) || tag.getBoolean(TAG_UPLOAD_ENABLED);
     }
 
+    /**
+     * Returns whether the old player NBT explicitly stored the upload preference.
+     */
+    public static boolean hasLegacyUploadEnabled(Player player) {
+        CompoundTag tag = getPatternSourceData(player, false);
+        return tag != null && tag.contains(TAG_UPLOAD_ENABLED);
+    }
+
     public static void writeUploadEnabled(Player player, boolean enabled) {
         CompoundTag tag = getPatternSourceData(player, true);
         tag.putBoolean(TAG_UPLOAD_ENABLED, enabled);
-        cleanupPatternSourceData(player, tag);
-    }
-
-    private static void clearPersistedLastEncodedPatternSource(Player player) {
-        CompoundTag tag = getPatternSourceData(player, false);
-        if (tag == null || !tag.contains(TAG_LAST)) {
-            return;
-        }
-
-        tag.remove(TAG_LAST);
         cleanupPatternSourceData(player, tag);
     }
 
@@ -1945,7 +2090,9 @@ public final class PatternEncodingSourceHelper {
                         parseStringMap(root.getAsJsonObject("path_hints")),
                         parseStringListMap(root.getAsJsonObject("namespace_aliases")));
             }
-        } catch (Exception ignored) {
+        } catch (IOException | RuntimeException | LinkageError exception) {
+            LOGGER.error("Failed to load pattern workstation mappings from {}", WORKSTATION_MAPPINGS_RESOURCE,
+                    exception);
             return ExternalMappings.EMPTY;
         }
     }

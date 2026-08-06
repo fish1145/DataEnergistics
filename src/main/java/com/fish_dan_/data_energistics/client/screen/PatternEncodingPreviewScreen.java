@@ -1,8 +1,10 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
@@ -135,6 +137,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private int previewPanelCurrentOffsetY;
     private Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
+    private String lastPreferenceLeafDigestSignature = "";
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -145,6 +148,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void init() {
         super.init();
+        PatternEncodingPreferencesClient.initializeMenu(this.menu);
         this.encodePatternWidget = resolveEncodePatternWidget();
         if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
             this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
@@ -160,6 +164,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         updatePatternSourceToggleButton();
         updatePreviewDragButton();
         updatePreviewScrollbar();
+        syncPreferenceSnapshotIfProvidersChanged();
     }
 
     @Override
@@ -172,6 +177,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
+        syncPreferenceSnapshotIfProvidersChanged();
         applyEncodeButtonHint();
     }
 
@@ -210,7 +216,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 return true;
             }
             if (button == 1) {
-                previewLayout().data_energistics$resetPreviewPanelOffset();
+                PatternEncodingPreferencesClient.setPreviewPanelOffset(this.menu, 0, 0);
                 this.previewPanelCurrentOffsetX = 0;
                 this.previewPanelCurrentOffsetY = 0;
                 this.previewPanelDragging = false;
@@ -226,8 +232,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 this.previewVisible = false;
-                boolean handled = super.mouseClicked(mouseX, mouseY, button);
-                return handled || isOverEncodeButton(mouseX, mouseY);
+                return super.mouseClicked(mouseX, mouseY, button);
             }
 
             if (hasShiftDown()) {
@@ -243,8 +248,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 this.previewVisible = false;
-                this.menu.encode();
-                return true;
+                return super.mouseClicked(mouseX, mouseY, button);
             }
 
             if (this.previewVisible) {
@@ -842,7 +846,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::data_energistics$setPatternSourceEnabled);
+        this.patternSourceToggleButton = new PatternSourceToggleButton(
+                enabled -> PatternEncodingPreferencesClient.setPatternSourceEnabled(this.menu, enabled));
         this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
         this.addRenderableWidget(this.patternSourceToggleButton);
     }
@@ -948,10 +953,23 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void savePreviewPanelDragOffset(double mouseX, double mouseY) {
         updatePreviewPanelDragOffset(mouseX, mouseY);
-        previewLayout().data_energistics$setPreviewPanelOffset(
-                this.previewPanelCurrentOffsetX,
-                this.previewPanelCurrentOffsetY);
+        PatternEncodingPreferencesClient.setPreviewPanelOffset(
+                this.menu, this.previewPanelCurrentOffsetX, this.previewPanelCurrentOffsetY);
         this.previewPanelDragBaseBounds = null;
+    }
+
+    private void syncPreferenceSnapshotIfProvidersChanged() {
+        String leafSignature = previewBridge().data_energistics$getSyncedPatternProviders().stream()
+                .flatMap(provider -> provider.leafDigests().stream())
+                .sorted()
+                .reduce("", (left, right) -> left + '\0' + right);
+        String contextSignature = this.menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? Objects.toString(preferenceMenu.data_energistics$getPreferenceSession().rankingContext(), "") : "";
+        String signature = contextSignature + '\1' + leafSignature;
+        if (signature.equals(this.lastPreferenceLeafDigestSignature)) {
+            return;
+        }
+        this.lastPreferenceLeafDigestSignature = signature;
+        PatternEncodingPreferencesClient.sendSnapshot(this.menu);
     }
 
     private boolean isUploadEnabled() {
