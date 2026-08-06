@@ -88,6 +88,20 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     }
 
     @Override
+    public EnergySnapshot snapshot(IEnergyStorage storage) {
+        Optional<DirectTarget> target = findDirectTarget(storage);
+        if (target.isPresent()) {
+            Snapshot snapshot = readVerifiedSnapshot(storage, target.get());
+            if (snapshot != null) {
+                return new EnergySnapshot(snapshot.stored(), snapshot.capacity());
+            }
+        }
+        Integer stored = readCapabilityValue(storage, true);
+        Integer capacity = readCapabilityValue(storage, false);
+        return new EnergySnapshot(stored == null ? 0L : stored, capacity == null ? 0L : capacity);
+    }
+
+    @Override
     public long capacity(IEnergyStorage storage) {
         Optional<DirectTarget> target = findDirectTarget(storage);
         if (target.isPresent()) {

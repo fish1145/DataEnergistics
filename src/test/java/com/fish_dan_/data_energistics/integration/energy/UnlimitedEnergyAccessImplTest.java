@@ -50,6 +50,20 @@ class UnlimitedEnergyAccessImplTest {
     }
 
     @Test
+    void snapshotsTypedEnergyStateWithOneVerifiedReadPass() {
+        TypedStorage storage = new TypedStorage(4_000_000_000L, 9_000_000_000L, true, true);
+
+        UnlimitedEnergyAccess.EnergySnapshot snapshot = this.access.snapshot(storage);
+
+        assertEquals(4_000_000_000L, snapshot.stored());
+        assertEquals(9_000_000_000L, snapshot.capacity());
+        assertEquals(1, storage.directStoredReads());
+        assertEquals(1, storage.directCapacityReads());
+        assertEquals(1, storage.capabilityStoredReads());
+        assertEquals(1, storage.capabilityCapacityReads());
+    }
+
+    @Test
     void routesNeoForgeEnergyStorageSubclassesThroughTheirPublicCapability() {
         TrackingEnergyStorage storage = new TrackingEnergyStorage();
 
@@ -117,6 +131,8 @@ class UnlimitedEnergyAccessImplTest {
         private final long capacity;
         private final boolean receiveAllowed;
         private final boolean extractAllowed;
+        private int capabilityStoredReads;
+        private int capabilityCapacityReads;
 
         private StandardStorage(long stored, long capacity, boolean receiveAllowed, boolean extractAllowed) {
             this.stored = stored;
@@ -163,12 +179,22 @@ class UnlimitedEnergyAccessImplTest {
 
         @Override
         public int getEnergyStored() {
+            this.capabilityStoredReads++;
             return clampToInt(actualStored());
         }
 
         @Override
         public int getMaxEnergyStored() {
+            this.capabilityCapacityReads++;
             return clampToInt(actualCapacity());
+        }
+
+        protected int capabilityStoredReads() {
+            return this.capabilityStoredReads;
+        }
+
+        protected int capabilityCapacityReads() {
+            return this.capabilityCapacityReads;
         }
 
         @Override
@@ -194,6 +220,8 @@ class UnlimitedEnergyAccessImplTest {
         private int notifications;
         private int writeAttempts;
         private boolean failNextWrite;
+        private int directStoredReads;
+        private int directCapacityReads;
 
         private TypedStorage(long stored, long capacity, boolean receiveAllowed, boolean extractAllowed) {
             super(stored, capacity, receiveAllowed, extractAllowed);
@@ -201,12 +229,22 @@ class UnlimitedEnergyAccessImplTest {
 
         @Override
         public long getStoredEnergyLong() {
+            this.directStoredReads++;
             return actualStored();
         }
 
         @Override
         public long getEnergyCapacityLong() {
+            this.directCapacityReads++;
             return actualCapacity();
+        }
+
+        private int directStoredReads() {
+            return this.directStoredReads;
+        }
+
+        private int directCapacityReads() {
+            return this.directCapacityReads;
         }
 
         @Override

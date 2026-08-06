@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergy
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
@@ -44,10 +45,23 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
         try {
-            long stored = this.brandonsCore.supports(storage) ? this.brandonsCore.stored(storage) : this.unlimitedEnergy.stored(storage);
-            long capacity = this.brandonsCore.supports(storage) ? this.brandonsCore.capacity(storage) : this.unlimitedEnergy.capacity(storage);
-            boolean canExtract = this.brandonsCore.supports(storage) ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
-            boolean canReceive = this.brandonsCore.supports(storage) ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
+            boolean brandonsCoreSupported = this.brandonsCore.supports(storage);
+            long stored;
+            long capacity;
+            boolean canExtract;
+            boolean canReceive;
+            if (brandonsCoreSupported) {
+                stored = this.brandonsCore.stored(storage);
+                capacity = this.brandonsCore.capacity(storage);
+                canExtract = this.brandonsCore.canExtract(storage);
+                canReceive = this.brandonsCore.canReceive(storage);
+            } else {
+                EnergySnapshot snapshot = this.unlimitedEnergy.snapshot(storage);
+                stored = snapshot.stored();
+                capacity = snapshot.capacity();
+                canExtract = this.unlimitedEnergy.canExtract(storage);
+                canReceive = this.unlimitedEnergy.canReceive(storage);
+            }
             TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(canExtract, canReceive);
             if (direction == null) {
                 throw new TowerEnergyTransferException("Energy endpoint no longer permits transfer: " + description());

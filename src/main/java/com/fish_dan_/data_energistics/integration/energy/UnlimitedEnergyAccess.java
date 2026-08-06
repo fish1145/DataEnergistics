@@ -39,6 +39,20 @@ public interface UnlimitedEnergyAccess {
     long capacity(IEnergyStorage storage);
 
     /**
+     * Reads stored amount and capacity from one consistent access pass.
+     *
+     * <p>Implementations with a verified direct representation should override this method so callers that need both
+     * values do not perform two independent state validations. The default keeps existing interface implementations
+     * source-compatible.</p>
+     *
+     * @param storage energy storage being inspected
+     * @return paired stored amount and capacity
+     */
+    default EnergySnapshot snapshot(IEnergyStorage storage) {
+        return new EnergySnapshot(stored(storage), capacity(storage));
+    }
+
+    /**
      * Checks whether the sided capability permits insertion.
      *
      * @param storage energy storage being inspected
@@ -97,4 +111,7 @@ public interface UnlimitedEnergyAccess {
      * @param storage mutated sided capability
      */
     void notifyStorageChanged(IEnergyStorage storage);
+
+    /** Immutable paired energy state captured from one endpoint. */
+    record EnergySnapshot(long stored, long capacity) {}
 }
