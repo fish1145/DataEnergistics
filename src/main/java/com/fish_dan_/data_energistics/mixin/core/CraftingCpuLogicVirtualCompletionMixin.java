@@ -85,7 +85,9 @@ public abstract class CraftingCpuLogicVirtualCompletionMixin {
         }
         try {
             VirtualCraftingOutputProjection projection = VirtualCraftingOutputAdapters.project(details);
-            dataEnergistics$enqueue(projection.virtualCompletions(1L));
+            if (projection.hasVirtualOutputs()) {
+                dataEnergistics$enqueue(projection.virtualCompletions(1L));
+            }
         } catch (RuntimeException exception) {
             this.dataEnergistics$virtualAccountingFailed = true;
             Data_Energistics.LOGGER.error(
