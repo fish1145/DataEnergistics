@@ -3696,10 +3696,6 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.patterns = List.copyOf(patterns);
         }
 
-        private long pushCount(IPatternDetails pattern) {
-            return this.pushedPatterns.stream().filter(pushed -> pushed == pattern).count();
-        }
-
         private List<IPatternDetails> pushedPatterns() {
             return List.copyOf(this.pushedPatterns);
         }
