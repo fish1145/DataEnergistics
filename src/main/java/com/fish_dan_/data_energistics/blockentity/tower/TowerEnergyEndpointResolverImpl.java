@@ -277,7 +277,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
                 this.reusableEndpointFilter.add(endpoint);
             }
         }
-        return this.reusableEndpointFilter;
+        return List.copyOf(this.reusableEndpointFilter);
     }
 
     @Nullable
