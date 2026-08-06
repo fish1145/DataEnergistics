@@ -435,11 +435,19 @@ public final class TrinityDataCoreCraftingRuntime {
                 continue;
             }
             int workerNumber = worker.number();
-            CraftingDispatchStepResult result = worker.dispatchStep(
-                    energyService,
-                    craftingService,
-                    dispatchWindow,
-                    dispatchBudget);
+            CraftingDispatchStepResult result;
+            try {
+                result = worker.dispatchStep(
+                        energyService,
+                        craftingService,
+                        dispatchWindow,
+                        dispatchBudget);
+            } catch (RuntimeException failure) {
+                if (this.retainedWorkers.get(workerNumber) == worker) {
+                    scheduleAfterWorkerTick(worker, currentTick);
+                }
+                throw failure;
+            }
             removeWorkerIfReleasable(workerNumber, worker);
             if (this.retainedWorkers.get(workerNumber) == worker && !result.progressed()) {
                 scheduleAfterWorkerTick(worker, currentTick);

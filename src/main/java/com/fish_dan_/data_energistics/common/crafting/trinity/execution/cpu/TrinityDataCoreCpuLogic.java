@@ -479,7 +479,7 @@ final class TrinityDataCoreCpuLogic {
                         this.cpu.number(),
                         details.getDefinition(),
                         exception);
-                outcome = ProviderDispatchOutcome.NONE;
+                throw exception;
             }
             pushedPatterns = Math.addExact(pushedPatterns, outcome.physicalAttempts());
             dispatched |= outcome.dispatched();
@@ -684,7 +684,7 @@ final class TrinityDataCoreCpuLogic {
                     this.cpu.number(),
                     pattern.getDefinition(),
                     exception);
-            outcome = ProviderDispatchOutcome.NONE;
+            throw exception;
         } finally {
             borrowed.releaseUncommitted();
         }
