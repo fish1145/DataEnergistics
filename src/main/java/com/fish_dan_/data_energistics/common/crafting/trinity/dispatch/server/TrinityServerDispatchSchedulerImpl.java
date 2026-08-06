@@ -17,6 +17,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     private static final String COMPLETION_FAILURE_SOURCE = "server dispatch completion";
 
     private final List<CraftingDispatchParticipant> registeredParticipants = new ArrayList<>();
+    private final List<CraftingDispatchCompletion> registeredCompletions = new ArrayList<>();
     private String nextParticipantIdentity;
     private boolean tickOpen;
 
@@ -26,6 +27,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
             throw new IllegalStateException("Previous Trinity server dispatch tick was not completed");
         }
         this.registeredParticipants.clear();
+        this.registeredCompletions.clear();
         this.tickOpen = true;
     }
 
@@ -34,14 +36,18 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
         if (!this.tickOpen) {
             throw new IllegalStateException("Trinity server dispatch registration is closed");
         }
-        if (participant == null) {
-            throw new IllegalArgumentException("Crafting dispatch participant is required");
-        }
-        String diagnosticIdentity = participant.diagnosticIdentity();
-        if (diagnosticIdentity == null || diagnosticIdentity.isBlank()) {
-            throw new IllegalArgumentException("Crafting dispatch participant identity is required");
-        }
+        validateCompletion(participant);
         this.registeredParticipants.add(participant);
+        this.registeredCompletions.add(participant);
+    }
+
+    @Override
+    public void registerCompletion(CraftingDispatchCompletion completion) {
+        if (!this.tickOpen) {
+            throw new IllegalStateException("Trinity server dispatch registration is closed");
+        }
+        validateCompletion(completion);
+        this.registeredCompletions.add(completion);
     }
 
     @Override
@@ -50,21 +56,26 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
             throw new IllegalStateException("Trinity server dispatch tick is not open");
         }
         this.tickOpen = false;
-        List<CraftingDispatchParticipant> participants = List.copyOf(this.registeredParticipants);
-        this.registeredParticipants.clear();
-        if (participants.isEmpty()) {
+        if (this.registeredParticipants.isEmpty() && this.registeredCompletions.isEmpty()) {
             return;
         }
+        List<CraftingDispatchParticipant> participants = List.copyOf(this.registeredParticipants);
+        List<CraftingDispatchCompletion> completions = List.copyOf(this.registeredCompletions);
+        this.registeredParticipants.clear();
+        this.registeredCompletions.clear();
         try {
-            dispatchParticipants(participantsFromPersistentCursor(participants));
+            if (!participants.isEmpty()) {
+                dispatchParticipants(participantsFromPersistentCursor(participants));
+            }
         } finally {
-            completeParticipants(participants);
+            completeCompletions(completions);
         }
     }
 
     @Override
     public void reset() {
         this.registeredParticipants.clear();
+        this.registeredCompletions.clear();
         this.nextParticipantIdentity = null;
         this.tickOpen = false;
     }
@@ -137,30 +148,40 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
         return successors;
     }
 
-    private static void completeParticipants(List<CraftingDispatchParticipant> participants) {
-        for (CraftingDispatchParticipant participant : participants) {
+    private static void completeCompletions(List<CraftingDispatchCompletion> completions) {
+        for (CraftingDispatchCompletion completion : completions) {
             try {
-                participant.completeTick();
+                completion.completeTick();
             } catch (RuntimeException failure) {
-                isolate(participant, COMPLETION_FAILURE_SOURCE, failure);
+                isolate(completion, COMPLETION_FAILURE_SOURCE, failure);
             }
         }
     }
 
-    private static void isolate(CraftingDispatchParticipant participant,
+    private static void validateCompletion(CraftingDispatchCompletion completion) {
+        if (completion == null) {
+            throw new IllegalArgumentException("Crafting dispatch completion is required");
+        }
+        String diagnosticIdentity = completion.diagnosticIdentity();
+        if (diagnosticIdentity == null || diagnosticIdentity.isBlank()) {
+            throw new IllegalArgumentException("Crafting dispatch completion identity is required");
+        }
+    }
+
+    private static void isolate(CraftingDispatchCompletion completion,
                                 String source,
                                 RuntimeException failure) {
         Data_Energistics.LOGGER.error(
                 "Trinity isolated Grid {} after an unexpected {} failure",
-                participant.diagnosticIdentity(),
+                completion.diagnosticIdentity(),
                 source,
                 failure);
         try {
-            participant.recordUnexpectedFailure(source, failure);
+            completion.recordUnexpectedFailure(source, failure);
         } catch (RuntimeException isolationFailure) {
             Data_Energistics.LOGGER.error(
                     "Trinity Grid {} failed while entering SAFE mode after {}",
-                    participant.diagnosticIdentity(),
+                    completion.diagnosticIdentity(),
                     source,
                     isolationFailure);
         }

@@ -3,14 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server;
 /**
  * Represents one AE Grid in the server-wide Trinity dispatch rotation for a single server tick.
  */
-public interface CraftingDispatchParticipant {
-
-    /**
-     * Returns the stable Grid identity used for diagnostics and the server-level cross-tick cursor.
-     *
-     * @return non-blank identity that remains stable while the Grid is registered on subsequent ticks
-     */
-    String diagnosticIdentity();
+public interface CraftingDispatchParticipant extends CraftingDispatchCompletion {
 
     /**
      * Skips invalid candidates as needed and performs at most one real provider call.

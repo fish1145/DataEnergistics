@@ -27,6 +27,13 @@ public interface TrinityServerDispatchScheduler {
     void register(CraftingDispatchParticipant participant);
 
     /**
+     * Registers a Grid completion boundary without adding it to physical-call rotation.
+     *
+     * @param completion prepared completion-only Grid boundary
+     */
+    void registerCompletion(CraftingDispatchCompletion completion);
+
+    /**
      * Runs every registered Grid in physical-call round-robin order and completes their metrics.
      */
     void dispatchTick();
