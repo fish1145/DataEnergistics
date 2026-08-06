@@ -52,6 +52,9 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
         this.tickOpen = false;
         List<CraftingDispatchParticipant> participants = List.copyOf(this.registeredParticipants);
         this.registeredParticipants.clear();
+        if (participants.isEmpty()) {
+            return;
+        }
         try {
             dispatchParticipants(participantsFromPersistentCursor(participants));
         } finally {
