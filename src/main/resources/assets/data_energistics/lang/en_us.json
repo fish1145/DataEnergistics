@@ -769,5 +769,13 @@
 	"config.data_energistics.option.trinityDispatch.ewmaAlpha": "EWMA Alpha",
 	"config.data_energistics.option.trinityDispatch.transitionWindows": "Transition Windows",
 	"config.data_energistics.option.trinityDispatch.cooldownTicks": "Cooldown Duration (Ticks)",
-	"config.data_energistics.option.trinityDispatch.safeHoldTicks": "Safe Hold Duration (Ticks)"
+	"config.data_energistics.option.trinityDispatch.safeHoldTicks": "Safe Hold Duration (Ticks)",
+	"message.data_energistics.pattern_upload.success": "Upload succeeded",
+	"message.data_energistics.pattern_upload.target": ", target: ",
+	"message.data_energistics.pattern_upload.coordinates": ", coordinates: ",
+	"message.data_energistics.pattern_upload.dimension": ", dimension: ",
+	"message.data_energistics.pattern_upload.time": ", time: ",
+	"message.data_energistics.pattern_upload.location_unavailable": ", location unavailable",
+	"message.data_energistics.pattern_upload.coordinates_hover": "Click to fill the teleport command",
+	"message.data_energistics.pattern_upload.dimension_hover": "Click to fill the cross-dimension teleport command"
 }

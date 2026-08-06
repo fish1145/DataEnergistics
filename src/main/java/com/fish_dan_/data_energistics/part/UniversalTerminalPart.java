@@ -83,6 +83,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private final Set<String> missingAdapterConfigManagers = new HashSet<>();
     private String activeTerminal = UniversalTerminalData.TERMINAL_ITEM;
     private CompoundTag terminalData = new CompoundTag();
+    private boolean hasSessionPreviewPanelOffset;
+    private int sessionPreviewPanelOffsetX;
+    private int sessionPreviewPanelOffsetY;
 
     public UniversalTerminalPart(IPartItem<?> partItem) {
         super(partItem);
@@ -154,6 +157,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         this.craftingGrid.readFromNBT(data, TAG_CRAFTING_GRID, registries);
         this.logic.readFromNBT(data, registries);
         this.terminalData = data.contains(TAG_TERMINAL_DATA, CompoundTag.TAG_COMPOUND) ? data.getCompound(TAG_TERMINAL_DATA).copy() : new CompoundTag();
+        this.hasSessionPreviewPanelOffset = false;
         readAdapterConfigManagers(data, registries);
         setActiveTerminal(data.getString(TAG_ACTIVE_TERMINAL));
     }
@@ -370,11 +374,33 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     public int getPersistentPreviewPanelOffsetX() {
+        if (this.hasSessionPreviewPanelOffset) {
+            return this.sessionPreviewPanelOffsetX;
+        }
         return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_X);
     }
 
     public int getPersistentPreviewPanelOffsetY() {
+        if (this.hasSessionPreviewPanelOffset) {
+            return this.sessionPreviewPanelOffsetY;
+        }
         return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_Y);
+    }
+
+    /**
+     * Mirrors the open menu's client-owned layout without modifying the legacy part NBT.
+     */
+    public void setSessionPreviewPanelOffset(int offsetX, int offsetY) {
+        this.hasSessionPreviewPanelOffset = true;
+        this.sessionPreviewPanelOffsetX = offsetX;
+        this.sessionPreviewPanelOffsetY = offsetY;
+    }
+
+    /**
+     * Mirrors a client layout reset without removing the retained legacy part NBT.
+     */
+    public void resetSessionPreviewPanelOffset() {
+        setSessionPreviewPanelOffset(0, 0);
     }
 
     public void setPersistentPreviewPanelOffset(int offsetX, int offsetY) {

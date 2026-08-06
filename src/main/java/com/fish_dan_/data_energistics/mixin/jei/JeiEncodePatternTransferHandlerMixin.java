@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.jei;
 
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;
@@ -33,6 +34,7 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
             PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferFluidInputs(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferFluidOutputs(patternEncodingTermMenu, recipe, recipeSlots);
+            PatternEncodingPreferencesClient.captureTransferredRecipe(patternEncodingTermMenu);
         }
     }
 }

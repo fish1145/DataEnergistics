@@ -27,6 +27,7 @@
 		"core.AEBaseMenuMixin",
 		"core.AEBasePartNameAccessor",
 		"core.AEProcessingPatternVirtualOutputMixin",
+		"core.AbstractContainerMenuMixin",
 		"core.AnvilMenuMixin",
 		"core.BasicCellHandlerMixin",
 		"core.BlockRedstonePulseMixin",
@@ -71,7 +72,10 @@
 		"core.ProjectileUtilMixin",
 		"core.ResultSlotMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
-		"extendedae.ExtendedInscriberThreadMixin"
+		"extendedae.ExtendedInscriberThreadMixin",
+		"extendedaeplus.EaepPatternEncodingTermMenuMixin",
+		"extendedaeplus.EaepPatternUploadRecordMixin",
+		"extendedaeplus.EaepPlayerListMixin"
 	],
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",

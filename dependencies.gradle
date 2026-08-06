@@ -36,6 +36,7 @@ dependencies {
     compileOnly(forge.amek)
     compileOnly(forge.mek)
     compileOnly(forge.eco)
+    compileOnly(forge.extendedae.plus)
 
     // FTB
     compileOnly(forge.ftbultimine)

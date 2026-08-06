@@ -2,8 +2,12 @@ package com.fish_dan_.data_energistics.bridge;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
+import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+
+import net.minecraft.world.entity.player.Player;
 
 import guideme.document.block.LytBlock;
 
@@ -52,6 +56,22 @@ public interface DataEnergisticsClientBridge {
      * @param payload synced compass response payload.
      */
     void cacheSyncedCompassResult(DataMeteoriteCompassResponsePayload payload);
+
+    /**
+     * Applies a pattern-encoding preference acknowledgement to the current client menu.
+     *
+     * @param payload acknowledged preference values and migration mask.
+     * @param player  client player that owns the current menu.
+     */
+    void handlePatternEncodingPreferencesAck(PatternEncodingPreferencesAckPayload payload, Player player);
+
+    /**
+     * Applies authoritative upload history and, for this mod's uploads, displays the success message.
+     *
+     * @param payload confirmed upload event from the server.
+     * @param player  client player receiving the event.
+     */
+    void handlePatternUploadSucceeded(PatternUploadSucceededPayload payload, Player player);
 
     /**
      * Creates the client GuideME body for a data ripper reassembler recipe.
