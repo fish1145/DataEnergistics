@@ -113,6 +113,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
     private TrinityDataCoreCraftingRuntimeTest() {}
 
+    private static CraftingDispatchWindow deterministicDispatchWindow() {
+        return CraftingDispatchWindow.create(CraftingDispatchLimits.DEFAULT, () -> 0L);
+    }
+
     @TestHolder("trinity_data_core_cpu_partitions_require_formed_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -1272,7 +1276,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 coordinator.submitJob(grid, patternPlan(acceptedPattern, 1L), IActionSource.empty(), null).successful(),
                 "Accepted-pattern worker should be allocated");
 
-        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
+        CraftingDispatchWindow sharedWindow = deterministicDispatchWindow();
         host.getCraftingRuntime().tick(
                 grid.energyService(),
                 grid.craftingService(),
@@ -1302,7 +1306,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 1);
         TargetAwareBatchCraftingProvider provider = new TargetAwareBatchCraftingProvider(fixture.provider().pattern());
         fixture.grid().setCraftingProvider(provider);
-        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
+        CraftingDispatchWindow sharedWindow = deterministicDispatchWindow();
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
@@ -1870,7 +1874,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 BatchPushOutcome.ACCEPT);
         BusyThrowingCraftingProvider throwingProvider = new BusyThrowingCraftingProvider(fixture.provider().pattern());
         fixture.grid().setCraftingProviders(List.of(throwingProvider, fixture.provider()));
-        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
+        CraftingDispatchWindow dispatchWindow = deterministicDispatchWindow();
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
