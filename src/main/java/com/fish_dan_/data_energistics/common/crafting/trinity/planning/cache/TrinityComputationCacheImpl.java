@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Access-order LRU implementation with pinned in-flight entries and lifecycle-aware bypass tasks.
@@ -236,6 +237,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 return;
             }
             cancelled = partition.allEntries();
+            cancelled.forEach(CacheEntry::markCancellation);
             partition.clear();
         }
         cancelled.forEach(CacheEntry::cancelUnderlying);
@@ -250,7 +252,9 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             }
             this.closed = true;
             for (GridPartition partition : this.partitions.values()) {
-                cancelled.addAll(partition.allEntries());
+                List<CacheEntry<?>> partitionEntries = partition.allEntries();
+                partitionEntries.forEach(CacheEntry::markCancellation);
+                cancelled.addAll(partitionEntries);
                 partition.clear();
             }
             this.partitions.clear();
@@ -298,6 +302,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = entries.next();
             if (isObsolete(mapped.getKey(), revisionDomain, currentRevision)) {
                 entries.remove();
+                mapped.getValue().markCancellation();
                 cancelled.add(mapped.getValue());
             }
         }
@@ -332,6 +337,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = bypass.next();
             if (isObsolete(mapped.getKey(), revisionDomain, revision)) {
                 bypass.remove();
+                mapped.getValue().markCancellation();
                 cancelled.add(mapped.getValue());
             }
         }
@@ -379,6 +385,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private final Callable<TrinityCachedComputation<V>> calculation;
         private final boolean registered;
         private final boolean revisionCancellationInterrupts;
+        private final AtomicReference<CacheEntryState> state = new AtomicReference<>(CacheEntryState.ACTIVE);
         private final CompletableFuture<V> result = new CompletableFuture<>();
         private final FutureTask<Void> execution = new FutureTask<>(this::execute);
 
@@ -415,6 +422,9 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         }
 
         private void publish(TrinityCachedComputation<V> computed) {
+            if (!this.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.PUBLISHED)) {
+                return;
+            }
             if (!computed.cacheable()) {
                 synchronized (TrinityComputationCacheImpl.this.cacheLock) {
                     removeFromPartition();
@@ -431,6 +441,9 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         }
 
         private void fail(Throwable failure) {
+            if (!this.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.PUBLISHED)) {
+                return;
+            }
             synchronized (TrinityComputationCacheImpl.this.cacheLock) {
                 removeFromPartition();
             }
@@ -452,14 +465,30 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         }
 
         private void cancelUnderlying() {
-            this.result.cancel(false);
-            this.execution.cancel(true);
+            finishCancellation(true);
         }
 
         private void cancelObsolete() {
-            this.result.cancel(false);
-            this.execution.cancel(this.revisionCancellationInterrupts);
+            finishCancellation(this.revisionCancellationInterrupts);
         }
+
+        private void markCancellation() {
+            this.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.CANCELLED);
+        }
+
+        private void finishCancellation(boolean interrupt) {
+            markCancellation();
+            if (this.state.get() == CacheEntryState.CANCELLED) {
+                this.result.cancel(false);
+            }
+            this.execution.cancel(interrupt);
+        }
+    }
+
+    private enum CacheEntryState {
+        ACTIVE,
+        PUBLISHED,
+        CANCELLED
     }
 
     private static final class GridPartition {
