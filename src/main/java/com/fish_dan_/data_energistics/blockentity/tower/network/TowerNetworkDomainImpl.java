@@ -495,6 +495,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         ArrayList<TowerNetworkParticipant> orderedTowers = new ArrayList<>(this.towers.values());
         orderedTowers.sort(Comparator.comparing(TowerNetworkParticipant::towerKey));
         ArrayList<TowerWork> result = new ArrayList<>(orderedTowers.size());
+        Map<TargetResolutionKey, TowerTargetResolution> resolutionCache = new HashMap<>();
         for (TowerNetworkParticipant participant : orderedTowers) {
             Set<EnergyLocationKey> energyLocations = new HashSet<>();
             if (participant.towerAllowsFe()) {
@@ -515,8 +516,12 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     resolution = new TowerTargetResolution(List.of(), List.of());
                 } else {
                     TowerTargetDiscoveryMode discoveryMode = binding.source() == TowerBindingSource.MANUAL ? TowerTargetDiscoveryMode.POINT : TowerTargetDiscoveryMode.SCOPE;
-                    resolution = this.targetResolver.resolve(
-                            participant.towerLevel(), binding.anchor(), this.grid, discoveryMode);
+                    TargetResolutionKey resolutionKey = new TargetResolutionKey(
+                            participant.towerLevel().dimension().location(), binding.anchor(), discoveryMode);
+                    resolution = resolutionCache.computeIfAbsent(
+                            resolutionKey,
+                            ignored -> this.targetResolver.resolve(
+                                    participant.towerLevel(), binding.anchor(), this.grid, discoveryMode));
                 }
                 boolean hasEnergyEndpoint = energyLocations.contains(
                         new EnergyLocationKey(binding.dimensionId(), binding.anchor()));
@@ -812,6 +817,16 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                                   IGrid targetGrid) {}
 
     private record BindingIdentity(TowerRuntimeKey towerKey, long bindingFifo) {}
+
+    /** Identifies one immutable target resolution within a single network reconciliation pass. */
+    private record TargetResolutionKey(ResourceLocation dimensionId,
+                                       BlockPos anchor,
+                                       TowerTargetDiscoveryMode mode) {
+
+        private TargetResolutionKey {
+            anchor = anchor.immutable();
+        }
+    }
 
     /** Immutable UI identity captured directly from an AE node. */
     private record DeviceDisplay(ResourceLocation itemId, String displayName) {}
