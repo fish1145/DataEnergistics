@@ -2311,8 +2311,7 @@ final class TrinityDataCoreCpuLogic {
                                           CraftingDispatchCursor capacitySliceCursor,
                                           boolean cantStoreItems,
                                           boolean proposalOutstanding,
-                                          TrinityWorkerSchedulingHint schedulingHint) {
-    }
+                                          TrinityWorkerSchedulingHint schedulingHint) {}
 
     private record ProviderDispatchOutcome(int physicalAttempts,
                                            boolean dispatched,

@@ -38,6 +38,6 @@ public interface DispatchProposalCandidatePlanner {
      * @return cached immutable candidate order, or an empty order when lifecycle admission is denied
      */
     DispatchProposalCandidatePlan plan(
-                                        CraftingDispatchProposalRequest request,
-                                        BooleanSupplier lifecycleActive);
+                                       CraftingDispatchProposalRequest request,
+                                       BooleanSupplier lifecycleActive);
 }

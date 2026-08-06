@@ -116,9 +116,9 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
     @Override
     public Future<TrinityPlanningAttempt> beginTrinity(
-                                                        long gridScope,
-                                                        long graphRevision,
-                                                        Callable<TrinityPlanningAttempt> trinityCalculation) {
+                                                       long gridScope,
+                                                       long graphRevision,
+                                                       Callable<TrinityPlanningAttempt> trinityCalculation) {
         try {
             return this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
         } catch (RejectedExecutionException exception) {
@@ -133,7 +133,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
 
     @Override
     public TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
-            throws InterruptedException, ExecutionException {
+                                                                                         throws InterruptedException, ExecutionException {
         return this.planningComputation.calculate(input);
     }
 

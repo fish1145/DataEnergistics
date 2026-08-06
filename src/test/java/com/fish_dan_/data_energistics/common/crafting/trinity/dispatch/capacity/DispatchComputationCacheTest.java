@@ -139,8 +139,8 @@ final class DispatchComputationCacheTest {
     }
 
     private static CraftingDispatchProposalRequest request(ProviderCapacityCapture capture,
-                                                            long remainingCrafts,
-                                                            CraftingDispatchCursor cursor) {
+                                                           long remainingCrafts,
+                                                           CraftingDispatchCursor cursor) {
         return new CraftingDispatchProposalRequest(
                 new CraftingDispatchLease(
                         capture.key().gridScope(),
@@ -179,12 +179,12 @@ final class DispatchComputationCacheTest {
     }
 
     private static ProviderCapacitySnapshot snapshot(long scope,
-                                                       long providerSequence,
-                                                       String route,
-                                                       long publicationRevision,
-                                                       long capacityRevision,
-                                                       long epoch,
-                                                       long capacity) {
+                                                     long providerSequence,
+                                                     String route,
+                                                     long publicationRevision,
+                                                     long capacityRevision,
+                                                     long epoch,
+                                                     long capacity) {
         return new ProviderCapacitySnapshot(
                 new CraftingProviderId(scope, providerSequence),
                 new CraftingDispatchTarget(route),

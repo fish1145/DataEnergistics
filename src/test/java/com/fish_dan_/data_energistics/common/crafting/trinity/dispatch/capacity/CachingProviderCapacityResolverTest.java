@@ -83,11 +83,11 @@ final class CachingProviderCapacityResolverTest {
 
         @Override
         public ProviderCapacityCapture capture(CraftingProviderPublicationIndex publications,
-                                                IPatternDetails pattern,
-                                                KeyCounter[] prototype,
-                                                long requestedCrafts,
-                                                String patternIdentity,
-                                                long captureTick) {
+                                               IPatternDetails pattern,
+                                               KeyCounter[] prototype,
+                                               long requestedCrafts,
+                                               String patternIdentity,
+                                               long captureTick) {
             this.captureCalls.incrementAndGet();
             ProviderCapacityCaptureKey key = ProviderCapacityCaptureKey.capture(
                     publications,
@@ -111,12 +111,12 @@ final class CachingProviderCapacityResolverTest {
 
         @Override
         public ICraftingProvider resolveCurrent(CraftingProviderPublicationIndex publications,
-                                                 IPatternDetails pattern,
-                                                 KeyCounter[] prototype,
-                                                 long requestedCrafts,
-                                                 String patternIdentity,
-                                                 ProviderCapacitySnapshot snapshot,
-                                                 long validationTick) {
+                                                IPatternDetails pattern,
+                                                KeyCounter[] prototype,
+                                                long requestedCrafts,
+                                                String patternIdentity,
+                                                ProviderCapacitySnapshot snapshot,
+                                                long validationTick) {
             this.resolveCalls.incrementAndGet();
             return this.provider;
         }

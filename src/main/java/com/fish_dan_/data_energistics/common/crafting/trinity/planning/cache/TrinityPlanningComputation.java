@@ -18,8 +18,8 @@ public interface TrinityPlanningComputation {
      * @return planning computation entry point
      */
     static TrinityPlanningComputation create(
-                                               TrinityComputationCache cache,
-                                               TrinityGraphPlanningPipeline pipeline) {
+                                             TrinityComputationCache cache,
+                                             TrinityGraphPlanningPipeline pipeline) {
         return new TrinityPlanningComputationImpl(cache, pipeline);
     }
 
@@ -40,5 +40,5 @@ public interface TrinityPlanningComputation {
      * @throws ExecutionException   when a shared bottom calculation fails
      */
     TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
-            throws InterruptedException, ExecutionException;
+                                                                           throws InterruptedException, ExecutionException;
 }

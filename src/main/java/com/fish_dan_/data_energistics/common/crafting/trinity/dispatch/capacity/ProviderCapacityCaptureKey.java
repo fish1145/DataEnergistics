@@ -16,24 +16,24 @@ import java.util.Map;
 /**
  * Complete immutable identity for one server-tick provider-capacity capture.
  *
- * @param gridScope          owning Grid publication scope
+ * @param gridScope           owning Grid publication scope
  * @param publicationRevision provider publication generation
- * @param capacityRevision  counted-provider contract generation
- * @param capacityEpoch     server tick defining the capacity observation epoch
+ * @param capacityRevision    counted-provider contract generation
+ * @param capacityEpoch       server tick defining the capacity observation epoch
  * @param providerFingerprint exact ordered provider publications for the live pattern
- * @param patternIdentity   full semantic pattern identity
- * @param inputPrototype    exact per-slot input counters used for provider capacity
- * @param requestedMaximum  positive maximum logical crafts requested from providers
+ * @param patternIdentity     full semantic pattern identity
+ * @param inputPrototype      exact per-slot input counters used for provider capacity
+ * @param requestedMaximum    positive maximum logical crafts requested from providers
  */
 public record ProviderCapacityCaptureKey(
-                                  long gridScope,
-                                  long publicationRevision,
-                                  long capacityRevision,
-                                  long capacityEpoch,
-                                  List<CraftingProviderId> providerFingerprint,
-                                  String patternIdentity,
-                                  List<Map<AEKey, Long>> inputPrototype,
-                                  long requestedMaximum) {
+                                         long gridScope,
+                                         long publicationRevision,
+                                         long capacityRevision,
+                                         long capacityEpoch,
+                                         List<CraftingProviderId> providerFingerprint,
+                                         String patternIdentity,
+                                         List<Map<AEKey, Long>> inputPrototype,
+                                         long requestedMaximum) {
 
     public ProviderCapacityCaptureKey {
         if (gridScope <= 0L || publicationRevision < 0L || capacityRevision < 0L || capacityEpoch < 0L) {

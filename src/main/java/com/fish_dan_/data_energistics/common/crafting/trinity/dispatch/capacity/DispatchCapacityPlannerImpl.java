@@ -67,8 +67,7 @@ final class DispatchCapacityPlannerImpl implements DispatchCapacityPlanner {
                 key.remainingCrafts(),
                 key.physicalCallLimit(),
                 0);
-        Map<ProviderCapacitySnapshot, ArrayDeque<ProviderTargetRotation.Target>> targetsByIdentity =
-                new IdentityHashMap<>();
+        Map<ProviderCapacitySnapshot, ArrayDeque<ProviderTargetRotation.Target>> targetsByIdentity = new IdentityHashMap<>();
         for (ProviderTargetRotation.Target target : rotation.targets()) {
             targetsByIdentity.computeIfAbsent(target.snapshot(), ignored -> new ArrayDeque<>()).addLast(target);
         }

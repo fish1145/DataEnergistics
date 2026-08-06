@@ -12,9 +12,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
  */
 public record CraftingDispatchProposal(
                                        CraftingDispatchLease lease,
-                                        ProviderCapacitySnapshot target,
-                                        long logicalCrafts,
-                                        CraftingDispatchCursor nextCursor) {
+                                       ProviderCapacitySnapshot target,
+                                       long logicalCrafts,
+                                       CraftingDispatchCursor nextCursor) {
 
     public CraftingDispatchProposal {
         if (lease == null) {

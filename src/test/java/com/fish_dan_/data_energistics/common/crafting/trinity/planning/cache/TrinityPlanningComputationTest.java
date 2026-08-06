@@ -208,10 +208,10 @@ final class TrinityPlanningComputationTest {
     }
 
     private static TrinityPlanningInput input(
-                                                long gridScope,
-                                                long revision,
-                                                BigInteger amount,
-                                                Map<AEKey, BigInteger> available) {
+                                              long gridScope,
+                                              long revision,
+                                              BigInteger amount,
+                                              Map<AEKey, BigInteger> available) {
         return new TrinityPlanningInput(
                 gridScope,
                 graph(revision, "linear", Items.PAPER),
@@ -223,8 +223,8 @@ final class TrinityPlanningComputationTest {
     }
 
     private static TrinityPlanningInput input(
-                                                TrinityCraftingGraphSnapshot graph,
-                                                TrinityCrafting settings) {
+                                              TrinityCraftingGraphSnapshot graph,
+                                              TrinityCrafting settings) {
         return new TrinityPlanningInput(
                 3L,
                 graph,
@@ -265,7 +265,7 @@ final class TrinityPlanningComputationTest {
     }
 
     private static TrinityPlanningComputationResult get(Future<TrinityPlanningComputationResult> future)
-            throws Exception {
+                                                                                                         throws Exception {
         return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
@@ -280,11 +280,11 @@ final class TrinityPlanningComputationTest {
 
         @Override
         public TrinityAlgorithmResult<TrinityCompiledGraph> compile(
-                                                                     TrinityCraftingGraphSnapshot reachableSnapshot,
-                                                                     AEKey target,
-                                                                     int maxBindingVariants,
-                                                                     int maxSccKeys,
-                                                                     TrinityPlanningControl control) {
+                                                                    TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                    AEKey target,
+                                                                    int maxBindingVariants,
+                                                                    int maxSccKeys,
+                                                                    TrinityPlanningControl control) {
             this.compilations.incrementAndGet();
             if (this.compileEntered != null) {
                 this.compileEntered.countDown();
@@ -300,13 +300,13 @@ final class TrinityPlanningComputationTest {
 
         @Override
         public TrinityAlgorithmResult<TrinityCraftingPlan> solve(
-                                                                  TrinityCompiledGraph compiled,
-                                                                  long catalogRevision,
-                                                                  BigInteger requestedAmount,
-                                                                  CraftingQuantityMode quantityMode,
-                                                                  Map<AEKey, BigInteger> available,
-                                                                  TrinityCrafting settings,
-                                                                  TrinityPlanningControl control) {
+                                                                 TrinityCompiledGraph compiled,
+                                                                 long catalogRevision,
+                                                                 BigInteger requestedAmount,
+                                                                 CraftingQuantityMode quantityMode,
+                                                                 Map<AEKey, BigInteger> available,
+                                                                 TrinityCrafting settings,
+                                                                 TrinityPlanningControl control) {
             this.solves.incrementAndGet();
             return this.solveFailure == null ?
                     this.delegate.solve(
@@ -322,13 +322,13 @@ final class TrinityPlanningComputationTest {
 
         @Override
         public TrinityAlgorithmResult<TrinityCraftingPlan> plan(
-                                                                 TrinityCraftingGraphSnapshot snapshot,
-                                                                 AEKey target,
-                                                                 BigInteger requestedAmount,
-                                                                 CraftingQuantityMode quantityMode,
-                                                                 Map<AEKey, BigInteger> available,
-                                                                 TrinityCrafting settings,
-                                                                 TrinityPlanningControl control) {
+                                                                TrinityCraftingGraphSnapshot snapshot,
+                                                                AEKey target,
+                                                                BigInteger requestedAmount,
+                                                                CraftingQuantityMode quantityMode,
+                                                                Map<AEKey, BigInteger> available,
+                                                                TrinityCrafting settings,
+                                                                TrinityPlanningControl control) {
             return this.delegate.plan(snapshot, target, requestedAmount, quantityMode, available, settings, control);
         }
 

@@ -13,10 +13,10 @@ import java.math.BigInteger;
  * @param cursor          stable provider and target fairness position
  */
 public record CraftingDispatchProposalRequest(
-                                               CraftingDispatchLease lease,
-                                               ProviderCapacityCapture capacity,
-                                               BigInteger remainingCrafts,
-                                               CraftingDispatchCursor cursor) {
+                                              CraftingDispatchLease lease,
+                                              ProviderCapacityCapture capacity,
+                                              BigInteger remainingCrafts,
+                                              CraftingDispatchCursor cursor) {
 
     private static final BigInteger MAXIMUM_LOGICAL_CRAFTS = BigInteger.valueOf(Long.MAX_VALUE);
 

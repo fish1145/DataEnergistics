@@ -31,17 +31,17 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * Starts AE2 and Trinity concurrently when a qualified Trinity CPU is currently available.
      *
      * @param qualifiedTrinityCpu whether the current grid has an online, idle CPU eligible for an extended plan
-     * @param gridScope            owning Grid publication scope
-     * @param graphRevision        immutable graph revision used by the Trinity calculation
+     * @param gridScope           owning Grid publication scope
+     * @param graphRevision       immutable graph revision used by the Trinity calculation
      * @param trinityCalculation  immutable-snapshot calculation submitted only when the CPU gate passes
      * @param ae2Calculation      original AE2 calculation, always started
      * @return one cooperative future that prefers a valid in-budget Trinity result
      */
     Future<ICraftingPlan> begin(
-                                 boolean qualifiedTrinityCpu,
-                                 long gridScope,
-                                 long graphRevision,
-                                 Callable<TrinityPlanningAttempt> trinityCalculation,
+                                boolean qualifiedTrinityCpu,
+                                long gridScope,
+                                long graphRevision,
+                                Callable<TrinityPlanningAttempt> trinityCalculation,
                                 Supplier<Future<ICraftingPlan>> ae2Calculation);
 
     /**
@@ -53,9 +53,9 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @return cooperative bounded future, including an explicit queue-full outcome
      */
     Future<TrinityPlanningAttempt> beginTrinity(
-                                                 long gridScope,
-                                                 long graphRevision,
-                                                 Callable<TrinityPlanningAttempt> trinityCalculation);
+                                                long gridScope,
+                                                long graphRevision,
+                                                Callable<TrinityPlanningAttempt> trinityCalculation);
 
     /**
      * Executes pure planning through the shared multi-level cache on the current accepted planner worker.
@@ -66,7 +66,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @throws ExecutionException   when a bottom calculation fails
      */
     TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
-            throws InterruptedException, ExecutionException;
+                                                                                  throws InterruptedException, ExecutionException;
 
     /**
      * Shares the server-lifetime computation partition with pure dispatch calculations without transferring cache

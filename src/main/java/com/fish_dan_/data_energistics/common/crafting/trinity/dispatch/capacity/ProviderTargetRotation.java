@@ -36,8 +36,7 @@ final class ProviderTargetRotation {
             return new ProviderTargetRotation(List.of());
         }
 
-        List<Map.Entry<CraftingProviderId, ArrayList<ProviderCapacitySnapshot>>> providers =
-                List.copyOf(grouped.entrySet());
+        List<Map.Entry<CraftingProviderId, ArrayList<ProviderCapacitySnapshot>>> providers = List.copyOf(grouped.entrySet());
         int providerCount = providers.size();
         int providerStart = Math.floorMod(cursor.provider(), providerCount);
         int maximumTargets = providers.stream().mapToInt(entry -> entry.getValue().size()).max().orElseThrow();
@@ -75,7 +74,7 @@ final class ProviderTargetRotation {
     }
 
     /**
-     * @param snapshot immutable capacity observation retained from the capture
+     * @param snapshot  immutable capacity observation retained from the capture
      * @param successor cursor suggested only after this exact target receives a real provider call
      */
     record Target(ProviderCapacitySnapshot snapshot, CraftingDispatchCursor successor) {

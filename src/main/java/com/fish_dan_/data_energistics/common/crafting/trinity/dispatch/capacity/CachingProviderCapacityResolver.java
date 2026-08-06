@@ -12,7 +12,6 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
@@ -34,11 +33,11 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
 
     @Override
     public ProviderCapacityCapture capture(CraftingProviderPublicationIndex publications,
-                                            IPatternDetails pattern,
-                                            KeyCounter[] prototype,
-                                            long requestedCrafts,
-                                            String patternIdentity,
-                                            long captureTick) {
+                                           IPatternDetails pattern,
+                                           KeyCounter[] prototype,
+                                           long requestedCrafts,
+                                           String patternIdentity,
+                                           long captureTick) {
         ProviderCapacityCaptureKey key = ProviderCapacityCaptureKey.capture(
                 publications,
                 pattern,
@@ -59,7 +58,8 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
                             prototype,
                             requestedCrafts,
                             patternIdentity,
-                            captureTick))).value();
+                            captureTick)))
+                    .value();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Provider capacity cache wait was interrupted", exception);
@@ -71,12 +71,12 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
     @Override
     @Nullable
     public ICraftingProvider resolveCurrent(CraftingProviderPublicationIndex publications,
-                                             IPatternDetails pattern,
-                                             KeyCounter[] prototype,
-                                             long requestedCrafts,
-                                             String patternIdentity,
-                                             ProviderCapacitySnapshot snapshot,
-                                             long validationTick) {
+                                            IPatternDetails pattern,
+                                            KeyCounter[] prototype,
+                                            long requestedCrafts,
+                                            String patternIdentity,
+                                            ProviderCapacitySnapshot snapshot,
+                                            long validationTick) {
         return this.delegate.resolveCurrent(
                 publications,
                 pattern,
@@ -88,12 +88,12 @@ final class CachingProviderCapacityResolver implements ProviderCapacityResolver 
     }
 
     private ProviderCapacityCapture captureAndValidate(ProviderCapacityCaptureKey key,
-                                                        CraftingProviderPublicationIndex publications,
-                                                        IPatternDetails pattern,
-                                                        KeyCounter[] prototype,
-                                                        long requestedCrafts,
-                                                        String patternIdentity,
-                                                        long captureTick) {
+                                                       CraftingProviderPublicationIndex publications,
+                                                       IPatternDetails pattern,
+                                                       KeyCounter[] prototype,
+                                                       long requestedCrafts,
+                                                       String patternIdentity,
+                                                       long captureTick) {
         ProviderCapacityCapture capture = this.delegate.capture(
                 publications,
                 pattern,

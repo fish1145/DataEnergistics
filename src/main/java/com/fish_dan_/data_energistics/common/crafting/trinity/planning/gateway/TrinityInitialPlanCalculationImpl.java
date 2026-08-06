@@ -51,7 +51,7 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
     }
 
     TrinityInitialPlanCalculationImpl(
-                                       Function<TrinityPlanningInput, TrinityPlanningComputationResult> computation) {
+                                      Function<TrinityPlanningInput, TrinityPlanningComputationResult> computation) {
         if (computation == null) {
             throw new IllegalArgumentException("A Trinity initial calculation requires a planning computation");
         }

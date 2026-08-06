@@ -440,10 +440,10 @@ public abstract class CraftingServiceMixin
 
     @Unique
     private void dataEnergistics$completeTrinityDispatchTick(MinecraftServer server,
-                                                            long gridGeneration,
-                                                            List<TrinityDataCoreCraftingRuntime> runtimes,
-                                                            CraftingDispatchWindow dispatchWindow,
-                                                            CraftingDispatchGovernor governor) {
+                                                             long gridGeneration,
+                                                             List<TrinityDataCoreCraftingRuntime> runtimes,
+                                                             CraftingDispatchWindow dispatchWindow,
+                                                             CraftingDispatchGovernor governor) {
         long latestChange = 0L;
         for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
             latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());

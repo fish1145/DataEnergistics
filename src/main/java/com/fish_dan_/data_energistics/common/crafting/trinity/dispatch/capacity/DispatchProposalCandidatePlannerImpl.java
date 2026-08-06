@@ -30,8 +30,8 @@ final class DispatchProposalCandidatePlannerImpl implements DispatchProposalCand
 
     @Override
     public DispatchProposalCandidatePlan plan(
-                                               CraftingDispatchProposalRequest request,
-                                               BooleanSupplier lifecycleActive) {
+                                              CraftingDispatchProposalRequest request,
+                                              BooleanSupplier lifecycleActive) {
         if (request == null || lifecycleActive == null) {
             throw new IllegalArgumentException("Dispatch proposal candidate planning requires a request and lifecycle");
         }
@@ -42,12 +42,12 @@ final class DispatchProposalCandidatePlannerImpl implements DispatchProposalCand
                 request.cursor());
         try {
             return this.cache.get().computeInlineIfActive(
-                            key.captureKey().gridScope(),
-                            TrinityComputationNamespace.PROPOSAL_CANDIDATE,
-                            key.captureKey().capacityEpoch(),
-                            key,
-                            lifecycleActive,
-                            () -> TrinityCachedComputation.cacheable(calculate(key)))
+                    key.captureKey().gridScope(),
+                    TrinityComputationNamespace.PROPOSAL_CANDIDATE,
+                    key.captureKey().capacityEpoch(),
+                    key,
+                    lifecycleActive,
+                    () -> TrinityCachedComputation.cacheable(calculate(key)))
                     .map(value -> value.value())
                     .orElseGet(() -> new DispatchProposalCandidatePlan(List.of()));
         } catch (InterruptedException exception) {

@@ -405,9 +405,9 @@ final class TrinityComputationCacheTest {
     }
 
     private static TrinityComputationLookup<String> compute(
-                                                               TrinityComputationCache cache,
-                                                               String key,
-                                                               AtomicInteger calculations) {
+                                                            TrinityComputationCache cache,
+                                                            String key,
+                                                            AtomicInteger calculations) {
         return cache.compute(
                 1L,
                 TrinityComputationNamespace.SOLVED_PLAN,
@@ -420,19 +420,19 @@ final class TrinityComputationCacheTest {
     }
 
     private static TrinityComputationLookup<String> blocking(
-                                                                TrinityComputationCache cache,
-                                                                String key,
-                                                                CountDownLatch entered,
-                                                                CountDownLatch release) {
+                                                             TrinityComputationCache cache,
+                                                             String key,
+                                                             CountDownLatch entered,
+                                                             CountDownLatch release) {
         return blocking(cache, 1L, key, entered, release);
     }
 
     private static TrinityComputationLookup<String> blocking(
-                                                                TrinityComputationCache cache,
-                                                                long gridScope,
-                                                                String key,
-                                                                CountDownLatch entered,
-                                                                CountDownLatch release) {
+                                                             TrinityComputationCache cache,
+                                                             long gridScope,
+                                                             String key,
+                                                             CountDownLatch entered,
+                                                             CountDownLatch release) {
         return cache.compute(
                 gridScope,
                 TrinityComputationNamespace.SOLVED_PLAN,

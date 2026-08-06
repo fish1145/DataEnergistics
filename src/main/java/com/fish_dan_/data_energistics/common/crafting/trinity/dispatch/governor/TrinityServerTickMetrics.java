@@ -26,8 +26,7 @@ public final class TrinityServerTickMetrics {
             System::nanoTime,
             TARGET_TICK_NANOS,
             OVERLOADED_TRICKLE_NANOS);
-    private static final TrinityServerDispatchScheduler SERVER_DISPATCH_SCHEDULER =
-            TrinityServerDispatchScheduler.create();
+    private static final TrinityServerDispatchScheduler SERVER_DISPATCH_SCHEDULER = TrinityServerDispatchScheduler.create();
     private static volatile MinecraftServer sampledServer;
     private static volatile long lastCompletedNanos;
 

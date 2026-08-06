@@ -30,16 +30,16 @@ public final class CraftingDispatchParticipantImpl implements CraftingDispatchPa
     /**
      * Captures immutable tick dependencies while leaving Grid-owned cursors and metrics behind callbacks.
      *
-     * @param diagnosticIdentity stable Grid identity for failure logs
-     * @param runtimes           prepared runtime snapshot for this Grid tick
-     * @param runtimeCursor      first runtime index retained from the last physical call
-     * @param energyService      AE2 energy service for physical submissions
-     * @param craftingService    AE2 crafting service for provider resolution
-     * @param dispatchWindow     Grid-local physical and time budget
-     * @param dispatchBudget     immutable Governor policy for this tick
+     * @param diagnosticIdentity  stable Grid identity for failure logs
+     * @param runtimes            prepared runtime snapshot for this Grid tick
+     * @param runtimeCursor       first runtime index retained from the last physical call
+     * @param energyService       AE2 energy service for physical submissions
+     * @param craftingService     AE2 crafting service for provider resolution
+     * @param dispatchWindow      Grid-local physical and time budget
+     * @param dispatchBudget      immutable Governor policy for this tick
      * @param runtimeCursorCommit callback that persists a physical-call successor cursor
-     * @param tickCompletion     callback that completes Grid metrics exactly once
-     * @param failureRecorder    callback that moves only this Grid into SAFE mode
+     * @param tickCompletion      callback that completes Grid metrics exactly once
+     * @param failureRecorder     callback that moves only this Grid into SAFE mode
      */
     public CraftingDispatchParticipantImpl(String diagnosticIdentity,
                                            List<TrinityDataCoreCraftingRuntime> runtimes,

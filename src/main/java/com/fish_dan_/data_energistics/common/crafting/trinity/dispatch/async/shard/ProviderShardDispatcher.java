@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 
@@ -31,9 +31,9 @@ public interface ProviderShardDispatcher {
      * @return reserved selection or explicit no-capacity result
      */
     default Result selectAndReserve(
-                                     CraftingDispatchProposalRequest request,
-                                     DispatchProposalCandidatePlanner planner,
-                                     int providerQuantum) {
+                                    CraftingDispatchProposalRequest request,
+                                    DispatchProposalCandidatePlanner planner,
+                                    int providerQuantum) {
         return selectAndReserve(request, planner, providerQuantum, () -> true);
     }
 
@@ -47,10 +47,10 @@ public interface ProviderShardDispatcher {
      * @return reserved selection or explicit no-capacity result
      */
     Result selectAndReserve(
-                             CraftingDispatchProposalRequest request,
-                             DispatchProposalCandidatePlanner planner,
-                             int providerQuantum,
-                             BooleanSupplier lifecycleActive);
+                            CraftingDispatchProposalRequest request,
+                            DispatchProposalCandidatePlanner planner,
+                            int providerQuantum,
+                            BooleanSupplier lifecycleActive);
 
     /**
      * Reservation-bearing shard result.
@@ -64,10 +64,10 @@ public interface ProviderShardDispatcher {
      * @param reservation   idempotent reservation release handle
      */
     record Reserved(
-                     ProviderCapacitySnapshot target,
-                     long logicalCrafts,
-                     CraftingDispatchCursor nextCursor,
-                     Reservation reservation)
+                    ProviderCapacitySnapshot target,
+                    long logicalCrafts,
+                    CraftingDispatchCursor nextCursor,
+                    Reservation reservation)
             implements Result {
 
         public Reserved {

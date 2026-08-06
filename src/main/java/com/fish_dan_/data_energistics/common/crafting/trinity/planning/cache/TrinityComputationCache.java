@@ -52,11 +52,11 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @return cache lookup and caller-owned future
      */
     <K, V> TrinityComputationLookup<V> compute(
-                                                  long gridScope,
-                                                  TrinityComputationNamespace namespace,
-                                                  long revision,
-                                                  K key,
-                                                  Callable<TrinityCachedComputation<V>> calculation);
+                                               long gridScope,
+                                               TrinityComputationNamespace namespace,
+                                               long revision,
+                                               K key,
+                                               Callable<TrinityCachedComputation<V>> calculation);
 
     /**
      * Runs the cache-owning calculation on the current cache-managed worker while concurrent callers wait on the
@@ -74,20 +74,21 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @throws ExecutionException   when the bottom calculation fails
      */
     default <K, V> TrinityComputationValue<V> computeInline(
-                                                               long gridScope,
-                                                               TrinityComputationNamespace namespace,
-                                                               long revision,
-                                                               K key,
-                                                               Callable<TrinityCachedComputation<V>> calculation)
-            throws InterruptedException, ExecutionException {
+                                                            long gridScope,
+                                                            TrinityComputationNamespace namespace,
+                                                            long revision,
+                                                            K key,
+                                                            Callable<TrinityCachedComputation<V>> calculation)
+                                                                                                               throws InterruptedException, ExecutionException {
         return computeInlineIfActive(
                 gridScope,
                 namespace,
                 revision,
                 key,
                 () -> true,
-                calculation).orElseThrow(() -> new IllegalStateException(
-                        "An unconditional Trinity inline computation was not admitted"));
+                calculation).orElseThrow(
+                        () -> new IllegalStateException(
+                                "An unconditional Trinity inline computation was not admitted"));
     }
 
     /**
@@ -107,22 +108,22 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @throws ExecutionException   when the bottom calculation fails
      */
     <K, V> Optional<TrinityComputationValue<V>> computeInlineIfActive(
-                                                                         long gridScope,
-                                                                         TrinityComputationNamespace namespace,
-                                                                         long revision,
-                                                                         K key,
-                                                                         BooleanSupplier lifecycleActive,
-                                                                         Callable<TrinityCachedComputation<V>> calculation)
-            throws InterruptedException, ExecutionException;
+                                                                      long gridScope,
+                                                                      TrinityComputationNamespace namespace,
+                                                                      long revision,
+                                                                      K key,
+                                                                      BooleanSupplier lifecycleActive,
+                                                                      Callable<TrinityCachedComputation<V>> calculation)
+                                                                                                                         throws InterruptedException, ExecutionException;
 
     /**
      * Submits one lifecycle-tracked orchestration task without registering it in the LRU. The returned wait handle is
      * isolated, so caller cancellation never interrupts the bottom task or other callers sharing its inner cache work.
      *
-     * @param gridScope  immutable Grid publication scope
-     * @param revision   publication revision used to cancel obsolete orchestration
+     * @param gridScope   immutable Grid publication scope
+     * @param revision    publication revision used to cancel obsolete orchestration
      * @param calculation orchestration that enters inline cache layers
-     * @param <V>        result type
+     * @param <V>         result type
      * @return caller-owned future
      */
     <V> Future<V> submit(long gridScope, long revision, Callable<V> calculation);

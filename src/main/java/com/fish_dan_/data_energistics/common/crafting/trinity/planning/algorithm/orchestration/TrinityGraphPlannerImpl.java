@@ -15,8 +15,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
@@ -109,11 +109,11 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
 
     @Override
     public TrinityAlgorithmResult<TrinityCompiledGraph> compile(
-                                                                 TrinityCraftingGraphSnapshot reachableSnapshot,
-                                                                 AEKey target,
-                                                                 int maxBindingVariants,
-                                                                 int maxSccKeys,
-                                                                 TrinityPlanningControl control) {
+                                                                TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                AEKey target,
+                                                                int maxBindingVariants,
+                                                                int maxSccKeys,
+                                                                TrinityPlanningControl control) {
         if (reachableSnapshot == null || target == null || maxBindingVariants <= 0 || maxSccKeys <= 0 ||
                 control == null) {
             throw new IllegalArgumentException("A Trinity graph compilation request is incomplete");
@@ -129,11 +129,11 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
     }
 
     private TrinityAlgorithmResult<TrinityCompiledGraph> compileExact(
-                                                                       TrinityCraftingGraphSnapshot reachableSnapshot,
-                                                                       AEKey target,
-                                                                       int maxBindingVariants,
-                                                                       int maxSccKeys,
-                                                                       TrinityPlanningControl control) {
+                                                                      TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                      AEKey target,
+                                                                      int maxBindingVariants,
+                                                                      int maxSccKeys,
+                                                                      TrinityPlanningControl control) {
         StopState state = stopState(control);
         if (state == StopState.CANCELLED) {
             return cancelled();
@@ -184,13 +184,13 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
 
     @Override
     public TrinityAlgorithmResult<TrinityCraftingPlan> solve(
-                                                              TrinityCompiledGraph compiled,
-                                                              long catalogRevision,
-                                                              BigInteger requestedAmount,
-                                                              CraftingQuantityMode quantityMode,
-                                                              Map<AEKey, BigInteger> available,
-                                                              TrinityCrafting settings,
-                                                              TrinityPlanningControl control) {
+                                                             TrinityCompiledGraph compiled,
+                                                             long catalogRevision,
+                                                             BigInteger requestedAmount,
+                                                             CraftingQuantityMode quantityMode,
+                                                             Map<AEKey, BigInteger> available,
+                                                             TrinityCrafting settings,
+                                                             TrinityPlanningControl control) {
         if (compiled == null || catalogRevision < 0L || requestedAmount == null || requestedAmount.signum() <= 0 ||
                 quantityMode == null || available == null || settings == null || control == null) {
             throw new IllegalArgumentException("A Trinity compiled graph solve request is incomplete");
@@ -213,13 +213,13 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> solveExact(
-                                                                    TrinityCompiledGraph compiled,
-                                                                    long catalogRevision,
-                                                                    BigInteger requestedAmount,
-                                                                    CraftingQuantityMode quantityMode,
-                                                                    Map<AEKey, BigInteger> available,
-                                                                    TrinityCrafting settings,
-                                                                    TrinityPlanningControl control) {
+                                                                   TrinityCompiledGraph compiled,
+                                                                   long catalogRevision,
+                                                                   BigInteger requestedAmount,
+                                                                   CraftingQuantityMode quantityMode,
+                                                                   Map<AEKey, BigInteger> available,
+                                                                   TrinityCrafting settings,
+                                                                   TrinityPlanningControl control) {
         StopState state = stopState(control);
         if (state == StopState.CANCELLED) {
             return cancelled();
@@ -230,23 +230,23 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
         long requestedLong = requestedAmount.longValueExact();
         long startedNanos = System.nanoTime();
         TrinityAlgorithmResult<TrinityGraphPlanAssembly> assembled = compiled.reachableCycle() ?
-                        solveWithCycles(
-                                compiled.topology(),
-                                compiled.target(),
-                                requestedAmount,
-                                quantityMode,
-                                available,
-                                settings,
-                                control) :
-                        solveAcyclic(
-                                compiled.topology(),
-                                compiled.variants(),
-                                compiled.target(),
-                                requestedAmount,
-                                quantityMode,
-                                available,
-                                settings,
-                                control);
+                solveWithCycles(
+                        compiled.topology(),
+                        compiled.target(),
+                        requestedAmount,
+                        quantityMode,
+                        available,
+                        settings,
+                        control) :
+                solveAcyclic(
+                        compiled.topology(),
+                        compiled.variants(),
+                        compiled.target(),
+                        requestedAmount,
+                        quantityMode,
+                        available,
+                        settings,
+                        control);
         if (!assembled.successful()) {
             return TrinityAlgorithmResult.failure(assembled.diagnostic());
         }

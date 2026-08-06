@@ -56,7 +56,7 @@ final class TrinityRemainingPlanCalculationTest {
     void capturesOneRevisionAndPublishesItsCompletedPlan() {
         RecordingGateway gateway = new RecordingGateway();
         TrinityRemainingPlanCalculation calculation = TrinityRemainingPlanCalculation.create(() -> gateway);
-        int[] captures = {0};
+        int[] captures = { 0 };
 
         TrinityRemainingPlanCalculation.Result waiting = calculation.advance(
                 snapshot(7L),
@@ -365,9 +365,9 @@ final class TrinityRemainingPlanCalculationTest {
 
         @Override
         public Future<TrinityPlanningAttempt> beginTrinity(
-                long gridScope,
-                long graphRevision,
-                Callable<TrinityPlanningAttempt> trinityCalculation) {
+                                                           long gridScope,
+                                                           long graphRevision,
+                                                           Callable<TrinityPlanningAttempt> trinityCalculation) {
             this.submissions++;
             if (this.pending.isDone()) {
                 this.pending = new CompletableFuture<>();
@@ -381,11 +381,9 @@ final class TrinityRemainingPlanCalculationTest {
         }
 
         @Override
-        public void clearGrid(long gridScope) {
-        }
+        public void clearGrid(long gridScope) {}
 
         @Override
-        public void close() {
-        }
+        public void close() {}
     }
 }

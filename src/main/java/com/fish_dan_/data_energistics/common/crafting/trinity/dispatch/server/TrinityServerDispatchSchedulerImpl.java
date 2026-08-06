@@ -67,7 +67,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     }
 
     private List<CraftingDispatchParticipant> participantsFromPersistentCursor(
-            List<CraftingDispatchParticipant> participants) {
+                                                                               List<CraftingDispatchParticipant> participants) {
         if (participants.size() < 2 || this.nextParticipantIdentity == null) {
             return participants;
         }
@@ -125,7 +125,7 @@ final class TrinityServerDispatchSchedulerImpl implements TrinityServerDispatchS
     }
 
     private static Map<CraftingDispatchParticipant, String> successorIdentities(
-            List<CraftingDispatchParticipant> participants) {
+                                                                                List<CraftingDispatchParticipant> participants) {
         Map<CraftingDispatchParticipant, String> successors = new IdentityHashMap<>(participants.size());
         for (int index = 0; index < participants.size(); index++) {
             int successorIndex = (index + 1) % participants.size();

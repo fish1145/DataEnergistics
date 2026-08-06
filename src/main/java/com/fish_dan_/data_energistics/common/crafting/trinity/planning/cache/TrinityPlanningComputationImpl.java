@@ -47,7 +47,7 @@ final class TrinityPlanningComputationImpl implements TrinityPlanningComputation
 
     @Override
     public TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
-            throws InterruptedException, ExecutionException {
+                                                                                  throws InterruptedException, ExecutionException {
         validateInput(input);
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningControl control = TrinityPlanningControl.unbounded();
@@ -114,15 +114,15 @@ final class TrinityPlanningComputationImpl implements TrinityPlanningComputation
     }
 
     private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cached(
-                                                                                TrinityAlgorithmResult<V> result) {
+                                                                                  TrinityAlgorithmResult<V> result) {
         return result.successful() || !result.diagnostic().code().transientPlanningFailure() ?
                 TrinityCachedComputation.cacheable(result) :
                 TrinityCachedComputation.transientValue(result);
     }
 
     private static List<InventoryAmount> projectInventory(
-                                                            TrinityCompiledGraph compiled,
-                                                            Map<AEKey, BigInteger> available) {
+                                                          TrinityCompiledGraph compiled,
+                                                          Map<AEKey, BigInteger> available) {
         ArrayList<InventoryAmount> projected = new ArrayList<>();
         for (AEKey key : compiled.relevantInventoryKeys()) {
             BigInteger amount = available.get(key);

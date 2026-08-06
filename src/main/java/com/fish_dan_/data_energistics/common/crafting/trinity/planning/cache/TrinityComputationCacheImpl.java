@@ -11,8 +11,8 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
@@ -43,11 +43,11 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
 
     @Override
     public <K, V> TrinityComputationLookup<V> compute(
-                                                          long gridScope,
-                                                          TrinityComputationNamespace namespace,
-                                                          long revision,
-                                                          K key,
-                                                          Callable<TrinityCachedComputation<V>> calculation) {
+                                                      long gridScope,
+                                                      TrinityComputationNamespace namespace,
+                                                      long revision,
+                                                      K key,
+                                                      Callable<TrinityCachedComputation<V>> calculation) {
         validateRequest(gridScope, namespace, revision, key, calculation);
 
         GridPartition partition;
@@ -102,13 +102,13 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
 
     @Override
     public <K, V> Optional<TrinityComputationValue<V>> computeInlineIfActive(
-                                                                                 long gridScope,
-                                                                                 TrinityComputationNamespace namespace,
-                                                                                 long revision,
-                                                                                 K key,
-                                                                                 BooleanSupplier lifecycleActive,
-                                                                                 Callable<TrinityCachedComputation<V>> calculation)
-            throws InterruptedException, ExecutionException {
+                                                                             long gridScope,
+                                                                             TrinityComputationNamespace namespace,
+                                                                             long revision,
+                                                                             K key,
+                                                                             BooleanSupplier lifecycleActive,
+                                                                             Callable<TrinityCachedComputation<V>> calculation)
+                                                                                                                                throws InterruptedException, ExecutionException {
         validateRequest(gridScope, namespace, revision, key, calculation);
         if (lifecycleActive == null) {
             throw new IllegalArgumentException("A guarded Trinity computation requires a lifecycle check");
@@ -272,11 +272,11 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private static <K, V> void validateRequest(
-                                                  long gridScope,
-                                                  TrinityComputationNamespace namespace,
-                                                  long revision,
-                                                  K key,
-                                                  Callable<TrinityCachedComputation<V>> calculation) {
+                                               long gridScope,
+                                               TrinityComputationNamespace namespace,
+                                               long revision,
+                                               K key,
+                                               Callable<TrinityCachedComputation<V>> calculation) {
         if (gridScope < 0L || namespace == null || key == null || calculation == null) {
             throw new IllegalArgumentException("A Trinity computation cache request is incomplete");
         }
@@ -303,10 +303,10 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private static void removeObsoleteEntries(
-                                                  Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> entries,
-                                                  TrinityComputationNamespace.RevisionDomain revisionDomain,
-                                                  long currentRevision,
-                                                  List<CacheEntry<?>> cancelled) {
+                                              Iterator<Map.Entry<ScopedKey, CacheEntry<?>>> entries,
+                                              TrinityComputationNamespace.RevisionDomain revisionDomain,
+                                              long currentRevision,
+                                              List<CacheEntry<?>> cancelled) {
         while (entries.hasNext()) {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = entries.next();
             if (isObsolete(mapped.getKey(), revisionDomain, currentRevision)) {
@@ -366,9 +366,9 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     private static <V> TrinityComputationLookup<V> lookup(
-                                                            CacheEntry<V> entry,
-                                                            boolean cacheHit,
-                                                            boolean registered) {
+                                                          CacheEntry<V> entry,
+                                                          boolean cacheHit,
+                                                          boolean registered) {
         CompletableFuture<V> callerFuture = new CompletableFuture<>();
         entry.result.whenComplete((value, failure) -> {
             if (failure == null) {
@@ -505,8 +505,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         private final long gridScope;
         private final LinkedHashMap<ScopedKey, CacheEntry<?>> entries = new LinkedHashMap<>(16, 0.75F, true);
         private final Map<ScopedKey, CacheEntry<?>> bypassEntries = new HashMap<>();
-        private final Map<TrinityComputationNamespace.RevisionDomain, Long> currentRevisions =
-                new EnumMap<>(TrinityComputationNamespace.RevisionDomain.class);
+        private final Map<TrinityComputationNamespace.RevisionDomain, Long> currentRevisions = new EnumMap<>(TrinityComputationNamespace.RevisionDomain.class);
 
         private GridPartition(long gridScope) {
             this.gridScope = gridScope;
