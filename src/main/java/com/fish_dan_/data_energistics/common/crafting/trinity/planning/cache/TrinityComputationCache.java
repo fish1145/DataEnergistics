@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.function.BooleanSupplier;
 
 /**
  * Shares immutable Trinity calculations within a server lifetime without sharing caller cancellation.
@@ -71,12 +73,46 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @throws InterruptedException when this worker is interrupted while waiting on another cache owner
      * @throws ExecutionException   when the bottom calculation fails
      */
-    <K, V> TrinityComputationValue<V> computeInline(
-                                                       long gridScope,
-                                                       TrinityComputationNamespace namespace,
-                                                       long revision,
-                                                       K key,
-                                                       Callable<TrinityCachedComputation<V>> calculation)
+    default <K, V> TrinityComputationValue<V> computeInline(
+                                                               long gridScope,
+                                                               TrinityComputationNamespace namespace,
+                                                               long revision,
+                                                               K key,
+                                                               Callable<TrinityCachedComputation<V>> calculation)
+            throws InterruptedException, ExecutionException {
+        return computeInlineIfActive(
+                gridScope,
+                namespace,
+                revision,
+                key,
+                () -> true,
+                calculation).orElseThrow(() -> new IllegalStateException(
+                        "An unconditional Trinity inline computation was not admitted"));
+    }
+
+    /**
+     * Atomically checks caller lifecycle and joins or creates an inline cache entry under the cache lock. The guard
+     * prevents work that outlives an unloaded Grid from recreating its cleared partition.
+     *
+     * @param gridScope       immutable Grid publication scope
+     * @param namespace       computation namespace
+     * @param revision        publication revision, or {@link #SEMANTIC_REVISION} for semantic namespaces
+     * @param key             complete immutable semantic key
+     * @param lifecycleActive true while the caller may still publish work for this Grid
+     * @param calculation     bottom-level pure calculation executed only by the cache miss owner
+     * @param <K>             key type
+     * @param <V>             result type
+     * @return empty when lifecycle admission is denied, otherwise immutable value and cache-selection metadata
+     * @throws InterruptedException when this worker is interrupted while waiting on another cache owner
+     * @throws ExecutionException   when the bottom calculation fails
+     */
+    <K, V> Optional<TrinityComputationValue<V>> computeInlineIfActive(
+                                                                         long gridScope,
+                                                                         TrinityComputationNamespace namespace,
+                                                                         long revision,
+                                                                         K key,
+                                                                         BooleanSupplier lifecycleActive,
+                                                                         Callable<TrinityCachedComputation<V>> calculation)
             throws InterruptedException, ExecutionException;
 
     /**

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerProposalCoordinator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.shard.ProviderShardDispatcher;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCaptureKey;
@@ -28,9 +29,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -90,7 +93,7 @@ public final class TrinityDispatchRuntimeTest {
         CountDownLatch running = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         DispatchProposalCandidatePlanner delegate = createCandidatePlanner();
-        DispatchProposalCandidatePlanner blockingPlanner = request -> {
+        DispatchProposalCandidatePlanner blockingPlanner = (request, lifecycleActive) -> {
             running.countDown();
             try {
                 if (!release.await(5L, TimeUnit.SECONDS)) {
@@ -100,7 +103,7 @@ public final class TrinityDispatchRuntimeTest {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Dispatch proposal worker was interrupted", exception);
             }
-            return delegate.plan(request);
+            return delegate.plan(request, lifecycleActive);
         };
         DispatchProposalSchedulerImpl scheduler = new DispatchProposalSchedulerImpl(
                 new DispatchProposalLimits(1, 2, 4, 16),
@@ -244,9 +247,9 @@ public final class TrinityDispatchRuntimeTest {
     void busyCandidateFallsThroughWithOneImmutablePlannerPass() {
         AtomicInteger plannerCalls = new AtomicInteger();
         DispatchProposalCandidatePlanner delegate = createCandidatePlanner();
-        DispatchProposalCandidatePlanner countingPlanner = request -> {
+        DispatchProposalCandidatePlanner countingPlanner = (request, lifecycleActive) -> {
             plannerCalls.incrementAndGet();
-            return delegate.plan(request);
+            return delegate.plan(request, lifecycleActive);
         };
         ProviderShardDispatcher dispatcher = ProviderShardDispatcher.create(4);
         UUID runtimeId = UUID.randomUUID();
@@ -404,7 +407,29 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void clearingOneGridReleasesItsReservationsWithoutCancellingOtherGrids() throws InterruptedException {
-        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 4, 4, 16));
+        TrinityComputationCache cache = createComputationCache();
+        DispatchProposalCandidatePlanner delegate = DispatchProposalCandidatePlanner.create(() -> cache);
+        CountDownLatch lateLookupEntered = new CountDownLatch(1);
+        CountDownLatch lateLookupFinished = new CountDownLatch(1);
+        CompletableFuture<Void> releaseLateLookup = new CompletableFuture<>();
+        AtomicReference<DispatchProposalCandidatePlan> latePlan = new AtomicReference<>();
+        DispatchProposalCandidatePlanner delayedPlanner = (request, lifecycleActive) -> {
+            if (request.lease().workerNumber() != 3) {
+                return delegate.plan(request, lifecycleActive);
+            }
+            lateLookupEntered.countDown();
+            releaseLateLookup.join();
+            try {
+                DispatchProposalCandidatePlan plan = delegate.plan(request, lifecycleActive);
+                latePlan.set(plan);
+                return plan;
+            } finally {
+                lateLookupFinished.countDown();
+            }
+        };
+        DispatchProposalScheduler scheduler = new DispatchProposalSchedulerImpl(
+                new DispatchProposalLimits(2, 4, 4, 16),
+                delayedPlanner);
         try {
             UUID runtimeId = UUID.randomUUID();
             MachineTargetId machine = MachineTargetId.forBlockTarget(
@@ -421,13 +446,29 @@ public final class TrinityDispatchRuntimeTest {
             blocked.ticket().close();
 
             scheduler.clearGrid(8L);
+            cache.clearGrid(8L);
             assertInstanceOf(DispatchProposalTicket.Cancelled.class, owner.ticket().state());
             assertEquals(0, scheduler.snapshotAndResetMetrics(8L).outstanding());
 
             DispatchProposalScheduler.Accepted released = submitAndAwait(scheduler, otherGrid);
             assertInstanceOf(DispatchProposalTicket.Ready.class, released.ticket().state());
             released.ticket().close();
+
+            CraftingDispatchProposalRequest lateRequest = request(8L, runtimeId, 3, 0L, 1L, Optional.of(machine));
+            DispatchProposalScheduler.Accepted late = assertInstanceOf(
+                    DispatchProposalScheduler.Accepted.class,
+                    scheduler.submit(lateRequest, () -> {}));
+            assertTrue(lateLookupEntered.await(5L, TimeUnit.SECONDS));
+
+            scheduler.clearGrid(8L);
+            cache.clearGrid(8L);
+            releaseLateLookup.complete(null);
+
+            assertTrue(lateLookupFinished.await(5L, TimeUnit.SECONDS));
+            assertInstanceOf(DispatchProposalTicket.Cancelled.class, late.ticket().state());
+            assertTrue(assertInstanceOf(DispatchProposalCandidatePlan.class, latePlan.get()).candidates().isEmpty());
         } finally {
+            releaseLateLookup.complete(null);
             scheduler.close();
         }
     }

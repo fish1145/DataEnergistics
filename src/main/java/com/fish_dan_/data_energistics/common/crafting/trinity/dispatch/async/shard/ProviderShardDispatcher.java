@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchProposalCandidatePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Thread-safe provider shard and machine-target reservation boundary for immutable proposal planning.
  */
@@ -28,10 +30,27 @@ public interface ProviderShardDispatcher {
      * @param providerQuantum maximum simultaneous proposals reserving one provider
      * @return reserved selection or explicit no-capacity result
      */
+    default Result selectAndReserve(
+                                     CraftingDispatchProposalRequest request,
+                                     DispatchProposalCandidatePlanner planner,
+                                     int providerQuantum) {
+        return selectAndReserve(request, planner, providerQuantum, () -> true);
+    }
+
+    /**
+     * Selects and reserves only while the owning proposal ticket remains active.
+     *
+     * @param request         immutable worker request
+     * @param planner         cached pure proposal candidate planner
+     * @param providerQuantum maximum simultaneous proposals reserving one provider
+     * @param lifecycleActive true while candidate cache work may be retained
+     * @return reserved selection or explicit no-capacity result
+     */
     Result selectAndReserve(
                              CraftingDispatchProposalRequest request,
                              DispatchProposalCandidatePlanner planner,
-                            int providerQuantum);
+                             int providerQuantum,
+                             BooleanSupplier lifecycleActive);
 
     /**
      * Reservation-bearing shard result.
@@ -48,7 +67,7 @@ public interface ProviderShardDispatcher {
                      ProviderCapacitySnapshot target,
                      long logicalCrafts,
                      CraftingDispatchCursor nextCursor,
-                    Reservation reservation)
+                     Reservation reservation)
             implements Result {
 
         public Reserved {

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -198,7 +199,8 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             ProviderShardDispatcher.Result result = this.shardDispatcher.selectAndReserve(
                     request,
                     this.candidatePlanner,
-                    providerQuantum);
+                    providerQuantum,
+                    () -> !ticket.closed());
             switch (result) {
                 case ProviderShardDispatcher.NoCapacity ignored -> ticket.complete(DispatchProposalTicket.NoCapacity.INSTANCE);
                 case ProviderShardDispatcher.Reserved reserved -> {
@@ -209,6 +211,16 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                             reserved.logicalCrafts(),
                             reserved.nextCursor())));
                 }
+            }
+        } catch (CancellationException exception) {
+            if (!ticket.closed()) {
+                failed = true;
+                Data_Energistics.LOGGER.error(
+                        "Trinity dispatch proposal calculation was unexpectedly cancelled for worker {} job {}",
+                        request.lease().workerNumber(),
+                        request.lease().jobId(),
+                        exception);
+                ticket.complete(new DispatchProposalTicket.Failed(exception));
             }
         } catch (RuntimeException exception) {
             failed = true;

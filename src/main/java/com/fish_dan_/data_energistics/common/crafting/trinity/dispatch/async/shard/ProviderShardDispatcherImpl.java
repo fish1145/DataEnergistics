@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
 
 /**
  * Fixed fair-lock shard implementation with counted provider-route and exclusive physical-machine reservations.
@@ -38,18 +39,19 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
     public Result selectAndReserve(
                                    CraftingDispatchProposalRequest request,
                                    DispatchProposalCandidatePlanner planner,
-                                   int providerQuantum) {
+                                   int providerQuantum,
+                                   BooleanSupplier lifecycleActive) {
         if (request == null) {
             throw new IllegalArgumentException("Provider shard request must not be null");
         }
-        if (planner == null) {
-            throw new IllegalArgumentException("Provider shard capacity planner must not be null");
+        if (planner == null || lifecycleActive == null) {
+            throw new IllegalArgumentException("Provider shard planner and lifecycle must not be null");
         }
         if (providerQuantum <= 0) {
             throw new IllegalArgumentException("Provider shard proposal quantum must be positive");
         }
 
-        DispatchProposalCandidatePlan candidatePlan = planner.plan(request);
+        DispatchProposalCandidatePlan candidatePlan = planner.plan(request, lifecycleActive);
         for (DispatchProposalCandidatePlan.Candidate candidate : candidatePlan.candidates()) {
             ProviderCapacitySnapshot target = candidate.target();
             ProviderShard shard = this.shards[shardIndex(target.providerId())];

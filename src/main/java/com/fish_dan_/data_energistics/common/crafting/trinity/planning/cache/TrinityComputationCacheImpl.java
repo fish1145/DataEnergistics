@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 /**
  * Access-order LRU implementation with pinned in-flight entries and lifecycle-aware bypass tasks.
@@ -99,14 +101,18 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     }
 
     @Override
-    public <K, V> TrinityComputationValue<V> computeInline(
-                                                              long gridScope,
-                                                              TrinityComputationNamespace namespace,
-                                                              long revision,
-                                                              K key,
-                                                              Callable<TrinityCachedComputation<V>> calculation)
+    public <K, V> Optional<TrinityComputationValue<V>> computeInlineIfActive(
+                                                                                 long gridScope,
+                                                                                 TrinityComputationNamespace namespace,
+                                                                                 long revision,
+                                                                                 K key,
+                                                                                 BooleanSupplier lifecycleActive,
+                                                                                 Callable<TrinityCachedComputation<V>> calculation)
             throws InterruptedException, ExecutionException {
         validateRequest(gridScope, namespace, revision, key, calculation);
+        if (lifecycleActive == null) {
+            throw new IllegalArgumentException("A guarded Trinity computation requires a lifecycle check");
+        }
 
         CacheEntry<V> entry;
         boolean cacheHit;
@@ -115,6 +121,9 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
         List<CacheEntry<?>> cancelled = new ArrayList<>();
         synchronized (this.cacheLock) {
             requireOpen();
+            if (!lifecycleActive.getAsBoolean()) {
+                return Optional.empty();
+            }
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
             staleRevision = advanceRevision(partition, namespace, revision, cancelled);
@@ -153,7 +162,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             entry.execution.run();
         }
         try {
-            return new TrinityComputationValue<>(entry.result.get(), cacheHit, registered);
+            return Optional.of(new TrinityComputationValue<>(entry.result.get(), cacheHit, registered));
         } catch (ExecutionException exception) {
             if (exception.getCause() instanceof Error error) {
                 throw error;

@@ -13,6 +13,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** Cache implementation that separates immutable candidate calculation from mutable shard reservation. */
@@ -28,19 +29,27 @@ final class DispatchProposalCandidatePlannerImpl implements DispatchProposalCand
     }
 
     @Override
-    public DispatchProposalCandidatePlan plan(CraftingDispatchProposalRequest request) {
+    public DispatchProposalCandidatePlan plan(
+                                               CraftingDispatchProposalRequest request,
+                                               BooleanSupplier lifecycleActive) {
+        if (request == null || lifecycleActive == null) {
+            throw new IllegalArgumentException("Dispatch proposal candidate planning requires a request and lifecycle");
+        }
         CandidateKey key = new CandidateKey(
                 request.capacity().key(),
                 request.capacity().snapshots(),
                 request.remainingCrafts(),
                 request.cursor());
         try {
-            return this.cache.get().computeInline(
-                    key.captureKey().gridScope(),
-                    TrinityComputationNamespace.PROPOSAL_CANDIDATE,
-                    key.captureKey().capacityEpoch(),
-                    key,
-                    () -> TrinityCachedComputation.cacheable(calculate(key))).value();
+            return this.cache.get().computeInlineIfActive(
+                            key.captureKey().gridScope(),
+                            TrinityComputationNamespace.PROPOSAL_CANDIDATE,
+                            key.captureKey().capacityEpoch(),
+                            key,
+                            lifecycleActive,
+                            () -> TrinityCachedComputation.cacheable(calculate(key)))
+                    .map(value -> value.value())
+                    .orElseGet(() -> new DispatchProposalCandidatePlan(List.of()));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Dispatch proposal candidate cache wait was interrupted", exception);
