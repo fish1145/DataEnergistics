@@ -63,6 +63,13 @@ public interface DispatchProposalScheduler extends AutoCloseable {
     DispatchProposalMetrics snapshotAndResetMetrics(long gridGeneration);
 
     /**
+     * Cancels every unconsumed proposal owned by one unloaded Grid and releases its provider reservations.
+     *
+     * @param gridGeneration unloaded Grid publication scope
+     */
+    void clearGrid(long gridGeneration);
+
+    /**
      * Cancels all outstanding tickets and stops the independent executor.
      */
     @Override

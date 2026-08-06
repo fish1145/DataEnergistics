@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -155,6 +156,23 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     }
 
     @Override
+    public void clearGrid(long gridGeneration) {
+        if (gridGeneration <= 0L) {
+            throw new IllegalArgumentException("Dispatch proposal Grid generation must be positive");
+        }
+        List<TicketImpl> gridTickets;
+        synchronized (this.admissionLock) {
+            gridTickets = this.tickets.stream()
+                    .filter(ticket -> ticket.lease.gridGeneration() == gridGeneration)
+                    .toList();
+        }
+        gridTickets.forEach(TicketImpl::close);
+        synchronized (this.admissionLock) {
+            this.metricsByGrid.remove(gridGeneration);
+        }
+    }
+
+    @Override
     public void close() {
         Set<TicketImpl> closing;
         synchronized (this.admissionLock) {
@@ -204,10 +222,12 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
             failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
             synchronized (this.admissionLock) {
-                metrics(request.lease().gridGeneration()).recordCompleted(
-                        queueWaitNanos,
-                        calculationNanos,
-                        failed);
+                if (!ticket.closed()) {
+                    metrics(request.lease().gridGeneration()).recordCompleted(
+                            queueWaitNanos,
+                            calculationNanos,
+                            failed);
+                }
             }
         }
     }
@@ -410,6 +430,10 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
 
         private boolean wakeupFailed() {
             return this.wakeupFailed.get();
+        }
+
+        private boolean closed() {
+            return this.closed.get();
         }
 
         private void attachReservation(ProviderShardDispatcher.Reservation reservation) {

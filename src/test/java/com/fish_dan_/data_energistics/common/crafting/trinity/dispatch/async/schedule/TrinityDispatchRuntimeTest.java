@@ -402,6 +402,36 @@ public final class TrinityDispatchRuntimeTest {
         }
     }
 
+    @Test
+    void clearingOneGridReleasesItsReservationsWithoutCancellingOtherGrids() throws InterruptedException {
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 4, 4, 16));
+        try {
+            UUID runtimeId = UUID.randomUUID();
+            MachineTargetId machine = MachineTargetId.forBlockTarget(
+                    Level.OVERWORLD,
+                    new BlockPos(12, 13, 14),
+                    Direction.UP);
+            CraftingDispatchProposalRequest firstGrid = request(8L, runtimeId, 1, 0L, 1L, Optional.of(machine));
+            CraftingDispatchProposalRequest otherGrid = request(9L, runtimeId, 2, 0L, 1L, Optional.of(machine));
+
+            DispatchProposalScheduler.Accepted owner = submitAndAwait(scheduler, firstGrid);
+            assertInstanceOf(DispatchProposalTicket.Ready.class, owner.ticket().state());
+            DispatchProposalScheduler.Accepted blocked = submitAndAwait(scheduler, otherGrid);
+            assertInstanceOf(DispatchProposalTicket.NoCapacity.class, blocked.ticket().state());
+            blocked.ticket().close();
+
+            scheduler.clearGrid(8L);
+            assertInstanceOf(DispatchProposalTicket.Cancelled.class, owner.ticket().state());
+            assertEquals(0, scheduler.snapshotAndResetMetrics(8L).outstanding());
+
+            DispatchProposalScheduler.Accepted released = submitAndAwait(scheduler, otherGrid);
+            assertInstanceOf(DispatchProposalTicket.Ready.class, released.ticket().state());
+            released.ticket().close();
+        } finally {
+            scheduler.close();
+        }
+    }
+
     private static CraftingDispatchProposalRequest request(long scope,
                                                            UUID runtimeId,
                                                            int workerNumber,

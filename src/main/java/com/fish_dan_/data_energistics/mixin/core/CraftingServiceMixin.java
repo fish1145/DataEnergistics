@@ -513,6 +513,7 @@ public abstract class CraftingServiceMixin
         }
         long gridScope = data_energistics$craftingProviderPublicationIndex().publicationScope();
         try {
+            TrinityDispatchProposalLifecycle.scheduler().clearGrid(gridScope);
             TrinityPlanningGatewayLifecycle.gateway().clearGrid(gridScope);
             this.dataEnergistics$trinityCraftingGraphRebuilder = null;
             this.dataEnergistics$planningGridCleared = true;
