@@ -80,6 +80,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final TowerDomainEnergyResolver energyResolver = new TowerDomainEnergyResolverImpl();
     private final TowerEnergyTransaction energyTransaction = new TowerEnergyTransactionImpl();
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
+    private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
     private TowerEnergyTransactionResult lastEnergyResult = new TowerEnergyTransactionResult(
             List.of(), 0, 0, 0, false, "");
@@ -92,6 +93,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private long lastEnergyTransactionTick = Long.MIN_VALUE;
     private long lastEnergyFailureLogTick = Long.MIN_VALUE;
     private VirtualChannelCapacity lastCapacity = VirtualChannelCapacity.limited(0);
+    private boolean localNodesCacheValid = true;
     private boolean reconciling;
 
     /**
@@ -120,9 +122,14 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
     @Override
     public List<IGridNode> localNodes() {
+        if (this.localNodesCacheValid) {
+            return this.cachedLocalNodes;
+        }
         ArrayList<Map.Entry<IGridNode, Long>> entries = new ArrayList<>(this.registrationOrders.entrySet());
         entries.sort(Map.Entry.comparingByValue());
-        return entries.stream().map(Map.Entry::getKey).toList();
+        this.cachedLocalNodes = entries.stream().map(Map.Entry::getKey).toList();
+        this.localNodesCacheValid = true;
+        return this.cachedLocalNodes;
     }
 
     @Override
@@ -175,6 +182,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         if (!this.registrationOrders.containsKey(gridNode)) {
             this.registrationOrders.put(gridNode, this.nextRegistrationOrder);
             this.nextRegistrationOrder = Math.incrementExact(this.nextRegistrationOrder);
+            this.localNodesCacheValid = false;
             invalidate(TowerNetworkDomainChange.PHYSICAL_NODE);
         }
     }
@@ -182,6 +190,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     @Override
     public void removeNode(IGridNode gridNode) {
         if (this.registrationOrders.remove(gridNode) != null) {
+            this.localNodesCacheValid = false;
             invalidate(TowerNetworkDomainChange.PHYSICAL_NODE);
         }
     }
