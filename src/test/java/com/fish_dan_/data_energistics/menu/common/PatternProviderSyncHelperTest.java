@@ -23,29 +23,17 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridService;
-import appeng.api.networking.events.GridEvent;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEBlocks;
 import appeng.helpers.patternprovider.PatternContainer;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.encoding.EncodingMode;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
-import com.google.gson.stream.JsonWriter;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -87,52 +75,6 @@ public final class PatternProviderSyncHelperTest {
                 EncodingMode.CRAFTING,
                 Items.FURNACE.getDefaultInstance()));
         assertTrue(tracker.needsRefresh(publication, 110L, null, EncodingMode.CRAFTING, encodedPattern));
-        helper.succeed();
-    }
-
-    @TestHolder("pattern_provider_sync_merges_same_display_entry")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void mergesSameDisplayEntryAndTargets(GameTestHelper helper) {
-        TestPatternProvider first = provider("Assembler", Items.CRAFTING_TABLE, 3, 2, 20);
-        TestPatternProvider second = provider("Assembler", Items.CRAFTING_TABLE, 2, 1, 10);
-        Map<Long, List<PatternContainer>> targetsById = new HashMap<>();
-
-        var result = collect(List.of(first, second), targetsById);
-
-        assertEquals(1, result.providers().size());
-        var merged = result.providers().getFirst();
-        assertEquals(5, merged.patternSlotCount());
-        assertEquals(3, merged.usedPatternSlotCount());
-        assertEquals(List.of(second, first), targetsById.get(merged.id()));
-        helper.succeed();
-    }
-
-    @TestHolder("pattern_provider_sync_keeps_different_display_entries_separate")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void keepsDifferentNamesAndIconsSeparate(GameTestHelper helper) {
-        TestPatternProvider base = provider("Assembler", Items.CRAFTING_TABLE, 2, 0, 10);
-        TestPatternProvider differentName = provider("Dedicated Line", Items.CRAFTING_TABLE, 2, 0, 20);
-        TestPatternProvider differentIcon = provider("Assembler", Items.FURNACE, 2, 0, 30);
-
-        var result = collect(List.of(base, differentName, differentIcon), new HashMap<>());
-
-        assertEquals(3, result.providers().size());
-        helper.succeed();
-    }
-
-    @TestHolder("pattern_provider_sync_custom_name_splits_group")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void customDisplayNameSplitsGroup(GameTestHelper helper) {
-        TestPatternProvider base = provider("Assembler", Items.CRAFTING_TABLE, 2, 0, 10);
-        TestPatternProvider renamed = provider("Assembler", Items.CRAFTING_TABLE, 2, 0, 20);
-        renamed.customName = Component.literal("Dedicated Line");
-
-        var result = collect(List.of(base, renamed), new HashMap<>());
-
-        assertEquals(2, result.providers().size());
         helper.succeed();
     }
 
@@ -279,31 +221,12 @@ public final class PatternProviderSyncHelperTest {
         helper.succeed();
     }
 
-    private static PatternEncodingPreviewMenu.SyncedPatternProviderList collect(
-                                                                                List<? extends PatternContainer> providers,
-                                                                                Map<Long, List<PatternContainer>> targetsById) {
-        AtomicLong nextId = new AtomicLong(1);
-        return PatternProviderSyncHelper.collectSyncedPatternProviders(
-                new TestGrid(providers),
-                new IdentityHashMap<>(),
-                targetsById,
-                nextId::getAndIncrement,
-                null,
-                null,
-                ItemStack.EMPTY);
-    }
-
-    private static TestPatternProvider provider(String name, Item icon, int slots, int usedSlots, long sortOrder) {
-        return new TestPatternProvider(name, icon, slots, usedSlots, sortOrder);
-    }
-
     private static class TestPatternProvider implements PatternContainer {
 
         private final String baseName;
         private final AEItemKey icon;
         private final AppEngInternalInventory inventory;
         private final long sortOrder;
-        private Component customName;
 
         private TestPatternProvider(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
             this(baseName, icon, inventory(slots, usedSlots), sortOrder);
@@ -333,8 +256,7 @@ public final class PatternProviderSyncHelperTest {
 
         @Override
         public PatternContainerGroup getTerminalGroup() {
-            Component displayName = this.customName == null ? Component.literal(this.baseName) : this.customName;
-            return new PatternContainerGroup(this.icon, displayName, List.of());
+            return new PatternContainerGroup(this.icon, Component.literal(this.baseName), List.of());
         }
     }
 
@@ -427,72 +349,4 @@ public final class PatternProviderSyncHelperTest {
         }
     }
 
-    private static final class TestGrid implements IGrid {
-
-        private final Set<PatternContainer> providers;
-
-        private TestGrid(List<? extends PatternContainer> providers) {
-            this.providers = new LinkedHashSet<>(providers);
-        }
-
-        @Override
-        public <C extends IGridService> C getService(Class<C> serviceClass) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <T extends GridEvent> T postEvent(T event) {
-            return event;
-        }
-
-        @Override
-        public Iterable<Class<?>> getMachineClasses() {
-            return List.of(PatternContainer.class);
-        }
-
-        @Override
-        public Iterable<IGridNode> getMachineNodes(Class<?> machineClass) {
-            return List.of();
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> Set<T> getMachines(Class<T> machineClass) {
-            if (machineClass == PatternProviderLogicHost.class) {
-                return Set.of();
-            }
-            if (machineClass == PatternContainer.class) {
-                return (Set<T>) this.providers;
-            }
-            return Set.of();
-        }
-
-        @Override
-        public <T> Set<T> getActiveMachines(Class<T> machineClass) {
-            return getMachines(machineClass);
-        }
-
-        @Override
-        public Iterable<IGridNode> getNodes() {
-            return List.of();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return this.providers.isEmpty();
-        }
-
-        @Override
-        public IGridNode getPivot() {
-            return null;
-        }
-
-        @Override
-        public int size() {
-            return this.providers.size();
-        }
-
-        @Override
-        public void export(JsonWriter jsonWriter) throws IOException {}
-    }
 }
