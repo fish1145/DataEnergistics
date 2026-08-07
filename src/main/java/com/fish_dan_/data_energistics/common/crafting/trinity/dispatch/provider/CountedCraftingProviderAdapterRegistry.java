@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderRegistration;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import org.jetbrains.annotations.Nullable;
@@ -16,11 +15,16 @@ interface CountedCraftingProviderAdapterRegistry {
      *
      * @param provider provider identity owning the adapter
      * @param adapter  counted dispatch adapter
-     * @return lifecycle handle for unregistering the exact entry
      */
-    CountedCraftingProviderRegistration register(
-                                                 ICraftingProvider provider,
-                                                 CountedCraftingProviderAdapter adapter);
+    void register(ICraftingProvider provider, CountedCraftingProviderAdapter adapter);
+
+    /**
+     * Removes the exact provider and adapter pair and advances the mutation revision once.
+     *
+     * @param provider provider identity owning the adapter
+     * @param adapter  exact current adapter
+     */
+    void unregister(ICraftingProvider provider, CountedCraftingProviderAdapter adapter);
 
     /**
      * Finds the adapter registered for the exact provider identity.

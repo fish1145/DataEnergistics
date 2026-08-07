@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderRegistration;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
@@ -26,10 +25,13 @@ public final class CountedCraftingProviderAdapters {
     /**
      * Registers one external adapter selected by the frozen provider plugin registry.
      */
-    public static CountedCraftingProviderRegistration register(
-                                                                ICraftingProvider provider,
-                                                                CountedCraftingProviderAdapter adapter) {
-        return REGISTRY.register(provider, adapter);
+    public static void register(ICraftingProvider provider, CountedCraftingProviderAdapter adapter) {
+        REGISTRY.register(provider, adapter);
+    }
+
+    /** Removes the exact adapter owned by a provider plugin lifecycle. */
+    public static void unregister(ICraftingProvider provider, CountedCraftingProviderAdapter adapter) {
+        REGISTRY.unregister(provider, adapter);
     }
 
     /**
