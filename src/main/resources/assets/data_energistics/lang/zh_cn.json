@@ -772,5 +772,6 @@
 	"message.data_energistics.pattern_upload.time": "，时间：",
 	"message.data_energistics.pattern_upload.location_unavailable": "，位置不可用",
 	"message.data_energistics.pattern_upload.coordinates_hover": "点击填入传送指令",
-	"message.data_energistics.pattern_upload.dimension_hover": "点击填入包含维度的传送指令"
+	"message.data_energistics.pattern_upload.dimension_hover": "点击填入包含维度的传送指令",
+	"data_energistics.pattern_transfer.context_unavailable": "配方查看器的配方类别或工作站上下文不可用"
 }

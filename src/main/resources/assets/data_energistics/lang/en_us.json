@@ -772,5 +772,6 @@
 	"message.data_energistics.pattern_upload.time": ", time: ",
 	"message.data_energistics.pattern_upload.location_unavailable": ", location unavailable",
 	"message.data_energistics.pattern_upload.coordinates_hover": "Click to fill the teleport command",
-	"message.data_energistics.pattern_upload.dimension_hover": "Click to fill the cross-dimension teleport command"
+	"message.data_energistics.pattern_upload.dimension_hover": "Click to fill the cross-dimension teleport command",
+	"data_energistics.pattern_transfer.context_unavailable": "Recipe viewer category/workstation context is unavailable"
 }
