@@ -75,10 +75,8 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         long unavailable = collectSourceOnlyAllocationsLong(endpoints, amountNeeded, sources);
         unavailable = collectBidirectionalAllocationsLong(endpoints, targets, unavailable, sources);
         long transferAmount = Math.subtractExact(amountNeeded, unavailable);
-        return transferAmount == 0
-                ? TowerEnergyEqualizationPlan.empty()
-                : new TowerEnergyEqualizationPlan(
-                        sources, limitSinkAllocations(sinks, BigInteger.valueOf(transferAmount)));
+        return transferAmount == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(
+                sources, limitSinkAllocations(sinks, BigInteger.valueOf(transferAmount)));
     }
 
     /**
@@ -110,9 +108,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         BigInteger unavailable = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
         unavailable = collectBidirectionalAllocations(endpoints, targets, unavailable, sources);
         BigInteger transferAmount = amountNeeded.subtract(unavailable);
-        return transferAmount.signum() == 0
-                ? TowerEnergyEqualizationPlan.empty()
-                : new TowerEnergyEqualizationPlan(sources, limitSinkAllocations(sinks, transferAmount));
+        return transferAmount.signum() == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(sources, limitSinkAllocations(sinks, transferAmount));
     }
 
     /**
@@ -649,8 +645,8 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * Reduces bounded sink requests proportionally when current source budgets cannot satisfy all ideal deficits.
      */
     private static List<TowerEnergySinkAllocation> limitSinkAllocations(
-                                                                         List<TowerEnergySinkAllocation> sinks,
-                                                                         BigInteger transferAmount) {
+                                                                        List<TowerEnergySinkAllocation> sinks,
+                                                                        BigInteger transferAmount) {
         BigInteger requestedTotal = sumSinkAmounts(sinks);
         if (transferAmount.equals(requestedTotal)) {
             return sinks;

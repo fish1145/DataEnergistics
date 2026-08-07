@@ -5,19 +5,19 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 /**
  * Frozen scalar state of one tower energy endpoint used by the equalization planner.
  *
- * @param endpoint  stable endpoint identity
- * @param stored    FE stored when the snapshot was captured
- * @param capacity  maximum FE the endpoint can store
+ * @param endpoint    stable endpoint identity
+ * @param stored      FE stored when the snapshot was captured
+ * @param capacity    maximum FE the endpoint can store
  * @param extractable maximum FE the endpoint can provide in this transaction
- * @param receivable maximum FE the endpoint can accept in this transaction
- * @param direction transfer permissions captured with the scalar state
+ * @param receivable  maximum FE the endpoint can accept in this transaction
+ * @param direction   transfer permissions captured with the scalar state
  */
 public record TowerEnergyEndpointSnapshot(TowerEnergyEndpointId endpoint,
-                                           long stored,
-                                           long capacity,
-                                           long extractable,
-                                           long receivable,
-                                           TowerEnergyDirection direction) {
+                                          long stored,
+                                          long capacity,
+                                          long extractable,
+                                          long receivable,
+                                          TowerEnergyDirection direction) {
 
     /**
      * Creates an unrestricted snapshot for callers that only model scalar state.
@@ -43,12 +43,12 @@ public record TowerEnergyEndpointSnapshot(TowerEnergyEndpointId endpoint,
     /**
      * Validates the energy bounds and required endpoint metadata at the snapshot boundary.
      *
-     * @param endpoint  stable endpoint identity
-     * @param stored    FE stored when the snapshot was captured
-     * @param capacity  maximum FE the endpoint can store
+     * @param endpoint    stable endpoint identity
+     * @param stored      FE stored when the snapshot was captured
+     * @param capacity    maximum FE the endpoint can store
      * @param extractable maximum FE the endpoint can provide in this transaction
-     * @param receivable maximum FE the endpoint can accept in this transaction
-     * @param direction transfer permissions captured with the scalar state
+     * @param receivable  maximum FE the endpoint can accept in this transaction
+     * @param direction   transfer permissions captured with the scalar state
      */
     public TowerEnergyEndpointSnapshot {
         if (stored < 0) {

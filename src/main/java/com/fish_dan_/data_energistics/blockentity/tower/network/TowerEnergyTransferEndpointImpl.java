@@ -194,18 +194,12 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         }
         long transferred;
         if (brandonsCoreStorage) {
-            transferred = inserting
-                    ? this.brandonsCore.insert(storage, available, true)
-                    : this.brandonsCore.extract(storage, available, true);
+            transferred = inserting ? this.brandonsCore.insert(storage, available, true) : this.brandonsCore.extract(storage, available, true);
         } else {
-            transferred = inserting
-                    ? this.unlimitedEnergy.insert(storage, available, true)
-                    : this.unlimitedEnergy.extract(storage, available, true);
+            transferred = inserting ? this.unlimitedEnergy.insert(storage, available, true) : this.unlimitedEnergy.extract(storage, available, true);
             if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
                 long publicRequest = Math.min(available, Integer.MAX_VALUE);
-                transferred = inserting
-                        ? receiveThroughCapability(storage, publicRequest, true)
-                        : extractThroughCapability(storage, publicRequest, true);
+                transferred = inserting ? receiveThroughCapability(storage, publicRequest, true) : extractThroughCapability(storage, publicRequest, true);
                 return validateResult(inserting ? "capture insertion budget" : "capture extraction budget",
                         publicRequest,
                         transferred);
