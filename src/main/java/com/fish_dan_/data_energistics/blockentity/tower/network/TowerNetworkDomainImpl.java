@@ -209,6 +209,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         boolean safetyRescanDue = this.lastSafetyRescanTick == Long.MIN_VALUE || gameTime - this.lastSafetyRescanTick >= SAFETY_RESCAN_INTERVAL_TICKS;
         boolean reconcileDue = this.reconciledRevision != this.revision || this.lastPhysicalUsage != physicalUsage || this.lastOwnershipRevision != ownershipRevision || !this.lastCapacity.equals(capacity) || safetyRescanDue;
         if (reconcileDue) {
+            long reconciliationRevision = this.revision;
             this.reconciling = true;
             try {
                 dataEnergistics$reconcile(capacity, physicalUsage, gameTime);
@@ -216,7 +217,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                 this.lastPhysicalUsage = physicalUsage;
                 this.lastOwnershipRevision = TowerGridOwnershipRegistry.revision(server);
                 this.lastSafetyRescanTick = gameTime;
-                this.reconciledRevision = this.revision;
+                this.reconciledRevision = reconciliationRevision;
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error("Failed to reconcile tower network domain for {}", this.grid, exception);
                 this.lastSafetyRescanTick = gameTime;
