@@ -92,9 +92,6 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
                                                boolean doTransfer) {
         MultiblockRecipeView view;
         try {
-            if (recipe == null) {
-                throw new IllegalArgumentException("JEI multiblock recipe source cannot be null");
-            }
             ResourceLocation registeredRecipeId = recipe.registeredRecipeId();
             view = recipe.currentRecipeView();
             if (view == null) {
