@@ -496,6 +496,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         orderedTowers.sort(Comparator.comparing(TowerNetworkParticipant::towerKey));
         ArrayList<TowerWork> result = new ArrayList<>(orderedTowers.size());
         Map<TargetResolutionKey, TowerTargetResolution> resolutionCache = new HashMap<>();
+        TowerAeTargetResolver.ResolutionRound resolutionRound = this.targetResolver.beginResolutionRound();
         for (TowerNetworkParticipant participant : orderedTowers) {
             Set<EnergyLocationKey> energyLocations = new HashSet<>();
             if (participant.towerAllowsFe()) {
@@ -520,7 +521,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                             participant.towerLevel().dimension().location(), binding.anchor(), discoveryMode);
                     resolution = resolutionCache.computeIfAbsent(
                             resolutionKey,
-                            ignored -> this.targetResolver.resolve(
+                            ignored -> resolutionRound.resolve(
                                     participant.towerLevel(), binding.anchor(), this.grid, discoveryMode));
                 }
                 boolean hasEnergyEndpoint = energyLocations.contains(
