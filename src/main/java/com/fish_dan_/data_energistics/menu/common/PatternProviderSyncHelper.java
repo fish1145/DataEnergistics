@@ -3,9 +3,12 @@ package com.fish_dan_.data_energistics.menu.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitContext;
+import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
-import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
@@ -17,7 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.fml.ModList;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
@@ -39,6 +41,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
@@ -51,7 +54,6 @@ public final class PatternProviderSyncHelper {
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
-    private static final String USELESS_MOD_ID = "useless_mod";
     private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
     private static final String NEOECOAE_NAMESPACE = "neoecoae";
     private static final String APPLIED_PNEUMATICS_NAMESPACE = "appliedpneumatics";
@@ -315,7 +317,7 @@ public final class PatternProviderSyncHelper {
         ItemStack reportedRemainder;
         try {
             reportedRemainder = patternInventory.addItems(encodedPattern.copy(), false);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             LOGGER.error("Failed to insert encoded pattern into {}; checking the target inventory for committed patterns",
                     container, exception);
             int committedCount = countCommittedPatternDelta(
@@ -324,7 +326,7 @@ public final class PatternProviderSyncHelper {
                 return encodedPattern;
             }
 
-            notifyCommittedPatternUpload(container, committedCount);
+            notifyCommittedPatternUpload(container, encodedPattern, committedCount);
             return createRemainderAfterCommit(encodedPattern, committedCount);
         }
 
@@ -341,7 +343,7 @@ public final class PatternProviderSyncHelper {
             return encodedPattern;
         }
 
-        notifyCommittedPatternUpload(container, committedCount);
+        notifyCommittedPatternUpload(container, encodedPattern, committedCount);
         return createRemainderAfterCommit(encodedPattern, committedCount);
     }
 
@@ -378,28 +380,53 @@ public final class PatternProviderSyncHelper {
         return remainder;
     }
 
-    private static void notifyCommittedPatternUpload(PatternContainer container, int committedCount) {
+    private static void notifyCommittedPatternUpload(PatternContainer container,
+                                                     ItemStack encodedPattern,
+                                                     int committedCount) {
         if (container instanceof PatternProviderLogicHost providerHost) {
             try {
                 providerHost.getLogic().updatePatterns();
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (RuntimeException exception) {
                 LOGGER.error("Failed to update patterns after committing {} encoded patterns to {}",
                         committedCount, container, exception);
             }
             try {
                 providerHost.saveChanges();
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (RuntimeException exception) {
                 LOGGER.error("Failed to save pattern provider after committing {} encoded patterns to {}",
                         committedCount, container, exception);
             }
         }
-        if (ModList.get().isLoaded(USELESS_MOD_ID)) {
-            try {
-                SomeUselessThingsCompat.afterPatternUpload(container);
-            } catch (RuntimeException | LinkageError exception) {
-                LOGGER.error("Failed to run the post-upload compatibility hook after committing {} encoded patterns to {}",
-                        committedCount, container, exception);
-            }
+
+        Optional<ResolvedProviderBinding> resolved;
+        try {
+            resolved = PatternProviderRuntimeBindings.resolve(container);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to resolve a post-commit provider plugin after committing {} encoded patterns to {}",
+                    committedCount, container, exception);
+            return;
+        }
+        if (resolved.isEmpty()) {
+            return;
+        }
+        ResolvedProviderBinding binding = resolved.get();
+        PatternProviderPostCommitHook hook = binding.registration().postCommitHook();
+        if (hook == null) {
+            return;
+        }
+        try {
+            hook.afterCommit(new PatternProviderPostCommitContext(
+                    container,
+                    binding.identity(),
+                    encodedPattern,
+                    committedCount));
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Pattern provider post-commit hook '{}' failed after committing {} encoded patterns to identity {}",
+                    binding.registration().metadata().registrationId(),
+                    committedCount,
+                    binding.identity(),
+                    exception);
         }
     }
 
