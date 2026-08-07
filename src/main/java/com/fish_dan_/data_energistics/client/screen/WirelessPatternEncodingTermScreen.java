@@ -1320,8 +1320,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     }
 
     private ItemStack getProviderIconStack(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        var item = BuiltInRegistries.ITEM.get(provider.iconItemId());
-        return item == null ? ItemStack.EMPTY : new ItemStack(item);
+        return new ItemStack(BuiltInRegistries.ITEM.get(provider.iconItemId()));
     }
 
     private static Optional<VarHandle> resolveField(Class<?> owner, String name) {

@@ -63,7 +63,7 @@ public final class PatternEncodingClientPreferencesAccess {
             return StableDigest.sha256("singleplayer\0" + worldPath);
         }
         var serverData = minecraft.getCurrentServer();
-        if (serverData == null || serverData.ip == null || serverData.ip.isBlank()) {
+        if (serverData == null || serverData.ip.isBlank()) {
             return null;
         }
         String rawAddress = serverData.ip.trim();

@@ -178,7 +178,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
             guiGraphics.blit(SLOT_TEXTURE, cardX, cardY, 0, 0.0F, 0.0F, CARD_SIZE, CARD_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
 
             if (terminalName != null) {
-                ItemStack icon = entry != null && !entry.stack().isEmpty() ? entry.stack().copy() : UniversalTerminalData.getMenuIcon(terminalName);
+                ItemStack icon = !entry.stack().isEmpty() ? entry.stack().copy() : UniversalTerminalData.getMenuIcon(terminalName);
                 if (!icon.isEmpty()) {
                     guiGraphics.renderItem(icon, cardX + 1, cardY + 1, 0, 20);
                 }

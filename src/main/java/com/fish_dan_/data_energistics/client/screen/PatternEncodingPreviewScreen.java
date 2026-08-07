@@ -1476,8 +1476,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private ItemStack getProviderIconStack(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        var item = BuiltInRegistries.ITEM.get(provider.iconItemId());
-        return item == null ? ItemStack.EMPTY : new ItemStack(item);
+        return new ItemStack(BuiltInRegistries.ITEM.get(provider.iconItemId()));
     }
 
     private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}
