@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitContext;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
@@ -562,7 +563,7 @@ public final class PatternProviderSyncHelper {
                 container.getTerminalSortOrder(),
                 displayName,
                 iconItemId,
-                resolveSpecialAggregationKey(container, displayName, iconItemId),
+                resolveProviderAggregationKey(container, providerId),
                 shouldUseAeButtonStyle(container),
                 renameable,
                 patternInventory.size(),
@@ -711,10 +712,10 @@ public final class PatternProviderSyncHelper {
         List<PatternProviderAggregationEntry> sortedProviders = new ArrayList<>(discoveredProviders);
         sortedProviders.sort(createDiscoveredProviderComparator(primaryWorkbenchOrdering, leafClickCounts));
 
-        Map<String, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
+        Map<PatternProviderAggregationKey, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
 
         for (var provider : sortedProviders) {
-            String key = getAggregationKey(provider);
+            PatternProviderAggregationKey key = provider.aggregationKey();
             var aggregated = aggregatedProvidersByKey.get(key);
             if (aggregated == null) {
                 aggregated = new AggregatedPatternProvider(provider);
@@ -770,29 +771,30 @@ public final class PatternProviderSyncHelper {
                 .thenComparing(provider -> provider.displayName().getString());
     }
 
-    private static String getAggregationKey(PatternProviderAggregationEntry provider) {
-        if (provider.specialAggregationKey() != null) {
-            return provider.specialAggregationKey();
+    private static PatternProviderAggregationKey resolveProviderAggregationKey(PatternContainer container,
+                                                                                long providerId) {
+        try {
+            Optional<ResolvedProviderBinding> resolved = PatternProviderRuntimeBindings.resolve(container);
+            if (resolved.isPresent()) {
+                var metadata = resolved.get().registration().metadata();
+                return new PatternProviderAggregationKey.Registered(
+                        metadata.registrationId(), metadata.providerIdentity());
+            }
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not resolve plugin identity for pattern provider {}; isolating its display row",
+                    container, exception);
+            return new PatternProviderAggregationKey.Leaf(providerId);
         }
-        return provider.iconItemId() + "|" + provider.displayName().getString();
-    }
 
-    @Nullable
-    private static String resolveSpecialAggregationKey(PatternContainer container, Component displayName,
-                                                       ResourceLocation iconItemId) {
-        if (isAssemblerMatrixPatternContainer(container)) {
-            return "extendedae:assembler_matrix";
+        try {
+            return ProviderIdentityDescriptor.from(PROVIDER_IDENTITY_RESOLVER.resolve(container))
+                    .<PatternProviderAggregationKey>map(PatternProviderAggregationKey.Core::new)
+                    .orElseGet(() -> new PatternProviderAggregationKey.Leaf(providerId));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not resolve core identity for pattern provider {}; isolating its display row",
+                    container, exception);
+            return new PatternProviderAggregationKey.Leaf(providerId);
         }
-        if (isNeoEcoCraftingSubsystemIdentity(container, displayName, iconItemId)) {
-            Integer tier = resolveNeoEcoCraftingSubsystemTier(container, displayName, iconItemId);
-            return tier == null ? "neoecoae:crafting_system" : "neoecoae:crafting_system:F" + tier;
-        }
-        return null;
-    }
-
-    private static boolean isAssemblerMatrixPatternProvider(PatternProviderAggregationEntry provider) {
-        return provider.container().getClass().getSimpleName().equals("TileAssemblerMatrixPattern") ||
-                isAssemblerMatrixPlusIcon(provider.iconItemId());
     }
 
     @Nullable
@@ -1833,7 +1835,7 @@ public final class PatternProviderSyncHelper {
                                            long sortOrder,
                                            Component displayName,
                                            ResourceLocation iconItemId,
-                                           @Nullable String specialAggregationKey,
+                                           PatternProviderAggregationKey aggregationKey,
                                            boolean useAeButtonStyle,
                                            boolean renameable,
                                            int patternSlotCount,
@@ -1841,28 +1843,16 @@ public final class PatternProviderSyncHelper {
                                            int workbenchLinePriority,
                                            int recordedDeviceScore,
                                            int preferredScore,
-                                           String providerDigest) {
+                                           String providerDigest) {}
 
-        /**
-         * Compatibility constructor for callers that do not yet have an explicit leaf digest.
-         */
-        PatternProviderAggregationEntry(PatternContainer container,
-                                        long id,
-                                        long sortOrder,
-                                        Component displayName,
-                                        ResourceLocation iconItemId,
-                                        @Nullable String specialAggregationKey,
-                                        boolean useAeButtonStyle,
-                                        boolean renameable,
-                                        int patternSlotCount,
-                                        int usedPatternSlotCount,
-                                        int workbenchLinePriority,
-                                        int recordedDeviceScore,
-                                        int preferredScore) {
-            this(container, id, sortOrder, displayName, iconItemId, specialAggregationKey, useAeButtonStyle,
-                    renameable, patternSlotCount, usedPatternSlotCount, workbenchLinePriority, recordedDeviceScore,
-                    preferredScore, resolveProviderDigest(container, displayName, iconItemId));
-        }
+    sealed interface PatternProviderAggregationKey {
+
+        record Registered(ResourceLocation registrationId,
+                          ProviderIdentityDescriptor providerIdentity) implements PatternProviderAggregationKey {}
+
+        record Core(ProviderIdentityDescriptor providerIdentity) implements PatternProviderAggregationKey {}
+
+        record Leaf(long providerId) implements PatternProviderAggregationKey {}
     }
 
     private static final class AggregatedPatternProvider {
@@ -1878,7 +1868,6 @@ public final class PatternProviderSyncHelper {
         private int workbenchLinePriority;
         private int recordedDeviceScore;
         private int preferredScore;
-        private int representationPriority;
         private final List<PatternContainer> containers = new ArrayList<>();
         private final Set<String> leafDigests = new LinkedHashSet<>();
 
@@ -1889,7 +1878,6 @@ public final class PatternProviderSyncHelper {
             this.iconItemId = provider.iconItemId();
             this.useAeButtonStyle = provider.useAeButtonStyle();
             this.renameable = provider.renameable();
-            this.representationPriority = getRepresentationPriority(provider);
             this.leafDigests.add(provider.providerDigest());
         }
 
@@ -1915,12 +1903,6 @@ public final class PatternProviderSyncHelper {
             this.preferredScore = Math.max(this.preferredScore, provider.preferredScore());
             this.useAeButtonStyle |= provider.useAeButtonStyle();
             this.renameable &= provider.renameable();
-            int incomingPriority = getRepresentationPriority(provider);
-            if (incomingPriority > this.representationPriority) {
-                this.displayName = provider.displayName();
-                this.iconItemId = provider.iconItemId();
-                this.representationPriority = incomingPriority;
-            }
             this.containers.add(provider.container());
             this.leafDigests.add(provider.providerDigest());
         }
@@ -1989,21 +1971,5 @@ public final class PatternProviderSyncHelper {
             return score;
         }
 
-        private int getRepresentationPriority(PatternProviderAggregationEntry provider) {
-            if (isAssemblerMatrixPatternProvider(provider)) {
-                return 3;
-            }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)) {
-                return 3;
-            }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().equals(NEOECOAE_CRAFTING_SYSTEM_PATH)) {
-                return 2;
-            }
-            if (provider.specialAggregationKey() != null &&
-                    provider.specialAggregationKey().startsWith("neoecoae:crafting_system")) {
-                return 1;
-            }
-            return 0;
-        }
     }
 }
