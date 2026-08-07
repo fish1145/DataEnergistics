@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandi
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,7 +33,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -410,11 +410,13 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
         ArrayList<Map.Entry<EnergyLocationKey, TowerEnergyLocation>> orderedLocations = new ArrayList<>(locations.entrySet());
         orderedLocations.sort(Map.Entry.comparingByKey());
-        Set<IEnergyStorage> seenStorages = new HashSet<>();
+        IdentityHashMap<Object, Integer> endpointIndexesByStorage = new IdentityHashMap<>();
         ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>();
         for (Map.Entry<EnergyLocationKey, TowerEnergyLocation> entry : orderedLocations) {
             for (TowerDomainEnergyEndpoint endpoint : this.energyResolver.resolve(entry.getValue())) {
-                if (seenStorages.add(endpoint.storage())) {
+                Object storageIdentity = endpoint.storageIdentity();
+                if (!endpointIndexesByStorage.containsKey(storageIdentity)) {
+                    endpointIndexesByStorage.put(storageIdentity, endpoints.size());
                     endpoints.add(new TowerEnergyTransferEndpointImpl(endpoint));
                 }
             }
@@ -427,13 +429,23 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     continue;
                 }
                 TowerRuntimeKey towerKey = participant.towerKey();
-                endpoints.add(new TowerAppFluxEnergyTransferEndpointImpl(
+                TowerAppFluxEnergyTransferEndpointImpl appFluxEndpoint = new TowerAppFluxEnergyTransferEndpointImpl(
                         new TowerEnergyEndpointId(
                                 towerKey.dimensionId(),
                                 towerKey.position(),
                                 null,
                                 Integer.MAX_VALUE),
-                        participant.towerEnergyHost()));
+                        participant.towerEnergyHost());
+                Object storageIdentity = AE2FluxIntegration.ownNetworkEnergyStorageIdentity(
+                        participant.towerEnergyHost());
+                Integer existingIndex = storageIdentity == null
+                        ? null
+                        : endpointIndexesByStorage.get(storageIdentity);
+                if (existingIndex == null) {
+                    endpoints.add(appFluxEndpoint);
+                } else {
+                    endpoints.set(existingIndex, appFluxEndpoint);
+                }
                 break;
             }
         }

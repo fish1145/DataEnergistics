@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.blockentity.tower.network;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
@@ -27,6 +29,9 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
      * Stable storage-contract classification, resolved lazily inside the existing transfer failure boundary.
      */
     private Boolean brandonsCoreSupported;
+
+    /** Stable optional Applied Flux wrapper classification for this topology endpoint. */
+    private Boolean appFluxNetworkStorage;
 
     /** Verified typed direct access for standard and explicitly unlimited storages. */
     private final UnlimitedEnergyAccess unlimitedEnergy = new UnlimitedEnergyAccessImpl();
@@ -54,14 +59,22 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
             long capacity;
             long extractable;
             long receivable;
+            long appFluxFree = 0;
             boolean canExtract;
             boolean canReceive;
             boolean brandonsCoreStorage = brandonsCoreSupported(storage);
+            boolean appFluxStorage = appFluxNetworkStorage(storage);
             if (brandonsCoreStorage) {
                 stored = this.brandonsCore.stored(storage);
                 capacity = this.brandonsCore.capacity(storage);
                 canExtract = this.brandonsCore.canExtract(storage);
                 canReceive = this.brandonsCore.canReceive(storage);
+            } else if (appFluxStorage) {
+                stored = AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, Long.MAX_VALUE, true);
+                appFluxFree = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, Long.MAX_VALUE, true);
+                capacity = saturatingAdd(stored, appFluxFree);
+                canExtract = storage.canExtract();
+                canReceive = storage.canReceive();
             } else {
                 EnergySnapshot snapshot = this.unlimitedEnergy.snapshot(storage);
                 stored = snapshot.stored();
@@ -78,8 +91,13 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
                         "Energy endpoint returned invalid frozen state " + stored + "/" + capacity + ": " + description());
             }
             long free = capacity - stored;
-            extractable = canExtract ? captureBudget(storage, stored, false, brandonsCoreStorage) : 0;
-            receivable = canReceive ? captureBudget(storage, free, true, brandonsCoreStorage) : 0;
+            if (appFluxStorage) {
+                extractable = canExtract ? stored : 0;
+                receivable = canReceive ? Math.min(appFluxFree, free) : 0;
+            } else {
+                extractable = canExtract ? captureBudget(storage, stored, false, brandonsCoreStorage) : 0;
+                receivable = canReceive ? captureBudget(storage, free, true, brandonsCoreStorage) : 0;
+            }
             return new TowerEnergyEndpointSnapshot(
                     endpoint(), stored, capacity, extractable, receivable, direction);
         } catch (TowerEnergyTransferException exception) {
@@ -112,6 +130,8 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
             long restored;
             if (brandonsCoreSupported(storage)) {
                 restored = this.brandonsCore.canReceive(storage) ? this.brandonsCore.insert(storage, amount, false) : 0;
+            } else if (appFluxNetworkStorage(storage)) {
+                restored = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, false);
             } else {
                 restored = this.unlimitedEnergy.rollbackExtraction(storage, amount);
                 if (restored == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -171,6 +191,10 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
             long transferred;
             if (brandonsCoreSupported(storage)) {
                 transferred = inserting ? this.brandonsCore.insert(storage, amount, simulate) : this.brandonsCore.extract(storage, amount, simulate);
+            } else if (appFluxNetworkStorage(storage)) {
+                transferred = inserting
+                        ? AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, simulate)
+                        : AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, amount, simulate);
             } else {
                 transferred = inserting ? this.unlimitedEnergy.insert(storage, amount, simulate) : this.unlimitedEnergy.extract(storage, amount, simulate);
                 if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -255,6 +279,17 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         return cached;
     }
 
+    /** Resolves optional Applied Flux wrapper support once for this immutable topology endpoint. */
+    private boolean appFluxNetworkStorage(IEnergyStorage storage) {
+        Boolean cached = this.appFluxNetworkStorage;
+        if (cached == null) {
+            cached = ModFlags.isAppFluxEnergySupportLoaded()
+                    && AE2FluxIntegration.isNetworkEnergyStorage(storage);
+            this.appFluxNetworkStorage = cached;
+        }
+        return cached;
+    }
+
     /** Ensures no capability query can force-load an unloaded chunk. */
     private void requireLoaded() {
         if (!this.endpoint.location().level().isLoaded(this.endpoint.location().position())) {
@@ -276,5 +311,10 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
                     "Energy endpoint returned invalid " + operation + " result " + actual + " for " + requested);
         }
         return actual;
+    }
+
+    /** Adds non-negative energy components without wrapping. */
+    private static long saturatingAdd(long left, long right) {
+        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 }
