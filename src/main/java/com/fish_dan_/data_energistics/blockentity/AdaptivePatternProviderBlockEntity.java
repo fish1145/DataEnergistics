@@ -184,19 +184,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public @Nullable PatternContainerGroup getPrimaryAttachedMachineGroup() {
-        var hostLevel = this.getLevel();
-        if (hostLevel == null) {
-            return null;
-        }
-
-        var hostPos = this.getBlockPos();
-        for (var side : this.getTargets()) {
-            var specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(hostLevel, hostPos.relative(side));
-            if (specialGroup != null) {
-                return specialGroup;
-            }
-        }
-
         var groups = getAdjacentMachineGroups();
         return groups.size() == 1 ? groups.iterator().next() : null;
     }

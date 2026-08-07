@@ -172,19 +172,6 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public @Nullable PatternContainerGroup getPrimaryAttachedMachineGroup() {
-        var blockEntity = this.getBlockEntity();
-        var level = blockEntity != null ? blockEntity.getLevel() : null;
-        var side = this.getSide();
-        if (blockEntity == null || level == null || side == null) {
-            return null;
-        }
-
-        BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        PatternContainerGroup specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
-        if (specialGroup != null) {
-            return specialGroup;
-        }
-
         return getAdjacentMachineGroup();
     }
 

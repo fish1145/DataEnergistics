@@ -29,7 +29,6 @@ import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Set;
 
 public final class AdaptivePatternProviderResolver {
 
@@ -38,23 +37,6 @@ public final class AdaptivePatternProviderResolver {
     private static final int EXTENDED_PATTERN_SLOTS = 36;
     private static final int METEORITE_PATTERN_SLOTS = 63;
     private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
-    private static final String EXTENDEDAE_NAMESPACE = "extendedae";
-    private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
-    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
-    private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
-    private static final Set<String> EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
-            "assembler_matrix_wall",
-            "assembler_matrix_frame",
-            "assembler_matrix_glass",
-            "assembler_matrix_crafter",
-            "assembler_matrix_pattern",
-            "assembler_matrix_speed");
-    private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
-            "assembler_matrix_upload_core",
-            "assembler_matrix_crafter_plus",
-            "assembler_matrix_pattern_plus",
-            "assembler_matrix_speed_plus");
 
     private AdaptivePatternProviderResolver() {}
 
@@ -94,32 +76,6 @@ public final class AdaptivePatternProviderResolver {
     public static boolean isAdvancedAeProviderStack(ItemStack stack) {
         ProviderProfile profile = resolveProviderProfile(stack);
         return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED);
-    }
-
-    @Nullable
-    public static PatternContainerGroup resolveSpecialAdjacentMachineGroup(Level level, BlockPos pos) {
-        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-        if (!isAssemblerMatrixComponent(blockId)) {
-            return null;
-        }
-
-        var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
-        if (speedBlock == null) {
-            speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
-        }
-        if (speedBlock == null) {
-            return null;
-        }
-
-        ItemStack iconStack = speedBlock.asItem().getDefaultInstance();
-        if (iconStack.isEmpty()) {
-            return null;
-        }
-
-        return new PatternContainerGroup(
-                AEItemKey.of(iconStack),
-                Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY),
-                List.of());
     }
 
     public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {
@@ -365,10 +321,6 @@ public final class AdaptivePatternProviderResolver {
             return stack.copy();
         }
         return fallback.copy();
-    }
-
-    private static boolean isAssemblerMatrixComponent(ResourceLocation blockId) {
-        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath())) || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
     }
 
     public enum ProviderKind {
