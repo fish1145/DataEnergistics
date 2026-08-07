@@ -21,7 +21,7 @@ import java.util.UUID;
  * </p>
  */
 public sealed interface ProviderIdentity
-                                          permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
+                                          permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
                                           ProviderIdentity.External, ProviderIdentity.Virtual {
 
     /**
@@ -65,10 +65,6 @@ public sealed interface ProviderIdentity
          * Virtual partition backed by a persistent Trinity pattern core.
          */
         TRINITY(3),
-        /**
-         * ExtendedAE assembler matrix target, distinguished between ordinary and Plus variants.
-         */
-        MATRIX(5),
         /**
          * Provider whose stable identity schema is defined by an external integration.
          */
@@ -260,27 +256,6 @@ public sealed interface ProviderIdentity
         @Override
         public Kind kind() {
             return Kind.TRINITY;
-        }
-    }
-
-    /**
-     * Identity of an assembler matrix target that can receive an encoded pattern.
-     *
-     * @param dimensionId dimension containing the matrix
-     * @param blockPos    immutable matrix position
-     * @param plus        whether the matrix is the ExtendedAE-Plus variant
-     */
-    record Matrix(ResourceLocation dimensionId, BlockPos blockPos, boolean plus) implements ProviderIdentity {
-
-        /** Validates and defensively freezes the matrix location. */
-        public Matrix {
-            dimensionId = Objects.requireNonNull(dimensionId, "dimensionId");
-            blockPos = Objects.requireNonNull(blockPos, "blockPos").immutable();
-        }
-
-        @Override
-        public Kind kind() {
-            return Kind.MATRIX;
         }
     }
 

@@ -15,8 +15,7 @@ import java.util.Optional;
  */
 public sealed interface ProviderIdentityDescriptor
         permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
-        ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.Matrix,
-        ProviderIdentityDescriptor.External {
+        ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
 
     /**
      * Describes block providers implemented by one registered block-entity type.
@@ -51,13 +50,6 @@ public sealed interface ProviderIdentityDescriptor
     }
 
     /**
-     * Describes an ordinary or ExtendedAE-Plus assembler matrix provider family.
-     *
-     * @param plus whether the family is the ExtendedAE-Plus variant
-     */
-    record Matrix(boolean plus) implements ProviderIdentityDescriptor {}
-
-    /**
      * Describes an externally defined provider family without retaining instance-specific canonical fields.
      *
      * @param type          stable provider family identifier
@@ -87,7 +79,6 @@ public sealed interface ProviderIdentityDescriptor
             case ProviderIdentity.Block block -> Optional.of(new Block(block.blockEntityTypeId()));
             case ProviderIdentity.Part part -> Optional.of(new Part(part.partItemId()));
             case ProviderIdentity.Trinity ignored -> Optional.of(Trinity.INSTANCE);
-            case ProviderIdentity.Matrix matrix -> Optional.of(new Matrix(matrix.plus()));
             case ProviderIdentity.External external -> Optional.of(
                     new External(external.type(), external.schemaVersion()));
             case ProviderIdentity.Virtual ignored -> Optional.empty();
