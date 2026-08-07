@@ -24,6 +24,9 @@ import java.util.Set;
  */
 public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction {
 
+    /** Maximum endpoint-level failures retained in one rate-limited grid diagnostic. */
+    private static final int MAX_ISOLATION_DETAILS = 4;
+
     /** Exact planner kept separate from capability mutation. */
     private final TowerEnergyEqualizer equalizer;
 
@@ -48,30 +51,36 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         List<TowerEnergyTransferEndpoint> orderedEndpoints = List.copyOf(endpoints);
         Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById = indexEndpoints(orderedEndpoints);
         ArrayList<TowerEnergyEndpointSnapshot> snapshots = new ArrayList<>(orderedEndpoints.size());
-        try {
-            for (TowerEnergyTransferEndpoint endpoint : orderedEndpoints) {
+        ArrayList<String> isolationDetails = new ArrayList<>(MAX_ISOLATION_DETAILS);
+        int isolatedEndpointCount = 0;
+        for (TowerEnergyTransferEndpoint endpoint : orderedEndpoints) {
+            try {
                 snapshots.add(endpoint.freeze());
+            } catch (RuntimeException exception) {
+                isolatedEndpointCount++;
+                if (isolationDetails.size() < MAX_ISOLATION_DETAILS) {
+                    isolationDetails.add(endpoint.description() + ": " + conciseMessage(exception));
+                }
             }
-        } catch (RuntimeException exception) {
-            return failed(snapshots, 0, 0, 0, false,
-                    "FREEZE_FAILED: " + conciseMessage(exception));
         }
+        String isolationFailure = isolationFailure(isolatedEndpointCount, isolationDetails);
 
         TowerEnergyEqualizationPlan plan;
         try {
             plan = this.equalizer.plan(new TowerEnergyEqualizationSnapshot(snapshots));
         } catch (RuntimeException exception) {
             return failed(snapshots, 0, 0, 0, false,
-                    "PLAN_FAILED: " + conciseMessage(exception));
+                    combineFailures("PLAN_FAILED: " + conciseMessage(exception), isolationFailure));
         }
         long plannedFe = saturatingLong(plan.totalAmount());
         if (plan.isEmpty()) {
-            return new TowerEnergyTransactionResult(snapshots, 0, 0, 0, false, "");
+            return new TowerEnergyTransactionResult(snapshots, 0, 0, 0, false, isolationFailure);
         }
 
         String preflightFailure = preflight(plan, endpointsById);
         if (!preflightFailure.isEmpty()) {
-            return failed(snapshots, plannedFe, 0, 0, false, preflightFailure);
+            return failed(snapshots, plannedFe, 0, 0, false,
+                    combineFailures(preflightFailure, isolationFailure));
         }
 
         Set<TowerEnergyTransferEndpoint> mutatedEndpoints = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -91,7 +100,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                         0,
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
-                        "SOURCE_MUTATION_FAILED: " + endpoint.description() + ": " + conciseMessage(exception));
+                        combineFailures(
+                                "SOURCE_MUTATION_FAILED: " + endpoint.description() + ": " + conciseMessage(exception),
+                                isolationFailure));
             }
             if (extracted > 0) {
                 extractions.add(new Extraction(endpoint, extracted));
@@ -107,7 +118,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                         0,
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
-                        "SOURCE_SHORT_WRITE: " + endpoint.description());
+                        combineFailures("SOURCE_SHORT_WRITE: " + endpoint.description(), isolationFailure));
             }
         }
 
@@ -127,7 +138,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                         saturatingLong(insertedTotal),
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
-                        "SINK_MUTATION_FAILED: " + endpoint.description() + ": " + conciseMessage(exception));
+                        combineFailures(
+                                "SINK_MUTATION_FAILED: " + endpoint.description() + ": " + conciseMessage(exception),
+                                isolationFailure));
             }
             if (inserted > 0) {
                 insertedTotal = insertedTotal.add(BigInteger.valueOf(inserted));
@@ -143,7 +156,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                         saturatingLong(insertedTotal),
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
-                        "SINK_SHORT_WRITE: " + endpoint.description());
+                        combineFailures("SINK_SHORT_WRITE: " + endpoint.description(), isolationFailure));
             }
         }
 
@@ -154,7 +167,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 saturatingLong(insertedTotal),
                 0,
                 !mutatedEndpoints.isEmpty(),
-                "");
+                isolationFailure);
     }
 
     /** Indexes stable identities and fails before any query when the topology contains a duplicate. */
@@ -240,6 +253,21 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                                                        String failure) {
         return new TowerEnergyTransactionResult(
                 snapshots, plannedFe, insertedFe, quarantinedFe, mutated, failure);
+    }
+
+    /** Builds a bounded diagnostic for endpoints excluded before planning. */
+    private static String isolationFailure(int isolatedEndpointCount, List<String> details) {
+        if (isolatedEndpointCount == 0) {
+            return "";
+        }
+        String failure = "ENDPOINTS_ISOLATED[" + isolatedEndpointCount + "]: " + String.join(" | ", details);
+        int omitted = isolatedEndpointCount - details.size();
+        return omitted == 0 ? failure : failure + " | ... " + omitted + " more";
+    }
+
+    /** Retains a primary transaction failure together with any preceding endpoint isolation. */
+    private static String combineFailures(String primary, String isolation) {
+        return isolation.isEmpty() ? primary : primary + " | " + isolation;
     }
 
     /** Converts exact aggregate diagnostics to the protocol's saturated long width. */
