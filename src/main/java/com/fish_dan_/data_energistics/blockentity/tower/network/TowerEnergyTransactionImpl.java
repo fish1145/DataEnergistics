@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyAllocationLimiter;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizationPlan;
@@ -109,21 +110,18 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 extractedTotal = extractedTotal.add(BigInteger.valueOf(extracted));
                 mutatedEndpoints.add(endpoint);
             }
-            if (extracted != source.amount()) {
-                CompensationResult compensation = compensate(extractions, extractedTotal, mutatedEndpoints);
-                publishMutations(mutatedEndpoints);
-                return failed(
-                        snapshots,
-                        plannedFe,
-                        0,
-                        saturatingLong(compensation.quarantined()),
-                        !mutatedEndpoints.isEmpty(),
-                        combineFailures("SOURCE_SHORT_WRITE: " + endpoint.description(), isolationFailure));
-            }
+        }
+        if (extractedTotal.signum() == 0) {
+            publishMutations(mutatedEndpoints);
+            return failed(snapshots, plannedFe, 0, 0, !mutatedEndpoints.isEmpty(),
+                    combineFailures("SOURCE_NO_PROGRESS", isolationFailure));
         }
 
+        List<TowerEnergySinkAllocation> executableSinks = TowerEnergyAllocationLimiter.limitSinks(
+                plan.sinks(), extractedTotal);
+        long executableFe = saturatingLong(extractedTotal);
         BigInteger insertedTotal = BigInteger.ZERO;
-        for (TowerEnergySinkAllocation sink : plan.sinks()) {
+        for (TowerEnergySinkAllocation sink : executableSinks) {
             TowerEnergyTransferEndpoint endpoint = endpointsById.get(sink.endpoint());
             long inserted;
             try {
@@ -134,7 +132,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 publishMutations(mutatedEndpoints);
                 return failed(
                         snapshots,
-                        plannedFe,
+                        executableFe,
                         saturatingLong(insertedTotal),
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
@@ -152,7 +150,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 publishMutations(mutatedEndpoints);
                 return failed(
                         snapshots,
-                        plannedFe,
+                        executableFe,
                         saturatingLong(insertedTotal),
                         saturatingLong(compensation.quarantined()),
                         !mutatedEndpoints.isEmpty(),
@@ -163,7 +161,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         publishMutations(mutatedEndpoints);
         return new TowerEnergyTransactionResult(
                 snapshots,
-                plannedFe,
+                executableFe,
                 saturatingLong(insertedTotal),
                 0,
                 !mutatedEndpoints.isEmpty(),
@@ -183,22 +181,18 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         return result;
     }
 
-    /** Simulates every source and sink before the first real mutation. */
+    /** Verifies every planned source and sink remains queryable before the first real mutation. */
     private static String preflight(
                                     TowerEnergyEqualizationPlan plan,
                                     Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById) {
         try {
             for (TowerEnergySourceAllocation source : plan.sources()) {
                 TowerEnergyTransferEndpoint endpoint = endpointsById.get(source.endpoint());
-                if (endpoint.simulateExtraction(source.amount()) != source.amount()) {
-                    return "SOURCE_PREFLIGHT_REJECTED: " + endpoint.description();
-                }
+                endpoint.simulateExtraction(source.amount());
             }
             for (TowerEnergySinkAllocation sink : plan.sinks()) {
                 TowerEnergyTransferEndpoint endpoint = endpointsById.get(sink.endpoint());
-                if (endpoint.simulateInsertion(sink.amount()) != sink.amount()) {
-                    return "SINK_PREFLIGHT_REJECTED: " + endpoint.description();
-                }
+                endpoint.simulateInsertion(sink.amount());
             }
             return "";
         } catch (RuntimeException exception) {

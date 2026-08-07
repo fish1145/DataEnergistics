@@ -76,7 +76,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         unavailable = collectBidirectionalAllocationsLong(endpoints, targets, unavailable, sources);
         long transferAmount = Math.subtractExact(amountNeeded, unavailable);
         return transferAmount == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(
-                sources, limitSinkAllocations(sinks, BigInteger.valueOf(transferAmount)));
+                sources, TowerEnergyAllocationLimiter.limitSinks(sinks, BigInteger.valueOf(transferAmount)));
     }
 
     /**
@@ -108,7 +108,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         BigInteger unavailable = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
         unavailable = collectBidirectionalAllocations(endpoints, targets, unavailable, sources);
         BigInteger transferAmount = amountNeeded.subtract(unavailable);
-        return transferAmount.signum() == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(sources, limitSinkAllocations(sinks, transferAmount));
+        return transferAmount.signum() == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(sources, TowerEnergyAllocationLimiter.limitSinks(sinks, transferAmount));
     }
 
     /**
@@ -642,49 +642,6 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
     }
 
     /**
-     * Reduces bounded sink requests proportionally when current source budgets cannot satisfy all ideal deficits.
-     */
-    private static List<TowerEnergySinkAllocation> limitSinkAllocations(
-                                                                        List<TowerEnergySinkAllocation> sinks,
-                                                                        BigInteger transferAmount) {
-        BigInteger requestedTotal = sumSinkAmounts(sinks);
-        if (transferAmount.equals(requestedTotal)) {
-            return sinks;
-        }
-        if (transferAmount.signum() <= 0 || transferAmount.compareTo(requestedTotal) > 0) {
-            throw new IllegalArgumentException("Transfer amount must be within bounded sink demand");
-        }
-
-        long[] amounts = new long[sinks.size()];
-        List<SinkFractionalShare> shares = new ArrayList<>(sinks.size());
-        BigInteger floorTotal = ZERO;
-        for (int index = 0; index < sinks.size(); index++) {
-            TowerEnergySinkAllocation sink = sinks.get(index);
-            BigInteger numerator = transferAmount.multiply(BigInteger.valueOf(sink.amount()));
-            BigInteger[] quotientAndRemainder = numerator.divideAndRemainder(requestedTotal);
-            amounts[index] = quotientAndRemainder[0].longValueExact();
-            floorTotal = floorTotal.add(quotientAndRemainder[0]);
-            shares.add(new SinkFractionalShare(index, quotientAndRemainder[1]));
-        }
-
-        int leftover = transferAmount.subtract(floorTotal).intValueExact();
-        shares.sort(Comparator.comparing(SinkFractionalShare::remainder).reversed()
-                .thenComparingInt(SinkFractionalShare::order));
-        for (int index = 0; index < leftover; index++) {
-            int sinkIndex = shares.get(index).order();
-            amounts[sinkIndex] = Math.addExact(amounts[sinkIndex], 1);
-        }
-
-        List<TowerEnergySinkAllocation> limited = new ArrayList<>(sinks.size());
-        for (int index = 0; index < sinks.size(); index++) {
-            if (amounts[index] > 0) {
-                limited.add(new TowerEnergySinkAllocation(sinks.get(index).endpoint(), amounts[index]));
-            }
-        }
-        return limited;
-    }
-
-    /**
      * Retains receiver metadata needed for lower-bound water filling and deterministic tie breaking.
      *
      * @param endpoint   frozen receiver state
@@ -708,7 +665,4 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @param remainder numerator remainder used for largest-remainder ordering
      */
     private record LongFractionalShare(ReceiverState receiver, long remainder) {}
-
-    /** Associates one bounded sink with its exact fractional allocation remainder. */
-    private record SinkFractionalShare(int order, BigInteger remainder) {}
 }
