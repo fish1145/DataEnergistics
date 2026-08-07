@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
@@ -166,6 +167,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     @Getter
     private int maxProgress = MAX_PROGRESS;
     private ResourceLocation activeRecipeId;
+    private RecipeMatchCache recipeMatchCache;
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -639,29 +641,97 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe() {
-        if (this.level == null) {
+        Level currentLevel = this.level;
+        if (currentLevel == null) {
             return null;
         }
 
-        DataRipperReassemblerRecipeInput input = createRecipeInput();
-        if (this.activeRecipeId != null) {
-            RecipeHolder<DataRipperReassemblerRecipe> active = this.level.getRecipeManager()
-                    .byKey(this.activeRecipeId)
-                    .filter(holder -> holder.value() instanceof DataRipperReassemblerRecipe)
-                    .map(holder -> (RecipeHolder<DataRipperReassemblerRecipe>) holder)
-                    .orElse(null);
-            if (active != null && active.value().matches(input, this.level)) {
-                return active;
+        RecipeMatchKey cacheKey = createRecipeMatchKey();
+        RecipeMatchCache cached = this.recipeMatchCache;
+        if (cached != null && cached.key().equals(cacheKey)) {
+            ResourceLocation recipeId = cached.recipeId();
+            if (recipeId == null) {
+                return null;
+            }
+
+            RecipeHolder<DataRipperReassemblerRecipe> cachedRecipe = getRecipeById(currentLevel, recipeId);
+            if (cachedRecipe != null) {
+                return cachedRecipe;
             }
         }
 
-        for (RecipeHolder<DataRipperReassemblerRecipe> holder : this.level.getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
-            if (holder.value().matches(input, this.level)) {
-                return holder;
+        DataRipperReassemblerRecipeInput input = createRecipeInput();
+        RecipeHolder<DataRipperReassemblerRecipe> match = null;
+        if (this.activeRecipeId != null) {
+            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, this.activeRecipeId);
+            if (active != null && active.value().matches(input, currentLevel)) {
+                match = active;
             }
         }
-        return null;
+
+        if (match == null) {
+            for (RecipeHolder<DataRipperReassemblerRecipe> holder : currentLevel.getRecipeManager()
+                    .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+                if (holder.value().matches(input, currentLevel)) {
+                    match = holder;
+                    break;
+                }
+            }
+        }
+
+        this.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
+        return match;
+    }
+
+    private RecipeMatchKey createRecipeMatchKey() {
+        List<RecipeStackIdentity> items = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+            ItemStack stack = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i);
+            items.add(createItemStackIdentity(stack));
+        }
+        List<RecipeStackIdentity> fluids = List.of(
+                createFluidStackIdentity(this.fluidInputTankA.getFluid()),
+                createFluidStackIdentity(this.fluidInputTankB.getFluid()));
+        return new RecipeMatchKey(
+                RecipeReloadEpoch.current(),
+                this.activeRecipeId,
+                List.copyOf(items),
+                fluids,
+                createKeyStackIdentity(this.keyInputStack));
+    }
+
+    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount());
+    }
+
+    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack) {
+        if (stack.isEmpty()) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount());
+    }
+
+    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack) {
+        if (stack == null || stack.amount() <= 0L) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(stack.what(), stack.amount());
+    }
+
+    private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
+            Level level, ResourceLocation recipeId) {
+        RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
+        if (holder == null || !(holder.value() instanceof DataRipperReassemblerRecipe)) {
+            return null;
+        }
+
+        @SuppressWarnings("unchecked")
+        RecipeHolder<DataRipperReassemblerRecipe> typedHolder =
+                (RecipeHolder<DataRipperReassemblerRecipe>) holder;
+        return typedHolder;
     }
 
     private DataRipperReassemblerRecipeInput createRecipeInput() {
@@ -2083,6 +2153,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             this.keyOutput = keyOutput;
         }
     }
+
+    private record RecipeStackIdentity(@Nullable AEKey what, long amount) {
+
+        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L);
+    }
+
+    private record RecipeMatchKey(long reloadEpoch, @Nullable ResourceLocation activeRecipeId,
+                                  List<RecipeStackIdentity> itemInputs,
+                                  List<RecipeStackIdentity> fluidInputs,
+                                  RecipeStackIdentity keyInput) {}
+
+    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
 
     private static final class PatternPushState {
 
