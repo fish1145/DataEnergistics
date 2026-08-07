@@ -61,6 +61,8 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private static final int SAFETY_RESCAN_INTERVAL_TICKS = 100;
     private static final int BRIDGE_FAILURE_LOG_INTERVAL_TICKS = 100;
     private static final int ENERGY_FAILURE_LOG_INTERVAL_TICKS = 100;
+    private static final TowerEnergyTransactionResult EMPTY_ENERGY_RESULT = new TowerEnergyTransactionResult(
+            List.of(), 0, 0, 0, false, "");
     private static final Comparator<TowerEnergyEndpointId> ENERGY_ENDPOINT_ORDER = Comparator
             .comparing((TowerEnergyEndpointId endpoint) -> endpoint.dimensionId().toString())
             .thenComparingInt(endpoint -> endpoint.pos().getX())
@@ -82,8 +84,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
     private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
-    private TowerEnergyTransactionResult lastEnergyResult = new TowerEnergyTransactionResult(
-            List.of(), 0, 0, 0, false, "");
+    private TowerEnergyTransactionResult lastEnergyResult = EMPTY_ENERGY_RESULT;
     private long nextRegistrationOrder;
     private long revision;
     private long reconciledRevision = Long.MIN_VALUE;
@@ -448,6 +449,10 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
             return this.lastEnergyResult;
         }
         this.lastEnergyTransactionTick = gameTime;
+        if (this.energyEndpoints.isEmpty()) {
+            this.lastEnergyResult = EMPTY_ENERGY_RESULT;
+            return EMPTY_ENERGY_RESULT;
+        }
         TowerEnergyTransactionResult result = this.energyTransaction.execute(this.energyEndpoints);
         this.lastEnergyResult = result;
         if (result.quarantinedFe() > 0) {
