@@ -51,9 +51,6 @@ public final class EaepPatternUploadScope {
      * Opens a one-shot scope for a previously captured upload snapshot.
      */
     public static ScopeToken open(UploadSnapshot snapshot) {
-        if (snapshot == null) {
-            throw new IllegalArgumentException("ExtendedAE-Plus upload snapshot must not be null");
-        }
         if (ACTIVE_SCOPE.get() != null) {
             throw new IllegalStateException("An ExtendedAE-Plus upload scope is already active on this thread");
         }
@@ -66,11 +63,7 @@ public final class EaepPatternUploadScope {
     /**
      * Records a provider write after ExtendedAE-Plus has accepted a pattern into that provider inventory.
      */
-    public static void recordProviderUpload(ServerPlayer player, PatternContainer container, int slot) {
-        if (player == null || container == null || slot < 0) {
-            return;
-        }
-
+    public static void recordProviderUpload(ServerPlayer player, PatternContainer container) {
         Scope scope = consume(player);
         if (scope == null) {
             return;
@@ -78,7 +71,7 @@ public final class EaepPatternUploadScope {
 
         try {
             record(scope, container);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to record a committed ExtendedAE-Plus provider upload", exception);
         }
@@ -88,11 +81,7 @@ public final class EaepPatternUploadScope {
      * Records a matrix write after resolving the exact matrix block identified by ExtendedAE-Plus.
      */
     public static void recordMatrixUpload(ServerPlayer player, BlockPos position, String dimension,
-                                          boolean plus, int slot) {
-        if (player == null || position == null || slot < 0) {
-            return;
-        }
-
+                                          boolean plus) {
         Scope scope = consume(player);
         if (scope == null) {
             return;
@@ -124,7 +113,7 @@ public final class EaepPatternUploadScope {
             }
 
             record(scope, matrix);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to record a committed ExtendedAE-Plus matrix upload", exception);
         }
