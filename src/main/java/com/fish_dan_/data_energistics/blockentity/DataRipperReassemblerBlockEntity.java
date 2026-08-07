@@ -1119,10 +1119,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean exportKeyOutput(List<GenericInternalInventory> adjacentInventories) {
-        if (this.keyOutputStack == null || this.keyOutputStack.amount() <= 0 || this.keyOutputStack.what() == null) {
-            return false;
-        }
-
         AEKey what = this.keyOutputStack.what();
         long originalAmount = this.keyOutputStack.amount();
         long remaining = originalAmount;
@@ -1472,19 +1468,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static boolean matchesFluidKey(FluidStack stack, AEFluidKey key) {
-        if (stack.isEmpty()) {
-            return false;
-        }
-        AEFluidKey existing = AEFluidKey.of(stack);
-        return existing != null && existing.equals(key);
+        return key.equals(AEFluidKey.of(stack));
     }
 
     private static @Nullable GenericStack createFluidGenericStack(FluidStack fluid) {
         if (fluid.isEmpty()) {
             return null;
         }
-        AEFluidKey key = AEFluidKey.of(fluid);
-        return key == null ? null : new GenericStack(key, fluid.getAmount());
+        return new GenericStack(AEFluidKey.of(fluid), fluid.getAmount());
     }
 
     private record SlotFilter(Predicate<ItemStack> insertPredicate, boolean allowExtract) implements IAEItemFilter {
@@ -1614,13 +1605,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void syncMenuFluidFromTank(FluidTank tank, GenericStackInv menuInventory) {
-        FluidStack fluid = tank.getFluid();
-        if (fluid.isEmpty()) {
-            menuInventory.setStack(0, null);
-        } else {
-            AEFluidKey key = AEFluidKey.of(fluid);
-            menuInventory.setStack(0, key == null ? null : new GenericStack(key, fluid.getAmount()));
-        }
+        menuInventory.setStack(0, createFluidGenericStack(tank.getFluid()));
     }
 
     private void syncTankAFromMenuFluid() {
@@ -1674,11 +1659,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean conflictsWithExistingFluid(FluidStack existing, AEFluidKey candidate) {
-        if (existing.isEmpty()) {
-            return false;
-        }
-        AEFluidKey existingKey = AEFluidKey.of(existing);
-        return existingKey != null && existingKey.equals(candidate);
+        return candidate.equals(AEFluidKey.of(existing));
     }
 
     private void syncKeyMenuFromStack() {
