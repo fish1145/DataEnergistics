@@ -45,6 +45,7 @@ public final class JeiPatternTransferContextBridge {
         List<ItemStack> workstations = currentRuntime.getRecipeManager()
                 .createRecipeCatalystLookup(recipeType)
                 .getItemStack()
+                .limit(PatternEncodingRankingContext.MAX_WORKSTATION_IDS + 1L)
                 .toList();
         return PatternEncodingViewerContext.fromItemWorkstations(recipeType.getUid(), workstations);
     }
