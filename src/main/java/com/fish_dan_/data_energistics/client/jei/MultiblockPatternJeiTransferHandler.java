@@ -22,7 +22,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * Transfers the live multiblock ordinary-recipe projection into one exact AE pattern-encoding menu type.
@@ -39,32 +38,19 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
     private final Class<T> menuClass;
     private final MenuType<T> menuType;
     private final RecipeType<R> recipeType;
-    private final Function<Component, IRecipeTransferError> userErrorFactory;
+    private final IRecipeTransferHandlerHelper transferHelper;
 
     /**
      * Creates a production handler backed by JEI's user-visible transfer error factory.
      */
     MultiblockPatternJeiTransferHandler(Class<T> menuClass,
-                                        MenuType<T> menuType,
-                                        RecipeType<R> recipeType,
-                                        IRecipeTransferHandlerHelper transferHelper) {
-        this(menuClass, menuType, recipeType, userErrorFactory(transferHelper));
-    }
-
-    /**
-     * Creates a handler with an injected error factory for direct logic tests.
-     */
-    MultiblockPatternJeiTransferHandler(Class<T> menuClass,
-                                        MenuType<T> menuType,
-                                        RecipeType<R> recipeType,
-                                        Function<Component, IRecipeTransferError> userErrorFactory) {
-        if (menuClass == null || menuType == null || recipeType == null || userErrorFactory == null) {
-            throw new IllegalArgumentException("Multiblock JEI transfer handler arguments cannot be null");
-        }
+                                         MenuType<T> menuType,
+                                         RecipeType<R> recipeType,
+                                         IRecipeTransferHandlerHelper transferHelper) {
         this.menuClass = menuClass;
         this.menuType = menuType;
         this.recipeType = recipeType;
-        this.userErrorFactory = userErrorFactory;
+        this.transferHelper = transferHelper;
     }
 
     @Override
@@ -94,9 +80,6 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
         try {
             ResourceLocation registeredRecipeId = recipe.registeredRecipeId();
             view = recipe.currentRecipeView();
-            if (view == null) {
-                throw new IllegalStateException("JEI multiblock recipe source returned a null live view");
-            }
             if (!registeredRecipeId.equals(view.registeredRecipeId())) {
                 Data_Energistics.LOGGER.warn(
                         "Rejected stale JEI multiblock recipe identity: registered={}, live={}",
@@ -119,9 +102,6 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
         try {
             ConfigInventory inputInventory = target.data_energistics$getMultiblockTransferInputInventory();
             ConfigInventory outputInventory = target.data_energistics$getMultiblockTransferOutputInventory();
-            if (inputInventory == null || outputInventory == null) {
-                throw new IllegalStateException("Pattern terminal returned null processing inventories");
-            }
             capacityError = findCapacityError(
                     view.inputs().size(),
                     1,
@@ -167,9 +147,6 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
                                             List<PreviewMaterial> materials) {
         for (int slot = 0; slot < materials.size(); slot++) {
             PreviewMaterial material = materials.get(slot);
-            if (material == null || material.key() == null || material.amount() <= 0L) {
-                return "The multiblock recipe contains an invalid " + role + " at slot " + (slot + 1) + ".";
-            }
             if (!inventory.isAllowedIn(slot, material.key())) {
                 return "This pattern terminal rejects multiblock " + role + " slot " + (slot + 1) + ".";
             }
@@ -186,13 +163,10 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
      * Returns the first atomic capacity failure without truncating either side of the ordinary recipe.
      */
     @Nullable
-    static CapacityError findCapacityError(int inputCount,
-                                           int outputCount,
-                                           int inputCapacity,
-                                           int outputCapacity) {
-        if (inputCount < 0 || outputCount < 0 || inputCapacity < 0 || outputCapacity < 0) {
-            throw new IllegalArgumentException("Multiblock JEI transfer counts and capacities cannot be negative");
-        }
+    private static CapacityError findCapacityError(int inputCount,
+                                                   int outputCount,
+                                                   int inputCapacity,
+                                                   int outputCapacity) {
         if (inputCount > inputCapacity) {
             return new CapacityError(CapacityKind.INPUT, inputCount, inputCapacity);
         }
@@ -203,15 +177,7 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
     }
 
     private IRecipeTransferError userError(String message) {
-        return this.userErrorFactory.apply(Component.literal(message));
-    }
-
-    private static Function<Component, IRecipeTransferError> userErrorFactory(
-                                                                              IRecipeTransferHandlerHelper transferHelper) {
-        if (transferHelper == null) {
-            throw new IllegalArgumentException("Multiblock JEI transfer helper cannot be null");
-        }
-        return transferHelper::createUserErrorWithTooltip;
+        return this.transferHelper.createUserErrorWithTooltip(Component.literal(message));
     }
 
     /**
@@ -222,16 +188,8 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
         OUTPUT
     }
 
-    /**
-     * Exact capacity mismatch exposed to JEI and direct boundary tests.
-     */
-    record CapacityError(CapacityKind kind, int required, int available) {
-
-        CapacityError {
-            if (kind == null || required < 0 || available < 0 || required <= available) {
-                throw new IllegalArgumentException("Invalid multiblock JEI capacity error");
-            }
-        }
+    /** Exact capacity mismatch for the current menu and live recipe view. */
+    private record CapacityError(CapacityKind kind, int required, int available) {
 
         String message() {
             String side = this.kind == CapacityKind.INPUT ? "input" : "output";

@@ -35,10 +35,6 @@ final class EmiMultiblockPatternTransfer {
         try {
             ResourceLocation registeredRecipeId = source.registeredRecipeId();
             MultiblockRecipeView view = source.currentRecipeView();
-            if (registeredRecipeId == null || view == null) {
-                Data_Energistics.LOGGER.debug("EMI multiblock source returned null live state for {}", recipe.getId());
-                return LiveView.rejected(Component.literal("The multiblock preview is no longer available"));
-            }
             if (!registeredRecipeId.equals(view.registeredRecipeId())) {
                 Data_Energistics.LOGGER.debug(
                         "EMI multiblock source identity changed from {} to {}",
@@ -66,26 +62,13 @@ final class EmiMultiblockPatternTransfer {
      * Checks the complete live view against the target's real slot counts and filters.
      */
     static TransferCheck validate(LiveView liveView, PatternEncodingMultiblockTransferTarget target) {
-        if (liveView == null) {
-            Data_Energistics.LOGGER.warn("EMI invoked multiblock target validation without a live-view result");
-            return TransferCheck.rejected(Component.literal("The multiblock preview is unavailable"));
-        }
         if (!liveView.ready()) {
             return TransferCheck.rejected(liveView.error());
-        }
-        if (target == null) {
-            return TransferCheck.rejected(Component.literal("Open an AE2 pattern encoding terminal"));
         }
 
         try {
             ConfigInventory inputs = target.data_energistics$getMultiblockTransferInputInventory();
             ConfigInventory outputs = target.data_energistics$getMultiblockTransferOutputInventory();
-            if (inputs == null || outputs == null) {
-                Data_Energistics.LOGGER.warn("AE2 pattern encoding menu returned null multiblock transfer inventories");
-                return TransferCheck.rejected(
-                        Component.literal("The pattern terminal encoding inventory is unavailable"));
-            }
-
             MultiblockRecipeView view = liveView.view();
             if (view.inputs().size() > inputs.size()) {
                 return TransferCheck.rejected(Component.literal(

@@ -32,9 +32,6 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
      * Binds the handler to one exact pattern-terminal menu type while retaining AE2's network inventory exposure.
      */
     public EmiMultiblockPatternTransferHandler(Class<T> menuClass) {
-        if (menuClass == null) {
-            throw new IllegalArgumentException("EMI multiblock transfer menu class cannot be null");
-        }
         this.menuClass = menuClass;
         this.inventoryDelegate = new EmiEncodePatternHandler<>(menuClass);
     }
@@ -100,11 +97,6 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
         EmiMultiblockPatternTransfer.LiveView liveView = EmiMultiblockPatternTransfer.resolve(recipe);
         if (!liveView.applicable()) {
             return EmiMultiblockPatternTransfer.TransferCheck.rejected(null);
-        }
-        if (context == null) {
-            Data_Energistics.LOGGER.warn("EMI invoked multiblock transfer without a craft context");
-            return EmiMultiblockPatternTransfer.TransferCheck.rejected(
-                    Component.literal("The pattern terminal context is unavailable"));
         }
 
         try {
