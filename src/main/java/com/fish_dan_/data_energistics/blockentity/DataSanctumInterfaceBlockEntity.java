@@ -358,12 +358,11 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
                 level,
                 this.worldPosition,
                 () -> !this.isRemoved());
-        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories =
-                new AdjacentBlockCapabilityCache<>(
-                        AECapabilities.GENERIC_INTERNAL_INV,
-                        level,
-                        this.worldPosition,
-                        () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                level,
+                this.worldPosition,
+                () -> !this.isRemoved());
         AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
                 Capabilities.ItemHandler.BLOCK,
                 level,

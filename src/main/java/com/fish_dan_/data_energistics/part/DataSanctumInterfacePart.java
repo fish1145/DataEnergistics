@@ -485,12 +485,11 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
                 level,
                 origin,
                 this::isCapabilityCacheValid);
-        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories =
-                new AdjacentBlockCapabilityCache<>(
-                        AECapabilities.GENERIC_INTERNAL_INV,
-                        level,
-                        origin,
-                        this::isCapabilityCacheValid);
+        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                level,
+                origin,
+                this::isCapabilityCacheValid);
         AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
                 Capabilities.ItemHandler.BLOCK,
                 level,

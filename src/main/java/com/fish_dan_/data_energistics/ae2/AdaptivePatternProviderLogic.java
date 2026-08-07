@@ -1121,9 +1121,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     private static void addAppliedCreateRecipe(
-            Map<AEItemKey, List<AppliedCreateRecipeInfo>> recipesByOutput,
-            AEItemKey output,
-            AppliedCreateRecipeInfo recipe) {
+                                               Map<AEItemKey, List<AppliedCreateRecipeInfo>> recipesByOutput,
+                                               AEItemKey output,
+                                               AppliedCreateRecipeInfo recipe) {
         recipesByOutput.computeIfAbsent(output, ignored -> new ArrayList<>()).add(recipe);
     }
 

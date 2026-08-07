@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -30,15 +31,15 @@ public final class AdjacentBlockCapabilityCache<T> {
      * Creates a lazily populated cache set whose listeners live only while the owning machine is valid.
      *
      * @param capability capability queried on adjacent blocks
-     * @param level server level that owns the target blocks
-     * @param origin fixed position of the querying machine
-     * @param isValid listener lifetime supplied by the owning machine
+     * @param level      server level that owns the target blocks
+     * @param origin     fixed position of the querying machine
+     * @param isValid    listener lifetime supplied by the owning machine
      */
     public AdjacentBlockCapabilityCache(
-            BlockCapability<T, Direction> capability,
-            ServerLevel level,
-            BlockPos origin,
-            BooleanSupplier isValid) {
+                                        BlockCapability<T, Direction> capability,
+                                        ServerLevel level,
+                                        BlockPos origin,
+                                        BooleanSupplier isValid) {
         this.capability = capability;
         this.level = level;
         this.origin = origin.immutable();

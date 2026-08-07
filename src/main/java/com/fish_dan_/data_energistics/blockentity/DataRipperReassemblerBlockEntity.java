@@ -722,15 +722,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
-            Level level, ResourceLocation recipeId) {
+                                                                                     Level level, ResourceLocation recipeId) {
         RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
         if (holder == null || !(holder.value() instanceof DataRipperReassemblerRecipe)) {
             return null;
         }
 
         @SuppressWarnings("unchecked")
-        RecipeHolder<DataRipperReassemblerRecipe> typedHolder =
-                (RecipeHolder<DataRipperReassemblerRecipe>) holder;
+        RecipeHolder<DataRipperReassemblerRecipe> typedHolder = (RecipeHolder<DataRipperReassemblerRecipe>) holder;
         return typedHolder;
     }
 
@@ -1066,9 +1065,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean hasKeyOutput() {
-        return this.keyOutputStack != null
-                && this.keyOutputStack.what() != null
-                && this.keyOutputStack.amount() > 0L;
+        return this.keyOutputStack != null && this.keyOutputStack.what() != null && this.keyOutputStack.amount() > 0L;
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {

@@ -40,10 +40,10 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
     }
 
     private static TowerTargetResolution resolve(Level level,
-                                                  BlockPos anchor,
-                                                  IGrid primaryGrid,
-                                                  TowerTargetDiscoveryMode mode,
-                                                  Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
+                                                 BlockPos anchor,
+                                                 IGrid primaryGrid,
+                                                 TowerTargetDiscoveryMode mode,
+                                                 Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
         if (!level.isLoaded(anchor)) {
             return new TowerTargetResolution(List.of(), List.of());
         }
@@ -70,9 +70,9 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
     }
 
     private static List<TowerResolvedDevice> resolveDevices(
-                                                             IGrid grid,
-                                                             Map<RawDeviceIdentity, Integer> occurrences,
-                                                             Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
+                                                            IGrid grid,
+                                                            Map<RawDeviceIdentity, Integer> occurrences,
+                                                            Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
         List<RawDevice> rawDevices = rawDevicesByGrid.computeIfAbsent(
                 grid,
                 TowerAeTargetResolverImpl::snapshotRawDevices);

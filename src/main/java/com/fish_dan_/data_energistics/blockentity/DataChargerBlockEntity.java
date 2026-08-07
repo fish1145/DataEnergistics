@@ -70,8 +70,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, EXTENDED_SLOT_COUNT, 1);
     private final IItemHandler regularExternalItemHandler = this.storage.getSlotInv(0).toItemHandler();
     private final IItemHandler extendedExternalItemHandler = this.storage.toItemHandler();
-    private final LinkedHashMap<RecipeLookupKey, RecipeLookup> recipeLookupCache =
-            new LinkedHashMap<>(RECIPE_LOOKUP_CACHE_LIMIT, 0.75F, true);
+    private final LinkedHashMap<RecipeLookupKey, RecipeLookup> recipeLookupCache = new LinkedHashMap<>(RECIPE_LOOKUP_CACHE_LIMIT, 0.75F, true);
     private long recipeLookupCacheEpoch = Long.MIN_VALUE;
     private long storedDataFlow;
     private boolean working;
@@ -410,14 +409,12 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
             return false;
         }
 
-        RecipeHolder<DataChargerRecipe> dataChargerRecipe =
-                resolveDataChargerRecipe(this.level, lookup.dataChargerRecipeId());
+        RecipeHolder<DataChargerRecipe> dataChargerRecipe = resolveDataChargerRecipe(this.level, lookup.dataChargerRecipeId());
         if (dataChargerRecipe != null && processDataChargerRecipe(slot, stack, dataChargerRecipe.value())) {
             return true;
         }
 
-        RecipeHolder<ChargerRecipe> aeChargerRecipe =
-                resolveAeChargerRecipe(this.level, lookup.aeChargerRecipeId());
+        RecipeHolder<ChargerRecipe> aeChargerRecipe = resolveAeChargerRecipe(this.level, lookup.aeChargerRecipeId());
         return aeChargerRecipe != null && processAeChargerRecipe(slot, stack, aeChargerRecipe.value());
     }
 
@@ -483,8 +480,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static RecipeLookup computeRecipeLookup(Level level, ItemStack stack) {
         ResourceLocation dataChargerRecipeId = null;
         DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
-        for (RecipeHolder<DataChargerRecipe> holder :
-                level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get())) {
+        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get())) {
             if (holder.value().matches(input, level)) {
                 dataChargerRecipeId = holder.id();
                 break;
@@ -502,7 +498,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     private static @Nullable RecipeHolder<DataChargerRecipe> resolveDataChargerRecipe(
-            Level level, @Nullable ResourceLocation recipeId) {
+                                                                                      Level level, @Nullable ResourceLocation recipeId) {
         if (recipeId == null) {
             return null;
         }
@@ -514,7 +510,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     private static @Nullable RecipeHolder<ChargerRecipe> resolveAeChargerRecipe(
-            Level level, @Nullable ResourceLocation recipeId) {
+                                                                                Level level, @Nullable ResourceLocation recipeId) {
         if (recipeId == null) {
             return null;
         }

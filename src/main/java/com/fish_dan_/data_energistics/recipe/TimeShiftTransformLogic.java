@@ -28,8 +28,7 @@ public final class TimeShiftTransformLogic {
     private static final int RECIPE_CANDIDATE_CACHE_LIMIT = 256;
     private static final double SEARCH_RADIUS = 1.0D;
 
-    private final LinkedHashMap<RecipeCandidateKey, List<ResourceLocation>> recipeCandidateCache =
-            new LinkedHashMap<>(RECIPE_CANDIDATE_CACHE_LIMIT, 0.75F, true);
+    private final LinkedHashMap<RecipeCandidateKey, List<ResourceLocation>> recipeCandidateCache = new LinkedHashMap<>(RECIPE_CANDIDATE_CACHE_LIMIT, 0.75F, true);
     private long recipeCandidateCacheEpoch = Long.MIN_VALUE;
 
     @SubscribeEvent
