@@ -57,21 +57,27 @@ public final class PatternEncodingPreferencesClient {
         sendSnapshot(menu);
     }
 
-    /**
-     * Persists workstation changes and publishes recipe context captured by a successful XEI transfer.
-     */
+    /** Persists the fixed vanilla context captured by a successful viewer transfer. */
     public static void captureTransferredRecipe(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
-        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
                 interfaces.previewMenu().data_energistics$getEncodingMode());
-        if (fixedWorkstation != null) {
-            session.setRankingContext(PatternEncodingSourceHelper.resolveFixedModeRankingContext(
-                    interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
-        } else {
-            PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
-            preferences.setLastWorkstation(interfaces.sourceAware().data_energistics$getLastEncodedPatternSource());
+        if (fixedWorkstation == null) {
+            throw new IllegalStateException("Processing transfers require an exact viewer context");
         }
+        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(
+                PatternEncodingSourceHelper.resolveFixedModeRankingContext(
+                        interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
+        sendSnapshot(menu);
+    }
+
+    /** Persists a successful processing transfer with its exact category/workstation context. */
+    public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
+                                                           PatternEncodingRankingContext transferredContext) {
+        Interfaces interfaces = Interfaces.require(menu);
+        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(transferredContext);
+        PatternEncodingClientPreferencesAccess.get().setLastWorkstation(
+                interfaces.sourceAware().data_energistics$getLastEncodedPatternSource());
         sendSnapshot(menu);
     }
 
