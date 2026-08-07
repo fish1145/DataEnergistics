@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -23,7 +24,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -86,6 +86,10 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
             this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
+    private AdjacentBlockCapabilityCache<MEStorage> adjacentMeStorages;
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
 
     public DataSanctumInterfaceBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -302,6 +306,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
         if (this.activePullSides.isEmpty() || !(this.level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
             return false;
         }
+        initializeAdjacentCapabilityCaches(serverLevel);
 
         int keysScanned = 0;
         for (Direction side : this.activePullSides) {
@@ -310,19 +315,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
                 continue;
             }
 
-            BlockState targetState = serverLevel.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            BlockEntity targetBlockEntity = serverLevel.getBlockEntity(targetPos);
-            Direction targetFace = side.getOpposite();
-            MEStorage meStorage = serverLevel.getCapability(
-                    AECapabilities.ME_STORAGE,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            MEStorage meStorage = this.adjacentMeStorages.get(side);
             if (meStorage != null) {
                 PullResult result = pullFromMeStorage(meStorage, keysScanned);
                 keysScanned = result.keysScanned();
@@ -334,38 +327,55 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
                 }
             }
 
-            GenericInternalInventory genericInventory = serverLevel.getCapability(
-                    AECapabilities.GENERIC_INTERNAL_INV,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            GenericInternalInventory genericInventory = this.adjacentGenericInventories.get(side);
             if (genericInventory != null && pullFromGenericInventory(genericInventory)) {
                 return true;
             }
 
-            IItemHandler itemHandler = serverLevel.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            IItemHandler itemHandler = this.adjacentItemHandlers.get(side);
             if (itemHandler != null && pullFromItemHandler(itemHandler)) {
                 return true;
             }
 
-            IFluidHandler fluidHandler = serverLevel.getCapability(
-                    Capabilities.FluidHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            IFluidHandler fluidHandler = this.adjacentFluidHandlers.get(side);
             if (fluidHandler != null && pullFromFluidHandler(fluidHandler)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private void initializeAdjacentCapabilityCaches(ServerLevel level) {
+        if (this.adjacentMeStorages != null) {
+            return;
+        }
+
+        AdjacentBlockCapabilityCache<MEStorage> meStorages = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.ME_STORAGE,
+                level,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories =
+                new AdjacentBlockCapabilityCache<>(
+                        AECapabilities.GENERIC_INTERNAL_INV,
+                        level,
+                        this.worldPosition,
+                        () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.ItemHandler.BLOCK,
+                level,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<IFluidHandler> fluidHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.FluidHandler.BLOCK,
+                level,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        this.adjacentMeStorages = meStorages;
+        this.adjacentGenericInventories = genericInventories;
+        this.adjacentItemHandlers = itemHandlers;
+        this.adjacentFluidHandlers = fluidHandlers;
     }
 
     private PullResult pullFromMeStorage(MEStorage storage, int keysScanned) {
