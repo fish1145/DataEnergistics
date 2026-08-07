@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,14 +23,18 @@ public final class PatternEncodingViewerContext {
      */
     public static PatternEncodingRankingContext fromItemWorkstations(ResourceLocation categoryId,
                                                                       Collection<ItemStack> workstations) {
+        if (workstations.size() > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
+            throw new IllegalArgumentException(
+                    "Recipe viewer workstation count exceeds "
+                            + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+        }
         List<ResourceLocation> workstationIds = new ArrayList<>(workstations.size());
         for (ItemStack workstation : workstations) {
-            if (workstation.isEmpty() || workstation.is(Items.AIR)) {
+            if (workstation.isEmpty()) {
                 throw new IllegalArgumentException("Recipe viewer returned an empty or air workstation");
             }
-            ResourceLocation workstationId = BuiltInRegistries.ITEM.getKey(workstation.getItem());
-            if (!BuiltInRegistries.ITEM.containsKey(workstationId)
-                    || workstationId.equals(BuiltInRegistries.ITEM.getDefaultKey())) {
+            ResourceLocation workstationId = BuiltInRegistries.ITEM.getKeyOrNull(workstation.getItem());
+            if (workstationId == null) {
                 throw new IllegalArgumentException("Recipe viewer returned an unregistered workstation item");
             }
             workstationIds.add(workstationId);
