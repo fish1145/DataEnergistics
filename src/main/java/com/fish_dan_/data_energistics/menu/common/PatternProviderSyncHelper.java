@@ -207,8 +207,8 @@ public final class PatternProviderSyncHelper {
         }
     }
 
-    public static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
-        if (container == null || encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
+    private static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
+        if (encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
             return encodedPattern;
         }
 
@@ -334,34 +334,33 @@ public final class PatternProviderSyncHelper {
     }
 
     public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {
-        if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
+        if (containers.isEmpty() || encodedPattern.isEmpty()) {
             return new TransferResult(encodedPattern, false, false, null);
         }
 
-        if (containsEquivalentEncodedPattern(containers, encodedPattern)) {
+        List<PreparedPatternUpload> preparedUploads = preparePatternUploads(containers);
+        if (preparedUploads.isEmpty()) {
+            return new TransferResult(encodedPattern, false, false, null);
+        }
+
+        if (containsEquivalentEncodedPattern(preparedUploads, encodedPattern)) {
             return new TransferResult(encodedPattern, false, true, null);
         }
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
-        boolean committedTargetResolutionAttempted = false;
         PatternUploadTarget firstCommittedTarget = null;
-        for (var container : containers) {
+        for (PreparedPatternUpload preparedUpload : preparedUploads) {
             if (remainder.isEmpty()) {
                 break;
             }
 
+            PatternContainer container = preparedUpload.container();
             ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
             if (nextRemainder.getCount() != remainder.getCount()) {
                 transferred = true;
-                if (!committedTargetResolutionAttempted) {
-                    committedTargetResolutionAttempted = true;
-                    try {
-                        firstCommittedTarget = resolveProviderUploadTarget(container);
-                    } catch (RuntimeException exception) {
-                        LOGGER.error("Pattern upload committed to {}, but its typed target metadata is invalid",
-                                container, exception);
-                    }
+                if (firstCommittedTarget == null) {
+                    firstCommittedTarget = preparedUpload.target();
                 }
             }
             remainder = nextRemainder;
@@ -370,17 +369,24 @@ public final class PatternProviderSyncHelper {
         return new TransferResult(transferred ? remainder : encodedPattern, transferred, false, firstCommittedTarget);
     }
 
-    private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
-        for (var container : containers) {
-            if (container == null) {
-                continue;
+    private static List<PreparedPatternUpload> preparePatternUploads(List<PatternContainer> containers) {
+        List<PreparedPatternUpload> preparedUploads = new ArrayList<>(containers.size());
+        for (PatternContainer container : containers) {
+            try {
+                preparedUploads.add(new PreparedPatternUpload(container, resolveProviderUploadTarget(container)));
+            } catch (RuntimeException exception) {
+                LOGGER.error("Could not resolve a typed upload target for {}; skipping it before inventory mutation",
+                        container, exception);
             }
+        }
+        return preparedUploads;
+    }
 
+    private static boolean containsEquivalentEncodedPattern(List<PreparedPatternUpload> preparedUploads,
+                                                            ItemStack encodedPattern) {
+        for (PreparedPatternUpload preparedUpload : preparedUploads) {
+            PatternContainer container = preparedUpload.container();
             var inventory = container.getTerminalPatternInventory();
-            if (inventory == null) {
-                continue;
-            }
-
             for (int slot = 0; slot < inventory.size(); slot++) {
                 ItemStack existing = inventory.getStackInSlot(slot);
                 if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, encodedPattern)) {
@@ -391,6 +397,8 @@ public final class PatternProviderSyncHelper {
 
         return false;
     }
+
+    private record PreparedPatternUpload(PatternContainer container, PatternUploadTarget target) {}
 
     /**
      * Result of one upload attempt, including the first inventory that actually accepted a pattern.
