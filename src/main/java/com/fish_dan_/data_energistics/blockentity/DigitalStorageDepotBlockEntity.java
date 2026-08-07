@@ -949,8 +949,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         if (fluid.isEmpty()) {
             this.fluidMenuInventories[slotIndex].setStack(0, null);
         } else {
-            AEFluidKey key = AEFluidKey.of(fluid);
-            this.fluidMenuInventories[slotIndex].setStack(0, key == null ? null : new GenericStack(key, fluid.getAmount()));
+            this.fluidMenuInventories[slotIndex].setStack(0, new GenericStack(AEFluidKey.of(fluid), fluid.getAmount()));
         }
     }
 
