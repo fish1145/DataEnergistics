@@ -56,6 +56,7 @@ import appeng.menu.locator.MenuHostLocator;
 import appeng.util.SettingsFrom;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -86,6 +87,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
             this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
+    private final EnumMap<Direction, Integer> activePullKeyCursors = new EnumMap<>(Direction.class);
     private AdjacentBlockCapabilityCache<MEStorage> adjacentMeStorages;
     private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
@@ -317,7 +319,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
 
             MEStorage meStorage = this.adjacentMeStorages.get(side);
             if (meStorage != null) {
-                PullResult result = pullFromMeStorage(meStorage, keysScanned);
+                PullResult result = pullFromMeStorage(side, meStorage, keysScanned);
                 keysScanned = result.keysScanned();
                 if (result.changed()) {
                     return true;
@@ -378,15 +380,36 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
         this.adjacentFluidHandlers = fluidHandlers;
     }
 
-    private PullResult pullFromMeStorage(MEStorage storage, int keysScanned) {
-        for (var stack : storage.getAvailableStacks()) {
-            if (keysScanned++ >= ACTIVE_PULL_KEYS_PER_TICK) {
-                return new PullResult(false, keysScanned);
+    private PullResult pullFromMeStorage(Direction side, MEStorage storage, int keysScanned) {
+        var availableStacks = storage.getAvailableStacks();
+        int availableKeyCount = availableStacks.size();
+        if (availableKeyCount == 0) {
+            this.activePullKeyCursors.remove(side);
+            return new PullResult(false, keysScanned);
+        }
+
+        int remainingBudget = ACTIVE_PULL_KEYS_PER_TICK - keysScanned;
+        if (remainingBudget <= 0) {
+            return new PullResult(false, keysScanned);
+        }
+
+        int startIndex = Math.floorMod(this.activePullKeyCursors.getOrDefault(side, 0), availableKeyCount);
+        int keysToInspect = Math.min(remainingBudget, availableKeyCount);
+        var iterator = availableStacks.iterator();
+        for (int skipped = 0; skipped < startIndex; skipped++) {
+            iterator.next();
+        }
+        for (int inspected = 0; inspected < keysToInspect; inspected++) {
+            if (!iterator.hasNext()) {
+                iterator = availableStacks.iterator();
             }
+            var stack = iterator.next();
+            keysScanned++;
+            this.activePullKeyCursors.put(side, (startIndex + inspected + 1) % availableKeyCount);
 
             AEKey key = stack.getKey();
             long available = stack.getLongValue();
-            if (key == null || available <= 0) {
+            if (available <= 0) {
                 continue;
             }
 
