@@ -28,6 +28,8 @@ import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 public final class DataEnergisticsTextureEditorResources {
 
     private static final String TRINITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/trinity_data_core/";
+    private static final String AUTO_BUILD_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/autobuild/";
+    private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
 
     private DataEnergisticsTextureEditorResources() {}
 
@@ -79,7 +81,7 @@ public final class DataEnergisticsTextureEditorResources {
                 new ColorRectTexture(0xFFE3E3EA),
                 new ColorBorderTexture(-1, 0xFF696D88)));
         provider.addResource("trinity_player_slot_background", GuiTextureGroup.of(
-                sprite("inventory_slot.png"),
+                guiSprite("inventory_slot.png"),
                 new ColorBorderTexture(-1, 0xFF696D88)));
         provider.addResource("trinity_section_background", GuiTextureGroup.of(
                 new ColorRectTexture(0xFFA7ADBF),
@@ -104,6 +106,20 @@ public final class DataEnergisticsTextureEditorResources {
      * @param provider provider receiving the raw texture assets
      */
     private static void registerTextureAssets(BuiltinResourceProvider<IGuiTexture> provider) {
+        provider.addResource("autobuild_background", autobuildSprite("background.png"));
+        provider.addResource("autobuild_detailed_adjustment", autobuildSprite("detailed_adjustment.png"));
+        provider.addResource("autobuild_detailed_material_stats", autobuildSprite("detailed_material_stats.png"));
+        provider.addResource("autobuild_structure_switch", autobuildSprite("structure_switch.png"));
+        provider.addResource("autobuild_structure_view", autobuildSprite("structure_view.png"));
+        provider.addResource("gui_back", guiSprite("back.png"));
+        provider.addResource("gui_button", guiSprite("botton.png"));
+        provider.addResource("gui_button_disabled", guiSprite("button_disabled.png"));
+        provider.addResource("gui_button_highlighted", guiSprite("button_highlighted.png"));
+        provider.addResource("gui_front", guiSprite("front.png"));
+        provider.addResource("gui_inventory_slot", guiSprite("inventory_slot.png"));
+        provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
+        provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
+        provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
         provider.addResource("trinity_cpu_entry", sprite("cpu_entry.png"));
         provider.addResource("trinity_cpu_entry_selected", sprite("cpu_entry_selected.png"));
         provider.addResource("trinity_cpu_icon_craft", sprite("cpu_icon_craft.png"));
@@ -115,7 +131,6 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("trinity_cpu_panel", sprite("cpu_panel.png"));
         provider.addResource("trinity_cpu_task_overlay", sprite("cpu_task_overlay.png"));
         provider.addResource("trinity_host_layout_reference", sprite("host_layout_reference.png"));
-        provider.addResource("trinity_inventory_slot", sprite("inventory_slot.png"));
         provider.addResource("trinity_status_panel", sprite("status_panel.png"));
         provider.addResource("trinity_storage_capacity_track", sprite("storage_capacity_track.png"));
         provider.addResource("trinity_storage_fluid_fill", sprite("storage_fluid_fill.png"));
@@ -131,5 +146,25 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture sprite(String fileName) {
         return SpriteTexture.of(TRINITY_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for an automatic-build GUI asset.
+     *
+     * @param fileName asset file under the automatic-build GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture autobuildSprite(String fileName) {
+        return SpriteTexture.of(AUTO_BUILD_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a top-level GUI asset.
+     *
+     * @param fileName asset file directly under the GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture guiSprite(String fileName) {
+        return SpriteTexture.of(GUI_TEXTURE_ROOT + fileName);
     }
 }

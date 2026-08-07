@@ -6,7 +6,7 @@
 .trinity-data-core-root {
     width: 256px;
     height: 212px;
-    background: group(#FFE3E3EA, border(-1, #FF696D88));
+    background: group(sprite(data_energistics:textures/guis/trinity_data_core/host_layout_reference.png));
 }
 
 .trinity-data-core-title {
@@ -46,7 +46,7 @@
 }
 
 .trinity-data-core-player-inventory item-slot {
-    background: group(sprite(data_energistics:textures/guis/trinity_data_core/inventory_slot.png, 0, 0, 16, 16), border(-1, #FF696D88));
+    background: group(sprite(data_energistics:textures/guis/inventory_slot.png, 0, 0, 16, 16, 2, 2, 2, 2,));
 }
 
 #trinity_cpu_status_list {
@@ -331,8 +331,9 @@
 }
 
 .trinity-auto-build-panel {
-    width: 84px;
-    height: 184px;
+    width: 65px;
+    height: 22px;
+    background: sprite(data_energistics:textures/guis/autobuild/structure_switch.png);
 }
 
 .trinity-auto-build-structure-selector {
