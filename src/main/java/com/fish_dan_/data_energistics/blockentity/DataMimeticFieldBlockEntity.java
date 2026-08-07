@@ -904,10 +904,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         AEItemKey key = AEItemKey.of(stack);
-        if (key == null) {
-            return stack;
-        }
-
         long inserted;
         try {
             inserted = requireValidAcceptedAmount(
@@ -1396,12 +1392,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             }
 
             AEItemKey key = AEItemKey.of(stack);
-            if (key == null) {
-                Data_Energistics.LOGGER.error(
-                        "Data mimetic field AE output cannot insert generated item without AE key: {}",
-                        stack);
-                return false;
-            }
             requiredAmounts.merge(key, (long) stack.getCount(), DataMimeticFieldBlockEntity::saturatedAdd);
         }
 
