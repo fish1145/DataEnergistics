@@ -26,6 +26,9 @@ interface CountedCraftingProviderAdapterRegistry {
      */
     void unregister(ICraftingProvider provider, CountedCraftingProviderAdapter adapter);
 
+    /** Removes every live adapter when the owning server stops. */
+    void clear();
+
     /**
      * Finds the adapter registered for the exact provider identity.
      *

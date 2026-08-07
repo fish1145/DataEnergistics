@@ -34,6 +34,11 @@ public final class CountedCraftingProviderAdapters {
         REGISTRY.unregister(provider, adapter);
     }
 
+    /** Clears every adapter owned by the stopped server. */
+    public static void clear() {
+        REGISTRY.clear();
+    }
+
     /**
      * Resolves and prepares the provider using registered adapter, direct contract, then generic-single priority.
      */

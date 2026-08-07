@@ -48,6 +48,16 @@ final class CountedCraftingProviderAdapterRegistryImpl implements CountedCraftin
     }
 
     @Override
+    public void clear() {
+        if (this.registrations.isEmpty()) {
+            return;
+        }
+        long nextRevision = Math.incrementExact(this.mutationRevision);
+        this.registrations.clear();
+        this.mutationRevision = nextRevision;
+    }
+
+    @Override
     public @Nullable CountedCraftingProviderAdapter find(ICraftingProvider provider) {
         return this.registrations.get(provider);
     }
