@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
+import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
@@ -246,12 +247,14 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         this.jeiRuntime = jeiRuntime;
+        JeiPatternTransferContextBridge.install(jeiRuntime);
         hidePoweredRepairRecipes();
     }
 
     @Override
     public void onRuntimeUnavailable() {
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
+        JeiPatternTransferContextBridge.clear(this.jeiRuntime);
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();

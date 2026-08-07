@@ -93,6 +93,7 @@
 		"guideme.GuideNavBarMixin",
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
+		"jei.RecipeTransferUtilMixin",
 		"neoecoae.NeoECOAEClientMixin"
 	],
 	"injectors": {
