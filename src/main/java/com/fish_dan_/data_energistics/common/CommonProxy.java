@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridServices;
+import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
@@ -69,6 +70,7 @@ public class CommonProxy {
         event.enqueueWork(() -> {
             DataEnergisticsRegistrySnapshot snapshot = DataEnergisticsEntrypointLoader.initialize();
             UniversalTerminalAdapters.install(snapshot.universalTerminalAdapters());
+            VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
             ModUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();

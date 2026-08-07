@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.common.crafting.virtual;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputRegistration;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.ids.AEComponents;
@@ -22,23 +21,32 @@ import java.util.Optional;
 public final class VirtualCraftingOutputAdapters {
 
     private static volatile List<VirtualCraftingOutputAdapter> ADAPTERS = List.of();
+    private static boolean installed;
 
     private VirtualCraftingOutputAdapters() {}
 
     /**
-     * Registers one adapter without permitting identity-duplicate lifecycle registration.
+     * Installs the immutable adapter snapshot assembled by the unified plugin registry.
      *
-     * @param adapter adapter to retain
-     * @return idempotent removal handle
+     * @param adapters adapters in deterministic plugin and registration order
      */
-    public static synchronized VirtualCraftingOutputRegistration register(VirtualCraftingOutputAdapter adapter) {
-        if (ADAPTERS.stream().anyMatch(registered -> registered == adapter)) {
-            throw new IllegalStateException("Virtual crafting output adapter is already registered");
+    public static synchronized void install(List<VirtualCraftingOutputAdapter> adapters) {
+        if (installed) {
+            throw new IllegalStateException("Virtual crafting output adapters have already been installed");
         }
-        ArrayList<VirtualCraftingOutputAdapter> adapters = new ArrayList<>(ADAPTERS);
-        adapters.add(adapter);
-        ADAPTERS = List.copyOf(adapters);
-        return new Registration(adapter);
+        if (!ADAPTERS.isEmpty()) {
+            throw new IllegalStateException(
+                    "Virtual crafting output adapters were mutated before the unified registry snapshot was installed");
+        }
+        ArrayList<VirtualCraftingOutputAdapter> validated = new ArrayList<>(adapters.size());
+        for (VirtualCraftingOutputAdapter adapter : adapters) {
+            if (validated.stream().anyMatch(existing -> existing == adapter)) {
+                throw new IllegalStateException("Virtual crafting output adapter is registered more than once");
+            }
+            validated.add(adapter);
+        }
+        ADAPTERS = List.copyOf(validated);
+        installed = true;
     }
 
     /**
@@ -137,27 +145,4 @@ public final class VirtualCraftingOutputAdapters {
     }
 
     private record ResolvedOutput(AEKey target, VirtualCraftingCompletionMode mode) {}
-
-    private static final class Registration implements VirtualCraftingOutputRegistration {
-
-        private final VirtualCraftingOutputAdapter adapter;
-        private boolean active = true;
-
-        private Registration(VirtualCraftingOutputAdapter adapter) {
-            this.adapter = adapter;
-        }
-
-        @Override
-        public synchronized void close() {
-            if (!this.active) {
-                return;
-            }
-            synchronized (VirtualCraftingOutputAdapters.class) {
-                ArrayList<VirtualCraftingOutputAdapter> adapters = new ArrayList<>(ADAPTERS);
-                adapters.removeIf(registered -> registered == this.adapter);
-                ADAPTERS = List.copyOf(adapters);
-            }
-            this.active = false;
-        }
-    }
 }
