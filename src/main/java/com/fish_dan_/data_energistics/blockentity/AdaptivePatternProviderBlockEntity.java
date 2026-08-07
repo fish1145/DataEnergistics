@@ -27,7 +27,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
@@ -436,7 +435,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 unlockedSlots,
                 totalSlots);
 
-        Component displayName = this instanceof Nameable nameable && nameable.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
+        Component displayName = this.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
         return new PatternContainerGroup(
                 baseGroup.icon(),
                 displayName,
@@ -689,14 +688,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Nullable
     public static Item getAppliedFluxInductionCard() {
         Item item = BuiltInRegistries.ITEM.get(APPFLUX_INDUCTION_CARD_ID);
-        return item == null || item == Items.AIR ? null : item;
+        return item == Items.AIR ? null : item;
     }
 
     private PatternContainerGroup buildAdaptiveTerminalGroup() {
-        if (this instanceof Nameable nameable && nameable.hasCustomName()) {
+        if (this.hasCustomName()) {
             return new PatternContainerGroup(
                     this.getTerminalIcon(),
-                    nameable.getCustomName(),
+                    this.getCustomName(),
                     List.of());
         }
 

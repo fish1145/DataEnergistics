@@ -99,7 +99,7 @@ public final class AdaptivePatternProviderResolver {
     @Nullable
     public static PatternContainerGroup resolveSpecialAdjacentMachineGroup(Level level, BlockPos pos) {
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-        if (blockId == null || !isAssemblerMatrixComponent(blockId)) {
+        if (!isAssemblerMatrixComponent(blockId)) {
             return null;
         }
 
@@ -196,7 +196,7 @@ public final class AdaptivePatternProviderResolver {
     @Nullable
     private static ProviderProfile resolveAe2CrystalScienceProfile(ItemStack stack) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId == null || !"ae2cs".equals(itemId.getNamespace())) {
+        if (!"ae2cs".equals(itemId.getNamespace())) {
             return null;
         }
 
@@ -226,7 +226,7 @@ public final class AdaptivePatternProviderResolver {
     @Nullable
     private static ProviderProfile resolveAdvancedAeProfile(ItemStack stack) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId == null || !"advanced_ae".equals(itemId.getNamespace())) {
+        if (!"advanced_ae".equals(itemId.getNamespace())) {
             return null;
         }
 
@@ -255,7 +255,7 @@ public final class AdaptivePatternProviderResolver {
             return null;
         }
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId == null || !APPLIED_CREATE_NAMESPACE.equals(itemId.getNamespace())) {
+        if (!APPLIED_CREATE_NAMESPACE.equals(itemId.getNamespace())) {
             return null;
         }
 
@@ -335,7 +335,7 @@ public final class AdaptivePatternProviderResolver {
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId != null && "extendedae".equals(itemId.getNamespace()) && ("ex_pattern_provider".equals(itemId.getPath()) || "ex_pattern_provider_part".equals(itemId.getPath()) || "wireless_ex_pat".equals(itemId.getPath()))) {
+        if ("extendedae".equals(itemId.getNamespace()) && ("ex_pattern_provider".equals(itemId.getPath()) || "ex_pattern_provider_part".equals(itemId.getPath()) || "wireless_ex_pat".equals(itemId.getPath()))) {
             ItemStack icon = new ItemStack(stack.getItem());
             return new ProviderProfile(ProviderKind.EXTENDED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
         }
