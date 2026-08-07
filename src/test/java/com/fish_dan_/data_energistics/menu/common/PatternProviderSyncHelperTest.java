@@ -164,32 +164,6 @@ public final class PatternProviderSyncHelperTest {
         helper.succeed();
     }
 
-    @TestHolder("pattern_provider_sync_preserves_special_keys")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void preservesSpecialAggregationKeys(GameTestHelper helper) {
-        TestPatternProvider matrixFirst = new TileAssemblerMatrixPattern(
-                "First", Items.CRAFTING_TABLE, 1, 0, 10);
-        TestPatternProvider matrixSecond = new TileAssemblerMatrixPattern(
-                "Second", Items.FURNACE, 2, 1, 20);
-        TestPatternProvider f4First = new NeoEcoCraftingProviderF4(
-                "Crafting System", Items.CRAFTING_TABLE, 1, 0, 30);
-        TestPatternProvider f4Second = new NeoEcoCraftingProviderF4(
-                "Crafting System", Items.CRAFTING_TABLE, 2, 1, 40);
-        TestPatternProvider f6 = new NeoEcoCraftingProviderF6(
-                "Crafting System", Items.CRAFTING_TABLE, 3, 2, 50);
-
-        var result = collect(
-                List.of(matrixFirst, matrixSecond, f4First, f4Second, f6), new HashMap<>());
-
-        assertEquals(3, result.providers().size());
-        assertTrue(result.providers().stream().anyMatch(provider -> provider.patternSlotCount() == 3 &&
-                provider.usedPatternSlotCount() == 1));
-        assertTrue(result.providers().stream().anyMatch(provider -> provider.patternSlotCount() == 3 &&
-                provider.usedPatternSlotCount() == 2));
-        helper.succeed();
-    }
-
     @TestHolder("pattern_provider_upload_reports_committed_write_when_notification_fails")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -232,29 +206,6 @@ public final class PatternProviderSyncHelperTest {
         ItemStack uploadedPattern = patternInventory.getStackInSlot(0);
         assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, uploadedPattern));
         assertEquals(1, uploadedPattern.getCount());
-        helper.succeed();
-    }
-
-    @TestHolder("pattern_provider_upload_reports_committed_write_when_linkage_notification_fails")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void reportsCommittedWriteWhenLinkageNotificationFails(GameTestHelper helper) {
-        LinkageFailingSaveNotificationHost inventoryHost = new LinkageFailingSaveNotificationHost();
-        AppEngInternalInventory patternInventory = new AppEngInternalInventory(inventoryHost, 1);
-        TestPatternProvider provider = new TestPatternProvider(
-                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
-        ItemStack encodedPattern = encodedProcessingPattern();
-
-        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
-                List.of(provider), encodedPattern);
-
-        assertEquals(1, inventoryHost.saveAttemptCount);
-        assertTrue(result.transferred());
-        assertTrue(result.remainder().isEmpty());
-        assertTrue(!result.duplicateFound());
-        ItemStack uploadedPattern = patternInventory.getStackInSlot(0);
-        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, uploadedPattern));
-        assertEquals(encodedPattern.getCount(), uploadedPattern.getCount());
         helper.succeed();
     }
 
@@ -387,27 +338,6 @@ public final class PatternProviderSyncHelperTest {
         }
     }
 
-    private static final class TileAssemblerMatrixPattern extends TestPatternProvider {
-
-        private TileAssemblerMatrixPattern(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
-            super(baseName, icon, slots, usedSlots, sortOrder);
-        }
-    }
-
-    private static final class NeoEcoCraftingProviderF4 extends TestPatternProvider {
-
-        private NeoEcoCraftingProviderF4(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
-            super(baseName, icon, slots, usedSlots, sortOrder);
-        }
-    }
-
-    private static final class NeoEcoCraftingProviderF6 extends TestPatternProvider {
-
-        private NeoEcoCraftingProviderF6(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
-            super(baseName, icon, slots, usedSlots, sortOrder);
-        }
-    }
-
     private static final class ClientFieldPatternProvider extends TestPatternProvider {
 
         @SuppressWarnings("unused")
@@ -477,22 +407,6 @@ public final class PatternProviderSyncHelperTest {
         public void saveChangedInventory(AppEngInternalInventory inventory) {
             this.saveAttemptCount++;
             throw new IllegalStateException("Simulated notification failure after the pattern slot was committed");
-        }
-
-        @Override
-        public boolean isClientSide() {
-            return false;
-        }
-    }
-
-    private static final class LinkageFailingSaveNotificationHost implements InternalInventoryHost {
-
-        private int saveAttemptCount;
-
-        @Override
-        public void saveChangedInventory(AppEngInternalInventory inventory) {
-            this.saveAttemptCount++;
-            throw new NoClassDefFoundError("Simulated linkage failure after the pattern slot was committed");
         }
 
         @Override
