@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityC
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.mixin.core.ExperienceOrbAccessor;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -123,7 +124,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private static final String WORK_PROGRESS_TAG = "work_progress";
     private static final String PENDING_DATA_FLOW_TAG = "pending_data_flow";
     private static final String PENDING_XP_DATA_FLOW_TAG = "pending_xp_data_flow";
-    private static final String XP_ORB_COUNT_TAG = "Count";
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
@@ -1451,9 +1451,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private static long getExperience(ExperienceOrb orb) {
-        CompoundTag data = new CompoundTag();
-        orb.saveWithoutId(data);
-        return (long) orb.getValue() * data.getInt(XP_ORB_COUNT_TAG);
+        return (long) orb.getValue() * ((ExperienceOrbAccessor) orb).dataEnergistics$getCount();
     }
 
     private static void consumeExperienceOrbs(ServerLevel serverLevel, List<ExperienceOrbValue> experienceOrbs,

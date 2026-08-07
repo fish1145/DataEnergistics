@@ -35,6 +35,7 @@
 		"core.CraftingStatusMenuMixin",
 		"core.CraftingTermSlotMixin",
 		"core.EncodedPatternItemMixin",
+		"core.ExperienceOrbAccessor",
 		"core.ExportBusPartWrappedKeyMixin",
 		"core.FarmBlockMixin",
 		"core.GridMixin",
