@@ -1,5 +1,6 @@
-package com.fish_dan_.data_energistics.api.registry.provider;
+package com.fish_dan_.data_energistics.api.registry.provider.runtime;
 
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 
 import appeng.api.networking.crafting.ICraftingProvider;

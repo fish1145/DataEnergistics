@@ -1,5 +1,9 @@
 package com.fish_dan_.data_energistics.api.registry.provider;
 
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
+
 /**
  * Declaration facet for provider metadata and provider-lifecycle integrations.
  */

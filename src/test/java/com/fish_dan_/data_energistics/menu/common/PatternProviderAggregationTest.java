@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.common;
 
-import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.network.chat.Component;

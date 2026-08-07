@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderMenuOpenAdapter;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderMenuOpenContext;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderMenuOpenResult;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderMenuOpenAdapter;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderMenuOpenContext;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderMenuOpenResult;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 

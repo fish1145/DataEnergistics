@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.api.registry.provider;
+package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
 /**
  * Observes a provider commit after the server has confirmed the real inventory delta.

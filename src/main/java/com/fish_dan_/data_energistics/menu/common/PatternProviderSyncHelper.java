@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderMetadata;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitContext;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderPostCommitHook;
-import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitContext;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;

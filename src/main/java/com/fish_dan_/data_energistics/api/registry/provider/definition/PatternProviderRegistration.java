@@ -1,4 +1,8 @@
-package com.fish_dan_.data_energistics.api.registry.provider;
+package com.fish_dan_.data_energistics.api.registry.provider.definition;
+
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderMenuOpenAdapter;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
 
 import org.jetbrains.annotations.Nullable;
 

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.api.registry.provider;
+package com.fish_dan_.data_energistics.api.registry.provider.runtime;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 

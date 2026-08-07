@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.common.entrypoint.provider;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderFactory;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderFactoryContext;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistration;
-import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactoryContext;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentitySource;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderRuntimeLink;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;

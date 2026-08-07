@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.api.registry.provider;
+package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.entrypoint.provider;
 
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 
 import appeng.helpers.patternprovider.PatternContainer;

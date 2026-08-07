@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsEntrypoint;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsPlugin;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderMetadata;
-import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistration;
-import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
