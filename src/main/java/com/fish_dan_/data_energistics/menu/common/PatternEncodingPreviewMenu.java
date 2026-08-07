@@ -69,14 +69,6 @@ public interface PatternEncodingPreviewMenu {
             leafDigests = List.copyOf(leafDigests);
         }
 
-        /** Compatibility constructor for callers that do not carry provider history yet. */
-        public SyncedPatternProvider(long id, Component displayName, ResourceLocation iconItemId,
-                                     boolean useAeButtonStyle, boolean renameable, int patternSlotCount,
-                                     int usedPatternSlotCount) {
-            this(id, displayName, iconItemId, useAeButtonStyle, renameable, patternSlotCount,
-                    usedPatternSlotCount, List.of());
-        }
-
         public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
             this(
                     data.readLong(),
