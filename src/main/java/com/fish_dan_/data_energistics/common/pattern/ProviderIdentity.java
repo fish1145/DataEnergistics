@@ -294,7 +294,6 @@ public sealed interface ProviderIdentity
          */
         public Virtual {
             terminalGroupIconId = Objects.requireNonNull(terminalGroupIconId, "terminalGroupIconId");
-            terminalGroupIconId.ifPresent(iconId -> Objects.requireNonNull(iconId, "terminalGroupIconId value"));
             terminalGroupNameEncoding = Objects.requireNonNull(
                     terminalGroupNameEncoding,
                     "terminalGroupNameEncoding");
