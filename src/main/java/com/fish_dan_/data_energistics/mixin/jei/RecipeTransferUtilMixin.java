@@ -14,11 +14,10 @@ import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
 import mezz.jei.common.transfer.RecipeTransferErrorInternal;
 import mezz.jei.common.transfer.RecipeTransferUtil;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Optional;
 
@@ -33,42 +32,32 @@ public abstract class RecipeTransferUtilMixin {
                     + "Lmezz/jei/api/gui/IRecipeLayoutDrawable;"
                     + "Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;";
 
-    @Inject(method = TRANSFER_METHOD, at = @At("HEAD"), cancellable = true)
-    private static void dataEnergistics$prepareTransfer(
+    @WrapMethod(method = TRANSFER_METHOD)
+    private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
             IRecipeTransferManager recipeTransferManager,
             AbstractContainerMenu container,
             IRecipeLayoutDrawable<?> recipeLayout,
             Player player,
             boolean maxTransfer,
             boolean doTransfer,
-            CallbackInfoReturnable<Optional<IRecipeTransferError>> cir) {
+            Operation<Optional<IRecipeTransferError>> original) {
         if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)
                 || menu.getMode() != EncodingMode.PROCESSING) {
-            return;
+            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }
+        PatternEncodingRankingContext context;
         try {
-            PatternEncodingRankingContext context = JeiPatternTransferContextBridge.resolve(recipeLayout);
-            JeiPatternTransferContextBridge.begin(menu, context);
+            context = JeiPatternTransferContextBridge.resolve(recipeLayout);
         } catch (RuntimeException exception) {
-            JeiPatternTransferContextBridge.beginUnavailable(menu);
             Data_Energistics.LOGGER.error(
                     "Rejected JEI processing-pattern transfer because its category/workstation context could not be resolved",
                     exception);
-            cir.setReturnValue(Optional.of(RecipeTransferErrorInternal.INSTANCE));
+            return Optional.of(RecipeTransferErrorInternal.INSTANCE);
         }
-    }
-
-    @Inject(method = TRANSFER_METHOD, at = @At("RETURN"))
-    private static void dataEnergistics$cleanupTransfer(
-            IRecipeTransferManager recipeTransferManager,
-            AbstractContainerMenu container,
-            IRecipeLayoutDrawable<?> recipeLayout,
-            Player player,
-            boolean maxTransfer,
-            boolean doTransfer,
-            CallbackInfoReturnable<Optional<IRecipeTransferError>> cir) {
-        if (doTransfer && container instanceof PatternEncodingTermMenu menu
-                && menu.getMode() == EncodingMode.PROCESSING) {
+        JeiPatternTransferContextBridge.begin(menu, context);
+        try {
+            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
+        } finally {
             JeiPatternTransferContextBridge.end(menu);
         }
     }

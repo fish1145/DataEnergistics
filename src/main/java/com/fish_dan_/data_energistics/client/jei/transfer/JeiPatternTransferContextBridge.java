@@ -13,7 +13,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.Optional;
 
 /** Holds the synchronous JEI runtime and one nested transfer frame per client thread. */
 public final class JeiPatternTransferContextBridge {
@@ -52,19 +51,14 @@ public final class JeiPatternTransferContextBridge {
 
     /** Starts one transfer frame after its context has been fully validated. */
     public static void begin(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {
-        FRAMES.get().push(new Frame(menu, Optional.of(context)));
-    }
-
-    /** Balances cleanup when context resolution rejects a nested transfer before its handler runs. */
-    public static void beginUnavailable(PatternEncodingTermMenu menu) {
-        FRAMES.get().push(new Frame(menu, Optional.empty()));
+        FRAMES.get().push(new Frame(menu, context));
     }
 
     /** Returns the current frame's context for the AE2 transfer handler. */
     @Nullable
     public static PatternEncodingRankingContext current(PatternEncodingTermMenu menu) {
         Frame frame = FRAMES.get().peek();
-        return frame != null && frame.menu() == menu ? frame.context().orElse(null) : null;
+        return frame != null && frame.menu() == menu ? frame.context() : null;
     }
 
     /** Removes the current frame and releases the thread-local container when the stack becomes empty. */
@@ -78,5 +72,5 @@ public final class JeiPatternTransferContextBridge {
         }
     }
 
-    private record Frame(PatternEncodingTermMenu menu, Optional<PatternEncodingRankingContext> context) {}
+    private record Frame(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {}
 }
