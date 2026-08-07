@@ -32,10 +32,8 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
         }
 
         if (menu instanceof PatternEncodingTermMenu patternEncodingTermMenu) {
-            PatternEncodingRankingContext rankingContext = JeiPatternTransferContextBridge.current(patternEncodingTermMenu);
-            if (patternEncodingTermMenu.getMode() == EncodingMode.PROCESSING && rankingContext == null) {
-                return;
-            }
+            PatternEncodingRankingContext rankingContext =
+                    JeiPatternTransferContextBridge.requireCurrent(patternEncodingTermMenu);
             PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyInput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);

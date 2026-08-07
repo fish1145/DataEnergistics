@@ -8,7 +8,6 @@ import net.minecraft.world.item.ItemStack;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.runtime.IJeiRuntime;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -55,11 +54,13 @@ public final class JeiPatternTransferContextBridge {
         FRAMES.get().push(new Frame(menu, context));
     }
 
-    /** Returns the current frame's context for the AE2 transfer handler. */
-    @Nullable
-    public static PatternEncodingRankingContext current(PatternEncodingTermMenu menu) {
+    /** Returns the context scoped to the successful transfer, rejecting an unbalanced callback. */
+    public static PatternEncodingRankingContext requireCurrent(PatternEncodingTermMenu menu) {
         Frame frame = FRAMES.get().peek();
-        return frame != null && frame.menu() == menu ? frame.context() : null;
+        if (frame == null || frame.menu() != menu) {
+            throw new IllegalStateException("JEI transfer context is not scoped to the current menu");
+        }
+        return frame.context();
     }
 
     /** Removes the current frame and releases the thread-local container when the stack becomes empty. */

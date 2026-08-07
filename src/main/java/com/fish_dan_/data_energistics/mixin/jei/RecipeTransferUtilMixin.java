@@ -8,7 +8,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
@@ -41,8 +40,7 @@ public abstract class RecipeTransferUtilMixin {
             boolean maxTransfer,
             boolean doTransfer,
             Operation<Optional<IRecipeTransferError>> original) {
-        if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)
-                || menu.getMode() != EncodingMode.PROCESSING) {
+        if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
             return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }
         PatternEncodingRankingContext context;
@@ -50,13 +48,13 @@ public abstract class RecipeTransferUtilMixin {
             context = JeiPatternTransferContextBridge.resolve(recipeLayout);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Rejected JEI processing-pattern transfer because its category/workstation context could not be resolved",
+                    "Rejected JEI pattern transfer because its category/workstation context could not be resolved",
                     exception);
             return Optional.of(RecipeTransferErrorInternal.INSTANCE);
         }
         JeiPatternTransferContextBridge.begin(menu, context);
         try {
-            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
+            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
         } finally {
             JeiPatternTransferContextBridge.end(menu);
         }
