@@ -410,7 +410,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
         ArrayList<Map.Entry<EnergyLocationKey, TowerEnergyLocation>> orderedLocations = new ArrayList<>(locations.entrySet());
         orderedLocations.sort(Map.Entry.comparingByKey());
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<IEnergyStorage> seenStorages = new HashSet<>();
         ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>();
         for (Map.Entry<EnergyLocationKey, TowerEnergyLocation> entry : orderedLocations) {
             for (TowerDomainEnergyEndpoint endpoint : this.energyResolver.resolve(entry.getValue())) {

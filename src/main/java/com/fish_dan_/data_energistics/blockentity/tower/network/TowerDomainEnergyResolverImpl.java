@@ -16,8 +16,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -36,7 +35,7 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         if (!level.isLoaded(location.position())) {
             return List.of();
         }
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<IEnergyStorage> seenStorages = new HashSet<>();
         ArrayList<TowerDomainEnergyEndpoint> endpoints = new ArrayList<>();
         int storageIdentity = 0;
         for (Direction side : Direction.values()) {

@@ -1601,6 +1601,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.mainNodeActive = active;
         invalidateEndpointCache();
         invalidateClusterCache();
+        if (activeChanged) {
+            invalidateTowerDomain(TowerNetworkDomainChange.TOWER);
+        }
         syncClientOnlineState();
         requestAeTickWake();
     }
