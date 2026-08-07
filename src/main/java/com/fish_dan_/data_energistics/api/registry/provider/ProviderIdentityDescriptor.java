@@ -20,6 +20,9 @@ public record ProviderIdentityDescriptor(ResourceLocation type,
 
     /** Validates and freezes an external identity schema. */
     public ProviderIdentityDescriptor {
+        if (type == null) {
+            throw new IllegalArgumentException("Provider identity type must not be null");
+        }
         if (schemaVersion <= 0) {
             throw new IllegalArgumentException("Provider identity schema version must be positive");
         }
