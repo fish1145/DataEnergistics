@@ -76,6 +76,24 @@ public final class AdjacentBlockCapabilityCache<T> {
         return resolved.isEmpty() ? List.of() : List.copyOf(resolved);
     }
 
+    /**
+     * Resolves capabilities together with their stable direction keys.
+     *
+     * @param sides enabled target sides
+     * @return immutable direction-to-capability mapping
+     */
+    public Map<Direction, T> getAllBySide(Iterable<Direction> sides) {
+        Objects.requireNonNull(sides);
+        Map<Direction, T> resolved = new EnumMap<>(Direction.class);
+        for (Direction side : sides) {
+            T value = get(side);
+            if (value != null) {
+                resolved.put(side, value);
+            }
+        }
+        return resolved.isEmpty() ? Map.of() : Map.copyOf(resolved);
+    }
+
     private BlockCapabilityCache<T, Direction> createCache(Direction side) {
         return BlockCapabilityCache.create(
                 this.capability,

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -177,8 +178,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private boolean syncingKeyMenu;
     private GenericStack keyInputStack;
     private int cachedSpeedCardCount = -1;
-    private Map<Direction, IItemHandler> cachedAdjacentHandlers;
-    private boolean adjacentHandlersDirty = true;
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private Player cachedFakePlayer;
     private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
     /** Reuses sampled biology results between refreshes to keep entity simulation off the hot work-cycle path. */
@@ -380,7 +380,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
-        this.adjacentHandlersDirty = true;
         updatePowerUsageIfNeeded();
         tickPendingOutputFlush();
         refillEnergyCache();
@@ -500,7 +499,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
-        this.adjacentHandlersDirty = true;
         this.setChanged();
         this.markForClientUpdate();
     }
@@ -535,7 +533,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             }
         }
         if (settings.contains(OUTPUT_SIDES_TAG) && MemoryCardSettingsHelper.replaceSides(this.outputSides, settings.getInt(OUTPUT_SIDES_TAG))) {
-            this.adjacentHandlersDirty = true;
             changed = true;
         }
         if (powerUsageChanged) {
@@ -944,35 +941,17 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private Map<Direction, IItemHandler> getAdjacentItemHandlers() {
-        if (!this.adjacentHandlersDirty && this.cachedAdjacentHandlers != null) {
-            return this.cachedAdjacentHandlers;
-        }
-        this.adjacentHandlersDirty = false;
-        if (this.level == null) {
-            this.cachedAdjacentHandlers = Map.of();
+        if (!(this.level instanceof ServerLevel serverLevel)) {
             return Map.of();
         }
-
-        EnumMap<Direction, IItemHandler> handlers = new EnumMap<>(Direction.class);
-        for (Direction direction : this.outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
+        if (this.adjacentItemHandlers == null) {
+            this.adjacentItemHandlers = new AdjacentBlockCapabilityCache<>(
                     Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.put(direction, handler);
-            }
+                    serverLevel,
+                    this.worldPosition,
+                    () -> !this.isRemoved());
         }
-        this.cachedAdjacentHandlers = handlers.isEmpty() ? Map.of() : Map.copyOf(handlers);
-        return this.cachedAdjacentHandlers;
+        return this.adjacentItemHandlers.getAllBySide(this.outputSides);
     }
 
     @Nullable
