@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -57,6 +58,7 @@ public abstract class RecipeTransferUtilMixin {
         Optional<IRecipeTransferError> result =
                 original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
         if (result.isEmpty()) {
+            PatternEncodingSourceHelper.rememberTransferSource(menu, context);
             if (menu.getMode() == EncodingMode.PROCESSING) {
                 PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, context);
             } else {

@@ -151,8 +151,7 @@ public record PatternEncodingPreferencesSyncPayload(
             }
         }
 
-        if (!PatternEncodingSourceHelper.isRankingContextValid(
-                previewMenu, sourceAware, payload.rankingContext)) {
+        if (!PatternEncodingSourceHelper.isRankingContextValid(previewMenu, payload.rankingContext)) {
             Data_Energistics.LOGGER.warn(
                     "Rejected pattern preference snapshot with a forged recipe or workstation context for container {}",
                     payload.containerId);

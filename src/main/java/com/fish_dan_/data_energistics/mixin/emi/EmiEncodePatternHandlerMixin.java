@@ -72,7 +72,7 @@ public abstract class EmiEncodePatternHandlerMixin {
             return;
         }
         PatternEncodingRankingContext rankingContext = EmiPatternTransferContextBridge.requireCurrent(menu);
-        PatternEncodingSourceHelper.rememberTransferSource(menu, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberTransferSource(menu, rankingContext);
         PatternEncodingSourceHelper.rememberTransferKeyInput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, holder, emiRecipe);

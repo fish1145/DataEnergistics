@@ -28,7 +28,6 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
         }
 
         if (menu instanceof PatternEncodingTermMenu patternEncodingTermMenu) {
-            PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyInput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferFluidInputs(patternEncodingTermMenu, recipe, recipeSlots);

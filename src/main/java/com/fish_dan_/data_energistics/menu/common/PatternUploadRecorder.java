@@ -27,14 +27,14 @@ public final class PatternUploadRecorder {
         if (player == null || menu == null || target == null || source == null) {
             throw new IllegalArgumentException("Pattern upload recording requires a player, menu, target, and source");
         }
-        if (!(menu instanceof PatternEncodingPreferenceMenu preferenceMenu) || !(menu instanceof PatternEncodingPreviewMenu previewMenu) || !(menu instanceof PatternEncodingSourceAware sourceAware)) {
+        if (!(menu instanceof PatternEncodingPreferenceMenu preferenceMenu) ||
+                !(menu instanceof PatternEncodingPreviewMenu previewMenu)) {
             throw new IllegalArgumentException("Pattern upload menu does not expose preference context: " + menu);
         }
 
         try {
             PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
-            PatternEncodingRankingContext rankingContext = resolveRankingContext(
-                    previewMenu, sourceAware, session);
+            PatternEncodingRankingContext rankingContext = resolveRankingContext(previewMenu, session);
             record(player, session, rankingContext, target, source);
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error("Failed to record committed pattern upload to {}",
@@ -72,9 +72,8 @@ public final class PatternUploadRecorder {
     }
 
     private static PatternEncodingRankingContext resolveRankingContext(
-                                                                        PatternEncodingPreviewMenu previewMenu,
-                                                                       PatternEncodingSourceAware sourceAware,
-                                                                       PatternEncodingPreferenceSession session) {
+                                                                         PatternEncodingPreviewMenu previewMenu,
+                                                                        PatternEncodingPreferenceSession session) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
         if (fixedWorkstation != null) {
@@ -85,8 +84,7 @@ public final class PatternUploadRecorder {
         }
 
         PatternEncodingRankingContext rankingContext = session.rankingContext();
-        if (PatternEncodingSourceHelper.isRankingContextValid(
-                previewMenu, sourceAware, rankingContext)) {
+        if (PatternEncodingSourceHelper.isRankingContextValid(previewMenu, rankingContext)) {
             return rankingContext;
         }
         Data_Energistics.LOGGER.warn(
