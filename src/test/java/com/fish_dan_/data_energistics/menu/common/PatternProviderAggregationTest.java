@@ -137,7 +137,7 @@ class PatternProviderAggregationTest {
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregate(
                                                                                   List<PatternProviderSyncHelper.PatternProviderAggregationEntry> entries,
                                                                                   Map<Long, List<PatternContainer>> targetsById) {
-        return PatternProviderSyncHelper.aggregateSyncedPatternProviders(entries, targetsById, false);
+        return PatternProviderSyncHelper.aggregateSyncedPatternProviders(entries, targetsById);
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
@@ -154,9 +154,6 @@ class PatternProviderAggregationTest {
                 renameable,
                 totalSlots,
                 usedSlots,
-                0,
-                0,
-                0,
                 "test:" + id);
     }
 
