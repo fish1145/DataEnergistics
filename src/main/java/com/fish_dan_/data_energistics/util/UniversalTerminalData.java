@@ -31,19 +31,45 @@ public final class UniversalTerminalData {
     public static final String TERMINAL_PATTERN_ACCESS = "pattern_access";
     public static final String TERMINAL_PATTERN_ENCODING = "pattern_encoding";
 
-    private static final List<UniversalTerminalAdapter> TERMINAL_DEFINITIONS = new ArrayList<>();
+    /**
+     * Frozen terminal definitions published by the unified entrypoint loader.
+     * Runtime menu and inventory code only reads this immutable snapshot.
+     */
+    private static volatile List<UniversalTerminalAdapter> terminalDefinitions = List.of();
+    private static boolean definitionsInstalled;
 
     private UniversalTerminalData() {}
 
     public static List<UniversalTerminalAdapter> getDefinitions() {
-        return List.copyOf(TERMINAL_DEFINITIONS);
+        return terminalDefinitions;
     }
 
-    public static void registerAdapter(UniversalTerminalAdapter adapter) {
-        if (TERMINAL_DEFINITIONS.stream().anyMatch(existing -> existing.name().equals(adapter.name()))) {
-            throw new IllegalArgumentException("Duplicate universal terminal adapter: " + adapter.name());
+    /**
+     * Publishes the immutable terminal snapshot assembled by the unified plugin registry.
+     *
+     * @param definitions definitions in deterministic registration order
+     */
+    public static synchronized void installDefinitions(List<UniversalTerminalAdapter> definitions) {
+        if (definitionsInstalled) {
+            throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
-        TERMINAL_DEFINITIONS.add(adapter);
+        if (!terminalDefinitions.isEmpty()) {
+            throw new IllegalStateException(
+                    "Universal terminal definitions were mutated before the unified registry snapshot was installed");
+        }
+
+        LinkedHashMap<String, UniversalTerminalAdapter> unique = new LinkedHashMap<>();
+        for (UniversalTerminalAdapter adapter : definitions) {
+            String name = adapter.name();
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("Universal terminal name must not be blank");
+            }
+            if (unique.putIfAbsent(name, adapter) != null) {
+                throw new IllegalStateException("Duplicate universal terminal adapter: " + name);
+            }
+        }
+        terminalDefinitions = List.copyOf(unique.values());
+        definitionsInstalled = true;
     }
 
     public static ItemStack createCombinedTerminal(ItemStack resultTemplate, HolderLookup.Provider registries,
@@ -153,8 +179,9 @@ public final class UniversalTerminalData {
             return -1;
         }
 
-        for (int i = 0; i < TERMINAL_DEFINITIONS.size(); i++) {
-            if (TERMINAL_DEFINITIONS.get(i).name().equals(terminalName)) {
+        List<UniversalTerminalAdapter> definitions = terminalDefinitions;
+        for (int i = 0; i < definitions.size(); i++) {
+            if (definitions.get(i).name().equals(terminalName)) {
                 return i;
             }
         }
@@ -162,11 +189,12 @@ public final class UniversalTerminalData {
     }
 
     public static @Nullable String getTerminalNameByIndex(int index) {
-        return index >= 0 && index < TERMINAL_DEFINITIONS.size() ? TERMINAL_DEFINITIONS.get(index).name() : null;
+        List<UniversalTerminalAdapter> definitions = terminalDefinitions;
+        return index >= 0 && index < definitions.size() ? definitions.get(index).name() : null;
     }
 
     public static int getDefinitionCount() {
-        return TERMINAL_DEFINITIONS.size();
+        return terminalDefinitions.size();
     }
 
     public static void writeEntries(ItemStack stack, HolderLookup.Provider registries, List<TerminalEntry> entries) {
@@ -205,13 +233,13 @@ public final class UniversalTerminalData {
     }
 
     private static Optional<UniversalTerminalAdapter> getDefinition(String terminalName) {
-        return TERMINAL_DEFINITIONS.stream()
+        return terminalDefinitions.stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst();
     }
 
     public static Optional<UniversalTerminalAdapter> getAdapter(ItemStack stack) {
-        return getDefinitions().stream()
+        return terminalDefinitions.stream()
                 .filter(definition -> definition.matches(stack))
                 .findFirst();
     }
