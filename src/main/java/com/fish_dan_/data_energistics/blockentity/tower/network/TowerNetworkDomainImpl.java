@@ -220,7 +220,6 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                 this.reconciledRevision = reconciliationRevision;
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error("Failed to reconcile tower network domain for {}", this.grid, exception);
-                this.lastSafetyRescanTick = gameTime;
             } finally {
                 this.reconciling = false;
             }
