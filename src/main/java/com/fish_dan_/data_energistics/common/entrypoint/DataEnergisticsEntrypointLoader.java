@@ -109,17 +109,26 @@ public final class DataEnergisticsEntrypointLoader {
         return candidates.stream().distinct().toList();
     }
 
-    /** Resolves the primary mod descriptor that owns one scanned mod file. */
+    /** Resolves the only mod descriptor that can unambiguously own entrypoints in one scanned mod file. */
     private static String resolveOwningModId(ModFileScanData scanData) {
         List<IModFileInfo> fileInfos = scanData.getIModInfoData();
         if (fileInfos.isEmpty()) {
             throw new IllegalStateException("A mod file containing a Data Energistics entrypoint has no mod metadata");
         }
-        List<IModInfo> mods = fileInfos.getFirst().getMods();
-        if (mods.isEmpty()) {
+        List<String> owningModIds = fileInfos.stream()
+                .flatMap(fileInfo -> fileInfo.getMods().stream())
+                .map(IModInfo::getModId)
+                .distinct()
+                .sorted()
+                .toList();
+        if (owningModIds.isEmpty()) {
             throw new IllegalStateException("A mod file containing a Data Energistics entrypoint declares no owning mod");
         }
-        return mods.getFirst().getModId();
+        if (owningModIds.size() != 1) {
+            throw new IllegalStateException(
+                    "A mod file containing a Data Energistics entrypoint has ambiguous owners: " + owningModIds);
+        }
+        return owningModIds.getFirst();
     }
 
     /** Validates the public plugin contract before invoking its no-argument constructor. */
