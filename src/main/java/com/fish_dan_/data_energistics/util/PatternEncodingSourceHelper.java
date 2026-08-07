@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
@@ -320,7 +321,7 @@ public final class PatternEncodingSourceHelper {
             }
             if (menu instanceof PatternEncodingPreferenceMenu preferenceMenu) {
                 preferenceMenu.data_energistics$getPreferenceSession().setRankingContext(
-                        resolveRankingContext(menu.getMode(), recipe, transferContext, workstationId));
+                        resolveRankingContext(menu.getMode(), workstationId));
             }
         }
     }
@@ -330,20 +331,11 @@ public final class PatternEncodingSourceHelper {
      */
     @Nullable
     public static PatternEncodingRankingContext resolveRankingContext(@Nullable EncodingMode mode,
-                                                                      @Nullable Object recipe,
-                                                                      @Nullable Object transferContext,
                                                                       @Nullable ResourceLocation workstationId) {
         if (!isResolvableWorkstation(workstationId)) {
             return null;
         }
-        PatternEncodingRankingContext resolved = resolveRankingContext(recipe, workstationId);
-        if (resolved == null) {
-            resolved = resolveRankingContext(transferContext, workstationId);
-        }
-        if (resolved != null || mode == EncodingMode.PROCESSING) {
-            return resolved;
-        }
-        return resolveFixedModeRankingContext(mode, workstationId);
+        return mode == EncodingMode.PROCESSING ? null : resolveFixedModeRankingContext(mode, workstationId);
     }
 
     /**
@@ -361,7 +353,7 @@ public final class PatternEncodingSourceHelper {
             case STONECUTTING -> STONECUTTING_RECIPE_TYPE_ID;
             case PROCESSING -> null;
         };
-        return recipeTypeId == null ? null : PatternEncodingRankingContext.forRecipeType(recipeTypeId, workstationId);
+        return recipeTypeId == null ? null : PatternEncodingRankingContext.of(recipeTypeId, List.of(workstationId));
     }
 
     /**
@@ -371,11 +363,7 @@ public final class PatternEncodingSourceHelper {
      */
     public static boolean isRankingContextValid(PatternEncodingPreviewMenu previewMenu,
                                                 PatternEncodingSourceAware sourceAware,
-                                                @Nullable PatternEncodingRankingContext context,
-                                                Level level) {
-        if (previewMenu == null || sourceAware == null || level == null) {
-            throw new IllegalArgumentException("Pattern ranking validation requires a menu, source state, and level");
-        }
+                                                @Nullable PatternEncodingRankingContext context) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         ResourceLocation fixedWorkstation = resolveFallbackWorkstationForMode(mode);
         if (fixedWorkstation != null) {
@@ -391,19 +379,13 @@ public final class PatternEncodingSourceHelper {
         if (context == null) {
             return true;
         }
-        if (!Objects.equals(workstation, context.workstation()) || !isResolvableWorkstation(workstation)) {
-            return false;
+        for (ResourceLocation candidateWorkstation : context.workstationIds()) {
+            if (!isRegisteredWorkstationItem(candidateWorkstation)) {
+                return false;
+            }
         }
-        String recipeScope = context.recipeScope();
-        if (recipeScope.startsWith("type:")) {
-            ResourceLocation recipeTypeId = ResourceLocation.tryParse(recipeScope.substring("type:".length()));
-            return recipeTypeId != null && BuiltInRegistries.RECIPE_TYPE.containsKey(recipeTypeId);
-        }
-        if (recipeScope.startsWith("recipe:")) {
-            ResourceLocation recipeId = ResourceLocation.tryParse(recipeScope.substring("recipe:".length()));
-            return recipeId != null && level.getRecipeManager().byKey(recipeId).isPresent();
-        }
-        return false;
+        return context.workstationIds().isEmpty() ||
+                workstation != null && context.workstationIds().contains(workstation);
     }
 
     private static boolean isResolvableWorkstation(@Nullable ResourceLocation workstationId) {
@@ -411,23 +393,9 @@ public final class PatternEncodingSourceHelper {
                 BuiltInRegistries.ITEM.containsKey(workstationId));
     }
 
-    @Nullable
-    private static PatternEncodingRankingContext resolveRankingContext(@Nullable Object source,
-                                                                       ResourceLocation workstationId) {
-        if (source instanceof RecipeHolder<?> holder) {
-            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType());
-            if (typeId != null) {
-                return PatternEncodingRankingContext.forRecipeType(typeId, workstationId);
-            }
-            return PatternEncodingRankingContext.forRecipe(holder.id(), workstationId);
-        }
-        if (source instanceof Recipe<?> recipe) {
-            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
-            if (typeId != null) {
-                return PatternEncodingRankingContext.forRecipeType(typeId, workstationId);
-            }
-        }
-        return null;
+    private static boolean isRegisteredWorkstationItem(ResourceLocation workstationId) {
+        return BuiltInRegistries.ITEM.containsKey(workstationId) &&
+                BuiltInRegistries.ITEM.get(workstationId) != Items.AIR;
     }
 
     public static void rememberTransferKeyInput(PatternEncodingTermMenu menu, @Nullable Object recipe,

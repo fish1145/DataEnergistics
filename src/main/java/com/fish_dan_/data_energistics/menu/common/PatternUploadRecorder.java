@@ -34,7 +34,7 @@ public final class PatternUploadRecorder {
         try {
             PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
             PatternEncodingRankingContext rankingContext = resolveRankingContext(
-                    player, previewMenu, sourceAware, session);
+                    previewMenu, sourceAware, session);
             record(player, session, rankingContext, target, source);
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error("Failed to record committed pattern upload to {}",
@@ -72,8 +72,7 @@ public final class PatternUploadRecorder {
     }
 
     private static PatternEncodingRankingContext resolveRankingContext(
-                                                                       ServerPlayer player,
-                                                                       PatternEncodingPreviewMenu previewMenu,
+                                                                        PatternEncodingPreviewMenu previewMenu,
                                                                        PatternEncodingSourceAware sourceAware,
                                                                        PatternEncodingPreferenceSession session) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
@@ -87,7 +86,7 @@ public final class PatternUploadRecorder {
 
         PatternEncodingRankingContext rankingContext = session.rankingContext();
         if (PatternEncodingSourceHelper.isRankingContextValid(
-                previewMenu, sourceAware, rankingContext, player.level())) {
+                previewMenu, sourceAware, rankingContext)) {
             return rankingContext;
         }
         Data_Energistics.LOGGER.warn(

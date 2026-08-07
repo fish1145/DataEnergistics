@@ -19,7 +19,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -45,7 +44,6 @@ public record PatternEncodingPreferencesSyncPayload(
 
     public static final int MAX_STATISTICS = 2048;
     public static final int MAX_DIGEST_LENGTH = 71;
-    public static final int MAX_CONTEXT_BYTES = 256;
     private static final int KNOWN_PRESENT_MASK = 0x0F;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
     public static final Type<PatternEncodingPreferencesSyncPayload> TYPE = new Type<>(
@@ -67,9 +65,6 @@ public record PatternEncodingPreferencesSyncPayload(
             throw new IllegalArgumentException("Pattern preference present mask contains unknown bits: " + presentMask);
         }
         validateOffset(previewPanelOffsetX, previewPanelOffsetY);
-        if (rankingContext != null) {
-            validateContext(rankingContext);
-        }
         statistics = List.copyOf(statistics);
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
@@ -83,7 +78,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     /**
-     * One absolute count for a provider leaf in the current recipe/workstation context.
+     * One absolute count for a provider leaf in the current category/workstation-set context.
      */
     public record LeafStatistic(String providerDigest, long count) {
 
@@ -157,7 +152,7 @@ public record PatternEncodingPreferencesSyncPayload(
         }
 
         if (!PatternEncodingSourceHelper.isRankingContextValid(
-                previewMenu, sourceAware, payload.rankingContext, serverPlayer.level())) {
+                previewMenu, sourceAware, payload.rankingContext)) {
             Data_Energistics.LOGGER.warn(
                     "Rejected pattern preference snapshot with a forged recipe or workstation context for container {}",
                     payload.containerId);
@@ -203,12 +198,6 @@ public record PatternEncodingPreferencesSyncPayload(
                 layoutAware.data_energistics$getPreviewPanelOffsetY()));
     }
 
-    private static void validateContext(PatternEncodingRankingContext context) {
-        if (context.recipeScope().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES || context.workstation().toString().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES) {
-            throw new IllegalArgumentException("Pattern preference ranking context is too long");
-        }
-    }
-
     private static void validateOffset(int x, int y) {
         if (x < -8192 || x > 8192 || y < -8192 || y > 8192) {
             throw new IllegalArgumentException("Pattern preference preview offset is outside [-8192, 8192]");
@@ -233,18 +222,11 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     private static void writeContext(RegistryFriendlyByteBuf buffer, PatternEncodingRankingContext context) {
-        buffer.writeBoolean(context != null);
-        if (context != null) {
-            buffer.writeUtf(context.recipeScope(), MAX_CONTEXT_BYTES);
-            buffer.writeResourceLocation(context.workstation());
-        }
+        PatternEncodingRankingContextCodec.writeNullable(buffer, context);
     }
 
     private static PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
-        if (!buffer.readBoolean()) {
-            return null;
-        }
-        return new PatternEncodingRankingContext(buffer.readUtf(MAX_CONTEXT_BYTES), buffer.readResourceLocation());
+        return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
     private static List<LeafStatistic> readStatistics(RegistryFriendlyByteBuf buffer) {

@@ -3,56 +3,77 @@ package com.fish_dan_.data_energistics.menu.common;
 import net.minecraft.resources.ResourceLocation;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 
 /**
- * Identifies the recipe and workstation pair for which provider upload history is relevant.
+ * Identifies the exact recipe category and workstation candidates for provider ranking.
  *
- * <p>
- * The pair is intentionally exact: history from a different recipe type or workstation must not influence
- * provider ordering.
- * </p>
+ * <p>The snapshot contains only canonical registry identifiers.  It is therefore safe to persist and send over the
+ * wire without retaining viewer, recipe, menu, or live registry objects.</p>
  */
-public record PatternEncodingRankingContext(String recipeScope, ResourceLocation workstation) {
+public record PatternEncodingRankingContext(ResourceLocation categoryId,
+                                            List<ResourceLocation> workstationIds) {
 
-    public static final int MAX_RECIPE_SCOPE_BYTES = 256;
-    public static final int MAX_WORKSTATION_BYTES = 256;
-    private static final String TYPE_PREFIX = "type:";
-    private static final String RECIPE_PREFIX = "recipe:";
+    /** Maximum number of workstation identifiers carried by one viewer snapshot. */
+    public static final int MAX_WORKSTATION_IDS = 64;
+    /** Maximum UTF-8 bytes accepted for one registry identifier on the wire and in persistence. */
+    public static final int MAX_RESOURCE_LOCATION_BYTES = 256;
+    /** Maximum UTF-8 bytes occupied by the complete context snapshot. */
+    public static final int MAX_CONTEXT_BYTES = 16 * 1024;
 
-    /** Validates the bounded, version-independent values accepted from a client menu session. */
+    /** Canonicalizes and validates the immutable viewer snapshot. */
     public PatternEncodingRankingContext {
-        if (recipeScope == null || recipeScope.isBlank()) {
-            throw new IllegalArgumentException("Pattern ranking recipe scope must not be blank");
+        validateResourceLocation(categoryId, "category id");
+        if (workstationIds.size() > MAX_WORKSTATION_IDS) {
+            throw new IllegalArgumentException(
+                    "Pattern ranking workstation ids exceed " + MAX_WORKSTATION_IDS);
         }
-        if (recipeScope.getBytes(StandardCharsets.UTF_8).length > MAX_RECIPE_SCOPE_BYTES) {
-            throw new IllegalArgumentException("Pattern ranking recipe scope exceeds " + MAX_RECIPE_SCOPE_BYTES + " UTF-8 bytes");
+        List<ResourceLocation> canonical = new ArrayList<>(workstationIds.size());
+        for (ResourceLocation workstationId : workstationIds) {
+            validateResourceLocation(workstationId, "workstation id");
+            canonical.add(workstationId);
         }
-        String recipeId = recipeScope.startsWith(TYPE_PREFIX) ? recipeScope.substring(TYPE_PREFIX.length()) : recipeScope.startsWith(RECIPE_PREFIX) ? recipeScope.substring(RECIPE_PREFIX.length()) : null;
-        if (recipeId == null || ResourceLocation.tryParse(recipeId) == null) {
-            throw new IllegalArgumentException("Invalid pattern ranking recipe scope: " + recipeScope);
+        canonical.sort(Comparator.comparing(ResourceLocation::toString));
+        List<ResourceLocation> unique = new ArrayList<>(canonical.size());
+        ResourceLocation previous = null;
+        for (ResourceLocation workstationId : canonical) {
+            if (!workstationId.equals(previous)) {
+                unique.add(workstationId);
+                previous = workstationId;
+            }
         }
-        if (workstation == null) {
-            throw new IllegalArgumentException("Pattern ranking workstation must not be null");
-        }
-        if (workstation.toString().getBytes(StandardCharsets.UTF_8).length > MAX_WORKSTATION_BYTES) {
-            throw new IllegalArgumentException("Pattern ranking workstation exceeds " + MAX_WORKSTATION_BYTES + " UTF-8 bytes");
+        workstationIds = List.copyOf(unique);
+        if (encodedByteLength(categoryId, workstationIds) > MAX_CONTEXT_BYTES) {
+            throw new IllegalArgumentException(
+                    "Pattern ranking context exceeds " + MAX_CONTEXT_BYTES + " UTF-8 bytes");
         }
     }
 
-    /** Builds the preferred recipe-type scope. */
-    public static PatternEncodingRankingContext forRecipeType(ResourceLocation recipeTypeId,
-                                                              ResourceLocation workstation) {
-        if (recipeTypeId == null) {
-            throw new IllegalArgumentException("Recipe type id must not be null");
-        }
-        return new PatternEncodingRankingContext(TYPE_PREFIX + recipeTypeId, workstation);
+    /** Creates a canonical context from an exact category and workstation collection. */
+    public static PatternEncodingRankingContext of(ResourceLocation categoryId,
+                                                    Collection<ResourceLocation> workstationIds) {
+        return new PatternEncodingRankingContext(categoryId, new ArrayList<>(workstationIds));
     }
 
-    /** Builds the recipe-id fallback scope used when no registered recipe type can be resolved. */
-    public static PatternEncodingRankingContext forRecipe(ResourceLocation recipeId, ResourceLocation workstation) {
-        if (recipeId == null) {
-            throw new IllegalArgumentException("Recipe id must not be null");
+    private static int encodedByteLength(ResourceLocation categoryId, List<ResourceLocation> workstationIds) {
+        int length = utf8Length(categoryId) + 1;
+        for (ResourceLocation workstationId : workstationIds) {
+            length += utf8Length(workstationId) + 1;
         }
-        return new PatternEncodingRankingContext(RECIPE_PREFIX + recipeId, workstation);
+        return length;
+    }
+
+    private static int utf8Length(ResourceLocation id) {
+        return id.toString().getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private static void validateResourceLocation(ResourceLocation id, String label) {
+        if (utf8Length(id) > MAX_RESOURCE_LOCATION_BYTES) {
+            throw new IllegalArgumentException(
+                    "Pattern ranking " + label + " exceeds " + MAX_RESOURCE_LOCATION_BYTES + " UTF-8 bytes");
+        }
     }
 }

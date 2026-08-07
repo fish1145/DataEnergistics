@@ -92,7 +92,7 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
-     * Returns the server-validated recipe/workstation context, if one is known.
+     * Returns the server-validated category/workstation-set context, if one is known.
      */
     @Nullable
     public PatternEncodingRankingContext rankingContext() {

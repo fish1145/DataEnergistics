@@ -35,7 +35,6 @@ public record PatternUploadSucceededPayload(
 
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
     private static final int MAX_DIGEST_LENGTH = 71;
-    private static final int MAX_CONTEXT_BYTES = 256;
     private static final int MAX_TARGET_COMPONENT_BYTES = 1024;
     public static final Type<PatternUploadSucceededPayload> TYPE = new Type<>(
             Data_Energistics.id("pattern_upload_succeeded"));
@@ -62,8 +61,6 @@ public record PatternUploadSucceededPayload(
             if (newCount != 0L) {
                 throw new IllegalArgumentException("Pattern upload success without context must not carry history");
             }
-        } else if (rankingContext.recipeScope().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES || rankingContext.workstation().toString().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES) {
-            throw new IllegalArgumentException("Pattern upload success context is too long");
         }
         String targetEncoding = GsonHelper.toStableString(
                 ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, targetName).getOrThrow());
@@ -108,16 +105,12 @@ public record PatternUploadSucceededPayload(
 
     private static void writeContext(RegistryFriendlyByteBuf buffer,
                                      @Nullable PatternEncodingRankingContext context) {
-        buffer.writeBoolean(context != null);
-        if (context != null) {
-            buffer.writeUtf(context.recipeScope(), MAX_CONTEXT_BYTES);
-            buffer.writeResourceLocation(context.workstation());
-        }
+        PatternEncodingRankingContextCodec.writeNullable(buffer, context);
     }
 
     @Nullable
     private static PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
-        return buffer.readBoolean() ? new PatternEncodingRankingContext(buffer.readUtf(MAX_CONTEXT_BYTES), buffer.readResourceLocation()) : null;
+        return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
     private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation value) {

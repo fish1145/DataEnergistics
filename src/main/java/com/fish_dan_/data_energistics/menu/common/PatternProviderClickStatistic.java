@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import net.minecraft.resources.ResourceLocation;
+
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** Stores one bounded provider-selection history entry for an exact ranking context. */
 public record PatternProviderClickStatistic(
@@ -30,6 +33,8 @@ public record PatternProviderClickStatistic(
 
     /** Returns the stable key used for deterministic eviction and duplicate detection. */
     public String stableKey() {
-        return this.context.recipeScope() + '\0' + this.context.workstation() + '\0' + this.providerDigest;
+        return this.context.categoryId().toString() + '\0' + this.context.workstationIds().stream()
+                .map(ResourceLocation::toString)
+                .collect(Collectors.joining(",")) + '\0' + this.providerDigest;
     }
 }
