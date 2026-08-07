@@ -9,14 +9,21 @@ import org.jetbrains.annotations.Nullable;
  * matcher without its corresponding lifecycle callbacks.</p>
  *
  * @param metadata       immutable provider matching metadata
- * @param factory        runtime counted-dispatch adapter factory
+ * @param factory        optional runtime counted-dispatch adapter factory
  * @param menuOpenAdapter optional provider-group menu handler
  * @param postCommitHook optional confirmed-commit observer
  */
 public record PatternProviderRegistration(PatternProviderMetadata metadata,
-                                          PatternProviderFactory factory,
-                                          @Nullable PatternProviderMenuOpenAdapter menuOpenAdapter,
-                                          @Nullable PatternProviderPostCommitHook postCommitHook) {
+                                           @Nullable PatternProviderFactory factory,
+                                           @Nullable PatternProviderMenuOpenAdapter menuOpenAdapter,
+                                           @Nullable PatternProviderPostCommitHook postCommitHook) {
+
+    /** Rejects metadata-only declarations that cannot contribute any provider behavior. */
+    public PatternProviderRegistration {
+        if (factory == null && menuOpenAdapter == null && postCommitHook == null) {
+            throw new IllegalArgumentException("Pattern provider registration requires at least one behavior");
+        }
+    }
 
     /**
      * Creates a declaration containing only the counted-dispatch factory.

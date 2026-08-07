@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutpu
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
+import com.fish_dan_.data_energistics.api.registry.provider.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
 import com.fish_dan_.data_energistics.util.UniversalTerminalAdapter;
@@ -27,6 +28,7 @@ final class DataEnergisticsRegistryImpl {
 
     private final Map<String, UniversalTerminalAdapter> universalTerminals = new LinkedHashMap<>();
     private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
+    private final Map<ProviderIdentityDescriptor, ResourceLocation> patternProviderIdentities = new LinkedHashMap<>();
     private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
     private volatile boolean frozen;
     private volatile DataEnergisticsRegistrySnapshot snapshot;
@@ -55,6 +57,14 @@ final class DataEnergisticsRegistryImpl {
                         + "' from " + staging.description());
             }
         }
+        for (PatternProviderRegistration registration : staging.patternProviders.values()) {
+            ProviderIdentityDescriptor identity = registration.metadata().providerIdentity();
+            ResourceLocation existingId = this.patternProviderIdentities.get(identity);
+            if (existingId != null) {
+                throw new IllegalStateException("Duplicate pattern provider identity '" + identity
+                        + "' from " + staging.description() + "; already registered as '" + existingId + "'");
+            }
+        }
         for (VirtualCraftingOutputAdapter adapter : staging.virtualCraftingOutputAdapters) {
             if (this.virtualCraftingOutputAdapters.stream().anyMatch(existing -> existing == adapter)) {
                 throw new IllegalStateException("Duplicate virtual crafting output adapter from "
@@ -64,6 +74,8 @@ final class DataEnergisticsRegistryImpl {
 
         this.universalTerminals.putAll(staging.universalTerminals);
         this.patternProviders.putAll(staging.patternProviders);
+        staging.patternProviders.values().forEach(registration -> this.patternProviderIdentities.put(
+                registration.metadata().providerIdentity(), registration.metadata().registrationId()));
         this.virtualCraftingOutputAdapters.addAll(staging.virtualCraftingOutputAdapters);
         staging.markCommitted();
     }
@@ -198,8 +210,14 @@ final class DataEnergisticsRegistryImpl {
                 requireOpen();
                 var metadata = registration.metadata();
                 ResourceLocation registrationId = metadata.registrationId();
-                if (registrationId == null || metadata.providerIdentity() == null || registration.factory() == null) {
-                    throw new IllegalArgumentException("Pattern provider registration requires an ID, identity and factory");
+                if (registrationId == null || metadata.providerIdentity() == null) {
+                    throw new IllegalArgumentException("Pattern provider registration requires an ID and identity");
+                }
+                for (PatternProviderRegistration existing : patternProviders.values()) {
+                    if (existing.metadata().providerIdentity().equals(metadata.providerIdentity())) {
+                        throw new IllegalStateException("Duplicate pattern provider identity '"
+                                + metadata.providerIdentity() + "' in " + description());
+                    }
                 }
                 if (patternProviders.putIfAbsent(registrationId, registration) != null) {
                     throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId
