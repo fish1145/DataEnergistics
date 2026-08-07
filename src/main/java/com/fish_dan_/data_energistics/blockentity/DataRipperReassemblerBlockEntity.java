@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
@@ -21,6 +22,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -156,6 +158,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
     @Getter
     private int progress;
     @Getter
@@ -962,19 +967,38 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        List<IItemHandler> itemHandlers = getAdjacentItemHandlers(this.itemOutputSides);
-        List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
-        List<GenericInternalInventory> keyInventories = getAdjacentKeyInventories(this.keyOutputSides);
-
-        boolean changed = exportItemOutputs(itemHandlers);
-        changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
-        changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
-        changed |= exportKeyOutput(keyInventories);
+        boolean changed = false;
+        if (hasItemOutput()) {
+            changed = exportItemOutputs(getAdjacentItemHandlers(this.itemOutputSides));
+        }
+        if (!this.fluidOutputTankA.getFluid().isEmpty() || !this.fluidOutputTankB.getFluid().isEmpty()) {
+            List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
+            changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
+            changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
+        }
+        if (hasKeyOutput()) {
+            changed |= exportKeyOutput(getAdjacentKeyInventories(this.keyOutputSides));
+        }
 
         if (changed) {
             saveChanges();
             markForClientUpdate();
         }
+    }
+
+    private boolean hasItemOutput() {
+        for (int slot = ITEM_OUTPUT_START_SLOT; slot < ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT; slot++) {
+            if (!this.storage.getStackInSlot(slot).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasKeyOutput() {
+        return this.keyOutputStack != null
+                && this.keyOutputStack.what() != null
+                && this.keyOutputStack.amount() > 0L;
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
@@ -1077,81 +1101,53 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers;
+        return this.adjacentItemHandlers.getAll(outputSides);
     }
 
     private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<IFluidHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IFluidHandler handler = this.level.getCapability(
-                    Capabilities.FluidHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers;
+        return this.adjacentFluidHandlers.getAll(outputSides);
     }
 
     private List<GenericInternalInventory> getAdjacentKeyInventories(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
+        return this.adjacentKeyInventories.getAll(outputSides);
+    }
 
-        List<GenericInternalInventory> inventories = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            GenericInternalInventory inventory = this.level.getCapability(
-                    AECapabilities.GENERIC_INTERNAL_INV,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (inventory != null) {
-                inventories.add(inventory);
-            }
+    private boolean initializeAdjacentCapabilityCaches() {
+        if (this.adjacentItemHandlers != null) {
+            return true;
         }
-        return inventories;
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+
+        AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.ItemHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<IFluidHandler> fluidHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.FluidHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<GenericInternalInventory> keyInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        this.adjacentItemHandlers = itemHandlers;
+        this.adjacentFluidHandlers = fluidHandlers;
+        this.adjacentKeyInventories = keyInventories;
+        return true;
     }
 
     private Set<Direction> getOutputSidesInternal(DigitalStorageDepotOutputType outputType) {
