@@ -46,8 +46,6 @@ import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -218,25 +216,34 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
     }
 
     private boolean vacuumInFront(ServerLevel level, Player player, ItemStack stack, boolean absorbThisTick) {
-        List<BlockPos> positions = getVacuumCube(level, player);
-        AABB area = getVacuumArea(positions);
+        BlockPos center = getVacuumCenter(level, player);
+        AABB area = getVacuumArea(center);
         boolean changed = false;
 
         if (absorbThisTick) {
-            changed |= vacuumItemEntities(level, player, stack, area);
-            changed |= vacuumFluidSources(level, player, stack, positions);
-            changed |= vacuumDataEntities(level, player, stack, area);
+            List<ItemEntity> nearbyItems = level.getEntitiesOfClass(
+                    ItemEntity.class, area, entity -> entity.isAlive() && !entity.getItem().isEmpty());
+            changed |= vacuumItemEntities(level, player, stack, nearbyItems);
+            changed |= vacuumFluidSources(level, player, stack, center);
         }
-        changed |= hoverOtherEntities(level, player, area);
+
+        List<Entity> nearbyEntities = level.getEntitiesOfClass(
+                Entity.class, area, entity -> entity.isAlive() && !(entity instanceof Player) &&
+                        !(entity instanceof ItemEntity));
+        if (absorbThisTick) {
+            changed |= vacuumDataEntities(level, player, stack, nearbyEntities);
+        }
+        changed |= hoverOtherEntities(level, player, area, nearbyEntities);
 
         return changed;
     }
 
-    private boolean vacuumItemEntities(ServerLevel level, Player player, ItemStack stack, AABB area) {
+    private boolean vacuumItemEntities(ServerLevel level, Player player, ItemStack stack,
+                                       List<ItemEntity> nearbyItems) {
         boolean changed = false;
         IActionSource actionSource = IActionSource.ofPlayer(player);
-        for (ItemEntity itemEntity : level.getEntitiesOfClass(ItemEntity.class, area,
-                entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
+        var registries = level.registryAccess();
+        for (ItemEntity itemEntity : nearbyItems) {
             if (!this.hasSufficientEnergy(stack)) {
                 player.stopUsingItem();
                 break;
@@ -248,7 +255,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
                 continue;
             }
 
-            long inserted = MeVacuumMenuHost.insertIntoStoredCells(stack, level.registryAccess(), itemKey,
+            long inserted = MeVacuumMenuHost.insertIntoStoredCells(stack, registries, itemKey,
                     entityStack.getCount(), actionSource);
             if (inserted <= 0L) {
                 continue;
@@ -264,51 +271,63 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         return changed;
     }
 
-    private boolean vacuumFluidSources(ServerLevel level, Player player, ItemStack stack, List<BlockPos> positions) {
+    private boolean vacuumFluidSources(ServerLevel level, Player player, ItemStack stack, BlockPos center) {
         boolean changed = false;
         IActionSource actionSource = IActionSource.ofPlayer(player);
-        for (BlockPos pos : positions) {
-            if (!this.hasSufficientEnergy(stack)) {
-                player.stopUsingItem();
-                break;
-            }
+        var registries = level.registryAccess();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = -1; x <= 1; x++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (!this.hasSufficientEnergy(stack)) {
+                        player.stopUsingItem();
+                        return changed;
+                    }
 
-            BlockState state = level.getBlockState(pos);
-            FluidState fluidState = state.getFluidState();
-            if (fluidState.isEmpty() || !fluidState.isSource() || !player.mayUseItemAt(pos, Direction.UP, stack)) {
-                continue;
-            }
+                    pos.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                    BlockState state = level.getBlockState(pos);
+                    FluidState fluidState = state.getFluidState();
+                    if (fluidState.isEmpty() || !fluidState.isSource() ||
+                            !player.mayUseItemAt(pos, Direction.UP, stack)) {
+                        continue;
+                    }
 
-            AEFluidKey fluidKey = AEFluidKey.of(new FluidStack(fluidState.getType(), 1));
-            if (fluidKey == null) {
-                continue;
-            }
+                    AEFluidKey fluidKey = AEFluidKey.of(new FluidStack(fluidState.getType(), 1));
+                    if (fluidKey == null) {
+                        continue;
+                    }
 
-            long simulated = MeVacuumMenuHost.simulateInsertIntoStoredCells(stack, level.registryAccess(), fluidKey,
-                    FLUID_SOURCE_AMOUNT, actionSource);
-            if (simulated < FLUID_SOURCE_AMOUNT) {
-                continue;
-            }
+                    long simulated = MeVacuumMenuHost.simulateInsertIntoStoredCells(
+                            stack, registries, fluidKey, FLUID_SOURCE_AMOUNT, actionSource);
+                    if (simulated < FLUID_SOURCE_AMOUNT) {
+                        continue;
+                    }
 
-            long inserted = MeVacuumMenuHost.insertIntoStoredCells(stack, level.registryAccess(), fluidKey,
-                    FLUID_SOURCE_AMOUNT, actionSource);
-            if (inserted < FLUID_SOURCE_AMOUNT) {
-                continue;
-            }
+                    long inserted = MeVacuumMenuHost.insertIntoStoredCells(
+                            stack, registries, fluidKey, FLUID_SOURCE_AMOUNT, actionSource);
+                    if (inserted < FLUID_SOURCE_AMOUNT) {
+                        continue;
+                    }
 
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
-            this.consumeActionEnergy(stack);
-            changed = true;
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
+                    this.consumeActionEnergy(stack);
+                    changed = true;
+                }
+            }
         }
         return changed;
     }
 
-    private boolean vacuumDataEntities(ServerLevel level, Player player, ItemStack stack, AABB area) {
+    private boolean vacuumDataEntities(ServerLevel level, Player player, ItemStack stack,
+                                       List<Entity> nearbyEntities) {
         boolean changed = false;
         IActionSource actionSource = IActionSource.ofPlayer(player);
-        for (DispersingDataEntity target : level.getEntitiesOfClass(DispersingDataEntity.class, area,
-                Entity::isAlive)) {
-            double energyCost = this.getActionEnergyCost(stack);
+        var registries = level.registryAccess();
+        double energyCost = this.getActionEnergyCost(stack);
+        for (Entity entity : nearbyEntities) {
+            if (!(entity instanceof DispersingDataEntity target)) {
+                continue;
+            }
             int affordableAmount = (int) Math.min(
                     target.getDataAmount(),
                     Math.floor(this.getAECurrentPower(stack) / energyCost));
@@ -319,7 +338,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
 
             long inserted = MeVacuumMenuHost.insertIntoStoredCells(
                     stack,
-                    level.registryAccess(),
+                    registries,
                     DataKey.of(),
                     affordableAmount,
                     actionSource);
@@ -334,15 +353,17 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         return changed;
     }
 
-    private static boolean hoverOtherEntities(ServerLevel level, Player player, AABB area) {
+    private static boolean hoverOtherEntities(ServerLevel level, Player player, AABB area,
+                                              List<Entity> nearbyEntities) {
         Vec3 look = player.getLookAngle().normalize();
         Vec3 hoverPoint = player.getEyePosition().add(look.scale(HOVER_DISTANCE));
         long gameTime = level.getGameTime();
-        List<Entity> candidates = level.getEntitiesOfClass(Entity.class, area,
-                MeVacuumItem::isVacuumHoverCandidate);
         boolean moved = false;
 
-        for (Entity target : candidates) {
+        for (Entity target : nearbyEntities) {
+            if (!isVacuumHoverCandidate(target) || !area.intersects(target.getBoundingBox())) {
+                continue;
+            }
             Vec3 targetCenter = target.getBoundingBox().getCenter();
             Vec3 toHoverPoint = hoverPoint.subtract(targetCenter);
             Vec3 movement = toHoverPoint.scale(HOVER_PULL_STRENGTH);
@@ -357,24 +378,9 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
             moved = true;
         }
 
-        updateHoveredEntityState(level, player, candidates, hoverPoint, gameTime);
+        updateHoveredEntityState(level, player, nearbyEntities, hoverPoint, gameTime);
         cleanupHoveredEntities(gameTime);
         return moved;
-    }
-
-    private static List<BlockPos> getVacuumCube(Level level, Player player) {
-        BlockPos center = getVacuumCenter(level, player);
-        List<BlockPos> positions = new ArrayList<>(27);
-
-        for (int x = -1; x <= 1; x++) {
-            for (int y = -1; y <= 1; y++) {
-                for (int z = -1; z <= 1; z++) {
-                    positions.add(center.offset(x, y, z));
-                }
-            }
-        }
-
-        return positions;
     }
 
     private static BlockPos getVacuumCenter(Level level, Player player) {
@@ -393,22 +399,21 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         return BlockPos.containing(eye.add(look.scale(VACUUM_DISTANCE)));
     }
 
-    private static AABB getVacuumArea(List<BlockPos> positions) {
-        int minX = positions.stream().mapToInt(BlockPos::getX).min().orElse(0);
-        int minY = positions.stream().mapToInt(BlockPos::getY).min().orElse(0);
-        int minZ = positions.stream().mapToInt(BlockPos::getZ).min().orElse(0);
-        int maxX = positions.stream().mapToInt(BlockPos::getX).max().orElse(0);
-        int maxY = positions.stream().mapToInt(BlockPos::getY).max().orElse(0);
-        int maxZ = positions.stream().mapToInt(BlockPos::getZ).max().orElse(0);
-
-        return new AABB(minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);
+    private static AABB getVacuumArea(BlockPos center) {
+        return new AABB(
+                center.getX() - 1.0D,
+                center.getY() - 1.0D,
+                center.getZ() - 1.0D,
+                center.getX() + 2.0D,
+                center.getY() + 2.0D,
+                center.getZ() + 2.0D);
     }
 
     private static boolean isVacuumHoverCandidate(Entity entity) {
         return entity.isAlive() && !(entity instanceof Player) && !(entity instanceof ItemEntity) && !(entity instanceof DispersingDataEntity);
     }
 
-    private static void updateHoveredEntityState(ServerLevel level, Player player, List<Entity> candidates,
+    private static void updateHoveredEntityState(ServerLevel level, Player player, List<Entity> nearbyEntities,
                                                  Vec3 hoverPoint, long gameTime) {
         UUID playerId = player.getUUID();
         HoveredEntityState previous = HOVERED_ENTITY_STATES.get(playerId);
@@ -421,7 +426,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         }
 
         if (previous != null) {
-            Entity trackedCandidate = findCandidate(candidates, previous.targetId());
+            Entity trackedCandidate = findCandidate(nearbyEntities, previous.targetId());
             if (trackedCandidate != null) {
                 trackHoveredEntity(player, trackedCandidate, gameTime);
                 return;
@@ -432,16 +437,27 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
             HOVERED_ENTITY_STATES.remove(playerId);
         }
 
-        candidates.stream()
-                .min(Comparator.comparingDouble((Entity target) -> target.getBoundingBox().getCenter()
-                        .distanceToSqr(hoverPoint))
-                        .thenComparingInt(Entity::getId))
-                .ifPresent(target -> trackHoveredEntity(player, target, gameTime));
+        Entity nearest = null;
+        double nearestDistance = Double.POSITIVE_INFINITY;
+        for (Entity candidate : nearbyEntities) {
+            if (!isVacuumHoverCandidate(candidate)) {
+                continue;
+            }
+            double distance = candidate.getBoundingBox().getCenter().distanceToSqr(hoverPoint);
+            if (distance < nearestDistance ||
+                    distance == nearestDistance && nearest != null && candidate.getId() < nearest.getId()) {
+                nearest = candidate;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest != null) {
+            trackHoveredEntity(player, nearest, gameTime);
+        }
     }
 
-    private static @Nullable Entity findCandidate(List<Entity> candidates, UUID targetId) {
-        for (Entity candidate : candidates) {
-            if (candidate.getUUID().equals(targetId)) {
+    private static @Nullable Entity findCandidate(List<Entity> nearbyEntities, UUID targetId) {
+        for (Entity candidate : nearbyEntities) {
+            if (candidate.getUUID().equals(targetId) && isVacuumHoverCandidate(candidate)) {
                 return candidate;
             }
         }
