@@ -47,7 +47,8 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
             if (provider == null) {
                 throw new IllegalStateException("Current crafting-provider publication did not resolve its provider");
             }
-            if (provider instanceof ProviderCapacityView capacityView) {
+            if (!CountedCraftingProviderAdapters.hasRegisteredAdapter(provider) &&
+                    provider instanceof ProviderCapacityView capacityView) {
                 List<ProviderCapacitySnapshot> providerSnapshots = List.copyOf(capacityView.snapshotCapacity(
                         providerId,
                         pattern,
@@ -112,7 +113,8 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
         if (provider == null) {
             return null;
         }
-        if (!(provider instanceof ProviderCapacityView capacityView)) {
+        if (CountedCraftingProviderAdapters.hasRegisteredAdapter(provider) ||
+                !(provider instanceof ProviderCapacityView capacityView)) {
             return CountedCraftingProviderAdapters.fallbackRoutingMode(provider) == snapshot.routingMode() ?
                     provider : null;
         }

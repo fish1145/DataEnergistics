@@ -24,20 +24,16 @@ public final class CountedCraftingProviderAdapters {
     private CountedCraftingProviderAdapters() {}
 
     /**
-     * Registers one external adapter without allowing it to replace a direct DataEnergistics contract.
+     * Registers one external adapter selected by the frozen provider plugin registry.
      */
     public static CountedCraftingProviderRegistration register(
-                                                               ICraftingProvider provider,
-                                                               CountedCraftingProviderAdapter adapter) {
-        if (provider instanceof CountedCraftingProvider) {
-            throw new IllegalArgumentException(
-                    "A direct counted crafting provider cannot also register an identity adapter: " + provider);
-        }
+                                                                ICraftingProvider provider,
+                                                                CountedCraftingProviderAdapter adapter) {
         return REGISTRY.register(provider, adapter);
     }
 
     /**
-     * Resolves and prepares the provider using direct contract, registered adapter, then generic-single priority.
+     * Resolves and prepares the provider using registered adapter, direct contract, then generic-single priority.
      */
     public static CountedCraftingPreparation prepare(
                                                      ICraftingProvider provider,
@@ -45,10 +41,6 @@ public final class CountedCraftingProviderAdapters {
                                                      KeyCounter[] prototype,
                                                      long requestedCount,
                                                      CraftingDispatchTargetAvailability targetAvailability) {
-        if (provider instanceof CountedCraftingProvider countedProvider) {
-            return countedProvider.prepareBatch(patternDetails, prototype, requestedCount, targetAvailability);
-        }
-
         CountedCraftingProviderAdapter adapter = REGISTRY.find(provider);
         if (adapter != null) {
             return prepareProviderTarget(
@@ -57,6 +49,9 @@ public final class CountedCraftingProviderAdapters {
                     prototype,
                     requestedCount,
                     targetAvailability);
+        }
+        if (provider instanceof CountedCraftingProvider countedProvider) {
+            return countedProvider.prepareBatch(patternDetails, prototype, requestedCount, targetAvailability);
         }
         return prepareProviderTarget(
                 (details, ignoredPrototype, ignoredCount) -> new SingleCraftingAdmission(provider, details),
@@ -92,6 +87,11 @@ public final class CountedCraftingProviderAdapters {
      */
     public static long mutationRevision() {
         return REGISTRY.mutationRevision();
+    }
+
+    /** Returns whether the frozen plugin runtime currently owns this provider's counted adapter. */
+    public static boolean hasRegisteredAdapter(ICraftingProvider provider) {
+        return REGISTRY.find(provider) != null;
     }
 
     /**
