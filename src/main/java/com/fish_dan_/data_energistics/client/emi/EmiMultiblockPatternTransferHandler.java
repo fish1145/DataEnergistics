@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
@@ -48,7 +51,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
 
     @Override
     public boolean canCraft(EmiRecipe recipe, EmiCraftContext<T> context) {
-        if (!isFillButtonContext(context)) {
+        if (isUnsupportedContext(context)) {
             return false;
         }
         return evaluate(recipe, context).canTransfer();
@@ -56,7 +59,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
 
     @Override
     public List<ClientTooltipComponent> getTooltip(EmiRecipe recipe, EmiCraftContext<T> context) {
-        if (!isFillButtonContext(context)) {
+        if (isUnsupportedContext(context)) {
             return List.of();
         }
         EmiMultiblockPatternTransfer.TransferCheck check = evaluate(recipe, context);
@@ -69,14 +72,28 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
 
     @Override
     public boolean craft(EmiRecipe recipe, EmiCraftContext<T> context) {
-        if (!isFillButtonContext(context)) {
+        if (isUnsupportedContext(context)) {
             return false;
         }
         EmiMultiblockPatternTransfer.TransferCheck check = evaluate(recipe, context);
         if (!check.canTransfer()) {
             return false;
         }
-        return check.transfer();
+        PatternEncodingRankingContext rankingContext;
+        try {
+            rankingContext = EmiPatternTransferContextBridge.resolve(recipe);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Rejected EMI multiblock pattern transfer because its category/workstation context could not be resolved",
+                    exception);
+            return false;
+        }
+        if (!check.transfer()) {
+            return false;
+        }
+        PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
+                context.getScreenHandler(), rankingContext);
+        return true;
     }
 
     private EmiMultiblockPatternTransfer.TransferCheck evaluate(EmiRecipe recipe, EmiCraftContext<T> context) {
@@ -112,7 +129,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
     /**
      * Restricts pattern configuration to EMI's explicit recipe-page fill action.
      */
-    static boolean isFillButtonContext(EmiCraftContext<?> context) {
-        return context != null && context.getType() == EmiCraftContext.Type.FILL_BUTTON;
+    private static boolean isUnsupportedContext(EmiCraftContext<?> context) {
+        return context.getType() != EmiCraftContext.Type.FILL_BUTTON;
     }
 }
