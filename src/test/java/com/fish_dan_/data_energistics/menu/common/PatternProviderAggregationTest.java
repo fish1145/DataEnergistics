@@ -150,6 +150,7 @@ class PatternProviderAggregationTest {
                 Component.literal(displayName),
                 icon,
                 PROVIDER_KEY,
+                false,
                 true,
                 renameable,
                 totalSlots,

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.menu.common.LegacyPatternEncodingPreferenc
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
@@ -523,31 +524,25 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
-                this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
+                data_energistics$getPreferenceSession().rankingContext());
     }
 
     private void syncPatternProvidersFromNetwork(
                                                  IGrid grid,
                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                  long currentTick,
-                                                 @Nullable ResourceLocation preferredWorkstationId,
-                                                 ItemStack encodedPattern) {
+                                                 @Nullable PatternEncodingRankingContext rankingContext) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern,
+                rankingContext,
                 data_energistics$getPreferenceSession().leafCounts());
         this.patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern);
+                rankingContext);
         this.lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 
@@ -559,16 +554,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
-        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
-        ItemStack encodedPattern = this.host.getLogic().getEncodedPatternInv().getStackInSlot(0);
+        PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (!force && preferenceRevision == this.lastPreferenceRevision && !this.patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern)) {
+                rankingContext)) {
             return;
         }
 
@@ -576,8 +568,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                encodedPattern);
+                rankingContext);
     }
 
     private void clearSyncedPatternProviders() {

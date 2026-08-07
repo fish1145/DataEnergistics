@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTrans
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
@@ -888,16 +889,13 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
-        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
-        ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (preferenceRevision == this.dataEnergistics$lastPreferenceRevision && !this.dataEnergistics$patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern)) {
+                rankingContext)) {
             return;
         }
 
@@ -905,8 +903,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                encodedPattern);
+                rankingContext);
     }
 
     @Unique
@@ -937,32 +934,26 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
-                this.encodedPatternSlot.getItem());
+                data_energistics$getPreferenceSession().rankingContext());
     }
 
     @Unique
     private void dataEnergistics$syncPatternProvidersFromNetwork(
-                                                                 IGrid grid,
-                                                                 PatternProviderSyncTracker.PublicationVersion publication,
-                                                                 long currentTick,
-                                                                 @Nullable ResourceLocation preferredWorkstationId,
-                                                                 ItemStack encodedPattern) {
+                                                                  IGrid grid,
+                                                                  PatternProviderSyncTracker.PublicationVersion publication,
+                                                                  long currentTick,
+                                                                  @Nullable PatternEncodingRankingContext rankingContext) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern,
+                rankingContext,
                 data_energistics$getPreferenceSession().leafCounts());
         this.dataEnergistics$patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern);
+                rankingContext);
         this.dataEnergistics$lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 

@@ -2,12 +2,10 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.networking.IGrid;
-import appeng.parts.encoding.EncodingMode;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * Tracks the exact inputs that make one encoding menu's provider presentation stale.
@@ -28,10 +26,7 @@ public final class PatternProviderSyncTracker {
     private long providerRevision = Long.MIN_VALUE;
     private long refreshedTick = Long.MIN_VALUE;
     @Nullable
-    private ResourceLocation preferredWorkstationId;
-    @Nullable
-    private EncodingMode encodingMode;
-    private ItemStack encodedPattern = ItemStack.EMPTY;
+    private PatternEncodingRankingContext rankingContext;
     private boolean dirty = true;
 
     /**
@@ -39,23 +34,17 @@ public final class PatternProviderSyncTracker {
      *
      * @param currentPublication    current grid-local provider publication identity
      * @param currentTick           server game time used only for conservative presentation validation
-     * @param currentPreferredId    current preferred workstation
-     * @param currentMode           current encoding mode
-     * @param currentEncodedPattern currently encoded pattern
+     * @param currentRankingContext current exact category and workstation snapshot
      * @return {@code true} when provider discovery must run
      */
     public boolean needsRefresh(
                                 PublicationVersion currentPublication,
                                 long currentTick,
-                                @Nullable ResourceLocation currentPreferredId,
-                                EncodingMode currentMode,
-                                ItemStack currentEncodedPattern) {
+                                @Nullable PatternEncodingRankingContext currentRankingContext) {
         return this.dirty ||
                 this.publicationScope != currentPublication.scope() ||
                 this.providerRevision != currentPublication.revision() ||
-                !sameResourceLocation(this.preferredWorkstationId, currentPreferredId) ||
-                this.encodingMode != currentMode ||
-                !ItemStack.isSameItemSameComponents(this.encodedPattern, currentEncodedPattern) ||
+                !Objects.equals(this.rankingContext, currentRankingContext) ||
                 currentTick - this.refreshedTick >= CONSISTENCY_REFRESH_INTERVAL_TICKS;
     }
 
@@ -65,15 +54,11 @@ public final class PatternProviderSyncTracker {
     public void refreshed(
                           PublicationVersion currentPublication,
                           long currentTick,
-                          @Nullable ResourceLocation currentPreferredId,
-                          EncodingMode currentMode,
-                          ItemStack currentEncodedPattern) {
+                          @Nullable PatternEncodingRankingContext currentRankingContext) {
         this.publicationScope = currentPublication.scope();
         this.providerRevision = currentPublication.revision();
         this.refreshedTick = currentTick;
-        this.preferredWorkstationId = currentPreferredId;
-        this.encodingMode = currentMode;
-        this.encodedPattern = currentEncodedPattern.copy();
+        this.rankingContext = currentRankingContext;
         this.dirty = false;
     }
 
@@ -84,16 +69,8 @@ public final class PatternProviderSyncTracker {
         this.publicationScope = Long.MIN_VALUE;
         this.providerRevision = Long.MIN_VALUE;
         this.refreshedTick = Long.MIN_VALUE;
-        this.preferredWorkstationId = null;
-        this.encodingMode = null;
-        this.encodedPattern = ItemStack.EMPTY;
+        this.rankingContext = null;
         this.dirty = true;
-    }
-
-    private static boolean sameResourceLocation(
-                                                @Nullable ResourceLocation left,
-                                                @Nullable ResourceLocation right) {
-        return left == right || left != null && left.equals(right);
     }
 
     /**
