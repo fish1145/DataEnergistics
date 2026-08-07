@@ -82,7 +82,6 @@ import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -966,7 +965,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         ResourceLocation recordedOreId = OreDataCarrierData.getOreItemId(carrier);
         ItemStack recordedStack = resolveRecordedOreStack(oreStack);
         ResourceLocation currentRecordedId = recordedStack.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(recordedStack.getItem());
-        if (recordedOreId == null || currentRecordedId == null || !recordedOreId.equals(currentRecordedId)) {
+        if (recordedOreId == null || !recordedOreId.equals(currentRecordedId)) {
             if (updated) {
                 this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
             }
@@ -1017,7 +1016,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
         ResourceLocation recordedCropId = CropDataCarrierData.getCropItemId(carrier);
         ResourceLocation currentCropId = CropDataCarrierData.getRecordedCropItemId(cropStack);
-        if (recordedCropId == null || currentCropId == null || !recordedCropId.equals(currentCropId)) {
+        if (recordedCropId == null || !recordedCropId.equals(currentCropId)) {
             if (updated) {
                 this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
             }
@@ -1088,10 +1087,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private ResourceLocation resolveConfiguredRecordedOreId(ItemStack oreStack, DataExtractorRuleTable.ItemRule rule) {
         ItemStack normalized = resolveRecordedOreStack(oreStack);
         if (!normalized.isEmpty() && resolveBaseOreItem(oreStack) != null) {
-            ResourceLocation normalizedId = BuiltInRegistries.ITEM.getKey(normalized.getItem());
-            if (normalizedId != null) {
-                return normalizedId;
-            }
+            return BuiltInRegistries.ITEM.getKey(normalized.getItem());
         }
         return rule.recordedItemId();
     }
@@ -1164,10 +1160,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private Item resolveBaseOreItem(ItemStack oreStack) {
         ResourceLocation oreItemId = BuiltInRegistries.ITEM.getKey(oreStack.getItem());
-        if (oreItemId == null) {
-            return null;
-        }
-
         String path = oreItemId.getPath();
         if (oreStack.is(C_RAW_MATERIALS_TAG) || path.startsWith("raw_")) {
             if (!path.startsWith("raw_")) {
