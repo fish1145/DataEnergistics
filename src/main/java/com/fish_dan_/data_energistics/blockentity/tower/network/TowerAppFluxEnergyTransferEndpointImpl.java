@@ -46,8 +46,9 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
             throw new TowerEnergyTransferException("Applied Flux returned a negative network snapshot");
         }
         long capacity = saturatingAdd(stored, free);
+        long receivable = Math.min(free, capacity - stored);
         return new TowerEnergyEndpointSnapshot(
-                this.endpoint, stored, capacity, TowerEnergyDirection.BIDIRECTIONAL);
+                this.endpoint, stored, capacity, stored, receivable, TowerEnergyDirection.BIDIRECTIONAL);
     }
 
     @Override

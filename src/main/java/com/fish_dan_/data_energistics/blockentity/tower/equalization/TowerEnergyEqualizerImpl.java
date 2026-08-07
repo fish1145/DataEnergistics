@@ -72,12 +72,13 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         }
 
         List<TowerEnergySourceAllocation> sources = new ArrayList<>();
-        amountNeeded = collectSourceOnlyAllocationsLong(endpoints, amountNeeded, sources);
-        amountNeeded = collectBidirectionalAllocationsLong(endpoints, targets, amountNeeded, sources);
-        if (amountNeeded != 0) {
-            throw new ArithmeticException("Receiver targets require more extractable energy than the snapshot owns");
-        }
-        return new TowerEnergyEqualizationPlan(sources, sinks);
+        long unavailable = collectSourceOnlyAllocationsLong(endpoints, amountNeeded, sources);
+        unavailable = collectBidirectionalAllocationsLong(endpoints, targets, unavailable, sources);
+        long transferAmount = Math.subtractExact(amountNeeded, unavailable);
+        return transferAmount == 0
+                ? TowerEnergyEqualizationPlan.empty()
+                : new TowerEnergyEqualizationPlan(
+                        sources, limitSinkAllocations(sinks, BigInteger.valueOf(transferAmount)));
     }
 
     /**
@@ -106,12 +107,12 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         }
 
         List<TowerEnergySourceAllocation> sources = new ArrayList<>();
-        amountNeeded = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
-        amountNeeded = collectBidirectionalAllocations(endpoints, targets, amountNeeded, sources);
-        if (amountNeeded.signum() != 0) {
-            throw new IllegalStateException("Receiver targets require more extractable energy than the snapshot owns");
-        }
-        return new TowerEnergyEqualizationPlan(sources, sinks);
+        BigInteger unavailable = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
+        unavailable = collectBidirectionalAllocations(endpoints, targets, unavailable, sources);
+        BigInteger transferAmount = amountNeeded.subtract(unavailable);
+        return transferAmount.signum() == 0
+                ? TowerEnergyEqualizationPlan.empty()
+                : new TowerEnergyEqualizationPlan(sources, limitSinkAllocations(sinks, transferAmount));
     }
 
     /**
@@ -273,8 +274,11 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
             Long target = targets.get(endpoint.endpoint());
             if (target != null && target > endpoint.stored()) {
-                sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(),
-                        Math.subtractExact(target, endpoint.stored())));
+                long amount = Math.min(
+                        Math.subtractExact(target, endpoint.stored()), endpoint.receivable());
+                if (amount > 0) {
+                    sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), amount));
+                }
             }
         }
         return sinks;
@@ -313,9 +317,11 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (endpoint.direction() != TowerEnergyDirection.SOURCE || endpoint.stored() == 0) {
                 continue;
             }
-            long amount = Math.min(endpoint.stored(), remaining);
-            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
-            remaining = Math.subtractExact(remaining, amount);
+            long amount = Math.min(Math.min(endpoint.stored(), endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = Math.subtractExact(remaining, amount);
+            }
         }
         return remaining;
     }
@@ -346,9 +352,11 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (surplus <= 0) {
                 continue;
             }
-            long amount = Math.min(surplus, remaining);
-            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
-            remaining = Math.subtractExact(remaining, amount);
+            long amount = Math.min(Math.min(surplus, endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = Math.subtractExact(remaining, amount);
+            }
         }
         return remaining;
     }
@@ -536,7 +544,10 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
             Long target = targets.get(endpoint.endpoint());
             if (target != null && target > endpoint.stored()) {
-                sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), target - endpoint.stored()));
+                long amount = Math.min(target - endpoint.stored(), endpoint.receivable());
+                if (amount > 0) {
+                    sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), amount));
+                }
             }
         }
         return sinks;
@@ -575,9 +586,11 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (endpoint.direction() != TowerEnergyDirection.SOURCE || endpoint.stored() == 0) {
                 continue;
             }
-            long amount = takeAvailable(endpoint.stored(), remaining);
-            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
-            remaining = remaining.subtract(BigInteger.valueOf(amount));
+            long amount = takeAvailable(Math.min(endpoint.stored(), endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = remaining.subtract(BigInteger.valueOf(amount));
+            }
         }
         return remaining;
     }
@@ -608,9 +621,11 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (surplus <= 0) {
                 continue;
             }
-            long amount = takeAvailable(surplus, remaining);
-            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
-            remaining = remaining.subtract(BigInteger.valueOf(amount));
+            long amount = takeAvailable(Math.min(surplus, endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = remaining.subtract(BigInteger.valueOf(amount));
+            }
         }
         return remaining;
     }
@@ -628,6 +643,49 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             return available;
         }
         return amountNeeded.longValueExact();
+    }
+
+    /**
+     * Reduces bounded sink requests proportionally when current source budgets cannot satisfy all ideal deficits.
+     */
+    private static List<TowerEnergySinkAllocation> limitSinkAllocations(
+                                                                         List<TowerEnergySinkAllocation> sinks,
+                                                                         BigInteger transferAmount) {
+        BigInteger requestedTotal = sumSinkAmounts(sinks);
+        if (transferAmount.equals(requestedTotal)) {
+            return sinks;
+        }
+        if (transferAmount.signum() <= 0 || transferAmount.compareTo(requestedTotal) > 0) {
+            throw new IllegalArgumentException("Transfer amount must be within bounded sink demand");
+        }
+
+        long[] amounts = new long[sinks.size()];
+        List<SinkFractionalShare> shares = new ArrayList<>(sinks.size());
+        BigInteger floorTotal = ZERO;
+        for (int index = 0; index < sinks.size(); index++) {
+            TowerEnergySinkAllocation sink = sinks.get(index);
+            BigInteger numerator = transferAmount.multiply(BigInteger.valueOf(sink.amount()));
+            BigInteger[] quotientAndRemainder = numerator.divideAndRemainder(requestedTotal);
+            amounts[index] = quotientAndRemainder[0].longValueExact();
+            floorTotal = floorTotal.add(quotientAndRemainder[0]);
+            shares.add(new SinkFractionalShare(index, quotientAndRemainder[1]));
+        }
+
+        int leftover = transferAmount.subtract(floorTotal).intValueExact();
+        shares.sort(Comparator.comparing(SinkFractionalShare::remainder).reversed()
+                .thenComparingInt(SinkFractionalShare::order));
+        for (int index = 0; index < leftover; index++) {
+            int sinkIndex = shares.get(index).order();
+            amounts[sinkIndex] = Math.addExact(amounts[sinkIndex], 1);
+        }
+
+        List<TowerEnergySinkAllocation> limited = new ArrayList<>(sinks.size());
+        for (int index = 0; index < sinks.size(); index++) {
+            if (amounts[index] > 0) {
+                limited.add(new TowerEnergySinkAllocation(sinks.get(index).endpoint(), amounts[index]));
+            }
+        }
+        return limited;
     }
 
     /**
@@ -654,4 +712,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @param remainder numerator remainder used for largest-remainder ordering
      */
     private record LongFractionalShare(ReceiverState receiver, long remainder) {}
+
+    /** Associates one bounded sink with its exact fractional allocation remainder. */
+    private record SinkFractionalShare(int order, BigInteger remainder) {}
 }

@@ -52,9 +52,12 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
         try {
             long stored;
             long capacity;
+            long extractable;
+            long receivable;
             boolean canExtract;
             boolean canReceive;
-            if (brandonsCoreSupported(storage)) {
+            boolean brandonsCoreStorage = brandonsCoreSupported(storage);
+            if (brandonsCoreStorage) {
                 stored = this.brandonsCore.stored(storage);
                 capacity = this.brandonsCore.capacity(storage);
                 canExtract = this.brandonsCore.canExtract(storage);
@@ -74,7 +77,11 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
                 throw new TowerEnergyTransferException(
                         "Energy endpoint returned invalid frozen state " + stored + "/" + capacity + ": " + description());
             }
-            return new TowerEnergyEndpointSnapshot(endpoint(), stored, capacity, direction);
+            long free = capacity - stored;
+            extractable = canExtract ? captureBudget(storage, stored, false, brandonsCoreStorage) : 0;
+            receivable = canReceive ? captureBudget(storage, free, true, brandonsCoreStorage) : 0;
+            return new TowerEnergyEndpointSnapshot(
+                    endpoint(), stored, capacity, extractable, receivable, direction);
         } catch (TowerEnergyTransferException exception) {
             throw exception;
         } catch (Throwable exception) {
@@ -178,6 +185,35 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
             throw new TowerEnergyTransferException(
                     "Could not " + (inserting ? "insert into " : "extract from ") + description(), exception);
         }
+    }
+
+    /** Captures one endpoint's maximum public or verified direct transfer commitment. */
+    private long captureBudget(IEnergyStorage storage, long available, boolean inserting, boolean brandonsCoreStorage) {
+        if (available == 0) {
+            return 0;
+        }
+        long transferred;
+        if (brandonsCoreStorage) {
+            transferred = inserting
+                    ? this.brandonsCore.insert(storage, available, true)
+                    : this.brandonsCore.extract(storage, available, true);
+        } else {
+            transferred = inserting
+                    ? this.unlimitedEnergy.insert(storage, available, true)
+                    : this.unlimitedEnergy.extract(storage, available, true);
+            if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
+                long publicRequest = Math.min(available, Integer.MAX_VALUE);
+                transferred = inserting
+                        ? receiveThroughCapability(storage, publicRequest, true)
+                        : extractThroughCapability(storage, publicRequest, true);
+                return validateResult(inserting ? "capture insertion budget" : "capture extraction budget",
+                        publicRequest,
+                        transferred);
+            }
+        }
+        return validateResult(inserting ? "capture insertion budget" : "capture extraction budget",
+                available,
+                transferred);
     }
 
     /**
