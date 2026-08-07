@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -40,10 +39,10 @@ public final class AdjacentBlockCapabilityCache<T> {
             ServerLevel level,
             BlockPos origin,
             BooleanSupplier isValid) {
-        this.capability = Objects.requireNonNull(capability);
-        this.level = Objects.requireNonNull(level);
-        this.origin = Objects.requireNonNull(origin).immutable();
-        this.isValid = Objects.requireNonNull(isValid);
+        this.capability = capability;
+        this.level = level;
+        this.origin = origin.immutable();
+        this.isValid = isValid;
     }
 
     /**
@@ -54,7 +53,6 @@ public final class AdjacentBlockCapabilityCache<T> {
      */
     @Nullable
     public T get(Direction side) {
-        Objects.requireNonNull(side);
         return this.caches.computeIfAbsent(side, this::createCache).getCapability();
     }
 
@@ -65,7 +63,6 @@ public final class AdjacentBlockCapabilityCache<T> {
      * @return immutable list of currently exposed capabilities
      */
     public List<T> getAll(Iterable<Direction> sides) {
-        Objects.requireNonNull(sides);
         List<T> resolved = new ArrayList<>();
         for (Direction side : sides) {
             T value = get(side);
@@ -83,7 +80,6 @@ public final class AdjacentBlockCapabilityCache<T> {
      * @return immutable direction-to-capability mapping
      */
     public Map<Direction, T> getAllBySide(Iterable<Direction> sides) {
-        Objects.requireNonNull(sides);
         Map<Direction, T> resolved = new EnumMap<>(Direction.class);
         for (Direction side : sides) {
             T value = get(side);
