@@ -22,7 +22,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -46,7 +45,9 @@ public final class PatternUploadSucceededClientHandler {
         if (payload.source() != PatternUploadSource.DATA_ENERGISTICS || !DELIVERED_EVENTS.add(SuccessEventKey.from(payload))) {
             return;
         }
-        if (payload.dimensionId() == null || payload.position() == null) {
+        ResourceLocation dimensionId = payload.dimensionId();
+        BlockPos position = payload.position();
+        if (dimensionId == null || position == null) {
             player.sendSystemMessage(Component.empty()
                     .append(Component.translatable("message.data_energistics.pattern_upload.success")
                             .withStyle(ChatFormatting.GREEN))
@@ -60,7 +61,7 @@ public final class PatternUploadSucceededClientHandler {
                     .append(createTimestampComponent(payload.epochMillis())));
             return;
         }
-        player.sendSystemMessage(createSuccessMessage(payload));
+        player.sendSystemMessage(createSuccessMessage(payload, dimensionId, position));
     }
 
     /**
@@ -70,10 +71,11 @@ public final class PatternUploadSucceededClientHandler {
         DELIVERED_EVENTS.clear();
     }
 
-    private static Component createSuccessMessage(PatternUploadSucceededPayload payload) {
-        BlockPos position = Objects.requireNonNull(payload.position());
+    private static Component createSuccessMessage(PatternUploadSucceededPayload payload,
+                                                  ResourceLocation dimensionId,
+                                                  BlockPos position) {
         String coordinates = "(" + position.getX() + ", " + position.getY() + ", " + position.getZ() + ")";
-        String dimension = Objects.requireNonNull(payload.dimensionId()).toString();
+        String dimension = dimensionId.toString();
         String tpCommand = "/tp @s " + format(position.getX() + 0.5D) + " " + (position.getY() + 1) + " " + format(position.getZ() + 0.5D);
         String dimensionCommand = "/execute in " + dimension + " run tp @s " + format(position.getX() + 0.5D) + " " + (position.getY() + 1) + " " + format(position.getZ() + 0.5D);
         Component coordinateComponent = Component.literal(coordinates)
