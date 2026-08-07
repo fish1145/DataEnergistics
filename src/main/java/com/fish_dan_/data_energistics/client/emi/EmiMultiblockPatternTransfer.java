@@ -56,7 +56,7 @@ final class EmiMultiblockPatternTransfer {
                 return LiveView.rejected(Component.literal("The multiblock recipe identity is stale"));
             }
             return LiveView.ready(view);
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             Data_Energistics.LOGGER.error("Unable to resolve the current EMI multiblock preview", failure);
             return LiveView.rejected(Component.literal("The multiblock preview changed; reopen the recipe"));
         }
@@ -107,7 +107,7 @@ final class EmiMultiblockPatternTransfer {
                 return TransferCheck.rejected(outputFailure);
             }
             return TransferCheck.ready(view, target);
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             Data_Energistics.LOGGER.error("Unable to validate the AE2 pattern terminal for EMI multiblock transfer",
                     failure);
             return TransferCheck.rejected(
@@ -191,7 +191,7 @@ final class EmiMultiblockPatternTransfer {
             try {
                 this.target.data_energistics$requestMultiblockTransfer(this.view);
                 return true;
-            } catch (RuntimeException | Error failure) {
+            } catch (RuntimeException failure) {
                 Data_Energistics.LOGGER.error("Unable to request the current EMI multiblock pattern transfer",
                         failure);
                 return false;

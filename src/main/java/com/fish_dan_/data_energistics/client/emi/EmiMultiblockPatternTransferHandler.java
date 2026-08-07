@@ -118,7 +118,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
                         Component.literal("The open pattern terminal cannot accept multiblock recipes"));
             }
             return EmiMultiblockPatternTransfer.validate(liveView, target);
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             Data_Energistics.LOGGER.error("Unable to inspect the open pattern terminal for EMI multiblock transfer",
                     failure);
             return EmiMultiblockPatternTransfer.TransferCheck.rejected(

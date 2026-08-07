@@ -104,7 +104,7 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
                         view.registeredRecipeId());
                 return userError("The multiblock preview changed. Reopen its recipe page and try again.");
             }
-        } catch (RuntimeException | Error exception) {
+        } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.warn("Rejected unavailable JEI multiblock recipe transfer", exception);
             return userError("The multiblock preview changed. Reopen its recipe page and try again.");
         }
@@ -136,7 +136,7 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
                     return userError(materialError);
                 }
             }
-        } catch (RuntimeException | Error exception) {
+        } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to inspect JEI multiblock transfer capacity for menu {}",
                     menu.getClass().getName(),
@@ -150,7 +150,7 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
         if (doTransfer) {
             try {
                 target.data_energistics$requestMultiblockTransfer(view);
-            } catch (RuntimeException | Error exception) {
+            } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Failed to request JEI multiblock transfer for menu {}",
                         menu.getClass().getName(),
