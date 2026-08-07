@@ -1,22 +1,20 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
-/**
- * Invalidates retained P-core recipe caches whenever server data packs finish rebinding tags and recipes.
- */
-public final class TrinityPatternCoreReloadEventHandler {
+/** Advances the shared recipe epoch after the authoritative server data reload completes. */
+public final class RecipeReloadEventHandler {
 
     /**
-     * Advances the shared epoch only for the authoritative server data load.
+     * Invalidates all recipe-derived caches after tags and recipes have been rebound.
      *
      * @param event tag update event emitted at the end of data reload
      */
     @SubscribeEvent
     public void onTagsUpdated(TagsUpdatedEvent event) {
         if (event.getUpdateCause() == TagsUpdatedEvent.UpdateCause.SERVER_DATA_LOAD) {
-            TrinityPatternCoreReloadEpoch.advance();
+            RecipeReloadEpoch.advance();
         }
     }
 }
