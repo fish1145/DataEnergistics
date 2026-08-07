@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,8 +21,8 @@ import java.util.UUID;
  * </p>
  */
 public sealed interface ProviderIdentity
-                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
-                                         ProviderIdentity.Virtual {
+                                          permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
+                                          ProviderIdentity.External, ProviderIdentity.Virtual {
 
     /**
      * Current canonical field schema used by every identity declared in this type.
@@ -68,6 +69,10 @@ public sealed interface ProviderIdentity
          * ExtendedAE assembler matrix target, distinguished between ordinary and Plus variants.
          */
         MATRIX(5),
+        /**
+         * Provider whose stable identity schema is defined by an external integration.
+         */
+        EXTERNAL(6),
         /**
          * Provider without a discoverable physical location or dedicated stable key.
          */
@@ -276,6 +281,38 @@ public sealed interface ProviderIdentity
         @Override
         public Kind kind() {
             return Kind.MATRIX;
+        }
+    }
+
+    /**
+     * Identity defined by an external integration using an explicitly versioned canonical field schema.
+     *
+     * @param type            stable external provider family identifier
+     * @param schemaVersion   version of the external canonical field schema
+     * @param canonicalFields ordered, deterministic identity fields for one live provider
+     */
+    record External(ResourceLocation type,
+                    int schemaVersion,
+                    List<String> canonicalFields)
+            implements ProviderIdentity {
+
+        /** Validates and freezes the external identity fields. */
+        public External {
+            type = Objects.requireNonNull(type, "type");
+            if (schemaVersion <= 0) {
+                throw new IllegalArgumentException("External provider identity schema version must be positive");
+            }
+            canonicalFields = List.copyOf(canonicalFields);
+        }
+
+        @Override
+        public int version() {
+            return this.schemaVersion;
+        }
+
+        @Override
+        public Kind kind() {
+            return Kind.EXTERNAL;
         }
     }
 

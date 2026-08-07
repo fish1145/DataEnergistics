@@ -607,6 +607,8 @@ public final class PatternProviderSyncHelper {
                     identity.digest(), displayName, matrix.dimensionId(), matrix.blockPos());
             case ProviderIdentity.Trinity ignored -> new PatternUploadTarget(
                     identity.digest(), displayName, null, null);
+            case ProviderIdentity.External ignored -> new PatternUploadTarget(
+                    identity.digest(), displayName, null, null);
             case ProviderIdentity.Virtual ignored -> new PatternUploadTarget(
                     identity.digest(), displayName, null, null);
         };

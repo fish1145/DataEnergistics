@@ -74,6 +74,11 @@ final class ProviderIdentityDigest {
                 writer.writeBlockPosition(matrix.blockPos().getX(), matrix.blockPos().getY(), matrix.blockPos().getZ());
                 writer.writeByte(matrix.plus() ? 1 : 0);
             }
+            case ProviderIdentity.External external -> {
+                writer.writeResourceLocation(external.type());
+                writer.writeInt(external.canonicalFields().size());
+                external.canonicalFields().forEach(writer::writeString);
+            }
             case ProviderIdentity.Virtual virtual -> {
                 writer.writeByte(virtual.terminalGroupIconId().isPresent() ? 1 : 0);
                 virtual.terminalGroupIconId().ifPresent(writer::writeResourceLocation);
