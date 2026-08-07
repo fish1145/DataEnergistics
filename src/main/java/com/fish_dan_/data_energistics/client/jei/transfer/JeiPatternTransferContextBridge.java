@@ -5,18 +5,14 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 
 import net.minecraft.world.item.ItemStack;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.runtime.IJeiRuntime;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
 
-/** Holds the synchronous JEI runtime and one nested transfer frame per client thread. */
+/** Holds the synchronous JEI runtime used to resolve exact transfer context. */
 public final class JeiPatternTransferContextBridge {
 
-    private static final ThreadLocal<Deque<Frame>> FRAMES = ThreadLocal.withInitial(ArrayDeque::new);
     private static volatile IJeiRuntime runtime;
 
     private JeiPatternTransferContextBridge() {}
@@ -26,12 +22,11 @@ public final class JeiPatternTransferContextBridge {
         runtime = value;
     }
 
-    /** Clears only the runtime that is ending and discards any unconsumed transfer frames. */
+    /** Clears only the JEI runtime instance that is ending. */
     public static void clear(IJeiRuntime value) {
         if (runtime == value) {
             runtime = null;
         }
-        FRAMES.remove();
     }
 
     /** Resolves category and category workstations through the active JEI runtime. */
@@ -49,30 +44,4 @@ public final class JeiPatternTransferContextBridge {
         return PatternEncodingViewerContext.fromItemWorkstations(recipeType.getUid(), workstations);
     }
 
-    /** Starts one transfer frame after its context has been fully validated. */
-    public static void begin(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {
-        FRAMES.get().push(new Frame(menu, context));
-    }
-
-    /** Returns the context scoped to the successful transfer, rejecting an unbalanced callback. */
-    public static PatternEncodingRankingContext requireCurrent(PatternEncodingTermMenu menu) {
-        Frame frame = FRAMES.get().peek();
-        if (frame == null || frame.menu() != menu) {
-            throw new IllegalStateException("JEI transfer context is not scoped to the current menu");
-        }
-        return frame.context();
-    }
-
-    /** Removes the current frame and releases the thread-local container when the stack becomes empty. */
-    public static void end(PatternEncodingTermMenu menu) {
-        Deque<Frame> frames = FRAMES.get();
-        if (!frames.isEmpty() && frames.peek().menu() == menu) {
-            frames.pop();
-        }
-        if (frames.isEmpty()) {
-            FRAMES.remove();
-        }
-    }
-
-    private record Frame(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {}
 }

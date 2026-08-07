@@ -2,12 +2,14 @@ package com.fish_dan_.data_energistics.mixin.viewer.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
@@ -52,11 +54,15 @@ public abstract class RecipeTransferUtilMixin {
                     exception);
             return Optional.of(RecipeTransferErrorInternal.INSTANCE);
         }
-        JeiPatternTransferContextBridge.begin(menu, context);
-        try {
-            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
-        } finally {
-            JeiPatternTransferContextBridge.end(menu);
+        Optional<IRecipeTransferError> result =
+                original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
+        if (result.isEmpty()) {
+            if (menu.getMode() == EncodingMode.PROCESSING) {
+                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, context);
+            } else {
+                PatternEncodingPreferencesClient.captureTransferredRecipe(menu);
+            }
         }
+        return result;
     }
 }

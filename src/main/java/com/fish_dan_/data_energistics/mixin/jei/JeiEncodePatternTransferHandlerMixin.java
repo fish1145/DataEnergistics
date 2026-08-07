@@ -1,15 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.jei;
 
-import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
-import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,19 +28,11 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
         }
 
         if (menu instanceof PatternEncodingTermMenu patternEncodingTermMenu) {
-            PatternEncodingRankingContext rankingContext =
-                    JeiPatternTransferContextBridge.requireCurrent(patternEncodingTermMenu);
             PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyInput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferFluidInputs(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferFluidOutputs(patternEncodingTermMenu, recipe, recipeSlots);
-            if (patternEncodingTermMenu.getMode() == EncodingMode.PROCESSING) {
-                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
-                        patternEncodingTermMenu, rankingContext);
-            } else {
-                PatternEncodingPreferencesClient.captureTransferredRecipe(patternEncodingTermMenu);
-            }
         }
     }
 }
