@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 
@@ -26,6 +27,9 @@ public final class TowerEnergyTransferRouteGroupImpl implements TowerEnergyTrans
     /** Route selected by the latest successful freeze and retained until the next freeze. */
     @Nullable
     private TowerEnergyTransferEndpoint selectedRoute;
+
+    /** Prevents a persistently unavailable alternative route from logging every server tick. */
+    private boolean routeFailureReported;
 
     /**
      * Creates one planner endpoint from alternative routes to the same physical storage.
@@ -71,6 +75,16 @@ public final class TowerEnergyTransferRouteGroupImpl implements TowerEnergyTrans
         if (bestRoute == null || bestSnapshot == null) {
             throw new TowerEnergyTransferException(
                     "Could not freeze any access route for " + description(), firstFailure);
+        }
+        if (firstFailure == null) {
+            this.routeFailureReported = false;
+        } else if (!this.routeFailureReported) {
+            Data_Energistics.LOGGER.warn(
+                    "Isolated an unavailable tower energy access route for {}; using {}",
+                    description(),
+                    bestRoute.description(),
+                    firstFailure);
+            this.routeFailureReported = true;
         }
         this.selectedRoute = bestRoute;
         return new TowerEnergyEndpointSnapshot(
