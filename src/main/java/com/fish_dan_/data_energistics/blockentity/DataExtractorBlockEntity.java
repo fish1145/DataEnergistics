@@ -1364,10 +1364,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         AEItemKey key = AEItemKey.of(stack);
-        if (key == null) {
-            return false;
-        }
-
         boolean listed = viewCellMarkedItems.contains(key);
         return inverted != listed;
     }
@@ -1534,10 +1530,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         AEItemKey key = AEItemKey.of(stack);
-        if (key == null) {
-            return stack;
-        }
-
         long inserted = networkStorage.insert(key, stack.getCount(), Actionable.MODULATE, IActionSource.ofMachine(this));
         if (inserted <= 0) {
             return stack;
