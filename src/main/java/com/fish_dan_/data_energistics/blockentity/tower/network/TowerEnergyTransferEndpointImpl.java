@@ -192,9 +192,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
             if (brandonsCoreSupported(storage)) {
                 transferred = inserting ? this.brandonsCore.insert(storage, amount, simulate) : this.brandonsCore.extract(storage, amount, simulate);
             } else if (appFluxNetworkStorage(storage)) {
-                transferred = inserting
-                        ? AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, simulate)
-                        : AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, amount, simulate);
+                transferred = inserting ? AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, simulate) : AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, amount, simulate);
             } else {
                 transferred = inserting ? this.unlimitedEnergy.insert(storage, amount, simulate) : this.unlimitedEnergy.extract(storage, amount, simulate);
                 if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -283,8 +281,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
     private boolean appFluxNetworkStorage(IEnergyStorage storage) {
         Boolean cached = this.appFluxNetworkStorage;
         if (cached == null) {
-            cached = ModFlags.isAppFluxEnergySupportLoaded()
-                    && AE2FluxIntegration.isNetworkEnergyStorage(storage);
+            cached = ModFlags.isAppFluxEnergySupportLoaded() && AE2FluxIntegration.isNetworkEnergyStorage(storage);
             this.appFluxNetworkStorage = cached;
         }
         return cached;

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration.appflux;
 
+import net.neoforged.neoforge.energy.IEnergyStorage;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -10,7 +12,6 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import com.glodblock.github.appflux.common.caps.NetworkFEPower;
 import com.glodblock.github.appflux.common.me.key.FluxKey;
 import com.glodblock.github.appflux.common.me.key.type.EnergyType;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.Nullable;
 
 public final class AE2FluxIntegration {
@@ -139,7 +140,7 @@ public final class AE2FluxIntegration {
 
     /** Executes a verified long-width transfer against the wrapper's public storage and action source. */
     private static long transferNetworkEnergy(
-            IEnergyStorage storage, long amount, boolean simulate, boolean inserting) {
+                                              IEnergyStorage storage, long amount, boolean simulate, boolean inserting) {
         if (amount < 0) {
             throw new IllegalArgumentException("Applied Flux transfer amount must not be negative");
         }
@@ -151,8 +152,6 @@ public final class AE2FluxIntegration {
         }
         Actionable actionable = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
         MEStorage inventory = networkPower.storage().getInventory();
-        return inserting
-                ? inventory.insert(FluxKey.of(EnergyType.FE), amount, actionable, networkPower.source())
-                : inventory.extract(FluxKey.of(EnergyType.FE), amount, actionable, networkPower.source());
+        return inserting ? inventory.insert(FluxKey.of(EnergyType.FE), amount, actionable, networkPower.source()) : inventory.extract(FluxKey.of(EnergyType.FE), amount, actionable, networkPower.source());
     }
 }

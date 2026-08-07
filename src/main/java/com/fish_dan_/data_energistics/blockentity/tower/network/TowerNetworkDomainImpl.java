@@ -449,9 +449,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         }
         ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>(orderedRouteGroups.size());
         for (List<TowerEnergyTransferEndpoint> routes : orderedRouteGroups) {
-            endpoints.add(routes.size() == 1
-                    ? routes.getFirst()
-                    : new TowerEnergyTransferRouteGroupImpl(routes));
+            endpoints.add(routes.size() == 1 ? routes.getFirst() : new TowerEnergyTransferRouteGroupImpl(routes));
         }
         endpoints.sort(Comparator.comparing(TowerEnergyTransferEndpoint::endpoint, ENERGY_ENDPOINT_ORDER));
         return List.copyOf(endpoints);

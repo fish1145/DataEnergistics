@@ -132,9 +132,7 @@ public abstract class GridMixin implements VirtualGridBridgeInternal {
         IGrid previousPrimary = this.dataEnergistics$virtualPrimaryGrid;
         Set<IGridNode> previousAll = dataEnergistics$identitySet(this.dataEnergistics$outgoingNodes);
         Set<IGridNode> previousActive = dataEnergistics$identitySet(this.dataEnergistics$outgoingActiveNodes);
-        if (previousPrimary == primaryGrid
-                && dataEnergistics$identitySetEquals(previousAll, normalizedAll)
-                && dataEnergistics$identitySetEquals(previousActive, normalizedActive)) {
+        if (previousPrimary == primaryGrid && dataEnergistics$identitySetEquals(previousAll, normalizedAll) && dataEnergistics$identitySetEquals(previousActive, normalizedActive)) {
             return;
         }
         this.dataEnergistics$virtualPrimaryGrid = primaryGrid;
