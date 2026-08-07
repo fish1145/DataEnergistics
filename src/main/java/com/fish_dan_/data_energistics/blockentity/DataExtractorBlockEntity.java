@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
@@ -203,8 +204,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private int cachedCapacityCardCount = -1;
     private int cachedSpeedCardCount = -1;
     private int cachedEnergyCardCount = -1;
-    private List<IItemHandler> cachedAdjacentHandlers;
-    private boolean adjacentHandlersDirty = true;
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private Player cachedFakePlayer;
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -284,7 +284,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.cachedCapacityCardCount = -1;
         this.cachedSpeedCardCount = -1;
         this.cachedEnergyCardCount = -1;
-        this.adjacentHandlersDirty = true;
     }
 
     @Override
@@ -426,7 +425,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        this.adjacentHandlersDirty = true;
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             resetWorkProgress();
             refillEnergyCache();
@@ -663,7 +661,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        this.adjacentHandlersDirty = true;
         this.saveChanges();
         this.markForClientUpdate();
     }
@@ -692,7 +689,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             }
         }
         if (settings.contains(OUTPUT_SIDES_TAG) && MemoryCardSettingsHelper.replaceSides(this.outputSides, settings.getInt(OUTPUT_SIDES_TAG))) {
-            this.adjacentHandlersDirty = true;
             changed = true;
         }
         if (changed) {
@@ -1561,35 +1557,17 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private List<IItemHandler> getAdjacentItemHandlers() {
-        if (!this.adjacentHandlersDirty && this.cachedAdjacentHandlers != null) {
-            return this.cachedAdjacentHandlers;
-        }
-        this.adjacentHandlersDirty = false;
-        if (this.level == null) {
-            this.cachedAdjacentHandlers = List.of();
+        if (!(this.level instanceof ServerLevel serverLevel)) {
             return List.of();
         }
-
-        List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : this.outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
+        if (this.adjacentItemHandlers == null) {
+            this.adjacentItemHandlers = new AdjacentBlockCapabilityCache<>(
                     Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
+                    serverLevel,
+                    this.worldPosition,
+                    () -> !this.isRemoved());
         }
-        this.cachedAdjacentHandlers = handlers.isEmpty() ? List.of() : List.copyOf(handlers);
-        return this.cachedAdjacentHandlers;
+        return this.adjacentItemHandlers.getAll(this.outputSides);
     }
 
     @Nullable
