@@ -410,15 +410,15 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
         ArrayList<Map.Entry<EnergyLocationKey, TowerEnergyLocation>> orderedLocations = new ArrayList<>(locations.entrySet());
         orderedLocations.sort(Map.Entry.comparingByKey());
-        IdentityHashMap<Object, Integer> endpointIndexesByStorage = new IdentityHashMap<>();
-        ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>();
+        IdentityHashMap<Object, ArrayList<TowerEnergyTransferEndpoint>> routesByStorage = new IdentityHashMap<>();
+        ArrayList<ArrayList<TowerEnergyTransferEndpoint>> orderedRouteGroups = new ArrayList<>();
         for (Map.Entry<EnergyLocationKey, TowerEnergyLocation> entry : orderedLocations) {
             for (TowerDomainEnergyEndpoint endpoint : this.energyResolver.resolve(entry.getValue())) {
-                Object storageIdentity = endpoint.storageIdentity();
-                if (!endpointIndexesByStorage.containsKey(storageIdentity)) {
-                    endpointIndexesByStorage.put(storageIdentity, endpoints.size());
-                    endpoints.add(new TowerEnergyTransferEndpointImpl(endpoint));
-                }
+                dataEnergistics$addEnergyRoute(
+                        routesByStorage,
+                        orderedRouteGroups,
+                        endpoint.storageIdentity(),
+                        new TowerEnergyTransferEndpointImpl(endpoint));
             }
         }
 
@@ -429,28 +429,47 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     continue;
                 }
                 TowerRuntimeKey towerKey = participant.towerKey();
-                TowerAppFluxEnergyTransferEndpointImpl appFluxEndpoint = new TowerAppFluxEnergyTransferEndpointImpl(
-                        new TowerEnergyEndpointId(
-                                towerKey.dimensionId(),
-                                towerKey.position(),
-                                null,
-                                Integer.MAX_VALUE),
-                        participant.towerEnergyHost());
                 Object storageIdentity = AE2FluxIntegration.ownNetworkEnergyStorageIdentity(
                         participant.towerEnergyHost());
-                Integer existingIndex = storageIdentity == null
-                        ? null
-                        : endpointIndexesByStorage.get(storageIdentity);
-                if (existingIndex == null) {
-                    endpoints.add(appFluxEndpoint);
-                } else {
-                    endpoints.set(existingIndex, appFluxEndpoint);
+                if (storageIdentity == null) {
+                    continue;
                 }
-                break;
+                dataEnergistics$addEnergyRoute(
+                        routesByStorage,
+                        orderedRouteGroups,
+                        storageIdentity,
+                        new TowerAppFluxEnergyTransferEndpointImpl(
+                                new TowerEnergyEndpointId(
+                                        towerKey.dimensionId(),
+                                        towerKey.position(),
+                                        null,
+                                        Integer.MAX_VALUE),
+                                participant.towerEnergyHost()));
             }
+        }
+        ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>(orderedRouteGroups.size());
+        for (List<TowerEnergyTransferEndpoint> routes : orderedRouteGroups) {
+            endpoints.add(routes.size() == 1
+                    ? routes.getFirst()
+                    : new TowerEnergyTransferRouteGroupImpl(routes));
         }
         endpoints.sort(Comparator.comparing(TowerEnergyTransferEndpoint::endpoint, ENERGY_ENDPOINT_ORDER));
         return List.copyOf(endpoints);
+    }
+
+    /** Adds one context-sensitive access route without duplicating its physical backing in the planner. */
+    private static void dataEnergistics$addEnergyRoute(
+                                                       IdentityHashMap<Object, ArrayList<TowerEnergyTransferEndpoint>> routesByStorage,
+                                                       List<ArrayList<TowerEnergyTransferEndpoint>> orderedRouteGroups,
+                                                       Object storageIdentity,
+                                                       TowerEnergyTransferEndpoint route) {
+        ArrayList<TowerEnergyTransferEndpoint> routes = routesByStorage.get(storageIdentity);
+        if (routes == null) {
+            routes = new ArrayList<>();
+            routesByStorage.put(storageIdentity, routes);
+            orderedRouteGroups.add(routes);
+        }
+        routes.add(route);
     }
 
     /**

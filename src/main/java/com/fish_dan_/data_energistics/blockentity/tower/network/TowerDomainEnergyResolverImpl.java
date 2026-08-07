@@ -37,23 +37,23 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         if (!level.isLoaded(location.position())) {
             return List.of();
         }
-        Set<Object> seenStorageIdentities = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<IEnergyStorage> seenStorageRoutes = Collections.newSetFromMap(new IdentityHashMap<>());
         ArrayList<TowerDomainEnergyEndpoint> endpoints = new ArrayList<>();
         int storageIdentity = 0;
         for (Direction side : Direction.values()) {
-            storageIdentity = addEndpoint(location, side, storageIdentity, seenStorageIdentities, endpoints);
+            storageIdentity = addEndpoint(location, side, storageIdentity, seenStorageRoutes, endpoints);
         }
-        addEndpoint(location, null, storageIdentity, seenStorageIdentities, endpoints);
+        addEndpoint(location, null, storageIdentity, seenStorageRoutes, endpoints);
         return List.copyOf(endpoints);
     }
 
     private int addEndpoint(TowerEnergyLocation location,
                             @Nullable Direction side,
                             int storageIdentity,
-                            Set<Object> seenStorageIdentities,
+                            Set<IEnergyStorage> seenStorageRoutes,
                             List<TowerDomainEnergyEndpoint> endpoints) {
         IEnergyStorage storage = findStorage(location, side);
-        if (storage == null) {
+        if (storage == null || !seenStorageRoutes.add(storage)) {
             return storageIdentity;
         }
         Object backingIdentity = backingIdentity(storage);
@@ -62,9 +62,6 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         boolean canReceive = brandonsCoreSupported ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
         TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(canExtract, canReceive);
         if (direction == null) {
-            return storageIdentity;
-        }
-        if (!seenStorageIdentities.add(backingIdentity)) {
             return storageIdentity;
         }
         endpoints.add(new TowerDomainEnergyEndpoint(
