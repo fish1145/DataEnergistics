@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.jei;
+package com.fish_dan_.data_energistics.mixin.viewer.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
