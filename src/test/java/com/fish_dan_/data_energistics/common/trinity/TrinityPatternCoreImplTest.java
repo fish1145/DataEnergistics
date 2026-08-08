@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 
 import net.minecraft.core.NonNullList;
@@ -504,28 +506,29 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void newOpaquePatternsAreRejectedAndResolverAmbiguityFailsFast(GameTestHelper helper) {
-        TrinityPatternRecipeIdResolvers emptyResolvers = new TrinityPatternRecipeIdResolvers();
+        TrinityPatternRecipeIdResolvers emptyResolvers = new TrinityPatternRecipeIdResolvers(List.of());
         TrinityPatternCoreImpl opaqueCore = new TrinityPatternCoreImpl(
                 64, TrinityPatternCoreImplTest::decode, emptyResolvers, change -> {});
         assertFalse(opaqueCore.trySetPattern(0, pattern(Items.PAPER)));
 
-        TrinityPatternRecipeIdResolvers duplicateResolvers = testResolvers();
         assertThrows(IllegalArgumentException.class,
-                () -> duplicateResolvers.register(new TestRecipeIdResolver()));
+                () -> new TrinityPatternRecipeIdResolvers(List.of(
+                        new TestRecipeIdResolver(),
+                        new TestRecipeIdResolver())));
 
-        TrinityPatternRecipeIdResolvers ambiguousResolvers = testResolvers();
-        ambiguousResolvers.register(new ConflictingTestRecipeIdResolver());
+        TrinityPatternRecipeIdResolvers ambiguousResolvers = new TrinityPatternRecipeIdResolvers(List.of(
+                new TestRecipeIdResolver(),
+                new ConflictingTestRecipeIdResolver()));
         TrinityPatternCoreImpl ambiguousCore = new TrinityPatternCoreImpl(
                 64, TrinityPatternCoreImplTest::decode, ambiguousResolvers, change -> {});
         assertThrows(IllegalStateException.class,
                 () -> ambiguousCore.trySetPattern(0, pattern(Items.PAPER)));
 
-        TrinityPatternRecipeIdResolvers nullRecipeResolvers = new TrinityPatternRecipeIdResolvers();
-        nullRecipeResolvers.register(new NullRecipeIdResolver());
+        TrinityPatternRecipeIdResolvers nullRecipeResolvers = new TrinityPatternRecipeIdResolvers(
+                List.of(new NullRecipeIdResolver()));
         TrinityPatternCoreImpl nullRecipeCore = new TrinityPatternCoreImpl(
                 64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {});
-        assertThrows(IllegalStateException.class,
-                () -> nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
+        assertFalse(nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
         helper.succeed();
     }
 
@@ -566,15 +569,15 @@ public final class TrinityPatternCoreImplTest {
         TrinityPatternRecipeIdResolvers resolvers = TrinityPatternRecipeIdResolvers.createWithBuiltIns();
 
         assertEquals(
-                new TrinityPatternRecipeIdResolvers.Resolution(
+                new TrinityPatternRecipeIdResolution(
                         TrinityPatternRecipeIdResolvers.AE2_CRAFTING, craftingRecipe),
                 resolvers.resolve(new TestSupportedPattern(crafting)).orElseThrow());
         assertEquals(
-                new TrinityPatternRecipeIdResolvers.Resolution(
+                new TrinityPatternRecipeIdResolution(
                         TrinityPatternRecipeIdResolvers.AE2_STONECUTTING, stonecuttingRecipe),
                 resolvers.resolve(new TestSupportedPattern(stonecutting)).orElseThrow());
         assertEquals(
-                new TrinityPatternRecipeIdResolvers.Resolution(
+                new TrinityPatternRecipeIdResolution(
                         TrinityPatternRecipeIdResolvers.AE2_SMITHING, smithingRecipe),
                 resolvers.resolve(new TestSupportedPattern(smithing)).orElseThrow());
         helper.succeed();
@@ -618,8 +621,8 @@ public final class TrinityPatternCoreImplTest {
         ResourceLocation originalRecipe = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "original");
         ResourceLocation changedRecipe = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "changed");
         AtomicReference<ResourceLocation> recipeId = new AtomicReference<>(originalRecipe);
-        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers();
-        resolvers.register(new MutableTestRecipeIdResolver(recipeId));
+        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers(
+                List.of(new MutableTestRecipeIdResolver(recipeId)));
         TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
                 64, TrinityPatternCoreImplTest::decode, resolvers, change -> {});
         ItemStack pattern = pattern(Items.PAPER);
@@ -1172,9 +1175,7 @@ public final class TrinityPatternCoreImplTest {
     }
 
     private static TrinityPatternRecipeIdResolvers testResolvers() {
-        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers();
-        resolvers.register(new TestRecipeIdResolver());
-        return resolvers;
+        return new TrinityPatternRecipeIdResolvers(List.of(new TestRecipeIdResolver()));
     }
 
     private static PatternRoute route(TrinityPatternCore core, int slot) {

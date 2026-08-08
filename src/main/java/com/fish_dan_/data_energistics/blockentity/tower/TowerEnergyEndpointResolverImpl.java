@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -192,7 +195,9 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
         for (Direction direction : Direction.values()) {
             addEndpointCandidate(endpoints, seenStorages, pos, direction, collectAllSides);
         }
-        addEndpointCandidate(endpoints, seenStorages, pos, null, collectAllSides);
+        if (endpoints.isEmpty()) {
+            addEndpointCandidate(endpoints, seenStorages, pos, null, collectAllSides);
+        }
         return List.copyOf(endpoints);
     }
 
@@ -209,9 +214,16 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
         Set<BlockPos> selectedSources = new HashSet<>();
         Set<BlockPos> selectedSinks = new HashSet<>();
         for (TowerEnergyEndpointCandidate candidate : candidates) {
-            IEnergyStorage storage = candidate.storage();
-            TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(
-                    canExtract(storage), canReceive(storage));
+            TowerEnergyDirection direction;
+            try {
+                direction = resolveTransferDirection(candidate);
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
+                Data_Energistics.LOGGER.error(
+                        "Failed to resolve tower energy directions at {} side {} storage {}",
+                        candidate.pos(), candidate.side(), candidate.storage().getClass().getName(), exception);
+                continue;
+            }
             if (direction == null) {
                 continue;
             }
@@ -238,18 +250,30 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
         return List.copyOf(endpoints);
     }
 
+    @Nullable
+    private TowerEnergyDirection resolveTransferDirection(TowerEnergyEndpointCandidate candidate) {
+        IEnergyStorage storage = candidate.storage();
+        if (this.brandonsCoreEnergyBridge.supports(storage)) {
+            return TowerEnergyDirection.fromPermissions(
+                    this.brandonsCoreEnergyBridge.canExtract(storage),
+                    this.brandonsCoreEnergyBridge.canReceive(storage));
+        }
+        Level level = this.context.level();
+        if (level != null && MekanismEnergyAccess.supports(
+                level, candidate.pos(), candidate.side(), storage)) {
+            return MekanismEnergyAccess.resolveTransferDirection(
+                    level, candidate.pos(), candidate.side(), storage);
+        }
+        return TowerEnergyDirection.fromPermissions(
+                this.unlimitedEnergyAccess.canExtract(storage),
+                this.unlimitedEnergyAccess.canReceive(storage));
+    }
+
     private boolean canReceive(IEnergyStorage storage) {
         if (this.brandonsCoreEnergyBridge.supports(storage)) {
             return this.brandonsCoreEnergyBridge.canReceive(storage);
         }
         return this.unlimitedEnergyAccess.canReceive(storage);
-    }
-
-    private boolean canExtract(IEnergyStorage storage) {
-        if (this.brandonsCoreEnergyBridge.supports(storage)) {
-            return this.brandonsCoreEnergyBridge.canExtract(storage);
-        }
-        return this.unlimitedEnergyAccess.canExtract(storage);
     }
 
     private List<TowerEnergyEndpoint> filterByDirection(List<TowerEnergyEndpoint> endpoints, boolean forReceive) {
@@ -277,7 +301,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
                 this.reusableEndpointFilter.add(endpoint);
             }
         }
-        return this.reusableEndpointFilter;
+        return List.copyOf(this.reusableEndpointFilter);
     }
 
     @Nullable

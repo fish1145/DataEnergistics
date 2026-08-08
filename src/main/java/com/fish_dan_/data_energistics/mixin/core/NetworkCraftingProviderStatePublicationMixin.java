@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationSink;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -54,6 +55,7 @@ public abstract class NetworkCraftingProviderStatePublicationMixin {
         this.dataEnergistics$providerId = publicationSink.dataEnergistics$publishProvider(
                 this.provider,
                 this.patterns);
+        PatternProviderRuntimeBindings.bind(this.dataEnergistics$providerId, this.provider);
     }
 
     /**
@@ -66,6 +68,7 @@ public abstract class NetworkCraftingProviderStatePublicationMixin {
             throw new IllegalStateException("AE2 crafting provider state was unmounted before publication");
         }
         CraftingProviderPublicationSink publicationSink = (CraftingProviderPublicationSink) methods;
+        PatternProviderRuntimeBindings.unbind(providerId);
         publicationSink.dataEnergistics$unpublishProvider(providerId);
         this.dataEnergistics$providerId = null;
     }

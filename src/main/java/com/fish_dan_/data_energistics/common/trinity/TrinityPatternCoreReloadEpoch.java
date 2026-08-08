@@ -1,13 +1,11 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import java.util.concurrent.atomic.AtomicLong;
+import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 
 /**
- * Process-local epoch used by loaded pattern cores to invalidate recipe caches after a server data reload.
+ * Compatibility view of the shared recipe reload epoch used by retained Trinity pattern state.
  */
 public final class TrinityPatternCoreReloadEpoch {
-
-    private static final AtomicLong EPOCH = new AtomicLong();
 
     private TrinityPatternCoreReloadEpoch() {}
 
@@ -17,13 +15,13 @@ public final class TrinityPatternCoreReloadEpoch {
      * @return new epoch
      */
     public static long advance() {
-        return EPOCH.incrementAndGet();
+        return RecipeReloadEpoch.advance();
     }
 
     /**
      * @return current reload epoch observed by pattern core block entities
      */
     public static long current() {
-        return EPOCH.get();
+        return RecipeReloadEpoch.current();
     }
 }

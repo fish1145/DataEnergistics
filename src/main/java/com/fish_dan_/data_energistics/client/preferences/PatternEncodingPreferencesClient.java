@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.preferences;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
@@ -14,7 +15,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import org.jetbrains.annotations.Nullable;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -58,21 +60,44 @@ public final class PatternEncodingPreferencesClient {
     }
 
     /**
-     * Persists workstation changes and publishes recipe context captured by a successful XEI transfer.
+     * Persists the fixed vanilla context captured by a successful viewer transfer.
      */
     public static void captureTransferredRecipe(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
-        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
                 interfaces.previewMenu().data_energistics$getEncodingMode());
-        if (fixedWorkstation != null) {
-            session.setRankingContext(PatternEncodingSourceHelper.resolveFixedModeRankingContext(
-                    interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
-        } else {
-            PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
-            preferences.setLastWorkstation(interfaces.sourceAware().data_energistics$getLastEncodedPatternSource());
+        if (fixedWorkstation == null) {
+            throw new IllegalStateException("Processing transfers require an exact viewer context");
         }
+        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(
+                PatternEncodingSourceHelper.resolveFixedModeRankingContext(
+                        interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
         sendSnapshot(menu);
+    }
+
+    /**
+     * Persists a successful processing transfer with its exact recipe-type context.
+     */
+    public static void captureTransferredProcessingRecipe(@NotNull AbstractContainerMenu menu,
+                                                          @NotNull PatternEncodingRankingContext transferredContext) {
+        Interfaces interfaces = Interfaces.require(menu);
+        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(transferredContext);
+        sendSnapshot(menu);
+    }
+
+    /**
+     * Removes stale recipe-viewer context after category or workstation lookup fails.
+     */
+    public static void clearTransferredRecipeContext(@NotNull PatternEncodingTermMenu menu) {
+        try {
+            Interfaces.require(menu);
+            PatternEncodingSourceHelper.clearViewerTransferContext(menu);
+            sendSnapshot(menu);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to clear stale pattern recipe-viewer context after a transfer lookup error",
+                    exception);
+        }
     }
 
     /**
@@ -96,32 +121,12 @@ public final class PatternEncodingPreferencesClient {
     }
 
     /**
-     * Persists and synchronizes the global last-workstation preference, including explicit null.
-     */
-    public static void setLastWorkstation(AbstractContainerMenu menu, @Nullable ResourceLocation workstation) {
-        Interfaces interfaces = Interfaces.require(menu);
-        PatternEncodingClientPreferencesAccess.get().setLastWorkstation(workstation);
-        interfaces.sourceAware().data_energistics$setLastEncodedPatternSource(workstation);
-        sendSnapshot(menu);
-    }
-
-    /**
      * Persists and synchronizes the shared preview-panel offset.
      */
     public static void setPreviewPanelOffset(AbstractContainerMenu menu, int offsetX, int offsetY) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingClientPreferencesAccess.get().setPreviewPanelOffset(offsetX, offsetY);
         interfaces.layoutAware().data_energistics$setPreviewPanelOffset(offsetX, offsetY);
-        sendSnapshot(menu);
-    }
-
-    /**
-     * Updates the exact ranking context and republishes counts for the currently visible provider leaves.
-     */
-    public static void setRankingContext(AbstractContainerMenu menu,
-                                         @Nullable PatternEncodingRankingContext rankingContext) {
-        Interfaces interfaces = Interfaces.require(menu);
-        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(rankingContext);
         sendSnapshot(menu);
     }
 
@@ -173,7 +178,7 @@ public final class PatternEncodingPreferencesClient {
                               PatternEncodingSourceAware sourceAware,
                               PatternEncodingPreviewLayoutAware layoutAware) {
 
-        private static Interfaces require(AbstractContainerMenu menu) {
+        private static Interfaces require(@NotNull AbstractContainerMenu menu) {
             if (!(menu instanceof PatternEncodingPreferenceMenu preferenceMenu) || !(menu instanceof PatternEncodingPreviewMenu previewMenu) || !(menu instanceof PatternEncodingSourceAware sourceAware) || !(menu instanceof PatternEncodingPreviewLayoutAware layoutAware)) {
                 throw new IllegalArgumentException("Menu does not support pattern encoding preferences: " + menu);
             }

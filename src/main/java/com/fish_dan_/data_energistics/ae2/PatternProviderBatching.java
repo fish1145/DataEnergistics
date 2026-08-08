@@ -483,10 +483,11 @@ public final class PatternProviderBatching {
             throw new IllegalArgumentException("count must be positive");
         }
 
-        KeyCounter expectedInputs = aggregatePrototype(prototype);
+        PrototypeSnapshot prototypeSnapshot = copyAndAggregatePrototype(prototype);
+        KeyCounter expectedInputs = prototypeSnapshot.aggregated();
         KeyCounter emittedInputs = new KeyCounter();
         ArrayList<GenericStack> expandedInputs = new ArrayList<>();
-        KeyCounter[] perCraft = scalePrototype(prototype, 1L);
+        KeyCounter[] perCraft = prototypeSnapshot.perCraft();
         patternDetails.pushInputsToExternalInventory(perCraft, (what, amount) -> {
             if (what == null) {
                 throw new IllegalStateException("Pattern emitted a null input key");
@@ -501,7 +502,7 @@ public final class PatternProviderBatching {
                 !containsSameAmounts(emittedInputs, expectedInputs)) {
             throw new IllegalStateException("Pattern did not emit its complete per-craft input prototype");
         }
-        return List.copyOf(expandedInputs);
+        return expandedInputs;
     }
 
     static KeyCounter[] scalePrototype(KeyCounter[] prototype, long count) {
@@ -589,6 +590,40 @@ public final class PatternProviderBatching {
         return aggregated;
     }
 
+    /**
+     * Copies and aggregates a prototype in one validated pass for expansion.
+     *
+     * <p>
+     * The expansion path needs both representations. Building them together avoids traversing every prototype
+     * counter twice while retaining the same live validation before pattern callbacks or target mutation.
+     * </p>
+     */
+    private static PrototypeSnapshot copyAndAggregatePrototype(KeyCounter[] prototype) {
+        KeyCounter aggregated = new KeyCounter();
+        KeyCounter[] perCraft = new KeyCounter[prototype.length];
+        for (int index = 0; index < prototype.length; index++) {
+            KeyCounter source = prototype[index];
+            if (source == null) {
+                throw new IllegalArgumentException(
+                        "Pattern-provider input prototype counter at index " + index + " must not be null");
+            }
+            KeyCounter copy = new KeyCounter();
+            for (var entry : source) {
+                AEKey key = entry.getKey();
+                long amount = entry.getLongValue();
+                if (amount < 0L) {
+                    throw new IllegalArgumentException("prototype amounts must not be negative");
+                }
+                if (amount > 0L) {
+                    aggregated.set(key, Math.addExact(aggregated.get(key), amount));
+                    copy.add(key, amount);
+                }
+            }
+            perCraft[index] = copy;
+        }
+        return new PrototypeSnapshot(aggregated, perCraft);
+    }
+
     private static boolean containsSameAmounts(KeyCounter expected, KeyCounter actual) {
         for (var entry : expected) {
             if (actual.get(entry.getKey()) != entry.getLongValue()) {
@@ -635,6 +670,9 @@ public final class PatternProviderBatching {
     }
 
     private record PushTarget(Direction direction, PatternProviderTarget target) {}
+
+    /** Holds the validated aggregate and per-craft copy produced during one prototype traversal. */
+    private record PrototypeSnapshot(KeyCounter aggregated, KeyCounter[] perCraft) {}
 
     private static final class OneShotAdmission implements CountedCraftingAdmission {
 

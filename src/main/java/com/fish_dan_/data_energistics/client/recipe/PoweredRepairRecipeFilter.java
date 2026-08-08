@@ -54,17 +54,7 @@ public final class PoweredRepairRecipeFilter {
 
         Item leftItem = getSingleTrackedItemFromStacks(recipe.getLeftInputs());
         Item rightItem = getSingleTrackedItemFromStacks(recipe.getRightInputs());
-        Item outputItem = getSingleTrackedItemFromStacks(recipe.getOutputs());
-
-        if (leftItem == null && rightItem == null && outputItem == null) {
-            return false;
-        }
-
-        if (leftItem != null && rightItem != null && leftItem == rightItem) {
-            return true;
-        }
-
-        return false;
+        return rightItem != null && leftItem == rightItem;
     }
 
     public static boolean shouldHideJeiCraftingRepairRecipe(RecipeHolder<CraftingRecipe> recipeHolder) {
@@ -73,10 +63,6 @@ public final class PoweredRepairRecipeFilter {
         }
 
         CraftingRecipe recipe = recipeHolder.value();
-        if (recipe == null) {
-            return false;
-        }
-
         Item ingredientItem = null;
         int ingredientCount = 0;
         for (Ingredient ingredient : recipe.getIngredients()) {
@@ -96,7 +82,7 @@ public final class PoweredRepairRecipeFilter {
             ingredientCount++;
         }
 
-        if (ingredientCount != 2 || ingredientItem == null) {
+        if (ingredientCount != 2) {
             return false;
         }
 

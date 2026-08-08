@@ -2,57 +2,47 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import net.minecraft.resources.ResourceLocation;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.nio.charset.StandardCharsets;
 
 /**
- * Identifies the recipe and workstation pair for which provider upload history is relevant.
+ * Identifies the exact viewer recipe type used for provider matching and ranking.
  *
  * <p>
- * The pair is intentionally exact: history from a different recipe type or workstation must not influence
- * provider ordering.
+ * The snapshot contains only the canonical recipe-type identifier. Workstation candidates are resolved exclusively
+ * from provider metadata exposed by the current server grid.
  * </p>
  */
-public record PatternEncodingRankingContext(String recipeScope, ResourceLocation workstation) {
+public record PatternEncodingRankingContext(@NotNull ResourceLocation recipeTypeId) {
 
-    public static final int MAX_RECIPE_SCOPE_BYTES = 256;
-    public static final int MAX_WORKSTATION_BYTES = 256;
-    private static final String TYPE_PREFIX = "type:";
-    private static final String RECIPE_PREFIX = "recipe:";
+    /**
+     * Maximum UTF-8 bytes accepted for one registry identifier on the wire and in persistence.
+     */
+    public static final int MAX_RESOURCE_LOCATION_BYTES = 256;
 
-    /** Validates the bounded, version-independent values accepted from a client menu session. */
+    /**
+     * Validates the canonical viewer recipe-type identifier.
+     */
     public PatternEncodingRankingContext {
-        if (recipeScope == null || recipeScope.isBlank()) {
-            throw new IllegalArgumentException("Pattern ranking recipe scope must not be blank");
-        }
-        if (recipeScope.getBytes(StandardCharsets.UTF_8).length > MAX_RECIPE_SCOPE_BYTES) {
-            throw new IllegalArgumentException("Pattern ranking recipe scope exceeds " + MAX_RECIPE_SCOPE_BYTES + " UTF-8 bytes");
-        }
-        String recipeId = recipeScope.startsWith(TYPE_PREFIX) ? recipeScope.substring(TYPE_PREFIX.length()) : recipeScope.startsWith(RECIPE_PREFIX) ? recipeScope.substring(RECIPE_PREFIX.length()) : null;
-        if (recipeId == null || ResourceLocation.tryParse(recipeId) == null) {
-            throw new IllegalArgumentException("Invalid pattern ranking recipe scope: " + recipeScope);
-        }
-        if (workstation == null) {
-            throw new IllegalArgumentException("Pattern ranking workstation must not be null");
-        }
-        if (workstation.toString().getBytes(StandardCharsets.UTF_8).length > MAX_WORKSTATION_BYTES) {
-            throw new IllegalArgumentException("Pattern ranking workstation exceeds " + MAX_WORKSTATION_BYTES + " UTF-8 bytes");
-        }
+        validateResourceLocation(recipeTypeId, "recipe type id");
     }
 
-    /** Builds the preferred recipe-type scope. */
-    public static PatternEncodingRankingContext forRecipeType(ResourceLocation recipeTypeId,
-                                                              ResourceLocation workstation) {
-        if (recipeTypeId == null) {
-            throw new IllegalArgumentException("Recipe type id must not be null");
-        }
-        return new PatternEncodingRankingContext(TYPE_PREFIX + recipeTypeId, workstation);
+    /**
+     * Creates a validated context from the stable viewer recipe-type identifier.
+     */
+    public static @NotNull PatternEncodingRankingContext of(@NotNull ResourceLocation recipeTypeId) {
+        return new PatternEncodingRankingContext(recipeTypeId);
     }
 
-    /** Builds the recipe-id fallback scope used when no registered recipe type can be resolved. */
-    public static PatternEncodingRankingContext forRecipe(ResourceLocation recipeId, ResourceLocation workstation) {
-        if (recipeId == null) {
-            throw new IllegalArgumentException("Recipe id must not be null");
+    private static int utf8Length(ResourceLocation id) {
+        return id.toString().getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private static void validateResourceLocation(ResourceLocation id, String label) {
+        if (utf8Length(id) > MAX_RESOURCE_LOCATION_BYTES) {
+            throw new IllegalArgumentException(
+                    "Pattern ranking " + label + " exceeds " + MAX_RESOURCE_LOCATION_BYTES + " UTF-8 bytes");
         }
-        return new PatternEncodingRankingContext(RECIPE_PREFIX + recipeId, workstation);
     }
 }

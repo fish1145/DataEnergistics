@@ -11,6 +11,8 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -27,7 +29,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
@@ -159,7 +160,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return adjacentGroup.name();
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
     }
 
@@ -170,7 +171,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(adjacentGroup.name(), getResolvedProviderNameForGui());
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : this.getMainMenuIcon().getHoverName();
     }
 
@@ -185,33 +186,18 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public @Nullable PatternContainerGroup getPrimaryAttachedMachineGroup() {
-        var hostLevel = this.getLevel();
-        if (hostLevel == null) {
-            return null;
-        }
-
-        var hostPos = this.getBlockPos();
-        for (var side : this.getTargets()) {
-            var specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(hostLevel, hostPos.relative(side));
-            if (specialGroup != null) {
-                return specialGroup;
-            }
-        }
-
         var groups = getAdjacentMachineGroups();
         return groups.size() == 1 ? groups.iterator().next() : null;
     }
 
     @Override
     public boolean isMeteoriteProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.METEORITE;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.METEORITE);
     }
 
     @Override
     public boolean isAdvancedAeProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.ADVANCED_PATTERN);
     }
 
     @Override
@@ -219,24 +205,17 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_ANDESITE || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_BRASS);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.MECHANICAL_CRAFTING);
     }
 
     @Override
     public boolean isResonatingProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        if (profile == null) {
-            return false;
-        }
-
-        return profile.kind() == AdaptivePatternProviderResolver.ProviderKind.RESONATING || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.EXTENDED_RESONATING;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.RESONATING);
     }
 
     @Override
     public boolean supportsFilteredImportToggle() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.FILTERED_IMPORT);
     }
 
     @Override
@@ -394,7 +373,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return adjacentGroup.icon();
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? profile.terminalIcon() : AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance());
     }
 
@@ -412,7 +391,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public ItemStack getMainMenuIcon() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         ItemStack providerIcon = profile != null ? profile.mainMenuIcon() : null;
         return AdaptivePatternProviderDisplayHelper.resolveMainMenuIcon(
                 adjacentGroup,
@@ -436,7 +415,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 unlockedSlots,
                 totalSlots);
 
-        Component displayName = this instanceof Nameable nameable && nameable.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
+        Component displayName = this.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
         return new PatternContainerGroup(
                 baseGroup.icon(),
                 displayName,
@@ -590,8 +569,16 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Nullable
-    private AdaptivePatternProviderResolver.ProviderProfile getProviderProfile() {
+    private AdaptivePatternProviderProfile getProviderProfile() {
         return AdaptivePatternProviderResolver.resolveProviderProfile(getAdaptiveState().getProviderStack());
+    }
+
+    /**
+     * Checks one registered behavior on the currently installed provider.
+     */
+    private boolean hasProviderCapability(ResourceLocation capability) {
+        AdaptivePatternProviderProfile profile = getProviderProfile();
+        return profile != null && profile.supports(capability);
     }
 
     private void onAdaptiveStateChanged() {
@@ -689,14 +676,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Nullable
     public static Item getAppliedFluxInductionCard() {
         Item item = BuiltInRegistries.ITEM.get(APPFLUX_INDUCTION_CARD_ID);
-        return item == null || item == Items.AIR ? null : item;
+        return item == Items.AIR ? null : item;
     }
 
     private PatternContainerGroup buildAdaptiveTerminalGroup() {
-        if (this instanceof Nameable nameable && nameable.hasCustomName()) {
+        if (this.hasCustomName()) {
             return new PatternContainerGroup(
                     this.getTerminalIcon(),
-                    nameable.getCustomName(),
+                    this.getCustomName(),
                     List.of());
         }
 

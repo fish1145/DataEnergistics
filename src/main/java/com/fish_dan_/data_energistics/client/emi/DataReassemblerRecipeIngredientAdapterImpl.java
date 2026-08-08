@@ -5,8 +5,6 @@ import com.fish_dan_.data_energistics.client.recipe.DataReassemblerRecipeIngredi
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.GenericStack;
-import appeng.integration.modules.emi.EmiStackHelper;
-import appeng.items.misc.WrappedGenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -67,12 +65,6 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
     }
 
     static EmiStack toEmiStack(GenericStack stack) {
-        EmiStack converted = EmiStackHelper.toEmiStack(stack);
-        if (converted != null) {
-            return converted;
-        }
-
-        ItemStack wrappedIdentity = WrappedGenericStack.wrap(stack.what(), 1L);
-        return EmiStack.of(wrappedIdentity).setAmount(stack.amount());
+        return EmiGenericStackIngredientResolver.resolve(stack);
     }
 }

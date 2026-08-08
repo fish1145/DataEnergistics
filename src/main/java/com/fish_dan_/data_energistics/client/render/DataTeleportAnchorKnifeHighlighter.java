@@ -122,7 +122,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
         if (hitResult instanceof BlockHitResult blockHitResult && blockHitResult.getBlockPos().equals(anchorPos)) {
             return false;
         }
-        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK && hitResult.getLocation() != null) {
+        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
             BlockPos hitPos = BlockPos.containing(hitResult.getLocation());
             if (hitPos.equals(anchorPos)) {
                 return false;

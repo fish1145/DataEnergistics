@@ -176,7 +176,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
 
     private ItemInteractionResult applyColor(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack,
                                              ColorVariant variant, boolean fromApplicator) {
-        if (variant == null || state.getValue(COLOR) == variant) {
+        if (state.getValue(COLOR) == variant) {
             return ItemInteractionResult.CONSUME;
         }
 
@@ -240,9 +240,9 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
         YELLOW("yellow", DyeColor.YELLOW);
 
         private final String name;
-        private final DyeColor dyeColor;
+        private final @Nullable DyeColor dyeColor;
 
-        ColorVariant(String name, DyeColor dyeColor) {
+        ColorVariant(String name, @Nullable DyeColor dyeColor) {
             this.name = name;
             this.dyeColor = dyeColor;
         }

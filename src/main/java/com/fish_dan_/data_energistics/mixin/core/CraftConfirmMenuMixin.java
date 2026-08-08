@@ -87,6 +87,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public boolean dataEnergistics$planReady;
 
+    @GuiSync(798)
+    @Unique
+    public long dataEnergistics$planningNanos;
+
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -103,11 +107,13 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$hasDiagnostic = false;
         this.dataEnergistics$diagnostic = Component.empty();
         this.dataEnergistics$ae2FallbackEstimate = false;
+        this.dataEnergistics$planningNanos = 0L;
 
         if (this.result instanceof TrinityCraftingPlan plan) {
             this.dataEnergistics$quantityMode = plan.quantityMode().ordinal();
             this.dataEnergistics$trinityOnly = true;
             this.dataEnergistics$dynamicMaterialWarning = plan.stages().stream().anyMatch(TrinityPlanStage::cycleStage);
+            this.dataEnergistics$planningNanos = plan.statistics().planningNanos();
             if (!plan.diagnostics().isEmpty()) {
                 this.dataEnergistics$hasDiagnostic = true;
                 this.dataEnergistics$diagnostic = plan.diagnostics().getFirst().message();
@@ -116,6 +122,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$hasDiagnostic = true;
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
+            this.dataEnergistics$planningNanos = diagnosed.calculationNanos();
         }
     }
 
@@ -170,6 +177,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     private void dataEnergistics$clearPlanReadiness() {
         this.dataEnergistics$planReady = false;
+        this.dataEnergistics$planningNanos = 0L;
         ((CraftConfirmMenu) (Object) this).setPlan(null);
     }
 
@@ -249,6 +257,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public boolean data_energistics$isPlanReady() {
         return this.dataEnergistics$planReady;
+    }
+
+    @Override
+    public long data_energistics$planningNanos() {
+        return this.dataEnergistics$planningNanos;
     }
 
     @Override

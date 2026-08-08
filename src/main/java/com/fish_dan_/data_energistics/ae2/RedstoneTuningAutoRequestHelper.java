@@ -40,9 +40,6 @@ public final class RedstoneTuningAutoRequestHelper {
                         Math.max(1L, primaryOutput.amount()),
                         CalculationStrategy.CRAFT_LESS);
                 var server = level.getServer();
-                if (server == null) {
-                    continue;
-                }
 
                 Thread.ofVirtual().name("data-energistics-redstone-auto-request").start(() -> {
                     try {

@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.util.UniversalTerminalAdapter;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
@@ -600,7 +600,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         return UniversalTerminalData.getDefinitions().stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst()
-                .map(UniversalTerminalAdapter::requiresCustomMenuLocator)
+                .map(UniversalTerminalRegistration::requiresCustomMenuLocator)
                 .orElse(false);
     }
 

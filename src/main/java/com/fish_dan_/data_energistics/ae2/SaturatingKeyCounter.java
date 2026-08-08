@@ -17,14 +17,29 @@ public final class SaturatingKeyCounter {
      */
     public static void merge(KeyCounter total, KeyCounter contribution) {
         for (var entry : contribution) {
-            long current = total.get(entry.getKey());
-            long added = entry.getLongValue();
-            if (current < 0L || added < 0L) {
-                Data_Energistics.LOGGER.warn("AE storage amounts must be non-negative");
-                if (current < 0) current = 0;
-                if (added < 0) added = 0;
-            }
-            total.set(entry.getKey(), added > Long.MAX_VALUE - current ? Long.MAX_VALUE : current + added);
+            total.set(
+                    entry.getKey(),
+                    mergeAmount(total.get(entry.getKey()), entry.getLongValue()));
         }
+    }
+
+    /**
+     * Adds one mounted-storage amount without allowing signed overflow.
+     *
+     * @param current accumulated network amount
+     * @param added   amount reported by one mounted storage
+     * @return non-negative saturated total
+     */
+    public static long mergeAmount(long current, long added) {
+        if (current < 0L || added < 0L) {
+            Data_Energistics.LOGGER.warn("AE storage amounts must be non-negative");
+            if (current < 0L) {
+                current = 0L;
+            }
+            if (added < 0L) {
+                added = 0L;
+            }
+        }
+        return added > Long.MAX_VALUE - current ? Long.MAX_VALUE : current + added;
     }
 }

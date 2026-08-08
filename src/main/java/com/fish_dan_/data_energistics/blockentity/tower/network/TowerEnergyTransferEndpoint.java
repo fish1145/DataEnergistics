@@ -21,7 +21,8 @@ public interface TowerEnergyTransferEndpoint {
     TowerEnergyEndpointId endpoint();
 
     /**
-     * Freezes stored energy, capacity, and current transfer permissions without mutation.
+     * Freezes stored energy, capacity, current transfer permissions, planning role, and the transfer budget available
+     * to one transaction without mutation.
      *
      * @return immutable endpoint snapshot
      */

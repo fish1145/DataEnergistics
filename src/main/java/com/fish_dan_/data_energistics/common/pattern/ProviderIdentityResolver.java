@@ -36,11 +36,6 @@ public interface ProviderIdentityResolver {
     ProviderIdentity resolve(PatternContainer provider);
 
     /**
-     * Resolves a matrix already identified through stable provider metadata.
-     */
-    ProviderIdentity.Matrix resolveMatrix(PatternContainer provider, boolean plus);
-
-    /**
      * Builds the canonical structured fallback used consistently by live and degraded virtual providers.
      */
     static ProviderIdentity.Virtual virtualIdentity(ResourceLocation iconItemId, Component name) {

@@ -8,7 +8,7 @@ public final class ModPayloads {
     private ModPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2");
+        PayloadRegistrar registrar = event.registrar("4");
         registrar.playToServer(
                 PatternEncodingPreferencesSyncPayload.TYPE,
                 PatternEncodingPreferencesSyncPayload.STREAM_CODEC,

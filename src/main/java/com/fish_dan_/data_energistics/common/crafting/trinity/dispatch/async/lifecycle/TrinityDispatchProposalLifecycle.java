@@ -8,33 +8,39 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
  */
 public final class TrinityDispatchProposalLifecycle {
 
-    private static DispatchProposalScheduler scheduler;
+    private static final Object LIFECYCLE_LOCK = new Object();
+    private static volatile DispatchProposalScheduler scheduler;
 
     private TrinityDispatchProposalLifecycle() {}
 
     /** Starts the dispatch executor after COMMON configuration has loaded. */
-    public static synchronized void start() {
-        if (scheduler != null) {
-            throw new IllegalStateException("The Trinity dispatch proposal scheduler is already running");
+    public static void start() {
+        synchronized (LIFECYCLE_LOCK) {
+            if (scheduler != null) {
+                throw new IllegalStateException("The Trinity dispatch proposal scheduler is already running");
+            }
+            scheduler = DispatchProposalScheduler.create(TrinityPlanningGatewayLifecycle::computationCache);
         }
-        scheduler = DispatchProposalScheduler.create(TrinityPlanningGatewayLifecycle::computationCache);
     }
 
     /** @return running process-wide scheduler shared by all AE2 grids */
-    public static synchronized DispatchProposalScheduler scheduler() {
-        if (scheduler == null) {
+    public static DispatchProposalScheduler scheduler() {
+        DispatchProposalScheduler current = scheduler;
+        if (current == null) {
             throw new IllegalStateException("The Trinity dispatch proposal scheduler is not running");
         }
-        return scheduler;
+        return current;
     }
 
     /** Cancels outstanding proposals and stops the independent executor. */
-    public static synchronized void stop() {
-        if (scheduler == null) {
-            return;
+    public static void stop() {
+        synchronized (LIFECYCLE_LOCK) {
+            if (scheduler == null) {
+                return;
+            }
+            DispatchProposalScheduler closing = scheduler;
+            scheduler = null;
+            closing.close();
         }
-        DispatchProposalScheduler closing = scheduler;
-        scheduler = null;
-        closing.close();
     }
 }

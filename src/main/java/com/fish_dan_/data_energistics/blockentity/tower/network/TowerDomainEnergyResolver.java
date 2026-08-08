@@ -8,7 +8,8 @@ import java.util.List;
 public interface TowerDomainEnergyResolver {
 
     /**
-     * Resolves all distinct accessible storages at one loaded location in stable side order.
+     * Resolves all distinct capability access routes at one loaded location in stable side order. Multiple routes may
+     * share one physical backing identity when their access context differs.
      *
      * @param location candidate location
      * @return immutable endpoint list, or empty when the chunk is unloaded

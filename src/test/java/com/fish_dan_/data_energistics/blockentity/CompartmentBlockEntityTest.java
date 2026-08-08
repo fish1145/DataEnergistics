@@ -602,7 +602,7 @@ public final class CompartmentBlockEntityTest {
                             mount.blockCapacity(),
                             UUID.randomUUID(),
                             stack -> null,
-                            TrinityPatternRecipeIdResolvers.global(),
+                            TrinityPatternRecipeIdResolvers.createWithBuiltIns(),
                             change -> {});
                     CompoundTag restoredTag = new CompoundTag();
                     restoredState.writeToTag(restoredTag, level.registryAccess());
@@ -2279,7 +2279,9 @@ public final class CompartmentBlockEntityTest {
         throw new IllegalStateException("Placed data distribution tower has no block entity at " + towerPos);
     }
 
-    /** Adds a structure-external candidate only for exercising multi-grid lease arbitration. */
+    /**
+     * Adds a structure-external candidate only for exercising multi-grid lease arbitration.
+     */
     private static TrinityAccessHatchBlockEntity placeAdditionalBoundAccessHatch(
                                                                                  ServerLevel level,
                                                                                  BlockPos origin,

@@ -16,7 +16,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchCapacitySlicePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchCommitter;
@@ -1390,35 +1389,13 @@ final class TrinityDataCoreCpuLogic {
                                                                long offeredCount,
                                                                ProviderCapacitySnapshot snapshot,
                                                                CraftingDispatchWindow dispatchWindow) {
-        if (snapshot.routingMode() == ProviderRoutingMode.TARGETED) {
-            if (!(provider instanceof TargetedCountedCraftingProvider targetedProvider)) {
-                throw new IllegalStateException("Targeted capacity snapshot requires a targeted counted provider");
-            }
-            CountedCraftingAdmission admission = targetedProvider.prepareBatchForTarget(
-                    details,
-                    prototype,
-                    offeredCount,
-                    snapshot.route());
-            return admission == null ?
-                    CountedCraftingPreparation.rejected(CraftingDispatchRejection.targeted(
-                            CraftingDispatchStatus.NO_CAPACITY,
-                            snapshot.route())) :
-                    CountedCraftingPreparation.accepted(admission, snapshot.route());
-        }
-        if (snapshot.routingMode() == ProviderRoutingMode.AGGREGATE) {
-            return CountedCraftingProviderAdapters.prepare(
-                    provider,
-                    details,
-                    prototype,
-                    offeredCount,
-                    target -> dispatchWindow.canAttempt(provider, details, target));
-        }
         return CountedCraftingProviderAdapters.prepare(
                 provider,
                 details,
                 prototype,
                 offeredCount,
-                target -> target.equals(snapshot.route()) && dispatchWindow.canAttempt(provider, details, target));
+                snapshot,
+                target -> dispatchWindow.canAttempt(provider, details, target));
     }
 
     private static long offeredCount(

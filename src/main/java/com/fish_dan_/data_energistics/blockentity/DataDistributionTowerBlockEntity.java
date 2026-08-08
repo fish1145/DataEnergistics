@@ -36,6 +36,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkTowe
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
@@ -191,6 +192,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
     private boolean endpointCacheValid;
     private long targetDisplayStateRevision;
+    /**
+     * Reuses one immutable full target snapshot across menus during the same level tick.
+     */
+    private long cachedBoundTargetSummariesTick = Long.MIN_VALUE;
+    private long cachedBoundTargetSummariesRevision = Long.MIN_VALUE;
+    private List<BoundTargetSummary> cachedBoundTargetSummaries = List.of();
+    private boolean verboseRuntimeLoggingEnabled;
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
     private int diagnosticSimulatedExtractCalls;
@@ -830,7 +838,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public long getEnergyCapacityForUi() {
-        return getTotalEnergyCapacity(null);
+        return this.energyDistributor.getTotalEnergyCapacity(null);
     }
 
     public TargetTransferInfo getTargetTransferInfo(BlockPos targetPos) {
@@ -932,6 +940,39 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (maxEntries <= 0) {
             return List.of();
         }
+        List<BoundTargetSummary> summaries = boundTargetSummariesForCurrentTick();
+        if (maxEntries >= summaries.size()) {
+            return summaries;
+        }
+        return List.copyOf(summaries.subList(0, maxEntries));
+    }
+
+    /**
+     * Resolves the complete target snapshot at most once per level tick and display-state revision.
+     */
+    private List<BoundTargetSummary> boundTargetSummariesForCurrentTick() {
+        Level currentLevel = this.level;
+        if (currentLevel == null) {
+            return resolveBoundTargetSummaries();
+        }
+
+        long gameTime = currentLevel.getGameTime();
+        long stateRevision = this.targetDisplayStateRevision;
+        if (this.cachedBoundTargetSummariesTick == gameTime && this.cachedBoundTargetSummariesRevision == stateRevision) {
+            return this.cachedBoundTargetSummaries;
+        }
+
+        List<BoundTargetSummary> summaries = resolveBoundTargetSummaries();
+        this.cachedBoundTargetSummariesTick = gameTime;
+        this.cachedBoundTargetSummariesRevision = this.targetDisplayStateRevision;
+        this.cachedBoundTargetSummaries = summaries;
+        return summaries;
+    }
+
+    /**
+     * Builds the immutable complete target snapshot from current discovery and network-domain state.
+     */
+    private List<BoundTargetSummary> resolveBoundTargetSummaries() {
         List<BoundTargetSummary> baseSummaries = this.targetDisplayResolver.boundTargetSummaries(Integer.MAX_VALUE);
         Map<DisplayTargetKey, List<BoundTargetSummary>> baseByLocation = new LinkedHashMap<>();
         for (BoundTargetSummary summary : baseSummaries) {
@@ -959,17 +1000,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                     result.add(createDeviceSummary(bindingSnapshot, device));
                 }
             }
-            if (result.size() >= maxEntries) {
-                return List.copyOf(result.subList(0, maxEntries));
-            }
         }
 
         for (BoundTargetSummary summary : baseSummaries) {
             if (!consumedBindings.contains(new DisplayTargetKey(summary.dimensionId(), summary.pos()))) {
                 result.add(summary);
-                if (result.size() >= maxEntries) {
-                    break;
-                }
             }
         }
         return List.copyOf(result);
@@ -1531,7 +1566,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
         IGrid grid = node.getGrid();
         TowerNetworkDomain nextDomain = grid.getService(TowerNetworkDomain.class);
-        if (this.registeredTowerDomain != null && this.registeredTowerDomain != nextDomain) {
+        if (nextDomain != null && this.registeredTowerDomain == nextDomain) {
+            return;
+        }
+        if (this.registeredTowerDomain != null) {
             this.registeredTowerDomain.unregisterTower(this);
         }
         this.registeredTowerDomain = nextDomain;
@@ -1567,6 +1605,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.mainNodeActive = active;
         invalidateEndpointCache();
         invalidateClusterCache();
+        if (activeChanged) {
+            invalidateTowerDomain(TowerNetworkDomainChange.TOWER);
+        }
         syncClientOnlineState();
         requestAeTickWake();
     }
@@ -1697,22 +1738,30 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public void recordMaxExtractEndpoints(int endpointCount) {
-        this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpointCount);
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpointCount);
+        }
     }
 
     @Override
     public void recordMaxReceiveEndpoints(int endpointCount) {
-        this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpointCount);
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpointCount);
+        }
     }
 
     @Override
     public void recordSimulatedCacheHit() {
-        this.diagnosticSimulatedCacheHits++;
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticSimulatedCacheHits++;
+        }
     }
 
     @Override
     public void recordSimulatedCacheMiss() {
-        this.diagnosticSimulatedCacheMisses++;
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticSimulatedCacheMisses++;
+        }
     }
 
     private void registerInChunkIndex() {
@@ -2142,8 +2191,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.energyDistributor.getTotalExtractableEnergy(excludedPos);
     }
 
-    private long getTotalEnergyCapacity(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.getTotalEnergyCapacity(excludedPos);
+    private long getTotalReceivableEnergy(@Nullable BlockPos excludedPos) {
+        return this.energyDistributor.getTotalReceivableEnergy(excludedPos);
     }
 
     private boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
@@ -2482,6 +2531,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void emitDiagnosticLogIfNeeded() {
+        boolean enabled = DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled();
+        if (enabled != this.verboseRuntimeLoggingEnabled) {
+            this.verboseRuntimeLoggingEnabled = enabled;
+            resetDiagnosticCounters(Long.MIN_VALUE);
+        }
+        if (!enabled) {
+            return;
+        }
+
         ServerLevel level = towerLevel();
         long gameTime = level.getGameTime();
         if (this.diagnosticWindowStartTick == Long.MIN_VALUE) {
@@ -2525,8 +2583,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.diagnosticRealExtractCalls > 0 || this.diagnosticSimulatedExtractCalls > 0 || this.diagnosticReceiveCalls > 0 || this.diagnosticGetStoredCalls > 0 || this.diagnosticGetMaxStoredCalls > 0 || this.diagnosticCanExtractCalls > 0 || this.diagnosticCanReceiveCalls > 0;
     }
 
-    private void resetDiagnosticCounters(long gameTime) {
-        this.diagnosticWindowStartTick = gameTime;
+    private void resetDiagnosticCounters(long windowStartTick) {
+        this.diagnosticWindowStartTick = windowStartTick;
         this.diagnosticRealExtractCalls = 0;
         this.diagnosticSimulatedExtractCalls = 0;
         this.diagnosticReceiveCalls = 0;
@@ -2973,53 +3031,71 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
-            diagnosticReceiveCalls++;
-            diagnosticRequestedReceive += maxReceive;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticReceiveCalls++;
+                diagnosticRequestedReceive += maxReceive;
+            }
             int received = clampStoredAmount(distributeEnergyInRange(maxReceive, simulate, this.excludedPos));
-            diagnosticReturnedReceive += received;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticReturnedReceive += received;
+            }
             return received;
         }
 
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
-            if (simulate) {
-                diagnosticSimulatedExtractCalls++;
-                diagnosticRequestedSimulatedExtract += maxExtract;
-            } else {
-                diagnosticRealExtractCalls++;
-                diagnosticRequestedRealExtract += maxExtract;
+            if (verboseRuntimeLoggingEnabled) {
+                if (simulate) {
+                    diagnosticSimulatedExtractCalls++;
+                    diagnosticRequestedSimulatedExtract += maxExtract;
+                } else {
+                    diagnosticRealExtractCalls++;
+                    diagnosticRequestedRealExtract += maxExtract;
+                }
             }
 
             int extracted = extractEnergyFromRange(maxExtract, simulate, this.excludedPos);
-            if (simulate) {
-                diagnosticReturnedSimulatedExtract += extracted;
-            } else {
-                diagnosticReturnedRealExtract += extracted;
+            if (verboseRuntimeLoggingEnabled) {
+                if (simulate) {
+                    diagnosticReturnedSimulatedExtract += extracted;
+                } else {
+                    diagnosticReturnedRealExtract += extracted;
+                }
             }
             return extracted;
         }
 
         @Override
         public int getEnergyStored() {
-            diagnosticGetStoredCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticGetStoredCalls++;
+            }
             return clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
         }
 
         @Override
         public int getMaxEnergyStored() {
-            diagnosticGetMaxStoredCalls++;
-            return clampStoredAmount(getTotalEnergyCapacity(this.excludedPos));
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticGetMaxStoredCalls++;
+            }
+            int stored = clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
+            long receivable = getTotalReceivableEnergy(this.excludedPos);
+            return clampStoredAmount(saturatingAdd(stored, receivable));
         }
 
         @Override
         public boolean canExtract() {
-            diagnosticCanExtractCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticCanExtractCalls++;
+            }
             return hasAnySource(this.excludedPos);
         }
 
         @Override
         public boolean canReceive() {
-            diagnosticCanReceiveCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticCanReceiveCalls++;
+            }
             return hasAnyReceiver(this.excludedPos);
         }
     }

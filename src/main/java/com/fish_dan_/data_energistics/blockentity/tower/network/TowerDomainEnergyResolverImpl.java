@@ -3,9 +3,11 @@ package com.fish_dan_.data_energistics.blockentity.tower.network;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 
 import net.minecraft.core.Direction;
@@ -36,27 +38,31 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         if (!level.isLoaded(location.position())) {
             return List.of();
         }
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<IEnergyStorage> seenStorageRoutes = Collections.newSetFromMap(new IdentityHashMap<>());
         ArrayList<TowerDomainEnergyEndpoint> endpoints = new ArrayList<>();
         int storageIdentity = 0;
         for (Direction side : Direction.values()) {
-            storageIdentity = addEndpoint(location, side, storageIdentity, seenStorages, endpoints);
+            storageIdentity = addEndpoint(location, side, storageIdentity, seenStorageRoutes, endpoints);
         }
-        addEndpoint(location, null, storageIdentity, seenStorages, endpoints);
+        if (endpoints.isEmpty()) {
+            addEndpoint(location, null, storageIdentity, seenStorageRoutes, endpoints);
+        }
         return List.copyOf(endpoints);
     }
 
     private int addEndpoint(TowerEnergyLocation location,
                             @Nullable Direction side,
                             int storageIdentity,
-                            Set<IEnergyStorage> seenStorages,
+                            Set<IEnergyStorage> seenStorageRoutes,
                             List<TowerDomainEnergyEndpoint> endpoints) {
         IEnergyStorage storage = findStorage(location, side);
-        if (storage == null || !seenStorages.add(storage)) {
+        if (storage == null || !seenStorageRoutes.add(storage)) {
             return storageIdentity;
         }
-        boolean canExtract = this.brandonsCore.supports(storage) ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
-        boolean canReceive = this.brandonsCore.supports(storage) ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
+        Object backingIdentity = backingIdentity(location, side, storage);
+        boolean brandonsCoreSupported = this.brandonsCore.supports(storage);
+        boolean canExtract = brandonsCoreSupported ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
+        boolean canReceive = brandonsCoreSupported ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
         TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(canExtract, canReceive);
         if (direction == null) {
             return storageIdentity;
@@ -69,6 +75,7 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
                         side,
                         storageIdentity),
                 storage,
+                backingIdentity,
                 direction));
         return Math.incrementExact(storageIdentity);
     }
@@ -86,5 +93,23 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
             return storage;
         }
         return this.oritech.findEnergyStorage(location.level(), location.position(), side);
+    }
+
+    /**
+     * Resolves only integration identities that are stronger than the capability object's identity.
+     */
+    private Object backingIdentity(TowerEnergyLocation location, @Nullable Direction side, IEnergyStorage storage) {
+        if (ModFlags.isAppFluxEnergySupportLoaded()) {
+            Object appFluxIdentity = AE2FluxIntegration.networkEnergyStorageIdentity(storage);
+            if (appFluxIdentity != null) {
+                return appFluxIdentity;
+            }
+        }
+        Object mekanismIdentity = MekanismEnergyAccess.findBackingIdentity(
+                location.level(), location.position(), side, storage);
+        if (mekanismIdentity != null) {
+            return mekanismIdentity;
+        }
+        return storage;
     }
 }

@@ -13,15 +13,19 @@ import java.util.Map;
  * Exact integer water-filling planner for tower FE equalization.
  *
  * <p>
- * Receive-only endpoints contribute an immovable lower bound, bidirectional endpoints may move only their surplus
- * above the resulting target, and source-only energy is consumed before bidirectional surplus. All proportional math
- * uses {@link BigInteger}, with largest-remainder apportionment and snapshot-order tie breaking for deterministic FE
- * rounding.
+ * Receive-only endpoints contribute an immovable lower bound, balanced bidirectional endpoints may move only their
+ * surplus above the resulting target, and source-only energy is consumed before bidirectional surplus. Buffer
+ * endpoints provide any remaining deficit and absorb source surplus without contributing their potentially virtual
+ * capacity to the proportional water line. Proportional math uses checked primitive {@code long} arithmetic whenever
+ * every intermediate value fits, with the exact {@link BigInteger} implementation retained as an overflow fallback.
+ * Both paths use largest-remainder apportionment and snapshot-order tie breaking for deterministic FE rounding.
  * </p>
  */
 public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
 
-    /** Numeric zero reused by the exact aggregate calculations. */
+    /**
+     * Numeric zero reused by the exact aggregate calculations.
+     */
     private static final BigInteger ZERO = BigInteger.ZERO;
 
     /**
@@ -32,31 +36,433 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      */
     @Override
     public TowerEnergyEqualizationPlan plan(TowerEnergyEqualizationSnapshot snapshot) {
+        try {
+            return planLong(snapshot);
+        } catch (ArithmeticException overflow) {
+            return planExact(snapshot);
+        }
+    }
+
+    /**
+     * Attempts the complete equalization calculation with primitive non-negative {@code long} values.
+     *
+     * <p>
+     * Every aggregate and proportional product is checked before it is used. An arithmetic overflow means that
+     * this path is not applicable to the snapshot; the caller then retries the unchanged exact calculation.
+     * </p>
+     *
+     * @param snapshot ordered endpoint state captured before any transfer begins
+     * @return immutable source and sink allocations when all intermediate values fit in {@code long}
+     * @throws ArithmeticException when an intermediate aggregate or product cannot be represented exactly
+     */
+    private static TowerEnergyEqualizationPlan planLong(TowerEnergyEqualizationSnapshot snapshot) {
         List<TowerEnergyEndpointSnapshot> endpoints = snapshot.endpoints();
         List<ReceiverState> receivers = collectReceivers(endpoints);
-        if (receivers.isEmpty()) {
+        long receiverCapacity = sumReceiverCapacityLong(receivers);
+        long receiverStored = sumReceiverStoredLong(receivers);
+        long targetSupply = sumTargetSupplyLong(endpoints);
+        long desiredReceiverStored = Math.min(Math.addExact(receiverStored, targetSupply), receiverCapacity);
+        Map<TowerEnergyEndpointId, Long> targets = apportionReceiverTargetsLong(receivers, desiredReceiverStored);
+
+        List<TowerEnergySinkAllocation> sinks = collectSinkAllocationsLong(endpoints, targets);
+        long amountNeeded = sumSinkAmountsLong(sinks);
+        long balancedSourceAvailable = sumBalancedSourceAvailabilityLong(endpoints, targets);
+        long bufferInput = Math.clamp(
+                Math.subtractExact(balancedSourceAvailable, amountNeeded),
+                0,
+                sumBufferReceivableLong(endpoints));
+        collectBufferSinkAllocationsLong(endpoints, bufferInput, sinks);
+        amountNeeded = Math.addExact(amountNeeded, bufferInput);
+        if (amountNeeded == 0) {
             return TowerEnergyEqualizationPlan.empty();
         }
 
+        List<TowerEnergySourceAllocation> sources = new ArrayList<>();
+        long unavailable = collectSourceOnlyAllocationsLong(endpoints, amountNeeded, sources);
+        unavailable = collectBidirectionalAllocationsLong(endpoints, targets, unavailable, sources);
+        unavailable = collectBufferAllocationsLong(endpoints, unavailable, sources);
+        long transferAmount = Math.subtractExact(amountNeeded, unavailable);
+        return transferAmount == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(
+                sources, TowerEnergyAllocationLimiter.limitSinks(sinks, BigInteger.valueOf(transferAmount)));
+    }
+
+    /**
+     * Runs the original arbitrary-precision equalization calculation.
+     *
+     * @param snapshot ordered endpoint state captured before any transfer begins
+     * @return immutable source and sink allocations
+     */
+    private static TowerEnergyEqualizationPlan planExact(TowerEnergyEqualizationSnapshot snapshot) {
+        List<TowerEnergyEndpointSnapshot> endpoints = snapshot.endpoints();
+        List<ReceiverState> receivers = collectReceivers(endpoints);
         BigInteger receiverCapacity = sumReceiverCapacity(receivers);
         BigInteger receiverStored = sumReceiverStored(receivers);
-        BigInteger sourceStored = sumSourceStored(endpoints);
-        BigInteger desiredReceiverStored = receiverStored.add(sourceStored).min(receiverCapacity);
+        BigInteger targetSupply = sumTargetSupply(endpoints);
+        BigInteger desiredReceiverStored = receiverStored.add(targetSupply).min(receiverCapacity);
         Map<TowerEnergyEndpointId, Long> targets = apportionReceiverTargets(receivers, desiredReceiverStored);
 
         List<TowerEnergySinkAllocation> sinks = collectSinkAllocations(endpoints, targets);
         BigInteger amountNeeded = sumSinkAmounts(sinks);
+        BigInteger balancedSourceAvailable = sumBalancedSourceAvailability(endpoints, targets);
+        BigInteger bufferInput = balancedSourceAvailable.subtract(amountNeeded).max(ZERO)
+                .min(sumBufferReceivable(endpoints));
+        collectBufferSinkAllocations(endpoints, bufferInput, sinks);
+        amountNeeded = amountNeeded.add(bufferInput);
         if (amountNeeded.signum() == 0) {
             return TowerEnergyEqualizationPlan.empty();
         }
 
         List<TowerEnergySourceAllocation> sources = new ArrayList<>();
-        amountNeeded = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
-        amountNeeded = collectBidirectionalAllocations(endpoints, targets, amountNeeded, sources);
-        if (amountNeeded.signum() != 0) {
-            throw new IllegalStateException("Receiver targets require more extractable energy than the snapshot owns");
+        BigInteger unavailable = collectSourceOnlyAllocations(endpoints, amountNeeded, sources);
+        unavailable = collectBidirectionalAllocations(endpoints, targets, unavailable, sources);
+        unavailable = collectBufferAllocations(endpoints, unavailable, sources);
+        BigInteger transferAmount = amountNeeded.subtract(unavailable);
+        return transferAmount.signum() == 0 ? TowerEnergyEqualizationPlan.empty() : new TowerEnergyEqualizationPlan(sources, TowerEnergyAllocationLimiter.limitSinks(sinks, transferAmount));
+    }
+
+    /**
+     * Adds receiver capacities with checked primitive arithmetic.
+     *
+     * @param receivers receive-capable endpoint states
+     * @return total capacity when representable as a non-negative {@code long}
+     */
+    private static long sumReceiverCapacityLong(List<ReceiverState> receivers) {
+        long total = 0;
+        for (ReceiverState receiver : receivers) {
+            total = Math.addExact(total, receiver.endpoint().capacity());
         }
-        return new TowerEnergyEqualizationPlan(sources, sinks);
+        return total;
+    }
+
+    /**
+     * Adds receiver contents with checked primitive arithmetic.
+     *
+     * @param receivers receive-capable endpoint states
+     * @return total stored FE when representable as a non-negative {@code long}
+     */
+    private static long sumReceiverStoredLong(List<ReceiverState> receivers) {
+        long total = 0;
+        for (ReceiverState receiver : receivers) {
+            total = Math.addExact(total, receiver.endpoint().stored());
+        }
+        return total;
+    }
+
+    /**
+     * Adds energy that may raise balanced receiver targets with checked primitive arithmetic.
+     *
+     * @param endpoints complete ordered snapshot
+     * @return source-only and buffer FE available to balanced receivers
+     */
+    private static long sumTargetSupplyLong(List<TowerEnergyEndpointSnapshot> endpoints) {
+        long total = 0;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (endpoint.direction() == TowerEnergyDirection.SOURCE || endpoint.role() == TowerEnergyEndpointRole.BUFFER) {
+                total = Math.addExact(total, endpoint.extractable());
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Applies proportional water filling with checked primitive arithmetic.
+     *
+     * @param receivers    ordered receiver states
+     * @param desiredTotal total FE that receivers may hold after equalization
+     * @return target stored FE keyed by receiver identity
+     */
+    private static Map<TowerEnergyEndpointId, Long> apportionReceiverTargetsLong(List<ReceiverState> receivers,
+                                                                                 long desiredTotal) {
+        Map<TowerEnergyEndpointId, Long> targets = new HashMap<>();
+        List<ReceiverState> active = new ArrayList<>();
+        for (ReceiverState receiver : receivers) {
+            if (receiver.endpoint().capacity() == 0) {
+                targets.put(receiver.endpoint().endpoint(), 0L);
+            } else {
+                active.add(receiver);
+            }
+        }
+
+        long remainingEnergy = desiredTotal;
+        while (!active.isEmpty()) {
+            long activeCapacity = sumReceiverCapacityLong(active);
+            List<ReceiverState> clamped = findLowerBoundViolationsLong(active, remainingEnergy, activeCapacity);
+            if (clamped.isEmpty()) {
+                apportionActiveTargetsLong(active, remainingEnergy, activeCapacity, targets);
+                remainingEnergy = 0;
+                break;
+            }
+            for (ReceiverState receiver : clamped) {
+                targets.put(receiver.endpoint().endpoint(), receiver.lowerBound());
+                remainingEnergy = Math.subtractExact(remainingEnergy, receiver.lowerBound());
+                if (remainingEnergy < 0) {
+                    throw new ArithmeticException("Receiver lower bounds exceed the desired energy total");
+                }
+            }
+            active.removeAll(clamped);
+        }
+        if (remainingEnergy != 0) {
+            throw new ArithmeticException("Receiver water filling did not allocate the desired energy total");
+        }
+        return targets;
+    }
+
+    /**
+     * Finds lower-bound violations without allowing either comparison product to wrap.
+     *
+     * @param active          active positive-capacity receivers
+     * @param remainingEnergy FE still to distribute among active receivers
+     * @param activeCapacity  capacity sum of active receivers
+     * @return stable-order receivers that must be fixed at their lower bound
+     */
+    private static List<ReceiverState> findLowerBoundViolationsLong(List<ReceiverState> active,
+                                                                    long remainingEnergy,
+                                                                    long activeCapacity) {
+        List<ReceiverState> clamped = new ArrayList<>();
+        for (ReceiverState receiver : active) {
+            long lowerShare = Math.multiplyExact(receiver.lowerBound(), activeCapacity);
+            long proportionalShare = Math.multiplyExact(remainingEnergy, receiver.endpoint().capacity());
+            if (lowerShare > proportionalShare) {
+                clamped.add(receiver);
+            }
+        }
+        return clamped;
+    }
+
+    /**
+     * Floors proportional shares, then applies the exact largest-remainder tie order using primitive remainders.
+     *
+     * @param active          active receivers sharing one water line
+     * @param remainingEnergy FE assigned to the active receivers
+     * @param activeCapacity  capacity sum of the active receivers
+     * @param targets         mutable target result map
+     */
+    private static void apportionActiveTargetsLong(List<ReceiverState> active,
+                                                   long remainingEnergy,
+                                                   long activeCapacity,
+                                                   Map<TowerEnergyEndpointId, Long> targets) {
+        List<LongFractionalShare> shares = new ArrayList<>();
+        long floorTotal = 0;
+        for (ReceiverState receiver : active) {
+            long numerator = Math.multiplyExact(remainingEnergy, receiver.endpoint().capacity());
+            long target = numerator / activeCapacity;
+            long remainder = numerator % activeCapacity;
+            targets.put(receiver.endpoint().endpoint(), target);
+            floorTotal = Math.addExact(floorTotal, target);
+            shares.add(new LongFractionalShare(receiver, remainder));
+        }
+
+        long leftover = Math.subtractExact(remainingEnergy, floorTotal);
+        if (leftover < 0) {
+            throw new ArithmeticException("Proportional floors exceed the remaining energy total");
+        }
+        int leftoverCount = Math.toIntExact(leftover);
+        shares.sort(Comparator.comparingLong(LongFractionalShare::remainder).reversed()
+                .thenComparingInt(share -> share.receiver().order()));
+        for (int index = 0; index < leftoverCount; index++) {
+            ReceiverState receiver = shares.get(index).receiver();
+            TowerEnergyEndpointId endpoint = receiver.endpoint().endpoint();
+            targets.compute(endpoint, (ignored, target) -> incrementTarget(target));
+        }
+    }
+
+    /**
+     * Creates positive deposits for receiver targets with checked subtraction.
+     *
+     * @param endpoints complete ordered snapshot
+     * @param targets   calculated receiver target contents
+     * @return stable-order sink allocations
+     */
+    private static List<TowerEnergySinkAllocation> collectSinkAllocationsLong(
+                                                                              List<TowerEnergyEndpointSnapshot> endpoints, Map<TowerEnergyEndpointId, Long> targets) {
+        List<TowerEnergySinkAllocation> sinks = new ArrayList<>();
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            Long target = targets.get(endpoint.endpoint());
+            if (target != null && target > endpoint.stored()) {
+                long amount = Math.min(
+                        Math.subtractExact(target, endpoint.stored()), endpoint.receivable());
+                if (amount > 0) {
+                    sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), amount));
+                }
+            }
+        }
+        return sinks;
+    }
+
+    /**
+     * Adds planned sink deposits with checked primitive arithmetic.
+     *
+     * @param sinks planned positive deposits
+     * @return total FE required by all sinks
+     */
+    private static long sumSinkAmountsLong(List<TowerEnergySinkAllocation> sinks) {
+        long total = 0;
+        for (TowerEnergySinkAllocation sink : sinks) {
+            total = Math.addExact(total, sink.amount());
+        }
+        return total;
+    }
+
+    /**
+     * Adds source-only budgets and reachable balanced bidirectional surplus.
+     *
+     * @param endpoints complete ordered snapshot
+     * @param targets   calculated balanced receiver targets
+     * @return FE available without extracting from a buffer
+     */
+    private static long sumBalancedSourceAvailabilityLong(
+                                                          List<TowerEnergyEndpointSnapshot> endpoints, Map<TowerEnergyEndpointId, Long> targets) {
+        long total = 0;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED) {
+                continue;
+            }
+            if (endpoint.direction() == TowerEnergyDirection.SOURCE) {
+                total = Math.addExact(total, endpoint.extractable());
+                continue;
+            }
+            if (endpoint.direction() == TowerEnergyDirection.BIDIRECTIONAL) {
+                long target = targets.get(endpoint.endpoint());
+                long surplus = Math.subtractExact(endpoint.stored(), target);
+                if (surplus > 0) {
+                    total = Math.addExact(total, Math.min(surplus, endpoint.extractable()));
+                }
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Adds buffer insertion budgets with checked primitive arithmetic.
+     *
+     * @param endpoints complete ordered snapshot
+     * @return FE that buffers can accept
+     */
+    private static long sumBufferReceivableLong(List<TowerEnergyEndpointSnapshot> endpoints) {
+        long total = 0;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (endpoint.role() == TowerEnergyEndpointRole.BUFFER) {
+                total = Math.addExact(total, endpoint.receivable());
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Allocates balanced source surplus into buffers in stable snapshot order.
+     *
+     * @param endpoints complete ordered snapshot
+     * @param amount    FE to absorb into buffers
+     * @param sinks     mutable sink allocation result
+     */
+    private static void collectBufferSinkAllocationsLong(
+                                                         List<TowerEnergyEndpointSnapshot> endpoints,
+                                                         long amount,
+                                                         List<TowerEnergySinkAllocation> sinks) {
+        long remaining = amount;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BUFFER || endpoint.receivable() == 0) {
+                continue;
+            }
+            long accepted = Math.min(endpoint.receivable(), remaining);
+            sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), accepted));
+            remaining = Math.subtractExact(remaining, accepted);
+        }
+        if (remaining != 0) {
+            throw new ArithmeticException("Buffer sink allocation did not consume the requested energy");
+        }
+    }
+
+    /**
+     * Consumes source-only energy first in snapshot order using primitive remaining demand.
+     *
+     * @param endpoints    complete ordered snapshot
+     * @param amountNeeded positive FE still required by sinks
+     * @param sources      mutable source allocation result
+     * @return FE still required after source-only allocations
+     */
+    private static long collectSourceOnlyAllocationsLong(List<TowerEnergyEndpointSnapshot> endpoints,
+                                                         long amountNeeded,
+                                                         List<TowerEnergySourceAllocation> sources) {
+        long remaining = amountNeeded;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED || endpoint.direction() != TowerEnergyDirection.SOURCE || endpoint.extractable() == 0) {
+                continue;
+            }
+            long amount = Math.min(endpoint.extractable(), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = Math.subtractExact(remaining, amount);
+            }
+        }
+        return remaining;
+    }
+
+    /**
+     * Consumes bidirectional surplus after source-only energy, preserving snapshot order.
+     *
+     * @param endpoints    complete ordered snapshot
+     * @param targets      calculated receiver target contents
+     * @param amountNeeded positive FE still required by sinks
+     * @param sources      mutable source allocation result
+     * @return FE still required after bidirectional allocations
+     */
+    private static long collectBidirectionalAllocationsLong(List<TowerEnergyEndpointSnapshot> endpoints,
+                                                            Map<TowerEnergyEndpointId, Long> targets,
+                                                            long amountNeeded,
+                                                            List<TowerEnergySourceAllocation> sources) {
+        long remaining = amountNeeded;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED || endpoint.direction() != TowerEnergyDirection.BIDIRECTIONAL) {
+                continue;
+            }
+            long target = targets.get(endpoint.endpoint());
+            long surplus = Math.subtractExact(endpoint.stored(), target);
+            if (surplus <= 0) {
+                continue;
+            }
+            long amount = Math.min(Math.min(surplus, endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = Math.subtractExact(remaining, amount);
+            }
+        }
+        return remaining;
+    }
+
+    /**
+     * Consumes buffer energy only after every balanced source has been used.
+     *
+     * @param endpoints    complete ordered snapshot
+     * @param amountNeeded positive FE still required by balanced sinks
+     * @param sources      mutable source allocation result
+     * @return FE still required after buffer allocations
+     */
+    private static long collectBufferAllocationsLong(List<TowerEnergyEndpointSnapshot> endpoints,
+                                                     long amountNeeded,
+                                                     List<TowerEnergySourceAllocation> sources) {
+        long remaining = amountNeeded;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BUFFER || endpoint.extractable() == 0) {
+                continue;
+            }
+            long amount = Math.min(endpoint.extractable(), remaining);
+            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+            remaining = Math.subtractExact(remaining, amount);
+        }
+        return remaining;
     }
 
     /**
@@ -69,7 +475,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         List<ReceiverState> receivers = new ArrayList<>();
         for (int index = 0; index < endpoints.size(); index++) {
             TowerEnergyEndpointSnapshot endpoint = endpoints.get(index);
-            if (endpoint.direction().allowsReceive()) {
+            if (endpoint.role() == TowerEnergyEndpointRole.BALANCED && endpoint.direction().allowsReceive()) {
                 long lowerBound = endpoint.direction() == TowerEnergyDirection.SINK ? endpoint.stored() : 0;
                 receivers.add(new ReceiverState(endpoint, index, lowerBound));
             }
@@ -106,16 +512,16 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
     }
 
     /**
-     * Adds the external energy available from source-only endpoints.
+     * Adds exact energy that may raise balanced receiver targets.
      *
      * @param endpoints complete ordered snapshot
-     * @return exact source-only FE total
+     * @return exact source-only and buffer FE available to balanced receivers
      */
-    private static BigInteger sumSourceStored(List<TowerEnergyEndpointSnapshot> endpoints) {
+    private static BigInteger sumTargetSupply(List<TowerEnergyEndpointSnapshot> endpoints) {
         BigInteger total = ZERO;
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
-            if (endpoint.direction() == TowerEnergyDirection.SOURCE) {
-                total = total.add(BigInteger.valueOf(endpoint.stored()));
+            if (endpoint.direction() == TowerEnergyDirection.SOURCE || endpoint.role() == TowerEnergyEndpointRole.BUFFER) {
+                total = total.add(BigInteger.valueOf(endpoint.extractable()));
             }
         }
         return total;
@@ -212,8 +618,21 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         for (int index = 0; index < leftover; index++) {
             ReceiverState receiver = shares.get(index).receiver();
             TowerEnergyEndpointId endpoint = receiver.endpoint().endpoint();
-            targets.compute(endpoint, (ignored, target) -> Math.addExact(target, 1));
+            targets.compute(endpoint, (ignored, target) -> incrementTarget(target));
         }
+    }
+
+    /**
+     * Increments a target that was already installed for an active receiver.
+     *
+     * @param target current target value, never null for a valid water-filling map
+     * @return incremented target value
+     */
+    private static long incrementTarget(Long target) {
+        if (target == null) {
+            throw new IllegalStateException("Missing active receiver target during largest-remainder apportionment");
+        }
+        return Math.addExact(target, 1);
     }
 
     /**
@@ -229,7 +648,10 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
         for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
             Long target = targets.get(endpoint.endpoint());
             if (target != null && target > endpoint.stored()) {
-                sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), target - endpoint.stored()));
+                long amount = Math.min(target - endpoint.stored(), endpoint.receivable());
+                if (amount > 0) {
+                    sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), amount));
+                }
             }
         }
         return sinks;
@@ -250,6 +672,79 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
     }
 
     /**
+     * Adds exact source-only budgets and reachable balanced bidirectional surplus.
+     *
+     * @param endpoints complete ordered snapshot
+     * @param targets   calculated balanced receiver targets
+     * @return exact FE available without extracting from a buffer
+     */
+    private static BigInteger sumBalancedSourceAvailability(
+                                                            List<TowerEnergyEndpointSnapshot> endpoints, Map<TowerEnergyEndpointId, Long> targets) {
+        BigInteger total = ZERO;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED) {
+                continue;
+            }
+            if (endpoint.direction() == TowerEnergyDirection.SOURCE) {
+                total = total.add(BigInteger.valueOf(endpoint.extractable()));
+                continue;
+            }
+            if (endpoint.direction() == TowerEnergyDirection.BIDIRECTIONAL) {
+                long target = targets.get(endpoint.endpoint());
+                long surplus = endpoint.stored() - target;
+                if (surplus > 0) {
+                    total = total.add(BigInteger.valueOf(Math.min(surplus, endpoint.extractable())));
+                }
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Adds exact buffer insertion budgets.
+     *
+     * @param endpoints complete ordered snapshot
+     * @return exact FE that buffers can accept
+     */
+    private static BigInteger sumBufferReceivable(List<TowerEnergyEndpointSnapshot> endpoints) {
+        BigInteger total = ZERO;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (endpoint.role() == TowerEnergyEndpointRole.BUFFER) {
+                total = total.add(BigInteger.valueOf(endpoint.receivable()));
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Allocates balanced source surplus into buffers in stable snapshot order.
+     *
+     * @param endpoints complete ordered snapshot
+     * @param amount    exact FE to absorb into buffers
+     * @param sinks     mutable sink allocation result
+     */
+    private static void collectBufferSinkAllocations(
+                                                     List<TowerEnergyEndpointSnapshot> endpoints,
+                                                     BigInteger amount,
+                                                     List<TowerEnergySinkAllocation> sinks) {
+        BigInteger remaining = amount;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining.signum() == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BUFFER || endpoint.receivable() == 0) {
+                continue;
+            }
+            long accepted = takeAvailable(endpoint.receivable(), remaining);
+            sinks.add(new TowerEnergySinkAllocation(endpoint.endpoint(), accepted));
+            remaining = remaining.subtract(BigInteger.valueOf(accepted));
+        }
+        if (remaining.signum() != 0) {
+            throw new IllegalStateException("Buffer sink allocation did not consume the requested energy");
+        }
+    }
+
+    /**
      * Consumes source-only energy first in snapshot order, leaving unused energy untouched when sinks are full.
      *
      * @param endpoints    complete ordered snapshot
@@ -265,12 +760,14 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (remaining.signum() == 0) {
                 break;
             }
-            if (endpoint.direction() != TowerEnergyDirection.SOURCE || endpoint.stored() == 0) {
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED || endpoint.direction() != TowerEnergyDirection.SOURCE || endpoint.extractable() == 0) {
                 continue;
             }
-            long amount = takeAvailable(endpoint.stored(), remaining);
-            sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
-            remaining = remaining.subtract(BigInteger.valueOf(amount));
+            long amount = takeAvailable(endpoint.extractable(), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = remaining.subtract(BigInteger.valueOf(amount));
+            }
         }
         return remaining;
     }
@@ -293,7 +790,7 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (remaining.signum() == 0) {
                 break;
             }
-            if (endpoint.direction() != TowerEnergyDirection.BIDIRECTIONAL) {
+            if (endpoint.role() != TowerEnergyEndpointRole.BALANCED || endpoint.direction() != TowerEnergyDirection.BIDIRECTIONAL) {
                 continue;
             }
             long target = targets.get(endpoint.endpoint());
@@ -301,7 +798,35 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
             if (surplus <= 0) {
                 continue;
             }
-            long amount = takeAvailable(surplus, remaining);
+            long amount = takeAvailable(Math.min(surplus, endpoint.extractable()), remaining);
+            if (amount > 0) {
+                sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
+                remaining = remaining.subtract(BigInteger.valueOf(amount));
+            }
+        }
+        return remaining;
+    }
+
+    /**
+     * Consumes exact buffer energy only after every balanced source has been used.
+     *
+     * @param endpoints    complete ordered snapshot
+     * @param amountNeeded exact FE still required by balanced sinks
+     * @param sources      mutable source allocation result
+     * @return exact FE still required after buffer allocations
+     */
+    private static BigInteger collectBufferAllocations(List<TowerEnergyEndpointSnapshot> endpoints,
+                                                       BigInteger amountNeeded,
+                                                       List<TowerEnergySourceAllocation> sources) {
+        BigInteger remaining = amountNeeded;
+        for (TowerEnergyEndpointSnapshot endpoint : endpoints) {
+            if (remaining.signum() == 0) {
+                break;
+            }
+            if (endpoint.role() != TowerEnergyEndpointRole.BUFFER || endpoint.extractable() == 0) {
+                continue;
+            }
+            long amount = takeAvailable(endpoint.extractable(), remaining);
             sources.add(new TowerEnergySourceAllocation(endpoint.endpoint(), amount));
             remaining = remaining.subtract(BigInteger.valueOf(amount));
         }
@@ -339,4 +864,12 @@ public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
      * @param remainder numerator remainder used for largest-remainder ordering
      */
     private record FractionalShare(ReceiverState receiver, BigInteger remainder) {}
+
+    /**
+     * Associates one floored primitive proportional share with its exact fractional remainder.
+     *
+     * @param receiver  receiver that owns the share
+     * @param remainder numerator remainder used for largest-remainder ordering
+     */
+    private record LongFractionalShare(ReceiverState receiver, long remainder) {}
 }

@@ -10,12 +10,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -160,8 +158,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public String getAnchorDisplayName() {
-        Component displayName = this instanceof Nameable nameable ? nameable.getDisplayName() : this.getBlockState().getBlock().getName();
-        String resolvedName = displayName.getString();
+        String resolvedName = this.getDisplayName().getString();
         return resolvedName.isBlank() ? "Data Teleport Anchor" : resolvedName;
     }
 

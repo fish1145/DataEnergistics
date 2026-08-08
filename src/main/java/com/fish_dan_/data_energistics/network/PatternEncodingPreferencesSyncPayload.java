@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -16,10 +17,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.nio.charset.StandardCharsets;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,16 +42,15 @@ public record PatternEncodingPreferencesSyncPayload(
                                                     int presentMask,
                                                     boolean uploadEnabled,
                                                     boolean patternSourceEnabled,
-                                                    ResourceLocation lastWorkstation,
+                                                    @Nullable ResourceLocation lastWorkstation,
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
-                                                    PatternEncodingRankingContext rankingContext,
-                                                    List<LeafStatistic> statistics)
+                                                    @Nullable PatternEncodingRankingContext rankingContext,
+                                                    @NotNull List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
     public static final int MAX_DIGEST_LENGTH = 71;
-    public static final int MAX_CONTEXT_BYTES = 256;
     private static final int KNOWN_PRESENT_MASK = 0x0F;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
     public static final Type<PatternEncodingPreferencesSyncPayload> TYPE = new Type<>(
@@ -66,10 +71,11 @@ public record PatternEncodingPreferencesSyncPayload(
         if ((presentMask & ~KNOWN_PRESENT_MASK) != 0) {
             throw new IllegalArgumentException("Pattern preference present mask contains unknown bits: " + presentMask);
         }
-        validateOffset(previewPanelOffsetX, previewPanelOffsetY);
-        if (rankingContext != null) {
-            validateContext(rankingContext);
+        if (lastWorkstation != null && BuiltInRegistries.ITEM.get(lastWorkstation) == Items.AIR) {
+            throw new IllegalArgumentException(
+                    "Pattern preference last workstation is not a registered item: " + lastWorkstation);
         }
+        validateOffset(previewPanelOffsetX, previewPanelOffsetY);
         statistics = List.copyOf(statistics);
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
@@ -83,7 +89,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     /**
-     * One absolute count for a provider leaf in the current recipe/workstation context.
+     * One absolute count for a provider leaf in the current recipe-type context.
      */
     public record LeafStatistic(String providerDigest, long count) {
 
@@ -120,7 +126,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     @Override
-    public Type<PatternEncodingPreferencesSyncPayload> type() {
+    public @NotNull Type<PatternEncodingPreferencesSyncPayload> type() {
         return TYPE;
     }
 
@@ -143,23 +149,9 @@ public record PatternEncodingPreferencesSyncPayload(
             return;
         }
 
-        PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
-        Set<String> visibleLeafDigests = new HashSet<>();
-        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
-            visibleLeafDigests.addAll(provider.leafDigests());
-        }
-        for (LeafStatistic statistic : payload.statistics) {
-            if (!visibleLeafDigests.contains(statistic.providerDigest())) {
-                Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
-                        statistic.providerDigest());
-                return;
-            }
-        }
-
-        if (!PatternEncodingSourceHelper.isRankingContextValid(
-                previewMenu, sourceAware, payload.rankingContext, serverPlayer.level())) {
+        if (!PatternEncodingSourceHelper.isRankingContextValid(previewMenu, payload.rankingContext)) {
             Data_Energistics.LOGGER.warn(
-                    "Rejected pattern preference snapshot with a forged recipe or workstation context for container {}",
+                    "Rejected pattern preference snapshot with a forged recipe type context for container {}",
                     payload.containerId);
             return;
         }
@@ -169,10 +161,32 @@ public record PatternEncodingPreferencesSyncPayload(
                     payload.containerId);
             return;
         }
-        if (!session.acceptIncomingSequence(payload.sequence)) {
+        PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
+        if (!session.canAcceptIncomingSequence(payload.sequence)) {
             Data_Energistics.LOGGER.warn("Rejected out-of-order pattern preference sequence {} for container {}",
                     payload.sequence, payload.containerId);
             return;
+        }
+
+        PatternEncodingRankingContext previousRankingContext = session.rankingContext();
+        session.setRankingContext(payload.rankingContext);
+        previewMenu.data_energistics$refreshSyncedPatternProviders();
+
+        Set<String> visibleLeafDigests = new HashSet<>();
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
+            visibleLeafDigests.addAll(provider.leafDigests());
+        }
+        for (LeafStatistic statistic : payload.statistics) {
+            if (!visibleLeafDigests.contains(statistic.providerDigest())) {
+                Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
+                        statistic.providerDigest());
+                session.setRankingContext(previousRankingContext);
+                previewMenu.data_energistics$refreshSyncedPatternProviders();
+                return;
+            }
+        }
+        if (!session.acceptIncomingSequence(payload.sequence)) {
+            throw new IllegalStateException("Pattern preference sequence changed during main-thread validation");
         }
 
         int migratedMask = PatternEncodingClientPreferenceMask.missingMask(payload.presentMask);
@@ -182,15 +196,18 @@ public record PatternEncodingPreferencesSyncPayload(
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PATTERN_SOURCE_ENABLED) != 0) {
             sourceAware.data_energistics$setPatternSourceEnabled(payload.patternSourceEnabled);
         }
-        if ((payload.presentMask & PatternEncodingClientPreferenceMask.LAST_WORKSTATION) != 0) {
-            sourceAware.data_energistics$setLastEncodedPatternSource(payload.lastWorkstation);
-        }
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PREVIEW_PANEL) != 0) {
             layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
         }
-        session.setRankingContext(payload.rankingContext);
         session.replaceLeafCounts(payload.statistics.stream()
                 .collect(Collectors.toMap(LeafStatistic::providerDigest, LeafStatistic::count)));
+        previewMenu.data_energistics$refreshSyncedPatternProviders();
+        if (previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
+            PatternEncodingSourceHelper.applyPatternSource(sourceAware, null);
+            if (menu instanceof PatternEncodingTermMenu patternMenu) {
+                PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(patternMenu);
+            }
+        }
 
         PacketDistributor.sendToPlayer(serverPlayer, new PatternEncodingPreferencesAckPayload(
                 payload.containerId,
@@ -201,12 +218,6 @@ public record PatternEncodingPreferencesSyncPayload(
                 sourceAware.data_energistics$getLastEncodedPatternSource(),
                 layoutAware.data_energistics$getPreviewPanelOffsetX(),
                 layoutAware.data_energistics$getPreviewPanelOffsetY()));
-    }
-
-    private static void validateContext(PatternEncodingRankingContext context) {
-        if (context.recipeScope().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES || context.workstation().toString().getBytes(StandardCharsets.UTF_8).length > MAX_CONTEXT_BYTES) {
-            throw new IllegalArgumentException("Pattern preference ranking context is too long");
-        }
     }
 
     private static void validateOffset(int x, int y) {
@@ -221,30 +232,25 @@ public record PatternEncodingPreferencesSyncPayload(
         }
     }
 
-    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation value) {
+    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer,
+                                                      @Nullable ResourceLocation value) {
         buffer.writeBoolean(value != null);
         if (value != null) {
             buffer.writeResourceLocation(value);
         }
     }
 
-    private static ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
         return buffer.readBoolean() ? buffer.readResourceLocation() : null;
     }
 
-    private static void writeContext(RegistryFriendlyByteBuf buffer, PatternEncodingRankingContext context) {
-        buffer.writeBoolean(context != null);
-        if (context != null) {
-            buffer.writeUtf(context.recipeScope(), MAX_CONTEXT_BYTES);
-            buffer.writeResourceLocation(context.workstation());
-        }
+    private static void writeContext(RegistryFriendlyByteBuf buffer,
+                                     @Nullable PatternEncodingRankingContext context) {
+        PatternEncodingRankingContextCodec.writeNullable(buffer, context);
     }
 
-    private static PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
-        if (!buffer.readBoolean()) {
-            return null;
-        }
-        return new PatternEncodingRankingContext(buffer.readUtf(MAX_CONTEXT_BYTES), buffer.readResourceLocation());
+    private static @Nullable PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
+        return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
     private static List<LeafStatistic> readStatistics(RegistryFriendlyByteBuf buffer) {

@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  */
 public final class PatternEncodingClientPreferencesImpl implements PatternEncodingClientPreferences {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 3;
     public static final int MAX_STATISTICS_PER_PROFILE = 2048;
     public static final int MAX_STATISTICS_TOTAL = 8192;
     public static final int MAX_SERVER_PROFILES = 32;
@@ -298,7 +298,9 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             if (!rootElement.isJsonObject()) {
                 throw new IllegalArgumentException("Client preference root must be a JSON object");
             }
-            loadRoot(rootElement.getAsJsonObject());
+            if (loadRoot(rootElement.getAsJsonObject())) {
+                save();
+            }
         } catch (FutureSchemaException exception) {
             Data_Energistics.LOGGER.error("Cannot write future Data Energistics client preference schema in {}",
                     this.file, exception);
@@ -309,14 +311,15 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         }
     }
 
-    private void loadRoot(JsonObject root) {
+    private boolean loadRoot(JsonObject root) {
         int schemaVersion = readRequiredInt(root, "schemaVersion");
         if (schemaVersion > SCHEMA_VERSION) {
             throw new FutureSchemaException(schemaVersion);
         }
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion < 1) {
             throw new IllegalArgumentException("Unsupported client preference schema: " + schemaVersion);
         }
+        boolean legacySchema = schemaVersion < SCHEMA_VERSION;
         JsonObject preferences = readOptionalObject(root, "preferences");
         if (preferences != null) {
             if (preferences.has("uploadEnabled")) {
@@ -346,7 +349,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         }
         JsonObject profiles = readOptionalObject(root, "serverProfiles");
         if (profiles == null) {
-            return;
+            return legacySchema;
         }
         if (profiles.size() > MAX_SERVER_PROFILES) {
             throw new IllegalArgumentException("Client preference server profiles exceed " + MAX_SERVER_PROFILES);
@@ -357,16 +360,17 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             if (!entry.getValue().isJsonObject()) {
                 throw new IllegalArgumentException("Server profile must be a JSON object: " + entry.getKey());
             }
-            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject());
+            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject(), schemaVersion);
             totalStatistics += profile.statistics.size();
             if (totalStatistics > MAX_STATISTICS_TOTAL) {
                 throw new IllegalArgumentException("Client preference statistics exceed " + MAX_STATISTICS_TOTAL);
             }
             this.serverProfiles.put(entry.getKey(), profile);
         }
+        return legacySchema;
     }
 
-    private ServerProfile readProfile(JsonObject profileObject) {
+    private ServerProfile readProfile(JsonObject profileObject, int schemaVersion) {
         long lastAccess = readRequiredLong(profileObject, "lastAccessEpochMillis");
         if (lastAccess < 0L) {
             throw new IllegalArgumentException("Server profile last access must not be negative");
@@ -382,18 +386,48 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
                 throw new IllegalArgumentException("Click statistic must be a JSON object");
             }
             JsonObject statisticObject = statisticElement.getAsJsonObject();
-            String recipeScope = readRequiredString(statisticObject, "recipeScope");
-            ResourceLocation workstation = parseResourceLocation(readRequiredString(statisticObject, "workstation"));
             String providerDigest = readRequiredString(statisticObject, "providerDigest");
             long count = readRequiredLong(statisticObject, "count");
             long lastUsed = readRequiredLong(statisticObject, "lastUsedEpochMillis");
+            PatternEncodingRankingContext context;
+            if (schemaVersion == 1) {
+                String recipeScope = readRequiredString(statisticObject, "recipeScope");
+                ResourceLocation recipeTypeId = legacyCategoryId(recipeScope);
+                if (recipeTypeId == null) {
+                    Data_Energistics.LOGGER.warn(
+                            "Discarding legacy pattern preference statistic without an exact recipe type identity: {}",
+                            recipeScope);
+                    continue;
+                }
+                parseResourceLocation(readRequiredString(statisticObject, "workstation"));
+                context = PatternEncodingRankingContext.of(recipeTypeId);
+            } else if (schemaVersion == 2) {
+                ResourceLocation recipeTypeId = parseResourceLocation(
+                        readRequiredString(statisticObject, "categoryId"));
+                JsonArray workstationArray = readRequiredArray(statisticObject, "workstationIds");
+                if (workstationArray.size() > 64) {
+                    throw new IllegalArgumentException("Legacy pattern preference workstation ids exceed 64");
+                }
+                for (JsonElement workstationElement : workstationArray) {
+                    parseResourceLocation(readString(workstationElement, "workstationIds"));
+                }
+                context = PatternEncodingRankingContext.of(recipeTypeId);
+            } else {
+                context = PatternEncodingRankingContext.of(parseResourceLocation(
+                        readRequiredString(statisticObject, "recipeTypeId")));
+            }
             PatternProviderClickStatistic statistic = new PatternProviderClickStatistic(
-                    new PatternEncodingRankingContext(recipeScope, workstation), providerDigest, count, lastUsed);
+                    context, providerDigest, count, lastUsed);
             if (profile.statistics.putIfAbsent(statistic.stableKey(), statistic) != null) {
                 throw new IllegalArgumentException("Duplicate click statistic: " + statistic.stableKey());
             }
         }
         return profile;
+    }
+
+    @Nullable
+    private static ResourceLocation legacyCategoryId(String recipeScope) {
+        return recipeScope.startsWith("type:") ? ResourceLocation.tryParse(recipeScope.substring("type:".length())) : null;
     }
 
     private void recoverCorruptFile(Exception failure) {
@@ -532,8 +566,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
                 .sorted(Comparator.comparing(PatternProviderClickStatistic::stableKey))
                 .forEach(statistic -> {
                     JsonObject value = new JsonObject();
-                    value.addProperty("recipeScope", statistic.context().recipeScope());
-                    value.addProperty("workstation", statistic.context().workstation().toString());
+                    value.addProperty("recipeTypeId", statistic.context().recipeTypeId().toString());
                     value.addProperty("providerDigest", statistic.providerDigest());
                     value.addProperty("count", statistic.count());
                     value.addProperty("lastUsedEpochMillis", statistic.lastUsedEpochMillis());

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -16,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.IConfigManager;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -31,19 +34,38 @@ public final class UniversalTerminalData {
     public static final String TERMINAL_PATTERN_ACCESS = "pattern_access";
     public static final String TERMINAL_PATTERN_ENCODING = "pattern_encoding";
 
-    private static final List<UniversalTerminalAdapter> TERMINAL_DEFINITIONS = new ArrayList<>();
+    /**
+     * Frozen terminal definitions published by the unified entrypoint loader.
+     * Runtime menu and inventory code only reads this immutable snapshot.
+     */
+    private static volatile List<UniversalTerminalRegistration> terminalDefinitions = List.of();
+    private static boolean definitionsInstalled;
 
     private UniversalTerminalData() {}
 
-    public static List<UniversalTerminalAdapter> getDefinitions() {
-        return List.copyOf(TERMINAL_DEFINITIONS);
+    public static @NotNull List<@NotNull UniversalTerminalRegistration> getDefinitions() {
+        requireInstalled();
+        return terminalDefinitions;
     }
 
-    public static void registerAdapter(UniversalTerminalAdapter adapter) {
-        if (TERMINAL_DEFINITIONS.stream().anyMatch(existing -> existing.name().equals(adapter.name()))) {
-            throw new IllegalArgumentException("Duplicate universal terminal adapter: " + adapter.name());
+    /**
+     * Publishes the immutable terminal snapshot assembled by the unified plugin registry.
+     *
+     * @param definitions definitions in deterministic registration order
+     */
+    public static synchronized void installDefinitions(
+                                                       @NotNull List<@NotNull UniversalTerminalRegistration> definitions) {
+        if (definitionsInstalled) {
+            throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
-        TERMINAL_DEFINITIONS.add(adapter);
+        LinkedHashMap<String, UniversalTerminalRegistration> unique = new LinkedHashMap<>();
+        for (UniversalTerminalRegistration registration : definitions) {
+            if (unique.putIfAbsent(registration.name(), registration) != null) {
+                throw new IllegalStateException("Duplicate universal terminal registration: " + registration.name());
+            }
+        }
+        terminalDefinitions = List.copyOf(unique.values());
+        definitionsInstalled = true;
     }
 
     public static ItemStack createCombinedTerminal(ItemStack resultTemplate, HolderLookup.Provider registries,
@@ -113,22 +135,22 @@ public final class UniversalTerminalData {
     }
 
     public static boolean isSupportedTerminal(ItemStack stack) {
-        return getAdapter(stack)
-                .map(adapter -> adapter.canInstall(stack))
+        return getRegistration(stack)
+                .map(registration -> canInstall(registration, stack))
                 .orElse(false);
     }
 
     @Nullable
     public static String getTerminalName(ItemStack stack) {
-        return getAdapter(stack)
-                .filter(adapter -> adapter.canInstall(stack))
-                .map(UniversalTerminalAdapter::name)
+        return getRegistration(stack)
+                .filter(registration -> canInstall(registration, stack))
+                .map(UniversalTerminalRegistration::name)
                 .orElse(null);
     }
 
     public static ItemStack getMenuIcon(String terminalName) {
         return getDefinition(terminalName)
-                .map(UniversalTerminalAdapter::createIcon)
+                .map(UniversalTerminalRegistration::createIcon)
                 .orElse(ItemStack.EMPTY);
     }
 
@@ -138,8 +160,8 @@ public final class UniversalTerminalData {
     }
 
     public static MenuType<?> getMenuType(String terminalName) {
-        Optional<UniversalTerminalAdapter> definition = getDefinition(terminalName);
-        return definition.isPresent() ? definition.get().getMenuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
+        Optional<UniversalTerminalRegistration> definition = getDefinition(terminalName);
+        return definition.isPresent() ? definition.get().menuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
     }
 
     public static @Nullable IConfigManager createConfigManager(String terminalName, Runnable saveAction) {
@@ -149,12 +171,14 @@ public final class UniversalTerminalData {
     }
 
     public static int getTerminalIndex(@Nullable String terminalName) {
+        requireInstalled();
         if (terminalName == null) {
             return -1;
         }
 
-        for (int i = 0; i < TERMINAL_DEFINITIONS.size(); i++) {
-            if (TERMINAL_DEFINITIONS.get(i).name().equals(terminalName)) {
+        List<UniversalTerminalRegistration> definitions = terminalDefinitions;
+        for (int i = 0; i < definitions.size(); i++) {
+            if (definitions.get(i).name().equals(terminalName)) {
                 return i;
             }
         }
@@ -162,11 +186,14 @@ public final class UniversalTerminalData {
     }
 
     public static @Nullable String getTerminalNameByIndex(int index) {
-        return index >= 0 && index < TERMINAL_DEFINITIONS.size() ? TERMINAL_DEFINITIONS.get(index).name() : null;
+        requireInstalled();
+        List<UniversalTerminalRegistration> definitions = terminalDefinitions;
+        return index >= 0 && index < definitions.size() ? definitions.get(index).name() : null;
     }
 
     public static int getDefinitionCount() {
-        return TERMINAL_DEFINITIONS.size();
+        requireInstalled();
+        return terminalDefinitions.size();
     }
 
     public static void writeEntries(ItemStack stack, HolderLookup.Provider registries, List<TerminalEntry> entries) {
@@ -204,36 +231,89 @@ public final class UniversalTerminalData {
         return tag.isEmpty() ? UniversalTerminalItemData.EMPTY : UniversalTerminalItemData.fromLegacyTag(tag, registries);
     }
 
-    private static Optional<UniversalTerminalAdapter> getDefinition(String terminalName) {
-        return TERMINAL_DEFINITIONS.stream()
+    private static @NotNull Optional<@NotNull UniversalTerminalRegistration> getDefinition(
+                                                                                           @NotNull String terminalName) {
+        requireInstalled();
+        return terminalDefinitions.stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst();
     }
 
-    public static Optional<UniversalTerminalAdapter> getAdapter(ItemStack stack) {
-        return getDefinitions().stream()
-                .filter(definition -> definition.matches(stack))
-                .findFirst();
+    public static @NotNull Optional<@NotNull UniversalTerminalRegistration> getRegistration(
+                                                                                            @NotNull ItemStack stack) {
+        requireInstalled();
+        UniversalTerminalRegistration matched = null;
+        for (UniversalTerminalRegistration registration : terminalDefinitions) {
+            boolean matches;
+            try {
+                matches = registration.matches(stack);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Universal terminal adapter '{}' failed while matching {}; isolating that adapter",
+                        registration.name(),
+                        stack,
+                        exception);
+                continue;
+            }
+            if (!matches) {
+                continue;
+            }
+            if (matched != null) {
+                throw new IllegalStateException(
+                        "Universal terminal adapters '" + matched.name() + "' and '" + registration.name() + "' both matched " + stack);
+            }
+            matched = registration;
+        }
+        return Optional.ofNullable(matched);
     }
 
     public static <T> @Nullable T resolveMenuHost(UniversalTerminalPart part, Player player,
                                                   @Nullable String terminalName, Class<T> hostInterface) {
+        requireInstalled();
         if (terminalName == null) {
             return hostInterface.isInstance(part) ? hostInterface.cast(part) : null;
         }
 
         return getDefinition(terminalName)
-                .map(adapter -> adapter.resolveMenuHost(part, player, hostInterface))
+                .map(registration -> registration.resolveMenuHost(
+                        new DefaultUniversalTerminalContext(part, player), hostInterface))
                 .orElseGet(() -> hostInterface.isInstance(part) ? hostInterface.cast(part) : null);
     }
 
     private static TerminalEntry terminalEntryFromStack(ItemStack stack) {
-        Optional<UniversalTerminalAdapter> adapter = getAdapter(stack)
-                .filter(definition -> definition.canInstall(stack));
+        Optional<UniversalTerminalRegistration> adapter = getRegistration(stack)
+                .filter(definition -> canInstall(definition, stack));
         if (adapter.isEmpty()) {
             throw new IllegalArgumentException("Unsupported terminal stack: " + stack);
         }
         return new TerminalEntry(adapter.get().name(), adapter.get().createStoredTerminal(stack));
+    }
+
+    /**
+     * Isolates an external installation predicate without hiding registration conflicts.
+     */
+    private static boolean canInstall(
+                                      @NotNull UniversalTerminalRegistration registration,
+                                      @NotNull ItemStack stack) {
+        try {
+            return registration.canInstall(stack);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Universal terminal adapter '{}' failed while validating {}; isolating that adapter",
+                    registration.name(),
+                    stack,
+                    exception);
+            return false;
+        }
+    }
+
+    /**
+     * Rejects runtime queries before the common-setup snapshot has been installed.
+     */
+    private static void requireInstalled() {
+        if (!definitionsInstalled) {
+            throw new IllegalStateException("Universal terminal definitions are not installed");
+        }
     }
 
     private static List<TerminalEntry> mergeEntries(List<TerminalEntry> existing, List<TerminalEntry> additions) {
@@ -242,12 +322,22 @@ public final class UniversalTerminalData {
             merged.put(entry.name(), entry);
         }
         for (TerminalEntry entry : additions) {
-            if (entry != null) {
-                merged.putIfAbsent(entry.name(), entry);
-            }
+            merged.putIfAbsent(entry.name(), entry);
         }
         return List.copyOf(merged.values());
     }
 
     public record TerminalEntry(String name, ItemStack stack) {}
+
+    /**
+     * Runtime context shared by public adapters and the legacy concrete-part compatibility bridge.
+     */
+    private record DefaultUniversalTerminalContext(UniversalTerminalPart part, Player player)
+            implements UniversalTerminalContextBridge {
+
+        @Override
+        public <T> @Nullable T resolveDefaultMenuHost(Class<T> hostInterface) {
+            return hostInterface.isInstance(this.part) ? hostInterface.cast(this.part) : null;
+        }
+    }
 }

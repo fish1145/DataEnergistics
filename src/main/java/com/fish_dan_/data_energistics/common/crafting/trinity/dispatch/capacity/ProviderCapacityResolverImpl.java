@@ -1,10 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 
@@ -15,11 +13,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * Identity-index implementation that treats provider-owned target views as authoritative and all other routes
- * conservatively.
+ * Identity-index implementation that delegates provider-kind resolution to the counted adapter boundary.
  */
 final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
 
@@ -47,42 +43,25 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
             if (provider == null) {
                 throw new IllegalStateException("Current crafting-provider publication did not resolve its provider");
             }
-            if (provider instanceof ProviderCapacityView capacityView) {
-                List<ProviderCapacitySnapshot> providerSnapshots = List.copyOf(capacityView.snapshotCapacity(
-                        providerId,
-                        pattern,
-                        prototype,
-                        requestedCrafts,
-                        patternIdentity,
-                        publicationRevision,
-                        capacityRevision,
-                        captureTick));
-                for (ProviderCapacitySnapshot snapshot : providerSnapshots) {
-                    validateProviderSnapshot(
-                            snapshot,
-                            providerId,
-                            patternIdentity,
-                            publicationRevision,
-                            capacityRevision);
-                }
-                snapshots.addAll(providerSnapshots);
-                continue;
-            }
-
-            ProviderRoutingMode routingMode = CountedCraftingProviderAdapters.fallbackRoutingMode(provider);
-            snapshots.add(new ProviderCapacitySnapshot(
+            List<ProviderCapacitySnapshot> providerSnapshots = CountedCraftingProviderAdapters.captureCapacity(
+                    provider,
                     providerId,
-                    CraftingDispatchTarget.provider(),
-                    Optional.empty(),
+                    pattern,
+                    prototype,
+                    requestedCrafts,
                     patternIdentity,
                     publicationRevision,
                     capacityRevision,
-                    captureTick,
-                    routingMode,
-                    DispatchCapacity.Unknown.INSTANCE,
-                    routingMode == ProviderRoutingMode.UNKNOWN ?
-                            new DispatchCapacity.Known(1L) :
-                            DispatchCapacity.Unknown.INSTANCE));
+                    captureTick);
+            for (ProviderCapacitySnapshot snapshot : providerSnapshots) {
+                validateProviderSnapshot(
+                        snapshot,
+                        providerId,
+                        patternIdentity,
+                        publicationRevision,
+                        capacityRevision);
+            }
+            snapshots.addAll(providerSnapshots);
         }
         if (publications.publicationRevision() != publicationRevision ||
                 CountedCraftingProviderAdapters.mutationRevision() != capacityRevision) {
@@ -112,12 +91,8 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
         if (provider == null) {
             return null;
         }
-        if (!(provider instanceof ProviderCapacityView capacityView)) {
-            return CountedCraftingProviderAdapters.fallbackRoutingMode(provider) == snapshot.routingMode() ?
-                    provider : null;
-        }
-
-        List<ProviderCapacitySnapshot> currentSnapshots = List.copyOf(capacityView.snapshotCapacity(
+        List<ProviderCapacitySnapshot> currentSnapshots = CountedCraftingProviderAdapters.captureCapacity(
+                provider,
                 snapshot.providerId(),
                 pattern,
                 prototype,
@@ -125,7 +100,7 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
                 patternIdentity,
                 snapshot.publicationRevision(),
                 snapshot.capacityRevision(),
-                validationTick));
+                validationTick);
         if (publications.publicationRevision() != snapshot.publicationRevision() ||
                 CountedCraftingProviderAdapters.mutationRevision() != snapshot.capacityRevision()) {
             return null;

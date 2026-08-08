@@ -25,6 +25,11 @@ public interface TrinityCraftConfirmMenuState {
     boolean data_energistics$isPlanReady();
 
     /**
+     * @return complete Trinity planning duration measured by {@link System#nanoTime()}, in nanoseconds
+     */
+    long data_energistics$planningNanos();
+
+    /**
      * @return whether the executable result can run only on Trinity CPUs
      */
     boolean data_energistics$isTrinityOnly();

@@ -2,22 +2,23 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitContext;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentitySource;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
-import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.fml.ModList;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
@@ -28,108 +29,51 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.crafting.PatternProviderPart;
 import appeng.parts.encoding.EncodingMode;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class PatternProviderSyncHelper {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ProviderIdentityResolver PROVIDER_IDENTITY_RESOLVER = ProviderIdentityResolver.create();
-    private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
-    private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
-    private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
-    private static final String USELESS_MOD_ID = "useless_mod";
-    private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
-    private static final String NEOECOAE_NAMESPACE = "neoecoae";
-    private static final String APPLIED_PNEUMATICS_NAMESPACE = "appliedpneumatics";
-    private static final String NEOECOAE_CRAFTING_SYSTEM_PATH = "eco_crafting_system";
-    private static final String NEOECOAE_CRAFTING_SYSTEM_PREFIX = "crafting_system_";
-    private static final String NEOECOAE_CRAFTING_WORKER_PATH = "crafting_worker";
-    private static final String NEOECOAE_CRAFTING_PATTERN_BUS_PATH = "crafting_pattern_bus";
-    private static final String NEOECOAE_ECO_CRAFTING_WORKER_PATH = "eco_crafting_worker";
-    private static final String APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH = "me_amadron_process_station";
-    private static final String APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH = "me_amadron_extended_process_station";
-    private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
-    private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
-    private static final ResourceLocation BLAST_FURNACE_ID = ResourceLocation.withDefaultNamespace("blast_furnace");
-    private static final ResourceLocation SMOKER_ID = ResourceLocation.withDefaultNamespace("smoker");
-    private static final ResourceLocation CAMPFIRE_ID = ResourceLocation.withDefaultNamespace("campfire");
-    private static final ResourceLocation STONECUTTER_ID = ResourceLocation.withDefaultNamespace("stonecutter");
-    private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
-    private static final ResourceLocation AE2_CRAFTING_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "crafting_pattern");
-    private static final ResourceLocation AE2_STONECUTTING_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "stonecutting_pattern");
-    private static final ResourceLocation AE2_SMITHING_TABLE_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "smithing_table_pattern");
-    private static final ResourceLocation AE2_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
-    private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
-    private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
-    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
-    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_upload_core");
-    private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
-    private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "extended_resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
-    private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS = Set.of(
-            "assembler_matrix_upload_core",
-            "assembler_matrix_crafter_plus",
-            "assembler_matrix_pattern_plus",
-            "assembler_matrix_speed_plus");
 
     private PatternProviderSyncHelper() {}
-
-    public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
-                                                                                                     @Nullable IGrid grid,
-                                                                                                     Map<PatternContainer, Long> syncedPatternProviderIds,
-                                                                                                     Map<Long, List<PatternContainer>> syncedProviderTargetsById,
-                                                                                                     LongSupplier nextIdSupplier,
-                                                                                                     @Nullable ResourceLocation preferredWorkstationId,
-                                                                                                     @Nullable EncodingMode encodingMode,
-                                                                                                     ItemStack currentEncodedPattern) {
-        return collectSyncedPatternProviders(grid, syncedPatternProviderIds, syncedProviderTargetsById,
-                nextIdSupplier, preferredWorkstationId, encodingMode, currentEncodedPattern, Map.of());
-    }
 
     /**
      * Discovers providers and applies the supplied per-leaf history before grouping rows.
      */
     public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
                                                                                                      @Nullable IGrid grid,
+                                                                                                     @NotNull EncodingMode mode,
                                                                                                      Map<PatternContainer, Long> syncedPatternProviderIds,
                                                                                                      Map<Long, List<PatternContainer>> syncedProviderTargetsById,
                                                                                                      LongSupplier nextIdSupplier,
-                                                                                                     @Nullable ResourceLocation preferredWorkstationId,
-                                                                                                     @Nullable EncodingMode encodingMode,
-                                                                                                     ItemStack currentEncodedPattern,
+                                                                                                     @Nullable PatternEncodingRankingContext rankingContext,
                                                                                                      Map<String, Long> leafClickCounts) {
         syncedProviderTargetsById.clear();
         if (grid == null) {
             syncedPatternProviderIds.clear();
             return PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY;
         }
-        boolean primaryWorkbenchOrdering = shouldUsePrimaryWorkbenchPriorityLine(encodingMode, currentEncodedPattern);
-        ResourceLocation effectivePreferredWorkstationId = normalizePreferredWorkstationId(
-                preferredWorkstationId, encodingMode, currentEncodedPattern, primaryWorkbenchOrdering);
         List<PatternProviderAggregationEntry> discoveredProviders = new ArrayList<>();
-        Map<PatternContainer, Boolean> activeProviders = new IdentityHashMap<>();
-        Map<PatternContainer, Boolean> discoveredProviderSet = new IdentityHashMap<>();
+        Set<PatternContainer> activeProviders = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<PatternContainer> discoveredProviderSet = Collections.newSetFromMap(new IdentityHashMap<>());
 
         collectDirectPatternProviders(grid, syncedPatternProviderIds, nextIdSupplier, discoveredProviders, activeProviders,
-                discoveredProviderSet, effectivePreferredWorkstationId, encodingMode, currentEncodedPattern,
-                primaryWorkbenchOrdering);
+                discoveredProviderSet, rankingContext);
 
         for (var machineClass : grid.getMachineClasses()) {
             var patternContainerClass = asPatternContainerClass(machineClass);
@@ -139,15 +83,18 @@ public final class PatternProviderSyncHelper {
 
             for (var container : grid.getMachines(patternContainerClass)) {
                 addProviderIfVisible(container, syncedPatternProviderIds, nextIdSupplier, discoveredProviders, activeProviders,
-                        discoveredProviderSet, effectivePreferredWorkstationId, encodingMode, currentEncodedPattern,
-                        primaryWorkbenchOrdering);
+                        discoveredProviderSet, rankingContext);
             }
         }
 
-        syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.containsKey(provider));
+        syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.contains(provider));
+
+        if (mode == EncodingMode.PROCESSING && rankingContext != null) {
+            discoveredProviders.removeIf(provider -> !isAvailableRecipeTypeCandidate(provider));
+        }
 
         return aggregateSyncedPatternProviders(
-                discoveredProviders, syncedProviderTargetsById, primaryWorkbenchOrdering, leafClickCounts);
+                discoveredProviders, syncedProviderTargetsById, leafClickCounts, rankingContext);
     }
 
     /**
@@ -156,10 +103,8 @@ public final class PatternProviderSyncHelper {
      */
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
-                                                                                                Map<Long, List<PatternContainer>> syncedProviderTargetsById,
-                                                                                                boolean primaryWorkbenchOrdering) {
-        return aggregateSyncedPatternProviders(discoveredProviders, syncedProviderTargetsById,
-                primaryWorkbenchOrdering, Map.of());
+                                                                                                Map<Long, List<PatternContainer>> syncedProviderTargetsById) {
+        return aggregateSyncedPatternProviders(discoveredProviders, syncedProviderTargetsById, Map.of());
     }
 
     /**
@@ -168,12 +113,20 @@ public final class PatternProviderSyncHelper {
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Map<Long, List<PatternContainer>> syncedProviderTargetsById,
-                                                                                                boolean primaryWorkbenchOrdering,
                                                                                                 Map<String, Long> leafClickCounts) {
+        return aggregateSyncedPatternProviders(
+                discoveredProviders, syncedProviderTargetsById, leafClickCounts, null);
+    }
+
+    private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
+                                                                                                        List<PatternProviderAggregationEntry> discoveredProviders,
+                                                                                                        Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                                                                        Map<String, Long> leafClickCounts,
+                                                                                                        @Nullable PatternEncodingRankingContext rankingContext) {
         syncedProviderTargetsById.clear();
         List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(
-                discoveredProviders, primaryWorkbenchOrdering, leafClickCounts);
-        aggregatedProviders.sort(createAggregatedProviderComparator(primaryWorkbenchOrdering, leafClickCounts));
+                discoveredProviders, leafClickCounts);
+        aggregatedProviders.sort(createAggregatedProviderComparator(leafClickCounts));
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(aggregatedProviders.size());
         for (var provider : aggregatedProviders) {
@@ -186,38 +139,14 @@ public final class PatternProviderSyncHelper {
                     provider.renameable(),
                     provider.patternSlotCount(),
                     provider.usedPatternSlotCount(),
-                    provider.leafDigests()));
+                    provider.leafDigests(),
+                    provider.preferredWorkstationId()));
         }
 
-        return providers.isEmpty() ? PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY :
-                new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers);
-    }
-
-    @Nullable
-    private static ResourceLocation normalizePreferredWorkstationId(@Nullable ResourceLocation preferredWorkstationId,
-                                                                    @Nullable EncodingMode encodingMode,
-                                                                    ItemStack currentEncodedPattern,
-                                                                    boolean primaryWorkbenchOrdering) {
-        if (!primaryWorkbenchOrdering) {
-            return preferredWorkstationId;
+        if (providers.isEmpty() && rankingContext == null) {
+            return PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY;
         }
-
-        ResourceLocation patternItemId = resolveItemId(currentEncodedPattern);
-        if (AE2_CRAFTING_PATTERN_ITEM_ID.equals(patternItemId)) {
-            return CRAFTING_TABLE_ID;
-        }
-        if (AE2_STONECUTTING_PATTERN_ITEM_ID.equals(patternItemId)) {
-            return STONECUTTER_ID;
-        }
-        if (AE2_SMITHING_TABLE_PATTERN_ITEM_ID.equals(patternItemId)) {
-            return SMITHING_TABLE_ID;
-        }
-
-        if (preferredWorkstationId != null && isPrimaryWorkbenchFamilyMode(encodingMode, preferredWorkstationId)) {
-            return preferredWorkstationId;
-        }
-
-        return PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(encodingMode);
+        return new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers, rankingContext);
     }
 
     @Nullable
@@ -301,8 +230,8 @@ public final class PatternProviderSyncHelper {
         }
     }
 
-    public static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
-        if (container == null || encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
+    private static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
+        if (encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
             return encodedPattern;
         }
 
@@ -315,7 +244,7 @@ public final class PatternProviderSyncHelper {
         ItemStack reportedRemainder;
         try {
             reportedRemainder = patternInventory.addItems(encodedPattern.copy(), false);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             LOGGER.error("Failed to insert encoded pattern into {}; checking the target inventory for committed patterns",
                     container, exception);
             int committedCount = countCommittedPatternDelta(
@@ -324,24 +253,23 @@ public final class PatternProviderSyncHelper {
                 return encodedPattern;
             }
 
-            notifyCommittedPatternUpload(container, committedCount);
+            notifyCommittedPatternUpload(container, encodedPattern, committedCount);
             return createRemainderAfterCommit(encodedPattern, committedCount);
         }
 
         int reportedCommittedCount = countReportedPatternCommit(encodedPattern, reportedRemainder);
-        int actualCommittedCount = countCommittedPatternDelta(
+        int committedCount = countCommittedPatternDelta(
                 matchingCountBefore, patternInventory, encodedPattern);
-        int committedCount = actualCommittedCount;
-        if (reportedCommittedCount != actualCommittedCount) {
+        if (reportedCommittedCount != committedCount) {
             LOGGER.warn("Pattern provider {} reported {} of {} patterns committed, but its inventory changed by {}; " +
                     "using the inventory delta as the committed count",
-                    container, reportedCommittedCount, encodedPattern.getCount(), actualCommittedCount);
+                    container, reportedCommittedCount, encodedPattern.getCount(), committedCount);
         }
         if (committedCount <= 0) {
             return encodedPattern;
         }
 
-        notifyCommittedPatternUpload(container, committedCount);
+        notifyCommittedPatternUpload(container, encodedPattern, committedCount);
         return createRemainderAfterCommit(encodedPattern, committedCount);
     }
 
@@ -378,72 +306,239 @@ public final class PatternProviderSyncHelper {
         return remainder;
     }
 
-    private static void notifyCommittedPatternUpload(PatternContainer container, int committedCount) {
+    private static void notifyCommittedPatternUpload(PatternContainer container,
+                                                     ItemStack encodedPattern,
+                                                     int committedCount) {
         if (container instanceof PatternProviderLogicHost providerHost) {
             try {
                 providerHost.getLogic().updatePatterns();
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (RuntimeException exception) {
                 LOGGER.error("Failed to update patterns after committing {} encoded patterns to {}",
                         committedCount, container, exception);
             }
             try {
                 providerHost.saveChanges();
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (RuntimeException exception) {
                 LOGGER.error("Failed to save pattern provider after committing {} encoded patterns to {}",
                         committedCount, container, exception);
             }
         }
-        if (ModList.get().isLoaded(USELESS_MOD_ID)) {
-            try {
-                SomeUselessThingsCompat.afterPatternUpload(container);
-            } catch (RuntimeException | LinkageError exception) {
-                LOGGER.error("Failed to run the post-upload compatibility hook after committing {} encoded patterns to {}",
-                        committedCount, container, exception);
-            }
+
+        Optional<ResolvedProviderBinding> resolved;
+        try {
+            resolved = PatternProviderRuntimeBindings.resolve(container);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to resolve a post-commit provider plugin after committing {} encoded patterns to {}",
+                    committedCount, container, exception);
+            return;
+        }
+        if (resolved.isEmpty()) {
+            return;
+        }
+        ResolvedProviderBinding binding = resolved.get();
+        PatternProviderPostCommitHook hook = binding.registration().postCommitHook();
+        if (hook == null) {
+            return;
+        }
+        try {
+            hook.afterCommit(new PatternProviderPostCommitContext(
+                    container,
+                    binding.identity(),
+                    encodedPattern,
+                    committedCount));
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Pattern provider post-commit hook '{}' failed after committing {} encoded patterns to identity {}",
+                    binding.registration().metadata().registrationId(),
+                    committedCount,
+                    binding.identity(),
+                    exception);
         }
     }
 
-    public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {
-        if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
-            return new TransferResult(encodedPattern, false, false, null);
+    /**
+     * Captures the server-owned upload context for the current encoder mode.
+     */
+    public static @NotNull PatternUploadContext createPatternUploadContext(
+                                                                           @NotNull PatternEncodingPreviewMenu previewMenu,
+                                                                           @NotNull PatternEncodingPreferenceSession session,
+                                                                           long providerId) {
+        EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
+        if (mode == EncodingMode.PROCESSING) {
+            PatternEncodingRankingContext rankingContext = session.rankingContext();
+            ResourceLocation preferredWorkstation = resolveSyncedProviderWorkstation(
+                    previewMenu.data_energistics$getSyncedPatternProviderState(),
+                    rankingContext,
+                    providerId);
+            return new PatternUploadContext(
+                    mode,
+                    rankingContext,
+                    preferredWorkstation);
         }
 
-        if (containsEquivalentEncodedPattern(containers, encodedPattern)) {
-            return new TransferResult(encodedPattern, false, true, null);
+        ResourceLocation workstationId = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
+        PatternEncodingRankingContext fixedContext = PatternEncodingSourceHelper.resolveFixedModeRankingContext(mode, workstationId);
+        if (fixedContext == null) {
+            throw new IllegalStateException("Could not derive the fixed upload context for encoding mode " + mode);
+        }
+        session.setRankingContext(fixedContext);
+        return new PatternUploadContext(mode, fixedContext, null);
+    }
+
+    @Nullable
+    private static ResourceLocation resolveSyncedProviderWorkstation(
+                                                                     @NotNull PatternEncodingPreviewMenu.SyncedPatternProviderList providerState,
+                                                                     @Nullable PatternEncodingRankingContext rankingContext,
+                                                                     long providerId) {
+        if (!Objects.equals(providerState.rankingContext(), rankingContext)) {
+            return null;
+        }
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providerState.providers()) {
+            if (provider.id() == providerId) {
+                return provider.preferredWorkstationId();
+            }
+        }
+        return null;
+    }
+
+    public static @NotNull TransferResult transferEncodedPatternToProvidersChecked(
+                                                                                   @NotNull List<PatternContainer> containers,
+                                                                                   @NotNull ItemStack encodedPattern,
+                                                                                   @NotNull PatternUploadContext uploadContext) {
+        if (containers.isEmpty() || encodedPattern.isEmpty()) {
+            return TransferResult.noTransfer(encodedPattern);
+        }
+
+        if (uploadContext.processing() && uploadContext.rankingContext() == null) {
+            LOGGER.warn(
+                    "Rejected processing pattern upload without a viewer recipe-type context: providers={}, resolvedWorkstation={}",
+                    containers.size(),
+                    uploadContext.resolvedWorkstation());
+            return TransferResult.rejected(encodedPattern, PatternUploadRejection.CONTEXT_UNAVAILABLE);
+        }
+
+        PreparationResult preparation = preparePatternUploads(containers, uploadContext);
+        if (preparation.rejection() != PatternUploadRejection.NONE) {
+            return TransferResult.rejected(encodedPattern, preparation.rejection());
+        }
+        List<PreparedPatternUpload> preparedUploads = preparation.uploads();
+        if (preparedUploads.isEmpty()) {
+            return TransferResult.rejected(encodedPattern, PatternUploadRejection.TARGET_UNAVAILABLE);
+        }
+
+        if (containsEquivalentEncodedPattern(preparedUploads, encodedPattern)) {
+            return new TransferResult(
+                    encodedPattern,
+                    false,
+                    true,
+                    null,
+                    PatternUploadRejection.NONE);
         }
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
         PatternUploadTarget firstCommittedTarget = null;
-        for (var container : containers) {
+        for (PreparedPatternUpload preparedUpload : preparedUploads) {
             if (remainder.isEmpty()) {
                 break;
             }
 
+            PatternContainer container = preparedUpload.container();
             ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
             if (nextRemainder.getCount() != remainder.getCount()) {
                 transferred = true;
                 if (firstCommittedTarget == null) {
-                    firstCommittedTarget = resolveProviderUploadTarget(container);
+                    firstCommittedTarget = preparedUpload.target();
                 }
             }
             remainder = nextRemainder;
         }
 
-        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false, firstCommittedTarget);
+        return new TransferResult(
+                transferred ? remainder : encodedPattern,
+                transferred,
+                false,
+                firstCommittedTarget,
+                PatternUploadRejection.NONE);
     }
 
-    private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
-        for (var container : containers) {
-            if (container == null) {
-                continue;
+    private static PreparationResult preparePatternUploads(
+                                                           List<PatternContainer> containers,
+                                                           PatternUploadContext uploadContext) {
+        List<PreparedPatternUpload> preparedUploads = new ArrayList<>(containers.size());
+        for (PatternContainer container : containers) {
+            try {
+                ProviderResolution provider = resolveProvider(container);
+                WorkstationResolution workstation = resolveWorkstation(provider, uploadContext);
+                if (workstation.rejection() != PatternUploadRejection.NONE) {
+                    logContextRejection(provider, uploadContext, workstation.rejection());
+                    return new PreparationResult(List.of(), workstation.rejection());
+                }
+                PatternUploadTarget target = createProviderUploadTarget(
+                        container,
+                        provider.identity(),
+                        workstation.workstationId());
+                preparedUploads.add(new PreparedPatternUpload(container, target));
+            } catch (RuntimeException exception) {
+                LOGGER.error("Could not resolve a typed upload target for {}; rejecting the group before inventory mutation",
+                        container, exception);
+                return new PreparationResult(List.of(), PatternUploadRejection.TARGET_UNAVAILABLE);
             }
+        }
+        return new PreparationResult(List.copyOf(preparedUploads), PatternUploadRejection.NONE);
+    }
 
+    private static WorkstationResolution resolveWorkstation(
+                                                            ProviderResolution provider,
+                                                            PatternUploadContext uploadContext) {
+        if (!uploadContext.processing()) {
+            return WorkstationResolution.accepted(null);
+        }
+        PatternEncodingRankingContext rankingContext = uploadContext.rankingContext();
+        if (rankingContext == null) {
+            return WorkstationResolution.rejected(PatternUploadRejection.CONTEXT_UNAVAILABLE);
+        }
+        ResolvedProviderBinding binding = provider.binding();
+        if (binding == null) {
+            return WorkstationResolution.rejected(PatternUploadRejection.PROVIDER_CONTEXT_UNKNOWN);
+        }
+        PatternProviderMetadata metadata = binding.registration().metadata();
+        if (!metadata.categoryIds().contains(rankingContext.recipeTypeId())) {
+            return WorkstationResolution.rejected(PatternUploadRejection.PROVIDER_CONTEXT_UNKNOWN);
+        }
+        List<ResourceLocation> candidates = metadata.workstationIds();
+        if (candidates.isEmpty()) {
+            return WorkstationResolution.accepted(null);
+        }
+        ResourceLocation resolvedWorkstation = uploadContext.resolvedWorkstation();
+        if (resolvedWorkstation != null && candidates.contains(resolvedWorkstation)) {
+            return WorkstationResolution.accepted(resolvedWorkstation);
+        }
+        return WorkstationResolution.accepted(candidates.getFirst());
+    }
+
+    private static void logContextRejection(
+                                            ProviderResolution provider,
+                                            PatternUploadContext uploadContext,
+                                            PatternUploadRejection rejection) {
+        ResolvedProviderBinding binding = provider.binding();
+        PatternProviderMetadata metadata = binding == null ? null : binding.registration().metadata();
+        LOGGER.warn(
+                "Rejected processing pattern upload before inventory mutation: reason={}, providerIdentity={}, registrationId={}, recipeType={}, registeredRecipeTypes={}, registeredWorkstations={}, resolvedWorkstation={}",
+                rejection,
+                provider.identity(),
+                metadata == null ? null : metadata.registrationId(),
+                uploadContext.rankingContext() == null ? null : uploadContext.rankingContext().recipeTypeId(),
+                metadata == null ? List.of() : metadata.categoryIds(),
+                metadata == null ? List.of() : metadata.workstationIds(),
+                uploadContext.resolvedWorkstation());
+    }
+
+    private static boolean containsEquivalentEncodedPattern(List<PreparedPatternUpload> preparedUploads,
+                                                            ItemStack encodedPattern) {
+        for (PreparedPatternUpload preparedUpload : preparedUploads) {
+            PatternContainer container = preparedUpload.container();
             var inventory = container.getTerminalPatternInventory();
-            if (inventory == null) {
-                continue;
-            }
-
             for (int slot = 0; slot < inventory.size(); slot++) {
                 ItemStack existing = inventory.getStackInSlot(slot);
                 if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, encodedPattern)) {
@@ -455,22 +550,117 @@ public final class PatternProviderSyncHelper {
         return false;
     }
 
+    private record PreparedPatternUpload(@NotNull PatternContainer container,
+                                         @NotNull PatternUploadTarget target) {}
+
+    private record PreparationResult(@NotNull List<PreparedPatternUpload> uploads,
+                                     @NotNull PatternUploadRejection rejection) {}
+
+    private record WorkstationResolution(@Nullable ResourceLocation workstationId,
+                                         @NotNull PatternUploadRejection rejection) {
+
+        private static WorkstationResolution accepted(@Nullable ResourceLocation workstationId) {
+            return new WorkstationResolution(workstationId, PatternUploadRejection.NONE);
+        }
+
+        private static WorkstationResolution rejected(@NotNull PatternUploadRejection rejection) {
+            return new WorkstationResolution(null, rejection);
+        }
+    }
+
     /**
      * Result of one upload attempt, including the first inventory that actually accepted a pattern.
      */
-    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound,
-                                 @Nullable PatternUploadTarget firstCommittedTarget) {}
+    public record TransferResult(@NotNull ItemStack remainder, boolean transferred, boolean duplicateFound,
+                                 @Nullable PatternUploadTarget firstCommittedTarget,
+                                 @NotNull PatternUploadRejection rejection) {
+
+        public TransferResult {
+            if ((transferred && firstCommittedTarget == null) ||
+                    (!transferred && firstCommittedTarget != null)) {
+                throw new IllegalArgumentException(
+                        "A pattern upload result must expose one committed target exactly when a transfer occurred");
+            }
+            if (transferred && (duplicateFound || rejection != PatternUploadRejection.NONE)) {
+                throw new IllegalArgumentException(
+                        "A committed pattern upload cannot also be a duplicate or rejection");
+            }
+            if (duplicateFound && rejection != PatternUploadRejection.NONE) {
+                throw new IllegalArgumentException("A duplicate pattern upload cannot also be rejected");
+            }
+        }
+
+        public boolean rejected() {
+            return this.rejection != PatternUploadRejection.NONE;
+        }
+
+        /**
+         * Returns the committed target after {@link #transferred()} has established the success variant.
+         */
+        public @NotNull PatternUploadTarget committedTarget() {
+            if (this.firstCommittedTarget == null) {
+                throw new IllegalStateException("Pattern upload result did not commit to a provider target");
+            }
+            return this.firstCommittedTarget;
+        }
+
+        private static TransferResult noTransfer(ItemStack remainder) {
+            return new TransferResult(remainder, false, false, null, PatternUploadRejection.NONE);
+        }
+
+        private static TransferResult rejected(ItemStack remainder, PatternUploadRejection rejection) {
+            return new TransferResult(remainder, false, false, null, rejection);
+        }
+    }
+
+    /**
+     * Server-owned information used to validate one upload before any inventory mutation.
+     */
+    public record PatternUploadContext(@NotNull EncodingMode mode,
+                                       @Nullable PatternEncodingRankingContext rankingContext,
+                                       @Nullable ResourceLocation resolvedWorkstation) {
+
+        public boolean processing() {
+            return this.mode == EncodingMode.PROCESSING;
+        }
+    }
+
+    /**
+     * Explicit reason why a provider upload was rejected before inventory mutation.
+     */
+    public enum PatternUploadRejection {
+
+        NONE(null),
+        CONTEXT_UNAVAILABLE("data_energistics.pattern_transfer.context_unavailable"),
+        PROVIDER_CONTEXT_UNKNOWN("message.data_energistics.pattern_provider.context_unknown"),
+        TARGET_UNAVAILABLE("message.data_energistics.pattern_provider.target_unavailable");
+
+        @Nullable
+        private final String messageKey;
+
+        PatternUploadRejection(@Nullable String messageKey) {
+            this.messageKey = messageKey;
+        }
+
+        /**
+         * Returns the localized rejection key after the caller has established that this is not {@link #NONE}.
+         */
+        public @NotNull String messageKeyOrThrow() {
+            if (this.messageKey == null) {
+                throw new IllegalStateException("The successful upload state has no rejection message");
+            }
+            return this.messageKey;
+        }
+    }
 
     /**
      * Stable successful upload target returned only after its inventory has actually changed.
      */
-    public record PatternUploadTarget(String providerDigest, Component targetName,
-                                      @Nullable ResourceLocation dimensionId, @Nullable BlockPos position) {
+    public record PatternUploadTarget(@NotNull String providerDigest, @NotNull Component targetName,
+                                      @Nullable ResourceLocation dimensionId, @Nullable BlockPos position,
+                                      @Nullable ResourceLocation confirmedWorkstation) {
 
         public PatternUploadTarget {
-            if (providerDigest == null || targetName == null) {
-                throw new IllegalArgumentException("Pattern upload target identity and name must not be null");
-            }
             if (dimensionId == null != (position == null)) {
                 throw new IllegalArgumentException("Pattern upload target location must be complete or absent");
             }
@@ -483,19 +673,15 @@ public final class PatternProviderSyncHelper {
                                                       Map<PatternContainer, Long> syncedPatternProviderIds,
                                                       LongSupplier nextIdSupplier,
                                                       List<PatternProviderAggregationEntry> discoveredProviders,
-                                                      Map<PatternContainer, Boolean> activeProviders,
-                                                      Map<PatternContainer, Boolean> discoveredProviderSet,
-                                                      @Nullable ResourceLocation preferredWorkstationId,
-                                                      @Nullable EncodingMode encodingMode,
-                                                      ItemStack currentEncodedPattern,
-                                                      boolean primaryWorkbenchOrdering) {
+                                                      Set<PatternContainer> activeProviders,
+                                                      Set<PatternContainer> discoveredProviderSet,
+                                                      @Nullable PatternEncodingRankingContext rankingContext) {
         try {
             for (var providerHost : grid.getMachines(PatternProviderLogicHost.class)) {
                 addProviderIfVisible(providerHost, syncedPatternProviderIds, nextIdSupplier, discoveredProviders,
-                        activeProviders, discoveredProviderSet, preferredWorkstationId, encodingMode, currentEncodedPattern,
-                        primaryWorkbenchOrdering);
+                        activeProviders, discoveredProviderSet, rankingContext);
             }
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             LOGGER.error("Failed to enumerate direct pattern providers from the active grid", exception);
         }
     }
@@ -505,13 +691,10 @@ public final class PatternProviderSyncHelper {
                                              Map<PatternContainer, Long> syncedPatternProviderIds,
                                              LongSupplier nextIdSupplier,
                                              List<PatternProviderAggregationEntry> discoveredProviders,
-                                             Map<PatternContainer, Boolean> activeProviders,
-                                             Map<PatternContainer, Boolean> discoveredProviderSet,
-                                             @Nullable ResourceLocation preferredWorkstationId,
-                                             @Nullable EncodingMode encodingMode,
-                                             ItemStack currentEncodedPattern,
-                                             boolean primaryWorkbenchOrdering) {
-        if (!isProviderContainer(container) || discoveredProviderSet.containsKey(container)) {
+                                             Set<PatternContainer> activeProviders,
+                                             Set<PatternContainer> discoveredProviderSet,
+                                             @Nullable PatternEncodingRankingContext rankingContext) {
+        if (!container.isVisibleInTerminal() || discoveredProviderSet.contains(container)) {
             return;
         }
 
@@ -520,14 +703,42 @@ public final class PatternProviderSyncHelper {
             return;
         }
 
-        discoveredProviderSet.put(container, Boolean.TRUE);
+        discoveredProviderSet.add(container);
 
         long providerId = syncedPatternProviderIds.computeIfAbsent(container,
                 ignored -> nextIdSupplier.getAsLong());
-        activeProviders.put(container, Boolean.TRUE);
-        Component displayName = resolveProviderDisplayName(container);
-        ResourceLocation iconItemId = resolveProviderIconItemId(container);
-        boolean renameable = isRenameableProvider(container, displayName, iconItemId);
+        Component displayName;
+        ResourceLocation iconItemId;
+        PatternProviderAggregationKey aggregationKey;
+        String providerDigest;
+        boolean exactContextMatch;
+        List<ResourceLocation> matchingWorkstationIds;
+        try {
+            displayName = resolveProviderDisplayName(container);
+            iconItemId = resolveProviderIconItemId(container);
+            ProviderResolution provider = resolveProvider(container);
+            ProviderIdentity identity = provider.identity();
+            if (provider.binding() != null) {
+                PatternProviderMetadata metadata = provider.binding().registration().metadata();
+                aggregationKey = new PatternProviderAggregationKey.Registered(
+                        metadata.registrationId(), metadata.providerIdentity());
+                exactContextMatch = matchesRankingContext(metadata, rankingContext);
+                matchingWorkstationIds = resolveMatchingWorkstationIds(metadata, rankingContext);
+            } else {
+                aggregationKey = ProviderIdentityDescriptor.from(identity)
+                        .<PatternProviderAggregationKey>map(PatternProviderAggregationKey.Core::new)
+                        .orElseGet(() -> new PatternProviderAggregationKey.Leaf(providerId));
+                exactContextMatch = false;
+                matchingWorkstationIds = List.of();
+            }
+            providerDigest = identity.digest();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not resolve typed presentation or identity for pattern provider {}; isolating it",
+                    container, exception);
+            return;
+        }
+
+        activeProviders.add(container);
         int usedPatternSlots = countUsedPatternSlots(patternInventory);
         discoveredProviders.add(new PatternProviderAggregationEntry(
                 container,
@@ -535,157 +746,79 @@ public final class PatternProviderSyncHelper {
                 container.getTerminalSortOrder(),
                 displayName,
                 iconItemId,
-                resolveSpecialAggregationKey(container, displayName, iconItemId),
-                shouldUseAeButtonStyle(container),
-                renameable,
+                aggregationKey,
+                exactContextMatch,
+                true,
+                isRenameableProvider(container),
                 patternInventory.size(),
                 usedPatternSlots,
-                getWorkbenchLinePriority(container, displayName, iconItemId, primaryWorkbenchOrdering),
-                getRecordedDeviceScore(container, displayName, iconItemId, preferredWorkstationId,
-                        primaryWorkbenchOrdering),
-                getPreferredProviderScore(container, displayName, iconItemId, patternInventory.size(), usedPatternSlots,
-                        preferredWorkstationId, encodingMode, currentEncodedPattern, primaryWorkbenchOrdering),
-                resolveProviderDigest(container, displayName, iconItemId)));
+                providerDigest,
+                matchingWorkstationIds));
     }
 
-    /**
-     * Resolves a server-side provider identity once during discovery. Broken physical metadata is downgraded to a
-     * deterministic virtual identity so one malformed provider cannot abort the whole upload page.
-     */
-    public static String resolveProviderDigest(PatternContainer container) {
-        return resolveProviderUploadTarget(container).providerDigest();
-    }
-
-    private static String resolveProviderDigest(PatternContainer container, Component displayName,
-                                                ResourceLocation iconItemId) {
-        return resolveProviderIdentity(container, displayName, iconItemId).digest();
-    }
-
-    private static ProviderIdentity resolveProviderIdentity(PatternContainer container, Component displayName,
-                                                            ResourceLocation iconItemId) {
-        try {
-            if (isAssemblerMatrixPatternContainer(container)) {
-                return PROVIDER_IDENTITY_RESOLVER.resolveMatrix(
-                        container, isPlusAssemblerMatrixPatternContainer(container));
-            }
-            return PROVIDER_IDENTITY_RESOLVER.resolve(container);
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.warn("Could not resolve physical identity for pattern provider {}; using virtual identity",
-                    container, exception);
-            return ProviderIdentityResolver.virtualIdentity(iconItemId, displayName);
+    private static ProviderResolution resolveProvider(PatternContainer container) {
+        Optional<ResolvedProviderBinding> resolved = PatternProviderRuntimeBindings.resolve(container);
+        ProviderIdentity identity;
+        if (resolved.isPresent()) {
+            identity = resolved.get().identity();
+        } else if (container instanceof PatternProviderIdentitySource source) {
+            identity = ProviderIdentity.fromExternal(source.providerIdentity(), "External pattern provider");
+        } else {
+            identity = PROVIDER_IDENTITY_RESOLVER.resolve(container);
         }
+        if (identity instanceof ProviderIdentity.Virtual) {
+            throw new IllegalStateException("Pattern provider has no typed physical or registered identity: " +
+                    container);
+        }
+        return new ProviderResolution(identity, resolved.orElse(null));
     }
 
     /**
      * Resolves stable identity, name, and optional physical location for an actual upload leaf.
      */
-    public static PatternUploadTarget resolveProviderUploadTarget(PatternContainer container) {
-        if (container == null) {
-            throw new IllegalArgumentException("Pattern upload target must not be null");
-        }
-        Component displayName;
-        try {
-            displayName = resolveProviderDisplayName(container);
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.warn("Could not resolve the display name for pattern provider {}", container, exception);
-            displayName = Component.literal(container.getClass().getSimpleName());
-        }
-        ResourceLocation iconItemId;
-        try {
-            iconItemId = resolveProviderIconItemId(container);
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.warn("Could not resolve the icon for pattern provider {}", container, exception);
-            iconItemId = BuiltInRegistries.ITEM.getKey(Items.AIR);
-        }
-        ProviderIdentity identity = resolveProviderIdentity(container, displayName, iconItemId);
+    public static @NotNull PatternUploadTarget resolveProviderUploadTarget(@NotNull PatternContainer container) {
+        ProviderResolution provider = resolveProvider(container);
+        return createProviderUploadTarget(container, provider.identity(), null);
+    }
+
+    private static PatternUploadTarget createProviderUploadTarget(
+                                                                  @NotNull PatternContainer container,
+                                                                  @NotNull ProviderIdentity identity,
+                                                                  @Nullable ResourceLocation confirmedWorkstation) {
+        Component displayName = resolveProviderDisplayName(container);
         return switch (identity) {
             case ProviderIdentity.Block block -> new PatternUploadTarget(
-                    identity.digest(), displayName, block.dimensionId(), block.blockPos());
+                    identity.digest(), displayName, block.dimensionId(), block.blockPos(), confirmedWorkstation);
             case ProviderIdentity.Part part -> new PatternUploadTarget(
-                    identity.digest(), displayName, part.dimensionId(), part.blockPos());
-            case ProviderIdentity.Matrix matrix -> new PatternUploadTarget(
-                    identity.digest(), displayName, matrix.dimensionId(), matrix.blockPos());
+                    identity.digest(), displayName, part.dimensionId(), part.blockPos(), confirmedWorkstation);
             case ProviderIdentity.Trinity ignored -> new PatternUploadTarget(
-                    identity.digest(), displayName, null, null);
-            case ProviderIdentity.Virtual ignored -> new PatternUploadTarget(
-                    identity.digest(), displayName, null, null);
+                    identity.digest(), displayName, null, null, confirmedWorkstation);
+            case ProviderIdentity.External ignored -> new PatternUploadTarget(
+                    identity.digest(), displayName, null, null, confirmedWorkstation);
+            case ProviderIdentity.Virtual ignored -> throw new IllegalStateException(
+                    "Pattern upload target resolved to a display-derived virtual identity");
         };
     }
 
-    private static boolean isPlusAssemblerMatrixPatternContainer(PatternContainer container) {
-        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
-        if (terminalIconItemId != null && isAssemblerMatrixPlusIcon(terminalIconItemId)) {
-            return true;
-        }
-        return isAssemblerMatrixPlusIcon(resolveBaseProviderIconItemId(container));
-    }
-
-    private static boolean isProviderContainer(PatternContainer container) {
-        if (container instanceof PatternProviderLogicHost) {
-            return true;
-        }
-
-        String className = container.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-        if (className.contains("provider") || className.contains("pattern") || className.contains("crafting")) {
-            return true;
-        }
-
-        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
-        return isNeoEcoCraftingSubsystemIcon(terminalIconItemId) || !resolveTerminalGroupIcon(container).isEmpty() || !resolveMainMenuIconReflectively(container).isEmpty();
-    }
-
-    private static boolean shouldUseAeButtonStyle(PatternContainer container) {
-        return isProviderContainer(container);
-    }
+    private record ProviderResolution(@NotNull ProviderIdentity identity,
+                                      @Nullable ResolvedProviderBinding binding) {}
 
     public static boolean isRenameableProvider(PatternContainer container) {
-        if (container == null || isAssemblerMatrixPatternContainer(container) || !isProviderContainer(container)) {
-            return false;
-        }
-
-        Component displayName = resolveProviderDisplayName(container);
-        ResourceLocation iconItemId = resolveProviderIconItemId(container);
-        return isRenameableProvider(container, displayName, iconItemId);
-    }
-
-    private static boolean isRenameableProvider(PatternContainer container, Component displayName,
-                                                ResourceLocation iconItemId) {
-        if (isNeoEcoCraftingSubsystemIdentity(container, displayName, iconItemId)) {
-            return false;
-        }
-
-        return PatternProviderNameHelper.canRename(container) || PatternProviderNameHelper.getCustomName(container) != null;
-    }
-
-    private static boolean isAssemblerMatrixPatternContainer(PatternContainer container) {
-        if (container.getClass().getSimpleName().equals("TileAssemblerMatrixPattern")) {
-            return true;
-        }
-
-        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
-        if (terminalIconItemId != null && isAssemblerMatrixPlusIcon(terminalIconItemId)) {
-            return true;
-        }
-
-        ResourceLocation providerIconItemId = resolveBaseProviderIconItemId(container);
-        return isAssemblerMatrixPlusIcon(providerIconItemId);
-    }
-
-    private static boolean isAssemblerMatrixPlusIcon(@Nullable ResourceLocation iconItemId) {
-        return iconItemId != null && EXTENDEDAE_PLUS_NAMESPACE.equals(iconItemId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS.contains(iconItemId.getPath());
+        return container.isVisibleInTerminal() &&
+                (PatternProviderNameHelper.canRename(container) ||
+                        PatternProviderNameHelper.getCustomName(container) != null);
     }
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
-                                                                                boolean primaryWorkbenchOrdering,
                                                                                 Map<String, Long> leafClickCounts) {
         List<PatternProviderAggregationEntry> sortedProviders = new ArrayList<>(discoveredProviders);
-        sortedProviders.sort(createDiscoveredProviderComparator(primaryWorkbenchOrdering, leafClickCounts));
+        sortedProviders.sort(createDiscoveredProviderComparator(leafClickCounts));
 
-        Map<String, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
+        Map<PatternProviderAggregationKey, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
 
         for (var provider : sortedProviders) {
-            String key = getAggregationKey(provider);
+            PatternProviderAggregationKey key = provider.aggregationKey();
             var aggregated = aggregatedProvidersByKey.get(key);
             if (aggregated == null) {
                 aggregated = new AggregatedPatternProvider(provider);
@@ -698,72 +831,50 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<AggregatedPatternProvider> createAggregatedProviderComparator(
-                                                                                            boolean primaryWorkbenchOrdering,
                                                                                             Map<String, Long> leafClickCounts) {
-        Comparator<AggregatedPatternProvider> comparator;
-        comparator = Comparator.<AggregatedPatternProvider>comparingLong(provider -> provider.leafCountScore(leafClickCounts))
-                .reversed();
-        if (primaryWorkbenchOrdering) {
-            comparator = comparator.thenComparing(Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::recordedDeviceScore)
-                    .reversed()
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed())
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::workbenchLinePriority).reversed()));
-        } else {
-            comparator = comparator.thenComparing(Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::workbenchLinePriority)
-                    .reversed()
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::recordedDeviceScore).reversed())
-                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed()));
-        }
-
-        return comparator.thenComparingLong(AggregatedPatternProvider::sortOrder)
-                .thenComparing(provider -> provider.displayName().getString());
+        return Comparator.comparing(AggregatedPatternProvider::exactContextMatch)
+                .reversed()
+                .thenComparing(Comparator.<AggregatedPatternProvider>comparingLong(
+                        provider -> provider.leafCountScore(leafClickCounts))
+                        .reversed())
+                .thenComparingLong(AggregatedPatternProvider::sortOrder)
+                .thenComparing(provider -> provider.displayName().getString())
+                .thenComparing(provider -> provider.leafDigests().getFirst());
     }
 
     private static Comparator<PatternProviderAggregationEntry> createDiscoveredProviderComparator(
-                                                                                                  boolean primaryWorkbenchOrdering,
                                                                                                   Map<String, Long> leafClickCounts) {
-        Comparator<PatternProviderAggregationEntry> comparator;
-        comparator = Comparator.<PatternProviderAggregationEntry>comparingLong(provider -> leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
-                .reversed();
-        if (primaryWorkbenchOrdering) {
-            comparator = comparator.thenComparing(Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::recordedDeviceScore)
-                    .reversed()
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::preferredScore).reversed())
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::workbenchLinePriority).reversed()));
-        } else {
-            comparator = comparator.thenComparing(Comparator.<PatternProviderAggregationEntry>comparingInt(PatternProviderAggregationEntry::workbenchLinePriority)
-                    .reversed()
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::recordedDeviceScore).reversed())
-                    .thenComparing(Comparator.comparingInt(PatternProviderAggregationEntry::preferredScore).reversed()));
-        }
-
-        return comparator.thenComparingLong(PatternProviderAggregationEntry::sortOrder)
-                .thenComparing(provider -> provider.displayName().getString());
+        return Comparator.comparing(PatternProviderAggregationEntry::exactContextMatch)
+                .reversed()
+                .thenComparing(Comparator.<PatternProviderAggregationEntry>comparingLong(
+                        provider -> leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
+                        .reversed())
+                .thenComparingLong(PatternProviderAggregationEntry::sortOrder)
+                .thenComparing(provider -> provider.displayName().getString())
+                .thenComparing(PatternProviderAggregationEntry::providerDigest);
     }
 
-    private static String getAggregationKey(PatternProviderAggregationEntry provider) {
-        if (provider.specialAggregationKey() != null) {
-            return provider.specialAggregationKey();
-        }
-        return provider.iconItemId() + "|" + provider.displayName().getString();
+    private static boolean matchesRankingContext(PatternProviderMetadata metadata,
+                                                 @Nullable PatternEncodingRankingContext rankingContext) {
+        return matchesRecipeType(metadata, rankingContext);
     }
 
-    @Nullable
-    private static String resolveSpecialAggregationKey(PatternContainer container, Component displayName,
-                                                       ResourceLocation iconItemId) {
-        if (isAssemblerMatrixPatternContainer(container)) {
-            return "extendedae:assembler_matrix";
-        }
-        if (isNeoEcoCraftingSubsystemIdentity(container, displayName, iconItemId)) {
-            Integer tier = resolveNeoEcoCraftingSubsystemTier(container, displayName, iconItemId);
-            return tier == null ? "neoecoae:crafting_system" : "neoecoae:crafting_system:F" + tier;
-        }
-        return null;
+    static boolean matchesRecipeType(@NotNull PatternProviderMetadata metadata,
+                                     @Nullable PatternEncodingRankingContext rankingContext) {
+        return rankingContext != null && metadata.categoryIds().contains(rankingContext.recipeTypeId());
     }
 
-    private static boolean isAssemblerMatrixPatternProvider(PatternProviderAggregationEntry provider) {
-        return provider.container().getClass().getSimpleName().equals("TileAssemblerMatrixPattern") ||
-                isAssemblerMatrixPlusIcon(provider.iconItemId());
+    static boolean isAvailableRecipeTypeCandidate(@NotNull PatternProviderAggregationEntry provider) {
+        return provider.exactContextMatch() && provider.usedPatternSlotCount() < provider.patternSlotCount();
+    }
+
+    private static @NotNull List<@NotNull ResourceLocation> resolveMatchingWorkstationIds(
+                                                                                          @NotNull PatternProviderMetadata metadata,
+                                                                                          @Nullable PatternEncodingRankingContext rankingContext) {
+        if (!matchesRankingContext(metadata, rankingContext)) {
+            return List.of();
+        }
+        return metadata.workstationIds();
     }
 
     @Nullable
@@ -772,128 +883,23 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Component resolveProviderDisplayName(PatternContainer container) {
-        if (isAssemblerMatrixPatternContainer(container)) {
-            return Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY);
-        }
-
-        ItemStack ae2CsResolvedIcon = resolveAe2CsResolvedProviderIcon(container);
-        if (!ae2CsResolvedIcon.isEmpty()) {
-            return ae2CsResolvedIcon.getHoverName();
-        }
-
-        ItemStack appliedPneumaticsIcon = resolveAppliedPneumaticsMainMenuIcon(container);
-        if (!appliedPneumaticsIcon.isEmpty()) {
-            return appliedPneumaticsIcon.getHoverName();
-        }
-
-        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
-            var attachedGroup = adaptiveHost.getPrimaryAttachedMachineGroup();
-            if (attachedGroup != null && attachedGroup.name() != null) {
-                return attachedGroup.name();
-            }
-            var terminalGroup = container.getTerminalGroup();
-            if (terminalGroup != null && terminalGroup.name() != null) {
-                return terminalGroup.name();
-            }
-            return adaptiveHost.getTerminalDisplayName();
-        }
-
-        var terminalGroup = container.getTerminalGroup();
-        if (terminalGroup != null && terminalGroup.name() != null) {
-            return terminalGroup.name();
-        }
-
-        ItemStack icon = resolveProviderIcon(container);
-        if (!icon.isEmpty()) {
-            return icon.getHoverName();
-        }
-
-        return Component.literal(container.getClass().getSimpleName());
+        return container.getTerminalGroup().name();
     }
 
     private static ResourceLocation resolveProviderIconItemId(PatternContainer container) {
         ItemStack icon = resolveProviderIcon(container);
-        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
-        if (iconItemId != null) {
-            return iconItemId;
-        }
-        return BuiltInRegistries.ITEM.getKey(Items.AIR);
-    }
-
-    private static ResourceLocation resolveBaseProviderIconItemId(PatternContainer container) {
-        ItemStack icon = resolveBaseProviderIcon(container);
-        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
-        if (iconItemId != null) {
-            return iconItemId;
-        }
-        return BuiltInRegistries.ITEM.getKey(Items.AIR);
-    }
-
-    @Nullable
-    private static ResourceLocation resolveTerminalIconItemId(PatternContainer container) {
-        ItemStack icon = resolveTerminalGroupIcon(container);
         if (icon.isEmpty()) {
-            return null;
+            throw new IllegalStateException("Pattern provider does not expose a terminal icon: " + container);
         }
-
-        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
-        if (iconItemId == null || Items.AIR.equals(icon.getItem())) {
-            return null;
-        }
-
-        return iconItemId;
+        return BuiltInRegistries.ITEM.getKey(icon.getItem());
     }
 
     private static ItemStack resolveTerminalGroupIcon(PatternContainer container) {
         var terminalGroup = container.getTerminalGroup();
-        if (terminalGroup != null && terminalGroup.icon() != null) {
-            ItemStack groupIcon = terminalGroup.icon().toStack();
-            if (!groupIcon.isEmpty()) {
-                return groupIcon;
-            }
-        }
-
-        return ItemStack.EMPTY;
+        return terminalGroup.icon() == null ? ItemStack.EMPTY : terminalGroup.icon().toStack();
     }
 
     private static ItemStack resolveProviderIcon(PatternContainer container) {
-        if (isAssemblerMatrixPatternContainer(container)) {
-            var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
-            if (speedBlock == null) {
-                speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
-            }
-            if (speedBlock != null) {
-                ItemStack speedCore = speedBlock.asItem().getDefaultInstance();
-                if (!speedCore.isEmpty()) {
-                    return speedCore;
-                }
-            }
-        }
-
-        return resolveBaseProviderIcon(container);
-    }
-
-    private static ItemStack resolveBaseProviderIcon(PatternContainer container) {
-        ItemStack ae2CsResolvedIcon = resolveAe2CsResolvedProviderIcon(container);
-        if (!ae2CsResolvedIcon.isEmpty()) {
-            return ae2CsResolvedIcon;
-        }
-
-        ItemStack appliedPneumaticsIcon = resolveAppliedPneumaticsMainMenuIcon(container);
-        if (!appliedPneumaticsIcon.isEmpty()) {
-            return appliedPneumaticsIcon;
-        }
-
-        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
-            var attachedGroup = adaptiveHost.getPrimaryAttachedMachineGroup();
-            if (attachedGroup != null && attachedGroup.icon() != null) {
-                ItemStack attachedIcon = attachedGroup.icon().toStack();
-                if (!attachedIcon.isEmpty()) {
-                    return attachedIcon;
-                }
-            }
-        }
-
         ItemStack terminalIcon = resolveTerminalGroupIcon(container);
         if (!terminalIcon.isEmpty()) {
             return terminalIcon;
@@ -909,11 +915,6 @@ public final class PatternProviderSyncHelper {
             return part.getMainMenuIcon();
         }
 
-        ItemStack reflectedIcon = resolveMainMenuIconReflectively(container);
-        if (!reflectedIcon.isEmpty()) {
-            return reflectedIcon;
-        }
-
         if (container instanceof PatternProviderLogicHost providerHost) {
             var providerTerminalIcon = providerHost.getTerminalIcon();
             if (providerTerminalIcon != null) {
@@ -927,78 +928,6 @@ public final class PatternProviderSyncHelper {
         return ItemStack.EMPTY;
     }
 
-    private static ItemStack resolveMainMenuIconReflectively(Object source) {
-        Object result = invokeNoArgReflectively(source, "getMainMenuIcon");
-        if (result instanceof ItemStack stack && !stack.isEmpty()) {
-            return stack.copy();
-        }
-
-        return ItemStack.EMPTY;
-    }
-
-    private static ItemStack resolveAe2CsResolvedProviderIcon(PatternContainer container) {
-        if (!isAe2CsResonatingProviderContainer(container)) {
-            return ItemStack.EMPTY;
-        }
-
-        ResourceLocation providerId = getAe2CsResonatingProviderItemId(container);
-        return providerId == null ? ItemStack.EMPTY : createRegistryItemStack(providerId);
-    }
-
-    @Nullable
-    private static ResourceLocation getAe2CsResonatingProviderItemId(PatternContainer container) {
-        if (!isAe2CsResonatingProviderContainer(container)) {
-            return null;
-        }
-
-        int slotCount = getProviderPatternSlotCapacity(container);
-        return slotCount > 9 ? AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID : AE2CS_RESONATING_PATTERN_PROVIDER_ID;
-    }
-
-    private static boolean isAe2CsResonatingProviderContainer(PatternContainer container) {
-        String className = container.getClass().getName().toLowerCase(Locale.ROOT);
-        return className.contains("io.github.lounode.ae2cs") && className.contains("resonatingpatternprovider");
-    }
-
-    private static int getProviderPatternSlotCapacity(PatternContainer container) {
-        try {
-            var inventory = container.getTerminalPatternInventory();
-            return inventory == null ? 0 : inventory.size();
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.warn("Failed to read pattern slot capacity from {}", container, exception);
-            return 0;
-        }
-    }
-
-    private static ItemStack createRegistryItemStack(ResourceLocation itemId) {
-        var item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
-        if (item != null && item != Items.AIR) {
-            return item.getDefaultInstance();
-        }
-
-        var block = BuiltInRegistries.BLOCK.getOptional(itemId).orElse(null);
-        return block == null ? ItemStack.EMPTY : block.asItem().getDefaultInstance();
-    }
-
-    private static ItemStack resolveAppliedPneumaticsMainMenuIcon(PatternContainer container) {
-        ItemStack reflectedIcon = resolveMainMenuIconReflectively(container);
-        if (reflectedIcon.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-
-        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(reflectedIcon.getItem());
-        if (iconItemId == null || !APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace())) {
-            return ItemStack.EMPTY;
-        }
-
-        String path = iconItemId.getPath();
-        if (!APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(path) && !APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(path)) {
-            return ItemStack.EMPTY;
-        }
-
-        return reflectedIcon;
-    }
-
     private static int countUsedPatternSlots(InternalInventory inventory) {
         int usedSlots = 0;
         for (int slot = 0; slot < inventory.size(); slot++) {
@@ -1007,732 +936,6 @@ public final class PatternProviderSyncHelper {
             }
         }
         return usedSlots;
-    }
-
-    private static int getPreferredProviderScore(PatternContainer container, Component displayName, ResourceLocation iconItemId,
-                                                 int patternSlotCount, int usedPatternSlotCount,
-                                                 @Nullable ResourceLocation preferredWorkstationId,
-                                                 @Nullable EncodingMode encodingMode,
-                                                 ItemStack currentEncodedPattern,
-                                                 boolean primaryWorkbenchEncoding) {
-        if (patternSlotCount <= 0 || usedPatternSlotCount >= patternSlotCount) {
-            return 0;
-        }
-
-        String providerName = normalizeForMatch(displayName.getString());
-        String providerIconName = normalizeForMatch(iconItemId.toString());
-        String workstationName = "";
-        String workstationId = "";
-        int fuzzyNameScore = 0;
-        int fuzzyIconScore = 0;
-
-        if (preferredWorkstationId != null) {
-            Component workstationDisplayName = resolveWorkstationDisplayName(preferredWorkstationId);
-            workstationName = normalizeForMatch(workstationDisplayName.getString());
-            workstationId = normalizeForMatch(preferredWorkstationId.toString());
-            fuzzyNameScore = computeFuzzyNamePriority(providerName, workstationName);
-            fuzzyIconScore = computeFuzzyNamePriority(providerIconName, workstationId) / 3;
-        }
-
-        if (primaryWorkbenchEncoding || isPrimaryWorkbenchFamilyMode(encodingMode, preferredWorkstationId)) {
-            int workbenchFamilyPriority = getWorkbenchFamilyPriority(container, displayName, iconItemId);
-            if (workbenchFamilyPriority > 0) {
-                return workbenchFamilyPriority + Math.min(12, fuzzyNameScore + fuzzyIconScore);
-            }
-        }
-
-        if (preferredWorkstationId == null) {
-            return 0;
-        }
-
-        int exactProviderPriority = getExactProviderMatchPriority(container, displayName, iconItemId, preferredWorkstationId);
-        if (exactProviderPriority > 0) {
-            return exactProviderPriority + Math.min(10, fuzzyNameScore + fuzzyIconScore);
-        }
-
-        if (providerName.isEmpty() && providerIconName.isEmpty()) {
-            return 0;
-        }
-
-        int fallbackScore = 0;
-        fallbackScore = Math.max(fallbackScore, fuzzyNameScore);
-        fallbackScore = Math.max(fallbackScore, computeFuzzyNamePriority(providerIconName, workstationName) / 3);
-
-        if (fallbackScore <= 0) {
-            fallbackScore = Math.max(fallbackScore, computeRegistryIdFallbackPriority(providerName, workstationId));
-            fallbackScore = Math.max(fallbackScore, computeRegistryIdFallbackPriority(providerIconName, workstationId) / 2);
-        }
-
-        if (containsSimilarText(providerName, workstationName) || containsSimilarText(providerIconName, workstationName)) {
-            fallbackScore += 8;
-        }
-
-        if (sharesKeyword(providerName, workstationName) || sharesKeyword(providerIconName, workstationName)) {
-            fallbackScore += 5;
-        }
-
-        return fallbackScore;
-    }
-
-    private static int getRecordedDeviceScore(PatternContainer container, Component displayName,
-                                              ResourceLocation iconItemId,
-                                              @Nullable ResourceLocation preferredWorkstationId,
-                                              boolean primaryWorkbenchOrdering) {
-        if (preferredWorkstationId == null || primaryWorkbenchOrdering) {
-            return 0;
-        }
-
-        List<String> workstationTexts = List.of(
-                resolveWorkstationDisplayName(preferredWorkstationId).getString(),
-                preferredWorkstationId.toString(),
-                preferredWorkstationId.getPath());
-        int score = 0;
-        for (String providerText : collectProviderIdentityStrings(container, displayName, iconItemId)) {
-            String normalizedProviderText = normalizeForMatch(providerText);
-            if (normalizedProviderText.isEmpty()) {
-                continue;
-            }
-            for (String workstationText : workstationTexts) {
-                score = Math.max(score, computeRecordedDeviceTextScore(
-                        normalizedProviderText,
-                        normalizeForMatch(workstationText)));
-            }
-        }
-        return score;
-    }
-
-    private static int getWorkbenchLinePriority(PatternContainer container, Component displayName,
-                                                ResourceLocation iconItemId,
-                                                boolean primaryWorkbenchEncoding) {
-        if (!primaryWorkbenchEncoding || !isEligiblePrimaryWorkbenchProvider(container, displayName, iconItemId)) {
-            return 0;
-        }
-        return getWorkbenchFamilyPriority(container, displayName, iconItemId);
-    }
-
-    private static boolean isEligiblePrimaryWorkbenchProvider(PatternContainer container, Component displayName,
-                                                              ResourceLocation iconItemId) {
-        if (!(container instanceof AdaptivePatternProviderHost)) {
-            return true;
-        }
-
-        return matchesActualPrimaryWorkbench(displayName, iconItemId, CRAFTING_TABLE_ID) || matchesActualPrimaryWorkbench(displayName, iconItemId, STONECUTTER_ID) || matchesActualPrimaryWorkbench(displayName, iconItemId, SMITHING_TABLE_ID);
-    }
-
-    private static boolean matchesActualPrimaryWorkbench(Component displayName, ResourceLocation iconItemId,
-                                                         ResourceLocation workstationId) {
-        if (workstationId.equals(iconItemId)) {
-            return true;
-        }
-
-        String providerName = normalizeForMatch(displayName.getString());
-        String workstationName = normalizeForMatch(resolveWorkstationDisplayName(workstationId).getString());
-        String workstationKey = normalizeForMatch(workstationId.toString());
-
-        return containsSimilarText(providerName, workstationName) || containsSimilarText(providerName, workstationKey) || sharesKeyword(providerName, workstationName) || sharesKeyword(providerName, workstationKey);
-    }
-
-    private static boolean shouldUsePrimaryWorkbenchPriorityLine(@Nullable EncodingMode encodingMode,
-                                                                 ItemStack currentEncodedPattern) {
-        ResourceLocation patternItemId = resolveItemId(currentEncodedPattern);
-        if (AE2_CRAFTING_PATTERN_ITEM_ID.equals(patternItemId) || AE2_STONECUTTING_PATTERN_ITEM_ID.equals(patternItemId) || AE2_SMITHING_TABLE_PATTERN_ITEM_ID.equals(patternItemId)) {
-            return true;
-        }
-
-        return encodingMode == EncodingMode.CRAFTING || encodingMode == EncodingMode.STONECUTTING || encodingMode == EncodingMode.SMITHING_TABLE;
-    }
-
-    private static boolean isStrictWorkstationMatch(ResourceLocation workstationId) {
-        return FURNACE_ID.equals(workstationId) || BLAST_FURNACE_ID.equals(workstationId) || SMOKER_ID.equals(workstationId) || CAMPFIRE_ID.equals(workstationId) || AE2_INSCRIBER_ID.equals(workstationId) || AE2_CHARGER_ID.equals(workstationId);
-    }
-
-    private static int computeRecordedDeviceTextScore(String providerText, String workstationText) {
-        if (providerText.isEmpty() || workstationText.isEmpty()) {
-            return 0;
-        }
-
-        int sharedDistinctCharacters = countSharedDistinctCharacters(providerText, workstationText);
-        if (sharedDistinctCharacters <= 0) {
-            return 0;
-        }
-
-        int sharedKeywords = countSharedKeywords(providerText, workstationText);
-        int score = sharedDistinctCharacters * 10_000 + sharedKeywords * 100_000;
-
-        if (providerText.equals(workstationText)) {
-            score += 1_000_000;
-        } else if (providerText.contains(workstationText) || workstationText.contains(providerText)) {
-            score += 200_000;
-        }
-
-        for (String workstationToken : TOKEN_SPLITTER.split(workstationText)) {
-            if (workstationToken.length() < 2) {
-                continue;
-            }
-            if (providerText.contains(workstationToken)) {
-                score += workstationToken.length() * 50_000;
-            }
-        }
-
-        return score;
-    }
-
-    private static int computeRegistryIdFallbackPriority(String providerText, String workstationText) {
-        if (providerText.isEmpty() || workstationText.isEmpty()) {
-            return 0;
-        }
-
-        int sharedKeywords = countSharedKeywords(providerText, workstationText);
-        if (sharedKeywords > 0) {
-            return sharedKeywords * 10;
-        }
-
-        int sharedDistinctCharacters = countSharedDistinctCharacters(providerText, workstationText);
-        if (sharedDistinctCharacters >= 2) {
-            return sharedDistinctCharacters;
-        }
-
-        return 0;
-    }
-
-    private static int countSharedKeywords(String left, String right) {
-        if (left.isEmpty() || right.isEmpty()) {
-            return 0;
-        }
-
-        Set<String> leftKeywords = new HashSet<>();
-        for (String token : TOKEN_SPLITTER.split(left)) {
-            if (token.length() >= 2) {
-                leftKeywords.add(token);
-            }
-        }
-
-        int shared = 0;
-        for (String token : TOKEN_SPLITTER.split(right)) {
-            if (token.length() < 2 || !leftKeywords.contains(token)) {
-                continue;
-            }
-            shared++;
-        }
-        return shared;
-    }
-
-    private static int countSharedDistinctCharacters(String left, String right) {
-        if (left.isEmpty() || right.isEmpty()) {
-            return 0;
-        }
-
-        Set<Integer> leftCharacters = new HashSet<>();
-        left.codePoints().forEach(leftCharacters::add);
-
-        Set<Integer> sharedCharacters = new HashSet<>();
-        right.codePoints().forEach(codePoint -> {
-            if (leftCharacters.contains(codePoint)) {
-                sharedCharacters.add(codePoint);
-            }
-        });
-        return sharedCharacters.size();
-    }
-
-    private static int getExactProviderMatchPriority(PatternContainer container, Component displayName,
-                                                     ResourceLocation iconItemId, ResourceLocation preferredWorkstationId) {
-        if (isStrictWorkstationMatch(preferredWorkstationId)) {
-            return getStrictProviderMatchPriority(container, displayName, iconItemId, preferredWorkstationId);
-        }
-        if (isAppliedPneumaticsAmadronExtendedStation(preferredWorkstationId)) {
-            return isAppliedPneumaticsAmadronExtendedStation(container, displayName, iconItemId) ? 35 : 0;
-        }
-        if (isAppliedPneumaticsAmadronStation(preferredWorkstationId)) {
-            if (isAppliedPneumaticsAmadronExtendedStation(container, displayName, iconItemId)) {
-                return 35;
-            }
-            return isAppliedPneumaticsAmadronStation(container, displayName, iconItemId) ? 25 : 0;
-        }
-        return 0;
-    }
-
-    private static int getStrictProviderMatchPriority(PatternContainer container, Component displayName,
-                                                      ResourceLocation iconItemId, ResourceLocation preferredWorkstationId) {
-        String providerName = normalizeForMatch(displayName.getString());
-        String providerIconName = normalizeForMatch(resolveWorkstationDisplayName(iconItemId).getString());
-        String providerIconId = normalizeForMatch(iconItemId.toString());
-        String workstationName = normalizeForMatch(resolveWorkstationDisplayName(preferredWorkstationId).getString());
-        String workstationId = normalizeForMatch(preferredWorkstationId.toString());
-
-        boolean matched = providerName.contains(workstationName) || providerName.contains(workstationId) || providerIconName.contains(workstationName) || providerIconName.contains(workstationId) || providerIconId.contains(workstationId);
-
-        if (!matched) {
-            return 0;
-        }
-
-        return 90;
-    }
-
-    private static boolean isPrimaryWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId);
-    }
-
-    private static boolean isPrimaryWorkbenchFamilyMode(@Nullable EncodingMode encodingMode,
-                                                        ResourceLocation workstationId) {
-        if (encodingMode == EncodingMode.CRAFTING) {
-            return CRAFTING_TABLE_ID.equals(workstationId);
-        }
-        if (encodingMode == EncodingMode.STONECUTTING) {
-            return STONECUTTER_ID.equals(workstationId);
-        }
-        if (encodingMode == EncodingMode.SMITHING_TABLE) {
-            return SMITHING_TABLE_ID.equals(workstationId);
-        }
-        return isPrimaryWorkbenchFamily(workstationId);
-    }
-
-    private static int getWorkbenchFamilyPriority(PatternContainer container, Component displayName,
-                                                  ResourceLocation iconItemId) {
-        Integer neoEcoTier = resolveNeoEcoCraftingSubsystemTier(container, displayName, iconItemId);
-        if (neoEcoTier != null) {
-            return switch (neoEcoTier) {
-                case 9 -> 700_000;
-                case 6 -> 600_000;
-                case 4 -> 500_000;
-                default -> 0;
-            };
-        }
-
-        if (isAssemblerMatrixWorkbenchProvider(container, displayName, iconItemId)) {
-            return 400_000;
-        }
-        if (isMeteoriteWorkbenchProvider(container, displayName, iconItemId)) {
-            return 300_000;
-        }
-        if (isExtendedMolecularAssemblerWorkbenchProvider(container, displayName, iconItemId)) {
-            return 200_000;
-        }
-        if (isMolecularAssemblerWorkbenchProvider(container, displayName, iconItemId)) {
-            return 100_000;
-        }
-
-        return 0;
-    }
-
-    private static boolean isAssemblerMatrixWorkbenchProvider(PatternContainer container, Component displayName,
-                                                              ResourceLocation iconItemId) {
-        if (isAssemblerMatrixPatternContainer(container)) {
-            return true;
-        }
-
-        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID)) {
-            return true;
-        }
-
-        return matchesIdentityTokens(container, displayName, iconItemId,
-                "装配矩阵",
-                "assemblermatrix",
-                "assemblermatrixuploadcore",
-                "assemblermatrixspeed",
-                "assemblermatrixcrafter",
-                "assemblermatrixpattern");
-    }
-
-    private static boolean isMeteoriteWorkbenchProvider(PatternContainer container, Component displayName,
-                                                        ResourceLocation iconItemId) {
-        if (AE2CS_METEORITE_PATTERN_PROVIDER_ID.equals(iconItemId)) {
-            return true;
-        }
-
-        if (container instanceof AdaptivePatternProviderHost adaptiveHost && adaptiveHost.isMeteoriteProviderSelected()) {
-            return true;
-        }
-
-        return matchesIdentityTokens(container, displayName, iconItemId,
-                "自装配式样板供应器",
-                "meteoritepatternprovider");
-    }
-
-    private static boolean isExtendedMolecularAssemblerWorkbenchProvider(PatternContainer container, Component displayName,
-                                                                         ResourceLocation iconItemId) {
-        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID)) {
-            return true;
-        }
-
-        return matchesIdentityTokens(container, displayName, iconItemId,
-                "扩展分子装配室",
-                "extendedmolecularassembler",
-                "exmolecularassembler");
-    }
-
-    private static boolean isMolecularAssemblerWorkbenchProvider(PatternContainer container, Component displayName,
-                                                                 ResourceLocation iconItemId) {
-        if (isExtendedMolecularAssemblerWorkbenchProvider(container, displayName, iconItemId)) {
-            return false;
-        }
-
-        if (hasIdentityIconId(container, iconItemId, AE2_MOLECULAR_ASSEMBLER_ID)) {
-            return true;
-        }
-
-        return matchesIdentityTokens(container, displayName, iconItemId,
-                "分子装配室",
-                "molecularassembler");
-    }
-
-    private static boolean isAppliedPneumaticsAmadronStation(ResourceLocation workstationId) {
-        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace()) && APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(workstationId.getPath());
-    }
-
-    private static boolean isAppliedPneumaticsAmadronExtendedStation(ResourceLocation workstationId) {
-        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace()) && APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(workstationId.getPath());
-    }
-
-    private static boolean isAppliedPneumaticsAmadronStation(PatternContainer container, Component displayName,
-                                                             ResourceLocation iconItemId) {
-        return matchesAppliedPneumaticsMachine(container, displayName, iconItemId,
-                APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH, "meamadronprocessstation");
-    }
-
-    private static boolean isAppliedPneumaticsAmadronExtendedStation(PatternContainer container, Component displayName,
-                                                                     ResourceLocation iconItemId) {
-        return matchesAppliedPneumaticsMachine(container, displayName, iconItemId,
-                APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH, "meamadronextendedprocessstation");
-    }
-
-    private static boolean matchesAppliedPneumaticsMachine(PatternContainer container, Component displayName,
-                                                           ResourceLocation iconItemId, String expectedPath,
-                                                           String normalizedNameToken) {
-        if (APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace()) && expectedPath.equals(iconItemId.getPath())) {
-            return true;
-        }
-
-        String normalizedName = normalizeForMatch(displayName.getString());
-        if (normalizedName.contains(normalizedNameToken)) {
-            return true;
-        }
-
-        String className = normalizeForMatch(container.getClass().getName());
-        return className.contains(normalizedNameToken);
-    }
-
-    private static boolean isNeoEcoCraftingSubsystemIcon(@Nullable ResourceLocation iconItemId) {
-        if (iconItemId == null || !NEOECOAE_NAMESPACE.equals(iconItemId.getNamespace())) {
-            return false;
-        }
-
-        String path = iconItemId.getPath();
-        return path.equals(NEOECOAE_CRAFTING_SYSTEM_PATH) || path.startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX) || path.equals(NEOECOAE_CRAFTING_WORKER_PATH) || path.equals(NEOECOAE_CRAFTING_PATTERN_BUS_PATH) || path.equals(NEOECOAE_ECO_CRAFTING_WORKER_PATH);
-    }
-
-    private static boolean isNeoEcoCraftingSubsystemClassName(PatternContainer container) {
-        String className = container.getClass().getName().toLowerCase(Locale.ROOT);
-        return className.contains("neoeco") && (className.contains("crafting") || className.contains("patternbus") || className.contains("worker"));
-    }
-
-    private static boolean isNeoEcoCraftingSubsystemName(String displayName) {
-        String normalizedName = normalizeForMatch(displayName);
-        return normalizedName.contains("可拓展合成子系统") || normalizedName.contains("ecocraftingsystem") || normalizedName.contains("craftingsystem");
-    }
-
-    private static boolean isNeoEcoCraftingSubsystemIdentity(PatternContainer container, Component displayName,
-                                                             ResourceLocation iconItemId) {
-        return isNeoEcoCraftingSubsystemIcon(iconItemId) || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveAdaptiveInternalProviderIconItemId(container)) || isNeoEcoCraftingSubsystemClassName(container) || isNeoEcoCraftingSubsystemName(displayName.getString()) || matchesIdentityTokens(container, displayName, iconItemId,
-                "可拓展合成子系统",
-                "ecocraftingsystem",
-                "craftingsystem",
-                "craftingpatternbus",
-                "neoeco");
-    }
-
-    @Nullable
-    private static Integer resolveNeoEcoCraftingSubsystemTier(PatternContainer container, Component displayName,
-                                                              ResourceLocation iconItemId) {
-        if (!isNeoEcoCraftingSubsystemIdentity(container, displayName, iconItemId)) {
-            return null;
-        }
-
-        String tierKey = null;
-        for (String identityText : collectProviderIdentityStrings(container, displayName, iconItemId)) {
-            tierKey = extractNeoEcoTierToken(identityText);
-            if (tierKey != null) {
-                break;
-            }
-        }
-
-        if (tierKey == null || tierKey.length() < 2) {
-            return null;
-        }
-
-        try {
-            return Integer.parseInt(tierKey.substring(1));
-        } catch (NumberFormatException exception) {
-            LOGGER.debug("Failed to parse NeoEco provider tier from {}", tierKey, exception);
-            return null;
-        }
-    }
-
-    @Nullable
-    private static String extractNeoEcoTierToken(@Nullable String text) {
-        if (text == null || text.isEmpty()) {
-            return null;
-        }
-
-        Matcher matcher = NEOECOAE_TIER_TOKEN.matcher(text);
-        if (!matcher.find()) {
-            return null;
-        }
-
-        return matcher.group(1).toUpperCase(Locale.ROOT);
-    }
-
-    private static boolean hasIdentityIconId(PatternContainer container, ResourceLocation iconItemId,
-                                             ResourceLocation expectedId) {
-        if (expectedId.equals(iconItemId) || expectedId.equals(resolveBaseProviderIconItemId(container)) || expectedId.equals(resolveTerminalIconItemId(container)) || expectedId.equals(resolveAdaptiveInternalProviderIconItemId(container)) || expectedId.equals(resolveBlockEntityTypeId(container)) || expectedId.equals(resolveBlockId(container))) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static boolean matchesIdentityTokens(PatternContainer container, Component displayName,
-                                                 ResourceLocation iconItemId, String... tokens) {
-        Set<String> normalizedIdentities = new HashSet<>();
-        for (String identityText : collectProviderIdentityStrings(container, displayName, iconItemId)) {
-            String normalizedIdentity = normalizeForMatch(identityText);
-            if (!normalizedIdentity.isEmpty()) {
-                normalizedIdentities.add(normalizedIdentity);
-            }
-        }
-
-        for (String token : tokens) {
-            String normalizedToken = normalizeForMatch(token);
-            if (normalizedToken.isEmpty()) {
-                continue;
-            }
-
-            for (String identity : normalizedIdentities) {
-                if (identity.contains(normalizedToken)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static List<String> collectProviderIdentityStrings(PatternContainer container, Component displayName,
-                                                               ResourceLocation iconItemId) {
-        Set<String> identities = new LinkedHashSet<>();
-        identities.add(displayName.getString());
-        identities.add(container.getClass().getSimpleName());
-        identities.add(container.getClass().getName());
-        identities.add(iconItemId.toString());
-        identities.add(resolveWorkstationDisplayName(iconItemId).getString());
-
-        ResourceLocation baseIconId = resolveBaseProviderIconItemId(container);
-        identities.add(baseIconId.toString());
-        identities.add(resolveWorkstationDisplayName(baseIconId).getString());
-
-        ResourceLocation terminalIconId = resolveTerminalIconItemId(container);
-        if (terminalIconId != null) {
-            identities.add(terminalIconId.toString());
-            identities.add(resolveWorkstationDisplayName(terminalIconId).getString());
-        }
-
-        ResourceLocation adaptiveInternalIconId = resolveAdaptiveInternalProviderIconItemId(container);
-        if (adaptiveInternalIconId != null) {
-            identities.add(adaptiveInternalIconId.toString());
-            identities.add(resolveWorkstationDisplayName(adaptiveInternalIconId).getString());
-        }
-
-        Component adaptiveInternalName = resolveAdaptiveInternalProviderName(container);
-        if (adaptiveInternalName != null) {
-            identities.add(adaptiveInternalName.getString());
-        }
-
-        ResourceLocation blockEntityTypeId = resolveBlockEntityTypeId(container);
-        if (blockEntityTypeId != null) {
-            identities.add(blockEntityTypeId.toString());
-        }
-
-        ResourceLocation blockId = resolveBlockId(container);
-        if (blockId != null) {
-            identities.add(blockId.toString());
-            identities.add(resolveWorkstationDisplayName(blockId).getString());
-        }
-
-        identities.removeIf(text -> text == null || text.isEmpty());
-        return new ArrayList<>(identities);
-    }
-
-    @Nullable
-    private static Component resolveAdaptiveInternalProviderName(PatternContainer container) {
-        if (!(container instanceof AdaptivePatternProviderHost)) {
-            return null;
-        }
-
-        Object directName = invokeNoArgReflectively(container, "getResolvedInternalProviderName");
-        if (directName instanceof Component component) {
-            return component;
-        }
-
-        Object profile = invokeNoArgReflectively(container, "getProviderProfile");
-        if (profile != null) {
-            Object profileName = invokeNoArgReflectively(profile, "displayName");
-            if (profileName instanceof Component component) {
-                return component;
-            }
-        }
-
-        Object providerStack = invokeNoArgReflectively(container, "getProviderStack");
-        if (providerStack instanceof ItemStack stack && !stack.isEmpty()) {
-            return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(stack);
-        }
-
-        return null;
-    }
-
-    @Nullable
-    private static ResourceLocation resolveAdaptiveInternalProviderIconItemId(PatternContainer container) {
-        if (!(container instanceof AdaptivePatternProviderHost)) {
-            return null;
-        }
-
-        Object profile = invokeNoArgReflectively(container, "getProviderProfile");
-        if (profile != null) {
-            Object profileIcon = invokeNoArgReflectively(profile, "mainMenuIcon");
-            if (profileIcon instanceof ItemStack iconStack && !iconStack.isEmpty()) {
-                ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(iconStack.getItem());
-                if (iconItemId != null && iconStack.getItem() != Items.AIR) {
-                    return iconItemId;
-                }
-            }
-        }
-
-        Object providerStack = invokeNoArgReflectively(container, "getProviderStack");
-        if (providerStack instanceof ItemStack stack && !stack.isEmpty()) {
-            ItemStack resolvedIcon = AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(stack);
-            if (resolvedIcon != null && !resolvedIcon.isEmpty()) {
-                ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(resolvedIcon.getItem());
-                if (iconItemId != null && resolvedIcon.getItem() != Items.AIR) {
-                    return iconItemId;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    @Nullable
-    private static ResourceLocation resolveBlockEntityTypeId(PatternContainer container) {
-        if (!(container instanceof BlockEntity blockEntity)) {
-            return null;
-        }
-
-        return BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType());
-    }
-
-    @Nullable
-    private static ResourceLocation resolveBlockId(PatternContainer container) {
-        if (!(container instanceof BlockEntity blockEntity)) {
-            return null;
-        }
-
-        return BuiltInRegistries.BLOCK.getKey(blockEntity.getBlockState().getBlock());
-    }
-
-    @Nullable
-    private static Object invokeNoArgReflectively(Object source, String methodName) {
-        return ReflectionAccess.invokeNoArg(source, methodName);
-    }
-
-    private static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {
-        if (DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)) {
-            return Component.translatable("workstation.data_energistics.data_reassembler");
-        }
-
-        var item = BuiltInRegistries.ITEM.getOptional(workstationId).orElse(null);
-        if (item != null) {
-            return item.getDefaultInstance().getHoverName();
-        }
-
-        var block = BuiltInRegistries.BLOCK.getOptional(workstationId).orElse(null);
-        if (block != null) {
-            return block.getName();
-        }
-
-        return Component.literal(workstationId.toString());
-    }
-
-    private static ResourceLocation resolveItemId(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return BuiltInRegistries.ITEM.getKey(Items.AIR);
-        }
-
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return itemId != null ? itemId : BuiltInRegistries.ITEM.getKey(Items.AIR);
-    }
-
-    private static boolean containsSimilarText(String providerText, String workstationText) {
-        return !providerText.isEmpty() && !workstationText.isEmpty() && (providerText.contains(workstationText) || workstationText.contains(providerText));
-    }
-
-    private static boolean sharesKeyword(String providerText, String workstationText) {
-        if (providerText.isEmpty() || workstationText.isEmpty()) {
-            return false;
-        }
-
-        for (String workstationToken : TOKEN_SPLITTER.split(workstationText)) {
-            if (workstationToken.length() < 2) {
-                continue;
-            }
-            if (providerText.contains(workstationToken)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static int computeFuzzyNamePriority(String providerText, String workstationText) {
-        if (providerText.isEmpty() || workstationText.isEmpty()) {
-            return 0;
-        }
-
-        int sharedDistinctCharacters = countSharedDistinctCharacters(providerText, workstationText);
-        if (sharedDistinctCharacters <= 0) {
-            return 0;
-        }
-
-        int score = sharedDistinctCharacters * 100;
-        int sharedKeywords = countSharedKeywords(providerText, workstationText);
-        score += sharedKeywords * 1000;
-
-        if (providerText.equals(workstationText)) {
-            score += 10_000;
-        } else if (providerText.contains(workstationText) || workstationText.contains(providerText)) {
-            score += 2_000;
-        }
-
-        for (String workstationToken : TOKEN_SPLITTER.split(workstationText)) {
-            if (workstationToken.length() < 2) {
-                continue;
-            }
-            if (providerText.contains(workstationToken)) {
-                score += workstationToken.length() * 500;
-            }
-        }
-
-        return score;
-    }
-
-    private static String normalizeForMatch(String text) {
-        StringBuilder normalized = new StringBuilder(text.length());
-        text.codePoints()
-                .map(Character::toLowerCase)
-                .filter(PatternProviderSyncHelper::isMatchCharacter)
-                .forEach(normalized::appendCodePoint);
-        return normalized.toString();
-    }
-
-    private static boolean isMatchCharacter(int codePoint) {
-        return Character.isLetterOrDigit(codePoint) || Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN;
     }
 
     /**
@@ -1767,7 +970,8 @@ public final class PatternProviderSyncHelper {
         String description();
     }
 
-    private record PatternContainerRenameTarget(PatternContainer provider) implements PatternProviderRenameTarget {
+    private record PatternContainerRenameTarget(@NotNull PatternContainer provider)
+            implements PatternProviderRenameTarget {
 
         @Override
         public boolean canRename() {
@@ -1791,77 +995,98 @@ public final class PatternProviderSyncHelper {
 
         @Override
         public String description() {
-            return this.provider == null ? "null" : this.provider.getClass().getName();
+            return this.provider.getClass().getName();
         }
     }
 
     /**
-     * Captures one discovered provider before display-equivalent entries are merged.
+     * Captures one discovered provider before typed identity aggregation.
      */
     record PatternProviderAggregationEntry(
-                                           PatternContainer container,
+                                           @NotNull PatternContainer container,
                                            long id,
                                            long sortOrder,
-                                           Component displayName,
-                                           ResourceLocation iconItemId,
-                                           @Nullable String specialAggregationKey,
+                                           @NotNull Component displayName,
+                                           @NotNull ResourceLocation iconItemId,
+                                           @NotNull PatternProviderAggregationKey aggregationKey,
+                                           boolean exactContextMatch,
                                            boolean useAeButtonStyle,
                                            boolean renameable,
                                            int patternSlotCount,
                                            int usedPatternSlotCount,
-                                           int workbenchLinePriority,
-                                           int recordedDeviceScore,
-                                           int preferredScore,
-                                           String providerDigest) {
+                                           @NotNull String providerDigest,
+                                           @NotNull List<@NotNull ResourceLocation> matchingWorkstationIds) {
 
-        /**
-         * Compatibility constructor for callers that do not yet have an explicit leaf digest.
-         */
-        PatternProviderAggregationEntry(PatternContainer container,
+        PatternProviderAggregationEntry(
+                                        PatternContainer container,
                                         long id,
                                         long sortOrder,
                                         Component displayName,
                                         ResourceLocation iconItemId,
-                                        @Nullable String specialAggregationKey,
+                                        PatternProviderAggregationKey aggregationKey,
+                                        boolean exactContextMatch,
                                         boolean useAeButtonStyle,
                                         boolean renameable,
                                         int patternSlotCount,
                                         int usedPatternSlotCount,
-                                        int workbenchLinePriority,
-                                        int recordedDeviceScore,
-                                        int preferredScore) {
-            this(container, id, sortOrder, displayName, iconItemId, specialAggregationKey, useAeButtonStyle,
-                    renameable, patternSlotCount, usedPatternSlotCount, workbenchLinePriority, recordedDeviceScore,
-                    preferredScore, resolveProviderDigest(container, displayName, iconItemId));
+                                        String providerDigest) {
+            this(
+                    container,
+                    id,
+                    sortOrder,
+                    displayName,
+                    iconItemId,
+                    aggregationKey,
+                    exactContextMatch,
+                    useAeButtonStyle,
+                    renameable,
+                    patternSlotCount,
+                    usedPatternSlotCount,
+                    providerDigest,
+                    List.of());
         }
+
+        PatternProviderAggregationEntry {
+            matchingWorkstationIds = List.copyOf(matchingWorkstationIds);
+        }
+    }
+
+    sealed interface PatternProviderAggregationKey {
+
+        record Registered(ResourceLocation registrationId,
+                          ProviderIdentityDescriptor providerIdentity)
+                implements PatternProviderAggregationKey {}
+
+        record Core(ProviderIdentityDescriptor providerIdentity) implements PatternProviderAggregationKey {}
+
+        record Leaf(long providerId) implements PatternProviderAggregationKey {}
     }
 
     private static final class AggregatedPatternProvider {
 
         private long id;
         private long sortOrder;
-        private Component displayName;
-        private ResourceLocation iconItemId;
+        private final Component displayName;
+        private final ResourceLocation iconItemId;
+        private boolean exactContextMatch;
         private boolean useAeButtonStyle;
         private boolean renameable;
         private int patternSlotCount;
         private int usedPatternSlotCount;
-        private int workbenchLinePriority;
-        private int recordedDeviceScore;
-        private int preferredScore;
-        private int representationPriority;
         private final List<PatternContainer> containers = new ArrayList<>();
         private final Set<String> leafDigests = new LinkedHashSet<>();
+        private final Set<@NotNull ResourceLocation> matchingWorkstationIds = new LinkedHashSet<>();
 
         private AggregatedPatternProvider(PatternProviderAggregationEntry provider) {
             this.id = provider.id();
             this.sortOrder = provider.sortOrder();
             this.displayName = provider.displayName();
             this.iconItemId = provider.iconItemId();
+            this.exactContextMatch = provider.exactContextMatch();
             this.useAeButtonStyle = provider.useAeButtonStyle();
             this.renameable = provider.renameable();
-            this.representationPriority = getRepresentationPriority(provider);
             this.leafDigests.add(provider.providerDigest());
+            this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
         private void include(PatternProviderAggregationEntry provider) {
@@ -1881,19 +1106,12 @@ public final class PatternProviderSyncHelper {
             this.sortOrder = Math.min(this.sortOrder, provider.sortOrder());
             this.patternSlotCount = updatedPatternSlotCount;
             this.usedPatternSlotCount = updatedUsedPatternSlotCount;
-            this.workbenchLinePriority = Math.max(this.workbenchLinePriority, provider.workbenchLinePriority());
-            this.recordedDeviceScore = Math.max(this.recordedDeviceScore, provider.recordedDeviceScore());
-            this.preferredScore = Math.max(this.preferredScore, provider.preferredScore());
+            this.exactContextMatch |= provider.exactContextMatch();
             this.useAeButtonStyle |= provider.useAeButtonStyle();
             this.renameable &= provider.renameable();
-            int incomingPriority = getRepresentationPriority(provider);
-            if (incomingPriority > this.representationPriority) {
-                this.displayName = provider.displayName();
-                this.iconItemId = provider.iconItemId();
-                this.representationPriority = incomingPriority;
-            }
             this.containers.add(provider.container());
             this.leafDigests.add(provider.providerDigest());
+            this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
         private long id() {
@@ -1912,6 +1130,10 @@ public final class PatternProviderSyncHelper {
             return this.iconItemId;
         }
 
+        private boolean exactContextMatch() {
+            return this.exactContextMatch;
+        }
+
         private boolean useAeButtonStyle() {
             return this.useAeButtonStyle;
         }
@@ -1928,24 +1150,19 @@ public final class PatternProviderSyncHelper {
             return this.usedPatternSlotCount;
         }
 
-        private int preferredScore() {
-            return this.preferredScore;
-        }
-
-        private int recordedDeviceScore() {
-            return this.recordedDeviceScore;
-        }
-
-        private int workbenchLinePriority() {
-            return this.workbenchLinePriority;
-        }
-
         private List<PatternContainer> containers() {
             return this.containers;
         }
 
         private List<String> leafDigests() {
             return this.leafDigests.stream().sorted().toList();
+        }
+
+        @Nullable
+        private ResourceLocation preferredWorkstationId() {
+            return this.matchingWorkstationIds.stream()
+                    .min(Comparator.comparing(ResourceLocation::toString))
+                    .orElse(null);
         }
 
         private long leafCountScore(Map<String, Long> leafClickCounts) {
@@ -1958,23 +1175,6 @@ public final class PatternProviderSyncHelper {
                 score += count;
             }
             return score;
-        }
-
-        private int getRepresentationPriority(PatternProviderAggregationEntry provider) {
-            if (isAssemblerMatrixPatternProvider(provider)) {
-                return 3;
-            }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)) {
-                return 3;
-            }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().equals(NEOECOAE_CRAFTING_SYSTEM_PATH)) {
-                return 2;
-            }
-            if (provider.specialAggregationKey() != null &&
-                    provider.specialAggregationKey().startsWith("neoecoae:crafting_system")) {
-                return 1;
-            }
-            return 0;
         }
     }
 }

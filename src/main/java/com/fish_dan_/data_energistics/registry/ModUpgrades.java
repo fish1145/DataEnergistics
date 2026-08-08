@@ -34,7 +34,6 @@ public final class ModUpgrades {
     private ModUpgrades() {}
 
     public static void init() {
-        UniversalTerminalAdapters.discoverFromRegisteredItems();
         DataFlowBusStrategies.register();
         ((AdaptivePatternProviderBlock<?>) ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), ModBlocks.DATA_SOLAR_PANEL.get().asItem());

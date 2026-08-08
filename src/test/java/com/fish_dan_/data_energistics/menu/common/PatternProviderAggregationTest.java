@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.network.chat.Component;
@@ -25,10 +27,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PatternProviderAggregationTest {
 
     private static final ResourceLocation CRAFTING_TABLE = ResourceLocation.withDefaultNamespace("crafting_table");
-    private static final ResourceLocation FURNACE = ResourceLocation.withDefaultNamespace("furnace");
+    private static final ResourceLocation RECIPE_TYPE = ResourceLocation.fromNamespaceAndPath("test", "compressing");
+    private static final ResourceLocation OTHER_RECIPE_TYPE = ResourceLocation.fromNamespaceAndPath("test", "mixing");
+    private static final ResourceLocation WORKSTATION = ResourceLocation.fromNamespaceAndPath("test", "compressor");
+    private static final PatternProviderSyncHelper.PatternProviderAggregationKey PROVIDER_KEY = new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
+            new ProviderIdentityDescriptor.External(
+                    ResourceLocation.fromNamespaceAndPath("test", "ordinary_provider"), 1));
 
     @Test
-    void mergesOrdinaryProvidersWithSameIconAndDisplayName() {
+    void mergesProvidersWithSameSemanticIdentity() {
         PatternContainer first = new OrdinaryPatternProvider();
         PatternContainer second = new OrdinaryPatternProvider();
         Map<Long, List<PatternContainer>> targetsById = new HashMap<>();
@@ -44,66 +51,6 @@ class PatternProviderAggregationTest {
         assertEquals(3, merged.usedPatternSlotCount());
         assertTrue(merged.renameable());
         assertEquals(List.of(second, first), targetsById.get(merged.id()));
-    }
-
-    @Test
-    void keepsSameIconProvidersWithDifferentDisplayNamesSeparate() {
-        var result = aggregate(List.of(
-                entry(new OrdinaryPatternProvider(), 1, 10, "Assembler A", CRAFTING_TABLE, true, 2, 0),
-                entry(new OrdinaryPatternProvider(), 2, 20, "Assembler B", CRAFTING_TABLE, true, 2, 0)),
-                new HashMap<>());
-
-        assertEquals(2, result.providers().size());
-    }
-
-    @Test
-    void keepsSameNameProvidersWithDifferentIconsSeparate() {
-        var result = aggregate(List.of(
-                entry(new OrdinaryPatternProvider(), 1, 10, "Assembler", CRAFTING_TABLE, true, 2, 0),
-                entry(new OrdinaryPatternProvider(), 2, 20, "Assembler", FURNACE, true, 2, 0)),
-                new HashMap<>());
-
-        assertEquals(2, result.providers().size());
-    }
-
-    @Test
-    void customDisplayNameSeparatesOtherwiseMatchingProviders() {
-        var result = aggregate(List.of(
-                entry(new OrdinaryPatternProvider(), 1, 10, "Assembler", CRAFTING_TABLE, true, 2, 0),
-                entry(new OrdinaryPatternProvider(), 2, 20, "Dedicated Line", CRAFTING_TABLE, true, 2, 0)),
-                new HashMap<>());
-
-        assertEquals(2, result.providers().size());
-    }
-
-    @Test
-    void preservesNeoEcoTierSpecificAggregationKeys() {
-        var result = aggregate(List.of(
-                entry(new NeoEcoCraftingProviderF4(), 1, 10, "Crafting System", CRAFTING_TABLE, false, 1, 0),
-                entry(new NeoEcoCraftingProviderF4(), 2, 20, "Crafting System", CRAFTING_TABLE, false, 2, 1),
-                entry(new NeoEcoCraftingProviderF6(), 3, 30, "Crafting System", CRAFTING_TABLE, false, 3, 2)),
-                new HashMap<>());
-
-        assertEquals(2, result.providers().size());
-        assertTrue(result.providers().stream().anyMatch(provider -> provider.patternSlotCount() == 3 &&
-                provider.usedPatternSlotCount() == 1));
-        assertTrue(result.providers().stream().anyMatch(provider -> provider.patternSlotCount() == 3 &&
-                provider.usedPatternSlotCount() == 2));
-    }
-
-    @Test
-    void preservesAssemblerMatrixAggregationKey() {
-        Map<Long, List<PatternContainer>> targetsById = new HashMap<>();
-        var result = aggregate(List.of(
-                entry(new TileAssemblerMatrixPattern(), 1, 10, "First", CRAFTING_TABLE, false, 1, 0),
-                entry(new TileAssemblerMatrixPattern(), 2, 20, "Second", FURNACE, false, 2, 1)),
-                targetsById);
-
-        assertEquals(1, result.providers().size());
-        var merged = result.providers().getFirst();
-        assertEquals(3, merged.patternSlotCount());
-        assertEquals(1, merged.usedPatternSlotCount());
-        assertEquals(2, targetsById.get(merged.id()).size());
     }
 
     @Test
@@ -130,6 +77,58 @@ class PatternProviderAggregationTest {
                 entry(new OrdinaryPatternProvider(), 2, 20, "Assembler", CRAFTING_TABLE, true, 1, 0));
 
         assertThrows(ArithmeticException.class, () -> aggregate(entries, new HashMap<>()));
+    }
+
+    @Test
+    void matchesOnlyRecipeTypesAdvertisedByProviderMetadata() {
+        PatternProviderMetadata metadata = new PatternProviderMetadata(
+                ResourceLocation.fromNamespaceAndPath("test", "compressor_provider"),
+                new ProviderIdentityDescriptor.External(
+                        ResourceLocation.fromNamespaceAndPath("test", "compressor"), 1),
+                List.of(RECIPE_TYPE),
+                List.of(WORKSTATION));
+
+        assertTrue(PatternProviderSyncHelper.matchesRecipeType(
+                metadata, PatternEncodingRankingContext.of(RECIPE_TYPE)));
+        assertFalse(PatternProviderSyncHelper.matchesRecipeType(
+                metadata, PatternEncodingRankingContext.of(OTHER_RECIPE_TYPE)));
+        assertFalse(PatternProviderSyncHelper.matchesRecipeType(metadata, null));
+    }
+
+    @Test
+    void acceptsOnlyMatchingProvidersWithAFreePatternSlot() {
+        assertTrue(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
+                entry(new OrdinaryPatternProvider(), 1, 10, "Compressor", CRAFTING_TABLE, true,
+                        2, 1, providerKey("available"), true, "test:available")));
+        assertFalse(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
+                entry(new OrdinaryPatternProvider(), 2, 10, "Compressor", CRAFTING_TABLE, true,
+                        2, 2, providerKey("full"), true, "test:full")));
+        assertFalse(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
+                entry(new OrdinaryPatternProvider(), 3, 10, "Mixer", CRAFTING_TABLE, true,
+                        2, 0, providerKey("unrelated"), false, "test:unrelated")));
+    }
+
+    @Test
+    void ranksByLearningThenNormalOrderAndCanonicalDigest() {
+        var learned = entry(new OrdinaryPatternProvider(), 1, 100, "Zeta", CRAFTING_TABLE, true,
+                2, 0, providerKey("learned"), true, "test:zeta");
+        var normalFirst = entry(new OrdinaryPatternProvider(), 2, 10, "Alpha", CRAFTING_TABLE, true,
+                2, 0, providerKey("normal_first"), true, "test:zulu");
+        var canonicalFirst = entry(new OrdinaryPatternProvider(), 3, 10, "Alpha", CRAFTING_TABLE, true,
+                2, 0, providerKey("canonical_first"), true, "test:alpha");
+
+        var learnedResult = PatternProviderSyncHelper.aggregateSyncedPatternProviders(
+                List.of(normalFirst, learned, canonicalFirst),
+                new HashMap<>(),
+                Map.of("test:zeta", 3L));
+        assertEquals(List.of(1L, 3L, 2L), learnedResult.providers().stream()
+                .map(PatternEncodingPreviewMenu.SyncedPatternProvider::id)
+                .toList());
+
+        var fallbackResult = aggregate(List.of(normalFirst, learned, canonicalFirst), new HashMap<>());
+        assertEquals(List.of(3L, 2L, 1L), fallbackResult.providers().stream()
+                .map(PatternEncodingPreviewMenu.SyncedPatternProvider::id)
+                .toList());
     }
 
     @Test
@@ -193,32 +192,50 @@ class PatternProviderAggregationTest {
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregate(
                                                                                   List<PatternProviderSyncHelper.PatternProviderAggregationEntry> entries,
                                                                                   Map<Long, List<PatternContainer>> targetsById) {
-        return PatternProviderSyncHelper.aggregateSyncedPatternProviders(entries, targetsById, false);
+        return PatternProviderSyncHelper.aggregateSyncedPatternProviders(entries, targetsById);
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
                                                                                    PatternContainer container, long id, long sortOrder, String displayName,
                                                                                    ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots) {
-        String specialAggregationKey = switch (container) {
-            case TileAssemblerMatrixPattern ignored -> "extendedae:assembler_matrix";
-            case NeoEcoCraftingProviderF4 ignored -> "neoecoae:crafting_system:F4";
-            case NeoEcoCraftingProviderF6 ignored -> "neoecoae:crafting_system:F6";
-            default -> null;
-        };
         return new PatternProviderSyncHelper.PatternProviderAggregationEntry(
                 container,
                 id,
                 sortOrder,
                 Component.literal(displayName),
                 icon,
-                specialAggregationKey,
+                PROVIDER_KEY,
+                false,
                 true,
                 renameable,
                 totalSlots,
                 usedSlots,
-                0,
-                0,
-                0);
+                "test:" + id);
+    }
+
+    private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
+                                                                                   PatternContainer container, long id, long sortOrder, String displayName,
+                                                                                   ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots,
+                                                                                   PatternProviderSyncHelper.PatternProviderAggregationKey aggregationKey,
+                                                                                   boolean exactContextMatch, String providerDigest) {
+        return new PatternProviderSyncHelper.PatternProviderAggregationEntry(
+                container,
+                id,
+                sortOrder,
+                Component.literal(displayName),
+                icon,
+                aggregationKey,
+                exactContextMatch,
+                true,
+                renameable,
+                totalSlots,
+                usedSlots,
+                providerDigest);
+    }
+
+    private static PatternProviderSyncHelper.PatternProviderAggregationKey providerKey(String path) {
+        return new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
+                new ProviderIdentityDescriptor.External(ResourceLocation.fromNamespaceAndPath("test", path), 1));
     }
 
     private static class OrdinaryPatternProvider implements PatternContainer {
@@ -238,12 +255,6 @@ class PatternProviderAggregationTest {
             throw new UnsupportedOperationException();
         }
     }
-
-    private static final class TileAssemblerMatrixPattern extends OrdinaryPatternProvider {}
-
-    private static final class NeoEcoCraftingProviderF4 extends OrdinaryPatternProvider {}
-
-    private static final class NeoEcoCraftingProviderF6 extends OrdinaryPatternProvider {}
 
     private static final class TestRenameTarget implements PatternProviderSyncHelper.PatternProviderRenameTarget {
 

@@ -8,6 +8,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 /**
  * S2C acknowledgement containing the server's final menu preference values and migration mask.
  */
@@ -17,7 +20,7 @@ public record PatternEncodingPreferencesAckPayload(
                                                    int migratedMask,
                                                    boolean uploadEnabled,
                                                    boolean patternSourceEnabled,
-                                                   ResourceLocation lastWorkstation,
+                                                   @Nullable ResourceLocation lastWorkstation,
                                                    int previewPanelOffsetX,
                                                    int previewPanelOffsetY)
         implements CustomPacketPayload {
@@ -65,7 +68,7 @@ public record PatternEncodingPreferencesAckPayload(
     }
 
     @Override
-    public Type<PatternEncodingPreferencesAckPayload> type() {
+    public @NotNull Type<PatternEncodingPreferencesAckPayload> type() {
         return TYPE;
     }
 
@@ -76,7 +79,7 @@ public record PatternEncodingPreferencesAckPayload(
         context.enqueueWork(() -> PatternEncodingPreferencesAckHandler.handle(payload, context.player()));
     }
 
-    private static ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
         return buffer.readBoolean() ? buffer.readResourceLocation() : null;
     }
 }

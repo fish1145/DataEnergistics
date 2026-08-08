@@ -1,9 +1,14 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridServices;
+import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
@@ -51,8 +56,6 @@ public class CommonProxy {
         ModStructures.register(modEventBus);
         ModVerticalMultiBlocks.init();
         ModUpgrades.registerPartModels();
-        UniversalTerminalAdapters.init();
-
         modEventBus.addListener(instance::commonSetup);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerDepotContainerItemStrategies);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerGenericKeyWorldExportStrategies);
@@ -67,6 +70,11 @@ public class CommonProxy {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            DataEnergisticsRegistrySnapshot snapshot = DataEnergisticsEntrypointLoader.initialize();
+            UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
+            VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
+            PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
+            AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             ModUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();

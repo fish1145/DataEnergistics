@@ -1,11 +1,17 @@
 package com.fish_dan_.data_energistics.common.pattern;
 
+import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.ExternalPatternProviderIdentity;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,9 +25,25 @@ import java.util.UUID;
  * fields are included in {@link #digest()}, allowing later schemas to coexist without reusing an older digest.
  * </p>
  */
-public sealed interface ProviderIdentity
-                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity, ProviderIdentity.Matrix,
-                                         ProviderIdentity.Virtual {
+public sealed interface ProviderIdentity extends PatternProviderIdentity
+                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
+                                         ProviderIdentity.External, ProviderIdentity.Virtual {
+
+    /**
+     * Converts an untrusted public identity callback result at the common-layer boundary.
+     *
+     * @param identity callback result supplied by an external provider
+     * @param role     diagnostic role of the callback owner
+     * @return validated internal identity
+     */
+    static @NotNull External fromExternal(
+                                          @Nullable ExternalPatternProviderIdentity identity,
+                                          @NotNull String role) {
+        if (identity == null) {
+            throw new IllegalStateException(role + " returned a null external provider identity");
+        }
+        return new External(identity.type(), identity.schemaVersion(), identity.canonicalFields());
+    }
 
     /**
      * Current canonical field schema used by every identity declared in this type.
@@ -48,6 +70,21 @@ public sealed interface ProviderIdentity
     }
 
     /**
+     * Projects the internal location-rich identity onto the public declaration family.
+     */
+    @Override
+    default Optional<ProviderIdentityDescriptor> descriptor() {
+        return switch (this) {
+            case Block block -> Optional.of(new ProviderIdentityDescriptor.Block(block.blockEntityTypeId()));
+            case Part part -> Optional.of(new ProviderIdentityDescriptor.Part(part.partItemId()));
+            case Trinity ignored -> Optional.of(ProviderIdentityDescriptor.Trinity.INSTANCE);
+            case External external -> Optional.of(
+                    new ProviderIdentityDescriptor.External(external.type(), external.schemaVersion()));
+            case Virtual ignored -> Optional.empty();
+        };
+    }
+
+    /**
      * Provider categories with explicit, permanent codes for canonical binary encoding.
      */
     enum Kind {
@@ -65,9 +102,9 @@ public sealed interface ProviderIdentity
          */
         TRINITY(3),
         /**
-         * ExtendedAE assembler matrix target, distinguished between ordinary and Plus variants.
+         * Provider whose stable identity schema is defined by an external integration.
          */
-        MATRIX(5),
+        EXTERNAL(6),
         /**
          * Provider without a discoverable physical location or dedicated stable key.
          */
@@ -259,23 +296,36 @@ public sealed interface ProviderIdentity
     }
 
     /**
-     * Identity of an assembler matrix target that can receive an encoded pattern.
+     * Identity defined by an external integration using an explicitly versioned canonical field schema.
      *
-     * @param dimensionId dimension containing the matrix
-     * @param blockPos    immutable matrix position
-     * @param plus        whether the matrix is the ExtendedAE-Plus variant
+     * @param type            stable external provider family identifier
+     * @param schemaVersion   version of the external canonical field schema
+     * @param canonicalFields ordered, deterministic identity fields for one live provider
      */
-    record Matrix(ResourceLocation dimensionId, BlockPos blockPos, boolean plus) implements ProviderIdentity {
+    record External(ResourceLocation type,
+                    int schemaVersion,
+                    List<String> canonicalFields)
+            implements ProviderIdentity {
 
-        /** Validates and defensively freezes the matrix location. */
-        public Matrix {
-            dimensionId = Objects.requireNonNull(dimensionId, "dimensionId");
-            blockPos = Objects.requireNonNull(blockPos, "blockPos").immutable();
+        /**
+         * Validates and freezes the external identity fields.
+         */
+        public External {
+            type = Objects.requireNonNull(type, "type");
+            if (schemaVersion <= 0) {
+                throw new IllegalArgumentException("External provider identity schema version must be positive");
+            }
+            canonicalFields = List.copyOf(canonicalFields);
+        }
+
+        @Override
+        public int version() {
+            return this.schemaVersion;
         }
 
         @Override
         public Kind kind() {
-            return Kind.MATRIX;
+            return Kind.EXTERNAL;
         }
     }
 
@@ -294,7 +344,6 @@ public sealed interface ProviderIdentity
          */
         public Virtual {
             terminalGroupIconId = Objects.requireNonNull(terminalGroupIconId, "terminalGroupIconId");
-            terminalGroupIconId.ifPresent(iconId -> Objects.requireNonNull(iconId, "terminalGroupIconId value"));
             terminalGroupNameEncoding = Objects.requireNonNull(
                     terminalGroupNameEncoding,
                     "terminalGroupNameEncoding");

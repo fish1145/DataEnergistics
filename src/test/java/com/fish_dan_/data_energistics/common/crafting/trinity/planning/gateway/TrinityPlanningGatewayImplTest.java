@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.accessor.CraftingPlanTiming;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
@@ -13,11 +14,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 
 import net.minecraft.network.chat.Component;
 
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
-import appeng.crafting.CraftingPlan;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityPlanningGatewayImplTest {
 
+    private static final long AE2_CALCULATION_NANOS = 12_345_678L;
     private static final AEKey TARGET = DataKey.of();
     private static final AEKey INPUT = DataFlowKey.of();
 
@@ -122,6 +124,7 @@ public final class TrinityPlanningGatewayImplTest {
         TrinityDiagnosedCraftingPlan diagnosed = assertInstanceOf(TrinityDiagnosedCraftingPlan.class, selected);
         assertSame(simulation, diagnosed.delegate());
         assertSame(simulation.missingItems(), diagnosed.missingItems());
+        assertEquals(AE2_CALCULATION_NANOS, diagnosed.calculationNanos());
         assertEquals(TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE, diagnosed.diagnostic().code());
     }
 
@@ -314,7 +317,7 @@ public final class TrinityPlanningGatewayImplTest {
         if (simulation) {
             missing.add(INPUT, 3L);
         }
-        return new CraftingPlan(
+        return new TimedCraftingPlan(
                 new GenericStack(TARGET, 1L),
                 1L,
                 simulation,
@@ -322,7 +325,26 @@ public final class TrinityPlanningGatewayImplTest {
                 new KeyCounter(),
                 new KeyCounter(),
                 missing,
-                Map.of());
+                Map.of(),
+                AE2_CALCULATION_NANOS);
+    }
+
+    private record TimedCraftingPlan(
+                                     GenericStack finalOutput,
+                                     long bytes,
+                                     boolean simulation,
+                                     boolean multiplePaths,
+                                     KeyCounter usedItems,
+                                     KeyCounter emittedItems,
+                                     KeyCounter missingItems,
+                                     Map<IPatternDetails, Long> patternTimes,
+                                     long calculationNanos)
+            implements ICraftingPlan, CraftingPlanTiming {
+
+        @Override
+        public long dataEnergistics$calculationNanos() {
+            return this.calculationNanos;
+        }
     }
 
     private static final class RejectingExecutor extends AbstractExecutorService {

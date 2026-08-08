@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderBatchBridge;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
@@ -117,6 +118,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
+    private static final Object APPLIED_CREATE_RECIPE_INDEX_LOCK = new Object();
+    private static volatile AppliedCreateRecipeIndex appliedCreateRecipeIndex = AppliedCreateRecipeIndex.empty();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -922,7 +925,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             return super.pushPattern(patternDetails, inputHolder);
         }
 
-        List<AppliedCreateRecipeInfo> recipes = collectAppliedCreateRecipeInfos(level, primaryOutputKey.toStack());
+        List<AppliedCreateRecipeInfo> recipes = collectAppliedCreateRecipeInfos(level, primaryOutputKey);
         if (recipes.isEmpty()) {
             return super.pushPattern(patternDetails, inputHolder);
         }
@@ -1034,8 +1037,34 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return this.isBlocking() && target.containsPatternInput(getPatternInputs());
     }
 
-    private List<AppliedCreateRecipeInfo> collectAppliedCreateRecipeInfos(Level level, ItemStack expectedOutput) {
-        ArrayList<AppliedCreateRecipeInfo> recipes = new ArrayList<>();
+    private List<AppliedCreateRecipeInfo> collectAppliedCreateRecipeInfos(Level level, AEItemKey expectedOutput) {
+        return getAppliedCreateRecipeIndex(level).recipesFor(expectedOutput);
+    }
+
+    private static AppliedCreateRecipeIndex getAppliedCreateRecipeIndex(Level level) {
+        long reloadEpoch = RecipeReloadEpoch.current();
+        if (!(level instanceof ServerLevel)) {
+            return buildAppliedCreateRecipeIndex(level, reloadEpoch);
+        }
+
+        AppliedCreateRecipeIndex current = appliedCreateRecipeIndex;
+        if (current.reloadEpoch() == reloadEpoch) {
+            return current;
+        }
+
+        synchronized (APPLIED_CREATE_RECIPE_INDEX_LOCK) {
+            reloadEpoch = RecipeReloadEpoch.current();
+            current = appliedCreateRecipeIndex;
+            if (current.reloadEpoch() != reloadEpoch) {
+                current = buildAppliedCreateRecipeIndex(level, reloadEpoch);
+                appliedCreateRecipeIndex = current;
+            }
+            return current;
+        }
+    }
+
+    private static AppliedCreateRecipeIndex buildAppliedCreateRecipeIndex(Level level, long reloadEpoch) {
+        Map<AEItemKey, List<AppliedCreateRecipeInfo>> recipesByOutput = new HashMap<>();
         HolderLookup.Provider registries = level.registryAccess();
 
         var mechanicalRecipeType = BuiltInRegistries.RECIPE_TYPE.getOptional(
@@ -1053,14 +1082,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                     }
 
                     ItemStack result = (ItemStack) access.get().getResultItem().invoke(recipe, registries);
-                    if (!ItemStack.isSameItemSameComponents(result, expectedOutput)) {
+                    AEItemKey outputKey = AEItemKey.of(result);
+                    if (outputKey == null) {
                         continue;
                     }
                     int width = (Integer) access.get().getWidth().invoke(recipe);
                     int height = (Integer) access.get().getHeight().invoke(recipe);
                     @SuppressWarnings("unchecked")
                     List<Ingredient> ingredients = (List<Ingredient>) access.get().getIngredients().invoke(recipe);
-                    recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
+                    addAppliedCreateRecipe(
+                            recipesByOutput,
+                            outputKey,
+                            new AppliedCreateRecipeInfo(width, height, ingredients));
                 } catch (Throwable e) {
                     Data_Energistics.LOGGER.debug("Could not inspect Applied Create mechanical recipe {}", holder.id(), e);
                 }
@@ -1071,16 +1104,27 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             if (!(holder.value() instanceof ShapedRecipe shapedRecipe)) {
                 continue;
             }
-            if (!ItemStack.isSameItemSameComponents(shapedRecipe.getResultItem(registries), expectedOutput)) {
+            AEItemKey outputKey = AEItemKey.of(shapedRecipe.getResultItem(registries));
+            if (outputKey == null) {
                 continue;
             }
-            recipes.add(new AppliedCreateRecipeInfo(
-                    shapedRecipe.getWidth(),
-                    shapedRecipe.getHeight(),
-                    shapedRecipe.getIngredients()));
+            addAppliedCreateRecipe(
+                    recipesByOutput,
+                    outputKey,
+                    new AppliedCreateRecipeInfo(
+                            shapedRecipe.getWidth(),
+                            shapedRecipe.getHeight(),
+                            shapedRecipe.getIngredients()));
         }
 
-        return recipes;
+        return new AppliedCreateRecipeIndex(reloadEpoch, recipesByOutput);
+    }
+
+    private static void addAppliedCreateRecipe(
+                                               Map<AEItemKey, List<AppliedCreateRecipeInfo>> recipesByOutput,
+                                               AEItemKey output,
+                                               AppliedCreateRecipeInfo recipe) {
+        recipesByOutput.computeIfAbsent(output, ignored -> new ArrayList<>()).add(recipe);
     }
 
     private List<ItemStack> flattenAppliedCreateInputs(KeyCounter[] inputHolder) {
@@ -2251,7 +2295,30 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
     private record AppliedCreateCrafterCandidate(List<?> crafterChain, Map<GridCoord, Object> crafterGrid) {}
 
-    private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
+    private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {
+
+        private AppliedCreateRecipeInfo {
+            ingredients = List.copyOf(ingredients);
+        }
+    }
+
+    private record AppliedCreateRecipeIndex(long reloadEpoch,
+                                            Map<AEItemKey, List<AppliedCreateRecipeInfo>> recipesByOutput) {
+
+        private AppliedCreateRecipeIndex {
+            Map<AEItemKey, List<AppliedCreateRecipeInfo>> immutableRecipes = new HashMap<>();
+            recipesByOutput.forEach((output, recipes) -> immutableRecipes.put(output, List.copyOf(recipes)));
+            recipesByOutput = Map.copyOf(immutableRecipes);
+        }
+
+        private static AppliedCreateRecipeIndex empty() {
+            return new AppliedCreateRecipeIndex(Long.MIN_VALUE, Map.of());
+        }
+
+        private List<AppliedCreateRecipeInfo> recipesFor(AEItemKey output) {
+            return this.recipesByOutput.getOrDefault(output, List.of());
+        }
+    }
 
     private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {}
 

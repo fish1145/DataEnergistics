@@ -79,7 +79,7 @@ public record TowerEnergyEqualizationPlan(List<TowerEnergySourceAllocation> sour
     }
 
     /**
-     * Returns whether the snapshot was already at its reachable proportional equilibrium.
+     * Returns whether the snapshot requires no reachable transfer.
      *
      * @return {@code true} when no source or sink operation is present
      */

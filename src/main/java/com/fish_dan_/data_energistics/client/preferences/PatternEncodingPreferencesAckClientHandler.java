@@ -33,6 +33,7 @@ public final class PatternEncodingPreferencesAckClientHandler {
                     payload.sequence());
             return;
         }
+        session.initializeConfirmedWorkstation(payload.lastWorkstation());
         PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
         int presentMask = preferences.presentMask();
         int missingMigration = payload.migratedMask() & ~presentMask;

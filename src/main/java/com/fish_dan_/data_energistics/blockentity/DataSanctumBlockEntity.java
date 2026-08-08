@@ -872,13 +872,13 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-        if (entityId != null && isProtectedBlackHoleNamespace(entityId.getNamespace())) {
+        if (isProtectedBlackHoleNamespace(entityId.getNamespace())) {
             return false;
         }
 
         if (entity instanceof ItemEntity itemEntity) {
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
-            return itemId == null || !isProtectedBlackHoleNamespace(itemId.getNamespace());
+            return !isProtectedBlackHoleNamespace(itemId.getNamespace());
         }
 
         return true;
@@ -916,10 +916,6 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-        if (blockId == null) {
-            return BlockConsumption.CONSUME;
-        }
-
         return isProtectedBlackHoleNamespace(blockId.getNamespace()) ? BlockConsumption.BLOCKED : BlockConsumption.CONSUME;
     }
 

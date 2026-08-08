@@ -11,10 +11,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/** Read-only root boundary that prevents gameplay code from observing mutable Configuration schema objects. */
+/**
+ * Read-only root boundary that prevents gameplay code from observing mutable Configuration schema objects.
+ */
 public interface DataEnergisticsSettings {
 
     long revision();
+
+    /**
+     * Whether potentially high-frequency runtime calculation and dispatch diagnostics may be logged.
+     */
+    boolean verboseRuntimeLogging();
 
     DataRipper dataRipper();
 
@@ -34,7 +41,9 @@ public interface DataEnergisticsSettings {
 
     TrinityDispatch trinityDispatch();
 
-    /** Read-only Data Ripper power and target-selection configuration. */
+    /**
+     * Read-only Data Ripper power and target-selection configuration.
+     */
     interface DataRipper {
 
         int baseCost();
@@ -44,13 +53,17 @@ public interface DataEnergisticsSettings {
         List<MultiplierEntry> multipliers();
     }
 
-    /** Read-only Data Distribution Tower chunk coverage configuration. */
+    /**
+     * Read-only Data Distribution Tower chunk coverage configuration.
+     */
     interface DataDistributionTower {
 
         int range();
     }
 
-    /** Read-only Data Sanctum interface capacity configuration. */
+    /**
+     * Read-only Data Sanctum interface capacity configuration.
+     */
     interface DataSanctumInterface {
 
         int itemLimit();
@@ -62,7 +75,9 @@ public interface DataEnergisticsSettings {
         int returnFluidBuckets();
     }
 
-    /** Read-only Data Extractor work, carrier and input-rule configuration. */
+    /**
+     * Read-only Data Extractor work, carrier and input-rule configuration.
+     */
     interface DataExtractor {
 
         int baseDamage();
@@ -94,7 +109,9 @@ public interface DataEnergisticsSettings {
         Set<ResourceLocation> cropDataWhitelist();
     }
 
-    /** Read-only settings captured once for one configurable TNT explosion. */
+    /**
+     * Read-only settings captured once for one configurable TNT explosion.
+     */
     interface FlatteningTnt {
 
         int clearChunkRadius();
@@ -116,7 +133,9 @@ public interface DataEnergisticsSettings {
         boolean replaceUnbreakableBlocks();
     }
 
-    /** Read-only settings refreshed by an active Data Nuke each server tick. */
+    /**
+     * Read-only settings refreshed by an active Data Nuke each server tick.
+     */
     interface DataNuke {
 
         int workIntervalTicks();
@@ -126,7 +145,9 @@ public interface DataEnergisticsSettings {
         double centerEntityConsumeRadius();
     }
 
-    /** Read-only Solar generation and capacity-upgrade configuration. */
+    /**
+     * Read-only Solar generation and capacity-upgrade configuration.
+     */
     interface SolarPanel {
 
         double dayGenerationAEPerTick();
@@ -138,7 +159,9 @@ public interface DataEnergisticsSettings {
         double energyCardCapacityBonusAE();
     }
 
-    /** Read-only Trinity planning bounds, including restart-only worker-pool settings. */
+    /**
+     * Read-only Trinity planning bounds, including restart-only worker-pool settings.
+     */
     interface TrinityCrafting {
 
         int maxSccKeys();
@@ -158,7 +181,9 @@ public interface DataEnergisticsSettings {
         CraftingQuantityMode defaultQuantityMode();
     }
 
-    /** Read-only Trinity dispatch-governor configuration. */
+    /**
+     * Read-only Trinity dispatch-governor configuration.
+     */
     interface TrinityDispatch {
 
         int hardGridAttempts();

@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.network.chat.Component;
 
@@ -86,19 +87,21 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
-        TrinityPlanningStatistics statistics = plan.statistics();
-        Data_Energistics.LOGGER.info(
-                "Trinity planning selected request={} target={} mode={} revision={} cachePath={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
-                request.requestId(),
-                request.target(),
-                request.quantityMode(),
-                request.graph().revision(),
-                computation.cachePath(),
-                statistics.sccCount(),
-                statistics.variantCount(),
-                statistics.planningNanos(),
-                statistics.mipNanos(),
-                statistics.scheduleStates());
+        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            TrinityPlanningStatistics statistics = plan.statistics();
+            Data_Energistics.LOGGER.info(
+                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
+                    request.requestId(),
+                    request.target(),
+                    request.quantityMode(),
+                    request.graph().revision(),
+                    computation.cachePath(),
+                    statistics.sccCount(),
+                    statistics.variantCount(),
+                    statistics.planningNanos(),
+                    statistics.mipNanos(),
+                    statistics.scheduleStates());
+        }
         return TrinityPlanningAttempt.success(plan);
     }
 
@@ -124,6 +127,9 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
                                     TrinityInitialPlanningRequest request,
                                     TrinityPlanningDiagnostic diagnostic,
                                     PlanningCachePath cachePath) {
+        if (!DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            return;
+        }
         Data_Energistics.LOGGER.info(
                 "Trinity planning fallback request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
                 request.requestId(),

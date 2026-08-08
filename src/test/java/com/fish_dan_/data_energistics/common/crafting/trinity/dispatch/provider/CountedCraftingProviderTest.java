@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingCapacity;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderRegistration;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.TrinityCountedCraftingDispatch;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingRoutingMode;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityView;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
@@ -19,6 +20,7 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,10 +28,10 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -38,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class CountedCraftingProviderTest {
 
     @Test
-    void directBridgePreservesFallbackTargetRejectionAndRegistrationBoundary() {
+    void directBridgePreservesFallbackTargetRejection() {
         FixedAdmission admission = new FixedAdmission();
         LegacyProvider acceptedProvider = new LegacyProvider(admission);
 
@@ -52,10 +54,6 @@ public final class CountedCraftingProviderTest {
         assertSame(admission, accepted.admission());
         assertEquals(CraftingDispatchTarget.provider(), accepted.target());
         assertEquals(1, acceptedProvider.prepareCalls);
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> registerAndClose(acceptedProvider, (details, prototype, count) -> admission));
-
         LegacyProvider unavailableProvider = new LegacyProvider(null);
 
         CountedCraftingPreparation unavailable = unavailableProvider.prepareBatch(
@@ -80,72 +78,6 @@ public final class CountedCraftingProviderTest {
         assertFalse(excluded.accepted());
         assertEquals(0, excludedProvider.prepareCalls);
         assertEquals(CraftingDispatchTarget.provider(), excluded.rejections().getFirst().target());
-    }
-
-    @Test
-    void registeredAdapterUsesProviderIdentityAndUnregisterRestoresGenericSingle() {
-        PlainProvider provider = new PlainProvider();
-        PlainProvider equalButDistinctProvider = new PlainProvider();
-        FixedAdmission admission = new FixedAdmission(3L, true);
-        long initialRevision = CountedCraftingProviderAdapters.mutationRevision();
-        long[] requested = new long[1];
-        CountedCraftingProviderAdapter adapter = (details, prototype, requestedCount) -> {
-            requested[0] = requestedCount;
-            return admission;
-        };
-        CountedCraftingProviderRegistration registration = TrinityCountedCraftingDispatch.registerAdapter(provider, adapter);
-        try (registration) {
-            assertEquals(initialRevision + 1L, CountedCraftingProviderAdapters.mutationRevision());
-            assertThrows(
-                    IllegalStateException.class,
-                    () -> registerAndClose(provider, adapter));
-            assertEquals(initialRevision + 1L, CountedCraftingProviderAdapters.mutationRevision());
-
-            CountedCraftingPreparation preparation = CountedCraftingProviderAdapters.prepare(
-                    provider,
-                    new TestPattern(),
-                    new KeyCounter[0],
-                    5L,
-                    ignored -> true);
-
-            assertSame(admission, preparation.admission());
-            assertEquals(5L, requested[0]);
-            assertEquals(3L, CountedCraftingProviderAdapters.validatedAdmissionCount(
-                    provider,
-                    admission,
-                    5L));
-            assertTrue(admission.hasTransferredInputOwnership());
-            assertTrue(admission.commit(new KeyCounter[0]));
-            assertEquals(1, admission.commitCalls);
-            assertEquals(0, provider.pushCalls);
-
-            CountedCraftingPreparation distinctPreparation = CountedCraftingProviderAdapters.prepare(
-                    equalButDistinctProvider,
-                    new TestPattern(),
-                    new KeyCounter[0],
-                    5L,
-                    ignored -> true);
-            CountedCraftingAdmission distinctAdmission = distinctPreparation.admission();
-            assertNotNull(distinctAdmission);
-            assertEquals(1L, distinctAdmission.count());
-            assertTrue(distinctAdmission.commit(new KeyCounter[0]));
-            assertEquals(1, equalButDistinctProvider.pushCalls);
-        }
-
-        assertEquals(initialRevision + 2L, CountedCraftingProviderAdapters.mutationRevision());
-        CountedCraftingPreparation genericPreparation = CountedCraftingProviderAdapters.prepare(
-                provider,
-                new TestPattern(),
-                new KeyCounter[0],
-                5L,
-                ignored -> true);
-        CountedCraftingAdmission genericAdmission = genericPreparation.admission();
-        assertNotNull(genericAdmission);
-        assertEquals(1L, genericAdmission.count());
-        assertTrue(genericAdmission.commit(new KeyCounter[0]));
-        assertEquals(1, provider.pushCalls);
-        assertThrows(IllegalStateException.class, registration::close);
-        assertEquals(initialRevision + 2L, CountedCraftingProviderAdapters.mutationRevision());
     }
 
     @ParameterizedTest
@@ -178,11 +110,116 @@ public final class CountedCraftingProviderTest {
                 2L));
     }
 
-    private static void registerAndClose(
-                                         ICraftingProvider provider,
-                                         CountedCraftingProviderAdapter adapter) {
-        try (CountedCraftingProviderRegistration ignored = TrinityCountedCraftingDispatch.registerAdapter(provider, adapter)) {
-            assertNotNull(ignored);
+    @Test
+    void registeredAdapterPublishesCapacityAndPreparesItsExactMachineTarget() {
+        TestPattern pattern = new TestPattern();
+        RegisteredProvider provider = new RegisteredProvider(pattern);
+        RegisteredTargetAdapter adapter = new RegisteredTargetAdapter();
+        CountedCraftingProviderAdapters.register(provider, adapter);
+        try {
+            CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+            publications.publish(provider, List.of(pattern));
+            ProviderCapacityResolver resolver = ProviderCapacityResolver.create();
+            ProviderCapacitySnapshot snapshot = resolver.capture(
+                    publications,
+                    pattern,
+                    new KeyCounter[0],
+                    8L,
+                    "registered-target",
+                    1L).snapshots().getFirst();
+
+            assertEquals(ProviderRoutingMode.TARGETED, snapshot.routingMode());
+            assertEquals("registered-route", snapshot.route().stableIdentity());
+            assertEquals(
+                    "shared-machine",
+                    snapshot.machineTargetId().orElseThrow().stableIdentity());
+            assertEquals(new DispatchCapacity.Known(6L), snapshot.capacity());
+            assertEquals(new DispatchCapacity.Known(4L), snapshot.maximumSingleBatch());
+            assertSame(provider, resolver.resolveCurrent(
+                    publications,
+                    pattern,
+                    new KeyCounter[0],
+                    3L,
+                    "registered-target",
+                    snapshot,
+                    2L));
+
+            CountedCraftingPreparation preparation = CountedCraftingProviderAdapters.prepare(
+                    provider,
+                    pattern,
+                    new KeyCounter[0],
+                    3L,
+                    snapshot,
+                    ignored -> true);
+
+            assertTrue(preparation.accepted());
+            assertSame(adapter.admission, preparation.admission());
+            assertEquals(snapshot.route(), preparation.target());
+            assertEquals(
+                    CountedCraftingTarget.machine("registered-route", "shared-machine"),
+                    adapter.preparedTarget);
+        } finally {
+            CountedCraftingProviderAdapters.unregister(provider, adapter);
+        }
+    }
+
+    @Test
+    void publicCapacityRejectsNegativeKnownBounds() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new CountedCraftingCapacity(
+                        CountedCraftingTarget.provider(),
+                        CountedCraftingRoutingMode.AGGREGATE,
+                        OptionalLong.of(-1L),
+                        OptionalLong.empty()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new CountedCraftingCapacity(
+                        CountedCraftingTarget.provider(),
+                        CountedCraftingRoutingMode.AGGREGATE,
+                        OptionalLong.empty(),
+                        OptionalLong.of(-1L)));
+    }
+
+    @Test
+    void registeredCapacityFailureIsolatedToItsProvider() {
+        TestPattern pattern = new TestPattern();
+        RegisteredProvider provider = new RegisteredProvider(pattern);
+        CountedCraftingProviderAdapter adapter = new CountedCraftingProviderAdapter() {
+
+            @Override
+            public @Nullable CountedCraftingAdmission prepareBatch(
+                                                                   @NotNull IPatternDetails patternDetails,
+                                                                   KeyCounter @NotNull [] prototype,
+                                                                   long requestedCount) {
+                return null;
+            }
+
+            @Override
+            public @NotNull List<@NotNull CountedCraftingCapacity> captureCapacity(
+                                                                                   @NotNull IPatternDetails patternDetails,
+                                                                                   KeyCounter @NotNull [] prototype,
+                                                                                   long requestedCount) {
+                throw new IllegalStateException("broken registered capacity adapter");
+            }
+        };
+        CountedCraftingProviderAdapters.register(provider, adapter);
+        try {
+            CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+            publications.publish(provider, List.of(pattern));
+
+            assertTrue(ProviderCapacityResolver.create()
+                    .capture(
+                            publications,
+                            pattern,
+                            new KeyCounter[0],
+                            1L,
+                            "broken-registered-adapter",
+                            1L)
+                    .snapshots()
+                    .isEmpty());
+        } finally {
+            CountedCraftingProviderAdapters.unregister(provider, adapter);
         }
     }
 
@@ -213,42 +250,11 @@ public final class CountedCraftingProviderTest {
 
         @Override
         public @Nullable CountedCraftingAdmission prepareBatch(
-                                                               IPatternDetails patternDetails,
-                                                               KeyCounter[] prototype,
+                                                               @NotNull IPatternDetails patternDetails,
+                                                               KeyCounter @NotNull [] prototype,
                                                                long requestedCount) {
             this.prepareCalls++;
             return this.admission;
-        }
-    }
-
-    private static final class PlainProvider implements ICraftingProvider {
-
-        private int pushCalls;
-
-        @Override
-        public List<IPatternDetails> getAvailablePatterns() {
-            return List.of();
-        }
-
-        @Override
-        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-            this.pushCalls++;
-            return true;
-        }
-
-        @Override
-        public boolean isBusy() {
-            return false;
-        }
-
-        @Override
-        public boolean equals(Object object) {
-            return object instanceof PlainProvider;
-        }
-
-        @Override
-        public int hashCode() {
-            return 1;
         }
     }
 
@@ -305,6 +311,67 @@ public final class CountedCraftingProviderTest {
                     capacity,
                     new DispatchCapacity.Known(this.routingMode == ProviderRoutingMode.AGGREGATE ?
                             requestedCrafts : 1L)));
+        }
+    }
+
+    private static final class RegisteredProvider implements ICraftingProvider {
+
+        private final IPatternDetails pattern;
+
+        private RegisteredProvider(IPatternDetails pattern) {
+            this.pattern = pattern;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new UnsupportedOperationException("Registered adapter test never performs physical dispatch");
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+    }
+
+    private static final class RegisteredTargetAdapter implements CountedCraftingProviderAdapter {
+
+        private final FixedAdmission admission = new FixedAdmission(3L, false);
+        @Nullable
+        private CountedCraftingTarget preparedTarget;
+
+        @Override
+        public @Nullable CountedCraftingAdmission prepareBatch(
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCount) {
+            throw new AssertionError("Targeted adapter must be prepared through its captured route");
+        }
+
+        @Override
+        public @NotNull List<@NotNull CountedCraftingCapacity> captureCapacity(
+                                                                               @NotNull IPatternDetails patternDetails,
+                                                                               KeyCounter @NotNull [] prototype,
+                                                                               long requestedCount) {
+            return List.of(new CountedCraftingCapacity(
+                    CountedCraftingTarget.machine("registered-route", "shared-machine"),
+                    CountedCraftingRoutingMode.TARGETED,
+                    OptionalLong.of(6L),
+                    OptionalLong.of(4L)));
+        }
+
+        @Override
+        public @NotNull CountedCraftingAdmission prepareBatchForTarget(
+                                                                       @NotNull IPatternDetails patternDetails,
+                                                                       KeyCounter @NotNull [] prototype,
+                                                                       long requestedCount,
+                                                                       @NotNull CountedCraftingTarget target) {
+            this.preparedTarget = target;
+            return this.admission;
         }
     }
 

@@ -284,10 +284,6 @@ public final class UniversalTerminalClientHelper {
 
     private static @Nullable String resolveTerminalNameByMenuType(AEBaseMenu menu, List<String> installedTerminals) {
         var menuType = menu.getType();
-        if (menuType == null) {
-            return null;
-        }
-
         for (String terminalName : installedTerminals) {
             if (UniversalTerminalData.getMenuType(terminalName) == menuType) {
                 return terminalName;

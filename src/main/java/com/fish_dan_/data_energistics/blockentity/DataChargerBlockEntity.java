@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
+import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataChargerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -14,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
@@ -30,6 +32,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.util.AECableType;
@@ -41,9 +44,10 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
-import java.util.Optional;
+import java.util.LinkedHashMap;
 import java.util.Set;
 
 public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implements InternalInventoryHost {
@@ -59,12 +63,15 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final double AE_CHARGER_RECIPE_POWER = 1600.0D;
     private static final long REGULAR_DATA_FLOW_REFILL_PER_TICK = 160L;
     private static final long EXTENDED_DATA_FLOW_REFILL_PER_TICK = REGULAR_DATA_FLOW_REFILL_PER_TICK * 4L;
+    private static final int RECIPE_LOOKUP_CACHE_LIMIT = 32;
     private static final String STORAGE_TAG = "storage";
     private static final String DATA_FLOW_TAG = "data_flow";
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, EXTENDED_SLOT_COUNT, 1);
     private final IItemHandler regularExternalItemHandler = this.storage.getSlotInv(0).toItemHandler();
     private final IItemHandler extendedExternalItemHandler = this.storage.toItemHandler();
+    private final LinkedHashMap<RecipeLookupKey, RecipeLookup> recipeLookupCache = new LinkedHashMap<>(RECIPE_LOOKUP_CACHE_LIMIT, 0.75F, true);
+    private long recipeLookupCacheEpoch = Long.MIN_VALUE;
     private long storedDataFlow;
     private boolean working;
 
@@ -319,7 +326,11 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     public boolean canAcceptStack(ItemStack stack) {
-        return canChargeStack(stack) || findDataChargerRecipe(stack).isPresent() || findAeChargerRecipe(stack).isPresent();
+        if (canChargeStack(stack)) {
+            return true;
+        }
+        RecipeLookup lookup = findRecipeLookup(stack);
+        return lookup != null && lookup.hasRecipe();
     }
 
     public static boolean supportsAePower(ItemStack stack) {
@@ -393,13 +404,18 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     private boolean processRecipe(int slot, ItemStack stack) {
-        Optional<RecipeHolder<DataChargerRecipe>> dataChargerRecipe = findDataChargerRecipe(stack);
-        if (dataChargerRecipe.isPresent() && processDataChargerRecipe(slot, stack, dataChargerRecipe.get().value())) {
+        RecipeLookup lookup = findRecipeLookup(stack);
+        if (lookup == null) {
+            return false;
+        }
+
+        RecipeHolder<DataChargerRecipe> dataChargerRecipe = resolveDataChargerRecipe(this.level, lookup.dataChargerRecipeId());
+        if (dataChargerRecipe != null && processDataChargerRecipe(slot, stack, dataChargerRecipe.value())) {
             return true;
         }
 
-        Optional<RecipeHolder<ChargerRecipe>> aeChargerRecipe = findAeChargerRecipe(stack);
-        return aeChargerRecipe.isPresent() && processAeChargerRecipe(slot, stack, aeChargerRecipe.get().value());
+        RecipeHolder<ChargerRecipe> aeChargerRecipe = resolveAeChargerRecipe(this.level, lookup.aeChargerRecipeId());
+        return aeChargerRecipe != null && processAeChargerRecipe(slot, stack, aeChargerRecipe.value());
     }
 
     private boolean processDataChargerRecipe(int slot, ItemStack stack, DataChargerRecipe recipe) {
@@ -433,27 +449,76 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         return true;
     }
 
-    private Optional<RecipeHolder<DataChargerRecipe>> findDataChargerRecipe(ItemStack stack) {
-        if (this.level == null || stack.isEmpty()) {
-            return Optional.empty();
+    private @Nullable RecipeLookup findRecipeLookup(ItemStack stack) {
+        Level currentLevel = this.level;
+        if (currentLevel == null || stack.isEmpty()) {
+            return null;
         }
 
-        DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
-        return this.level.getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()).stream()
-                .filter(holder -> holder.value().matches(input, this.level))
-                .findFirst();
+        long reloadEpoch = RecipeReloadEpoch.current();
+        if (this.recipeLookupCacheEpoch != reloadEpoch) {
+            this.recipeLookupCache.clear();
+            this.recipeLookupCacheEpoch = reloadEpoch;
+        }
+
+        RecipeLookupKey key = new RecipeLookupKey(reloadEpoch, AEItemKey.of(stack));
+        RecipeLookup cached = this.recipeLookupCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        RecipeLookup computed = computeRecipeLookup(currentLevel, stack);
+        this.recipeLookupCache.put(key, computed);
+        if (this.recipeLookupCache.size() > RECIPE_LOOKUP_CACHE_LIMIT) {
+            var eldest = this.recipeLookupCache.keySet().iterator();
+            eldest.next();
+            eldest.remove();
+        }
+        return computed;
     }
 
-    private Optional<RecipeHolder<ChargerRecipe>> findAeChargerRecipe(ItemStack stack) {
-        if (this.level == null || stack.isEmpty()) {
-            return Optional.empty();
+    private static RecipeLookup computeRecipeLookup(Level level, ItemStack stack) {
+        ResourceLocation dataChargerRecipeId = null;
+        DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
+        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get())) {
+            if (holder.value().matches(input, level)) {
+                dataChargerRecipeId = holder.id();
+                break;
+            }
         }
 
-        return this.level.getRecipeManager()
-                .getAllRecipesFor(AERecipeTypes.CHARGER).stream()
-                .filter(holder -> holder.value().getIngredient().test(stack))
-                .findFirst();
+        ResourceLocation aeChargerRecipeId = null;
+        for (RecipeHolder<ChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(AERecipeTypes.CHARGER)) {
+            if (holder.value().getIngredient().test(stack)) {
+                aeChargerRecipeId = holder.id();
+                break;
+            }
+        }
+        return new RecipeLookup(dataChargerRecipeId, aeChargerRecipeId);
+    }
+
+    private static @Nullable RecipeHolder<DataChargerRecipe> resolveDataChargerRecipe(
+                                                                                      Level level, @Nullable ResourceLocation recipeId) {
+        if (recipeId == null) {
+            return null;
+        }
+        RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
+        if (holder == null || !(holder.value() instanceof DataChargerRecipe recipe)) {
+            return null;
+        }
+        return new RecipeHolder<>(holder.id(), recipe);
+    }
+
+    private static @Nullable RecipeHolder<ChargerRecipe> resolveAeChargerRecipe(
+                                                                                Level level, @Nullable ResourceLocation recipeId) {
+        if (recipeId == null) {
+            return null;
+        }
+        RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
+        if (holder == null || !(holder.value() instanceof ChargerRecipe recipe)) {
+            return null;
+        }
+        return new RecipeHolder<>(holder.id(), recipe);
     }
 
     private static boolean canReplaceWithResult(ItemStack input, ItemStack result) {
@@ -521,6 +586,16 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         return isExtended() ? EXTENDED_DATA_FLOW_REFILL_PER_TICK : REGULAR_DATA_FLOW_REFILL_PER_TICK;
     }
 
+    private record RecipeLookupKey(long reloadEpoch, AEItemKey item) {}
+
+    private record RecipeLookup(@Nullable ResourceLocation dataChargerRecipeId,
+                                @Nullable ResourceLocation aeChargerRecipeId) {
+
+        private boolean hasRecipe() {
+            return this.dataChargerRecipeId != null || this.aeChargerRecipeId != null;
+        }
+    }
+
     private final class ChargerItemFilter implements IAEItemFilter {
 
         @Override
@@ -531,7 +606,11 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         @Override
         public boolean allowExtract(InternalInventory inv, int slot, int amount) {
             ItemStack stack = inv.getStackInSlot(slot);
-            if (stack.isEmpty() || findDataChargerRecipe(stack).isPresent() || findAeChargerRecipe(stack).isPresent()) {
+            if (stack.isEmpty()) {
+                return false;
+            }
+            RecipeLookup lookup = findRecipeLookup(stack);
+            if (lookup != null && lookup.hasRecipe()) {
                 return false;
             }
             return !canChargeAePower(stack) && !canChargeDataFlow(stack);

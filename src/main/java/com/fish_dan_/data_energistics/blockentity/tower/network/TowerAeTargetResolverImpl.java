@@ -35,10 +35,15 @@ import java.util.Set;
 public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
 
     @Override
-    public TowerTargetResolution resolve(Level level,
-                                         BlockPos anchor,
-                                         IGrid primaryGrid,
-                                         TowerTargetDiscoveryMode mode) {
+    public ResolutionRound beginResolutionRound() {
+        return new ResolutionRoundImpl();
+    }
+
+    private static TowerTargetResolution resolve(Level level,
+                                                 BlockPos anchor,
+                                                 IGrid primaryGrid,
+                                                 TowerTargetDiscoveryMode mode,
+                                                 Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
         if (!level.isLoaded(anchor)) {
             return new TowerTargetResolution(List.of(), List.of());
         }
@@ -55,7 +60,7 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
             if (!seenGrids.add(targetGrid)) {
                 continue;
             }
-            List<TowerResolvedDevice> devices = resolveDevices(targetGrid, occurrences);
+            List<TowerResolvedDevice> devices = resolveDevices(targetGrid, occurrences, rawDevicesByGrid);
             resolvedGrids.add(new TowerResolvedGrid(
                     targetGrid,
                     devices,
@@ -65,19 +70,12 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
     }
 
     private static List<TowerResolvedDevice> resolveDevices(
-                                                            IGrid grid, Map<RawDeviceIdentity, Integer> occurrences) {
-        TowerNetworkDomain domain = grid.getService(TowerNetworkDomain.class);
-        ArrayList<RawDevice> rawDevices = new ArrayList<>();
-        for (IGridNode node : domain.localNodes()) {
-            rawDevices.add(rawDevice(node, domain.registrationOrder(node)));
-        }
-        rawDevices.sort(Comparator
-                .comparing(RawDevice::dimensionId, Comparator.comparing(ResourceLocation::toString))
-                .thenComparing(RawDevice::position, Comparator.nullsLast(TowerAeTargetResolverImpl::comparePosition))
-                .thenComparingInt(RawDevice::side)
-                .thenComparing(RawDevice::nodeType)
-                .thenComparingLong(RawDevice::registrationOrder));
-
+                                                            IGrid grid,
+                                                            Map<RawDeviceIdentity, Integer> occurrences,
+                                                            Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
+        List<RawDevice> rawDevices = rawDevicesByGrid.computeIfAbsent(
+                grid,
+                TowerAeTargetResolverImpl::snapshotRawDevices);
         ArrayList<TowerResolvedDevice> devices = new ArrayList<>(rawDevices.size());
         for (RawDevice rawDevice : rawDevices) {
             RawDeviceIdentity identity = new RawDeviceIdentity(
@@ -96,6 +94,21 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
                     rawDevice.node().hasFlag(GridFlags.REQUIRE_CHANNEL)));
         }
         return List.copyOf(devices);
+    }
+
+    private static List<RawDevice> snapshotRawDevices(IGrid grid) {
+        TowerNetworkDomain domain = grid.getService(TowerNetworkDomain.class);
+        ArrayList<RawDevice> rawDevices = new ArrayList<>();
+        for (IGridNode node : domain.localNodes()) {
+            rawDevices.add(rawDevice(node, domain.registrationOrder(node)));
+        }
+        rawDevices.sort(Comparator
+                .comparing(RawDevice::dimensionId, Comparator.comparing(ResourceLocation::toString))
+                .thenComparing(RawDevice::position, Comparator.nullsLast(TowerAeTargetResolverImpl::comparePosition))
+                .thenComparingInt(RawDevice::side)
+                .thenComparing(RawDevice::nodeType)
+                .thenComparingLong(RawDevice::registrationOrder));
+        return List.copyOf(rawDevices);
     }
 
     private static TowerTargetGridFailure validateGrid(IGrid targetGrid,
@@ -168,6 +181,19 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
             return comparison;
         }
         return Integer.compare(left.getZ(), right.getZ());
+    }
+
+    private static final class ResolutionRoundImpl implements ResolutionRound {
+
+        private final Map<IGrid, List<RawDevice>> rawDevicesByGrid = new IdentityHashMap<>();
+
+        @Override
+        public TowerTargetResolution resolve(Level level,
+                                             BlockPos anchor,
+                                             IGrid primaryGrid,
+                                             TowerTargetDiscoveryMode mode) {
+            return TowerAeTargetResolverImpl.resolve(level, anchor, primaryGrid, mode, this.rawDevicesByGrid);
+        }
     }
 
     private record RawDevice(IGridNode node,

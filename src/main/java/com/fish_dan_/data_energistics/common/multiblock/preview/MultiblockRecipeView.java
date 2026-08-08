@@ -70,13 +70,6 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
     }
 
     /**
-     * Compatibility alias for callers written before the registered and projected identities were separated.
-     */
-    public ResourceLocation recipeId() {
-        return this.registeredRecipeId;
-    }
-
-    /**
      * Returns the controller-qualified active structure identity.
      */
     public JsonMultiBlockStructureKey structureKey() {

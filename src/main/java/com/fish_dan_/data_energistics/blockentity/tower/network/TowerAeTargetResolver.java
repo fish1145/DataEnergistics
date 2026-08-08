@@ -11,16 +11,29 @@ import appeng.api.networking.IGrid;
 public interface TowerAeTargetResolver {
 
     /**
-     * Resolves and locally validates one loaded anchor without creating connections or loading chunks.
+     * Starts one reconciliation-scoped round so repeated anchors can share immutable target-grid device snapshots.
      *
-     * @param level       anchor level
-     * @param anchor      connector/range anchor
-     * @param primaryGrid requesting tower grid
-     * @param mode        point or scope validation
-     * @return immutable partial-success result; empty when the anchor chunk is unloaded
+     * @return isolated resolution round
      */
-    TowerTargetResolution resolve(Level level,
-                                  BlockPos anchor,
-                                  IGrid primaryGrid,
-                                  TowerTargetDiscoveryMode mode);
+    ResolutionRound beginResolutionRound();
+
+    /**
+     * Resolves anchors against one consistent set of target-grid raw-device snapshots.
+     */
+    interface ResolutionRound {
+
+        /**
+         * Resolves and locally validates one loaded anchor without creating connections or loading chunks.
+         *
+         * @param level       anchor level
+         * @param anchor      connector/range anchor
+         * @param primaryGrid requesting tower grid
+         * @param mode        point or scope validation
+         * @return immutable partial-success result; empty when the anchor chunk is unloaded
+         */
+        TowerTargetResolution resolve(Level level,
+                                      BlockPos anchor,
+                                      IGrid primaryGrid,
+                                      TowerTargetDiscoveryMode mode);
+    }
 }

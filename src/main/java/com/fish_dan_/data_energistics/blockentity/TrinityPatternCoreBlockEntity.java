@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
@@ -14,7 +15,6 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.Patt
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDelivery;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
@@ -60,7 +60,9 @@ import java.util.UUID;
  */
 public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity implements TrinityPatternCore {
 
-    /** Tracks whether level-dependent pattern state has been committed or must remain quarantined. */
+    /**
+     * Tracks whether level-dependent pattern state has been committed or must remain quarantined.
+     */
     private enum CoreLoadState {
         NEW,
         READY,
@@ -74,16 +76,22 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Nullable
     private CompoundTag stagedCoreState;
     private boolean stagedInitialHydration;
-    /** Current transient host together with the exact catalog range that authorized this binding. */
+    /**
+     * Current transient host together with the exact catalog range that authorized this binding.
+     */
     @Nullable
     private BoundPatternHost patternHostBinding;
     private boolean patternHostChangeFailed;
-    /** Prevents stale-host cleanup while a host has locked publication but still owes release confirmation. */
+    /**
+     * Prevents stale-host cleanup while a host has locked publication but still owes release confirmation.
+     */
     private boolean patternHostReleasePending;
     @Nullable
     private List<ItemStack> miningDropSnapshot;
 
-    /** Couples one host reference to its immutable catalog authority token. */
+    /**
+     * Couples one host reference to its immutable catalog authority token.
+     */
     private record BoundPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {}
 
     /**
@@ -97,7 +105,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         this.core = new TrinityPatternCoreImpl(
                 patternCapacityFromState(state),
                 this::decodeSupportedPattern,
-                TrinityPatternRecipeIdResolvers.global(),
+                DataEnergisticsEntrypointLoader.snapshot().trinityPatternRecipes(),
                 this::onCoreChanged);
     }
 

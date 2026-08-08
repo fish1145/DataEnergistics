@@ -2,22 +2,17 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
-import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.recipe.DataReassemblerRecipeIngredientAdapter;
 
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.fluids.FluidStack;
 
-import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
-import appeng.items.misc.WrappedGenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
-import mezz.jei.api.neoforge.NeoForgeTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,24 +56,13 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
     }
 
     private static ITypedIngredient<?> toTypedGenericStack(GenericStack stack) {
-        if (stack.what() instanceof AEFluidKey fluidKey) {
-            int renderAmount = (int) Math.min(Integer.MAX_VALUE, stack.amount());
-            FluidStack fluidStack = fluidKey.toStack(renderAmount);
-            return LDLibJEIPlugin.createTypedIngredient(NeoForgeTypes.FLUID_STACK, fluidStack)
-                    .orElseThrow(() -> rejectedIngredient("fluid", fluidStack));
-        }
+        return toTypedGenericStack(JeiGenericStackIngredientResolver.resolve(stack));
+    }
 
-        DataResourceJeiIngredient dataResourceIngredient = DataResourceJeiIngredient.from(stack);
-        if (dataResourceIngredient != null) {
-            return LDLibJEIPlugin.createTypedIngredient(
-                    DataResourceJeiIngredient.TYPE,
-                    dataResourceIngredient)
-                    .orElseThrow(() -> rejectedIngredient("data resource", dataResourceIngredient));
-        }
-
-        ItemStack wrapped = WrappedGenericStack.wrap(stack);
-        return LDLibJEIPlugin.createTypedIngredient(VanillaTypes.ITEM_STACK, wrapped)
-                .orElseThrow(() -> rejectedIngredient("wrapped key", stack.what()));
+    private static <I> ITypedIngredient<?> toTypedGenericStack(
+                                                               JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient) {
+        return LDLibJEIPlugin.createTypedIngredient(ingredient.type(), ingredient.ingredient())
+                .orElseThrow(() -> rejectedIngredient("generic stack", ingredient.ingredient()));
     }
 
     private static IllegalStateException rejectedIngredient(String type, Object ingredient) {

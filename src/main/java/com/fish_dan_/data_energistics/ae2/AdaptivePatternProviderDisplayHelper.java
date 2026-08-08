@@ -117,10 +117,6 @@ public final class AdaptivePatternProviderDisplayHelper {
             return null;
         }
 
-        PatternContainerGroup group = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
-        if (group == null) {
-            group = PatternContainerGroup.fromMachine(level, adjacentPos, attachmentSide);
-        }
-        return group;
+        return PatternContainerGroup.fromMachine(level, adjacentPos, attachmentSide);
     }
 }

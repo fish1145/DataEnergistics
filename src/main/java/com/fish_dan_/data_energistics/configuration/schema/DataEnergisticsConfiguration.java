@@ -29,9 +29,11 @@ public final class DataEnergisticsConfiguration {
     @ApiStatus.Internal
     public static ConfigHolder<DataEnergisticsConfiguration> INTERNAL_INSTANCE;
 
-    private static boolean initialized;
+    private static volatile boolean initialized;
 
-    /** Installs the framework Holder and first complete settings instance exactly once. */
+    /**
+     * Installs the framework Holder and first complete settings instance exactly once.
+     */
     public static synchronized void initialize(
                                                ConfigHolder<DataEnergisticsConfiguration> internal,
                                                DataEnergisticsSettings initial) {
@@ -43,7 +45,9 @@ public final class DataEnergisticsConfiguration {
         initialized = true;
     }
 
-    /** Atomically exposes a newer complete settings instance to all gameplay consumers. */
+    /**
+     * Atomically exposes a newer complete settings instance to all gameplay consumers.
+     */
     public static synchronized void publish(DataEnergisticsSettings candidate) {
         if (!initialized) {
             throw new IllegalStateException("Data Energistics configuration is not initialized");
@@ -55,6 +59,20 @@ public final class DataEnergisticsConfiguration {
         }
         INSTANCE = candidate;
     }
+
+    /**
+     * Reports whether optional high-frequency runtime diagnostics should be emitted.
+     */
+    public static boolean isVerboseRuntimeLoggingEnabled() {
+        return initialized && INSTANCE.verboseRuntimeLogging();
+    }
+
+    @Configurable(key = Configurable.LocalizationKey.FULL)
+    @Configurable.Comment({
+            "Logs high-frequency runtime calculations and dispatch decisions. Warnings and errors are unaffected.",
+            "记录高频运行时计算与发配决策。警告和错误不受影响。"
+    })
+    public boolean verboseRuntimeLogging = false;
 
     @Configurable(key = Configurable.LocalizationKey.FULL)
     @Configurable.Comment({ "Data Ripper power and target selection.", "数据撕裂器的功耗与目标选择设置。" })

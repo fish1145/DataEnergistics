@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandi
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,7 +33,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -61,6 +61,8 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private static final int SAFETY_RESCAN_INTERVAL_TICKS = 100;
     private static final int BRIDGE_FAILURE_LOG_INTERVAL_TICKS = 100;
     private static final int ENERGY_FAILURE_LOG_INTERVAL_TICKS = 100;
+    private static final TowerEnergyTransactionResult EMPTY_ENERGY_RESULT = new TowerEnergyTransactionResult(
+            List.of(), 0, 0, 0, false, "");
     private static final Comparator<TowerEnergyEndpointId> ENERGY_ENDPOINT_ORDER = Comparator
             .comparing((TowerEnergyEndpointId endpoint) -> endpoint.dimensionId().toString())
             .thenComparingInt(endpoint -> endpoint.pos().getX())
@@ -80,9 +82,9 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final TowerDomainEnergyResolver energyResolver = new TowerDomainEnergyResolverImpl();
     private final TowerEnergyTransaction energyTransaction = new TowerEnergyTransactionImpl();
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
+    private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
-    private TowerEnergyTransactionResult lastEnergyResult = new TowerEnergyTransactionResult(
-            List.of(), 0, 0, 0, false, "");
+    private TowerEnergyTransactionResult lastEnergyResult = EMPTY_ENERGY_RESULT;
     private long nextRegistrationOrder;
     private long revision;
     private long reconciledRevision = Long.MIN_VALUE;
@@ -92,6 +94,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private long lastEnergyTransactionTick = Long.MIN_VALUE;
     private long lastEnergyFailureLogTick = Long.MIN_VALUE;
     private VirtualChannelCapacity lastCapacity = VirtualChannelCapacity.limited(0);
+    private boolean localNodesCacheValid = true;
     private boolean reconciling;
 
     /**
@@ -120,9 +123,14 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
     @Override
     public List<IGridNode> localNodes() {
+        if (this.localNodesCacheValid) {
+            return this.cachedLocalNodes;
+        }
         ArrayList<Map.Entry<IGridNode, Long>> entries = new ArrayList<>(this.registrationOrders.entrySet());
         entries.sort(Map.Entry.comparingByValue());
-        return entries.stream().map(Map.Entry::getKey).toList();
+        this.cachedLocalNodes = entries.stream().map(Map.Entry::getKey).toList();
+        this.localNodesCacheValid = true;
+        return this.cachedLocalNodes;
     }
 
     @Override
@@ -175,6 +183,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         if (!this.registrationOrders.containsKey(gridNode)) {
             this.registrationOrders.put(gridNode, this.nextRegistrationOrder);
             this.nextRegistrationOrder = Math.incrementExact(this.nextRegistrationOrder);
+            this.localNodesCacheValid = false;
             invalidate(TowerNetworkDomainChange.PHYSICAL_NODE);
         }
     }
@@ -182,6 +191,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     @Override
     public void removeNode(IGridNode gridNode) {
         if (this.registrationOrders.remove(gridNode) != null) {
+            this.localNodesCacheValid = false;
             invalidate(TowerNetworkDomainChange.PHYSICAL_NODE);
         }
     }
@@ -199,6 +209,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         boolean safetyRescanDue = this.lastSafetyRescanTick == Long.MIN_VALUE || gameTime - this.lastSafetyRescanTick >= SAFETY_RESCAN_INTERVAL_TICKS;
         boolean reconcileDue = this.reconciledRevision != this.revision || this.lastPhysicalUsage != physicalUsage || this.lastOwnershipRevision != ownershipRevision || !this.lastCapacity.equals(capacity) || safetyRescanDue;
         if (reconcileDue) {
+            long reconciliationRevision = this.revision;
             this.reconciling = true;
             try {
                 dataEnergistics$reconcile(capacity, physicalUsage, gameTime);
@@ -206,10 +217,9 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                 this.lastPhysicalUsage = physicalUsage;
                 this.lastOwnershipRevision = TowerGridOwnershipRegistry.revision(server);
                 this.lastSafetyRescanTick = gameTime;
-                this.reconciledRevision = this.revision;
+                this.reconciledRevision = reconciliationRevision;
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error("Failed to reconcile tower network domain for {}", this.grid, exception);
-                this.lastSafetyRescanTick = gameTime;
             } finally {
                 this.reconciling = false;
             }
@@ -249,9 +259,15 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
             if (towerWork == null) {
                 continue;
             }
-            BindingWork bindingWork = towerWork.bindingByTarget().get(owner.targetGrid());
-            if (bindingWork != null) {
-                ownedTargets.put(owner.targetGrid(), new OwnedGridWork(towerWork, bindingWork, owner.targetGrid()));
+            BindingTargetWork bindingTargetWork = towerWork.bindingByTarget().get(owner.targetGrid());
+            if (bindingTargetWork != null) {
+                ownedTargets.put(
+                        owner.targetGrid(),
+                        new OwnedGridWork(
+                                towerWork,
+                                bindingTargetWork.bindingWork(),
+                                owner.targetGrid(),
+                                bindingTargetWork.resolvedGrid()));
             }
         }
 
@@ -291,21 +307,25 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         for (VirtualChannelBindingAllocation<DeviceLeaseKey, IGridNode> binding : channelSnapshot.bindings()) {
             allocations.put(binding.bindingKey(), binding.nodes().getFirst());
         }
+        Map<IGrid, ArrayList<IGridNode>> activeNodesByTarget = new IdentityHashMap<>();
+        for (Map.Entry<DeviceLeaseKey, DeviceWork> entry : devicesByLease.entrySet()) {
+            VirtualChannelNodeState state = allocations.get(entry.getKey()).state();
+            if (state != VirtualChannelNodeState.LEASED && state != VirtualChannelNodeState.AVAILABLE_WITHOUT_CHANNEL) {
+                continue;
+            }
+            DeviceWork deviceWork = entry.getValue();
+            activeNodesByTarget.computeIfAbsent(deviceWork.targetGrid(), ignored -> new ArrayList<>())
+                    .add(deviceWork.device().node());
+        }
         Set<IGrid> bridgeFailures = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Map.Entry<IGrid, OwnedGridWork> entry : ownedTargets.entrySet()) {
             IGrid targetGrid = entry.getKey();
-            List<IGridNode> allNodes = entry.getValue().bindingWork().gridResult(targetGrid).devices().stream()
+            List<IGridNode> allNodes = entry.getValue().resolvedGrid().devices().stream()
                     .map(TowerResolvedDevice::node)
                     .toList();
-            ArrayList<IGridNode> activeNodes = new ArrayList<>();
-            for (Map.Entry<DeviceLeaseKey, DeviceWork> deviceEntry : devicesByLease.entrySet()) {
-                if (deviceEntry.getValue().targetGrid() != targetGrid) {
-                    continue;
-                }
-                VirtualChannelNodeState state = allocations.get(deviceEntry.getKey()).state();
-                if (state == VirtualChannelNodeState.LEASED || state == VirtualChannelNodeState.AVAILABLE_WITHOUT_CHANNEL) {
-                    activeNodes.add(deviceEntry.getValue().device().node());
-                }
+            List<IGridNode> activeNodes = activeNodesByTarget.get(targetGrid);
+            if (activeNodes == null) {
+                activeNodes = List.of();
             }
             try {
                 ((VirtualGridBridge) targetGrid).replaceVirtualMembers(this.grid, allNodes, activeNodes);
@@ -390,13 +410,15 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
         ArrayList<Map.Entry<EnergyLocationKey, TowerEnergyLocation>> orderedLocations = new ArrayList<>(locations.entrySet());
         orderedLocations.sort(Map.Entry.comparingByKey());
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
-        ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>();
+        IdentityHashMap<Object, ArrayList<TowerEnergyTransferEndpoint>> routesByStorage = new IdentityHashMap<>();
+        ArrayList<ArrayList<TowerEnergyTransferEndpoint>> orderedRouteGroups = new ArrayList<>();
         for (Map.Entry<EnergyLocationKey, TowerEnergyLocation> entry : orderedLocations) {
             for (TowerDomainEnergyEndpoint endpoint : this.energyResolver.resolve(entry.getValue())) {
-                if (seenStorages.add(endpoint.storage())) {
-                    endpoints.add(new TowerEnergyTransferEndpointImpl(endpoint));
-                }
+                dataEnergistics$addEnergyRoute(
+                        routesByStorage,
+                        orderedRouteGroups,
+                        endpoint.storageIdentity(),
+                        new TowerEnergyTransferEndpointImpl(endpoint));
             }
         }
 
@@ -407,18 +429,45 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     continue;
                 }
                 TowerRuntimeKey towerKey = participant.towerKey();
-                endpoints.add(new TowerAppFluxEnergyTransferEndpointImpl(
-                        new TowerEnergyEndpointId(
-                                towerKey.dimensionId(),
-                                towerKey.position(),
-                                null,
-                                Integer.MAX_VALUE),
-                        participant.towerEnergyHost()));
-                break;
+                Object storageIdentity = AE2FluxIntegration.ownNetworkEnergyStorageIdentity(
+                        participant.towerEnergyHost());
+                if (storageIdentity == null) {
+                    continue;
+                }
+                dataEnergistics$addEnergyRoute(
+                        routesByStorage,
+                        orderedRouteGroups,
+                        storageIdentity,
+                        new TowerAppFluxEnergyTransferEndpointImpl(
+                                new TowerEnergyEndpointId(
+                                        towerKey.dimensionId(),
+                                        towerKey.position(),
+                                        null,
+                                        Integer.MAX_VALUE),
+                                participant.towerEnergyHost()));
             }
+        }
+        ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>(orderedRouteGroups.size());
+        for (List<TowerEnergyTransferEndpoint> routes : orderedRouteGroups) {
+            endpoints.add(routes.size() == 1 ? routes.getFirst() : new TowerEnergyTransferRouteGroupImpl(routes));
         }
         endpoints.sort(Comparator.comparing(TowerEnergyTransferEndpoint::endpoint, ENERGY_ENDPOINT_ORDER));
         return List.copyOf(endpoints);
+    }
+
+    /** Adds one context-sensitive access route without duplicating its physical backing in the planner. */
+    private static void dataEnergistics$addEnergyRoute(
+                                                       IdentityHashMap<Object, ArrayList<TowerEnergyTransferEndpoint>> routesByStorage,
+                                                       List<ArrayList<TowerEnergyTransferEndpoint>> orderedRouteGroups,
+                                                       Object storageIdentity,
+                                                       TowerEnergyTransferEndpoint route) {
+        ArrayList<TowerEnergyTransferEndpoint> routes = routesByStorage.get(storageIdentity);
+        if (routes == null) {
+            routes = new ArrayList<>();
+            routesByStorage.put(storageIdentity, routes);
+            orderedRouteGroups.add(routes);
+        }
+        routes.add(route);
     }
 
     /**
@@ -429,6 +478,10 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
             return this.lastEnergyResult;
         }
         this.lastEnergyTransactionTick = gameTime;
+        if (this.energyEndpoints.isEmpty()) {
+            this.lastEnergyResult = EMPTY_ENERGY_RESULT;
+            return EMPTY_ENERGY_RESULT;
+        }
         TowerEnergyTransactionResult result = this.energyTransaction.execute(this.energyEndpoints);
         this.lastEnergyResult = result;
         if (result.quarantinedFe() > 0) {
@@ -476,6 +529,8 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         ArrayList<TowerNetworkParticipant> orderedTowers = new ArrayList<>(this.towers.values());
         orderedTowers.sort(Comparator.comparing(TowerNetworkParticipant::towerKey));
         ArrayList<TowerWork> result = new ArrayList<>(orderedTowers.size());
+        Map<TargetResolutionKey, TowerTargetResolution> resolutionCache = new HashMap<>();
+        TowerAeTargetResolver.ResolutionRound resolutionRound = this.targetResolver.beginResolutionRound();
         for (TowerNetworkParticipant participant : orderedTowers) {
             Set<EnergyLocationKey> energyLocations = new HashSet<>();
             if (participant.towerAllowsFe()) {
@@ -489,15 +544,19 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                     .comparingInt((TowerBinding binding) -> binding.source() == TowerBindingSource.MANUAL ? 0 : 1)
                     .thenComparingLong(TowerBinding::fifoSequence));
             ArrayList<BindingWork> bindingWorks = new ArrayList<>(orderedBindings.size());
-            Map<IGrid, BindingWork> bindingByTarget = new IdentityHashMap<>();
+            Map<IGrid, BindingTargetWork> bindingByTarget = new IdentityHashMap<>();
             for (TowerBinding binding : orderedBindings) {
                 TowerTargetResolution resolution;
                 if (!participant.towerAllowsAe() || !participant.towerLevel().dimension().location().equals(binding.dimensionId()) || !participant.towerLevel().isLoaded(binding.anchor())) {
                     resolution = new TowerTargetResolution(List.of(), List.of());
                 } else {
                     TowerTargetDiscoveryMode discoveryMode = binding.source() == TowerBindingSource.MANUAL ? TowerTargetDiscoveryMode.POINT : TowerTargetDiscoveryMode.SCOPE;
-                    resolution = this.targetResolver.resolve(
-                            participant.towerLevel(), binding.anchor(), this.grid, discoveryMode);
+                    TargetResolutionKey resolutionKey = new TargetResolutionKey(
+                            participant.towerLevel().dimension().location(), binding.anchor(), discoveryMode);
+                    resolution = resolutionCache.computeIfAbsent(
+                            resolutionKey,
+                            ignored -> resolutionRound.resolve(
+                                    participant.towerLevel(), binding.anchor(), this.grid, discoveryMode));
                 }
                 boolean hasEnergyEndpoint = energyLocations.contains(
                         new EnergyLocationKey(binding.dimensionId(), binding.anchor()));
@@ -509,7 +568,8 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                 }
                 for (TowerResolvedGrid gridResult : resolution.grids()) {
                     if (gridResult.accepted()) {
-                        bindingByTarget.putIfAbsent(gridResult.grid(), bindingWork);
+                        bindingByTarget.putIfAbsent(
+                                gridResult.grid(), new BindingTargetWork(bindingWork, gridResult));
                     }
                 }
             }
@@ -523,7 +583,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         ArrayList<DeviceWork> devices = new ArrayList<>();
         for (Map.Entry<IGrid, OwnedGridWork> entry : ownedTargets.entrySet()) {
             OwnedGridWork ownedGrid = entry.getValue();
-            for (TowerResolvedDevice device : ownedGrid.bindingWork().gridResult(entry.getKey()).devices()) {
+            for (TowerResolvedDevice device : ownedGrid.resolvedGrid().devices()) {
                 if (seenNodes.add(device.node())) {
                     devices.add(new DeviceWork(
                             ownedGrid.towerWork(), ownedGrid.bindingWork(), entry.getKey(), device));
@@ -793,6 +853,16 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
     private record BindingIdentity(TowerRuntimeKey towerKey, long bindingFifo) {}
 
+    /** Identifies one immutable target resolution within a single network reconciliation pass. */
+    private record TargetResolutionKey(ResourceLocation dimensionId,
+                                       BlockPos anchor,
+                                       TowerTargetDiscoveryMode mode) {
+
+        private TargetResolutionKey {
+            anchor = anchor.immutable();
+        }
+    }
+
     /** Immutable UI identity captured directly from an AE node. */
     private record DeviceDisplay(ResourceLocation itemId, String displayName) {}
 
@@ -841,22 +911,19 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
 
     private record TowerWork(TowerNetworkParticipant participant,
                              List<BindingWork> bindings,
-                             Map<IGrid, BindingWork> bindingByTarget) {}
+                             Map<IGrid, BindingTargetWork> bindingByTarget) {}
+
+    private record BindingTargetWork(BindingWork bindingWork, TowerResolvedGrid resolvedGrid) {}
 
     private record BindingWork(TowerNetworkParticipant participant,
                                TowerBinding binding,
                                TowerTargetResolution resolution,
-                               boolean hasEnergyEndpoint) {
+                               boolean hasEnergyEndpoint) {}
 
-        private TowerResolvedGrid gridResult(IGrid grid) {
-            return this.resolution.grids().stream()
-                    .filter(result -> result.grid() == grid)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("Binding does not contain selected target grid"));
-        }
-    }
-
-    private record OwnedGridWork(TowerWork towerWork, BindingWork bindingWork, IGrid targetGrid) {}
+    private record OwnedGridWork(TowerWork towerWork,
+                                 BindingWork bindingWork,
+                                 IGrid targetGrid,
+                                 TowerResolvedGrid resolvedGrid) {}
 
     private record DeviceWork(TowerWork towerWork,
                               BindingWork bindingWork,

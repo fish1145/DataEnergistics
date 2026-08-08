@@ -108,7 +108,7 @@ final class CraftingDispatchCommitterImpl implements CraftingDispatchCommitter {
 
         request.window().recordCommittedLogicalCrafts(admittedCount);
         boolean settled = applyAfterOwnership(request);
-        CraftingDispatchStatus status = accepted && providerFailure == null && settled ?
+        CraftingDispatchStatus status = accepted && settled ?
                 CraftingDispatchStatus.ACCEPTED :
                 CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP;
         request.window().recordResult(request.provider(), request.pattern(), request.target(), status);

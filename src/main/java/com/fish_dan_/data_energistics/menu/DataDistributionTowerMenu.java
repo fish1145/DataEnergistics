@@ -128,8 +128,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             this.rangeVisible = tower.isRangeDisplayEnabled();
             this.connectionMode = tower.getConnectionMode().ordinal();
             this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
-            this.boundTargetCount = tower.getBoundTargetCount();
-            syncTargetSnapshot(tower.getBoundTargetSummaries(Integer.MAX_VALUE), tower.getTargetDisplayStateRevision());
+            List<BoundTargetSummary> summaries = tower.getBoundTargetSummaries(Integer.MAX_VALUE);
+            this.boundTargetCount = summaries.size();
+            syncTargetSnapshot(summaries, tower.getTargetDisplayStateRevision());
         }
 
         super.broadcastChanges();

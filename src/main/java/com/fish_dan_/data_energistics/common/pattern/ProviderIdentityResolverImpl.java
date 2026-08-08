@@ -73,16 +73,6 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
         return resolveVirtual(provider);
     }
 
-    @Override
-    public ProviderIdentity.Matrix resolveMatrix(PatternContainer provider, boolean plus) {
-        Objects.requireNonNull(provider, "provider");
-        BlockEntity blockEntity = resolveMatrixBlockEntity(provider);
-        return new ProviderIdentity.Matrix(
-                this.dimensionIdResolver.apply(blockEntity),
-                blockEntity.getBlockPos(),
-                plus);
-    }
-
     /**
      * Builds a physical block identity from immutable world and registry metadata.
      */
@@ -123,16 +113,6 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
         return ProviderIdentityResolver.virtualIdentity(
                 group.icon() == null ? null : group.icon().getId(),
                 Objects.requireNonNull(group.name(), "Pattern provider terminal group name"));
-    }
-
-    private static BlockEntity resolveMatrixBlockEntity(PatternContainer provider) {
-        if (provider instanceof PatternProviderLogicHost logicHost) {
-            return requireBlockEntity(logicHost);
-        }
-        if (provider instanceof BlockEntity blockEntity) {
-            return blockEntity;
-        }
-        throw new IllegalStateException("Assembler matrix provider has no block entity: " + provider);
     }
 
     /**

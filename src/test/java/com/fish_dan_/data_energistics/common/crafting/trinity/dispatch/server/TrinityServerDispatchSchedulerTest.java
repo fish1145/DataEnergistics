@@ -99,6 +99,20 @@ public final class TrinityServerDispatchSchedulerTest {
     }
 
     @Test
+    void completionOnlyRegistrationSkipsPhysicalRotationAndCompletesOnce() {
+        TrinityServerDispatchScheduler scheduler = TrinityServerDispatchScheduler.create();
+        RecordingParticipant completion = RecordingParticipant.stalled("idle");
+
+        scheduler.beginTick();
+        scheduler.registerCompletion(completion);
+        scheduler.dispatchTick();
+
+        assertEquals(0, completion.steps);
+        assertEquals(1, completion.completions);
+        assertEquals(0, completion.failures);
+    }
+
+    @Test
     void rejectsRegistrationOutsideAnOpenTick() {
         TrinityServerDispatchScheduler scheduler = TrinityServerDispatchScheduler.create();
         RecordingParticipant participant = RecordingParticipant.stalled("participant");

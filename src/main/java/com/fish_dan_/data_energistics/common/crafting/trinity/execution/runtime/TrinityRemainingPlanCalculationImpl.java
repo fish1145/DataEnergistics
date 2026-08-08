@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import appeng.api.stacks.AEKey;
 
@@ -163,14 +164,16 @@ final class TrinityRemainingPlanCalculationImpl implements TrinityRemainingPlanC
                     quantityMode,
                     available,
                     settings));
-            Data_Energistics.LOGGER.info(
-                    "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
-                    target,
-                    quantityMode,
-                    graph.revision(),
-                    computation.cachePath(),
-                    computation.result().successful() ?
-                            "SELECTED" : computation.result().diagnostic().code());
+            if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+                Data_Energistics.LOGGER.info(
+                        "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
+                        target,
+                        quantityMode,
+                        graph.revision(),
+                        computation.cachePath(),
+                        computation.result().successful() ?
+                                "SELECTED" : computation.result().diagnostic().code());
+            }
             return computation.result().successful() ?
                     TrinityPlanningAttempt.success(computation.result().value()) :
                     TrinityPlanningAttempt.failure(computation.result().diagnostic());

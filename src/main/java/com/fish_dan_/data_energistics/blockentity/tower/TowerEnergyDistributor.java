@@ -64,6 +64,14 @@ public interface TowerEnergyDistributor {
     long getTotalEnergyCapacity(@Nullable BlockPos excludedPos);
 
     /**
+     * Returns the FE that receiver endpoints can currently accept.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return currently receivable FE
+     */
+    long getTotalReceivableEnergy(@Nullable BlockPos excludedPos);
+
+    /**
      * Checks whether any receiver endpoint is available.
      *
      * @param excludedPos target position to exclude, or null

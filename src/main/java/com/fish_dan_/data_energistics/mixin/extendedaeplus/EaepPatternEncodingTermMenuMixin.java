@@ -56,13 +56,13 @@ public abstract class EaepPatternEncodingTermMenuMixin implements EaepPatternEnc
             serverPlayer.server.execute(() -> {
                 try (EaepPatternUploadScope.ScopeToken ignored = EaepPatternUploadScope.open(snapshot)) {
                     ExtendedAEPatternUploadUtil.uploadFromEncodingMenuToMatrix(serverPlayer, menu);
-                } catch (RuntimeException | LinkageError exception) {
+                } catch (RuntimeException exception) {
                     this.dataEnergistics$eaepUploadPending = false;
                     Data_Energistics.LOGGER.error(
                             "ExtendedAE-Plus matrix upload failed after pattern encoding", exception);
                 }
             });
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             this.dataEnergistics$eaepUploadPending = false;
             Data_Energistics.LOGGER.error(
                     "Could not schedule ExtendedAE-Plus matrix upload after pattern encoding", exception);

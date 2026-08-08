@@ -5,11 +5,13 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipe
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.LegacyPatternEncodingPreferences;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingInheritedState;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
@@ -50,6 +52,7 @@ import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -71,7 +74,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                    implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
                                                    PatternEncodingPreviewLayoutAware,
                                                    BlankPatternProxyMenu, PatternEncodingMultiblockTransferTarget,
-                                                   PatternEncodingPreferenceMenu {
+                                                   PatternEncodingPreferenceMenu, PatternEncodingInheritedState {
 
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "dataEnergistics$transferEncodedPatternToProvider";
@@ -154,13 +157,75 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Invoker("clearPattern")
     protected abstract void dataEnergistics$invokeClearPattern();
 
+    @Unique
     @Override
-    public List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
-        return this.dataEnergistics$syncedPatternProviders.providers();
+    public @NotNull SyncedPatternProviderList dataEnergistics$getInheritedSyncedPatternProviders() {
+        return this.dataEnergistics$syncedPatternProviders;
+    }
+
+    @Unique
+    @Override
+    public @Nullable ResourceLocation dataEnergistics$getInheritedPendingPatternSource() {
+        return this.dataEnergistics$pendingPatternSource;
+    }
+
+    @Unique
+    @Override
+    public void dataEnergistics$setInheritedPendingPatternSource(@Nullable ResourceLocation workstationId) {
+        this.dataEnergistics$pendingPatternSource = workstationId;
+    }
+
+    @Unique
+    @Override
+    public @Nullable ResourceLocation dataEnergistics$getInheritedLastEncodedPatternSource() {
+        return this.dataEnergistics$lastEncodedPatternSource;
+    }
+
+    @Unique
+    @Override
+    public void dataEnergistics$setInheritedLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
+        this.dataEnergistics$lastEncodedPatternSource = workstationId;
+    }
+
+    @Unique
+    @Override
+    public boolean dataEnergistics$isInheritedPatternSourceEnabled() {
+        return this.dataEnergistics$patternSourceEnabled;
+    }
+
+    @Unique
+    @Override
+    public void dataEnergistics$setInheritedPatternSourceEnabled(boolean enabled) {
+        this.dataEnergistics$patternSourceEnabled = enabled;
+    }
+
+    @Unique
+    @Override
+    public boolean dataEnergistics$isInheritedUploadEnabled() {
+        return this.dataEnergistics$uploadEnabled;
+    }
+
+    @Unique
+    @Override
+    public void dataEnergistics$setInheritedUploadEnabled(boolean enabled) {
+        this.dataEnergistics$uploadEnabled = enabled;
     }
 
     @Override
-    public EncodingMode data_energistics$getEncodingMode() {
+    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+        return this.dataEnergistics$syncedPatternProviders;
+    }
+
+    @Override
+    public void data_energistics$refreshSyncedPatternProviders() {
+        if (this.isClientSide()) {
+            throw new IllegalStateException("Pattern provider network refresh must run on the server");
+        }
+        dataEnergistics$syncPatternProvidersFromNetwork();
+    }
+
+    @Override
+    public @NotNull EncodingMode data_energistics$getEncodingMode() {
         return this.mode;
     }
 
@@ -318,7 +383,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         ItemStack updated = carried.isEmpty() ? ItemStack.EMPTY : carried.copy();
 
-        if (remainingToPickup > 0 && this.canInteractWithGrid()) {
+        if (this.canInteractWithGrid()) {
             var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
             if (blankPatternKey != null) {
                 long extracted = StorageHelper.poweredExtraction(
@@ -362,9 +427,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
         boolean encodedSuccessfully = false;
         try {
-            PatternEncodingSourceHelper.resolveAndApplyDataRipperRecipeKeyInput((PatternEncodingTermMenu) (Object) this);
-            PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
-            PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
+            dataEnergistics$forceSyncPatternProviders();
+            PatternEncodingSourceHelper.applyPatternSource(this,
+                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(
+                    (PatternEncodingTermMenu) (Object) this);
 
             ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
             if (encodedPattern == null) {
@@ -390,14 +457,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 return;
             }
 
-            if (this instanceof PatternEncodingSourceAware sourceAware) {
-                PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
-                        PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
-            }
-
             this.encodedPatternSlot.set(encodedPattern);
             encodedSuccessfully = true;
-            dataEnergistics$forceSyncPatternProviders();
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
@@ -436,17 +497,30 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
-        var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        var providers = PatternProviderSyncHelper.findProvidersById(
+                this.dataEnergistics$syncedPatternProvidersById,
+                providerId);
         if (providers == null || providers.isEmpty()) {
-            dataEnergistics$syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.target_unavailable"));
+            return;
         }
 
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
-        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
+        var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
+                this,
+                data_energistics$getPreferenceSession(),
+                providerId);
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                providers,
+                encodedPattern,
+                uploadContext);
+        if (transferResult.rejected()) {
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    transferResult.rejection().messageKeyOrThrow()));
+            return;
+        }
         if (transferResult.duplicateFound()) {
             dataEnergistics$returnEncodedPatternAsBlankToNetwork();
             this.getPlayer().sendSystemMessage(Component.translatable(
@@ -461,8 +535,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         this.encodedPatternSlot.set(remainder.isEmpty() ? ItemStack.EMPTY : remainder);
-        if (transferResult.firstCommittedTarget() != null && this.getPlayer() instanceof ServerPlayer serverPlayer) {
-            PatternUploadRecorder.record(serverPlayer, this, transferResult.firstCommittedTarget(),
+        if (this.getPlayer() instanceof ServerPlayer serverPlayer) {
+            PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
                     PatternUploadSource.DATA_ENERGISTICS);
         }
         dataEnergistics$syncPatternProvidersFromNetwork();
@@ -510,8 +584,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Override
     public void data_energistics$setPendingPatternSource(@Nullable ResourceLocation workstationId) {
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode);
-        data_energistics$getPreferenceSession().setRankingContext(
-                PatternEncodingSourceHelper.resolveFixedModeRankingContext(this.mode, fixedWorkstation));
+        if (fixedWorkstation != null) {
+            data_energistics$getPreferenceSession().setRankingContext(
+                    PatternEncodingSourceHelper.resolveFixedModeRankingContext(this.mode, fixedWorkstation));
+        }
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     workstationId != null ? workstationId.toString() : PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -519,9 +595,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         } else {
             this.dataEnergistics$pendingPatternSource = workstationId;
             PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), workstationId);
-            if (this.dataEnergistics$patternSourceEnabled) {
-                data_energistics$setLastEncodedPatternSource(workstationId);
-            }
         }
     }
 
@@ -761,6 +834,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             this.dataEnergistics$uploadEnabled = legacyPreferences.uploadEnabled();
             this.dataEnergistics$pendingPatternSource = PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
             this.dataEnergistics$lastEncodedPatternSource = legacyPreferences.lastWorkstation();
+            data_energistics$getPreferenceSession().initializeConfirmedWorkstation(
+                    this.dataEnergistics$lastEncodedPatternSource);
             this.dataEnergistics$previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
             this.dataEnergistics$previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
             dataEnergistics$flushBlankPatternSlotToNetwork();
@@ -888,16 +963,13 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
-        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
-        ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (preferenceRevision == this.dataEnergistics$lastPreferenceRevision && !this.dataEnergistics$patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern)) {
+                rankingContext)) {
             return;
         }
 
@@ -905,8 +977,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                encodedPattern);
+                rankingContext);
     }
 
     @Unique
@@ -937,8 +1008,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
-                this.encodedPatternSlot.getItem());
+                data_energistics$getPreferenceSession().rankingContext());
     }
 
     @Unique
@@ -946,23 +1016,19 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                  IGrid grid,
                                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                                  long currentTick,
-                                                                 @Nullable ResourceLocation preferredWorkstationId,
-                                                                 ItemStack encodedPattern) {
+                                                                 @Nullable PatternEncodingRankingContext rankingContext) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
+                data_energistics$getEncodingMode(),
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern,
+                rankingContext,
                 data_energistics$getPreferenceSession().leafCounts());
         this.dataEnergistics$patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.mode,
-                encodedPattern);
+                rankingContext);
         this.dataEnergistics$lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 

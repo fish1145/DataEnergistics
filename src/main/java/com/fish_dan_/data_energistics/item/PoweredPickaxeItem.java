@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
@@ -215,6 +216,9 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     private static void logDuplicateOreResult(String result, ServerLevel level, BlockPos pos, BlockState state,
                                               LivingEntity miner, ItemStack tool, List<ItemStack> drops, int dropCount) {
+        if (!DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            return;
+        }
         Data_Energistics.LOGGER.info(
                 "Data crystal pickaxe duplicate ore result={} level={} pos={} block={} miner={} tool={} aeEnergy={} silkTouch={} fortune={} dataDrops={} drops={}",
                 result,

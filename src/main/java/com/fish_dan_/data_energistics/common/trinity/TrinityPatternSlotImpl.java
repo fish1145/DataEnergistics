@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -45,14 +48,18 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     private final int index;
     private final TrinityPatternCore.PatternDecoder decoder;
-    private final TrinityPatternRecipeIdResolvers recipeIdResolvers;
+    private final TrinityPatternRecipeIdLookup recipeIdResolvers;
     private final ChangeListener changeListener;
     private LinkedHashMap<Long, TrinityPatternDefinition> definitions = new LinkedHashMap<>();
     private ArrayDeque<TrinityCraftingBatch> queue = new ArrayDeque<>();
     private LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> pendingOutputs = new LinkedHashMap<>();
-    /** Counts queued groups per host so ordinary mutations never rescan the FIFO. */
+    /**
+     * Counts queued groups per host so ordinary mutations never rescan the FIFO.
+     */
     private Map<UUID, Integer> queuedGroupsByHost = new HashMap<>();
-    /** Counts pending routes per host so partial output consumption leaves membership untouched. */
+    /**
+     * Counts pending routes per host so partial output consumption leaves membership untouched.
+     */
     private Map<UUID, Integer> pendingRoutesByHost = new HashMap<>();
 
     private ItemStack pattern = ItemStack.EMPTY;
@@ -62,9 +69,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private IMolecularAssemblerSupportedPattern decodedPattern;
     private long nextDefinitionId;
     private long revision;
-    /** Separates queue and pending topology for one precise internal WORK notification. */
+    /**
+     * Separates queue and pending topology for one precise internal WORK notification.
+     */
     private WorkMembership workMembership = new WorkMembership(Set.of(), Set.of());
-    /** Immutable union consumed by the core's sparse per-host work index. */
+    /**
+     * Immutable union consumed by the core's sparse per-host work index.
+     */
     private Set<UUID> workHostIds = Set.of();
     @Nullable
     private PendingOutputCursorImpl activePendingOutputCursor;
@@ -78,7 +89,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
      * @param changeListener    typed owner callback
      */
     public TrinityPatternSlotImpl(int index, TrinityPatternCore.PatternDecoder decoder,
-                                  TrinityPatternRecipeIdResolvers recipeIdResolvers,
+                                  TrinityPatternRecipeIdLookup recipeIdResolvers,
                                   ChangeListener changeListener) {
         if (index < 0) {
             throw new IllegalArgumentException("Trinity pattern slot index must not be negative: " + index);
@@ -133,7 +144,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         if (decoded == null) {
             return false;
         }
-        Optional<TrinityPatternRecipeIdResolvers.Resolution> resolved = this.recipeIdResolvers.resolve(decoded);
+        Optional<TrinityPatternRecipeIdResolution> resolved = this.recipeIdResolvers.resolve(decoded);
         if (resolved.isEmpty()) {
             return false;
         }
@@ -170,7 +181,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         if (decoded == null) {
             this.decodedPattern = null;
         } else {
-            Optional<TrinityPatternRecipeIdResolvers.Resolution> resolved = this.recipeIdResolvers.resolve(decoded);
+            Optional<TrinityPatternRecipeIdResolution> resolved = this.recipeIdResolvers.resolve(decoded);
             if (resolved.isEmpty()) {
                 this.decodedPattern = null;
             } else if (this.installedDefinition == null) {
@@ -310,7 +321,9 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         return this.workHostIds;
     }
 
-    /** Returns the cached host set that currently owns at least one pending-output route. */
+    /**
+     * Returns the cached host set that currently owns at least one pending-output route.
+     */
     Set<UUID> pendingOutputHostIds() {
         return this.workMembership.pendingOutputHosts();
     }
@@ -535,7 +548,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
      * @return fully validated detached slot
      */
     public static TrinityPatternSlotImpl readFromTag(CompoundTag data, TrinityPatternCore.PatternDecoder decoder,
-                                                     TrinityPatternRecipeIdResolvers recipeIdResolvers,
+                                                     TrinityPatternRecipeIdLookup recipeIdResolvers,
                                                      ChangeListener changeListener,
                                                      HolderLookup.Provider registries) {
         if (!data.contains(SLOT_TAG, Tag.TAG_INT) || !data.contains(DEFINITIONS_TAG, Tag.TAG_LIST) ||
@@ -674,7 +687,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     private TrinityPatternDefinition findOrCreateDefinition(
-                                                            ItemStack pattern, TrinityPatternRecipeIdResolvers.Resolution resolution) {
+                                                            ItemStack pattern, TrinityPatternRecipeIdResolution resolution) {
         for (TrinityPatternDefinition definition : this.definitions.values()) {
             if (definition.matchesPattern(pattern) && definition.resolution().equals(resolution)) {
                 return definition;
@@ -689,7 +702,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     private IMolecularAssemblerSupportedPattern validatePersistedDefinition(TrinityPatternDefinition definition) {
         IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(definition.pattern());
-        Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
+        Optional<TrinityPatternRecipeIdResolution> resolution = decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
         if (resolution.isEmpty() || !resolution.get().equals(definition.resolution())) {
             throw new IllegalArgumentException(
                     "Trinity pattern definition " + definition.id() + " does not match its encoded recipe identity");
@@ -955,7 +968,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                 !data.contains(RESOLVER_ID_TAG, Tag.TAG_STRING) || !data.contains(RECIPE_ID_TAG, Tag.TAG_STRING)) {
             throw new IllegalArgumentException("Trinity pattern definition is incomplete");
         }
-        TrinityPatternRecipeIdResolvers.Resolution resolution = new TrinityPatternRecipeIdResolvers.Resolution(
+        TrinityPatternRecipeIdResolution resolution = new TrinityPatternRecipeIdResolution(
                 ResourceLocation.parse(data.getString(RESOLVER_ID_TAG)),
                 ResourceLocation.parse(data.getString(RECIPE_ID_TAG)));
         long definitionId = data.getLong(DEFINITION_ID_TAG);
