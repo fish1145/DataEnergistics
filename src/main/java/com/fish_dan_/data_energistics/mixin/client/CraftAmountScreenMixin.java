@@ -3,13 +3,14 @@ package com.fish_dan_.data_energistics.mixin.client;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.Icon;
 import appeng.client.gui.me.crafting.CraftAmountScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ToggleButton;
 import appeng.menu.me.crafting.CraftAmountMenu;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -17,47 +18,50 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 /**
- * Adds one explicit NET_NEW / FINAL_TOTAL selector below AE2's amount dialog.
+ * Adds one AE2-style NET_NEW / FINAL_TOTAL selector to the amount dialog's left toolbar.
  */
 @Mixin(CraftAmountScreen.class)
 public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMenu> {
 
     @Unique
-    private Button dataEnergistics$quantityModeButton;
+    private ToggleButton dataEnergistics$quantityModeButton;
 
     protected CraftAmountScreenMixin(
-                                     CraftAmountMenu menu,
-                                     Inventory playerInventory,
-                                     Component title,
-                                     ScreenStyle style) {
+            CraftAmountMenu menu,
+            Inventory playerInventory,
+            Component title,
+            ScreenStyle style) {
         super(menu, playerInventory, title, style);
     }
 
-    @Inject(method = "updateBeforeRender", at = @At("HEAD"))
-    private void dataEnergistics$ensureQuantityModeButton(CallbackInfo ci) {
-        if (this.dataEnergistics$quantityModeButton != null &&
-                this.children().contains(this.dataEnergistics$quantityModeButton)) {
-            return;
-        }
-        TrinityCraftAmountMenuState state = (TrinityCraftAmountMenuState) this.menu;
-        this.dataEnergistics$quantityModeButton = Button.builder(
-                dataEnergistics$quantityModeLabel(state.data_energistics$quantityMode()),
-                button -> {
-                    CraftingQuantityMode next = state.data_energistics$quantityMode().next();
-                    state.data_energistics$setQuantityMode(next);
-                    button.setMessage(dataEnergistics$quantityModeLabel(next));
-                })
-                .bounds(this.leftPos + 20, this.topPos + this.imageHeight + 4, 138, 20)
-                .build();
-        this.addRenderableWidget(this.dataEnergistics$quantityModeButton);
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void dataEnergistics$addQuantityModeButton(
+            CraftAmountMenu menu,
+            Inventory playerInventory,
+            Component title,
+            ScreenStyle style,
+            CallbackInfo ci) {
+        TrinityCraftAmountMenuState state = (TrinityCraftAmountMenuState) menu;
+        this.dataEnergistics$quantityModeButton = new ToggleButton(
+                Icon.SCHEDULING_ROUND_ROBIN,
+                Icon.SCHEDULING_RANDOM,
+                netNew -> state.data_energistics$setQuantityMode(
+                        netNew ? CraftingQuantityMode.NET_NEW : CraftingQuantityMode.FINAL_TOTAL));
+        this.dataEnergistics$quantityModeButton.setTooltipOn(
+                List.of(dataEnergistics$quantityModeLabel(CraftingQuantityMode.NET_NEW)));
+        this.dataEnergistics$quantityModeButton.setTooltipOff(
+                List.of(dataEnergistics$quantityModeLabel(CraftingQuantityMode.FINAL_TOTAL)));
+        this.addToLeftToolbar(this.dataEnergistics$quantityModeButton);
     }
 
     @Inject(method = "updateBeforeRender", at = @At("RETURN"))
     private void dataEnergistics$syncQuantityModeButton(CallbackInfo ci) {
         TrinityCraftAmountMenuState state = (TrinityCraftAmountMenuState) this.menu;
-        this.dataEnergistics$quantityModeButton.setMessage(
-                dataEnergistics$quantityModeLabel(state.data_energistics$quantityMode()));
+        this.dataEnergistics$quantityModeButton.setState(
+                state.data_energistics$quantityMode() == CraftingQuantityMode.NET_NEW);
     }
 
     @Unique
