@@ -1,11 +1,15 @@
 package com.fish_dan_.data_energistics.mixin.jei;
 
+import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,10 +32,17 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
         }
 
         if (menu instanceof PatternEncodingTermMenu patternEncodingTermMenu) {
-            PatternEncodingSourceHelper.rememberTransferKeyInput(patternEncodingTermMenu, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferFluidInputs(patternEncodingTermMenu, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferFluidOutputs(patternEncodingTermMenu, recipe, recipeSlots);
+            Recipe<?> transferredRecipe = recipe instanceof RecipeHolder<?> holder ? holder.value() :
+                    recipe instanceof Recipe<?> value ? value : null;
+            EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(transferredRecipe, false);
+            PatternEncodingSourceHelper.rememberTransferKeyInput(
+                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
+            PatternEncodingSourceHelper.rememberTransferKeyOutput(
+                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
+            PatternEncodingSourceHelper.rememberTransferFluidInputs(
+                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
+            PatternEncodingSourceHelper.rememberTransferFluidOutputs(
+                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
         }
     }
 }

@@ -21,6 +21,8 @@ import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -191,6 +193,13 @@ public record PatternEncodingPreferencesSyncPayload(
         session.setRankingContext(payload.rankingContext);
         session.replaceLeafCounts(payload.statistics.stream()
                 .collect(Collectors.toMap(LeafStatistic::providerDigest, LeafStatistic::count)));
+        previewMenu.data_energistics$refreshSyncedPatternProviders();
+        if (previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
+            PatternEncodingSourceHelper.applyPatternSource(sourceAware, null);
+            if (menu instanceof PatternEncodingTermMenu patternMenu) {
+                PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(patternMenu);
+            }
+        }
 
         PacketDistributor.sendToPlayer(serverPlayer, new PatternEncodingPreferencesAckPayload(
                 payload.containerId,

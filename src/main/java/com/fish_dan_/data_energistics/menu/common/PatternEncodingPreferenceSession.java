@@ -138,20 +138,6 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
-     * Resolves the only workstation that can be adopted before a provider-specific upload preflight.
-     */
-    @Nullable
-    public ResourceLocation autoAdoptableWorkstation() {
-        if (this.rankingContext == null || this.rankingContext.workstationIds().isEmpty()) {
-            return null;
-        }
-        if (this.rankingContext.workstationIds().size() == 1) {
-            return this.rankingContext.workstationIds().getFirst();
-        }
-        return this.rankingContext.workstationIds().contains(this.confirmedWorkstation) ? this.confirmedWorkstation : null;
-    }
-
-    /**
      * Applies one validated absolute-count snapshot without lowering server-authoritative successes.
      */
     public void replaceLeafCounts(@NotNull Map<String, Long> counts) {

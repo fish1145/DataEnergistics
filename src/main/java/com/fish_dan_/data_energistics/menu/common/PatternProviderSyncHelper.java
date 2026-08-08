@@ -89,7 +89,7 @@ public final class PatternProviderSyncHelper {
         syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.containsKey(provider));
 
         return aggregateSyncedPatternProviders(
-                discoveredProviders, syncedProviderTargetsById, leafClickCounts);
+                discoveredProviders, syncedProviderTargetsById, leafClickCounts, rankingContext);
     }
 
     /**
@@ -109,6 +109,15 @@ public final class PatternProviderSyncHelper {
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Map<Long, List<PatternContainer>> syncedProviderTargetsById,
                                                                                                 Map<String, Long> leafClickCounts) {
+        return aggregateSyncedPatternProviders(
+                discoveredProviders, syncedProviderTargetsById, leafClickCounts, null);
+    }
+
+    private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
+                                                                                                        List<PatternProviderAggregationEntry> discoveredProviders,
+                                                                                                        Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                                                                        Map<String, Long> leafClickCounts,
+                                                                                                        @Nullable PatternEncodingRankingContext rankingContext) {
         syncedProviderTargetsById.clear();
         List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(
                 discoveredProviders, leafClickCounts);
@@ -125,11 +134,14 @@ public final class PatternProviderSyncHelper {
                     provider.renameable(),
                     provider.patternSlotCount(),
                     provider.usedPatternSlotCount(),
-                    provider.leafDigests()));
+                    provider.leafDigests(),
+                    provider.preferredWorkstationId()));
         }
 
-        return providers.isEmpty() ? PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY :
-                new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers);
+        if (providers.isEmpty() && rankingContext == null) {
+            return PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY;
+        }
+        return new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers, rankingContext);
     }
 
     @Nullable
@@ -344,10 +356,21 @@ public final class PatternProviderSyncHelper {
      */
     public static @NotNull PatternUploadContext createPatternUploadContext(
                                                                            @NotNull PatternEncodingPreviewMenu previewMenu,
-                                                                           @NotNull PatternEncodingPreferenceSession session) {
+                                                                           @NotNull PatternEncodingPreferenceSession session,
+                                                                           long providerId,
+                                                                           @Nullable ResourceLocation encodedWorkstation) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         if (mode == EncodingMode.PROCESSING) {
-            return new PatternUploadContext(mode, session.rankingContext(), session.confirmedWorkstation());
+            PatternEncodingRankingContext rankingContext = session.rankingContext();
+            ResourceLocation preferredWorkstation = resolveSyncedProviderWorkstation(
+                    previewMenu.data_energistics$getSyncedPatternProviderState(),
+                    rankingContext,
+                    providerId);
+            return new PatternUploadContext(
+                    mode,
+                    rankingContext,
+                    preferredWorkstation,
+                    encodedWorkstation);
         }
 
         ResourceLocation workstationId = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
@@ -356,7 +379,23 @@ public final class PatternProviderSyncHelper {
             throw new IllegalStateException("Could not derive the fixed upload context for encoding mode " + mode);
         }
         session.setRankingContext(fixedContext);
-        return new PatternUploadContext(mode, fixedContext, null);
+        return new PatternUploadContext(mode, fixedContext, null, null);
+    }
+
+    @Nullable
+    private static ResourceLocation resolveSyncedProviderWorkstation(
+                                                                     @NotNull PatternEncodingPreviewMenu.SyncedPatternProviderList providerState,
+                                                                     @Nullable PatternEncodingRankingContext rankingContext,
+                                                                     long providerId) {
+        if (!Objects.equals(providerState.rankingContext(), rankingContext)) {
+            return null;
+        }
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providerState.providers()) {
+            if (provider.id() == providerId) {
+                return provider.preferredWorkstationId();
+            }
+        }
+        return null;
     }
 
     public static @NotNull TransferResult transferEncodedPatternToProvidersChecked(
@@ -369,9 +408,10 @@ public final class PatternProviderSyncHelper {
 
         if (uploadContext.processing() && uploadContext.rankingContext() == null) {
             LOGGER.warn(
-                    "Rejected processing pattern upload without a viewer category/workstation context: providers={}, confirmedWorkstation={}",
+                    "Rejected processing pattern upload without a viewer category/workstation context: providers={}, preferredWorkstation={}, encodedWorkstation={}",
                     containers.size(),
-                    uploadContext.confirmedWorkstation());
+                    uploadContext.preferredWorkstation(),
+                    uploadContext.encodedWorkstation());
             return TransferResult.rejected(encodedPattern, PatternUploadRejection.CONTEXT_UNAVAILABLE);
         }
 
@@ -487,12 +527,21 @@ public final class PatternProviderSyncHelper {
         if (candidates.isEmpty()) {
             return WorkstationResolution.accepted(null);
         }
+        ResourceLocation encodedWorkstation = uploadContext.encodedWorkstation();
+        if (encodedWorkstation != null) {
+            if (!candidates.contains(encodedWorkstation)) {
+                return WorkstationResolution.rejected(PatternUploadRejection.WORKSTATION_MISMATCH);
+            }
+            if (binding != null || candidates.size() == 1) {
+                return WorkstationResolution.accepted(encodedWorkstation);
+            }
+        }
         if (candidates.size() == 1) {
             return WorkstationResolution.accepted(candidates.getFirst());
         }
-        ResourceLocation confirmedWorkstation = uploadContext.confirmedWorkstation();
-        if (confirmedWorkstation != null && candidates.contains(confirmedWorkstation)) {
-            return WorkstationResolution.accepted(confirmedWorkstation);
+        ResourceLocation preferredWorkstation = uploadContext.preferredWorkstation();
+        if (preferredWorkstation != null && candidates.contains(preferredWorkstation)) {
+            return WorkstationResolution.accepted(preferredWorkstation);
         }
         return WorkstationResolution.rejected(PatternUploadRejection.WORKSTATION_AMBIGUOUS);
     }
@@ -504,7 +553,7 @@ public final class PatternProviderSyncHelper {
         ResolvedProviderBinding binding = provider.binding();
         PatternProviderMetadata metadata = binding == null ? null : binding.registration().metadata();
         LOGGER.warn(
-                "Rejected processing pattern upload before inventory mutation: reason={}, providerIdentity={}, registrationId={}, category={}, transferredWorkstations={}, registeredCategories={}, registeredWorkstations={}, confirmedWorkstation={}",
+                "Rejected processing pattern upload before inventory mutation: reason={}, providerIdentity={}, registrationId={}, category={}, transferredWorkstations={}, registeredCategories={}, registeredWorkstations={}, preferredWorkstation={}, encodedWorkstation={}",
                 rejection,
                 provider.identity(),
                 metadata == null ? null : metadata.registrationId(),
@@ -512,7 +561,8 @@ public final class PatternProviderSyncHelper {
                 uploadContext.rankingContext() == null ? List.of() : uploadContext.rankingContext().workstationIds(),
                 metadata == null ? List.of() : metadata.categoryIds(),
                 metadata == null ? List.of() : metadata.workstationIds(),
-                uploadContext.confirmedWorkstation());
+                uploadContext.preferredWorkstation(),
+                uploadContext.encodedWorkstation());
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PreparedPatternUpload> preparedUploads,
@@ -599,7 +649,8 @@ public final class PatternProviderSyncHelper {
      */
     public record PatternUploadContext(@NotNull EncodingMode mode,
                                        @Nullable PatternEncodingRankingContext rankingContext,
-                                       @Nullable ResourceLocation confirmedWorkstation) {
+                                       @Nullable ResourceLocation preferredWorkstation,
+                                       @Nullable ResourceLocation encodedWorkstation) {
 
         public boolean processing() {
             return this.mode == EncodingMode.PROCESSING;
@@ -615,6 +666,7 @@ public final class PatternProviderSyncHelper {
         CONTEXT_UNAVAILABLE("data_energistics.pattern_transfer.context_unavailable"),
         PROVIDER_CONTEXT_UNKNOWN("message.data_energistics.pattern_provider.context_unknown"),
         WORKSTATION_AMBIGUOUS("message.data_energistics.pattern_provider.workstation_ambiguous"),
+        WORKSTATION_MISMATCH("message.data_energistics.pattern_provider.workstation_mismatch"),
         TARGET_UNAVAILABLE("message.data_energistics.pattern_provider.target_unavailable");
 
         @Nullable
@@ -694,6 +746,7 @@ public final class PatternProviderSyncHelper {
         PatternProviderAggregationKey aggregationKey;
         String providerDigest;
         boolean exactContextMatch;
+        List<ResourceLocation> matchingWorkstationIds;
         try {
             displayName = resolveProviderDisplayName(container);
             iconItemId = resolveProviderIconItemId(container);
@@ -704,11 +757,13 @@ public final class PatternProviderSyncHelper {
                 aggregationKey = new PatternProviderAggregationKey.Registered(
                         metadata.registrationId(), metadata.providerIdentity());
                 exactContextMatch = matchesRankingContext(metadata, rankingContext);
+                matchingWorkstationIds = resolveMatchingWorkstationIds(metadata, rankingContext);
             } else {
                 aggregationKey = ProviderIdentityDescriptor.from(identity)
                         .<PatternProviderAggregationKey>map(PatternProviderAggregationKey.Core::new)
                         .orElseGet(() -> new PatternProviderAggregationKey.Leaf(providerId));
                 exactContextMatch = false;
+                matchingWorkstationIds = List.of();
             }
             providerDigest = identity.digest();
         } catch (RuntimeException exception) {
@@ -731,7 +786,8 @@ public final class PatternProviderSyncHelper {
                 isRenameableProvider(container),
                 patternInventory.size(),
                 usedPatternSlots,
-                providerDigest));
+                providerDigest,
+                matchingWorkstationIds));
     }
 
     private static ProviderResolution resolveProvider(PatternContainer container) {
@@ -841,6 +897,21 @@ public final class PatternProviderSyncHelper {
             return registeredWorkstations.isEmpty() && transferredWorkstations.isEmpty();
         }
         return transferredWorkstations.stream().anyMatch(registeredWorkstations::contains);
+    }
+
+    private static @NotNull List<@NotNull ResourceLocation> resolveMatchingWorkstationIds(
+                                                                                          @NotNull PatternProviderMetadata metadata,
+                                                                                          @Nullable PatternEncodingRankingContext rankingContext) {
+        if (rankingContext == null || !metadata.categoryIds().contains(rankingContext.categoryId())) {
+            return List.of();
+        }
+        List<ResourceLocation> matchingWorkstations = new ArrayList<>();
+        for (ResourceLocation workstationId : rankingContext.workstationIds()) {
+            if (metadata.workstationIds().contains(workstationId)) {
+                matchingWorkstations.add(workstationId);
+            }
+        }
+        return List.copyOf(matchingWorkstations);
     }
 
     @Nullable
@@ -969,18 +1040,53 @@ public final class PatternProviderSyncHelper {
      * Captures one discovered provider before typed identity aggregation.
      */
     record PatternProviderAggregationEntry(
-                                           PatternContainer container,
+                                           @NotNull PatternContainer container,
                                            long id,
                                            long sortOrder,
-                                           Component displayName,
-                                           ResourceLocation iconItemId,
-                                           PatternProviderAggregationKey aggregationKey,
+                                           @NotNull Component displayName,
+                                           @NotNull ResourceLocation iconItemId,
+                                           @NotNull PatternProviderAggregationKey aggregationKey,
                                            boolean exactContextMatch,
                                            boolean useAeButtonStyle,
                                            boolean renameable,
                                            int patternSlotCount,
                                            int usedPatternSlotCount,
-                                           String providerDigest) {}
+                                           @NotNull String providerDigest,
+                                           @NotNull List<@NotNull ResourceLocation> matchingWorkstationIds) {
+
+        PatternProviderAggregationEntry(
+                                        PatternContainer container,
+                                        long id,
+                                        long sortOrder,
+                                        Component displayName,
+                                        ResourceLocation iconItemId,
+                                        PatternProviderAggregationKey aggregationKey,
+                                        boolean exactContextMatch,
+                                        boolean useAeButtonStyle,
+                                        boolean renameable,
+                                        int patternSlotCount,
+                                        int usedPatternSlotCount,
+                                        String providerDigest) {
+            this(
+                    container,
+                    id,
+                    sortOrder,
+                    displayName,
+                    iconItemId,
+                    aggregationKey,
+                    exactContextMatch,
+                    useAeButtonStyle,
+                    renameable,
+                    patternSlotCount,
+                    usedPatternSlotCount,
+                    providerDigest,
+                    List.of());
+        }
+
+        PatternProviderAggregationEntry {
+            matchingWorkstationIds = List.copyOf(matchingWorkstationIds);
+        }
+    }
 
     sealed interface PatternProviderAggregationKey {
 
@@ -1006,6 +1112,7 @@ public final class PatternProviderSyncHelper {
         private int usedPatternSlotCount;
         private final List<PatternContainer> containers = new ArrayList<>();
         private final Set<String> leafDigests = new LinkedHashSet<>();
+        private final Set<@NotNull ResourceLocation> matchingWorkstationIds = new LinkedHashSet<>();
 
         private AggregatedPatternProvider(PatternProviderAggregationEntry provider) {
             this.id = provider.id();
@@ -1016,6 +1123,7 @@ public final class PatternProviderSyncHelper {
             this.useAeButtonStyle = provider.useAeButtonStyle();
             this.renameable = provider.renameable();
             this.leafDigests.add(provider.providerDigest());
+            this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
         private void include(PatternProviderAggregationEntry provider) {
@@ -1040,6 +1148,7 @@ public final class PatternProviderSyncHelper {
             this.renameable &= provider.renameable();
             this.containers.add(provider.container());
             this.leafDigests.add(provider.providerDigest());
+            this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
         private long id() {
@@ -1084,6 +1193,13 @@ public final class PatternProviderSyncHelper {
 
         private List<String> leafDigests() {
             return this.leafDigests.stream().sorted().toList();
+        }
+
+        @Nullable
+        private ResourceLocation preferredWorkstationId() {
+            return this.matchingWorkstationIds.stream()
+                    .min(Comparator.comparing(ResourceLocation::toString))
+                    .orElse(null);
         }
 
         private long leafCountScore(Map<String, Long> leafClickCounts) {

@@ -212,12 +212,20 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
-    public List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
-        return this.dataEnergistics$syncedPatternProviders.providers();
+    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+        return this.dataEnergistics$syncedPatternProviders;
     }
 
     @Override
-    public EncodingMode data_energistics$getEncodingMode() {
+    public void data_energistics$refreshSyncedPatternProviders() {
+        if (this.isClientSide()) {
+            throw new IllegalStateException("Pattern provider network refresh must run on the server");
+        }
+        dataEnergistics$syncPatternProvidersFromNetwork();
+    }
+
+    @Override
+    public @NotNull EncodingMode data_energistics$getEncodingMode() {
         return this.mode;
     }
 
@@ -419,9 +427,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
         boolean encodedSuccessfully = false;
         try {
-            PatternEncodingSourceHelper.resolveAndApplyDataRipperRecipeKeyInput((PatternEncodingTermMenu) (Object) this);
-            PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
-            PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
+            dataEnergistics$forceSyncPatternProviders();
+            PatternEncodingSourceHelper.applyPatternSource(this,
+                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(
+                    (PatternEncodingTermMenu) (Object) this);
 
             ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
             if (encodedPattern == null) {
@@ -447,12 +457,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 return;
             }
 
-            PatternEncodingSourceHelper.applyPatternSource(this,
-                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
-
             this.encodedPatternSlot.set(encodedPattern);
             encodedSuccessfully = true;
-            dataEnergistics$forceSyncPatternProviders();
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
@@ -491,19 +497,20 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
-        var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        var providers = PatternProviderSyncHelper.findProvidersById(
+                this.dataEnergistics$syncedPatternProvidersById,
+                providerId);
         if (providers == null || providers.isEmpty()) {
-            dataEnergistics$syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+            return;
         }
 
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
                 this,
-                data_energistics$getPreferenceSession());
+                data_energistics$getPreferenceSession(),
+                providerId,
+                data_energistics$getPendingPatternSource());
         var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
                 providers,
                 encodedPattern,

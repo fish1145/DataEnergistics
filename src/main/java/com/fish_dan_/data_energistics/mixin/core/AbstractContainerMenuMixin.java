@@ -16,7 +16,9 @@ public abstract class AbstractContainerMenuMixin {
 
     @Inject(method = "removed", at = @At("HEAD"))
     private void dataEnergistics$clearPatternPreferenceSession(Player player, CallbackInfo ci) {
-        if (this instanceof PatternEncodingPreferenceMenu) {
+        AbstractContainerMenu removedMenu = (AbstractContainerMenu) (Object) this;
+        boolean temporaryClientScreenChange = player.level().isClientSide() && player.containerMenu == removedMenu;
+        if (this instanceof PatternEncodingPreferenceMenu && !temporaryClientScreenChange) {
             PatternEncodingPreferenceSession.clearForMenu(this);
         }
     }

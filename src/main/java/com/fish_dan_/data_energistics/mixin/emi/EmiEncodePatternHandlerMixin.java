@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin.emi;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
+import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
@@ -16,6 +17,8 @@ import appeng.parts.encoding.EncodingMode;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import dev.emi.emi.api.recipe.EmiRecipe;
+import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -31,7 +34,7 @@ public abstract class EmiEncodePatternHandlerMixin {
     @WrapMethod(method = TRANSFER_METHOD)
     private AbstractRecipeHandler.Result dataEnergistics$captureTransferContext(
                                                                                 PatternEncodingTermMenu menu,
-                                                                                RecipeHolder<?> holder,
+                                                                                @Nullable RecipeHolder<?> holder,
                                                                                 EmiRecipe emiRecipe,
                                                                                 boolean doTransfer,
                                                                                 Operation<AbstractRecipeHandler.Result> original) {
@@ -66,19 +69,23 @@ public abstract class EmiEncodePatternHandlerMixin {
             at = @At(
                      value = "INVOKE",
                      target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
-    private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu, RecipeHolder<?> holder,
+    private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu,
+                                                       @Nullable RecipeHolder<?> holder,
                                                        EmiRecipe emiRecipe, boolean doTransfer,
                                                        CallbackInfoReturnable<AbstractRecipeHandler.Result> cir) {
         if (!doTransfer) {
             return;
         }
+        EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(
+                holder == null ? null : holder.value(),
+                emiRecipe.getCategory().equals(VanillaEmiRecipeCategories.CRAFTING));
         PatternEncodingRankingContext rankingContext = EmiPatternTransferContextBridge.requireCurrent(menu);
-        PatternEncodingSourceHelper.rememberTransferSource(menu, rankingContext);
-        PatternEncodingSourceHelper.rememberTransferKeyInput(menu, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferFluidOutputs(menu, holder, emiRecipe);
-        if (menu.getMode() == EncodingMode.PROCESSING) {
+        PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, rankingContext);
+        PatternEncodingSourceHelper.rememberTransferKeyInput(menu, transferMode, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, transferMode, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, transferMode, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberTransferFluidOutputs(menu, transferMode, holder, emiRecipe);
+        if (transferMode == EncodingMode.PROCESSING) {
             PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
         } else {
             PatternEncodingPreferencesClient.captureTransferredRecipe(menu);

@@ -51,6 +51,7 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -168,6 +169,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         boolean encodedSuccessfully = false;
         try {
+            syncPatternProvidersIfNeeded(true);
+            PatternEncodingSourceHelper.applyPatternSource(this,
+                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(this);
             ItemStack encodedPattern = encodePatternVirtual();
             if (encodedPattern == null) {
                 clearEncodedPatternSlot();
@@ -184,11 +189,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
-            PatternEncodingSourceHelper.applyPatternSource(this,
-                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
             encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
-            syncPatternProvidersIfNeeded(true);
         } finally {
             if (handoffStarted) {
                 try {
@@ -222,16 +224,25 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
-        if (!this.syncedPatternProviders.providers().isEmpty()) {
-            return this.syncedPatternProviders.providers();
+    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+        if (!this.syncedPatternProviders.providers().isEmpty() ||
+                this.syncedPatternProviders.rankingContext() != null) {
+            return this.syncedPatternProviders;
         }
 
-        return readFallbackSyncedPatternProviders().providers();
+        return readFallbackSyncedPatternProviders();
     }
 
     @Override
-    public EncodingMode data_energistics$getEncodingMode() {
+    public void data_energistics$refreshSyncedPatternProviders() {
+        if (this.isClientSide()) {
+            throw new IllegalStateException("Pattern provider network refresh must run on the server");
+        }
+        syncPatternProvidersFromNetwork();
+    }
+
+    @Override
+    public @NotNull EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
     }
 
@@ -246,20 +257,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
 
+        syncPatternProvidersFromNetwork();
         var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
         if (providers == null || providers.isEmpty()) {
-            syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+            return;
         }
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
                 this,
-                data_energistics$getPreferenceSession());
+                data_energistics$getPreferenceSession(),
+                providerId,
+                data_energistics$getPendingPatternSource());
         var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
                 providers,
                 encodedPattern,

@@ -150,37 +150,35 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferSource(@NotNull PatternEncodingTermMenu menu,
-                                              @Nullable PatternEncodingRankingContext transferContext) {
+                                              @NotNull EncodingMode transferMode,
+                                              @NotNull PatternEncodingRankingContext transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
-            if (shouldIgnoreWorkstationMemory(sourceAware)) {
+            if (transferMode != EncodingMode.PROCESSING) {
                 sourceAware.data_energistics$setPendingPatternSource(null);
                 sourceAware.data_energistics$setLastEncodedPatternSource(null);
                 if (menu instanceof PatternEncodingPreferenceMenu preferenceMenu) {
-                    EncodingMode mode = menu.getMode();
                     preferenceMenu.data_energistics$getPreferenceSession().setRankingContext(
-                            resolveFixedModeRankingContext(mode, resolveFallbackWorkstationForMode(mode)));
+                            resolveFixedModeRankingContext(
+                                    transferMode,
+                                    resolveFallbackWorkstationForMode(transferMode)));
                 }
                 return;
             }
 
-            if (transferContext == null) {
-                throw new IllegalArgumentException("Processing pattern transfer requires an exact ranking context");
-            }
             PatternEncodingPreferenceSession preferenceSession = menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? preferenceMenu.data_energistics$getPreferenceSession() : null;
-            ResourceLocation workstationId = resolveTransferredWorkstation(
-                    transferContext,
-                    preferenceSession == null ? null : preferenceSession.confirmedWorkstation());
-            sourceAware.data_energistics$setPendingPatternSource(workstationId);
             if (preferenceSession != null) {
                 preferenceSession.setRankingContext(transferContext);
             }
+            PatternEncodingPreviewMenu previewMenu = menu instanceof PatternEncodingPreviewMenu value ? value : null;
+            sourceAware.data_energistics$setPendingPatternSource(
+                    resolveTransferredWorkstation(transferContext, previewMenu));
         }
     }
 
     @Nullable
     private static ResourceLocation resolveTransferredWorkstation(
                                                                   @NotNull PatternEncodingRankingContext context,
-                                                                  @Nullable ResourceLocation confirmedWorkstation) {
+                                                                  @Nullable PatternEncodingPreviewMenu previewMenu) {
         for (ResourceLocation workstationId : context.workstationIds()) {
             if (isInvalidWorkstationItem(workstationId)) {
                 throw new IllegalArgumentException("Processing pattern transfer references an invalid workstation: " + workstationId);
@@ -189,7 +187,20 @@ public final class PatternEncodingSourceHelper {
         if (context.workstationIds().size() == 1) {
             return context.workstationIds().getFirst();
         }
-        return context.workstationIds().contains(confirmedWorkstation) ? confirmedWorkstation : null;
+        if (previewMenu == null) {
+            return null;
+        }
+        PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewMenu.data_energistics$getSyncedPatternProviderState();
+        if (!context.equals(providerState.rankingContext())) {
+            return null;
+        }
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providerState.providers()) {
+            ResourceLocation preferredWorkstationId = provider.preferredWorkstationId();
+            if (preferredWorkstationId != null) {
+                return preferredWorkstationId;
+            }
+        }
+        return null;
     }
 
     /**
@@ -265,9 +276,9 @@ public final class PatternEncodingSourceHelper {
         session.setRankingContext(fixedWorkstation == null ? null : resolveFixedModeRankingContext(mode, fixedWorkstation));
     }
 
-    public static void rememberTransferKeyInput(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                @Nullable Object transferContext) {
-        if (menu.getMode() != EncodingMode.PROCESSING) {
+    public static void rememberTransferKeyInput(PatternEncodingTermMenu menu, @NotNull EncodingMode transferMode,
+                                                @Nullable Object recipe, @Nullable Object transferContext) {
+        if (transferMode != EncodingMode.PROCESSING) {
             syncPendingTransferKeyInput(menu, null);
             return;
         }
@@ -278,9 +289,9 @@ public final class PatternEncodingSourceHelper {
         }
     }
 
-    public static void rememberTransferFluidInputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                   @Nullable Object transferContext) {
-        if (menu.getMode() != EncodingMode.PROCESSING) {
+    public static void rememberTransferFluidInputs(PatternEncodingTermMenu menu, @NotNull EncodingMode transferMode,
+                                                   @Nullable Object recipe, @Nullable Object transferContext) {
+        if (transferMode != EncodingMode.PROCESSING) {
             syncPendingTransferFluidInputs(menu, List.of());
             return;
         }
@@ -291,9 +302,9 @@ public final class PatternEncodingSourceHelper {
         }
     }
 
-    public static void rememberTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                 @Nullable Object transferContext) {
-        if (menu.getMode() != EncodingMode.PROCESSING) {
+    public static void rememberTransferKeyOutput(PatternEncodingTermMenu menu, @NotNull EncodingMode transferMode,
+                                                 @Nullable Object recipe, @Nullable Object transferContext) {
+        if (transferMode != EncodingMode.PROCESSING) {
             syncPendingTransferKeyOutput(menu, null);
             return;
         }
@@ -304,9 +315,9 @@ public final class PatternEncodingSourceHelper {
         }
     }
 
-    public static void rememberTransferFluidOutputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                    @Nullable Object transferContext) {
-        if (menu.getMode() != EncodingMode.PROCESSING) {
+    public static void rememberTransferFluidOutputs(PatternEncodingTermMenu menu, @NotNull EncodingMode transferMode,
+                                                    @Nullable Object recipe, @Nullable Object transferContext) {
+        if (transferMode != EncodingMode.PROCESSING) {
             syncPendingTransferFluidOutputs(menu, List.of());
             return;
         }
@@ -377,6 +388,32 @@ public final class PatternEncodingSourceHelper {
         PatternEncodingLogic logic = host.getLogic();
         ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
         applyTransferKeyOutputServer(encodedOutputsInv, keyOutput);
+    }
+
+    /**
+     * Applies all recipe metadata retained while a processing transfer waited for its network-resolved workstation.
+     */
+    public static void applyPendingTransferRecipeMetadata(@NotNull PatternEncodingTermMenu menu) {
+        resolveAndApplyDataRipperRecipeKeyInput(menu);
+        applyPendingTransferKeyInput(menu);
+        applyPendingTransferKeyOutput(menu);
+        if (menu.getMode() != EncodingMode.PROCESSING ||
+                !DATA_RIPPER_REASSEMBLER_ID.equals(readPendingPatternSource(menu.getPlayer())) ||
+                !(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        applyTransferFluidStacksServer(
+                logic.getEncodedInputInv(),
+                DATA_RIPPER_FLUID_INPUT_SLOT_BASE,
+                DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS,
+                readPendingTransferFluidInputs(menu.getPlayer()));
+        applyTransferFluidStacksServer(
+                logic.getEncodedOutputInv(),
+                DATA_RIPPER_FLUID_OUTPUT_SLOT_BASE,
+                DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS,
+                readPendingTransferFluidOutputs(menu.getPlayer()));
     }
 
     public static void sanitizeActiveDataRipperTransferLayout(PatternEncodingTermMenu menu) {
@@ -496,7 +533,8 @@ public final class PatternEncodingSourceHelper {
         if (sourceAware instanceof PatternEncodingPreviewMenu previewMenu &&
                 sourceAware instanceof PatternEncodingPreferenceMenu preferenceMenu &&
                 previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
-            return preferenceMenu.data_energistics$getPreferenceSession().autoAdoptableWorkstation();
+            PatternEncodingRankingContext rankingContext = preferenceMenu.data_energistics$getPreferenceSession().rankingContext();
+            return rankingContext == null ? null : resolveTransferredWorkstation(rankingContext, previewMenu);
         }
 
         ResourceLocation workstationId = sourceAware.data_energistics$getPendingPatternSource();

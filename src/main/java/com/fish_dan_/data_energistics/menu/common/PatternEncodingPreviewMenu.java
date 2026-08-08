@@ -7,17 +7,39 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.menu.guisync.PacketWritable;
 import appeng.parts.encoding.EncodingMode;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Exposes the server-authoritative pattern-provider preview and transfer operations of an encoding menu.
+ */
 public interface PatternEncodingPreviewMenu {
 
     long data_energistics$getNetworkBlankPatternCount();
 
+    @NotNull
     EncodingMode data_energistics$getEncodingMode();
 
-    List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders();
+    /**
+     * Returns provider rows together with the exact ranking context used to resolve their workstation metadata.
+     */
+    @NotNull
+    SyncedPatternProviderList data_energistics$getSyncedPatternProviderState();
+
+    /**
+     * Returns the provider rows for existing preview consumers that do not need workstation resolution state.
+     */
+    default @NotNull List<@NotNull SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
+        return data_energistics$getSyncedPatternProviderState().providers();
+    }
+
+    /**
+     * Rebuilds the provider snapshot from the current server grid after ranking context or history changes.
+     */
+    void data_energistics$refreshSyncedPatternProviders();
 
     void data_energistics$transferEncodedPatternToProvider(long providerId);
 
@@ -25,27 +47,45 @@ public interface PatternEncodingPreviewMenu {
 
     void data_energistics$renamePatternProvider(long providerId, String name);
 
-    record SyncedPatternProviderList(List<SyncedPatternProvider> providers) implements PacketWritable {
+    /**
+     * Context-bound provider snapshot synchronized through the menu.
+     */
+    record SyncedPatternProviderList(
+                                     @NotNull List<@NotNull SyncedPatternProvider> providers,
+                                     @Nullable PatternEncodingRankingContext rankingContext)
+            implements PacketWritable {
 
-        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of());
+        public static final @NotNull SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null);
 
         public SyncedPatternProviderList {
             providers = List.copyOf(providers);
+            for (SyncedPatternProvider provider : providers) {
+                ResourceLocation preferredWorkstationId = provider.preferredWorkstationId();
+                if (preferredWorkstationId != null &&
+                        (rankingContext == null ||
+                                !rankingContext.workstationIds().contains(preferredWorkstationId))) {
+                    throw new IllegalArgumentException(
+                            "Synchronized provider workstation is outside its ranking context: " +
+                                    preferredWorkstationId);
+                }
+            }
         }
 
-        public SyncedPatternProviderList(RegistryFriendlyByteBuf data) {
-            this(readProviders(data));
+        public SyncedPatternProviderList(@NotNull RegistryFriendlyByteBuf data) {
+            this(readProviders(data), readRankingContext(data));
         }
 
         @Override
-        public void writeToPacket(RegistryFriendlyByteBuf data) {
+        public void writeToPacket(@NotNull RegistryFriendlyByteBuf data) {
             data.writeVarInt(this.providers.size());
             for (var provider : this.providers) {
                 provider.writeToPacket(data);
             }
+            writeRankingContext(data, this.rankingContext);
         }
 
-        private static List<SyncedPatternProvider> readProviders(RegistryFriendlyByteBuf data) {
+        private static @NotNull List<@NotNull SyncedPatternProvider> readProviders(
+                                                                                   @NotNull RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             List<SyncedPatternProvider> providers = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
@@ -53,23 +93,77 @@ public interface PatternEncodingPreviewMenu {
             }
             return providers;
         }
+
+        private static void writeRankingContext(
+                                                @NotNull RegistryFriendlyByteBuf data,
+                                                @Nullable PatternEncodingRankingContext rankingContext) {
+            data.writeBoolean(rankingContext != null);
+            if (rankingContext == null) {
+                return;
+            }
+            writeBoundedResourceLocation(data, rankingContext.categoryId());
+            data.writeVarInt(rankingContext.workstationIds().size());
+            for (ResourceLocation workstationId : rankingContext.workstationIds()) {
+                writeBoundedResourceLocation(data, workstationId);
+            }
+        }
+
+        private static @Nullable PatternEncodingRankingContext readRankingContext(
+                                                                                  @NotNull RegistryFriendlyByteBuf data) {
+            if (!data.readBoolean()) {
+                return null;
+            }
+            ResourceLocation categoryId = readBoundedResourceLocation(data, "category id");
+            int workstationCount = data.readVarInt();
+            if (workstationCount < 0 || workstationCount > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
+                throw new IllegalArgumentException(
+                        "Pattern ranking workstation ids exceed " +
+                                PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+            }
+            List<ResourceLocation> workstationIds = new ArrayList<>(workstationCount);
+            for (int index = 0; index < workstationCount; index++) {
+                workstationIds.add(readBoundedResourceLocation(data, "workstation id"));
+            }
+            return new PatternEncodingRankingContext(categoryId, workstationIds);
+        }
+
+        private static void writeBoundedResourceLocation(
+                                                         @NotNull RegistryFriendlyByteBuf data,
+                                                         @NotNull ResourceLocation id) {
+            data.writeUtf(id.toString(), PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
+        }
+
+        private static @NotNull ResourceLocation readBoundedResourceLocation(
+                                                                             @NotNull RegistryFriendlyByteBuf data,
+                                                                             @NotNull String label) {
+            String encoded = data.readUtf(PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
+            ResourceLocation id = ResourceLocation.tryParse(encoded);
+            if (id == null) {
+                throw new IllegalArgumentException("Invalid pattern ranking " + label + ": " + encoded);
+            }
+            return id;
+        }
     }
 
+    /**
+     * One displayed provider group and its preferred workstation for the enclosing snapshot context.
+     */
     record SyncedPatternProvider(
                                  long id,
-                                 Component displayName,
-                                 ResourceLocation iconItemId,
+                                 @NotNull Component displayName,
+                                 @NotNull ResourceLocation iconItemId,
                                  boolean useAeButtonStyle,
                                  boolean renameable,
                                  int patternSlotCount,
                                  int usedPatternSlotCount,
-                                 List<String> leafDigests) {
+                                 @NotNull List<@NotNull String> leafDigests,
+                                 @Nullable ResourceLocation preferredWorkstationId) {
 
         public SyncedPatternProvider {
             leafDigests = List.copyOf(leafDigests);
         }
 
-        public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
+        public SyncedPatternProvider(@NotNull RegistryFriendlyByteBuf data) {
             this(
                     data.readLong(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(data),
@@ -78,10 +172,11 @@ public interface PatternEncodingPreviewMenu {
                     data.readBoolean(),
                     data.readVarInt(),
                     data.readVarInt(),
-                    readLeafDigests(data));
+                    readLeafDigests(data),
+                    readNullableResourceLocation(data));
         }
 
-        private void writeToPacket(RegistryFriendlyByteBuf data) {
+        private void writeToPacket(@NotNull RegistryFriendlyByteBuf data) {
             data.writeLong(this.id);
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(data, this.displayName);
             data.writeResourceLocation(this.iconItemId);
@@ -93,9 +188,14 @@ public interface PatternEncodingPreviewMenu {
             for (String digest : this.leafDigests) {
                 data.writeUtf(digest, 71);
             }
+            data.writeBoolean(this.preferredWorkstationId != null);
+            if (this.preferredWorkstationId != null) {
+                data.writeResourceLocation(this.preferredWorkstationId);
+            }
         }
 
-        private static List<String> readLeafDigests(RegistryFriendlyByteBuf data) {
+        private static @NotNull List<@NotNull String> readLeafDigests(
+                                                                      @NotNull RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             if (size < 0 || size > 2048) {
                 throw new IllegalArgumentException("Pattern provider leaf digest count is outside [0, 2048]: " + size);
@@ -109,6 +209,11 @@ public interface PatternEncodingPreviewMenu {
                 digests.add(digest);
             }
             return List.copyOf(digests);
+        }
+
+        private static @Nullable ResourceLocation readNullableResourceLocation(
+                                                                               @NotNull RegistryFriendlyByteBuf data) {
+            return data.readBoolean() ? data.readResourceLocation() : null;
         }
     }
 }
