@@ -122,6 +122,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$hasDiagnostic = true;
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
+            this.dataEnergistics$planningNanos = diagnosed.calculationNanos();
         }
     }
 
