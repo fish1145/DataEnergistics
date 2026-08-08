@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.accessor.CraftingPlanTiming;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
@@ -277,7 +278,12 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                 if (ae2Plan == null) {
                     throw new ExecutionException(new IllegalStateException("AE2 planning returned no plan"));
                 }
-                ICraftingPlan selected = ae2Plan.simulation() ? new TrinityDiagnosedCraftingPlan(ae2Plan, diagnostic) : ae2Plan;
+                ICraftingPlan selected = ae2Plan.simulation() ?
+                        new TrinityDiagnosedCraftingPlan(
+                                ae2Plan,
+                                diagnostic,
+                                ((CraftingPlanTiming) ae2Plan).dataEnergistics$calculationNanos()) :
+                        ae2Plan;
                 return publish(selected);
             } catch (ExecutionException exception) {
                 exception.addSuppressed(new TrinityPlanningFallbackException(diagnostic, trinityFailure));
