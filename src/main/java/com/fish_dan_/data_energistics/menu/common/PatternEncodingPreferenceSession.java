@@ -32,7 +32,8 @@ public final class PatternEncodingPreferenceSession {
     private ResourceLocation confirmedWorkstation;
     private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
 
-    private PatternEncodingPreferenceSession() {}
+    private PatternEncodingPreferenceSession() {
+    }
 
     /**
      * Returns or creates the session associated with one live menu instance.
@@ -79,7 +80,7 @@ public final class PatternEncodingPreferenceSession {
      * Accepts a server snapshot sequence exactly once and rejects reordered packets.
      */
     public boolean acceptIncomingSequence(long sequence) {
-        if (sequence <= 0L || sequence <= this.lastAcceptedSequence) {
+        if (!canAcceptIncomingSequence(sequence)) {
             return false;
         }
         this.lastAcceptedSequence = sequence;
@@ -87,7 +88,14 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
-     * Returns the server-validated category/workstation-set context, if one is known.
+     * Checks a server snapshot sequence without consuming it while the snapshot contents are validated.
+     */
+    public boolean canAcceptIncomingSequence(long sequence) {
+        return sequence > 0L && sequence > this.lastAcceptedSequence;
+    }
+
+    /**
+     * Returns the server-validated recipe-type context, if one is known.
      */
     @Nullable
     public PatternEncodingRankingContext rankingContext() {
@@ -120,12 +128,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Confirms the workstation selected by a server-side upload preflight after the inventory commit succeeds.
      */
-    public void confirmWorkstation(@NotNull PatternEncodingRankingContext context,
-                                   @NotNull ResourceLocation workstationId) {
-        if (!context.workstationIds().contains(workstationId)) {
-            throw new IllegalArgumentException(
-                    "Confirmed workstation is not present in the committed upload context: " + workstationId);
-        }
+    public void confirmWorkstation(@NotNull ResourceLocation workstationId) {
         this.confirmedWorkstation = workstationId;
     }
 

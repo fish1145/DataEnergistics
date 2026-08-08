@@ -18,7 +18,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class PatternUploadRecorder {
 
-    private PatternUploadRecorder() {}
+    private PatternUploadRecorder() {
+    }
 
     /**
      * Records exactly one successful operation against its first committed provider leaf.
@@ -69,7 +70,7 @@ public final class PatternUploadRecorder {
             if (rankingContext == null) {
                 throw new IllegalStateException("A committed workstation requires an upload ranking context");
             }
-            session.confirmWorkstation(rankingContext, confirmedWorkstation);
+            session.confirmWorkstation(confirmedWorkstation);
             if (sourceAware != null) {
                 sourceAware.data_energistics$setLastEncodedPatternSource(confirmedWorkstation);
             } else {
@@ -91,8 +92,8 @@ public final class PatternUploadRecorder {
     }
 
     private static @Nullable PatternEncodingRankingContext resolveRankingContext(
-                                                                                 @NotNull PatternEncodingPreviewMenu previewMenu,
-                                                                                 @NotNull PatternEncodingPreferenceSession session) {
+            @NotNull PatternEncodingPreviewMenu previewMenu,
+            @NotNull PatternEncodingPreferenceSession session) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
         if (fixedWorkstation != null) {

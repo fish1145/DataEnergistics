@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
-import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
@@ -250,14 +249,12 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         this.jeiRuntime = jeiRuntime;
-        JeiPatternTransferContextBridge.install(jeiRuntime);
         hidePoweredRepairRecipes();
     }
 
     @Override
     public void onRuntimeUnavailable() {
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
-        JeiPatternTransferContextBridge.clear(this.jeiRuntime);
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();
@@ -278,7 +275,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
      * Installs the sole category owned by the current JEI runtime registration cycle.
      */
     TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
-                                                                  TrinityMultiblockJeiCategory category) {
+            TrinityMultiblockJeiCategory category) {
         if (category == null) {
             throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
         }
@@ -298,9 +295,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     }
 
     private void requestMultiblockRefresh(
-                                          MultiblockXeiRecipe recipe,
-                                          MultiblockXeiComposition composition,
-                                          MultiblockXeiComposition.RecipeChange change) {
+            MultiblockXeiRecipe recipe,
+            MultiblockXeiComposition composition,
+            MultiblockXeiComposition.RecipeChange change) {
         IJeiRuntime runtime = this.jeiRuntime;
         TrinityMultiblockJeiCategory category = currentTrinityMultiblockCategory();
         if (runtime == null || category == null || this.multiblockRefreshInProgress) {

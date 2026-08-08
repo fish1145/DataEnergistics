@@ -19,7 +19,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import appeng.api.crafting.PatternDetailsHelper;
@@ -74,7 +73,8 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation SMITHING_RECIPE_TYPE_ID = ResourceLocation.withDefaultNamespace("smithing");
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
 
-    private PatternEncodingSourceHelper() {}
+    private PatternEncodingSourceHelper() {
+    }
 
     @Nullable
     public static ItemStack encodeProcessingPattern(ConfigInventory inputs, ConfigInventory outputs) {
@@ -93,8 +93,8 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     private static List<GenericStack> normalizeProcessingPatternInventory(
-                                                                          ConfigInventory inventory,
-                                                                          String inventoryKind) {
+            ConfigInventory inventory,
+            String inventoryKind) {
         List<GenericStack> normalized = new ArrayList<>(inventory.size());
         for (int slot = 0; slot < inventory.size(); slot++) {
             GenericStack stack = inventory.getStack(slot);
@@ -177,16 +177,8 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     private static ResourceLocation resolveTransferredWorkstation(
-                                                                  @NotNull PatternEncodingRankingContext context,
-                                                                  @Nullable PatternEncodingPreviewMenu previewMenu) {
-        for (ResourceLocation workstationId : context.workstationIds()) {
-            if (isInvalidWorkstationItem(workstationId)) {
-                throw new IllegalArgumentException("Processing pattern transfer references an invalid workstation: " + workstationId);
-            }
-        }
-        if (context.workstationIds().size() == 1) {
-            return context.workstationIds().getFirst();
-        }
+            @NotNull PatternEncodingRankingContext context,
+            @Nullable PatternEncodingPreviewMenu previewMenu) {
         if (previewMenu == null) {
             return null;
         }
@@ -194,13 +186,10 @@ public final class PatternEncodingSourceHelper {
         if (!context.equals(providerState.rankingContext())) {
             return null;
         }
-        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providerState.providers()) {
-            ResourceLocation preferredWorkstationId = provider.preferredWorkstationId();
-            if (preferredWorkstationId != null) {
-                return preferredWorkstationId;
-            }
+        if (providerState.providers().isEmpty()) {
+            return null;
         }
-        return null;
+        return providerState.providers().getFirst().preferredWorkstationId();
     }
 
     /**
@@ -218,12 +207,12 @@ public final class PatternEncodingSourceHelper {
             case STONECUTTING -> STONECUTTING_RECIPE_TYPE_ID;
             case PROCESSING -> null;
         };
-        return recipeTypeId == null ? null : PatternEncodingRankingContext.of(recipeTypeId, List.of(workstationId));
+        return recipeTypeId == null ? null : PatternEncodingRankingContext.of(recipeTypeId);
     }
 
     /**
-     * Verifies that a client ranking context describes the current recipe mode and registered workstation items.
-     * Fixed vanilla modes are derived entirely on the server; processing contexts come from exact viewer metadata.
+     * Verifies that a client ranking context describes the current recipe mode.
+     * Fixed vanilla modes are derived entirely on the server; processing contexts carry only a viewer recipe type.
      */
     public static boolean isRankingContextValid(@NotNull PatternEncodingPreviewMenu previewMenu,
                                                 @Nullable PatternEncodingRankingContext context) {
@@ -235,14 +224,6 @@ public final class PatternEncodingSourceHelper {
         if (mode != EncodingMode.PROCESSING) {
             return context == null;
         }
-        if (context == null) {
-            return true;
-        }
-        for (ResourceLocation candidateWorkstation : context.workstationIds()) {
-            if (isInvalidWorkstationItem(candidateWorkstation)) {
-                return false;
-            }
-        }
         return true;
     }
 
@@ -251,12 +232,8 @@ public final class PatternEncodingSourceHelper {
                 BuiltInRegistries.ITEM.containsKey(workstationId));
     }
 
-    private static boolean isInvalidWorkstationItem(@NotNull ResourceLocation workstationId) {
-        return BuiltInRegistries.ITEM.get(workstationId) == Items.AIR;
-    }
-
     /**
-     * Clears recipe-viewer state after an exact category/workstation lookup fails.
+     * Clears recipe-viewer state after an exact recipe-type lookup fails.
      */
     public static void clearViewerTransferContext(@NotNull PatternEncodingTermMenu menu) {
         if (!(menu instanceof PatternEncodingSourceAware sourceAware) ||

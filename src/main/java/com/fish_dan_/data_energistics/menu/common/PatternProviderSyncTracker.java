@@ -34,13 +34,13 @@ public final class PatternProviderSyncTracker {
      *
      * @param currentPublication    current grid-local provider publication identity
      * @param currentTick           server game time used only for conservative presentation validation
-     * @param currentRankingContext current exact category and workstation snapshot
+     * @param currentRankingContext current exact recipe-type context
      * @return {@code true} when provider discovery must run
      */
     public boolean needsRefresh(
-                                PublicationVersion currentPublication,
-                                long currentTick,
-                                @Nullable PatternEncodingRankingContext currentRankingContext) {
+            PublicationVersion currentPublication,
+            long currentTick,
+            @Nullable PatternEncodingRankingContext currentRankingContext) {
         return this.dirty ||
                 this.publicationScope != currentPublication.scope() ||
                 this.providerRevision != currentPublication.revision() ||
@@ -52,9 +52,9 @@ public final class PatternProviderSyncTracker {
      * Records the inputs used by a completed server-thread provider discovery.
      */
     public void refreshed(
-                          PublicationVersion currentPublication,
-                          long currentTick,
-                          @Nullable PatternEncodingRankingContext currentRankingContext) {
+            PublicationVersion currentPublication,
+            long currentTick,
+            @Nullable PatternEncodingRankingContext currentRankingContext) {
         this.publicationScope = currentPublication.scope();
         this.providerRevision = currentPublication.revision();
         this.refreshedTick = currentTick;
@@ -90,5 +90,6 @@ public final class PatternProviderSyncTracker {
     /**
      * Immutable identity of one grid-local provider publication snapshot.
      */
-    public record PublicationVersion(long scope, long revision) {}
+    public record PublicationVersion(long scope, long revision) {
+    }
 }

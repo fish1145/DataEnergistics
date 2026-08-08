@@ -1,21 +1,22 @@
 package com.fish_dan_.data_energistics.menu.common;
 
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-/** Stores one bounded provider-selection history entry for an exact ranking context. */
+/**
+ * Stores one bounded provider-selection history entry for an exact ranking context.
+ */
 public record PatternProviderClickStatistic(
-                                            PatternEncodingRankingContext context,
-                                            String providerDigest,
-                                            long count,
-                                            long lastUsedEpochMillis) {
+        PatternEncodingRankingContext context,
+        String providerDigest,
+        long count,
+        long lastUsedEpochMillis) {
 
     public static final int DIGEST_LENGTH = 71;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
 
-    /** Rejects malformed or unbounded values before they reach persistence or menu ordering. */
+    /**
+     * Rejects malformed or unbounded values before they reach persistence or menu ordering.
+     */
     public PatternProviderClickStatistic {
         if (context == null) {
             throw new IllegalArgumentException("Pattern provider statistic context must not be null");
@@ -31,10 +32,10 @@ public record PatternProviderClickStatistic(
         }
     }
 
-    /** Returns the stable key used for deterministic eviction and duplicate detection. */
+    /**
+     * Returns the stable key used for deterministic eviction and duplicate detection.
+     */
     public String stableKey() {
-        return this.context.categoryId().toString() + '\0' + this.context.workstationIds().stream()
-                .map(ResourceLocation::toString)
-                .collect(Collectors.joining(",")) + '\0' + this.providerDigest;
+        return this.context.recipeTypeId() + "\0" + this.providerDigest;
     }
 }

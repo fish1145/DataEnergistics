@@ -37,16 +37,16 @@ import java.util.stream.Collectors;
  * C2S snapshot of client preferences and the provider history visible in one pattern menu.
  */
 public record PatternEncodingPreferencesSyncPayload(
-                                                    int containerId,
-                                                    long sequence,
-                                                    int presentMask,
-                                                    boolean uploadEnabled,
-                                                    boolean patternSourceEnabled,
-                                                    @Nullable ResourceLocation lastWorkstation,
-                                                    int previewPanelOffsetX,
-                                                    int previewPanelOffsetY,
-                                                    @Nullable PatternEncodingRankingContext rankingContext,
-                                                    @NotNull List<LeafStatistic> statistics)
+        int containerId,
+        long sequence,
+        int presentMask,
+        boolean uploadEnabled,
+        boolean patternSourceEnabled,
+        @Nullable ResourceLocation lastWorkstation,
+        int previewPanelOffsetX,
+        int previewPanelOffsetY,
+        @Nullable PatternEncodingRankingContext rankingContext,
+        @NotNull List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
@@ -89,7 +89,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     /**
-     * One absolute count for a provider leaf in the current category/workstation-set context.
+     * One absolute count for a provider leaf in the current recipe-type context.
      */
     public record LeafStatistic(String providerDigest, long count) {
 
@@ -149,22 +149,9 @@ public record PatternEncodingPreferencesSyncPayload(
             return;
         }
 
-        PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
-        Set<String> visibleLeafDigests = new HashSet<>();
-        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
-            visibleLeafDigests.addAll(provider.leafDigests());
-        }
-        for (LeafStatistic statistic : payload.statistics) {
-            if (!visibleLeafDigests.contains(statistic.providerDigest())) {
-                Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
-                        statistic.providerDigest());
-                return;
-            }
-        }
-
         if (!PatternEncodingSourceHelper.isRankingContextValid(previewMenu, payload.rankingContext)) {
             Data_Energistics.LOGGER.warn(
-                    "Rejected pattern preference snapshot with a forged recipe or workstation context for container {}",
+                    "Rejected pattern preference snapshot with a forged recipe type context for container {}",
                     payload.containerId);
             return;
         }
@@ -174,10 +161,32 @@ public record PatternEncodingPreferencesSyncPayload(
                     payload.containerId);
             return;
         }
-        if (!session.acceptIncomingSequence(payload.sequence)) {
+        PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
+        if (!session.canAcceptIncomingSequence(payload.sequence)) {
             Data_Energistics.LOGGER.warn("Rejected out-of-order pattern preference sequence {} for container {}",
                     payload.sequence, payload.containerId);
             return;
+        }
+
+        PatternEncodingRankingContext previousRankingContext = session.rankingContext();
+        session.setRankingContext(payload.rankingContext);
+        previewMenu.data_energistics$refreshSyncedPatternProviders();
+
+        Set<String> visibleLeafDigests = new HashSet<>();
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
+            visibleLeafDigests.addAll(provider.leafDigests());
+        }
+        for (LeafStatistic statistic : payload.statistics) {
+            if (!visibleLeafDigests.contains(statistic.providerDigest())) {
+                Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
+                        statistic.providerDigest());
+                session.setRankingContext(previousRankingContext);
+                previewMenu.data_energistics$refreshSyncedPatternProviders();
+                return;
+            }
+        }
+        if (!session.acceptIncomingSequence(payload.sequence)) {
+            throw new IllegalStateException("Pattern preference sequence changed during main-thread validation");
         }
 
         int migratedMask = PatternEncodingClientPreferenceMask.missingMask(payload.presentMask);
@@ -190,7 +199,6 @@ public record PatternEncodingPreferencesSyncPayload(
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PREVIEW_PANEL) != 0) {
             layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
         }
-        session.setRankingContext(payload.rankingContext);
         session.replaceLeafCounts(payload.statistics.stream()
                 .collect(Collectors.toMap(LeafStatistic::providerDigest, LeafStatistic::count)));
         previewMenu.data_energistics$refreshSyncedPatternProviders();
@@ -273,7 +281,8 @@ public record PatternEncodingPreferencesSyncPayload(
         static final int LAST_WORKSTATION = 1 << 2;
         static final int PREVIEW_PANEL = 1 << 3;
 
-        private PatternEncodingClientPreferenceMask() {}
+        private PatternEncodingClientPreferenceMask() {
+        }
 
         static int missingMask(int presentMask) {
             return (UPLOAD_ENABLED | PATTERN_SOURCE_ENABLED | LAST_WORKSTATION | PREVIEW_PANEL) & ~presentMask;

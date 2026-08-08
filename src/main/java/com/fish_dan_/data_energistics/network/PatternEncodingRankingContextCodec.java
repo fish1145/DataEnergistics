@@ -7,13 +7,13 @@ import net.minecraft.resources.ResourceLocation;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** Bounded wire codec shared by the preference and upload-success payloads. */
+/**
+ * Bounded wire codec shared by the preference and upload-success payloads.
+ */
 final class PatternEncodingRankingContextCodec {
 
-    private PatternEncodingRankingContextCodec() {}
+    private PatternEncodingRankingContextCodec() {
+    }
 
     static void writeNullable(RegistryFriendlyByteBuf buffer,
                               @Nullable PatternEncodingRankingContext context) {
@@ -21,11 +21,7 @@ final class PatternEncodingRankingContextCodec {
         if (context == null) {
             return;
         }
-        writeResourceLocation(buffer, context.categoryId());
-        buffer.writeVarInt(context.workstationIds().size());
-        for (ResourceLocation workstationId : context.workstationIds()) {
-            writeResourceLocation(buffer, workstationId);
-        }
+        writeResourceLocation(buffer, context.recipeTypeId());
     }
 
     @Nullable
@@ -33,16 +29,7 @@ final class PatternEncodingRankingContextCodec {
         if (!buffer.readBoolean()) {
             return null;
         }
-        ResourceLocation categoryId = readResourceLocation(buffer, "category id");
-        int workstationCount = buffer.readVarInt();
-        if (workstationCount < 0 || workstationCount > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
-            throw new IllegalArgumentException("Pattern ranking workstation ids exceed " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
-        }
-        List<ResourceLocation> workstationIds = new ArrayList<>(workstationCount);
-        for (int index = 0; index < workstationCount; index++) {
-            workstationIds.add(readResourceLocation(buffer, "workstation id"));
-        }
-        return new PatternEncodingRankingContext(categoryId, workstationIds);
+        return new PatternEncodingRankingContext(readResourceLocation(buffer, "recipe type id"));
     }
 
     private static void writeResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation id) {

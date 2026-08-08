@@ -27,7 +27,8 @@ import java.util.Set;
  */
 public final class PatternEncodingPreferencesClient {
 
-    private PatternEncodingPreferencesClient() {}
+    private PatternEncodingPreferencesClient() {
+    }
 
     /**
      * Applies only already-present local fields, preserving server legacy values for first-run migration.
@@ -59,7 +60,9 @@ public final class PatternEncodingPreferencesClient {
         sendSnapshot(menu);
     }
 
-    /** Persists the fixed vanilla context captured by a successful viewer transfer. */
+    /**
+     * Persists the fixed vanilla context captured by a successful viewer transfer.
+     */
     public static void captureTransferredRecipe(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
@@ -73,7 +76,9 @@ public final class PatternEncodingPreferencesClient {
         sendSnapshot(menu);
     }
 
-    /** Persists a successful processing transfer with its exact category/workstation context. */
+    /**
+     * Persists a successful processing transfer with its exact recipe-type context.
+     */
     public static void captureTransferredProcessingRecipe(@NotNull AbstractContainerMenu menu,
                                                           @NotNull PatternEncodingRankingContext transferredContext) {
         Interfaces interfaces = Interfaces.require(menu);
@@ -164,7 +169,7 @@ public final class PatternEncodingPreferencesClient {
     }
 
     private static PatternEncodingPreferencesSyncPayload.LeafStatistic toPayloadStatistic(
-                                                                                          PatternProviderClickStatistic statistic) {
+            PatternProviderClickStatistic statistic) {
         return new PatternEncodingPreferencesSyncPayload.LeafStatistic(
                 statistic.providerDigest(), statistic.count());
     }

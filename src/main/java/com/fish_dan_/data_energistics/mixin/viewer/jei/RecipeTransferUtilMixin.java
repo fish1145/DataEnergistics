@@ -27,7 +27,7 @@ import org.spongepowered.asm.mixin.Unique;
 import java.util.Optional;
 
 /**
- * Captures the exact JEI category/workstation set around the real transfer handler call.
+ * Captures the exact JEI recipe type around the real transfer handler call.
  */
 @Mixin(value = RecipeTransferUtil.class, remap = false)
 public abstract class RecipeTransferUtilMixin {
@@ -37,13 +37,13 @@ public abstract class RecipeTransferUtilMixin {
 
     @WrapMethod(method = TRANSFER_METHOD)
     private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
-                                                                                         IRecipeTransferManager recipeTransferManager,
-                                                                                         AbstractContainerMenu container,
-                                                                                         IRecipeLayoutDrawable<?> recipeLayout,
-                                                                                         Player player,
-                                                                                         boolean maxTransfer,
-                                                                                         boolean doTransfer,
-                                                                                         Operation<Optional<IRecipeTransferError>> original) {
+            IRecipeTransferManager recipeTransferManager,
+            AbstractContainerMenu container,
+            IRecipeLayoutDrawable<?> recipeLayout,
+            Player player,
+            boolean maxTransfer,
+            boolean doTransfer,
+            Operation<Optional<IRecipeTransferError>> original) {
         if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
             return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }
@@ -52,7 +52,7 @@ public abstract class RecipeTransferUtilMixin {
             context = JeiPatternTransferContextBridge.resolve(recipeLayout);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Rejected JEI pattern transfer because its category/workstation context could not be resolved",
+                    "Rejected JEI pattern transfer because its recipe-type context could not be resolved",
                     exception);
             PatternEncodingPreferencesClient.clearTransferredRecipeContext(menu);
             return Optional.of(RecipeTransferErrorInternal.INSTANCE);

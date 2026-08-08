@@ -33,11 +33,11 @@ public abstract class EmiEncodePatternHandlerMixin {
 
     @WrapMethod(method = TRANSFER_METHOD)
     private AbstractRecipeHandler.Result dataEnergistics$captureTransferContext(
-                                                                                PatternEncodingTermMenu menu,
-                                                                                @Nullable RecipeHolder<?> holder,
-                                                                                EmiRecipe emiRecipe,
-                                                                                boolean doTransfer,
-                                                                                Operation<AbstractRecipeHandler.Result> original) {
+            PatternEncodingTermMenu menu,
+            @Nullable RecipeHolder<?> holder,
+            EmiRecipe emiRecipe,
+            boolean doTransfer,
+            Operation<AbstractRecipeHandler.Result> original) {
         if (!doTransfer) {
             return original.call(menu, holder, emiRecipe, false);
         }
@@ -46,7 +46,7 @@ public abstract class EmiEncodePatternHandlerMixin {
             context = EmiPatternTransferContextBridge.resolve(emiRecipe);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Rejected EMI pattern transfer because its category/workstation context could not be resolved",
+                    "Rejected EMI pattern transfer because its recipe-type context could not be resolved",
                     exception);
             PatternEncodingPreferencesClient.clearTransferredRecipeContext(menu);
             return AbstractRecipeHandler.Result.createFailed(
@@ -67,8 +67,8 @@ public abstract class EmiEncodePatternHandlerMixin {
     @Inject(
             method = TRANSFER_METHOD,
             at = @At(
-                     value = "INVOKE",
-                     target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
+                    value = "INVOKE",
+                    target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
     private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu,
                                                        @Nullable RecipeHolder<?> holder,
                                                        EmiRecipe emiRecipe, boolean doTransfer,

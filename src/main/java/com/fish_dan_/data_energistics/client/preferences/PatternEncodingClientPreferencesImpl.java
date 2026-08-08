@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  */
 public final class PatternEncodingClientPreferencesImpl implements PatternEncodingClientPreferences {
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
     public static final int MAX_STATISTICS_PER_PROFILE = 2048;
     public static final int MAX_STATISTICS_TOTAL = 8192;
     public static final int MAX_SERVER_PROFILES = 32;
@@ -316,10 +316,10 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         if (schemaVersion > SCHEMA_VERSION) {
             throw new FutureSchemaException(schemaVersion);
         }
-        if (schemaVersion != 1 && schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion < 1) {
             throw new IllegalArgumentException("Unsupported client preference schema: " + schemaVersion);
         }
-        boolean legacySchema = schemaVersion == 1;
+        boolean legacySchema = schemaVersion < SCHEMA_VERSION;
         JsonObject preferences = readOptionalObject(root, "preferences");
         if (preferences != null) {
             if (preferences.has("uploadEnabled")) {
@@ -360,7 +360,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             if (!entry.getValue().isJsonObject()) {
                 throw new IllegalArgumentException("Server profile must be a JSON object: " + entry.getKey());
             }
-            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject(), legacySchema);
+            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject(), schemaVersion);
             totalStatistics += profile.statistics.size();
             if (totalStatistics > MAX_STATISTICS_TOTAL) {
                 throw new IllegalArgumentException("Client preference statistics exceed " + MAX_STATISTICS_TOTAL);
@@ -370,7 +370,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
         return legacySchema;
     }
 
-    private ServerProfile readProfile(JsonObject profileObject, boolean legacySchema) {
+    private ServerProfile readProfile(JsonObject profileObject, int schemaVersion) {
         long lastAccess = readRequiredLong(profileObject, "lastAccessEpochMillis");
         if (lastAccess < 0L) {
             throw new IllegalArgumentException("Server profile last access must not be negative");
@@ -390,30 +390,31 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
             long count = readRequiredLong(statisticObject, "count");
             long lastUsed = readRequiredLong(statisticObject, "lastUsedEpochMillis");
             PatternEncodingRankingContext context;
-            if (legacySchema) {
+            if (schemaVersion == 1) {
                 String recipeScope = readRequiredString(statisticObject, "recipeScope");
-                ResourceLocation categoryId = legacyCategoryId(recipeScope);
-                if (categoryId == null) {
+                ResourceLocation recipeTypeId = legacyCategoryId(recipeScope);
+                if (recipeTypeId == null) {
                     Data_Energistics.LOGGER.warn(
-                            "Discarding legacy pattern preference statistic without an exact category identity: {}",
+                            "Discarding legacy pattern preference statistic without an exact recipe type identity: {}",
                             recipeScope);
                     continue;
                 }
-                ResourceLocation workstation = parseResourceLocation(
-                        readRequiredString(statisticObject, "workstation"));
-                context = PatternEncodingRankingContext.of(categoryId, List.of(workstation));
-            } else {
-                ResourceLocation categoryId = parseResourceLocation(
+                parseResourceLocation(readRequiredString(statisticObject, "workstation"));
+                context = PatternEncodingRankingContext.of(recipeTypeId);
+            } else if (schemaVersion == 2) {
+                ResourceLocation recipeTypeId = parseResourceLocation(
                         readRequiredString(statisticObject, "categoryId"));
                 JsonArray workstationArray = readRequiredArray(statisticObject, "workstationIds");
-                if (workstationArray.size() > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
-                    throw new IllegalArgumentException("Pattern preference workstation ids exceed " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+                if (workstationArray.size() > 64) {
+                    throw new IllegalArgumentException("Legacy pattern preference workstation ids exceed 64");
                 }
-                List<ResourceLocation> workstationIds = new ArrayList<>(workstationArray.size());
                 for (JsonElement workstationElement : workstationArray) {
-                    workstationIds.add(parseResourceLocation(readString(workstationElement, "workstationIds")));
+                    parseResourceLocation(readString(workstationElement, "workstationIds"));
                 }
-                context = PatternEncodingRankingContext.of(categoryId, workstationIds);
+                context = PatternEncodingRankingContext.of(recipeTypeId);
+            } else {
+                context = PatternEncodingRankingContext.of(parseResourceLocation(
+                        readRequiredString(statisticObject, "recipeTypeId")));
             }
             PatternProviderClickStatistic statistic = new PatternProviderClickStatistic(
                     context, providerDigest, count, lastUsed);
@@ -565,12 +566,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
                 .sorted(Comparator.comparing(PatternProviderClickStatistic::stableKey))
                 .forEach(statistic -> {
                     JsonObject value = new JsonObject();
-                    value.addProperty("categoryId", statistic.context().categoryId().toString());
-                    JsonArray workstationIds = new JsonArray();
-                    statistic.context().workstationIds().stream()
-                            .map(ResourceLocation::toString)
-                            .forEach(workstationIds::add);
-                    value.add("workstationIds", workstationIds);
+                    value.addProperty("recipeTypeId", statistic.context().recipeTypeId().toString());
                     value.addProperty("providerDigest", statistic.providerDigest());
                     value.addProperty("count", statistic.count());
                     value.addProperty("lastUsedEpochMillis", statistic.lastUsedEpochMillis());
@@ -778,7 +774,8 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     }
 
     private record ProfileStatistic(String profileDigest, ServerProfile profile,
-                                    PatternProviderClickStatistic statistic) {}
+                                    PatternProviderClickStatistic statistic) {
+    }
 
     private static final class FutureSchemaException extends RuntimeException {
 
