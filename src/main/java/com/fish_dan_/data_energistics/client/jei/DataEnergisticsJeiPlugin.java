@@ -87,6 +87,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                 DataResourceJeiIngredientHelper.INSTANCE,
                 DataResourceJeiIngredientRenderer.INSTANCE,
                 DataResourceJeiIngredient.CODEC);
+        if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            Ae2JeiIngredientRegistration.registerOnce();
+        }
     }
 
     @Override
