@@ -83,6 +83,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
             Data_Energistics.LOGGER.error(
                     "Rejected EMI multiblock pattern transfer because its category/workstation context could not be resolved",
                     exception);
+            PatternEncodingPreferencesClient.clearTransferredRecipeContext(context.getScreenHandler());
             return false;
         }
         if (!check.transfer()) {

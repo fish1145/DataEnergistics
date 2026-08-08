@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import net.minecraft.resources.ResourceLocation;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,11 +13,13 @@ import java.util.List;
 /**
  * Identifies the exact recipe category and workstation candidates for provider ranking.
  *
- * <p>The snapshot contains only canonical registry identifiers.  It is therefore safe to persist and send over the
- * wire without retaining viewer, recipe, menu, or live registry objects.</p>
+ * <p>
+ * The snapshot contains only canonical registry identifiers. It is therefore safe to persist and send over the
+ * wire without retaining viewer, recipe, menu, or live registry objects.
+ * </p>
  */
-public record PatternEncodingRankingContext(ResourceLocation categoryId,
-                                            List<ResourceLocation> workstationIds) {
+public record PatternEncodingRankingContext(@NotNull ResourceLocation categoryId,
+                                            @NotNull List<@NotNull ResourceLocation> workstationIds) {
 
     /** Maximum number of workstation identifiers carried by one viewer snapshot. */
     public static final int MAX_WORKSTATION_IDS = 64;
@@ -53,8 +57,8 @@ public record PatternEncodingRankingContext(ResourceLocation categoryId,
     }
 
     /** Creates a canonical context from an exact category and workstation collection. */
-    public static PatternEncodingRankingContext of(ResourceLocation categoryId,
-                                                    Collection<ResourceLocation> workstationIds) {
+    public static @NotNull PatternEncodingRankingContext of(@NotNull ResourceLocation categoryId,
+                                                            @NotNull Collection<@NotNull ResourceLocation> workstationIds) {
         return new PatternEncodingRankingContext(categoryId, new ArrayList<>(workstationIds));
     }
 

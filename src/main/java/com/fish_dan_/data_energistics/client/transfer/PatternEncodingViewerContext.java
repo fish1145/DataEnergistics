@@ -6,6 +6,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -18,15 +20,17 @@ public final class PatternEncodingViewerContext {
     /**
      * Converts viewer workstation stacks to a canonical registry-ID snapshot.
      *
-     * <p>An empty collection is valid for categories that have no registered workstation. Any non-item, empty, air,
-     * or unregistered stack invalidates the complete context instead of being silently discarded.</p>
+     * <p>
+     * An empty collection is valid for categories that have no registered workstation. Any non-item, empty, air,
+     * or unregistered stack invalidates the complete context instead of being silently discarded.
+     * </p>
      */
-    public static PatternEncodingRankingContext fromItemWorkstations(ResourceLocation categoryId,
-                                                                      Collection<ItemStack> workstations) {
+    public static @NotNull PatternEncodingRankingContext fromItemWorkstations(
+                                                                              @NotNull ResourceLocation categoryId,
+                                                                              @NotNull Collection<@NotNull ItemStack> workstations) {
         if (workstations.size() > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
             throw new IllegalArgumentException(
-                    "Recipe viewer workstation count exceeds "
-                            + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+                    "Recipe viewer workstation count exceeds " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
         }
         List<ResourceLocation> workstationIds = new ArrayList<>(workstations.size());
         for (ItemStack workstation : workstations) {

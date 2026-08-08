@@ -14,6 +14,7 @@ import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import com.mojang.serialization.JsonOps;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -23,11 +24,12 @@ import java.util.regex.Pattern;
  * S2C event emitted after the server confirms that one encoded pattern entered a provider inventory.
  */
 public record PatternUploadSucceededPayload(
-                                            PatternUploadSource source,
+                                            @NotNull PatternUploadSource source,
                                             @Nullable PatternEncodingRankingContext rankingContext,
-                                            String providerDigest,
+                                            @Nullable ResourceLocation confirmedWorkstation,
+                                            @NotNull String providerDigest,
                                             long newCount,
-                                            Component targetName,
+                                            @NotNull Component targetName,
                                             @Nullable ResourceLocation dimensionId,
                                             @Nullable BlockPos position,
                                             long epochMillis)
@@ -45,10 +47,7 @@ public record PatternUploadSucceededPayload(
      * Validates the complete authoritative success event, including optional physical location consistency.
      */
     public PatternUploadSucceededPayload {
-        if (source == null || targetName == null) {
-            throw new IllegalArgumentException("Pattern upload success fields must not be null");
-        }
-        if (providerDigest == null || !DIGEST_PATTERN.matcher(providerDigest).matches()) {
+        if (!DIGEST_PATTERN.matcher(providerDigest).matches()) {
             throw new IllegalArgumentException("Invalid pattern provider digest: " + providerDigest);
         }
         if (newCount < 0L || epochMillis < 0L) {
@@ -62,6 +61,11 @@ public record PatternUploadSucceededPayload(
                 throw new IllegalArgumentException("Pattern upload success without context must not carry history");
             }
         }
+        if (confirmedWorkstation != null &&
+                (rankingContext == null || !rankingContext.workstationIds().contains(confirmedWorkstation))) {
+            throw new IllegalArgumentException(
+                    "Pattern upload success workstation is not present in its ranking context: " + confirmedWorkstation);
+        }
         String targetEncoding = GsonHelper.toStableString(
                 ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, targetName).getOrThrow());
         if (targetEncoding.getBytes(StandardCharsets.UTF_8).length > MAX_TARGET_COMPONENT_BYTES) {
@@ -72,7 +76,7 @@ public record PatternUploadSucceededPayload(
 
     private PatternUploadSucceededPayload(RegistryFriendlyByteBuf buffer) {
         this(PatternUploadSource.fromWireId(buffer.readUnsignedByte()), readContext(buffer),
-                buffer.readUtf(MAX_DIGEST_LENGTH), buffer.readVarLong(),
+                readNullableResourceLocation(buffer), buffer.readUtf(MAX_DIGEST_LENGTH), buffer.readVarLong(),
                 ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
                 readNullableResourceLocation(buffer), readNullableBlockPos(buffer), buffer.readVarLong());
         if (buffer.readableBytes() != 0) {
@@ -83,6 +87,7 @@ public record PatternUploadSucceededPayload(
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeByte(this.source.wireId());
         writeContext(buffer, this.rankingContext);
+        writeNullableResourceLocation(buffer, this.confirmedWorkstation);
         buffer.writeUtf(this.providerDigest, MAX_DIGEST_LENGTH);
         buffer.writeVarLong(this.newCount);
         ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, this.targetName);
@@ -92,7 +97,7 @@ public record PatternUploadSucceededPayload(
     }
 
     @Override
-    public Type<PatternUploadSucceededPayload> type() {
+    public @NotNull Type<PatternUploadSucceededPayload> type() {
         return TYPE;
     }
 
@@ -113,18 +118,19 @@ public record PatternUploadSucceededPayload(
         return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
-    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation value) {
+    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer,
+                                                      @Nullable ResourceLocation value) {
         buffer.writeBoolean(value != null);
         if (value != null) {
             buffer.writeResourceLocation(value);
         }
     }
 
-    private static ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
         return buffer.readBoolean() ? buffer.readResourceLocation() : null;
     }
 
-    private static void writeNullableBlockPos(RegistryFriendlyByteBuf buffer, BlockPos value) {
+    private static void writeNullableBlockPos(RegistryFriendlyByteBuf buffer, @Nullable BlockPos value) {
         buffer.writeBoolean(value != null);
         if (value != null) {
             buffer.writeInt(value.getX());
@@ -133,7 +139,7 @@ public record PatternUploadSucceededPayload(
         }
     }
 
-    private static BlockPos readNullableBlockPos(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable BlockPos readNullableBlockPos(RegistryFriendlyByteBuf buffer) {
         return buffer.readBoolean() ? new BlockPos(buffer.readInt(), buffer.readInt(), buffer.readInt()) : null;
     }
 }

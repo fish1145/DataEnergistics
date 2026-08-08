@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import net.minecraft.resources.ResourceLocation;
+
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.IdentityHashMap;
@@ -25,6 +28,8 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
+    @Nullable
+    private ResourceLocation confirmedWorkstation;
     private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
 
     private PatternEncodingPreferenceSession() {}
@@ -32,10 +37,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Returns or creates the session associated with one live menu instance.
      */
-    public static PatternEncodingPreferenceSession forMenu(Object menu) {
-        if (menu == null) {
-            throw new IllegalArgumentException("Pattern preference session menu must not be null");
-        }
+    public static PatternEncodingPreferenceSession forMenu(@NotNull Object menu) {
         synchronized (SESSIONS) {
             return SESSIONS.computeIfAbsent(menu, ignored -> new PatternEncodingPreferenceSession());
         }
@@ -44,7 +46,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Drops all protocol state associated with a closed menu.
      */
-    public static void clearForMenu(Object menu) {
+    public static void clearForMenu(@Nullable Object menu) {
         if (menu != null) {
             synchronized (SESSIONS) {
                 SESSIONS.remove(menu);
@@ -85,13 +87,6 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
-     * Returns the latest accepted sequence for diagnostics.
-     */
-    public long lastAcceptedSequence() {
-        return this.lastAcceptedSequence;
-    }
-
-    /**
      * Returns the server-validated category/workstation-set context, if one is known.
      */
     @Nullable
@@ -111,12 +106,55 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
+     * Seeds the last workstation held by server-owned menu state.
+     *
+     * <p>
+     * Client preference snapshots must never call this method. The value is only a prior confirmation hint and is
+     * accepted later only when it is still present in the exact current candidate set.
+     * </p>
+     */
+    public void initializeConfirmedWorkstation(@Nullable ResourceLocation workstationId) {
+        this.confirmedWorkstation = workstationId;
+    }
+
+    /**
+     * Confirms the workstation selected by a server-side upload preflight after the inventory commit succeeds.
+     */
+    public void confirmWorkstation(@NotNull PatternEncodingRankingContext context,
+                                   @NotNull ResourceLocation workstationId) {
+        if (!context.workstationIds().contains(workstationId)) {
+            throw new IllegalArgumentException(
+                    "Confirmed workstation is not present in the committed upload context: " + workstationId);
+        }
+        this.confirmedWorkstation = workstationId;
+    }
+
+    /**
+     * Returns the last server-confirmed workstation, if one has been established.
+     */
+    @Nullable
+    public ResourceLocation confirmedWorkstation() {
+        return this.confirmedWorkstation;
+    }
+
+    /**
+     * Resolves the only workstation that can be adopted before a provider-specific upload preflight.
+     */
+    @Nullable
+    public ResourceLocation autoAdoptableWorkstation() {
+        if (this.rankingContext == null || this.rankingContext.workstationIds().isEmpty()) {
+            return null;
+        }
+        if (this.rankingContext.workstationIds().size() == 1) {
+            return this.rankingContext.workstationIds().getFirst();
+        }
+        return this.rankingContext.workstationIds().contains(this.confirmedWorkstation) ? this.confirmedWorkstation : null;
+    }
+
+    /**
      * Applies one validated absolute-count snapshot without lowering server-authoritative successes.
      */
-    public void replaceLeafCounts(Map<String, Long> counts) {
-        if (counts == null) {
-            throw new IllegalArgumentException("Pattern preference leaf counts must not be null");
-        }
+    public void replaceLeafCounts(@NotNull Map<String, Long> counts) {
         if (this.rankingContext == null) {
             if (!counts.isEmpty()) {
                 throw new IllegalStateException("Pattern preference leaf counts require a ranking context");
@@ -150,20 +188,11 @@ public final class PatternEncodingPreferenceSession {
     }
 
     /**
-     * Returns one count or zero for a leaf not present in the current snapshot.
-     */
-    public long leafCount(String digest) {
-        return leafCounts().getOrDefault(digest, 0L);
-    }
-
-    /**
      * Increments a server-authoritative leaf count with long saturation.
      */
-    public long incrementLeafCount(PatternEncodingRankingContext context, String digest) {
-        if (context == null) {
-            throw new IllegalArgumentException("Pattern preference ranking context must not be null");
-        }
-        if (digest == null || digest.isBlank()) {
+    public long incrementLeafCount(@NotNull PatternEncodingRankingContext context,
+                                   @NotNull String digest) {
+        if (digest.isBlank()) {
             throw new IllegalArgumentException("Pattern preference leaf digest must not be blank");
         }
         Map<String, Long> contextCounts = this.leafCountsByContext.computeIfAbsent(
@@ -187,6 +216,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
+        this.confirmedWorkstation = null;
         this.leafCountsByContext.clear();
         this.nextOutgoingSequence = 0L;
         this.lastAcknowledgedSequence = 0L;

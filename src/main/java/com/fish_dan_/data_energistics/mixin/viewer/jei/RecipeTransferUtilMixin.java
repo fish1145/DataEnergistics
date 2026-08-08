@@ -11,13 +11,13 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
 import mezz.jei.common.transfer.RecipeTransferErrorInternal;
 import mezz.jei.common.transfer.RecipeTransferUtil;
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
@@ -28,21 +28,17 @@ import java.util.Optional;
 public abstract class RecipeTransferUtilMixin {
 
     @Unique
-    private static final String TRANSFER_METHOD =
-            "transferRecipe(Lmezz/jei/api/recipe/transfer/IRecipeTransferManager;"
-                    + "Lnet/minecraft/world/inventory/AbstractContainerMenu;"
-                    + "Lmezz/jei/api/gui/IRecipeLayoutDrawable;"
-                    + "Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;";
+    private static final String TRANSFER_METHOD = "transferRecipe(Lmezz/jei/api/recipe/transfer/IRecipeTransferManager;" + "Lnet/minecraft/world/inventory/AbstractContainerMenu;" + "Lmezz/jei/api/gui/IRecipeLayoutDrawable;" + "Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;";
 
     @WrapMethod(method = TRANSFER_METHOD)
     private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
-            IRecipeTransferManager recipeTransferManager,
-            AbstractContainerMenu container,
-            IRecipeLayoutDrawable<?> recipeLayout,
-            Player player,
-            boolean maxTransfer,
-            boolean doTransfer,
-            Operation<Optional<IRecipeTransferError>> original) {
+                                                                                         IRecipeTransferManager recipeTransferManager,
+                                                                                         AbstractContainerMenu container,
+                                                                                         IRecipeLayoutDrawable<?> recipeLayout,
+                                                                                         Player player,
+                                                                                         boolean maxTransfer,
+                                                                                         boolean doTransfer,
+                                                                                         Operation<Optional<IRecipeTransferError>> original) {
         if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
             return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }
@@ -53,10 +49,10 @@ public abstract class RecipeTransferUtilMixin {
             Data_Energistics.LOGGER.error(
                     "Rejected JEI pattern transfer because its category/workstation context could not be resolved",
                     exception);
+            PatternEncodingPreferencesClient.clearTransferredRecipeContext(menu);
             return Optional.of(RecipeTransferErrorInternal.INSTANCE);
         }
-        Optional<IRecipeTransferError> result =
-                original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
+        Optional<IRecipeTransferError> result = original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
         if (result.isEmpty()) {
             PatternEncodingSourceHelper.rememberTransferSource(menu, context);
             if (menu.getMode() == EncodingMode.PROCESSING) {

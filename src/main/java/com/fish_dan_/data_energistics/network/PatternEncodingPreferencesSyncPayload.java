@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -16,8 +17,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,11 +40,11 @@ public record PatternEncodingPreferencesSyncPayload(
                                                     int presentMask,
                                                     boolean uploadEnabled,
                                                     boolean patternSourceEnabled,
-                                                    ResourceLocation lastWorkstation,
+                                                    @Nullable ResourceLocation lastWorkstation,
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
-                                                    PatternEncodingRankingContext rankingContext,
-                                                    List<LeafStatistic> statistics)
+                                                    @Nullable PatternEncodingRankingContext rankingContext,
+                                                    @NotNull List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
@@ -63,6 +68,10 @@ public record PatternEncodingPreferencesSyncPayload(
         }
         if ((presentMask & ~KNOWN_PRESENT_MASK) != 0) {
             throw new IllegalArgumentException("Pattern preference present mask contains unknown bits: " + presentMask);
+        }
+        if (lastWorkstation != null && BuiltInRegistries.ITEM.get(lastWorkstation) == Items.AIR) {
+            throw new IllegalArgumentException(
+                    "Pattern preference last workstation is not a registered item: " + lastWorkstation);
         }
         validateOffset(previewPanelOffsetX, previewPanelOffsetY);
         statistics = List.copyOf(statistics);
@@ -115,7 +124,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     @Override
-    public Type<PatternEncodingPreferencesSyncPayload> type() {
+    public @NotNull Type<PatternEncodingPreferencesSyncPayload> type() {
         return TYPE;
     }
 
@@ -176,9 +185,6 @@ public record PatternEncodingPreferencesSyncPayload(
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PATTERN_SOURCE_ENABLED) != 0) {
             sourceAware.data_energistics$setPatternSourceEnabled(payload.patternSourceEnabled);
         }
-        if ((payload.presentMask & PatternEncodingClientPreferenceMask.LAST_WORKSTATION) != 0) {
-            sourceAware.data_energistics$setLastEncodedPatternSource(payload.lastWorkstation);
-        }
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PREVIEW_PANEL) != 0) {
             layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
         }
@@ -209,22 +215,24 @@ public record PatternEncodingPreferencesSyncPayload(
         }
     }
 
-    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation value) {
+    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer,
+                                                      @Nullable ResourceLocation value) {
         buffer.writeBoolean(value != null);
         if (value != null) {
             buffer.writeResourceLocation(value);
         }
     }
 
-    private static ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
         return buffer.readBoolean() ? buffer.readResourceLocation() : null;
     }
 
-    private static void writeContext(RegistryFriendlyByteBuf buffer, PatternEncodingRankingContext context) {
+    private static void writeContext(RegistryFriendlyByteBuf buffer,
+                                     @Nullable PatternEncodingRankingContext context) {
         PatternEncodingRankingContextCodec.writeNullable(buffer, context);
     }
 
-    private static PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
+    private static @Nullable PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
         return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 

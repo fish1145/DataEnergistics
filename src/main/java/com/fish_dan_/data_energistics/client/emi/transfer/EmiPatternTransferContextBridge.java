@@ -10,6 +10,7 @@ import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -24,15 +25,14 @@ public final class EmiPatternTransferContextBridge {
     private EmiPatternTransferContextBridge() {}
 
     /** Resolves a canonical context from the recipe's category workstation lookup. */
-    public static PatternEncodingRankingContext resolve(EmiRecipe recipe) {
+    public static @NotNull PatternEncodingRankingContext resolve(@NotNull EmiRecipe recipe) {
         var category = recipe.getCategory();
         List<ItemStack> workstations = new ArrayList<>();
         for (EmiIngredient ingredient : EmiApi.getRecipeManager().getWorkstations(category)) {
             for (EmiStack workstation : ingredient.getEmiStacks()) {
                 if (workstations.size() == PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
                     throw new IllegalArgumentException(
-                            "EMI workstation count exceeds "
-                                    + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+                            "EMI workstation count exceeds " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
                 }
                 workstations.add(workstation.getItemStack());
             }
@@ -41,12 +41,13 @@ public final class EmiPatternTransferContextBridge {
     }
 
     /** Starts a transfer frame after the viewer context has been validated. */
-    public static void begin(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {
+    public static void begin(@NotNull PatternEncodingTermMenu menu,
+                             @NotNull PatternEncodingRankingContext context) {
         FRAMES.get().push(new Frame(menu, context));
     }
 
     /** Returns the context scoped to the successful transfer, rejecting an unbalanced callback. */
-    public static PatternEncodingRankingContext requireCurrent(PatternEncodingTermMenu menu) {
+    public static @NotNull PatternEncodingRankingContext requireCurrent(@NotNull PatternEncodingTermMenu menu) {
         Frame frame = FRAMES.get().peek();
         if (frame == null || frame.menu() != menu) {
             throw new IllegalStateException("EMI transfer context is not scoped to the current menu");
@@ -55,15 +56,23 @@ public final class EmiPatternTransferContextBridge {
     }
 
     /** Removes a frame only when it belongs to the menu whose transfer just returned. */
-    public static void end(PatternEncodingTermMenu menu) {
+    public static void end(@NotNull PatternEncodingTermMenu menu) {
         Deque<Frame> frames = FRAMES.get();
-        if (!frames.isEmpty() && frames.peek().menu() == menu) {
-            frames.pop();
+        Frame frame = frames.poll();
+        if (frame == null) {
+            FRAMES.remove();
+            throw new IllegalStateException("EMI transfer context ended without an active frame");
+        }
+        if (frame.menu() != menu) {
+            frames.clear();
+            FRAMES.remove();
+            throw new IllegalStateException("EMI transfer contexts were closed out of order");
         }
         if (frames.isEmpty()) {
             FRAMES.remove();
         }
     }
 
-    private record Frame(PatternEncodingTermMenu menu, PatternEncodingRankingContext context) {}
+    private record Frame(@NotNull PatternEncodingTermMenu menu,
+                         @NotNull PatternEncodingRankingContext context) {}
 }

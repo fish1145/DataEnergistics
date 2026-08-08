@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
@@ -26,19 +26,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EmiEncodePatternHandlerMixin {
 
     @Unique
-    private static final String TRANSFER_METHOD =
-            "transferRecipe(Lappeng/menu/me/items/PatternEncodingTermMenu;"
-                    + "Lnet/minecraft/world/item/crafting/RecipeHolder;"
-                    + "Ldev/emi/emi/api/recipe/EmiRecipe;Z)"
-                    + "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;";
+    private static final String TRANSFER_METHOD = "transferRecipe(Lappeng/menu/me/items/PatternEncodingTermMenu;" + "Lnet/minecraft/world/item/crafting/RecipeHolder;" + "Ldev/emi/emi/api/recipe/EmiRecipe;Z)" + "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;";
 
     @WrapMethod(method = TRANSFER_METHOD)
     private AbstractRecipeHandler.Result dataEnergistics$captureTransferContext(
-            PatternEncodingTermMenu menu,
-            RecipeHolder<?> holder,
-            EmiRecipe emiRecipe,
-            boolean doTransfer,
-            Operation<AbstractRecipeHandler.Result> original) {
+                                                                                PatternEncodingTermMenu menu,
+                                                                                RecipeHolder<?> holder,
+                                                                                EmiRecipe emiRecipe,
+                                                                                boolean doTransfer,
+                                                                                Operation<AbstractRecipeHandler.Result> original) {
         if (!doTransfer) {
             return original.call(menu, holder, emiRecipe, false);
         }
@@ -49,6 +45,7 @@ public abstract class EmiEncodePatternHandlerMixin {
             Data_Energistics.LOGGER.error(
                     "Rejected EMI pattern transfer because its category/workstation context could not be resolved",
                     exception);
+            PatternEncodingPreferencesClient.clearTransferredRecipeContext(menu);
             return AbstractRecipeHandler.Result.createFailed(
                     Component.translatable("data_energistics.pattern_transfer.context_unavailable"));
         }
@@ -56,7 +53,11 @@ public abstract class EmiEncodePatternHandlerMixin {
         try {
             return original.call(menu, holder, emiRecipe, true);
         } finally {
-            EmiPatternTransferContextBridge.end(menu);
+            try {
+                EmiPatternTransferContextBridge.end(menu);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error("Failed to close the scoped EMI pattern transfer context", exception);
+            }
         }
     }
 
