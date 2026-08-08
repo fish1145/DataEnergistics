@@ -30,20 +30,20 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
     private ToggleButton dataEnergistics$quantityModeButton;
 
     protected CraftAmountScreenMixin(
-            CraftAmountMenu menu,
-            Inventory playerInventory,
-            Component title,
-            ScreenStyle style) {
+                                     CraftAmountMenu menu,
+                                     Inventory playerInventory,
+                                     Component title,
+                                     ScreenStyle style) {
         super(menu, playerInventory, title, style);
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$addQuantityModeButton(
-            CraftAmountMenu menu,
-            Inventory playerInventory,
-            Component title,
-            ScreenStyle style,
-            CallbackInfo ci) {
+                                                       CraftAmountMenu menu,
+                                                       Inventory playerInventory,
+                                                       Component title,
+                                                       ScreenStyle style,
+                                                       CallbackInfo ci) {
         TrinityCraftAmountMenuState state = (TrinityCraftAmountMenuState) menu;
         this.dataEnergistics$quantityModeButton = new ToggleButton(
                 Icon.SCHEDULING_ROUND_ROBIN,

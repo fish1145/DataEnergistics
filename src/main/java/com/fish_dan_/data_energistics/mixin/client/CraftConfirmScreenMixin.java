@@ -30,10 +30,10 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
     private Button start;
 
     protected CraftConfirmScreenMixin(
-            CraftConfirmMenu menu,
-            Inventory playerInventory,
-            Component title,
-            ScreenStyle style) {
+                                      CraftConfirmMenu menu,
+                                      Inventory playerInventory,
+                                      Component title,
+                                      ScreenStyle style) {
         super(menu, playerInventory, title, style);
     }
 
@@ -48,8 +48,8 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
 
         Component quantityMode = Component.translatable(state.data_energistics$quantityMode() ==
                 CraftingQuantityMode.NET_NEW ?
-                "gui.data_energistics.trinity_quantity.net_new" :
-                "gui.data_energistics.trinity_quantity.final_total");
+                        "gui.data_energistics.trinity_quantity.net_new" :
+                        "gui.data_energistics.trinity_quantity.final_total");
         String bytes = TrinityAmountFormatter.format(plan.getUsedBytes());
         if (state.data_energistics$isAe2FallbackEstimate()) {
             this.setTextContent(
