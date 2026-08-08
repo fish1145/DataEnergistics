@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 
 import net.minecraft.core.Direction;
@@ -43,7 +44,9 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         for (Direction side : Direction.values()) {
             storageIdentity = addEndpoint(location, side, storageIdentity, seenStorageRoutes, endpoints);
         }
-        addEndpoint(location, null, storageIdentity, seenStorageRoutes, endpoints);
+        if (endpoints.isEmpty()) {
+            addEndpoint(location, null, storageIdentity, seenStorageRoutes, endpoints);
+        }
         return List.copyOf(endpoints);
     }
 
@@ -56,7 +59,7 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         if (storage == null || !seenStorageRoutes.add(storage)) {
             return storageIdentity;
         }
-        Object backingIdentity = backingIdentity(storage);
+        Object backingIdentity = backingIdentity(location, side, storage);
         boolean brandonsCoreSupported = this.brandonsCore.supports(storage);
         boolean canExtract = brandonsCoreSupported ? this.brandonsCore.canExtract(storage) : this.unlimitedEnergy.canExtract(storage);
         boolean canReceive = brandonsCoreSupported ? this.brandonsCore.canReceive(storage) : this.unlimitedEnergy.canReceive(storage);
@@ -92,13 +95,20 @@ public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyRes
         return this.oritech.findEnergyStorage(location.level(), location.position(), side);
     }
 
-    /** Resolves only integration identities that are stronger than the capability object's identity. */
-    private static Object backingIdentity(IEnergyStorage storage) {
+    /**
+     * Resolves only integration identities that are stronger than the capability object's identity.
+     */
+    private Object backingIdentity(TowerEnergyLocation location, @Nullable Direction side, IEnergyStorage storage) {
         if (ModFlags.isAppFluxEnergySupportLoaded()) {
             Object appFluxIdentity = AE2FluxIntegration.networkEnergyStorageIdentity(storage);
             if (appFluxIdentity != null) {
                 return appFluxIdentity;
             }
+        }
+        Object mekanismIdentity = MekanismEnergyAccess.findBackingIdentity(
+                location.level(), location.position(), side, storage);
+        if (mekanismIdentity != null) {
+            return mekanismIdentity;
         }
         return storage;
     }

@@ -25,10 +25,19 @@ import java.util.Set;
  */
 public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction {
 
-    /** Maximum endpoint-level failures retained in one rate-limited grid diagnostic. */
+    /**
+     * Maximum endpoint-level failures retained in one rate-limited grid diagnostic.
+     */
     private static final int MAX_ISOLATION_DETAILS = 4;
 
-    /** Exact planner kept separate from capability mutation. */
+    /**
+     * Bounds repeated capability simulations when a storage exposes a coarser transfer quantum than one FE.
+     */
+    private static final int MAX_PREFLIGHT_PASSES = 64;
+
+    /**
+     * Exact planner kept separate from capability mutation.
+     */
     private final TowerEnergyEqualizer equalizer;
 
     /**
@@ -73,15 +82,20 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
             return failed(snapshots, 0, 0, 0, false,
                     combineFailures("PLAN_FAILED: " + conciseMessage(exception), isolationFailure));
         }
-        long plannedFe = saturatingLong(plan.totalAmount());
         if (plan.isEmpty()) {
             return new TowerEnergyTransactionResult(snapshots, 0, 0, 0, false, isolationFailure);
         }
 
-        String preflightFailure = preflight(plan, endpointsById);
-        if (!preflightFailure.isEmpty()) {
-            return failed(snapshots, plannedFe, 0, 0, false,
-                    combineFailures(preflightFailure, isolationFailure));
+        long requestedFe = saturatingLong(plan.totalAmount());
+        PreflightResult preflight = preflight(plan, endpointsById);
+        if (!preflight.failure().isEmpty()) {
+            return failed(snapshots, requestedFe, 0, 0, false,
+                    combineFailures(preflight.failure(), isolationFailure));
+        }
+        plan = preflight.plan();
+        long plannedFe = saturatingLong(plan.totalAmount());
+        if (plan.isEmpty()) {
+            return new TowerEnergyTransactionResult(snapshots, 0, 0, 0, false, isolationFailure);
         }
 
         Set<TowerEnergyTransferEndpoint> mutatedEndpoints = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -168,7 +182,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 isolationFailure);
     }
 
-    /** Indexes stable identities and fails before any query when the topology contains a duplicate. */
+    /**
+     * Indexes stable identities and fails before any query when the topology contains a duplicate.
+     */
     private static Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> indexEndpoints(
                                                                                           List<TowerEnergyTransferEndpoint> endpoints) {
         LinkedHashMap<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> result = new LinkedHashMap<>();
@@ -181,26 +197,123 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         return result;
     }
 
-    /** Verifies every planned source and sink remains queryable before the first real mutation. */
-    private static String preflight(
-                                    TowerEnergyEqualizationPlan plan,
-                                    Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById) {
+    /**
+     * Reduces a plan to the largest common amount that every selected route simulates exactly.
+     */
+    private static PreflightResult preflight(
+                                             TowerEnergyEqualizationPlan plan,
+                                             Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById) {
         try {
-            for (TowerEnergySourceAllocation source : plan.sources()) {
-                TowerEnergyTransferEndpoint endpoint = endpointsById.get(source.endpoint());
-                endpoint.simulateExtraction(source.amount());
+            List<TowerEnergySourceAllocation> sources = normalizeSources(plan.sources(), endpointsById);
+            List<TowerEnergySinkAllocation> sinks = normalizeSinks(plan.sinks(), endpointsById);
+            for (int pass = 0; pass < MAX_PREFLIGHT_PASSES; pass++) {
+                BigInteger sourceAmount = sumSources(sources);
+                BigInteger sinkAmount = sumSinks(sinks);
+                int comparison = sourceAmount.compareTo(sinkAmount);
+                if (comparison == 0) {
+                    if (sourceAmount.signum() == 0) {
+                        return PreflightResult.success(TowerEnergyEqualizationPlan.empty());
+                    }
+                    return PreflightResult.success(new TowerEnergyEqualizationPlan(sources, sinks));
+                }
+                if (sourceAmount.signum() == 0 || sinkAmount.signum() == 0) {
+                    return PreflightResult.success(TowerEnergyEqualizationPlan.empty());
+                }
+                if (comparison > 0) {
+                    sources = normalizeSources(
+                            TowerEnergyAllocationLimiter.limitSources(sources, sinkAmount), endpointsById);
+                } else {
+                    sinks = normalizeSinks(
+                            TowerEnergyAllocationLimiter.limitSinks(sinks, sourceAmount), endpointsById);
+                }
             }
-            for (TowerEnergySinkAllocation sink : plan.sinks()) {
-                TowerEnergyTransferEndpoint endpoint = endpointsById.get(sink.endpoint());
-                endpoint.simulateInsertion(sink.amount());
-            }
-            return "";
+            return PreflightResult.failure("PREFLIGHT_DID_NOT_STABILIZE_AFTER_" + MAX_PREFLIGHT_PASSES + "_PASSES");
         } catch (RuntimeException exception) {
-            return "PREFLIGHT_FAILED: " + conciseMessage(exception);
+            return PreflightResult.failure("PREFLIGHT_FAILED: " + conciseMessage(exception));
         }
     }
 
-    /** Restores the undelivered transfer buffer to original sources in reverse extraction order. */
+    /**
+     * Normalizes every withdrawal to a request that its selected route can execute exactly.
+     */
+    private static List<TowerEnergySourceAllocation> normalizeSources(
+                                                                      List<TowerEnergySourceAllocation> sources,
+                                                                      Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById) {
+        ArrayList<TowerEnergySourceAllocation> normalized = new ArrayList<>(sources.size());
+        for (TowerEnergySourceAllocation source : sources) {
+            TowerEnergyTransferEndpoint endpoint = endpointsById.get(source.endpoint());
+            long amount = normalizeAmount(source.amount(), endpoint, false);
+            if (amount > 0) {
+                normalized.add(new TowerEnergySourceAllocation(source.endpoint(), amount));
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    /**
+     * Normalizes every deposit to a request that its selected route can execute exactly.
+     */
+    private static List<TowerEnergySinkAllocation> normalizeSinks(
+                                                                  List<TowerEnergySinkAllocation> sinks,
+                                                                  Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById) {
+        ArrayList<TowerEnergySinkAllocation> normalized = new ArrayList<>(sinks.size());
+        for (TowerEnergySinkAllocation sink : sinks) {
+            TowerEnergyTransferEndpoint endpoint = endpointsById.get(sink.endpoint());
+            long amount = normalizeAmount(sink.amount(), endpoint, true);
+            if (amount > 0) {
+                normalized.add(new TowerEnergySinkAllocation(sink.endpoint(), amount));
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    /**
+     * Re-simulates a coarsely converted FE amount until requesting the returned value is stable.
+     */
+    private static long normalizeAmount(
+                                        long requested,
+                                        TowerEnergyTransferEndpoint endpoint,
+                                        boolean inserting) {
+        long amount = requested;
+        for (int pass = 0; pass < MAX_PREFLIGHT_PASSES; pass++) {
+            long simulated = inserting ? endpoint.simulateInsertion(amount) : endpoint.simulateExtraction(amount);
+            if (simulated == amount) {
+                return amount;
+            }
+            amount = simulated;
+            if (amount == 0) {
+                return 0;
+            }
+        }
+        throw new TowerEnergyTransferException(
+                "Energy route simulation did not stabilize for " + endpoint.description());
+    }
+
+    /**
+     * Adds normalized source requests without aggregate overflow.
+     */
+    private static BigInteger sumSources(List<TowerEnergySourceAllocation> sources) {
+        BigInteger amount = BigInteger.ZERO;
+        for (TowerEnergySourceAllocation source : sources) {
+            amount = amount.add(BigInteger.valueOf(source.amount()));
+        }
+        return amount;
+    }
+
+    /**
+     * Adds normalized sink requests without aggregate overflow.
+     */
+    private static BigInteger sumSinks(List<TowerEnergySinkAllocation> sinks) {
+        BigInteger amount = BigInteger.ZERO;
+        for (TowerEnergySinkAllocation sink : sinks) {
+            amount = amount.add(BigInteger.valueOf(sink.amount()));
+        }
+        return amount;
+    }
+
+    /**
+     * Restores the undelivered transfer buffer to original sources in reverse extraction order.
+     */
     private static CompensationResult compensate(
                                                  List<Extraction> extractions,
                                                  BigInteger amount,
@@ -226,7 +339,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         return new CompensationResult(quarantined);
     }
 
-    /** Publishes storage callbacks after all mutations and compensation attempts finish. */
+    /**
+     * Publishes storage callbacks after all mutations and compensation attempts finish.
+     */
     private static void publishMutations(Set<TowerEnergyTransferEndpoint> endpoints) {
         for (TowerEnergyTransferEndpoint endpoint : endpoints) {
             try {
@@ -237,7 +352,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         }
     }
 
-    /** Creates a failure result without repeating validation boilerplate. */
+    /**
+     * Creates a failure result without repeating validation boilerplate.
+     */
     private static TowerEnergyTransactionResult failed(
                                                        List<TowerEnergyEndpointSnapshot> snapshots,
                                                        long plannedFe,
@@ -249,7 +366,9 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
                 snapshots, plannedFe, insertedFe, quarantinedFe, mutated, failure);
     }
 
-    /** Builds a bounded diagnostic for endpoints excluded before planning. */
+    /**
+     * Builds a bounded diagnostic for endpoints excluded before planning.
+     */
     private static String isolationFailure(int isolatedEndpointCount, List<String> details) {
         if (isolatedEndpointCount == 0) {
             return "";
@@ -259,25 +378,49 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
         return omitted == 0 ? failure : failure + " | ... " + omitted + " more";
     }
 
-    /** Retains a primary transaction failure together with any preceding endpoint isolation. */
+    /**
+     * Retains a primary transaction failure together with any preceding endpoint isolation.
+     */
     private static String combineFailures(String primary, String isolation) {
         return isolation.isEmpty() ? primary : primary + " | " + isolation;
     }
 
-    /** Converts exact aggregate diagnostics to the protocol's saturated long width. */
+    /**
+     * Converts exact aggregate diagnostics to the protocol's saturated long width.
+     */
     private static long saturatingLong(BigInteger value) {
         return value.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) >= 0 ? Long.MAX_VALUE : value.longValueExact();
     }
 
-    /** Avoids an empty third-party exception message in the user-facing diagnostic. */
+    /**
+     * Avoids an empty third-party exception message in the user-facing diagnostic.
+     */
     private static String conciseMessage(RuntimeException exception) {
         String message = exception.getMessage();
         return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
     }
 
-    /** Associates one completed source mutation with its compensation limit. */
+    /**
+     * Associates one completed source mutation with its compensation limit.
+     */
     private record Extraction(TowerEnergyTransferEndpoint endpoint, long amount) {}
 
-    /** Retains the exact FE amount that could not be restored. */
+    /**
+     * Retains the exact FE amount that could not be restored.
+     */
     private record CompensationResult(BigInteger quarantined) {}
+
+    /**
+     * Carries either an executable conserved plan or a fail-fast preflight diagnostic.
+     */
+    private record PreflightResult(TowerEnergyEqualizationPlan plan, String failure) {
+
+        private static PreflightResult success(TowerEnergyEqualizationPlan plan) {
+            return new PreflightResult(plan, "");
+        }
+
+        private static PreflightResult failure(String failure) {
+            return new PreflightResult(TowerEnergyEqualizationPlan.empty(), failure);
+        }
+    }
 }

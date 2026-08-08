@@ -3,8 +3,10 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
@@ -192,11 +194,10 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
         for (TowerEnergyEndpoint endpoint : this.endpointResolver.getCachedResolvedEnergyEndpoints(false)) {
             try {
-                IEnergyStorage storage = endpoint.storage();
                 if (!endpoint.direction().allowsExtract()) {
                     continue;
                 }
-                long quota = storedEnergy(storage);
+                long quota = energySnapshot(endpoint).stored();
                 if (quota > 0) {
                     sources.add(new TransferSource(endpoint, quota));
                 }
@@ -537,6 +538,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         if (this.opEnergyAccess.supports(storage)) {
             return insertOpIntoEndpoint(endpoint, amount, simulate);
         }
+        Level level = this.context.level();
+        if (level != null && MekanismEnergyAccess.supports(
+                level, endpoint.pos(), endpoint.side(), storage)) {
+            return transferMekanismEnergy(level, endpoint, amount, simulate, true);
+        }
         long directInserted;
         try {
             directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
@@ -622,7 +628,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
             return new EndpointTransferResult(confirmedInserted, true, true);
         }
-        if (!simulate && inserted > 0) {
+        if (inserted > 0) {
             publishMutation(endpoint, storage, "OP receiver mutation");
         }
         return new EndpointTransferResult(inserted, inserted == 0);
@@ -696,6 +702,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         IEnergyStorage storage = endpoint.storage();
         if (this.opEnergyAccess.supports(storage)) {
             return extractOpFromEndpoint(endpoint, amount, simulate);
+        }
+        Level level = this.context.level();
+        if (level != null && MekanismEnergyAccess.supports(
+                level, endpoint.pos(), endpoint.side(), storage)) {
+            return transferMekanismEnergy(level, endpoint, amount, simulate, false);
         }
         long directExtracted;
         try {
@@ -819,10 +830,44 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
             return new EndpointTransferResult(confirmedExtracted, true);
         }
-        if (!simulate && extracted > 0) {
+        if (extracted > 0) {
             publishMutation(endpoint, storage, "OP source mutation");
         }
         return new EndpointTransferResult(extracted, extracted == 0);
+    }
+
+    private EndpointTransferResult transferMekanismEnergy(
+                                                          Level level,
+                                                          TowerEnergyEndpoint endpoint,
+                                                          long amount,
+                                                          boolean simulate,
+                                                          boolean inserting) {
+        IEnergyStorage storage = endpoint.storage();
+        long transferred;
+        try {
+            transferred = inserting ? MekanismEnergyAccess.insert(
+                    level, endpoint.pos(), endpoint.side(), storage, amount, simulate) :
+                    MekanismEnergyAccess.extract(
+                            level, endpoint.pos(), endpoint.side(), storage, amount, simulate);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            Data_Energistics.LOGGER.error(
+                    "Mekanism energy {} failed at {} side {} storage {}",
+                    inserting ? "receiver" : "source",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            return EndpointTransferResult.STALLED;
+        }
+        if (transferred < 0 || transferred > amount) {
+            Data_Energistics.LOGGER.error(
+                    "Mekanism energy {} at {} side {} storage {} returned {} for request {}",
+                    inserting ? "receiver" : "source",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), transferred, amount);
+            return EndpointTransferResult.STALLED;
+        }
+        if (!simulate && transferred > 0) {
+            publishMutation(endpoint, storage, inserting ? "Mekanism receiver mutation" : "Mekanism source mutation");
+        }
+        return new EndpointTransferResult(transferred, transferred == 0);
     }
 
     private EndpointTransferResult resolveFailedOpInsertion(TowerEnergyEndpoint endpoint, long amount,
@@ -1051,8 +1096,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long totalCapacity = bufferedEnergy;
         List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(false, normalizedExcludedPos);
         for (TowerEnergyEndpoint endpoint : endpoints) {
-            totalStored = saturatingAdd(totalStored, storedEnergy(endpoint.storage()));
-            totalCapacity = saturatingAdd(totalCapacity, energyCapacity(endpoint.storage()));
+            EnergySnapshot snapshot = energySnapshot(endpoint);
+            totalStored = saturatingAdd(totalStored, snapshot.stored());
+            totalCapacity = saturatingAdd(totalCapacity, snapshot.capacity());
         }
         long aeExtractable = 0L;
         if (this.appFluxEnergySupportLoaded) {
@@ -1126,18 +1172,20 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return (int) Math.min(amount, Integer.MAX_VALUE);
     }
 
-    private long storedEnergy(IEnergyStorage storage) {
+    private EnergySnapshot energySnapshot(TowerEnergyEndpoint endpoint) {
+        IEnergyStorage storage = endpoint.storage();
         if (this.opEnergyAccess.supports(storage)) {
-            return this.opEnergyAccess.stored(storage);
+            return new EnergySnapshot(
+                    this.opEnergyAccess.stored(storage),
+                    this.opEnergyAccess.capacity(storage));
         }
-        return this.unlimitedEnergyAccess.stored(storage);
-    }
-
-    private long energyCapacity(IEnergyStorage storage) {
-        if (this.opEnergyAccess.supports(storage)) {
-            return this.opEnergyAccess.capacity(storage);
+        Level level = this.context.level();
+        if (level != null && MekanismEnergyAccess.supports(
+                level, endpoint.pos(), endpoint.side(), storage)) {
+            return MekanismEnergyAccess.snapshot(
+                    level, endpoint.pos(), endpoint.side(), storage);
         }
-        return this.unlimitedEnergyAccess.capacity(storage);
+        return this.unlimitedEnergyAccess.snapshot(storage);
     }
 
     private static long saturatingAdd(long current, long delta) {
@@ -1233,12 +1281,20 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
 
             IEnergyStorage storage = this.endpoint.storage();
+            Level level = TowerEnergyDistributorImpl.this.context.level();
             long restored;
             if (TowerEnergyDistributorImpl.this.opEnergyAccess.supports(storage)) {
                 restored = TowerEnergyDistributorImpl.this.opEnergyAccess.insert(storage, amount, false);
-            } else {
-                restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
-            }
+            } else if (level != null && MekanismEnergyAccess.supports(
+                    level, this.endpoint.pos(), this.endpoint.side(), storage)) {
+                        restored = MekanismEnergyAccess.compensateExtraction(
+                                level,
+                                this.endpoint.pos(),
+                                storage,
+                                amount);
+                    } else {
+                        restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+                    }
             if (restored > 0) {
                 TowerEnergyDistributorImpl.this.publishMutation(this.endpoint, storage, "source compensation");
             }
