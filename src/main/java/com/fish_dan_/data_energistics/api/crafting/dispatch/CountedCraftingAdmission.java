@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
 import appeng.api.stacks.KeyCounter;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * One-shot Trinity admission for committing a fixed number of identical logical crafts.
@@ -48,5 +49,5 @@ public interface CountedCraftingAdmission {
      * @param prototype one exact per-craft input prototype for every pattern input slot
      * @return whether the complete admitted group was accepted
      */
-    boolean commit(KeyCounter[] prototype);
+    boolean commit(@NotNull KeyCounter @NotNull [] prototype);
 }
