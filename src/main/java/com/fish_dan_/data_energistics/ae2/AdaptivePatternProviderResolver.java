@@ -16,7 +16,6 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.api.stacks.AEItemKey;
@@ -27,8 +26,6 @@ import appeng.core.definitions.AEParts;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public final class AdaptivePatternProviderResolver {
 

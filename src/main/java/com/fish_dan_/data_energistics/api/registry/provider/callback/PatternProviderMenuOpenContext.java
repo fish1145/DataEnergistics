@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Immutable group snapshot supplied to a menu-open adapter.
  *
- * @param player   server-side player requesting the provider menu
+ * @param player    server-side player requesting the provider menu
  * @param providers complete provider group selected by the terminal
  */
 public record PatternProviderMenuOpenContext(ServerPlayer player,

@@ -9,8 +9,10 @@ import appeng.helpers.patternprovider.PatternContainer;
 /**
  * Immutable facts supplied after a provider inventory delta has been confirmed.
  *
- * <p>A hook observes a completed commit. It cannot veto or rewrite the transaction; failures are isolated and logged by
- * the runtime registry.</p>
+ * <p>
+ * A hook observes a completed commit. It cannot veto or rewrite the transaction; failures are isolated and logged by
+ * the runtime registry.
+ * </p>
  *
  * @param provider       provider whose pattern inventory changed
  * @param identity       stable identity of the provider

@@ -20,9 +20,11 @@ import java.util.Map;
 /**
  * Common-setup registry accumulator with one isolated transaction per plugin.
  *
- * <p>A plugin writes only to its own staging object. Commit validates every cross-plugin uniqueness constraint before
+ * <p>
+ * A plugin writes only to its own staging object. Commit validates every cross-plugin uniqueness constraint before
  * mutating the accumulator, so a rejected plugin cannot leak a partial terminal, provider, or virtual-output
- * registration.</p>
+ * registration.
+ * </p>
  */
 final class DataEnergisticsRegistryImpl {
 
@@ -47,28 +49,24 @@ final class DataEnergisticsRegistryImpl {
 
         for (String terminalName : staging.universalTerminals.keySet()) {
             if (this.universalTerminals.containsKey(terminalName)) {
-                throw new IllegalStateException("Duplicate universal terminal name '" + terminalName + "' from "
-                        + staging.description());
+                throw new IllegalStateException("Duplicate universal terminal name '" + terminalName + "' from " + staging.description());
             }
         }
         for (ResourceLocation registrationId : staging.patternProviders.keySet()) {
             if (this.patternProviders.containsKey(registrationId)) {
-                throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId
-                        + "' from " + staging.description());
+                throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId + "' from " + staging.description());
             }
         }
         for (PatternProviderRegistration registration : staging.patternProviders.values()) {
             ProviderIdentityDescriptor identity = registration.metadata().providerIdentity();
             ResourceLocation existingId = this.patternProviderIdentities.get(identity);
             if (existingId != null) {
-                throw new IllegalStateException("Duplicate pattern provider identity '" + identity
-                        + "' from " + staging.description() + "; already registered as '" + existingId + "'");
+                throw new IllegalStateException("Duplicate pattern provider identity '" + identity + "' from " + staging.description() + "; already registered as '" + existingId + "'");
             }
         }
         for (VirtualCraftingOutputAdapter adapter : staging.virtualCraftingOutputAdapters) {
             if (this.virtualCraftingOutputAdapters.stream().anyMatch(existing -> existing == adapter)) {
-                throw new IllegalStateException("Duplicate virtual crafting output adapter from "
-                        + staging.description());
+                throw new IllegalStateException("Duplicate virtual crafting output adapter from " + staging.description());
             }
         }
 
@@ -165,8 +163,7 @@ final class DataEnergisticsRegistryImpl {
         /** Rejects retained staging handles after the plugin callback has returned or failed. */
         private void requireOpen() {
             if (this.state != State.OPEN) {
-                throw new IllegalStateException("Plugin registration transaction for " + this.description()
-                        + " is already " + this.state.name().toLowerCase());
+                throw new IllegalStateException("Plugin registration transaction for " + this.description() + " is already " + this.state.name().toLowerCase());
             }
         }
 
@@ -191,8 +188,7 @@ final class DataEnergisticsRegistryImpl {
                     throw new IllegalArgumentException("Universal terminal name must not be blank for " + description());
                 }
                 if (universalTerminals.putIfAbsent(terminalName, adapter) != null) {
-                    throw new IllegalStateException("Duplicate universal terminal name '" + terminalName + "' in "
-                            + description());
+                    throw new IllegalStateException("Duplicate universal terminal name '" + terminalName + "' in " + description());
                 }
             }
 
@@ -215,13 +211,11 @@ final class DataEnergisticsRegistryImpl {
                 }
                 for (PatternProviderRegistration existing : patternProviders.values()) {
                     if (existing.metadata().providerIdentity().equals(metadata.providerIdentity())) {
-                        throw new IllegalStateException("Duplicate pattern provider identity '"
-                                + metadata.providerIdentity() + "' in " + description());
+                        throw new IllegalStateException("Duplicate pattern provider identity '" + metadata.providerIdentity() + "' in " + description());
                     }
                 }
                 if (patternProviders.putIfAbsent(registrationId, registration) != null) {
-                    throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId
-                            + "' in " + description());
+                    throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId + "' in " + description());
                 }
             }
         }

@@ -35,9 +35,9 @@ public interface UniversalTerminalRegistry {
      * @param menuTypeSupplier supplier for the terminal menu type
      */
     default void registerTerminal(String name,
-                                   Predicate<ItemStack> matcher,
-                                   Supplier<ItemStack> iconSupplier,
-                                   Supplier<MenuType<?>> menuTypeSupplier) {
+                                  Predicate<ItemStack> matcher,
+                                  Supplier<ItemStack> iconSupplier,
+                                  Supplier<MenuType<?>> menuTypeSupplier) {
         this.register(new UniversalTerminalDefinition(
                 name,
                 matcher,
@@ -48,21 +48,21 @@ public interface UniversalTerminalRegistry {
     /**
      * Registers a terminal definition with explicit configuration and menu-locator behavior.
      *
-     * @param name                       stable terminal name
-     * @param matcher                    predicate accepting compatible item stacks
-     * @param iconSupplier               supplier for the terminal icon
-     * @param menuTypeSupplier           supplier for the terminal menu type
-     * @param configProfile               terminal configuration profile
-     * @param requiresCustomMenuLocator  whether the terminal needs a custom menu locator
-     * @param configManagerFactory       optional configuration-manager factory
+     * @param name                      stable terminal name
+     * @param matcher                   predicate accepting compatible item stacks
+     * @param iconSupplier              supplier for the terminal icon
+     * @param menuTypeSupplier          supplier for the terminal menu type
+     * @param configProfile             terminal configuration profile
+     * @param requiresCustomMenuLocator whether the terminal needs a custom menu locator
+     * @param configManagerFactory      optional configuration-manager factory
      */
     default void registerTerminal(String name,
-                                   Predicate<ItemStack> matcher,
-                                   Supplier<ItemStack> iconSupplier,
-                                   Supplier<MenuType<?>> menuTypeSupplier,
-                                   UniversalTerminalConfigProfile configProfile,
-                                   boolean requiresCustomMenuLocator,
-                                   @Nullable Function<Runnable, IConfigManager> configManagerFactory) {
+                                  Predicate<ItemStack> matcher,
+                                  Supplier<ItemStack> iconSupplier,
+                                  Supplier<MenuType<?>> menuTypeSupplier,
+                                  UniversalTerminalConfigProfile configProfile,
+                                  boolean requiresCustomMenuLocator,
+                                  @Nullable Function<Runnable, IConfigManager> configManagerFactory) {
         this.register(new UniversalTerminalDefinition(
                 name,
                 matcher,
@@ -76,8 +76,10 @@ public interface UniversalTerminalRegistry {
     /**
      * Checks whether a stack is supported by the frozen terminal registry.
      *
-     * <p>This query is intentionally available on the typed facet so callers do not need the removed static API.
-     * Implementations must evaluate the current immutable runtime snapshot.</p>
+     * <p>
+     * This query is intentionally available on the typed facet so callers do not need the removed static API.
+     * Implementations must evaluate the current immutable runtime snapshot.
+     * </p>
      *
      * @param stack stack to inspect
      * @return whether at least one registered adapter accepts the stack

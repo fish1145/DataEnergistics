@@ -44,9 +44,9 @@ final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu,
      * Creates a production handler backed by JEI's user-visible transfer error factory.
      */
     MultiblockPatternJeiTransferHandler(Class<T> menuClass,
-                                         MenuType<T> menuType,
-                                         RecipeType<R> recipeType,
-                                         IRecipeTransferHandlerHelper transferHelper) {
+                                        MenuType<T> menuType,
+                                        RecipeType<R> recipeType,
+                                        IRecipeTransferHandlerHelper transferHelper) {
         this.menuClass = menuClass;
         this.menuType = menuType;
         this.recipeType = recipeType;

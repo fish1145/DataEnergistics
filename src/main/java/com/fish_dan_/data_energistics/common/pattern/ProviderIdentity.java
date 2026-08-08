@@ -21,8 +21,8 @@ import java.util.UUID;
  * </p>
  */
 public sealed interface ProviderIdentity
-                                          permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
-                                          ProviderIdentity.External, ProviderIdentity.Virtual {
+                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
+                                         ProviderIdentity.External, ProviderIdentity.Virtual {
 
     /**
      * Current canonical field schema used by every identity declared in this type.

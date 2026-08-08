@@ -10,12 +10,14 @@ import java.util.Optional;
 /**
  * Immutable declaration-time identity of one provider family.
  *
- * <p>Descriptors retain only the semantic fields shared by every live instance in a registered family. Location,
- * routing and other instance-specific fields remain exclusively in {@link ProviderIdentity}.</p>
+ * <p>
+ * Descriptors retain only the semantic fields shared by every live instance in a registered family. Location,
+ * routing and other instance-specific fields remain exclusively in {@link ProviderIdentity}.
+ * </p>
  */
 public sealed interface ProviderIdentityDescriptor
-        permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
-        ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
+                                                   permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
+                                                   ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
 
     /**
      * Describes block providers implemented by one registered block-entity type.
@@ -69,7 +71,9 @@ public sealed interface ProviderIdentityDescriptor
     /**
      * Projects a live identity onto its declaration-time provider family.
      *
-     * <p>A display-derived virtual identity cannot identify a provider family and therefore yields an empty result.</p>
+     * <p>
+     * A display-derived virtual identity cannot identify a provider family and therefore yields an empty result.
+     * </p>
      *
      * @param identity live provider identity
      * @return semantic provider descriptor, or empty for a virtual fallback identity

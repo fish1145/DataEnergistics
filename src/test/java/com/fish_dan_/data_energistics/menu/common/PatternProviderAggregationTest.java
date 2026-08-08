@@ -26,10 +26,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PatternProviderAggregationTest {
 
     private static final ResourceLocation CRAFTING_TABLE = ResourceLocation.withDefaultNamespace("crafting_table");
-    private static final PatternProviderSyncHelper.PatternProviderAggregationKey PROVIDER_KEY =
-            new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
-                    new ProviderIdentityDescriptor.External(
-                            ResourceLocation.fromNamespaceAndPath("test", "ordinary_provider"), 1));
+    private static final PatternProviderSyncHelper.PatternProviderAggregationKey PROVIDER_KEY = new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
+            new ProviderIdentityDescriptor.External(
+                    ResourceLocation.fromNamespaceAndPath("test", "ordinary_provider"), 1));
 
     @Test
     void mergesProvidersWithSameSemanticIdentity() {

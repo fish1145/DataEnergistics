@@ -19,8 +19,10 @@ import java.util.List;
 /**
  * Discovers and invokes the single public Data Energistics plugin entrypoint during common setup.
  *
- * <p>This class is the sole reflection boundary. Runtime provider matching and dispatch consume only the frozen values
- * produced here and never retain plugin classes, constructors, scan records, or mutable staging registries.</p>
+ * <p>
+ * This class is the sole reflection boundary. Runtime provider matching and dispatch consume only the frozen values
+ * produced here and never retain plugin classes, constructors, scan records, or mutable staging registries.
+ * </p>
  */
 public final class DataEnergisticsEntrypointLoader {
 
@@ -98,8 +100,7 @@ public final class DataEnergisticsEntrypointLoader {
                         .forEach(candidates::add);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
-                        "Failed to resolve the owning mod for {} Data Energistics entrypoint annotation(s); "
-                                + "those entrypoints will be ignored",
+                        "Failed to resolve the owning mod for {} Data Energistics entrypoint annotation(s); " + "those entrypoints will be ignored",
                         annotations.size(),
                         exception);
             }
@@ -136,8 +137,7 @@ public final class DataEnergisticsEntrypointLoader {
         Class<?> rawClass = Class.forName(
                 candidate.className(), false, DataEnergisticsEntrypointLoader.class.getClassLoader());
         if (!DataEnergisticsPlugin.class.isAssignableFrom(rawClass)) {
-            throw new IllegalArgumentException("Entrypoint does not implement DataEnergisticsPlugin: "
-                    + candidate.className());
+            throw new IllegalArgumentException("Entrypoint does not implement DataEnergisticsPlugin: " + candidate.className());
         }
         int modifiers = rawClass.getModifiers();
         if (!Modifier.isPublic(modifiers) || Modifier.isAbstract(modifiers)) {
@@ -147,8 +147,7 @@ public final class DataEnergisticsEntrypointLoader {
         Class<? extends DataEnergisticsPlugin> pluginClass = rawClass.asSubclass(DataEnergisticsPlugin.class);
         Constructor<? extends DataEnergisticsPlugin> constructor = pluginClass.getConstructor();
         if (!Modifier.isPublic(constructor.getModifiers())) {
-            throw new IllegalArgumentException("Entrypoint must expose a public no-argument constructor: "
-                    + candidate.className());
+            throw new IllegalArgumentException("Entrypoint must expose a public no-argument constructor: " + candidate.className());
         }
         return constructor.newInstance();
     }

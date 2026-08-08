@@ -23,8 +23,7 @@ import java.util.List;
 public final class UselessPatternProviderPlugin implements DataEnergisticsPlugin {
 
     private static final String MOD_ID = "useless_mod";
-    private static final ResourceLocation RECIPE_CATEGORY_ID =
-            ResourceLocation.fromNamespaceAndPath(MOD_ID, "advanced_alloy_furnace");
+    private static final ResourceLocation RECIPE_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "advanced_alloy_furnace");
 
     /** Public constructor required by the common entrypoint scanner. */
     public UselessPatternProviderPlugin() {}

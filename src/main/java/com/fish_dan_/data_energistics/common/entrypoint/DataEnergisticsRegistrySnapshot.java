@@ -15,8 +15,10 @@ import java.util.List;
 /**
  * Immutable runtime view published after every discovered plugin has finished registration.
  *
- * <p>The snapshot is the only state visible to runtime integrations. Its typed facets retain the public API shape for
- * queries while rejecting every late mutation with an explicit lifecycle error.</p>
+ * <p>
+ * The snapshot is the only state visible to runtime integrations. Its typed facets retain the public API shape for
+ * queries while rejecting every late mutation with an explicit lifecycle error.
+ * </p>
  */
 public final class DataEnergisticsRegistrySnapshot implements DataEnergisticsRegistry {
 

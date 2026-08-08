@@ -20,7 +20,7 @@ public interface PatternProviderRegistry {
      * Registers a provider factory using the concise mapping of the former counted-dispatch API.
      *
      * @param metadata immutable provider matching metadata
-     * @param factory runtime adapter factory
+     * @param factory  runtime adapter factory
      */
     default void registerFactory(PatternProviderMetadata metadata, PatternProviderFactory factory) {
         this.register(PatternProviderRegistration.counted(metadata, factory));

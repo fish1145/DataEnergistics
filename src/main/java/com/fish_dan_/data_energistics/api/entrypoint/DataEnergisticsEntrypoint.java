@@ -9,11 +9,12 @@ import java.lang.annotation.Target;
 /**
  * Marks one public Data Energistics plugin entrypoint discovered during common setup.
  *
- * <p>The annotation intentionally carries no business metadata. A single plugin can register any number of typed
- * extensions through {@link DataEnergisticsPlugin#register(DataEnergisticsRegistry)}.</p>
+ * <p>
+ * The annotation intentionally carries no business metadata. A single plugin can register any number of typed
+ * extensions through {@link DataEnergisticsPlugin#register(DataEnergisticsRegistry)}.
+ * </p>
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface DataEnergisticsEntrypoint {
-}
+public @interface DataEnergisticsEntrypoint {}

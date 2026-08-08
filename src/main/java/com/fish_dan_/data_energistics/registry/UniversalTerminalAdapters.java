@@ -66,5 +66,4 @@ public final class UniversalTerminalAdapters implements DataEnergisticsPlugin {
                 .registerSetting(Settings.TERMINAL_SHOW_PATTERN_PROVIDERS, ShowPatternProviders.VISIBLE)
                 .build();
     }
-
 }

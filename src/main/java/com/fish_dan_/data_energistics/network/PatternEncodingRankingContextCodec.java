@@ -36,8 +36,7 @@ final class PatternEncodingRankingContextCodec {
         ResourceLocation categoryId = readResourceLocation(buffer, "category id");
         int workstationCount = buffer.readVarInt();
         if (workstationCount < 0 || workstationCount > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
-            throw new IllegalArgumentException("Pattern ranking workstation ids exceed "
-                    + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+            throw new IllegalArgumentException("Pattern ranking workstation ids exceed " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
         }
         List<ResourceLocation> workstationIds = new ArrayList<>(workstationCount);
         for (int index = 0; index < workstationCount; index++) {

@@ -407,8 +407,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
                         readRequiredString(statisticObject, "categoryId"));
                 JsonArray workstationArray = readRequiredArray(statisticObject, "workstationIds");
                 if (workstationArray.size() > PatternEncodingRankingContext.MAX_WORKSTATION_IDS) {
-                    throw new IllegalArgumentException("Pattern preference workstation ids exceed "
-                            + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
+                    throw new IllegalArgumentException("Pattern preference workstation ids exceed " + PatternEncodingRankingContext.MAX_WORKSTATION_IDS);
                 }
                 List<ResourceLocation> workstationIds = new ArrayList<>(workstationArray.size());
                 for (JsonElement workstationElement : workstationArray) {
@@ -427,9 +426,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
 
     @Nullable
     private static ResourceLocation legacyCategoryId(String recipeScope) {
-        return recipeScope.startsWith("type:")
-                ? ResourceLocation.tryParse(recipeScope.substring("type:".length()))
-                : null;
+        return recipeScope.startsWith("type:") ? ResourceLocation.tryParse(recipeScope.substring("type:".length())) : null;
     }
 
     private void recoverCorruptFile(Exception failure) {

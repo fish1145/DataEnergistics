@@ -7,8 +7,10 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
 /**
  * Typed registry facets available to one Data Energistics plugin.
  *
- * <p>All facets refer to the same staging transaction. A plugin can therefore register terminals, provider
- * integrations and virtual output adapters from one entrypoint without coordinating multiple annotations.</p>
+ * <p>
+ * All facets refer to the same staging transaction. A plugin can therefore register terminals, provider
+ * integrations and virtual output adapters from one entrypoint without coordinating multiple annotations.
+ * </p>
  */
 public interface DataEnergisticsRegistry {
 
