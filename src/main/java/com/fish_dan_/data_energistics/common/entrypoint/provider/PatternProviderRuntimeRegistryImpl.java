@@ -15,12 +15,15 @@ import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -53,25 +56,35 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     }
 
     @Override
-    public void bind(CraftingProviderId publicationId, ICraftingProvider provider) {
-        if (this.publications.putIfAbsent(publicationId, provider) != null) {
+    public void bind(@NotNull CraftingProviderId publicationId, @NotNull ICraftingProvider provider) {
+        if (this.publications.containsKey(publicationId)) {
             throw new IllegalStateException("Pattern provider publication is already bound: " + publicationId);
         }
 
         Optional<ResolvedProviderBinding> resolved = this.resolve(provider);
         if (resolved.isEmpty()) {
+            this.publications.put(publicationId, provider);
             return;
         }
         ResolvedProviderBinding binding = resolved.get();
         PatternProviderFactory factory = binding.registration().factory();
         if (factory == null) {
+            this.publications.put(publicationId, provider);
             return;
         }
 
         ProviderAdapterState current = this.adaptersByProvider.get(provider);
         if (current != null) {
             current.retain(binding);
-            this.adaptersByPublication.put(publicationId, current);
+            try {
+                this.adaptersByPublication.put(publicationId, current);
+                this.publications.put(publicationId, provider);
+            } catch (RuntimeException exception) {
+                this.adaptersByPublication.remove(publicationId);
+                this.publications.remove(publicationId);
+                current.release();
+                throw exception;
+            }
             return;
         }
 
@@ -82,23 +95,31 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
                 binding.registration().metadata());
         CountedCraftingProviderAdapter adapter;
         try {
-            adapter = factory.create(context);
+            adapter = requireFactoryResult(factory.create(context));
         } catch (RuntimeException exception) {
             throw factoryFailure(binding, exception);
         }
-        if (adapter == null) {
-            throw factoryFailure(
-                    binding,
-                    new IllegalStateException("Provider adapter factory returned null"));
-        }
-        CountedCraftingProviderAdapters.register(provider, adapter);
         ProviderAdapterState created = new ProviderAdapterState(binding, adapter);
-        this.adaptersByProvider.put(provider, created);
-        this.adaptersByPublication.put(publicationId, created);
+        try {
+            CountedCraftingProviderAdapters.register(provider, adapter);
+            this.adaptersByProvider.put(provider, created);
+            this.adaptersByPublication.put(publicationId, created);
+            this.publications.put(publicationId, provider);
+        } catch (RuntimeException exception) {
+            this.publications.remove(publicationId);
+            this.adaptersByPublication.remove(publicationId);
+            this.adaptersByProvider.remove(provider, created);
+            try {
+                CountedCraftingProviderAdapters.unregister(provider, adapter);
+            } catch (RuntimeException rollbackException) {
+                exception.addSuppressed(rollbackException);
+            }
+            throw exception;
+        }
     }
 
     @Override
-    public void unbind(CraftingProviderId publicationId) {
+    public void unbind(@NotNull CraftingProviderId publicationId) {
         ICraftingProvider provider = this.publications.get(publicationId);
         if (provider == null) {
             throw new IllegalStateException("Pattern provider publication is not bound: " + publicationId);
@@ -119,7 +140,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     }
 
     @Override
-    public Optional<ResolvedProviderBinding> resolve(PatternContainer container) {
+    public @NotNull Optional<ResolvedProviderBinding> resolve(@NotNull PatternContainer container) {
         return this.resolveIdentity(null, container);
     }
 
@@ -137,12 +158,12 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     }
 
     private Optional<ResolvedProviderBinding> resolveIdentity(ICraftingProvider provider,
-                                                               PatternContainer container) {
+                                                              PatternContainer container) {
         ProviderIdentity identity;
         if (provider instanceof PatternProviderIdentitySource source) {
-            identity = source.providerIdentity();
+            identity = Objects.requireNonNull(source.providerIdentity(), "External crafting provider identity");
         } else if (container instanceof PatternProviderIdentitySource source) {
-            identity = source.providerIdentity();
+            identity = Objects.requireNonNull(source.providerIdentity(), "External pattern provider identity");
         } else {
             identity = this.identityResolver.resolve(container);
         }
@@ -171,9 +192,16 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     private static IllegalStateException factoryFailure(ResolvedProviderBinding binding,
                                                         RuntimeException cause) {
         return new IllegalStateException(
-                "Pattern provider plugin '" + binding.registration().metadata().registrationId()
-                        + "' failed to create an adapter for " + binding.identity(),
+                "Pattern provider plugin '" + binding.registration().metadata().registrationId() + "' failed to create an adapter for " + binding.identity(),
                 cause);
+    }
+
+    /**
+     * Enforces the public non-null factory contract at the untrusted plugin callback boundary.
+     */
+    private static @NotNull CountedCraftingProviderAdapter requireFactoryResult(
+                                                                                @UnknownNullability CountedCraftingProviderAdapter adapter) {
+        return Objects.requireNonNull(adapter, "Provider adapter factory returned null");
     }
 
     private static final class ProviderAdapterState {

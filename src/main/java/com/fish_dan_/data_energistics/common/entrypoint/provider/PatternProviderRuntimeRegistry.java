@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
@@ -13,13 +14,14 @@ import java.util.Optional;
 interface PatternProviderRuntimeRegistry {
 
     /** Binds one newly mounted AE2 provider publication. */
-    void bind(CraftingProviderId publicationId, ICraftingProvider provider);
+    void bind(@NotNull CraftingProviderId publicationId, @NotNull ICraftingProvider provider);
 
     /** Releases one exact AE2 provider publication. */
-    void unbind(CraftingProviderId publicationId);
+    void unbind(@NotNull CraftingProviderId publicationId);
 
     /** Resolves menu and upload behavior for one terminal-visible provider. */
-    Optional<ResolvedProviderBinding> resolve(PatternContainer container);
+    @NotNull
+    Optional<ResolvedProviderBinding> resolve(@NotNull PatternContainer container);
 
     /** Clears every live binding while retaining the frozen declaration snapshot. */
     void clear();
