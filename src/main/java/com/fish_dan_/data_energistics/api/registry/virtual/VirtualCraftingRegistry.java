@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.api.registry.virtual;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * Registration facet for stateless virtual crafting output adapters.
  */
@@ -12,5 +14,5 @@ public interface VirtualCraftingRegistry {
      *
      * @param adapter stateless output adapter
      */
-    void registerOutputAdapter(VirtualCraftingOutputAdapter adapter);
+    void registerOutputAdapter(@NotNull VirtualCraftingOutputAdapter adapter);
 }

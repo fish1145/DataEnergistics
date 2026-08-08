@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
@@ -28,7 +29,8 @@ public interface VirtualCraftingOutputAdapter {
      * @param declaredOutput complete declared output identity and per-craft amount
      * @return represented target identity, or empty when this adapter does not own the output
      */
-    Optional<AEKey> resolveTarget(GenericStack declaredOutput);
+    @NotNull
+    Optional<@NotNull AEKey> resolveTarget(@NotNull GenericStack declaredOutput);
 
     /**
      * Selects the completion accounting policy for an adapter-claimed output.
@@ -42,7 +44,7 @@ public interface VirtualCraftingOutputAdapter {
      * @param declaredOutput complete declared output identity and per-craft amount
      * @return completion accounting mode
      */
-    default VirtualCraftingCompletionMode completionMode(GenericStack declaredOutput) {
+    default @NotNull VirtualCraftingCompletionMode completionMode(@NotNull GenericStack declaredOutput) {
         return VirtualCraftingCompletionMode.DELIVER_TARGET;
     }
 }
