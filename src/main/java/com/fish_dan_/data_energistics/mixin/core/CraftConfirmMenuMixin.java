@@ -87,6 +87,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public boolean dataEnergistics$planReady;
 
+    @GuiSync(798)
+    @Unique
+    public long dataEnergistics$planningNanos;
+
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -103,11 +107,13 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$hasDiagnostic = false;
         this.dataEnergistics$diagnostic = Component.empty();
         this.dataEnergistics$ae2FallbackEstimate = false;
+        this.dataEnergistics$planningNanos = 0L;
 
         if (this.result instanceof TrinityCraftingPlan plan) {
             this.dataEnergistics$quantityMode = plan.quantityMode().ordinal();
             this.dataEnergistics$trinityOnly = true;
             this.dataEnergistics$dynamicMaterialWarning = plan.stages().stream().anyMatch(TrinityPlanStage::cycleStage);
+            this.dataEnergistics$planningNanos = plan.statistics().planningNanos();
             if (!plan.diagnostics().isEmpty()) {
                 this.dataEnergistics$hasDiagnostic = true;
                 this.dataEnergistics$diagnostic = plan.diagnostics().getFirst().message();
@@ -120,10 +126,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     }
 
     @WrapOperation(
-                   method = "broadcastChanges",
-                   at = @At(
-                            value = "INVOKE",
-                            target = "Lappeng/menu/me/crafting/CraftingPlanSummary;fromJob(Lappeng/api/networking/IGrid;Lappeng/api/networking/security/IActionSource;Lappeng/api/networking/crafting/ICraftingPlan;)Lappeng/menu/me/crafting/CraftingPlanSummary;"))
+            method = "broadcastChanges",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lappeng/menu/me/crafting/CraftingPlanSummary;fromJob(Lappeng/api/networking/IGrid;Lappeng/api/networking/security/IActionSource;Lappeng/api/networking/crafting/ICraftingPlan;)Lappeng/menu/me/crafting/CraftingPlanSummary;"))
     private CraftingPlanSummary dataEnergistics$projectTrinityPlan(IGrid grid,
                                                                    IActionSource actionSource,
                                                                    ICraftingPlan job,
@@ -170,13 +176,14 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     private void dataEnergistics$clearPlanReadiness() {
         this.dataEnergistics$planReady = false;
+        this.dataEnergistics$planningNanos = 0L;
         ((CraftConfirmMenu) (Object) this).setPlan(null);
     }
 
     @Inject(method = "cpuMatches", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
     private void dataEnergistics$filterCpuByPlanFamily(
-                                                       ICraftingCPU c,
-                                                       CallbackInfoReturnable<Boolean> cir) {
+            ICraftingCPU c,
+            CallbackInfoReturnable<Boolean> cir) {
         TrinityPlanAdmission.CpuFamily family = c instanceof TrinityDataCoreVirtualCpu ?
                 TrinityPlanAdmission.CpuFamily.TRINITY :
                 TrinityPlanAdmission.CpuFamily.NON_TRINITY;
@@ -195,16 +202,16 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     }
 
     @WrapOperation(
-                   method = "goBack",
-                   at = @At(
-                            value = "INVOKE",
-                            target = "Lappeng/menu/me/crafting/CraftAmountMenu;open(Lnet/minecraft/server/level/ServerPlayer;Lappeng/menu/locator/MenuHostLocator;Lappeng/api/stacks/AEKey;I)V"))
+            method = "goBack",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lappeng/menu/me/crafting/CraftAmountMenu;open(Lnet/minecraft/server/level/ServerPlayer;Lappeng/menu/locator/MenuHostLocator;Lappeng/api/stacks/AEKey;I)V"))
     private void dataEnergistics$restoreQuantityMode(
-                                                     ServerPlayer player,
-                                                     MenuHostLocator locator,
-                                                     AEKey whatToCraft,
-                                                     int initialAmount,
-                                                     Operation<Void> original) {
+            ServerPlayer player,
+            MenuHostLocator locator,
+            AEKey whatToCraft,
+            int initialAmount,
+            Operation<Void> original) {
         original.call(player, locator, whatToCraft, initialAmount);
         if (player.containerMenu instanceof TrinityCraftAmountMenuState amountMenu) {
             amountMenu.data_energistics$setQuantityMode(data_energistics$quantityMode());
@@ -214,9 +221,9 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Inject(
             method = "startJob",
             at = @At(
-                     value = "INVOKE",
-                     target = "Lappeng/api/storage/ISubMenuHost;returnToMainMenu(Lnet/minecraft/world/entity/player/Player;Lappeng/menu/ISubMenu;)V",
-                     shift = At.Shift.AFTER),
+                    value = "INVOKE",
+                    target = "Lappeng/api/storage/ISubMenuHost;returnToMainMenu(Lnet/minecraft/world/entity/player/Player;Lappeng/menu/ISubMenu;)V",
+                    shift = At.Shift.AFTER),
             remap = false)
     private void dataEnergistics$returnUniversalTerminalAfterSubmit(CallbackInfo ci) {
         CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
@@ -249,6 +256,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public boolean data_energistics$isPlanReady() {
         return this.dataEnergistics$planReady;
+    }
+
+    @Override
+    public long data_energistics$planningNanos() {
+        return this.dataEnergistics$planningNanos;
     }
 
     @Override

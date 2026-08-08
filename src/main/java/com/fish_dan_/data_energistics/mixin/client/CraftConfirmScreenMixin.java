@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
@@ -18,8 +19,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.text.NumberFormat;
-
 /**
  * Places synchronized Trinity ownership and fallback diagnostics in the confirmation dialog's native text slots.
  */
@@ -31,10 +30,10 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
     private Button start;
 
     protected CraftConfirmScreenMixin(
-                                      CraftConfirmMenu menu,
-                                      Inventory playerInventory,
-                                      Component title,
-                                      ScreenStyle style) {
+            CraftConfirmMenu menu,
+            Inventory playerInventory,
+            Component title,
+            ScreenStyle style) {
         super(menu, playerInventory, title, style);
     }
 
@@ -49,9 +48,9 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
 
         Component quantityMode = Component.translatable(state.data_energistics$quantityMode() ==
                 CraftingQuantityMode.NET_NEW ?
-                        "gui.data_energistics.trinity_quantity.net_new" :
-                        "gui.data_energistics.trinity_quantity.final_total");
-        String bytes = NumberFormat.getInstance().format(plan.getUsedBytes());
+                "gui.data_energistics.trinity_quantity.net_new" :
+                "gui.data_energistics.trinity_quantity.final_total");
+        String bytes = TrinityAmountFormatter.format(plan.getUsedBytes());
         if (state.data_energistics$isAe2FallbackEstimate()) {
             this.setTextContent(
                     TEXT_ID_DIALOG_TITLE,
@@ -64,7 +63,10 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
             String titleKey = state.data_energistics$hasDynamicMaterialWarning() ?
                     "gui.data_energistics.trinity_planning.dynamic_title" :
                     "gui.data_energistics.trinity_planning.title";
-            this.setTextContent(TEXT_ID_DIALOG_TITLE, Component.translatable(titleKey, quantityMode, bytes));
+            String planningNanos = TrinityAmountFormatter.format(state.data_energistics$planningNanos());
+            this.setTextContent(
+                    TEXT_ID_DIALOG_TITLE,
+                    Component.translatable(titleKey, quantityMode, bytes, planningNanos));
             if (state.data_energistics$hasDiagnostic()) {
                 this.setTextContent("cpu_status", state.data_energistics$diagnostic());
             }
