@@ -189,17 +189,17 @@ public final class CountedCraftingProviderTest {
 
             @Override
             public @Nullable CountedCraftingAdmission prepareBatch(
-                    @NotNull IPatternDetails patternDetails,
-                    KeyCounter @NotNull [] prototype,
-                    long requestedCount) {
+                                                                   @NotNull IPatternDetails patternDetails,
+                                                                   KeyCounter @NotNull [] prototype,
+                                                                   long requestedCount) {
                 return null;
             }
 
             @Override
             public @NotNull List<@NotNull CountedCraftingCapacity> captureCapacity(
-                    @NotNull IPatternDetails patternDetails,
-                    KeyCounter @NotNull [] prototype,
-                    long requestedCount) {
+                                                                                   @NotNull IPatternDetails patternDetails,
+                                                                                   KeyCounter @NotNull [] prototype,
+                                                                                   long requestedCount) {
                 throw new IllegalStateException("broken registered capacity adapter");
             }
         };
@@ -250,9 +250,9 @@ public final class CountedCraftingProviderTest {
 
         @Override
         public @Nullable CountedCraftingAdmission prepareBatch(
-                @NotNull IPatternDetails patternDetails,
-                KeyCounter @NotNull [] prototype,
-                long requestedCount) {
+                                                               @NotNull IPatternDetails patternDetails,
+                                                               KeyCounter @NotNull [] prototype,
+                                                               long requestedCount) {
             this.prepareCalls++;
             return this.admission;
         }
@@ -285,14 +285,14 @@ public final class CountedCraftingProviderTest {
 
         @Override
         public List<ProviderCapacitySnapshot> snapshotCapacity(
-                CraftingProviderId providerId,
-                IPatternDetails patternDetails,
-                KeyCounter[] prototype,
-                long requestedCrafts,
-                String patternIdentity,
-                long publicationRevision,
-                long capacityRevision,
-                long captureTick) {
+                                                               CraftingProviderId providerId,
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCrafts,
+                                                               String patternIdentity,
+                                                               long publicationRevision,
+                                                               long capacityRevision,
+                                                               long captureTick) {
             CraftingDispatchTarget route = this.routingMode == ProviderRoutingMode.TARGETED ?
                     new CraftingDispatchTarget("test-target") :
                     CraftingDispatchTarget.provider();
@@ -346,17 +346,17 @@ public final class CountedCraftingProviderTest {
 
         @Override
         public @Nullable CountedCraftingAdmission prepareBatch(
-                IPatternDetails patternDetails,
-                KeyCounter[] prototype,
-                long requestedCount) {
+                                                               IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCount) {
             throw new AssertionError("Targeted adapter must be prepared through its captured route");
         }
 
         @Override
         public @NotNull List<@NotNull CountedCraftingCapacity> captureCapacity(
-                @NotNull IPatternDetails patternDetails,
-                KeyCounter @NotNull [] prototype,
-                long requestedCount) {
+                                                                               @NotNull IPatternDetails patternDetails,
+                                                                               KeyCounter @NotNull [] prototype,
+                                                                               long requestedCount) {
             return List.of(new CountedCraftingCapacity(
                     CountedCraftingTarget.machine("registered-route", "shared-machine"),
                     CountedCraftingRoutingMode.TARGETED,
@@ -366,10 +366,10 @@ public final class CountedCraftingProviderTest {
 
         @Override
         public @NotNull CountedCraftingAdmission prepareBatchForTarget(
-                @NotNull IPatternDetails patternDetails,
-                KeyCounter @NotNull [] prototype,
-                long requestedCount,
-                @NotNull CountedCraftingTarget target) {
+                                                                       @NotNull IPatternDetails patternDetails,
+                                                                       KeyCounter @NotNull [] prototype,
+                                                                       long requestedCount,
+                                                                       @NotNull CountedCraftingTarget target) {
             this.preparedTarget = target;
             return this.admission;
         }

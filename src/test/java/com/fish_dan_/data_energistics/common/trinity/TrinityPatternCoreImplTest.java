@@ -48,8 +48,7 @@ public final class TrinityPatternCoreImplTest {
     private static final UUID HOST_ID = UUID.fromString("f14921fa-5649-4f5f-98c3-41af0ea28b12");
     private static final ResourceLocation TEST_RESOLVER_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "test_pattern");
 
-    private TrinityPatternCoreImplTest() {
-    }
+    private TrinityPatternCoreImplTest() {}
 
     @TestHolder("trinity_pattern_core_supports_physical_capacities")
     @EmptyTemplate("5")
@@ -158,8 +157,7 @@ public final class TrinityPatternCoreImplTest {
                     return decode(stack);
                 },
                 testResolvers(),
-                change -> {
-                });
+                change -> {});
         assertTrue(core.trySetPattern(3, pattern(Items.PAPER)));
         assertTrue(core.trySetPattern(500, pattern(Items.MAP)));
         decodeCalls.set(0);
@@ -353,8 +351,7 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void definitionIdentityIncludesCompletePatternAndRecipeId(GameTestHelper helper) {
         TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
-                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {
-        });
+                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
         ItemStack firstPattern = pattern(Items.PAPER);
         firstPattern.set(DataComponents.CUSTOM_NAME, Component.literal("first"));
         ItemStack secondPattern = pattern(Items.PAPER);
@@ -487,8 +484,7 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void maxCountTailStartsNewGroupWithoutOverflow(GameTestHelper helper) {
         TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
-                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {
-        });
+                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = new PatternRoute(HOST_ID, UUID.randomUUID(), 0);
         List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT));
@@ -512,8 +508,7 @@ public final class TrinityPatternCoreImplTest {
     public static void newOpaquePatternsAreRejectedAndResolverAmbiguityFailsFast(GameTestHelper helper) {
         TrinityPatternRecipeIdResolvers emptyResolvers = new TrinityPatternRecipeIdResolvers(List.of());
         TrinityPatternCoreImpl opaqueCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, emptyResolvers, change -> {
-        });
+                64, TrinityPatternCoreImplTest::decode, emptyResolvers, change -> {});
         assertFalse(opaqueCore.trySetPattern(0, pattern(Items.PAPER)));
 
         assertThrows(IllegalArgumentException.class,
@@ -525,16 +520,14 @@ public final class TrinityPatternCoreImplTest {
                 new TestRecipeIdResolver(),
                 new ConflictingTestRecipeIdResolver()));
         TrinityPatternCoreImpl ambiguousCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, ambiguousResolvers, change -> {
-        });
+                64, TrinityPatternCoreImplTest::decode, ambiguousResolvers, change -> {});
         assertThrows(IllegalStateException.class,
                 () -> ambiguousCore.trySetPattern(0, pattern(Items.PAPER)));
 
         TrinityPatternRecipeIdResolvers nullRecipeResolvers = new TrinityPatternRecipeIdResolvers(
                 List.of(new NullRecipeIdResolver()));
         TrinityPatternCoreImpl nullRecipeCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {
-        });
+                64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {});
         assertFalse(nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
         helper.succeed();
     }
@@ -631,8 +624,7 @@ public final class TrinityPatternCoreImplTest {
         TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers(
                 List.of(new MutableTestRecipeIdResolver(recipeId)));
         TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, resolvers, change -> {
-        });
+                64, TrinityPatternCoreImplTest::decode, resolvers, change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         assertTrue(core.trySetPattern(0, pattern));
         assertTrue(core.enqueueBatch(
@@ -747,8 +739,7 @@ public final class TrinityPatternCoreImplTest {
                 coreId,
                 TrinityPatternCoreImplTest::decode,
                 testResolvers(),
-                change -> {
-                });
+                change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(original, 511);
         original.trySetPattern(511, pattern);
@@ -819,8 +810,7 @@ public final class TrinityPatternCoreImplTest {
                 .getCompound(0)
                 .remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {
-        })
+                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedQueueState, helper.getLevel().registryAccess()));
 
         CompoundTag malformedOutputState = saved.copy();
@@ -830,8 +820,7 @@ public final class TrinityPatternCoreImplTest {
                 .getCompound(0)
                 .remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {
-        })
+                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedOutputState, helper.getLevel().registryAccess()));
         helper.succeed();
     }
@@ -846,8 +835,7 @@ public final class TrinityPatternCoreImplTest {
                 coreId,
                 TrinityPatternCoreImplTest::decode,
                 testResolvers(),
-                change -> {
-                });
+                change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = new PatternRoute(HOST_ID, coreId, 9);
         assertTrue(source.trySetPattern(9, pattern));
@@ -955,8 +943,7 @@ public final class TrinityPatternCoreImplTest {
                 coreId,
                 TrinityPatternCoreImplTest::decode,
                 testResolvers(),
-                change -> {
-                });
+                change -> {});
         ItemStack paper = pattern(Items.PAPER);
         ItemStack map = pattern(Items.MAP);
         assertTrue(source.trySetPattern(11, paper));
@@ -1184,8 +1171,7 @@ public final class TrinityPatternCoreImplTest {
 
     private static TrinityPatternCoreImpl core(int capacity) {
         return new TrinityPatternCoreImpl(
-                capacity, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {
-        });
+                capacity, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
     }
 
     private static TrinityPatternRecipeIdResolvers testResolvers() {
@@ -1322,8 +1308,7 @@ public final class TrinityPatternCoreImplTest {
         }
 
         @Override
-        public void fillCraftingGrid(KeyCounter[] table, CraftingGridAccessor gridAccessor) {
-        }
+        public void fillCraftingGrid(KeyCounter[] table, CraftingGridAccessor gridAccessor) {}
 
         @Override
         public AEItemKey getDefinition() {

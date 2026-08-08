@@ -32,8 +32,7 @@ public final class PatternEncodingPreferenceSession {
     private ResourceLocation confirmedWorkstation;
     private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
 
-    private PatternEncodingPreferenceSession() {
-    }
+    private PatternEncodingPreferenceSession() {}
 
     /**
      * Returns or creates the session associated with one live menu instance.

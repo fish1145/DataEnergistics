@@ -33,11 +33,11 @@ public abstract class EmiEncodePatternHandlerMixin {
 
     @WrapMethod(method = TRANSFER_METHOD)
     private AbstractRecipeHandler.Result dataEnergistics$captureTransferContext(
-            PatternEncodingTermMenu menu,
-            @Nullable RecipeHolder<?> holder,
-            EmiRecipe emiRecipe,
-            boolean doTransfer,
-            Operation<AbstractRecipeHandler.Result> original) {
+                                                                                PatternEncodingTermMenu menu,
+                                                                                @Nullable RecipeHolder<?> holder,
+                                                                                EmiRecipe emiRecipe,
+                                                                                boolean doTransfer,
+                                                                                Operation<AbstractRecipeHandler.Result> original) {
         if (!doTransfer) {
             return original.call(menu, holder, emiRecipe, false);
         }
@@ -67,8 +67,8 @@ public abstract class EmiEncodePatternHandlerMixin {
     @Inject(
             method = TRANSFER_METHOD,
             at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
+                     value = "INVOKE",
+                     target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
     private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu,
                                                        @Nullable RecipeHolder<?> holder,
                                                        EmiRecipe emiRecipe, boolean doTransfer,

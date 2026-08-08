@@ -321,8 +321,7 @@ final class DataEnergisticsRegistryImpl {
             @Override
             public void registerOutputAdapter(@NotNull VirtualCraftingOutputAdapter adapter) {
                 requireOpen();
-                VirtualCraftingOutputAdapter stagedAdapter =
-                        requireStagedValue(adapter, "Virtual crafting output adapter");
+                VirtualCraftingOutputAdapter stagedAdapter = requireStagedValue(adapter, "Virtual crafting output adapter");
                 if (virtualCraftingOutputAdapters.stream().anyMatch(existing -> existing == stagedAdapter)) {
                     throw new IllegalStateException("Duplicate virtual crafting output adapter in " + description());
                 }

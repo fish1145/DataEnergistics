@@ -92,8 +92,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     /**
      * Couples one host reference to its immutable catalog authority token.
      */
-    private record BoundPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {
-    }
+    private record BoundPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {}
 
     /**
      * Creates a core and derives its fixed inventory size directly from the placed block metadata.

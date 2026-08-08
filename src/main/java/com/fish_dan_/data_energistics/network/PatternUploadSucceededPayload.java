@@ -24,15 +24,15 @@ import java.util.regex.Pattern;
  * S2C event emitted after the server confirms that one encoded pattern entered a provider inventory.
  */
 public record PatternUploadSucceededPayload(
-        @NotNull PatternUploadSource source,
-        @Nullable PatternEncodingRankingContext rankingContext,
-        @Nullable ResourceLocation confirmedWorkstation,
-        @NotNull String providerDigest,
-        long newCount,
-        @NotNull Component targetName,
-        @Nullable ResourceLocation dimensionId,
-        @Nullable BlockPos position,
-        long epochMillis)
+                                            @NotNull PatternUploadSource source,
+                                            @Nullable PatternEncodingRankingContext rankingContext,
+                                            @Nullable ResourceLocation confirmedWorkstation,
+                                            @NotNull String providerDigest,
+                                            long newCount,
+                                            @NotNull Component targetName,
+                                            @Nullable ResourceLocation dimensionId,
+                                            @Nullable BlockPos position,
+                                            long epochMillis)
         implements CustomPacketPayload {
 
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");

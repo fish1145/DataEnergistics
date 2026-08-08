@@ -27,8 +27,7 @@ import java.util.Set;
  */
 public final class PatternEncodingPreferencesClient {
 
-    private PatternEncodingPreferencesClient() {
-    }
+    private PatternEncodingPreferencesClient() {}
 
     /**
      * Applies only already-present local fields, preserving server legacy values for first-run migration.
@@ -169,7 +168,7 @@ public final class PatternEncodingPreferencesClient {
     }
 
     private static PatternEncodingPreferencesSyncPayload.LeafStatistic toPayloadStatistic(
-            PatternProviderClickStatistic statistic) {
+                                                                                          PatternProviderClickStatistic statistic) {
         return new PatternEncodingPreferencesSyncPayload.LeafStatistic(
                 statistic.providerDigest(), statistic.count());
     }

@@ -11,5 +11,4 @@ import org.jetbrains.annotations.NotNull;
  * @param recipeId   recipe selected by the encoded pattern
  */
 public record TrinityPatternRecipeIdResolution(@NotNull ResourceLocation resolverId,
-                                               @NotNull ResourceLocation recipeId) {
-}
+                                               @NotNull ResourceLocation recipeId) {}

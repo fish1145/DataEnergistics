@@ -6,10 +6,10 @@ import java.util.regex.Pattern;
  * Stores one bounded provider-selection history entry for an exact ranking context.
  */
 public record PatternProviderClickStatistic(
-        PatternEncodingRankingContext context,
-        String providerDigest,
-        long count,
-        long lastUsedEpochMillis) {
+                                            PatternEncodingRankingContext context,
+                                            String providerDigest,
+                                            long count,
+                                            long lastUsedEpochMillis) {
 
     public static final int DIGEST_LENGTH = 71;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");

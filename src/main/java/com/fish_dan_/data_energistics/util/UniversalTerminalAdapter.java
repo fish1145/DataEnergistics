@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * @deprecated implement the public API's terminal behavior and use {@link UniversalTerminalContext} instead. This
- * compatibility contract will be removed in 3.1.0.
+ *             compatibility contract will be removed in 3.1.0.
  */
 @Deprecated(forRemoval = true)
 @SuppressWarnings("removal")

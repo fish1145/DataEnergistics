@@ -18,8 +18,7 @@ public final class PatternProviderRuntimeBindings {
 
     private static volatile PatternProviderRuntimeRegistry registry;
 
-    private PatternProviderRuntimeBindings() {
-    }
+    private PatternProviderRuntimeBindings() {}
 
     /**
      * Installs the immutable declaration snapshot exactly once during common setup.

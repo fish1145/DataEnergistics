@@ -860,16 +860,16 @@ final class TrinityDataCoreCpuLogic {
      * Resolves stable provider publications and offers fair capacity slices within the worker's physical-call budget.
      */
     private ProviderDispatchOutcome dispatchToAvailableProvider(
-            TrinityDataCoreExecutingCraftingJob currentJob,
-            IPatternDetails details,
-            TrinityDataCoreExecutingCraftingJob.TaskProgress task,
-            CraftingProviderPublicationIndex publications,
-            String patternIdentity,
-            IEnergyService energyService,
-            Level level,
-            CraftingDispatchWindow dispatchWindow,
-            int physicalCallLimit,
-            CraftingDispatchBudget dispatchBudget) {
+                                                                TrinityDataCoreExecutingCraftingJob currentJob,
+                                                                IPatternDetails details,
+                                                                TrinityDataCoreExecutingCraftingJob.TaskProgress task,
+                                                                CraftingProviderPublicationIndex publications,
+                                                                String patternIdentity,
+                                                                IEnergyService energyService,
+                                                                Level level,
+                                                                CraftingDispatchWindow dispatchWindow,
+                                                                int physicalCallLimit,
+                                                                CraftingDispatchBudget dispatchBudget) {
         return dispatchToAvailableProvider(
                 currentJob,
                 details,
@@ -990,21 +990,21 @@ final class TrinityDataCoreCpuLogic {
      * Executes the shared transactional provider path with independently selected extraction semantics and accounting.
      */
     private ProviderDispatchOutcome dispatchToAvailableProvider(
-            TrinityDataCoreExecutingCraftingJob currentJob,
-            IPatternDetails details,
-            IPatternDetails extractionDetails,
-            long remainingCrafts,
-            Object workIdentity,
-            long workGeneration,
-            boolean validateScheduledOutputs,
-            CraftingProviderPublicationIndex publications,
-            String patternIdentity,
-            IEnergyService energyService,
-            Level level,
-            CraftingDispatchWindow dispatchWindow,
-            int physicalCallLimit,
-            CraftingDispatchBudget dispatchBudget,
-            Consumer<PreparedPatternCommit> acceptedDispatch) {
+                                                                TrinityDataCoreExecutingCraftingJob currentJob,
+                                                                IPatternDetails details,
+                                                                IPatternDetails extractionDetails,
+                                                                long remainingCrafts,
+                                                                Object workIdentity,
+                                                                long workGeneration,
+                                                                boolean validateScheduledOutputs,
+                                                                CraftingProviderPublicationIndex publications,
+                                                                String patternIdentity,
+                                                                IEnergyService energyService,
+                                                                Level level,
+                                                                CraftingDispatchWindow dispatchWindow,
+                                                                int physicalCallLimit,
+                                                                CraftingDispatchBudget dispatchBudget,
+                                                                Consumer<PreparedPatternCommit> acceptedDispatch) {
         if (physicalCallLimit <= 0 ||
                 dispatchWindow.isExhausted() ||
                 !dispatchWindow.canCaptureProviderCapacity()) {
@@ -1383,12 +1383,12 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private CountedCraftingPreparation prepareSelectedProvider(
-            ICraftingProvider provider,
-            IPatternDetails details,
-            KeyCounter[] prototype,
-            long offeredCount,
-            ProviderCapacitySnapshot snapshot,
-            CraftingDispatchWindow dispatchWindow) {
+                                                               ICraftingProvider provider,
+                                                               IPatternDetails details,
+                                                               KeyCounter[] prototype,
+                                                               long offeredCount,
+                                                               ProviderCapacitySnapshot snapshot,
+                                                               CraftingDispatchWindow dispatchWindow) {
         return CountedCraftingProviderAdapters.prepare(
                 provider,
                 details,
@@ -1399,9 +1399,9 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private static long offeredCount(
-            ProviderCapacitySnapshot snapshot,
-            DispatchCapacitySlicePlan.Slice slice,
-            long maximumCount) {
+                                     ProviderCapacitySnapshot snapshot,
+                                     DispatchCapacitySlicePlan.Slice slice,
+                                     long maximumCount) {
         return switch (snapshot.routingMode()) {
             case TARGETED -> Math.min(slice.logicalCrafts(), maximumCount);
             case AGGREGATE -> maximumCount;
@@ -1514,8 +1514,7 @@ final class TrinityDataCoreCpuLogic {
 
     @Nullable
     private ExtractedPatternInputs capturePatternInputPrototype(IPatternDetails details, Level level) {
-        ListCraftingInventory prototypeInventory = new ListCraftingInventory(ignored -> {
-        });
+        ListCraftingInventory prototypeInventory = new ListCraftingInventory(ignored -> {});
         for (var entry : this.inventory.list) {
             prototypeInventory.list.add(entry.getKey(), entry.getLongValue());
         }
@@ -2228,31 +2227,26 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    private record CapturedPatternInputs(List<GenericStack> inputsPerCraft, KeyCounter ownedInputs) {
-    }
+    private record CapturedPatternInputs(List<GenericStack> inputsPerCraft, KeyCounter ownedInputs) {}
 
     private record CapturedPatternResults(List<GenericStack> expectedOutputs,
                                           List<GenericStack> expectedContainerItems,
-                                          List<GenericStack> waitingPerCraft) {
-    }
+                                          List<GenericStack> waitingPerCraft) {}
 
     private record ExtractedPatternInputs(KeyCounter[] inputHolder,
                                           List<GenericStack> inputsPerCraft,
                                           List<GenericStack> expectedOutputs,
                                           List<GenericStack> expectedContainerItems,
-                                          List<GenericStack> waitingPerCraft) {
-    }
+                                          List<GenericStack> waitingPerCraft) {}
 
-    private record PatternInputCapture(ExtractedPatternInputs inputs, KeyCounter ownedInputs) {
-    }
+    private record PatternInputCapture(ExtractedPatternInputs inputs, KeyCounter ownedInputs) {}
 
     private record PreparedPatternCommit(long count,
                                          List<GenericStack> expectedOutputs,
                                          List<GenericStack> expectedContainerItems,
                                          List<VirtualCraftingCompletion> virtualCompletions,
                                          IPatternDetails scheduledRemoval,
-                                         Set<AEKey> changedKeys) {
-    }
+                                         Set<AEKey> changedKeys) {}
 
     private record PreparedScheduledOutputs(AEItemKey definition, List<GenericStack> outputs)
             implements IPatternDetails {
@@ -2294,8 +2288,7 @@ final class TrinityDataCoreCpuLogic {
                                           CraftingDispatchCursor capacitySliceCursor,
                                           boolean cantStoreItems,
                                           boolean proposalOutstanding,
-                                          TrinityWorkerSchedulingHint schedulingHint) {
-    }
+                                          TrinityWorkerSchedulingHint schedulingHint) {}
 
     private record ProviderDispatchOutcome(int physicalAttempts,
                                            boolean dispatched,
@@ -2601,8 +2594,8 @@ final class TrinityDataCoreCpuLogic {
             return this.inventory.list.isEmpty() &&
                     this.pendingVirtualCompletions.list.isEmpty() &&
                     this.pendingNoOutputCompletions.list.isEmpty() ?
-                    TrinityWorkerSchedulingHint.idle() :
-                    TrinityWorkerSchedulingHint.ready();
+                            TrinityWorkerSchedulingHint.idle() :
+                            TrinityWorkerSchedulingHint.ready();
         }
         if (currentJob.suspended) {
             return TrinityWorkerSchedulingHint.waitingEvent();
@@ -2621,9 +2614,8 @@ final class TrinityDataCoreCpuLogic {
             case READY, COMPLETED, FAILED -> TrinityWorkerSchedulingHint.ready();
             case WAITING_INPUT -> TrinityWorkerSchedulingHint.waitingEvent();
             case PLANNING -> TrinityWorkerSchedulingHint.retryAt(Math.incrementExact(currentTick));
-            case WAITING_DYNAMIC_INPUT, WAITING_PROVIDER, BUDGET_EXHAUSTED ->
-                    TrinityWorkerSchedulingHint.retryAt(execution.nextRetryTick().orElseThrow(
-                            () -> new IllegalStateException("Timed Trinity execution state is missing its retry tick")));
+            case WAITING_DYNAMIC_INPUT, WAITING_PROVIDER, BUDGET_EXHAUSTED -> TrinityWorkerSchedulingHint.retryAt(execution.nextRetryTick().orElseThrow(
+                    () -> new IllegalStateException("Timed Trinity execution state is missing its retry tick")));
         };
     }
 

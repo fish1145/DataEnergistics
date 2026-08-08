@@ -132,8 +132,7 @@ public interface TrinityPatternCore {
                               @Nullable IMolecularAssemblerSupportedPattern details,
                               @Nullable TrinityPatternPublicationSignature publicationSignature,
                               long runtimeBindingRevision,
-                              boolean semanticChange) {
-        }
+                              boolean semanticChange) {}
     }
 
     /**

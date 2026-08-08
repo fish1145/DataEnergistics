@@ -13,11 +13,11 @@ import mezz.jei.api.runtime.IClickableIngredient;
 import java.util.Optional;
 
 final class PatternEncodingGenericStackJeiHandler<T extends AbstractContainerScreen<?>>
-        implements IGuiContainerHandler<T> {
+                                                 implements IGuiContainerHandler<T> {
 
     @Override
     public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
-            IClickableIngredientFactory builder, T containerScreen, double mouseX, double mouseY) {
+                                                                                        IClickableIngredientFactory builder, T containerScreen, double mouseX, double mouseY) {
         if (!(containerScreen instanceof GenericStackLookupScreen lookupScreen)) {
             return Optional.empty();
         }
@@ -35,9 +35,9 @@ final class PatternEncodingGenericStackJeiHandler<T extends AbstractContainerScr
     }
 
     private static <I> Optional<? extends IClickableIngredient<?>> createClickableIngredient(
-            IClickableIngredientFactory builder,
-            JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient,
-            StackWithBounds hovered) {
+                                                                                             IClickableIngredientFactory builder,
+                                                                                             JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient,
+                                                                                             StackWithBounds hovered) {
         return builder.createBuilder(ingredient.type(), ingredient.ingredient())
                 .buildWithArea(hovered.bounds());
     }

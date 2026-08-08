@@ -56,8 +56,8 @@ class PatternProviderAggregationTest {
     @Test
     void aggregateIsRenameableOnlyWhenEveryMemberIsRenameable() {
         var result = aggregate(List.of(
-                        entry(new OrdinaryPatternProvider(), 1, 10, "Assembler", CRAFTING_TABLE, true, 2, 0),
-                        entry(new OrdinaryPatternProvider(), 2, 20, "Assembler", CRAFTING_TABLE, false, 2, 0)),
+                entry(new OrdinaryPatternProvider(), 1, 10, "Assembler", CRAFTING_TABLE, true, 2, 0),
+                entry(new OrdinaryPatternProvider(), 2, 20, "Assembler", CRAFTING_TABLE, false, 2, 0)),
                 new HashMap<>());
 
         assertEquals(1, result.providers().size());
@@ -190,14 +190,14 @@ class PatternProviderAggregationTest {
     }
 
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregate(
-            List<PatternProviderSyncHelper.PatternProviderAggregationEntry> entries,
-            Map<Long, List<PatternContainer>> targetsById) {
+                                                                                  List<PatternProviderSyncHelper.PatternProviderAggregationEntry> entries,
+                                                                                  Map<Long, List<PatternContainer>> targetsById) {
         return PatternProviderSyncHelper.aggregateSyncedPatternProviders(entries, targetsById);
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
-            PatternContainer container, long id, long sortOrder, String displayName,
-            ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots) {
+                                                                                   PatternContainer container, long id, long sortOrder, String displayName,
+                                                                                   ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots) {
         return new PatternProviderSyncHelper.PatternProviderAggregationEntry(
                 container,
                 id,
@@ -214,10 +214,10 @@ class PatternProviderAggregationTest {
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
-            PatternContainer container, long id, long sortOrder, String displayName,
-            ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots,
-            PatternProviderSyncHelper.PatternProviderAggregationKey aggregationKey,
-            boolean exactContextMatch, String providerDigest) {
+                                                                                   PatternContainer container, long id, long sortOrder, String displayName,
+                                                                                   ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots,
+                                                                                   PatternProviderSyncHelper.PatternProviderAggregationKey aggregationKey,
+                                                                                   boolean exactContextMatch, String providerDigest) {
         return new PatternProviderSyncHelper.PatternProviderAggregationEntry(
                 container,
                 id,

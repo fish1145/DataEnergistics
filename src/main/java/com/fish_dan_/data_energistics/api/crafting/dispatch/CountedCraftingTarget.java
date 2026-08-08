@@ -70,8 +70,8 @@ public record CountedCraftingTarget(boolean providerScoped,
      * @return immutable targeted-machine route
      */
     public static @NotNull CountedCraftingTarget machine(
-            @NotNull String stableIdentity,
-            @NotNull String machineIdentity) {
+                                                         @NotNull String stableIdentity,
+                                                         @NotNull String machineIdentity) {
         return new CountedCraftingTarget(false, stableIdentity, Optional.of(machineIdentity));
     }
 }

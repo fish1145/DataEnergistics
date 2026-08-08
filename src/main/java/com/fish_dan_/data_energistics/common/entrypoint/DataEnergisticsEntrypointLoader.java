@@ -31,8 +31,7 @@ public final class DataEnergisticsEntrypointLoader {
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
     private static volatile DataEnergisticsRegistrySnapshot publishedSnapshot;
 
-    private DataEnergisticsEntrypointLoader() {
-    }
+    private DataEnergisticsEntrypointLoader() {}
 
     /**
      * Loads plugins in deterministic owning-mod and class order, isolates failures, and publishes one snapshot.
@@ -210,6 +209,5 @@ public final class DataEnergisticsEntrypointLoader {
     /**
      * Stable discovery key used exclusively before plugin instantiation.
      */
-    private record EntrypointCandidate(String owningModId, String className) {
-    }
+    private record EntrypointCandidate(String owningModId, String className) {}
 }

@@ -774,8 +774,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     }
 
     private record ProfileStatistic(String profileDigest, ServerProfile profile,
-                                    PatternProviderClickStatistic statistic) {
-    }
+                                    PatternProviderClickStatistic statistic) {}
 
     private static final class FutureSchemaException extends RuntimeException {
 

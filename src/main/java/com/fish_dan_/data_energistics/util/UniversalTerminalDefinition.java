@@ -13,44 +13,44 @@ import java.util.function.Supplier;
 
 /**
  * @deprecated build a public {@code UniversalTerminalRegistration} or implement its terminal behavior instead. This
- * compatibility definition will be removed in 3.1.0.
+ *             compatibility definition will be removed in 3.1.0.
  */
 @Deprecated(forRemoval = true)
 @SuppressWarnings("removal")
 public record UniversalTerminalDefinition(
-        @NotNull String name,
-        @NotNull Predicate<@NotNull ItemStack> matcher,
-        @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-        @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-        @NotNull UniversalTerminalConfigProfile configProfile,
-        boolean requiresCustomMenuLocator,
-        @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory)
+                                          @NotNull String name,
+                                          @NotNull Predicate<@NotNull ItemStack> matcher,
+                                          @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                          @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
+                                          @NotNull UniversalTerminalConfigProfile configProfile,
+                                          boolean requiresCustomMenuLocator,
+                                          @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory)
         implements UniversalTerminalAdapter {
 
     public UniversalTerminalDefinition(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                                       @NotNull String name,
+                                       @NotNull Predicate<@NotNull ItemStack> matcher,
+                                       @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                       @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
         this(name, matcher, iconSupplier, menuTypeSupplier, UniversalTerminalConfigProfile.STANDARD, false, null);
     }
 
     public UniversalTerminalDefinition(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-            @NotNull UniversalTerminalConfigProfile configProfile) {
+                                       @NotNull String name,
+                                       @NotNull Predicate<@NotNull ItemStack> matcher,
+                                       @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                       @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
+                                       @NotNull UniversalTerminalConfigProfile configProfile) {
         this(name, matcher, iconSupplier, menuTypeSupplier, configProfile, false, null);
     }
 
     public UniversalTerminalDefinition(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-            @NotNull UniversalTerminalConfigProfile configProfile,
-            boolean requiresCustomMenuLocator) {
+                                       @NotNull String name,
+                                       @NotNull Predicate<@NotNull ItemStack> matcher,
+                                       @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                       @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
+                                       @NotNull UniversalTerminalConfigProfile configProfile,
+                                       boolean requiresCustomMenuLocator) {
         this(name, matcher, iconSupplier, menuTypeSupplier, configProfile, requiresCustomMenuLocator, null);
     }
 

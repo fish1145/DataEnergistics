@@ -11,8 +11,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class JeiPatternTransferContextBridge {
 
-    private JeiPatternTransferContextBridge() {
-    }
+    private JeiPatternTransferContextBridge() {}
 
     /**
      * Resolves the recipe type directly from the transferred JEI layout.

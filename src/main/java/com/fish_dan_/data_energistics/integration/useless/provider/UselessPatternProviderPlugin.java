@@ -29,8 +29,7 @@ public final class UselessPatternProviderPlugin implements DataEnergisticsPlugin
     /**
      * Public constructor required by the common entrypoint scanner.
      */
-    public UselessPatternProviderPlugin() {
-    }
+    public UselessPatternProviderPlugin() {}
 
     @Override
     public void register(DataEnergisticsRegistry registry) {

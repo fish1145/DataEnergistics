@@ -401,8 +401,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {

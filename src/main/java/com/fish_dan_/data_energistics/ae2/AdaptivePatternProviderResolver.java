@@ -40,8 +40,7 @@ public final class AdaptivePatternProviderResolver {
     private static volatile List<AdaptivePatternProviderRegistration> registrations = List.of();
     private static volatile boolean installed;
 
-    private AdaptivePatternProviderResolver() {
-    }
+    private AdaptivePatternProviderResolver() {}
 
     /**
      * Installs the complete common-setup snapshot exactly once.
@@ -49,7 +48,7 @@ public final class AdaptivePatternProviderResolver {
      * @param registrations frozen plugin and built-in registrations
      */
     public static synchronized void install(
-            @NotNull List<@NotNull AdaptivePatternProviderRegistration> registrations) {
+                                            @NotNull List<@NotNull AdaptivePatternProviderRegistration> registrations) {
         if (installed) {
             throw new IllegalStateException("Adaptive pattern provider definitions are already installed");
         }
@@ -113,8 +112,8 @@ public final class AdaptivePatternProviderResolver {
      * @return whether the resolved profile declares the behavior
      */
     public static boolean hasResolvedCapability(
-            @NotNull ItemStack stack,
-            @NotNull ResourceLocation capability) {
+                                                @NotNull ItemStack stack,
+                                                @NotNull ResourceLocation capability) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null && profile.supports(capability);
     }
@@ -123,9 +122,9 @@ public final class AdaptivePatternProviderResolver {
      * Detects an AE2 pattern-provider attachment without attempting to infer adaptive profile metadata.
      */
     public static boolean isPatternProviderAttachment(
-            @NotNull Level level,
-            @NotNull BlockPos pos,
-            @Nullable Direction side) {
+                                                      @NotNull Level level,
+                                                      @NotNull BlockPos pos,
+                                                      @Nullable Direction side) {
         if (level.getBlockEntity(pos) instanceof PatternProviderBlockEntity) {
             return true;
         }
@@ -165,8 +164,8 @@ public final class AdaptivePatternProviderResolver {
      * Decorates one recognized provider name with the requested terminal variant label.
      */
     public static @NotNull Component decorateAdaptiveProviderName(
-            @NotNull String translationKey,
-            @NotNull Component providerName) {
+                                                                  @NotNull String translationKey,
+                                                                  @NotNull Component providerName) {
         return Component.translatable(translationKey, providerName);
     }
 

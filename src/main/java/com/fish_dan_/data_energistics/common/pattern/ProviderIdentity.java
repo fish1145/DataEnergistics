@@ -26,8 +26,8 @@ import java.util.UUID;
  * </p>
  */
 public sealed interface ProviderIdentity extends PatternProviderIdentity
-        permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
-        ProviderIdentity.External, ProviderIdentity.Virtual {
+                                         permits ProviderIdentity.Block, ProviderIdentity.Part, ProviderIdentity.Trinity,
+                                         ProviderIdentity.External, ProviderIdentity.Virtual {
 
     /**
      * Converts an untrusted public identity callback result at the common-layer boundary.
@@ -37,8 +37,8 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
      * @return validated internal identity
      */
     static @NotNull External fromExternal(
-            @Nullable ExternalPatternProviderIdentity identity,
-            @NotNull String role) {
+                                          @Nullable ExternalPatternProviderIdentity identity,
+                                          @NotNull String role) {
         if (identity == null) {
             throw new IllegalStateException(role + " returned a null external provider identity");
         }

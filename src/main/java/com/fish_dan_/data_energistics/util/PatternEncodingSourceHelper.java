@@ -73,8 +73,7 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation SMITHING_RECIPE_TYPE_ID = ResourceLocation.withDefaultNamespace("smithing");
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
 
-    private PatternEncodingSourceHelper() {
-    }
+    private PatternEncodingSourceHelper() {}
 
     @Nullable
     public static ItemStack encodeProcessingPattern(ConfigInventory inputs, ConfigInventory outputs) {
@@ -93,8 +92,8 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     private static List<GenericStack> normalizeProcessingPatternInventory(
-            ConfigInventory inventory,
-            String inventoryKind) {
+                                                                          ConfigInventory inventory,
+                                                                          String inventoryKind) {
         List<GenericStack> normalized = new ArrayList<>(inventory.size());
         for (int slot = 0; slot < inventory.size(); slot++) {
             GenericStack stack = inventory.getStack(slot);
@@ -177,8 +176,8 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     private static ResourceLocation resolveTransferredWorkstation(
-            @NotNull PatternEncodingRankingContext context,
-            @Nullable PatternEncodingPreviewMenu previewMenu) {
+                                                                  @NotNull PatternEncodingRankingContext context,
+                                                                  @Nullable PatternEncodingPreviewMenu previewMenu) {
         if (previewMenu == null) {
             return null;
         }

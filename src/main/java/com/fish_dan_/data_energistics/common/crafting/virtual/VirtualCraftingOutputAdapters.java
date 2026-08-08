@@ -26,8 +26,7 @@ public final class VirtualCraftingOutputAdapters {
     private static volatile List<VirtualCraftingOutputAdapter> ADAPTERS = List.of();
     private static boolean installed;
 
-    private VirtualCraftingOutputAdapters() {
-    }
+    private VirtualCraftingOutputAdapters() {}
 
     /**
      * Installs the immutable adapter snapshot assembled by the unified plugin registry.
@@ -35,7 +34,7 @@ public final class VirtualCraftingOutputAdapters {
      * @param adapters adapters in deterministic plugin and registration order
      */
     public static synchronized void install(
-            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
+                                            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
         if (installed) {
             throw new IllegalStateException("Virtual crafting output adapters have already been installed");
         }
@@ -76,14 +75,14 @@ public final class VirtualCraftingOutputAdapters {
      * @return immutable projection preserving first-key order after aggregation
      */
     public static @NotNull VirtualCraftingOutputProjection project(
-            @NotNull List<@Nullable GenericStack> declaredOutputs) {
+                                                                   @NotNull List<@Nullable GenericStack> declaredOutputs) {
         requireInstalled();
         return project(declaredOutputs, ADAPTERS);
     }
 
     private static @NotNull VirtualCraftingOutputProjection project(
-            @NotNull List<@Nullable GenericStack> declaredOutputs,
-            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
+                                                                    @NotNull List<@Nullable GenericStack> declaredOutputs,
+                                                                    @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
         LinkedHashMap<AEKey, BigInteger> logical = new LinkedHashMap<>();
         ArrayList<VirtualCraftingCompletion> virtual = new ArrayList<>();
         for (GenericStack output : declaredOutputs) {
@@ -133,8 +132,8 @@ public final class VirtualCraftingOutputAdapters {
     }
 
     private static @NotNull Optional<@NotNull ResolvedOutput> resolveOutput(
-            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters,
-            @NotNull GenericStack output) {
+                                                                            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters,
+                                                                            @NotNull GenericStack output) {
         ResolvedOutput resolved = null;
         for (VirtualCraftingOutputAdapter adapter : adapters) {
             Optional<AEKey> candidate;
@@ -195,6 +194,5 @@ public final class VirtualCraftingOutputAdapters {
     }
 
     private record ResolvedOutput(@NotNull AEKey target,
-                                  @NotNull VirtualCraftingCompletionMode mode) {
-    }
+                                  @NotNull VirtualCraftingCompletionMode mode) {}
 }

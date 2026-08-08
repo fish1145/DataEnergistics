@@ -43,7 +43,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * @param registeredResolvers resolver map in deterministic plugin and declaration order
      */
     public TrinityPatternRecipeIdResolvers(
-            @NotNull Map<@NotNull ResourceLocation, @NotNull TrinityPatternRecipeIdResolver> registeredResolvers) {
+                                           @NotNull Map<@NotNull ResourceLocation, @NotNull TrinityPatternRecipeIdResolver> registeredResolvers) {
         ArrayList<RegisteredResolver> captured = new ArrayList<>(registeredResolvers.size());
         for (Map.Entry<ResourceLocation, TrinityPatternRecipeIdResolver> entry : registeredResolvers.entrySet()) {
             ResourceLocation resolverId = entry.getKey();
@@ -59,7 +59,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * @param resolvers resolvers to validate in declaration order
      */
     public TrinityPatternRecipeIdResolvers(
-            @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
+                                           @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
         this(indexResolvers(resolvers));
     }
 
@@ -81,7 +81,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
 
     @Override
     public @NotNull Optional<@NotNull TrinityPatternRecipeIdResolution> resolve(
-            @NotNull IMolecularAssemblerSupportedPattern pattern) {
+                                                                                @NotNull IMolecularAssemblerSupportedPattern pattern) {
         List<RegisteredResolver> matches = new ArrayList<>();
         for (RegisteredResolver registered : this.resolvers) {
             boolean supported;
@@ -135,7 +135,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * Validates resolver IDs before constructing an isolated runtime.
      */
     private static @NotNull Map<@NotNull ResourceLocation, @NotNull TrinityPatternRecipeIdResolver> indexResolvers(
-            @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
+                                                                                                                   @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
         LinkedHashMap<ResourceLocation, TrinityPatternRecipeIdResolver> indexed = new LinkedHashMap<>();
         for (TrinityPatternRecipeIdResolver resolver : resolvers) {
             ResourceLocation resolverId = resolver.id();
@@ -150,8 +150,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * Captured stable ID paired with the stateless resolver callback.
      */
     private record RegisteredResolver(@NotNull ResourceLocation id,
-                                      @NotNull TrinityPatternRecipeIdResolver resolver) {
-    }
+                                      @NotNull TrinityPatternRecipeIdResolver resolver) {}
 
     /**
      * Built-in AE2 component resolvers registered by the built-in Data Energistics plugin.

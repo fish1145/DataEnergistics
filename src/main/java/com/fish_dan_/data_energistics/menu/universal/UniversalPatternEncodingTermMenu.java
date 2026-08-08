@@ -60,8 +60,8 @@ import java.util.List;
 import java.util.Map;
 
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
-        implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware,
-        PatternEncodingPreviewLayoutAware, PatternEncodingPreferenceMenu {
+                                              implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware,
+                                              PatternEncodingPreviewLayoutAware, PatternEncodingPreferenceMenu {
 
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
@@ -528,10 +528,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     private void syncPatternProvidersFromNetwork(
-            IGrid grid,
-            PatternProviderSyncTracker.PublicationVersion publication,
-            long currentTick,
-            @Nullable PatternEncodingRankingContext rankingContext) {
+                                                 IGrid grid,
+                                                 PatternProviderSyncTracker.PublicationVersion publication,
+                                                 long currentTick,
+                                                 @Nullable PatternEncodingRankingContext rankingContext) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 data_energistics$getEncodingMode(),

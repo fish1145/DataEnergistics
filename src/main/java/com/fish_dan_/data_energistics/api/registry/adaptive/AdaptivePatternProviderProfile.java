@@ -19,11 +19,11 @@ import java.util.Set;
  * @param capabilities     composable behavior identifiers implemented by the provider
  */
 public record AdaptivePatternProviderProfile(
-        int slotsPerProvider,
-        @NotNull ItemStack mainMenuIcon,
-        @NotNull AEItemKey terminalIcon,
-        @NotNull Component displayName,
-        @NotNull Set<@NotNull ResourceLocation> capabilities) {
+                                             int slotsPerProvider,
+                                             @NotNull ItemStack mainMenuIcon,
+                                             @NotNull AEItemKey terminalIcon,
+                                             @NotNull Component displayName,
+                                             @NotNull Set<@NotNull ResourceLocation> capabilities) {
 
     /**
      * Validates profile invariants and detaches mutable values at the public boundary.

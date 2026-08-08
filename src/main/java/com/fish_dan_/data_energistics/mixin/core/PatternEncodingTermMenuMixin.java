@@ -71,10 +71,10 @@ import java.util.Map;
 // Apply after EAEP's default-priority TAIL hook so this cancellable encode path bypasses its uploader.
 @Mixin(value = PatternEncodingTermMenu.class, priority = 900)
 public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
-        implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
-        PatternEncodingPreviewLayoutAware,
-        BlankPatternProxyMenu, PatternEncodingMultiblockTransferTarget,
-        PatternEncodingPreferenceMenu, PatternEncodingInheritedState {
+                                                   implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
+                                                   PatternEncodingPreviewLayoutAware,
+                                                   BlankPatternProxyMenu, PatternEncodingMultiblockTransferTarget,
+                                                   PatternEncodingPreferenceMenu, PatternEncodingInheritedState {
 
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "dataEnergistics$transferEncodedPatternToProvider";
@@ -1013,10 +1013,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Unique
     private void dataEnergistics$syncPatternProvidersFromNetwork(
-            IGrid grid,
-            PatternProviderSyncTracker.PublicationVersion publication,
-            long currentTick,
-            @Nullable PatternEncodingRankingContext rankingContext) {
+                                                                 IGrid grid,
+                                                                 PatternProviderSyncTracker.PublicationVersion publication,
+                                                                 long currentTick,
+                                                                 @Nullable PatternEncodingRankingContext rankingContext) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 data_energistics$getEncodingMode(),

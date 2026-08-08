@@ -11,6 +11,5 @@ import org.jetbrains.annotations.NotNull;
  * @param definition     provider-specific profile resolver
  */
 public record AdaptivePatternProviderRegistration(
-        @NotNull ResourceLocation registrationId,
-        @NotNull AdaptivePatternProviderDefinition definition) {
-}
+                                                  @NotNull ResourceLocation registrationId,
+                                                  @NotNull AdaptivePatternProviderDefinition definition) {}

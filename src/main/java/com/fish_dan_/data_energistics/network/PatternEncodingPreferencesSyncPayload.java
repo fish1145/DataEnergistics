@@ -37,16 +37,16 @@ import java.util.stream.Collectors;
  * C2S snapshot of client preferences and the provider history visible in one pattern menu.
  */
 public record PatternEncodingPreferencesSyncPayload(
-        int containerId,
-        long sequence,
-        int presentMask,
-        boolean uploadEnabled,
-        boolean patternSourceEnabled,
-        @Nullable ResourceLocation lastWorkstation,
-        int previewPanelOffsetX,
-        int previewPanelOffsetY,
-        @Nullable PatternEncodingRankingContext rankingContext,
-        @NotNull List<LeafStatistic> statistics)
+                                                    int containerId,
+                                                    long sequence,
+                                                    int presentMask,
+                                                    boolean uploadEnabled,
+                                                    boolean patternSourceEnabled,
+                                                    @Nullable ResourceLocation lastWorkstation,
+                                                    int previewPanelOffsetX,
+                                                    int previewPanelOffsetY,
+                                                    @Nullable PatternEncodingRankingContext rankingContext,
+                                                    @NotNull List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
@@ -281,8 +281,7 @@ public record PatternEncodingPreferencesSyncPayload(
         static final int LAST_WORKSTATION = 1 << 2;
         static final int PREVIEW_PANEL = 1 << 3;
 
-        private PatternEncodingClientPreferenceMask() {
-        }
+        private PatternEncodingClientPreferenceMask() {}
 
         static int missingMask(int presentMask) {
             return (UPLOAD_ENABLED | PATTERN_SOURCE_ENABLED | LAST_WORKSTATION | PREVIEW_PANEL) & ~presentMask;

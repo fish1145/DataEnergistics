@@ -21,12 +21,12 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
 
     @Override
     public ProviderCapacityCapture capture(
-            CraftingProviderPublicationIndex publications,
-            IPatternDetails pattern,
-            KeyCounter[] prototype,
-            long requestedCrafts,
-            String patternIdentity,
-            long captureTick) {
+                                           CraftingProviderPublicationIndex publications,
+                                           IPatternDetails pattern,
+                                           KeyCounter[] prototype,
+                                           long requestedCrafts,
+                                           String patternIdentity,
+                                           long captureTick) {
         validateCapture(requestedCrafts, patternIdentity, captureTick);
         ProviderCapacityCaptureKey captureKey = ProviderCapacityCaptureKey.capture(
                 publications,
@@ -73,13 +73,13 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
     @Override
     @Nullable
     public ICraftingProvider resolveCurrent(
-            CraftingProviderPublicationIndex publications,
-            IPatternDetails pattern,
-            KeyCounter[] prototype,
-            long requestedCrafts,
-            String patternIdentity,
-            ProviderCapacitySnapshot snapshot,
-            long validationTick) {
+                                            CraftingProviderPublicationIndex publications,
+                                            IPatternDetails pattern,
+                                            KeyCounter[] prototype,
+                                            long requestedCrafts,
+                                            String patternIdentity,
+                                            ProviderCapacitySnapshot snapshot,
+                                            long validationTick) {
         validateCapture(requestedCrafts, patternIdentity, validationTick);
         if (publications.publicationRevision() != snapshot.publicationRevision() ||
                 CountedCraftingProviderAdapters.mutationRevision() != snapshot.capacityRevision() ||
@@ -132,11 +132,11 @@ final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
     }
 
     private static void validateProviderSnapshot(
-            ProviderCapacitySnapshot snapshot,
-            CraftingProviderId providerId,
-            String patternIdentity,
-            long publicationRevision,
-            long capacityRevision) {
+                                                 ProviderCapacitySnapshot snapshot,
+                                                 CraftingProviderId providerId,
+                                                 String patternIdentity,
+                                                 long publicationRevision,
+                                                 long capacityRevision) {
         if (!snapshot.providerId().equals(providerId) ||
                 !snapshot.patternIdentity().equals(patternIdentity) ||
                 snapshot.publicationRevision() != publicationRevision ||

@@ -115,8 +115,7 @@ import java.util.function.Predicate;
 @PrefixGameTestTemplate(false)
 public final class CompartmentBlockEntityTest {
 
-    private CompartmentBlockEntityTest() {
-    }
+    private CompartmentBlockEntityTest() {}
 
     @TestHolder("trinity_pattern_core_health_check_phase_is_overflow_safe")
     @EmptyTemplate("5")
@@ -381,7 +380,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(host.isCpuStructureFormed(),
                             "Auto-built Trinity CPU child structure should form: " + host.getCpuLastFailureReason());
                     helper.assertTrue(boundHatches.stream().filter(host::isLeaseOwner)
-                                    .anyMatch(hatch -> hatch.boundCraftingRuntime() == host.getCraftingRuntime()),
+                            .anyMatch(hatch -> hatch.boundCraftingRuntime() == host.getCraftingRuntime()),
                             "CPU child structure must publish the virtual CPU runtime independently");
                     helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.terminalPartitions().isEmpty()),
                             "CPU-only child structure must not publish pattern terminal partitions");
@@ -402,12 +401,12 @@ public final class CompartmentBlockEntityTest {
                             (long) cpuPartitions.size(),
                             "Two hatches on one grid must publish each Trinity CPU partition exactly once");
                     helper.assertTrue(boundHatches.stream()
-                                    .filter(host::isLeaseOwner)
-                                    .flatMap(hatch -> hatch.terminalPartitions().stream())
-                                    .allMatch(partition -> partition.isAttachedTo(grid)),
+                            .filter(host::isLeaseOwner)
+                            .flatMap(hatch -> hatch.terminalPartitions().stream())
+                            .allMatch(partition -> partition.isAttachedTo(grid)),
                             "The lease owner should attach every terminal partition to its selected grid");
                     helper.assertTrue(boundHatches.stream().filter(host::isLeaseOwner)
-                                    .anyMatch(hatch -> !hatch.terminalPartitions().isEmpty()),
+                            .anyMatch(hatch -> !hatch.terminalPartitions().isEmpty()),
                             "The lease owner should publish at least one terminal partition");
                     helper.assertValueEqual(
                             boundHatches.stream().filter(hatch -> !host.isLeaseOwner(hatch))
@@ -604,8 +603,7 @@ public final class CompartmentBlockEntityTest {
                             UUID.randomUUID(),
                             stack -> null,
                             TrinityPatternRecipeIdResolvers.createWithBuiltIns(),
-                            change -> {
-                            });
+                            change -> {});
                     CompoundTag restoredTag = new CompoundTag();
                     restoredState.writeToTag(restoredTag, level.registryAccess());
                     mount.core().readFromTag(restoredTag, level.registryAccess());
@@ -657,9 +655,9 @@ public final class CompartmentBlockEntityTest {
                             0L,
                             "Catalog rebuild must not restore the stale pre-identity-change route");
                     helper.assertTrue(boundHatches.stream()
-                                    .filter(host::isLeaseOwner)
-                                    .flatMap(hatch -> hatch.terminalPartitions().stream())
-                                    .allMatch(partition -> partition.isAttachedTo(grid)),
+                            .filter(host::isLeaseOwner)
+                            .flatMap(hatch -> hatch.terminalPartitions().stream())
+                            .allMatch(partition -> partition.isAttachedTo(grid)),
                             "Catalog rebuild must reattach terminal partitions to the lease grid");
                 })
                 .thenExecute(() -> destroyGridPower(testGridPower))
@@ -725,7 +723,7 @@ public final class CompartmentBlockEntityTest {
                     }
                     var restoredLocalRoute = routeResolver.resolve(hatchNode, owningRoute.leaseEpoch());
                     helper.assertTrue(restoredLocalRoute != null &&
-                                    restoredLocalRoute.serviceGrid() == hatchNode.getGrid(),
+                            restoredLocalRoute.serviceGrid() == hatchNode.getGrid(),
                             "A fully released node must restore its physical-grid crafting route");
 
                     ConnectorBindResult result = tower.bindTargetFromConnector(hatch.getBlockPos());
@@ -1030,9 +1028,9 @@ public final class CompartmentBlockEntityTest {
         registerGridPowerCleanup(helper, List.of(testGridPower));
         AtomicBoolean patternsWritten = new AtomicBoolean();
         ItemStack encodedPattern = encodedOakPlanksPattern(helper);
-        int[] partitionIndexes = {0, 0, 1, 3};
-        int[] partitionSlots = {0, 127, 0, 127};
-        int[] physicalSlots = {0, 127, 128, 511};
+        int[] partitionIndexes = { 0, 0, 1, 3 };
+        int[] partitionSlots = { 0, 127, 0, 127 };
+        int[] physicalSlots = { 0, 127, 128, 511 };
 
         helper.succeedWhen(() -> {
             connectAccessHatches(helper, level, hatches, testGridPower);
@@ -1180,8 +1178,8 @@ public final class CompartmentBlockEntityTest {
                             1L,
                             "The initial owner grid must publish the routed pattern exactly once");
                     helper.assertTrue(!initialOwner.terminalPartitions().isEmpty() &&
-                                    initialOwner.terminalPartitions().stream()
-                                            .allMatch(partition -> partition.isAttachedTo(selectedGrid)),
+                            initialOwner.terminalPartitions().stream()
+                                    .allMatch(partition -> partition.isAttachedTo(selectedGrid)),
                             "The initial owner must attach its terminal partitions to its selected grid");
                 })
                 .thenExecute(() -> {
@@ -1247,7 +1245,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(!runtimeRegistry(ownerGrid.get()).data_energistics$withdraw(ownerNode.get()),
                             "The old owner publication must be absent when lease reevaluation returns");
                     helper.assertTrue(!runtimeRegistry(competitorGrid.get()).data_energistics$publish(
-                                    competitorNode.get(), host.getCraftingRuntime()),
+                            competitorNode.get(), host.getCraftingRuntime()),
                             "The replacement owner publication must exist when lease reevaluation returns");
                     helper.assertTrue(host.accessGrid() == competitorGrid.get(),
                             "The switched idle lease should expose only the competitor grid");
@@ -1274,8 +1272,8 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(initialOwner.terminalPartitions().isEmpty(),
                             "Former owner hatch must detach its terminal partitions");
                     helper.assertTrue(!competitor.terminalPartitions().isEmpty() &&
-                                    competitor.terminalPartitions().stream()
-                                            .allMatch(partition -> partition.isAttachedTo(competitorGrid.get())),
+                            competitor.terminalPartitions().stream()
+                                    .allMatch(partition -> partition.isAttachedTo(competitorGrid.get())),
                             "New owner hatch must attach terminal partitions only to the replacement grid");
                 })
                 .thenExecute(() -> destroyGridPower(competitorPower))
@@ -1323,8 +1321,8 @@ public final class CompartmentBlockEntityTest {
                 helper.assertTrue(!retainedCpuPartitions.get().isEmpty(),
                         "Formed CPU structure should expose at least one virtual CPU partition");
                 helper.assertTrue(hatches.stream().filter(host::isLeaseOwner)
-                                .flatMap(hatch -> hatch.terminalPartitions().stream())
-                                .allMatch(partition -> partition.isAttachedTo(host.accessGrid())),
+                        .flatMap(hatch -> hatch.terminalPartitions().stream())
+                        .allMatch(partition -> partition.isAttachedTo(host.accessGrid())),
                         "Terminal partitions should be mounted before capability invalidation");
                 TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
                 retainedPatternMount.set(mount);
@@ -1385,7 +1383,7 @@ public final class CompartmentBlockEntityTest {
                     "A captured terminal inventory must reject extraction after layout invalidation");
             ItemStack rejected = staleInventory.insertItem(0, encodedPattern, false);
             helper.assertTrue(ItemStack.isSameItemSameComponents(rejected, encodedPattern) &&
-                            rejected.getCount() == encodedPattern.getCount(),
+                    rejected.getCount() == encodedPattern.getCount(),
                     "A captured terminal inventory must return the complete offered pattern after invalidation");
             staleInventory.setItemDirect(0, ItemStack.EMPTY);
             helper.assertTrue(ItemStack.isSameItemSameComponents(mount.core().pattern(0), encodedPattern),
@@ -1496,27 +1494,27 @@ public final class CompartmentBlockEntityTest {
                             1L,
                             "Initial busy lease grid must publish the routed pattern exactly once");
                     helper.assertTrue(!intendedOwner.terminalPartitions().isEmpty() &&
-                                    intendedOwner.terminalPartitions().stream()
-                                            .allMatch(partition -> partition.isAttachedTo(ownerGrid)),
+                            intendedOwner.terminalPartitions().stream()
+                                    .allMatch(partition -> partition.isAttachedTo(ownerGrid)),
                             "Initial busy lease owner must attach its terminal partitions");
                 })
                 .thenExecute(() -> {
                     helper.assertTrue(persistentMount.core().trySetPattern(suspendedSlot, suspendedPattern),
                             "Busy reconstruction test should install the pattern used by its suspended queue");
                     helper.assertTrue(persistentMount.core().enqueueBatch(
-                                    suspendedRoute,
-                                    suspendedPattern,
-                                    List.of(
-                                            new ItemStack(Items.OAK_LOG),
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY,
-                                            ItemStack.EMPTY),
-                                    level.getGameTime()),
+                            suspendedRoute,
+                            suspendedPattern,
+                            List.of(
+                                    new ItemStack(Items.OAK_LOG),
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY,
+                                    ItemStack.EMPTY),
+                            level.getGameTime()),
                             "Busy reconstruction test should enqueue one real routed crafting batch");
                     helper.assertTrue(persistentMount.core().trySetPattern(suspendedSlot, ItemStack.EMPTY),
                             "Clearing the suspended slot should retain its queued definition snapshot");
@@ -1619,10 +1617,10 @@ public final class CompartmentBlockEntityTest {
                             State.DEFERRED,
                             "Reconstructed host must defer an unloaded main-structure position");
                     helper.assertTrue(loadedHost.multiBlock$isFormed() && loadedHost.isCpuStructureFormed() &&
-                                    loadedHost.isCraftingStructureFormed(),
+                            loadedHost.isCraftingStructureFormed(),
                             "Deferred validation must retain every persisted formation snapshot");
                     helper.assertTrue(!loadedHost.isStorageAvailable() && !loadedHost.isCpuProviderAvailable() &&
-                                    !loadedHost.isPatternProviderAvailable(),
+                            !loadedHost.isPatternProviderAvailable(),
                             "Deferred main validation must withdraw all three capability domains");
                     helper.assertValueEqual(
                             persistentMount.core().queuedBatchCount(suspendedSlot),
@@ -1644,7 +1642,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(restoredHost.getPatternCatalog().layoutSnapshot().active(),
                             "Reconstructed host must rebuild its authoritative pattern layout");
                     helper.assertTrue(restoredHost.isStorageAvailable() && restoredHost.isCpuProviderAvailable() &&
-                                    restoredHost.isPatternProviderAvailable(),
+                            restoredHost.isPatternProviderAvailable(),
                             "Reconstructed complete host must restore all independently gated capabilities");
                     TrinityDataCoreVirtualCpu restoredWorker = requireSingleBusyCpu(helper, restoredHost);
                     helper.assertValueEqual(restoredWorker.number(), jobCpuNumber.get(),
@@ -1652,10 +1650,10 @@ public final class CompartmentBlockEntityTest {
                     helper.assertValueEqual(restoredWorker.getWaitingFor(jobOutput), jobOutputAmount,
                             "Reconstructed host must retain the original CPU job until output arrives");
                     helper.assertTrue(restoredHost.isLeaseOwner(intendedOwner) &&
-                                    !restoredHost.isLeaseOwner(intendedCompetitor),
+                            !restoredHost.isLeaseOwner(intendedCompetitor),
                             "Reconstructed busy host must restore only the persisted hatch identity");
                     helper.assertTrue(restoredHost.accessGrid() == originalLeaseGrid.get() &&
-                                    restoredHost.accessGrid() != competingGrid.get(),
+                            restoredHost.accessGrid() != competingGrid.get(),
                             "Reconstructed busy host must bind only to the persisted hatch grid");
                     helper.assertValueEqual(availableAmount(originalLeaseGrid.get(), storageProbe), 4L,
                             "Reconstructed busy host must restore its exact storage contents");
@@ -1684,8 +1682,8 @@ public final class CompartmentBlockEntityTest {
                             0L,
                             "Competing grid must not publish the reconstructed routed pattern");
                     helper.assertTrue(!intendedOwner.terminalPartitions().isEmpty() &&
-                                    intendedOwner.terminalPartitions().stream()
-                                            .allMatch(partition -> partition.isAttachedTo(originalLeaseGrid.get())),
+                            intendedOwner.terminalPartitions().stream()
+                                    .allMatch(partition -> partition.isAttachedTo(originalLeaseGrid.get())),
                             "Reconstructed owner must restore terminal partitions on its persisted grid");
                     helper.assertTrue(intendedCompetitor.terminalPartitions().isEmpty(),
                             "Competing hatch must remain without reconstructed terminal partitions");
@@ -1728,7 +1726,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(restoredHost.accessGrid() == null,
                             "Busy host must stay offline while its persisted hatch is unavailable");
                     helper.assertTrue(!restoredHost.isLeaseOwner(intendedOwner) &&
-                                    !restoredHost.isLeaseOwner(intendedCompetitor),
+                            !restoredHost.isLeaseOwner(intendedCompetitor),
                             "Competing online hatch must not take over an unavailable busy lease");
                     helper.assertTrue(intendedCompetitor.accessGrid() == null,
                             "Competing online hatch must expose no storage while busy work waits");
@@ -1753,7 +1751,7 @@ public final class CompartmentBlockEntityTest {
                             0L,
                             "Competing grid must not take over the routed pattern while work waits");
                     helper.assertTrue(intendedOwner.terminalPartitions().isEmpty() &&
-                                    intendedCompetitor.terminalPartitions().isEmpty(),
+                            intendedCompetitor.terminalPartitions().isEmpty(),
                             "Both hatches must expose no terminal partitions while the busy owner is offline");
                 })
                 .thenWaitUntil(() -> {
@@ -1773,7 +1771,7 @@ public final class CompartmentBlockEntityTest {
                     reboundGrid.set(recoveredGrid);
                     intendedOwner.refreshTrinityPatternPublication();
                     helper.assertTrue(restoredHost.isLeaseOwner(intendedOwner) &&
-                                    !restoredHost.isLeaseOwner(intendedCompetitor),
+                            !restoredHost.isLeaseOwner(intendedCompetitor),
                             "Recovered persisted hatch must regain the exclusive busy lease");
                     helper.assertTrue(restoredHost.accessGrid() == recoveredGrid,
                             "Recovered busy host must expose only the persisted hatch grid");
@@ -1792,8 +1790,8 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(intendedCompetitor.boundCraftingRuntime() == null,
                             "Competing hatch must not expose the reconstructed crafting runtime");
                     helper.assertTrue(!intendedOwner.terminalPartitions().isEmpty() &&
-                                    intendedOwner.terminalPartitions().stream()
-                                            .allMatch(partition -> partition.isAttachedTo(recoveredGrid)),
+                            intendedOwner.terminalPartitions().stream()
+                                    .allMatch(partition -> partition.isAttachedTo(recoveredGrid)),
                             "Recovered terminal partitions must attach only to the persisted hatch grid");
                     helper.assertTrue(intendedCompetitor.terminalPartitions().isEmpty(),
                             "Competing hatch must not publish duplicate terminal partitions");
@@ -2243,8 +2241,8 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static DataDistributionTowerBlockEntity placeTowerNearAccessHatch(
-            GameTestHelper helper,
-            BlockPos hatchPos) {
+                                                                              GameTestHelper helper,
+                                                                              BlockPos hatchPos) {
         ServerLevel level = helper.getLevel();
         BlockPos towerPos = null;
         for (int radius = 2; radius <= 7 && towerPos == null; radius++) {
@@ -2285,9 +2283,9 @@ public final class CompartmentBlockEntityTest {
      * Adds a structure-external candidate only for exercising multi-grid lease arbitration.
      */
     private static TrinityAccessHatchBlockEntity placeAdditionalBoundAccessHatch(
-            ServerLevel level,
-            BlockPos origin,
-            TrinityDataCoreBlockEntity host) {
+                                                                                 ServerLevel level,
+                                                                                 BlockPos origin,
+                                                                                 TrinityDataCoreBlockEntity host) {
         BlockPos hatchPos = origin.offset(16, 0, 0);
         level.setBlock(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
         BlockEntity blockEntity = level.getBlockEntity(hatchPos);
@@ -2638,8 +2636,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class SimpleMEStorage implements MEStorage {
 
-        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {
-        });
+        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
@@ -2730,8 +2727,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class TestGridPower implements IAEPowerStorage {
 
-        private static final IGridNodeListener<TestGridPower> NODE_LISTENER = (owner, node) -> {
-        };
+        private static final IGridNodeListener<TestGridPower> NODE_LISTENER = (owner, node) -> {};
 
         private final IManagedGridNode managedNode;
 

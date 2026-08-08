@@ -33,8 +33,7 @@ public final class AdaptivePatternProviderCapabilities {
      */
     public static final ResourceLocation RESONATING = capability("resonating");
 
-    private AdaptivePatternProviderCapabilities() {
-    }
+    private AdaptivePatternProviderCapabilities() {}
 
     /**
      * Creates one Data Energistics-owned capability identifier.

@@ -15,8 +15,7 @@ import org.jetbrains.annotations.NotNull;
  */
 final class EmiGenericStackIngredientResolver {
 
-    private EmiGenericStackIngredientResolver() {
-    }
+    private EmiGenericStackIngredientResolver() {}
 
     static @NotNull EmiStack resolve(@NotNull GenericStack stack) {
         if (stack.amount() < 0L) {

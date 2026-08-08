@@ -200,7 +200,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
      * Enforces the public non-null factory contract at the untrusted plugin callback boundary.
      */
     private static @NotNull CountedCraftingProviderAdapter requireFactoryResult(
-            @UnknownNullability CountedCraftingProviderAdapter adapter) {
+                                                                                @UnknownNullability CountedCraftingProviderAdapter adapter) {
         return Objects.requireNonNull(adapter, "Provider adapter factory returned null");
     }
 

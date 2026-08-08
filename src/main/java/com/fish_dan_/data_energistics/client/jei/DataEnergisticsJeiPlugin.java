@@ -275,7 +275,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
      * Installs the sole category owned by the current JEI runtime registration cycle.
      */
     TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
-            TrinityMultiblockJeiCategory category) {
+                                                                  TrinityMultiblockJeiCategory category) {
         if (category == null) {
             throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
         }
@@ -295,9 +295,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     }
 
     private void requestMultiblockRefresh(
-            MultiblockXeiRecipe recipe,
-            MultiblockXeiComposition composition,
-            MultiblockXeiComposition.RecipeChange change) {
+                                          MultiblockXeiRecipe recipe,
+                                          MultiblockXeiComposition composition,
+                                          MultiblockXeiComposition.RecipeChange change) {
         IJeiRuntime runtime = this.jeiRuntime;
         TrinityMultiblockJeiCategory category = currentTrinityMultiblockCategory();
         if (runtime == null || category == null || this.multiblockRefreshInProgress) {

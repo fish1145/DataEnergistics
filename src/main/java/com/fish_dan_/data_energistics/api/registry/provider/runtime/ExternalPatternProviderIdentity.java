@@ -19,9 +19,9 @@ import java.util.List;
  * @param canonicalFields ordered deterministic identity fields for one live provider
  */
 public record ExternalPatternProviderIdentity(
-        @NotNull ResourceLocation type,
-        int schemaVersion,
-        @NotNull List<@NotNull String> canonicalFields) {
+                                              @NotNull ResourceLocation type,
+                                              int schemaVersion,
+                                              @NotNull List<@NotNull String> canonicalFields) {
 
     /**
      * Validates the schema version and freezes the canonical field list.

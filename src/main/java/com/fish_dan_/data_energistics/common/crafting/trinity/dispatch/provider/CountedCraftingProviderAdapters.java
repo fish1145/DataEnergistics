@@ -34,8 +34,7 @@ public final class CountedCraftingProviderAdapters {
 
     private static final CountedCraftingProviderAdapterRegistry REGISTRY = new CountedCraftingProviderAdapterRegistryImpl();
 
-    private CountedCraftingProviderAdapters() {
-    }
+    private CountedCraftingProviderAdapters() {}
 
     /**
      * Registers one external adapter selected by the frozen provider plugin registry.
@@ -73,15 +72,15 @@ public final class CountedCraftingProviderAdapters {
      * @return immutable capacity snapshots; an empty list means no currently usable route
      */
     public static List<ProviderCapacitySnapshot> captureCapacity(
-            ICraftingProvider provider,
-            CraftingProviderId providerId,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCrafts,
-            String patternIdentity,
-            long publicationRevision,
-            long capacityRevision,
-            long captureTick) {
+                                                                 ICraftingProvider provider,
+                                                                 CraftingProviderId providerId,
+                                                                 IPatternDetails patternDetails,
+                                                                 KeyCounter[] prototype,
+                                                                 long requestedCrafts,
+                                                                 String patternIdentity,
+                                                                 long publicationRevision,
+                                                                 long capacityRevision,
+                                                                 long captureTick) {
         if (requestedCrafts <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting capacity must be positive");
         }
@@ -109,12 +108,12 @@ public final class CountedCraftingProviderAdapters {
      * @return accepted one-shot admission or explicit rejection facts
      */
     public static CountedCraftingPreparation prepare(
-            ICraftingProvider provider,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCount,
-            ProviderCapacitySnapshot snapshot,
-            CraftingDispatchTargetAvailability targetAvailability) {
+                                                     ICraftingProvider provider,
+                                                     IPatternDetails patternDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount,
+                                                     ProviderCapacitySnapshot snapshot,
+                                                     CraftingDispatchTargetAvailability targetAvailability) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting amount must be positive: " + requestedCount);
         }
@@ -134,9 +133,9 @@ public final class CountedCraftingProviderAdapters {
      * Validates the exact count contract used by the CPU before any extraction or commit.
      */
     public static long validatedAdmissionCount(
-            ICraftingProvider provider,
-            CountedCraftingAdmission admission,
-            long requestedCount) {
+                                               ICraftingProvider provider,
+                                               CountedCraftingAdmission admission,
+                                               long requestedCount) {
         long count = admission.count();
         if (count <= 0L || count > requestedCount) {
             throw new IllegalStateException(
@@ -159,11 +158,11 @@ public final class CountedCraftingProviderAdapters {
     }
 
     static CountedCraftingPreparation prepareProviderTarget(
-            CountedCraftingProviderAdapter adapter,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCount,
-            CraftingDispatchTargetAvailability targetAvailability) {
+                                                            CountedCraftingProviderAdapter adapter,
+                                                            IPatternDetails patternDetails,
+                                                            KeyCounter[] prototype,
+                                                            long requestedCount,
+                                                            CraftingDispatchTargetAvailability targetAvailability) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting amount must be positive: " + requestedCount);
         }
@@ -223,8 +222,8 @@ public final class CountedCraftingProviderAdapters {
      * Builds the registered adapter bridge without exposing internal snapshot metadata to the plugin.
      */
     private static ResolvedProviderAdapter registeredAdapter(
-            ICraftingProvider provider,
-            CountedCraftingProviderAdapter adapter) {
+                                                             ICraftingProvider provider,
+                                                             CountedCraftingProviderAdapter adapter) {
         return new ResolvedProviderAdapter(
                 context -> {
                     try {
@@ -244,8 +243,8 @@ public final class CountedCraftingProviderAdapters {
      * Converts a plugin-owned capacity observation to the immutable internal planning form.
      */
     private static List<ProviderCapacitySnapshot> capturePublicCapacity(
-            CountedCraftingProviderAdapter adapter,
-            CapacityCaptureContext context) {
+                                                                        CountedCraftingProviderAdapter adapter,
+                                                                        CapacityCaptureContext context) {
         List<CountedCraftingCapacity> capacities = List.copyOf(adapter.captureCapacity(
                 context.patternDetails(),
                 context.prototype(),
@@ -269,8 +268,8 @@ public final class CountedCraftingProviderAdapters {
      * Preserves existing provider-owned target capture as a compatibility bridge.
      */
     private static List<ProviderCapacitySnapshot> captureLegacyCapacity(
-            ProviderCapacityView capacityView,
-            CapacityCaptureContext context) {
+                                                                        ProviderCapacityView capacityView,
+                                                                        CapacityCaptureContext context) {
         return List.copyOf(capacityView.snapshotCapacity(
                 context.providerId(),
                 context.patternDetails(),
@@ -303,8 +302,8 @@ public final class CountedCraftingProviderAdapters {
      * Prepares through the public exact-target contract used by registered and direct public adapters.
      */
     private static CountedCraftingPreparation preparePublicTarget(
-            CountedCraftingProviderAdapter adapter,
-            PreparationContext context) {
+                                                                  CountedCraftingProviderAdapter adapter,
+                                                                  PreparationContext context) {
         CraftingDispatchTarget target = context.snapshot().route();
         if (!context.targetAvailability().canAttempt(target)) {
             return unavailableTarget(target);
@@ -322,8 +321,8 @@ public final class CountedCraftingProviderAdapters {
      * Prepares an existing internal target-aware provider without changing its direct contract.
      */
     private static CountedCraftingPreparation prepareLegacyTargeted(
-            TargetedCountedCraftingProvider provider,
-            PreparationContext context) {
+                                                                    TargetedCountedCraftingProvider provider,
+                                                                    PreparationContext context) {
         if (context.snapshot().routingMode() != ProviderRoutingMode.TARGETED) {
             return provider.prepareBatch(
                     context.patternDetails(),
@@ -351,8 +350,8 @@ public final class CountedCraftingProviderAdapters {
      * Retains AE2's generic single-pattern physical submission contract.
      */
     private static CountedCraftingPreparation prepareGeneric(
-            ICraftingProvider provider,
-            PreparationContext context) {
+                                                             ICraftingProvider provider,
+                                                             PreparationContext context) {
         return prepareProviderTarget(
                 (details, ignoredPrototype, ignoredCount) -> new SingleCraftingAdmission(provider, details),
                 context.patternDetails(),
@@ -423,32 +422,29 @@ public final class CountedCraftingProviderAdapters {
      * Immutable metadata supplied only to internal capacity adapters.
      */
     private record CapacityCaptureContext(
-            CraftingProviderId providerId,
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCrafts,
-            String patternIdentity,
-            long publicationRevision,
-            long capacityRevision,
-            long captureTick) {
-    }
+                                          CraftingProviderId providerId,
+                                          IPatternDetails patternDetails,
+                                          KeyCounter[] prototype,
+                                          long requestedCrafts,
+                                          String patternIdentity,
+                                          long publicationRevision,
+                                          long capacityRevision,
+                                          long captureTick) {}
 
     /**
      * Immutable preparation input shared by every resolved provider adapter.
      */
     private record PreparationContext(
-            IPatternDetails patternDetails,
-            KeyCounter[] prototype,
-            long requestedCount,
-            ProviderCapacitySnapshot snapshot,
-            CraftingDispatchTargetAvailability targetAvailability) {
-    }
+                                      IPatternDetails patternDetails,
+                                      KeyCounter[] prototype,
+                                      long requestedCount,
+                                      ProviderCapacitySnapshot snapshot,
+                                      CraftingDispatchTargetAvailability targetAvailability) {}
 
     /**
      * Resolved capture and preparation strategies for one provider kind.
      */
-    private record ResolvedProviderAdapter(CapacityCapture capture, ProviderPreparation prepare) {
-    }
+    private record ResolvedProviderAdapter(CapacityCapture capture, ProviderPreparation prepare) {}
 
     /**
      * Internal capacity strategy selected once per boundary call.

@@ -16,8 +16,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class PatternEncodingViewerContext {
 
-    private PatternEncodingViewerContext() {
-    }
+    private PatternEncodingViewerContext() {}
 
     /**
      * Resolves the mode that AE2's viewer transfer will request before the asynchronously synchronized menu field
@@ -40,7 +39,7 @@ public final class PatternEncodingViewerContext {
      * Captures a viewer recipe type without trusting viewer workstation or catalyst lists.
      */
     public static @NotNull PatternEncodingRankingContext fromRecipeType(
-            @NotNull ResourceLocation recipeTypeId) {
+                                                                        @NotNull ResourceLocation recipeTypeId) {
         return PatternEncodingRankingContext.of(recipeTypeId);
     }
 }

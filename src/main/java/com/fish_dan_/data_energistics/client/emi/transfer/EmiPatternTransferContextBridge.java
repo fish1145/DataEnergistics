@@ -17,8 +17,7 @@ public final class EmiPatternTransferContextBridge {
 
     private static final ThreadLocal<Deque<Frame>> FRAMES = ThreadLocal.withInitial(ArrayDeque::new);
 
-    private EmiPatternTransferContextBridge() {
-    }
+    private EmiPatternTransferContextBridge() {}
 
     /**
      * Resolves a canonical context directly from the recipe's EMI category ID.
@@ -67,6 +66,5 @@ public final class EmiPatternTransferContextBridge {
     }
 
     private record Frame(@NotNull PatternEncodingTermMenu menu,
-                         @NotNull PatternEncodingRankingContext context) {
-    }
+                         @NotNull PatternEncodingRankingContext context) {}
 }

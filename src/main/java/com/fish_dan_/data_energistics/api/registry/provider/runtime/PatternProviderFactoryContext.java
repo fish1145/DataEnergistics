@@ -22,5 +22,4 @@ import org.jetbrains.annotations.NotNull;
 public record PatternProviderFactoryContext(@NotNull ICraftingProvider provider,
                                             @NotNull PatternContainer container,
                                             @NotNull PatternProviderIdentity identity,
-                                            @NotNull PatternProviderMetadata metadata) {
-}
+                                            @NotNull PatternProviderMetadata metadata) {}

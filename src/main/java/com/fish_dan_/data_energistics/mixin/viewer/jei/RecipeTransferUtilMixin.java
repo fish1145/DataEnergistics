@@ -37,13 +37,13 @@ public abstract class RecipeTransferUtilMixin {
 
     @WrapMethod(method = TRANSFER_METHOD)
     private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
-            IRecipeTransferManager recipeTransferManager,
-            AbstractContainerMenu container,
-            IRecipeLayoutDrawable<?> recipeLayout,
-            Player player,
-            boolean maxTransfer,
-            boolean doTransfer,
-            Operation<Optional<IRecipeTransferError>> original) {
+                                                                                         IRecipeTransferManager recipeTransferManager,
+                                                                                         AbstractContainerMenu container,
+                                                                                         IRecipeLayoutDrawable<?> recipeLayout,
+                                                                                         Player player,
+                                                                                         boolean maxTransfer,
+                                                                                         boolean doTransfer,
+                                                                                         Operation<Optional<IRecipeTransferError>> original) {
         if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
             return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }

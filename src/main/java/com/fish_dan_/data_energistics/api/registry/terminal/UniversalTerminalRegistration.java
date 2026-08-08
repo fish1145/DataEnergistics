@@ -54,10 +54,10 @@ public final class UniversalTerminalRegistration {
      * @return configurable registration builder
      */
     public static @NotNull Builder builder(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                                           @NotNull String name,
+                                           @NotNull Predicate<@NotNull ItemStack> matcher,
+                                           @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                           @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
         return new Builder(name, matcher, iconSupplier, menuTypeSupplier);
     }
 
@@ -145,8 +145,8 @@ public final class UniversalTerminalRegistration {
      * Validates an untrusted adapter callback result without duplicating ordinary parameter checks.
      */
     private static <T> @NotNull T requireAdapterResult(
-            @UnknownNullability T result,
-            @NotNull String role) {
+                                                       @UnknownNullability T result,
+                                                       @NotNull String role) {
         if (result == null) {
             throw new IllegalStateException("Universal terminal adapter returned a null " + role);
         }
@@ -192,10 +192,10 @@ public final class UniversalTerminalRegistration {
          * Captures required declarative fields before optional behavior is selected.
          */
         private Builder(
-                @NotNull String name,
-                @NotNull Predicate<@NotNull ItemStack> matcher,
-                @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                        @NotNull String name,
+                        @NotNull Predicate<@NotNull ItemStack> matcher,
+                        @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                        @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
             this.name = name;
             this.matcher = matcher;
             this.iconSupplier = iconSupplier;
@@ -231,7 +231,7 @@ public final class UniversalTerminalRegistration {
          * @return this builder
          */
         public @NotNull Builder configManagerFactory(
-                @NotNull Function<@NotNull Runnable, @Nullable IConfigManager> factory) {
+                                                     @NotNull Function<@NotNull Runnable, @Nullable IConfigManager> factory) {
             this.configManagerFactory = factory;
             return this;
         }

@@ -21,7 +21,7 @@ import java.util.List;
  * Gives the shared recipe UI native JEI item/fluid identities and AE2 wrapped-key lookup semantics.
  */
 public final class DataReassemblerRecipeIngredientAdapterImpl
-        implements DataReassemblerRecipeIngredientAdapter {
+                                                              implements DataReassemblerRecipeIngredientAdapter {
 
     @Override
     public void registerItemSlot(ItemSlot element, IngredientIO role, List<ItemStack> candidates) {
@@ -60,7 +60,7 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
     }
 
     private static <I> ITypedIngredient<?> toTypedGenericStack(
-            JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient) {
+                                                               JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient) {
         return LDLibJEIPlugin.createTypedIngredient(ingredient.type(), ingredient.ingredient())
                 .orElseThrow(() -> rejectedIngredient("generic stack", ingredient.ingredient()));
     }

@@ -228,8 +228,7 @@ public final class CraftingCpuCandidate {
          */
         private int primitiveFieldsSet;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         /**
          * Sets the stable deterministic identity.

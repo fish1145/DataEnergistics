@@ -41,10 +41,10 @@ public interface UniversalTerminalRegistry {
      * @param menuTypeSupplier supplier for the terminal menu type
      */
     default void registerTerminal(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                                  @NotNull String name,
+                                  @NotNull Predicate<@NotNull ItemStack> matcher,
+                                  @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                  @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
         this.register(UniversalTerminalRegistration.builder(name, matcher, iconSupplier, menuTypeSupplier).build());
     }
 
@@ -60,13 +60,13 @@ public interface UniversalTerminalRegistry {
      * @param configManagerFactory      optional configuration-manager factory
      */
     default void registerTerminal(
-            @NotNull String name,
-            @NotNull Predicate<@NotNull ItemStack> matcher,
-            @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-            @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-            @NotNull UniversalTerminalConfigurationProfile configProfile,
-            boolean requiresCustomMenuLocator,
-            @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory) {
+                                  @NotNull String name,
+                                  @NotNull Predicate<@NotNull ItemStack> matcher,
+                                  @NotNull Supplier<@NotNull ItemStack> iconSupplier,
+                                  @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
+                                  @NotNull UniversalTerminalConfigurationProfile configProfile,
+                                  boolean requiresCustomMenuLocator,
+                                  @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory) {
         UniversalTerminalRegistration.Builder builder = UniversalTerminalRegistration
                 .builder(name, matcher, iconSupplier, menuTypeSupplier)
                 .configurationProfile(configProfile)

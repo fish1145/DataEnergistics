@@ -14,8 +14,7 @@ public final class TrinityPatternRecipeIdPlugin implements DataEnergisticsPlugin
     /**
      * Public constructor required by the common entrypoint scanner.
      */
-    public TrinityPatternRecipeIdPlugin() {
-    }
+    public TrinityPatternRecipeIdPlugin() {}
 
     @Override
     public void register(DataEnergisticsRegistry registry) {

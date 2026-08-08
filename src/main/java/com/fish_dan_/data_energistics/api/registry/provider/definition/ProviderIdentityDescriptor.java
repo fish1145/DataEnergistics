@@ -17,24 +17,22 @@ import java.util.Optional;
  * </p>
  */
 public sealed interface ProviderIdentityDescriptor
-        permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
-        ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
+                                                   permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
+                                                   ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
 
     /**
      * Describes block providers implemented by one registered block-entity type.
      *
      * @param blockEntityTypeId registered block-entity type
      */
-    record Block(@NotNull ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {
-    }
+    record Block(@NotNull ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {}
 
     /**
      * Describes multipart providers reconstructed from one registered part item.
      *
      * @param partItemId registered item that reconstructs the part
      */
-    record Part(@NotNull ResourceLocation partItemId) implements ProviderIdentityDescriptor {
-    }
+    record Part(@NotNull ResourceLocation partItemId) implements ProviderIdentityDescriptor {}
 
     /**
      * Describes Data Energistics Trinity provider partitions independently of their live routing keys.
@@ -75,7 +73,7 @@ public sealed interface ProviderIdentityDescriptor
      * @return semantic provider descriptor, or empty for a virtual fallback identity
      */
     static @NotNull Optional<@NotNull ProviderIdentityDescriptor> from(
-            @NotNull PatternProviderIdentity identity) {
+                                                                       @NotNull PatternProviderIdentity identity) {
         return identity.descriptor();
     }
 }

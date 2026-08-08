@@ -11,11 +11,10 @@ import tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverters;
  */
 final class Ae2JeiGenericStackIngredientResolver {
 
-    private Ae2JeiGenericStackIngredientResolver() {
-    }
+    private Ae2JeiGenericStackIngredientResolver() {}
 
     static @Nullable JeiGenericStackIngredientResolver.ResolvedIngredient<?> resolve(
-            @NotNull GenericStack stack) {
+                                                                                     @NotNull GenericStack stack) {
         for (IngredientConverter<?> converter : IngredientConverters.getConverters()) {
             JeiGenericStackIngredientResolver.ResolvedIngredient<?> resolved = resolve(converter, stack);
             if (resolved != null) {
@@ -26,8 +25,8 @@ final class Ae2JeiGenericStackIngredientResolver {
     }
 
     private static <T> @Nullable JeiGenericStackIngredientResolver.ResolvedIngredient<T> resolve(
-            @NotNull IngredientConverter<T> converter,
-            @NotNull GenericStack stack) {
+                                                                                                 @NotNull IngredientConverter<T> converter,
+                                                                                                 @NotNull GenericStack stack) {
         T ingredient = converter.getIngredientFromStack(stack);
         return ingredient == null ? null : new JeiGenericStackIngredientResolver.ResolvedIngredient<>(
                 converter.getIngredientType(), ingredient);

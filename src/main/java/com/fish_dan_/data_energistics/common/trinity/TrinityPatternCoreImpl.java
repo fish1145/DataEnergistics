@@ -891,14 +891,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private Map<Integer, TrinityPatternSlotImpl> readSlots(
-            ListTag entries,
-            HolderLookup.Provider registries,
-            UUID loadedId) {
+                                                           ListTag entries,
+                                                           HolderLookup.Provider registries,
+                                                           UUID loadedId) {
         HashMap<Integer, TrinityPatternSlotImpl> loaded = new HashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             TrinityPatternSlotImpl slot = TrinityPatternSlotImpl.readFromTag(
-                    entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {
-                    }, registries);
+                    entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {}, registries);
             checkSlot(slot.index());
             if (!slot.hasPersistentState()) {
                 throw new IllegalArgumentException("Empty persisted Trinity pattern slot " + slot.index());
@@ -917,8 +916,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private TrinityPatternSlotImpl newDetachedSlot(int slot) {
-        return new TrinityPatternSlotImpl(slot, this.decoder, this.recipeIdResolvers, change -> {
-        });
+        return new TrinityPatternSlotImpl(slot, this.decoder, this.recipeIdResolvers, change -> {});
     }
 
     private void validateOwnedRoute(PatternRoute route) {
@@ -1372,8 +1370,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                                long stateRevision,
                                List<TrinityPatternSlotImpl.WorkState> slots,
                                List<RetainedRefundOffer> offeredEntries,
-                               int existingOutboxEntryCount) {
-    }
+                               int existingOutboxEntryCount) {}
 
     /**
      * One installed pattern awaiting an acknowledged player/world delivery.
@@ -1465,14 +1462,11 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private record WorkIndexes(TreeSet<Integer> queuedSlots,
                                TreeSet<Integer> pendingOutputSlots,
                                Map<UUID, TreeSet<Integer>> workingSlotsByHost,
-                               Map<UUID, TreeSet<Integer>> pendingSlotsByHost) {
-    }
+                               Map<UUID, TreeSet<Integer>> pendingSlotsByHost) {}
 
-    private record SlotApplication(TrinityPatternSlotImpl target, TrinityPatternSlotImpl loaded) {
-    }
+    private record SlotApplication(TrinityPatternSlotImpl target, TrinityPatternSlotImpl loaded) {}
 
-    private record CachedRebind(CachedPattern target, CachedPattern.PreparedRebind prepared) {
-    }
+    private record CachedRebind(CachedPattern target, CachedPattern.PreparedRebind prepared) {}
 
     /**
      * Reversible state transition for one core participating in an aggregate host refund.

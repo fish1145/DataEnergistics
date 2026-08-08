@@ -687,7 +687,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     private TrinityPatternDefinition findOrCreateDefinition(
-            ItemStack pattern, TrinityPatternRecipeIdResolution resolution) {
+                                                            ItemStack pattern, TrinityPatternRecipeIdResolution resolution) {
         for (TrinityPatternDefinition definition : this.definitions.values()) {
             if (definition.matchesPattern(pattern) && definition.resolution().equals(resolution)) {
                 return definition;
@@ -920,7 +920,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     private static LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> copyPendingOutputs(
-            Map<PatternRoute, ? extends List<TrinityItemAmount>> outputs) {
+                                                                                                Map<PatternRoute, ? extends List<TrinityItemAmount>> outputs) {
         LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> copy = new LinkedHashMap<>();
         for (Map.Entry<PatternRoute, ? extends List<TrinityItemAmount>> entry : outputs.entrySet()) {
             copy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
@@ -948,8 +948,8 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     private static boolean pendingOutputsMatch(
-            Map<PatternRoute, ? extends List<TrinityItemAmount>> current,
-            Map<PatternRoute, ? extends List<TrinityItemAmount>> captured) {
+                                               Map<PatternRoute, ? extends List<TrinityItemAmount>> current,
+                                               Map<PatternRoute, ? extends List<TrinityItemAmount>> captured) {
         return current.equals(captured);
     }
 
@@ -1021,8 +1021,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     /**
      * Separates queued and pending host membership so sparse indexes are refreshed during queue-to-output handoff.
      */
-    private record WorkMembership(Set<UUID> queuedHosts, Set<UUID> pendingOutputHosts) {
-    }
+    private record WorkMembership(Set<UUID> queuedHosts, Set<UUID> pendingOutputHosts) {}
 
     private final class PendingOutputCursorImpl implements TrinityPatternOutputRouter.PendingOutputCursor {
 

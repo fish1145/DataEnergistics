@@ -15,8 +15,7 @@ import java.util.List;
  */
 final class TrinityPatternTestResolvers {
 
-    private TrinityPatternTestResolvers() {
-    }
+    private TrinityPatternTestResolvers() {}
 
     /**
      * @return isolated registry that recognizes the paper/map test definitions

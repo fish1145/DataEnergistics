@@ -19,5 +19,5 @@ public interface TrinityPatternRecipeIdLookup {
      */
     @NotNull
     Optional<@NotNull TrinityPatternRecipeIdResolution> resolve(
-            @NotNull IMolecularAssemblerSupportedPattern pattern);
+                                                                @NotNull IMolecularAssemblerSupportedPattern pattern);
 }

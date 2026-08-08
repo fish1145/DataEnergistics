@@ -12,8 +12,7 @@ import org.jetbrains.annotations.Nullable;
  */
 final class PatternEncodingRankingContextCodec {
 
-    private PatternEncodingRankingContextCodec() {
-    }
+    private PatternEncodingRankingContextCodec() {}
 
     static void writeNullable(RegistryFriendlyByteBuf buffer,
                               @Nullable PatternEncodingRankingContext context) {

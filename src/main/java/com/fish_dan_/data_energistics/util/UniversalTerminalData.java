@@ -41,8 +41,7 @@ public final class UniversalTerminalData {
     private static volatile List<UniversalTerminalRegistration> terminalDefinitions = List.of();
     private static boolean definitionsInstalled;
 
-    private UniversalTerminalData() {
-    }
+    private UniversalTerminalData() {}
 
     public static @NotNull List<@NotNull UniversalTerminalRegistration> getDefinitions() {
         requireInstalled();
@@ -55,7 +54,7 @@ public final class UniversalTerminalData {
      * @param definitions definitions in deterministic registration order
      */
     public static synchronized void installDefinitions(
-            @NotNull List<@NotNull UniversalTerminalRegistration> definitions) {
+                                                       @NotNull List<@NotNull UniversalTerminalRegistration> definitions) {
         if (definitionsInstalled) {
             throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
@@ -233,7 +232,7 @@ public final class UniversalTerminalData {
     }
 
     private static @NotNull Optional<@NotNull UniversalTerminalRegistration> getDefinition(
-            @NotNull String terminalName) {
+                                                                                           @NotNull String terminalName) {
         requireInstalled();
         return terminalDefinitions.stream()
                 .filter(definition -> definition.name().equals(terminalName))
@@ -241,7 +240,7 @@ public final class UniversalTerminalData {
     }
 
     public static @NotNull Optional<@NotNull UniversalTerminalRegistration> getRegistration(
-            @NotNull ItemStack stack) {
+                                                                                            @NotNull ItemStack stack) {
         requireInstalled();
         UniversalTerminalRegistration matched = null;
         for (UniversalTerminalRegistration registration : terminalDefinitions) {
@@ -294,8 +293,8 @@ public final class UniversalTerminalData {
      * Isolates an external installation predicate without hiding registration conflicts.
      */
     private static boolean canInstall(
-            @NotNull UniversalTerminalRegistration registration,
-            @NotNull ItemStack stack) {
+                                      @NotNull UniversalTerminalRegistration registration,
+                                      @NotNull ItemStack stack) {
         try {
             return registration.canInstall(stack);
         } catch (RuntimeException exception) {
@@ -328,8 +327,7 @@ public final class UniversalTerminalData {
         return List.copyOf(merged.values());
     }
 
-    public record TerminalEntry(String name, ItemStack stack) {
-    }
+    public record TerminalEntry(String name, ItemStack stack) {}
 
     /**
      * Runtime context shared by public adapters and the legacy concrete-part compatibility bridge.

@@ -42,8 +42,7 @@ public final class AdaptivePatternProviderBuiltIns implements DataEnergisticsPlu
     /**
      * Public constructor required by the common entrypoint scanner.
      */
-    public AdaptivePatternProviderBuiltIns() {
-    }
+    public AdaptivePatternProviderBuiltIns() {}
 
     /**
      * Registers every built-in profile through the same staged lifecycle used by integrations.
@@ -129,10 +128,10 @@ public final class AdaptivePatternProviderBuiltIns implements DataEnergisticsPlu
      * Creates one complete fixed profile when its item matcher accepts the installed stack.
      */
     private static AdaptivePatternProviderRegistration fixed(
-            String path,
-            Predicate<ItemStack> matcher,
-            int slotsPerProvider,
-            Set<ResourceLocation> capabilities) {
+                                                             String path,
+                                                             Predicate<ItemStack> matcher,
+                                                             int slotsPerProvider,
+                                                             Set<ResourceLocation> capabilities) {
         return new AdaptivePatternProviderRegistration(
                 Data_Energistics.id("adaptive_pattern_provider/" + path),
                 providerStack -> {

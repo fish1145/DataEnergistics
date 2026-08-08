@@ -15,8 +15,7 @@ final class JeiGenericStackIngredientResolver {
 
     private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
 
-    private JeiGenericStackIngredientResolver() {
-    }
+    private JeiGenericStackIngredientResolver() {}
 
     /**
      * Uses AE2 JEI Integration converters first and retains one wrapped-key fallback for installations without it.
@@ -45,6 +44,5 @@ final class JeiGenericStackIngredientResolver {
     /**
      * A type-safe JEI ingredient pair passed to each consumer without raw types.
      */
-    record ResolvedIngredient<T>(@NotNull IIngredientType<T> type, @NotNull T ingredient) {
-    }
+    record ResolvedIngredient<T>(@NotNull IIngredientType<T> type, @NotNull T ingredient) {}
 }

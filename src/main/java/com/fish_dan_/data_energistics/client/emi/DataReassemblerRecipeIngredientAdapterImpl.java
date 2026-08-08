@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * Gives the shared recipe UI native EMI identities for fluids, Data, and DataFlow.
  */
 public final class DataReassemblerRecipeIngredientAdapterImpl
-        implements DataReassemblerRecipeIngredientAdapter {
+                                                              implements DataReassemblerRecipeIngredientAdapter {
 
     @Override
     public void registerItemSlot(ItemSlot element, IngredientIO role, List<ItemStack> candidates) {
@@ -37,7 +37,7 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
     }
 
     private static void registerRecipeSlot(
-            UIElement element, IngredientIO role, Supplier<EmiIngredient> displayIngredient) {
+                                           UIElement element, IngredientIO role, Supplier<EmiIngredient> displayIngredient) {
         element.addEventListener(EMIUIEvents.RECIPE_WIDGET, event -> {
             if (event.customData instanceof EMIRecipeWidgetHandler recipeSlot) {
                 var slot = new DataReassemblerEmiRecipeSlotWidget(

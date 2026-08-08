@@ -24,8 +24,7 @@ public final class UniversalTerminalAdapters implements DataEnergisticsPlugin {
     /**
      * Public constructor required by the common entrypoint scanner.
      */
-    public UniversalTerminalAdapters() {
-    }
+    public UniversalTerminalAdapters() {}
 
     /**
      * Stages Data Energistics' built-in terminal adapters in the unified registry transaction.
