@@ -1,5 +1,18 @@
 # ChangeLog
 
+## Version [v3.0.0](https://github.com/fish1145/DataEnergistics/compare/v2.4.3-1.21...v3.0.0-1.21)
+### Added
+
+- 接入样板上传偏好、历史排序与成功通知 by @QiuYe-123 in [#169](https://github.com/fish1145/DataEnergistics/pull/169)
+- 实现三位一体 32768 公平派发与多级计算缓存 by @QiuYe-123 in [#170](https://github.com/fish1145/DataEnergistics/pull/170)
+
+### Changed
+
+- 实现三位一体 32768 公平派发与多级计算缓存 by @QiuYe-123 in [#170](https://github.com/fish1145/DataEnergistics/pull/170)
+- 移除 AE2LT 兼容实现 by @QiuYe-123 in [#171](https://github.com/fish1145/DataEnergistics/pull/171)
+- 重构扩展 API、配方转移与 Trinity/均分塔运行路径 by @QiuYe-123 in [#173](https://github.com/fish1145/DataEnergistics/pull/173)
+
+ 
 ## Version [v2.4.3](https://github.com/fish1145/DataEnergistics/compare/v2.4.2-1.21...v2.4.3-1.21)
 ### Fixed
 
