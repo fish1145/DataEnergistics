@@ -32,6 +32,7 @@ public final class DataEnergisticsTextureEditorResources {
     private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
     private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
     private static final String SLOT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/slot/";
+    private static final String STORAGE_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/storage/";
 
     private DataEnergisticsTextureEditorResources() {}
 
@@ -141,6 +142,7 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
         provider.addResource("slot_model", slotSprite("model.png"));
         provider.addResource("slot_storage", slotSprite("storage.png"));
+        provider.addResource("storage_home", storageSprite("home.png"));
         provider.addResource("trinity_cpu_entry", sprite("cpu_entry.png"));
         provider.addResource("trinity_cpu_entry_selected", sprite("cpu_entry_selected.png"));
         provider.addResource("trinity_cpu_icon_craft", sprite("cpu_icon_craft.png"));
@@ -208,5 +210,15 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture slotSprite(String fileName) {
         return SpriteTexture.of(SLOT_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a storage GUI asset.
+     *
+     * @param fileName asset file under the storage GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture storageSprite(String fileName) {
+        return SpriteTexture.of(STORAGE_TEXTURE_ROOT + fileName);
     }
 }
