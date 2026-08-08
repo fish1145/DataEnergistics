@@ -191,7 +191,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
     private boolean endpointCacheValid;
     private long targetDisplayStateRevision;
-    /** Reuses one immutable full target snapshot across menus during the same level tick. */
+    /**
+     * Reuses one immutable full target snapshot across menus during the same level tick.
+     */
     private long cachedBoundTargetSummariesTick = Long.MIN_VALUE;
     private long cachedBoundTargetSummariesRevision = Long.MIN_VALUE;
     private List<BoundTargetSummary> cachedBoundTargetSummaries = List.of();
@@ -834,7 +836,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public long getEnergyCapacityForUi() {
-        return getTotalEnergyCapacity(null);
+        return this.energyDistributor.getTotalEnergyCapacity(null);
     }
 
     public TargetTransferInfo getTargetTransferInfo(BlockPos targetPos) {
@@ -2179,8 +2181,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.energyDistributor.getTotalExtractableEnergy(excludedPos);
     }
 
-    private long getTotalEnergyCapacity(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.getTotalEnergyCapacity(excludedPos);
+    private long getTotalReceivableEnergy(@Nullable BlockPos excludedPos) {
+        return this.energyDistributor.getTotalReceivableEnergy(excludedPos);
     }
 
     private boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
@@ -3045,7 +3047,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         @Override
         public int getMaxEnergyStored() {
             diagnosticGetMaxStoredCalls++;
-            return clampStoredAmount(getTotalEnergyCapacity(this.excludedPos));
+            int stored = clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
+            long receivable = getTotalReceivableEnergy(this.excludedPos);
+            return clampStoredAmount(saturatingAdd(stored, receivable));
         }
 
         @Override

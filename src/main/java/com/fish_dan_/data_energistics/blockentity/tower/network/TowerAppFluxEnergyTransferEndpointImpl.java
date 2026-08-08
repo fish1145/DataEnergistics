@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower.network;
 
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointRole;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 
@@ -14,10 +15,14 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
  */
 public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergyTransferEndpoint {
 
-    /** Stable identity reserved for the grid-level Applied Flux endpoint. */
+    /**
+     * Stable identity reserved for the grid-level Applied Flux endpoint.
+     */
     private final TowerEnergyEndpointId endpoint;
 
-    /** Loaded tower used as the AE action source. */
+    /**
+     * Loaded tower used as the AE action source.
+     */
     private final AENetworkedBlockEntity host;
 
     /**
@@ -48,7 +53,13 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
         long capacity = saturatingAdd(stored, free);
         long receivable = Math.min(free, capacity - stored);
         return new TowerEnergyEndpointSnapshot(
-                this.endpoint, stored, capacity, stored, receivable, TowerEnergyDirection.BIDIRECTIONAL);
+                this.endpoint,
+                stored,
+                capacity,
+                stored,
+                receivable,
+                TowerEnergyDirection.BIDIRECTIONAL,
+                TowerEnergyEndpointRole.BUFFER);
     }
 
     @Override
@@ -97,7 +108,9 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
         return "Applied Flux grid endpoint via " + this.host.getBlockPos();
     }
 
-    /** Rejects access after the action-source tower unloads. */
+    /**
+     * Rejects access after the action-source tower unloads.
+     */
     private void requireLoaded() {
         Level level = this.host.getLevel();
         if (level == null || !level.isLoaded(this.host.getBlockPos())) {
@@ -105,14 +118,18 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
         }
     }
 
-    /** Rejects negative requests before invoking optional integration code. */
+    /**
+     * Rejects negative requests before invoking optional integration code.
+     */
     private static void validateAmount(long amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("Applied Flux transfer amount must not be negative");
         }
     }
 
-    /** Rejects invalid optional-integration responses. */
+    /**
+     * Rejects invalid optional-integration responses.
+     */
     private static long validateResult(long requested, long actual) {
         if (actual < 0 || actual > requested) {
             throw new TowerEnergyTransferException(
@@ -121,7 +138,9 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
         return actual;
     }
 
-    /** Adds capacity components without wrapping. */
+    /**
+     * Adds capacity components without wrapping.
+     */
     private static long saturatingAdd(long left, long right) {
         return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }

@@ -413,6 +413,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     }
 
     @Override
+    public long getTotalReceivableEnergy(@Nullable BlockPos excludedPos) {
+        return getReceiveQuerySummary(excludedPos).totalReceivable();
+    }
+
+    @Override
     public boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
         return getReceiveQuerySummary(excludedPos).hasReceiver();
     }
@@ -1125,7 +1130,13 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             return cached;
         }
 
-        ReceiverQuerySummary summary = new ReceiverQuerySummary(gameTime, !this.endpointResolver.collectEnergyEndpoints(true, normalizedExcludedPos).isEmpty());
+        List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(
+                true, normalizedExcludedPos);
+        Set<IEnergyStorage> stalledStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        long totalReceivable = distributeEnergyInRange(
+                Long.MAX_VALUE, true, normalizedExcludedPos, endpoints, stalledStorages);
+        ReceiverQuerySummary summary = new ReceiverQuerySummary(
+                gameTime, totalReceivable, !endpoints.isEmpty());
         this.cachedReceiveQuerySummaries.put(normalizedExcludedPos, summary);
         return summary;
     }
@@ -1247,9 +1258,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         private static final EnergyQuerySummary EMPTY = new EnergyQuerySummary(Long.MIN_VALUE, 0L, 0L, false);
     }
 
-    private record ReceiverQuerySummary(long tick, boolean hasReceiver) {
+    private record ReceiverQuerySummary(long tick, long totalReceivable, boolean hasReceiver) {
 
-        private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
+        private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, 0L, false);
     }
 
     private final class TransferSource {
