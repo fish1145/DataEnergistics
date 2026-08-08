@@ -11,9 +11,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/** Complete immutable configuration observed by all business consumers. */
+/**
+ * Complete immutable configuration observed by all business consumers.
+ */
 public record ConfigurationSnapshot(
                                     long revision,
+                                    boolean verboseRuntimeLogging,
                                     DataRipperSettings dataRipper,
                                     DataDistributionTowerSettings dataDistributionTower,
                                     DataSanctumInterfaceSettings dataSanctumInterface,

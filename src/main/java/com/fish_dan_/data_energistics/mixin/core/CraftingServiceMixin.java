@@ -259,13 +259,15 @@ public abstract class CraftingServiceMixin
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
                     Component.translatable("gui.data_energistics.trinity_planning.graph_unavailable"),
                     Map.of("request", Long.toString(requestId)));
-            Data_Energistics.LOGGER.info(
-                    "Trinity planning fallback request={} target={} mode={} revision=-1 reason={} metadata={}",
-                    requestId,
-                    target,
-                    quantityMode,
-                    diagnostic.code(),
-                    diagnostic.metadata());
+            if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+                Data_Energistics.LOGGER.info(
+                        "Trinity planning fallback request={} target={} mode={} revision=-1 reason={} metadata={}",
+                        requestId,
+                        target,
+                        quantityMode,
+                        diagnostic.code(),
+                        diagnostic.metadata());
+            }
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 

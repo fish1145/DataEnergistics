@@ -36,6 +36,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkTowe
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
@@ -197,6 +198,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private long cachedBoundTargetSummariesTick = Long.MIN_VALUE;
     private long cachedBoundTargetSummariesRevision = Long.MIN_VALUE;
     private List<BoundTargetSummary> cachedBoundTargetSummaries = List.of();
+    private boolean verboseRuntimeLoggingEnabled;
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
     private int diagnosticSimulatedExtractCalls;
@@ -1736,22 +1738,30 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public void recordMaxExtractEndpoints(int endpointCount) {
-        this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpointCount);
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpointCount);
+        }
     }
 
     @Override
     public void recordMaxReceiveEndpoints(int endpointCount) {
-        this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpointCount);
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpointCount);
+        }
     }
 
     @Override
     public void recordSimulatedCacheHit() {
-        this.diagnosticSimulatedCacheHits++;
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticSimulatedCacheHits++;
+        }
     }
 
     @Override
     public void recordSimulatedCacheMiss() {
-        this.diagnosticSimulatedCacheMisses++;
+        if (this.verboseRuntimeLoggingEnabled) {
+            this.diagnosticSimulatedCacheMisses++;
+        }
     }
 
     private void registerInChunkIndex() {
@@ -2521,6 +2531,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void emitDiagnosticLogIfNeeded() {
+        boolean enabled = DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled();
+        if (enabled != this.verboseRuntimeLoggingEnabled) {
+            this.verboseRuntimeLoggingEnabled = enabled;
+            resetDiagnosticCounters(Long.MIN_VALUE);
+        }
+        if (!enabled) {
+            return;
+        }
+
         ServerLevel level = towerLevel();
         long gameTime = level.getGameTime();
         if (this.diagnosticWindowStartTick == Long.MIN_VALUE) {
@@ -2564,8 +2583,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.diagnosticRealExtractCalls > 0 || this.diagnosticSimulatedExtractCalls > 0 || this.diagnosticReceiveCalls > 0 || this.diagnosticGetStoredCalls > 0 || this.diagnosticGetMaxStoredCalls > 0 || this.diagnosticCanExtractCalls > 0 || this.diagnosticCanReceiveCalls > 0;
     }
 
-    private void resetDiagnosticCounters(long gameTime) {
-        this.diagnosticWindowStartTick = gameTime;
+    private void resetDiagnosticCounters(long windowStartTick) {
+        this.diagnosticWindowStartTick = windowStartTick;
         this.diagnosticRealExtractCalls = 0;
         this.diagnosticSimulatedExtractCalls = 0;
         this.diagnosticReceiveCalls = 0;
@@ -3012,41 +3031,53 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
-            diagnosticReceiveCalls++;
-            diagnosticRequestedReceive += maxReceive;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticReceiveCalls++;
+                diagnosticRequestedReceive += maxReceive;
+            }
             int received = clampStoredAmount(distributeEnergyInRange(maxReceive, simulate, this.excludedPos));
-            diagnosticReturnedReceive += received;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticReturnedReceive += received;
+            }
             return received;
         }
 
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
-            if (simulate) {
-                diagnosticSimulatedExtractCalls++;
-                diagnosticRequestedSimulatedExtract += maxExtract;
-            } else {
-                diagnosticRealExtractCalls++;
-                diagnosticRequestedRealExtract += maxExtract;
+            if (verboseRuntimeLoggingEnabled) {
+                if (simulate) {
+                    diagnosticSimulatedExtractCalls++;
+                    diagnosticRequestedSimulatedExtract += maxExtract;
+                } else {
+                    diagnosticRealExtractCalls++;
+                    diagnosticRequestedRealExtract += maxExtract;
+                }
             }
 
             int extracted = extractEnergyFromRange(maxExtract, simulate, this.excludedPos);
-            if (simulate) {
-                diagnosticReturnedSimulatedExtract += extracted;
-            } else {
-                diagnosticReturnedRealExtract += extracted;
+            if (verboseRuntimeLoggingEnabled) {
+                if (simulate) {
+                    diagnosticReturnedSimulatedExtract += extracted;
+                } else {
+                    diagnosticReturnedRealExtract += extracted;
+                }
             }
             return extracted;
         }
 
         @Override
         public int getEnergyStored() {
-            diagnosticGetStoredCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticGetStoredCalls++;
+            }
             return clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
         }
 
         @Override
         public int getMaxEnergyStored() {
-            diagnosticGetMaxStoredCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticGetMaxStoredCalls++;
+            }
             int stored = clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
             long receivable = getTotalReceivableEnergy(this.excludedPos);
             return clampStoredAmount(saturatingAdd(stored, receivable));
@@ -3054,13 +3085,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         @Override
         public boolean canExtract() {
-            diagnosticCanExtractCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticCanExtractCalls++;
+            }
             return hasAnySource(this.excludedPos);
         }
 
         @Override
         public boolean canReceive() {
-            diagnosticCanReceiveCalls++;
+            if (verboseRuntimeLoggingEnabled) {
+                diagnosticCanReceiveCalls++;
+            }
             return hasAnyReceiver(this.excludedPos);
         }
     }

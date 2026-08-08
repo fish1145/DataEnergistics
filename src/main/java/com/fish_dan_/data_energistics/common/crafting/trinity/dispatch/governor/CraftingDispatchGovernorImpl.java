@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import java.util.concurrent.TimeUnit;
 
@@ -133,7 +134,10 @@ final class CraftingDispatchGovernorImpl implements CraftingDispatchGovernor {
                 this.state = CraftingDispatchGovernorState.ADAPTIVE;
                 this.stateTicks = 0;
                 resetDecisionCounters();
-                Data_Energistics.LOGGER.info("Trinity dispatch Governor completed observation and entered ADAPTIVE mode");
+                if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+                    Data_Energistics.LOGGER.info(
+                            "Trinity dispatch Governor completed observation and entered ADAPTIVE mode");
+                }
             }
             return;
         }
@@ -202,7 +206,12 @@ final class CraftingDispatchGovernorImpl implements CraftingDispatchGovernor {
         }
         this.budget = adjusted;
         this.cooldownRemainingTicks = this.settings.cooldownTicks();
-        Data_Energistics.LOGGER.info("Trinity dispatch Governor {} its ADAPTIVE physical budget to {}", action, adjusted);
+        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            Data_Energistics.LOGGER.info(
+                    "Trinity dispatch Governor {} its ADAPTIVE physical budget to {}",
+                    action,
+                    adjusted);
+        }
     }
 
     private CraftingDispatchBudget decreaseBudget(CraftingDispatchBudget current) {
@@ -269,7 +278,10 @@ final class CraftingDispatchGovernorImpl implements CraftingDispatchGovernor {
         this.tickEwmaNanos = 0.0D;
         this.window.reset();
         resetDecisionCounters();
-        Data_Energistics.LOGGER.info("Trinity dispatch Governor completed SAFE hold and re-entered OBSERVING mode");
+        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            Data_Energistics.LOGGER.info(
+                    "Trinity dispatch Governor completed SAFE hold and re-entered OBSERVING mode");
+        }
     }
 
     private void resetDecisionCounters() {
