@@ -25,7 +25,9 @@ public record PatternProviderRegistration(@NotNull PatternProviderMetadata metad
                                           @Nullable PatternProviderMenuOpenAdapter menuOpenAdapter,
                                           @Nullable PatternProviderPostCommitHook postCommitHook) {
 
-    /** Rejects metadata-only declarations that cannot contribute any provider behavior. */
+    /**
+     * Rejects metadata-only declarations that cannot contribute any provider behavior.
+     */
     public PatternProviderRegistration {
         if (factory == null && menuOpenAdapter == null && postCommitHook == null) {
             throw new IllegalArgumentException("Pattern provider registration requires at least one behavior");
@@ -39,8 +41,8 @@ public record PatternProviderRegistration(@NotNull PatternProviderMetadata metad
      * @param factory  runtime adapter factory
      * @return provider declaration
      */
-    public static PatternProviderRegistration counted(@NotNull PatternProviderMetadata metadata,
-                                                      @NotNull PatternProviderFactory factory) {
+    public static @NotNull PatternProviderRegistration counted(@NotNull PatternProviderMetadata metadata,
+                                                               @NotNull PatternProviderFactory factory) {
         return new PatternProviderRegistration(metadata, factory, null, null);
     }
 }

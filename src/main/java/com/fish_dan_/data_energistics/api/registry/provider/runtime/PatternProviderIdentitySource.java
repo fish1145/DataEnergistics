@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.api.registry.provider.runtime;
 
-import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
-
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -15,5 +13,5 @@ public interface PatternProviderIdentitySource {
      * @return versioned external provider identity
      */
     @NotNull
-    ProviderIdentity.External providerIdentity();
+    ExternalPatternProviderIdentity providerIdentity();
 }

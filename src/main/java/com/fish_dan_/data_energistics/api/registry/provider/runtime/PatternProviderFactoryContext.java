@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.api.registry.provider.runtime;
 
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
-import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Runtime context supplied while a declaration creates an adapter for one live provider instance.
@@ -19,7 +19,8 @@ import appeng.helpers.patternprovider.PatternContainer;
  * @param identity  resolved stable identity of that provider instance
  * @param metadata  immutable declaration selected for the provider
  */
-public record PatternProviderFactoryContext(ICraftingProvider provider,
-                                            PatternContainer container,
-                                            ProviderIdentity identity,
-                                            PatternProviderMetadata metadata) {}
+public record PatternProviderFactoryContext(@NotNull ICraftingProvider provider,
+                                            @NotNull PatternContainer container,
+                                            @NotNull PatternProviderIdentity identity,
+                                            @NotNull PatternProviderMetadata metadata) {
+}

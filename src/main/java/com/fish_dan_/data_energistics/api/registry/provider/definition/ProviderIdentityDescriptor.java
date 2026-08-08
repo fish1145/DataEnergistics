@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.api.registry.provider.definition;
 
-import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Optional;
 
 /**
@@ -12,24 +13,19 @@ import java.util.Optional;
  *
  * <p>
  * Descriptors retain only the semantic fields shared by every live instance in a registered family. Location,
- * routing and other instance-specific fields remain exclusively in {@link ProviderIdentity}.
+ * routing and other instance-specific fields remain exclusively in {@link PatternProviderIdentity}.
  * </p>
  */
 public sealed interface ProviderIdentityDescriptor
-                                                   permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
-                                                   ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
+        permits ProviderIdentityDescriptor.Block, ProviderIdentityDescriptor.Part,
+        ProviderIdentityDescriptor.Trinity, ProviderIdentityDescriptor.External {
 
     /**
      * Describes block providers implemented by one registered block-entity type.
      *
      * @param blockEntityTypeId registered block-entity type
      */
-    record Block(ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {
-
-        /** Validates the registered block-entity type. */
-        public Block {
-            Objects.requireNonNull(blockEntityTypeId, "blockEntityTypeId");
-        }
+    record Block(@NotNull ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {
     }
 
     /**
@@ -37,17 +33,16 @@ public sealed interface ProviderIdentityDescriptor
      *
      * @param partItemId registered item that reconstructs the part
      */
-    record Part(ResourceLocation partItemId) implements ProviderIdentityDescriptor {
-
-        /** Validates the registered part item. */
-        public Part {
-            Objects.requireNonNull(partItemId, "partItemId");
-        }
+    record Part(@NotNull ResourceLocation partItemId) implements ProviderIdentityDescriptor {
     }
 
-    /** Describes Data Energistics Trinity provider partitions independently of their live routing keys. */
+    /**
+     * Describes Data Energistics Trinity provider partitions independently of their live routing keys.
+     */
     enum Trinity implements ProviderIdentityDescriptor {
-        /** The single Trinity provider family. */
+        /**
+         * The single Trinity provider family.
+         */
         INSTANCE
     }
 
@@ -57,11 +52,12 @@ public sealed interface ProviderIdentityDescriptor
      * @param type          stable provider family identifier
      * @param schemaVersion version of the external canonical identity schema
      */
-    record External(ResourceLocation type, int schemaVersion) implements ProviderIdentityDescriptor {
+    record External(@NotNull ResourceLocation type, int schemaVersion) implements ProviderIdentityDescriptor {
 
-        /** Validates the external family schema. */
+        /**
+         * Validates the external family schema.
+         */
         public External {
-            Objects.requireNonNull(type, "type");
             if (schemaVersion <= 0) {
                 throw new IllegalArgumentException("External provider identity schema version must be positive");
             }
@@ -78,14 +74,8 @@ public sealed interface ProviderIdentityDescriptor
      * @param identity live provider identity
      * @return semantic provider descriptor, or empty for a virtual fallback identity
      */
-    static Optional<ProviderIdentityDescriptor> from(ProviderIdentity identity) {
-        return switch (identity) {
-            case ProviderIdentity.Block block -> Optional.of(new Block(block.blockEntityTypeId()));
-            case ProviderIdentity.Part part -> Optional.of(new Part(part.partItemId()));
-            case ProviderIdentity.Trinity ignored -> Optional.of(Trinity.INSTANCE);
-            case ProviderIdentity.External external -> Optional.of(
-                    new External(external.type(), external.schemaVersion()));
-            case ProviderIdentity.Virtual ignored -> Optional.empty();
-        };
+    static @NotNull Optional<@NotNull ProviderIdentityDescriptor> from(
+            @NotNull PatternProviderIdentity identity) {
+        return identity.descriptor();
     }
 }

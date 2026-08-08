@@ -161,9 +161,9 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
                                                               PatternContainer container) {
         ProviderIdentity identity;
         if (provider instanceof PatternProviderIdentitySource source) {
-            identity = Objects.requireNonNull(source.providerIdentity(), "External crafting provider identity");
+            identity = ProviderIdentity.fromExternal(source.providerIdentity(), "External crafting provider");
         } else if (container instanceof PatternProviderIdentitySource source) {
-            identity = Objects.requireNonNull(source.providerIdentity(), "External pattern provider identity");
+            identity = ProviderIdentity.fromExternal(source.providerIdentity(), "External pattern provider");
         } else {
             identity = this.identityResolver.resolve(container);
         }
@@ -200,7 +200,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
      * Enforces the public non-null factory contract at the untrusted plugin callback boundary.
      */
     private static @NotNull CountedCraftingProviderAdapter requireFactoryResult(
-                                                                                @UnknownNullability CountedCraftingProviderAdapter adapter) {
+            @UnknownNullability CountedCraftingProviderAdapter adapter) {
         return Objects.requireNonNull(adapter, "Provider adapter factory returned null");
     }
 

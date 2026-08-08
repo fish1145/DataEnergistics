@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
-import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 
 import net.minecraft.world.item.ItemStack;
 
 import appeng.helpers.patternprovider.PatternContainer;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Immutable facts supplied after a provider inventory delta has been confirmed.
@@ -19,9 +20,9 @@ import appeng.helpers.patternprovider.PatternContainer;
  * @param encodedPattern defensive copy of the encoded pattern stack
  * @param committedCount number of patterns committed by the transaction
  */
-public record PatternProviderPostCommitContext(PatternContainer provider,
-                                               ProviderIdentity identity,
-                                               ItemStack encodedPattern,
+public record PatternProviderPostCommitContext(@NotNull PatternContainer provider,
+                                               @NotNull PatternProviderIdentity identity,
+                                               @NotNull ItemStack encodedPattern,
                                                long committedCount) {
 
     /**
@@ -38,7 +39,7 @@ public record PatternProviderPostCommitContext(PatternContainer provider,
      * Returns a defensive copy so a hook cannot mutate the transaction snapshot retained by this context.
      */
     @Override
-    public ItemStack encodedPattern() {
+    public @NotNull ItemStack encodedPattern() {
         return this.encodedPattern.copy();
     }
 }
