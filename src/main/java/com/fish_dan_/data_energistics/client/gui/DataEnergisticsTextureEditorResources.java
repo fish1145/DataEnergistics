@@ -107,6 +107,7 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static void registerTextureAssets(BuiltinResourceProvider<IGuiTexture> provider) {
         provider.addResource("autobuild_background", autobuildSprite("background.png"));
+        provider.addResource("autobuild_build", autobuildSprite("build.png"));
         provider.addResource("autobuild_detailed_adjustment", autobuildSprite("detailed_adjustment.png"));
         provider.addResource("autobuild_detailed_material_stats", autobuildSprite("detailed_material_stats.png"));
         provider.addResource("autobuild_structure_switch", autobuildSprite("structure_switch.png"));
