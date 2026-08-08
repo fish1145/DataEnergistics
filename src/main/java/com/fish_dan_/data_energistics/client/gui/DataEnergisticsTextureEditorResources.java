@@ -30,6 +30,8 @@ public final class DataEnergisticsTextureEditorResources {
     private static final String TRINITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/trinity_data_core/";
     private static final String AUTO_BUILD_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/autobuild/";
     private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
+    private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
+    private static final String SLOT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/slot/";
 
     private DataEnergisticsTextureEditorResources() {}
 
@@ -106,13 +108,26 @@ public final class DataEnergisticsTextureEditorResources {
      * @param provider provider receiving the raw texture assets
      */
     private static void registerTextureAssets(BuiltinResourceProvider<IGuiTexture> provider) {
-        provider.addResource("autobuild_background", autobuildSprite("background.png"));
         provider.addResource("autobuild_build", autobuildSprite("build.png"));
         provider.addResource("autobuild_detailed_adjustment", autobuildSprite("detailed_adjustment.png"));
         provider.addResource("autobuild_detailed_material_stats", autobuildSprite("detailed_material_stats.png"));
         provider.addResource("autobuild_structure_switch", autobuildSprite("structure_switch.png"));
         provider.addResource("autobuild_structure_view", autobuildSprite("structure_view.png"));
+        provider.addResource("backpack_above_average", backpackSprite("above_average.png"));
+        provider.addResource("backpack_below_average", backpackSprite("below_average.png"));
+        provider.addResource("backpack_bottom_left", backpackSprite("bottom_left.png"));
+        provider.addResource("backpack_bottom_right", backpackSprite("bottom_right.png"));
+        provider.addResource("backpack_checkbox", backpackSprite("checkbox.png"));
+        provider.addResource("backpack_in_the_inventory", backpackSprite("in_the_inventory.png"));
+        provider.addResource("backpack_left_center", backpackSprite("left_center.png"));
+        provider.addResource("backpack_left_of_the_inventory", backpackSprite("left_of_the_inventory.png"));
+        provider.addResource("backpack_middle", backpackSprite("middle.png"));
+        provider.addResource("backpack_right_middle", backpackSprite("right_middle.png"));
+        provider.addResource("backpack_right_side_of_the_inventory", backpackSprite("right_side_of_the_inventory.png"));
+        provider.addResource("backpack_top_left", backpackSprite("top_left.png"));
+        provider.addResource("backpack_top_right", backpackSprite("top_right.png"));
         provider.addResource("gui_back", guiSprite("back.png"));
+        provider.addResource("gui_background", guiSprite("background.png"));
         provider.addResource("gui_button", guiSprite("botton.png"));
         provider.addResource("gui_button_disabled", guiSprite("button_disabled.png"));
         provider.addResource("gui_button_highlighted", guiSprite("button_highlighted.png"));
@@ -121,6 +136,11 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
         provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
         provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
+        provider.addResource("slot_button_slot", slotSprite("button_slot.png"));
+        provider.addResource("slot_button_slot_1", slotSprite("button_slot_1.png"));
+        provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
+        provider.addResource("slot_model", slotSprite("model.png"));
+        provider.addResource("slot_storage", slotSprite("storage.png"));
         provider.addResource("trinity_cpu_entry", sprite("cpu_entry.png"));
         provider.addResource("trinity_cpu_entry_selected", sprite("cpu_entry_selected.png"));
         provider.addResource("trinity_cpu_icon_craft", sprite("cpu_icon_craft.png"));
@@ -131,6 +151,7 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("trinity_cpu_idle", sprite("cpu_idle.png"));
         provider.addResource("trinity_cpu_panel", sprite("cpu_panel.png"));
         provider.addResource("trinity_cpu_task_overlay", sprite("cpu_task_overlay.png"));
+        provider.addResource("trinity_home", sprite("home.png"));
         provider.addResource("trinity_host_layout_reference", sprite("host_layout_reference.png"));
         provider.addResource("trinity_status_panel", sprite("status_panel.png"));
         provider.addResource("trinity_storage_capacity_track", sprite("storage_capacity_track.png"));
@@ -167,5 +188,25 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture guiSprite(String fileName) {
         return SpriteTexture.of(GUI_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a backpack GUI asset.
+     *
+     * @param fileName asset file under the backpack GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture backpackSprite(String fileName) {
+        return SpriteTexture.of(BACKPACK_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a slot GUI asset.
+     *
+     * @param fileName asset file under the slot GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture slotSprite(String fileName) {
+        return SpriteTexture.of(SLOT_TEXTURE_ROOT + fileName);
     }
 }
