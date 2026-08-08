@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -9,7 +11,7 @@ public final class TrinityPatternDefinition {
 
     private final long id;
     private final ItemStack pattern;
-    private final TrinityPatternRecipeIdResolvers.Resolution resolution;
+    private final TrinityPatternRecipeIdResolution resolution;
 
     /**
      * Creates one stable slot-local definition.
@@ -19,7 +21,7 @@ public final class TrinityPatternDefinition {
      * @param resolution captured resolver and recipe identity
      */
     private TrinityPatternDefinition(long id, ItemStack pattern,
-                                     TrinityPatternRecipeIdResolvers.Resolution resolution) {
+                                     TrinityPatternRecipeIdResolution resolution) {
         if (id < 0L) {
             throw new IllegalArgumentException("Trinity pattern definition ID must not be negative: " + id);
         }
@@ -40,7 +42,7 @@ public final class TrinityPatternDefinition {
      * @return resolved definition
      */
     public static TrinityPatternDefinition resolved(long id, ItemStack pattern,
-                                                    TrinityPatternRecipeIdResolvers.Resolution resolution) {
+                                                    TrinityPatternRecipeIdResolution resolution) {
         if (resolution == null) {
             throw new IllegalArgumentException("A resolved Trinity pattern definition requires a recipe identity");
         }
@@ -64,7 +66,7 @@ public final class TrinityPatternDefinition {
     /**
      * @return captured resolver and recipe identity
      */
-    public TrinityPatternRecipeIdResolvers.Resolution resolution() {
+    public TrinityPatternRecipeIdResolution resolution() {
         return this.resolution;
     }
 

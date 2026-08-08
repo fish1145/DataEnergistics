@@ -11,6 +11,8 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -158,7 +160,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return adjacentGroup.name();
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
     }
 
@@ -169,7 +171,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(adjacentGroup.name(), getResolvedProviderNameForGui());
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : this.getMainMenuIcon().getHoverName();
     }
 
@@ -190,14 +192,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public boolean isMeteoriteProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.METEORITE;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.METEORITE);
     }
 
     @Override
     public boolean isAdvancedAeProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.ADVANCED_PATTERN);
     }
 
     @Override
@@ -205,24 +205,17 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_ANDESITE || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_BRASS);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.MECHANICAL_CRAFTING);
     }
 
     @Override
     public boolean isResonatingProviderSelected() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        if (profile == null) {
-            return false;
-        }
-
-        return profile.kind() == AdaptivePatternProviderResolver.ProviderKind.RESONATING || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.EXTENDED_RESONATING;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.RESONATING);
     }
 
     @Override
     public boolean supportsFilteredImportToggle() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED);
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.FILTERED_IMPORT);
     }
 
     @Override
@@ -380,7 +373,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return adjacentGroup.icon();
         }
 
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         return profile != null ? profile.terminalIcon() : AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance());
     }
 
@@ -398,7 +391,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public ItemStack getMainMenuIcon() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        AdaptivePatternProviderProfile profile = getProviderProfile();
         ItemStack providerIcon = profile != null ? profile.mainMenuIcon() : null;
         return AdaptivePatternProviderDisplayHelper.resolveMainMenuIcon(
                 adjacentGroup,
@@ -451,7 +444,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+    }
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {
@@ -576,8 +570,16 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Nullable
-    private AdaptivePatternProviderResolver.ProviderProfile getProviderProfile() {
+    private AdaptivePatternProviderProfile getProviderProfile() {
         return AdaptivePatternProviderResolver.resolveProviderProfile(getAdaptiveState().getProviderStack());
+    }
+
+    /**
+     * Checks one registered behavior on the currently installed provider.
+     */
+    private boolean hasProviderCapability(ResourceLocation capability) {
+        AdaptivePatternProviderProfile profile = getProviderProfile();
+        return profile != null && profile.supports(capability);
     }
 
     private void onAdaptiveStateChanged() {

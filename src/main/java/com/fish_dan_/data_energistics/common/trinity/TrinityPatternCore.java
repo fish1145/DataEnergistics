@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -24,7 +26,7 @@ public interface TrinityPatternCore {
 
     /**
      * One stable occupied-slot entry retained by a physical core's local cache.
-     *
+     * <p>
      * Runtime recipe details may be rebound or temporarily unavailable without replacing this directory entry.
      */
     final class CachedPattern {
@@ -75,7 +77,7 @@ public interface TrinityPatternCore {
         /**
          * @return stable resolver and recipe IDs captured by the installed definition
          */
-        public TrinityPatternRecipeIdResolvers.Resolution recipeResolution() {
+        public TrinityPatternRecipeIdResolution recipeResolution() {
             return this.definition.resolution();
         }
 
@@ -99,8 +101,8 @@ public interface TrinityPatternCore {
             if (!this.encodedDefinition.equals(AEItemKey.of(definition.pattern()))) {
                 throw new IllegalArgumentException("A cached Trinity pattern cannot rebind to another encoded definition");
             }
-            TrinityPatternRecipeIdResolvers.Resolution currentResolution = this.definition.resolution();
-            TrinityPatternRecipeIdResolvers.Resolution nextResolution = definition.resolution();
+            TrinityPatternRecipeIdResolution currentResolution = this.definition.resolution();
+            TrinityPatternRecipeIdResolution nextResolution = definition.resolution();
             boolean recipeIdentityChanged = currentResolution == null ? nextResolution != null :
                     !currentResolution.equals(nextResolution);
             TrinityPatternPublicationSignature nextSignature = details == null ? null :
@@ -130,7 +132,8 @@ public interface TrinityPatternCore {
                               @Nullable IMolecularAssemblerSupportedPattern details,
                               @Nullable TrinityPatternPublicationSignature publicationSignature,
                               long runtimeBindingRevision,
-                              boolean semanticChange) {}
+                              boolean semanticChange) {
+        }
     }
 
     /**
@@ -516,19 +519,29 @@ public interface TrinityPatternCore {
      */
     PatternRefundTransaction preparePatternRefund();
 
-    /** Reversible prepared removal of installed patterns from one physical P core. */
+    /**
+     * Reversible prepared removal of installed patterns from one physical P core.
+     */
     interface PatternRefundTransaction {
 
-        /** @return immutable slot-ordered installed pattern stacks captured by this transaction */
+        /**
+         * @return immutable slot-ordered installed pattern stacks captured by this transaction
+         */
         List<ItemStack> patterns();
 
-        /** @return whether every slot was empty when this transaction was prepared */
+        /**
+         * @return whether every slot was empty when this transaction was prepared
+         */
         boolean isEmpty();
 
-        /** @return whether queued inputs or pending outputs blocked this transaction before it could be prepared */
+        /**
+         * @return whether queued inputs or pending outputs blocked this transaction before it could be prepared
+         */
         boolean isBlockedByWork();
 
-        /** Clears exactly the captured patterns while the core and every slot revision still match. */
+        /**
+         * Clears exactly the captured patterns while the core and every slot revision still match.
+         */
         boolean commit();
 
         /**
@@ -538,7 +551,9 @@ public interface TrinityPatternCore {
          */
         void complete(List<ItemStack> undeliveredPatterns);
 
-        /** Restores committed patterns, or releases an uncommitted capture. */
+        /**
+         * Restores committed patterns, or releases an uncommitted capture.
+         */
         void rollback();
     }
 

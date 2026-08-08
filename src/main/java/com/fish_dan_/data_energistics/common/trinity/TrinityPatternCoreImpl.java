@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -55,7 +56,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private static final String STACK_TAG = "stack";
     private static final String VERSION_TAG = "version";
 
-    /** Identifies the validated top-level persistence shape and whether it must be rewritten canonically. */
+    /**
+     * Identifies the validated top-level persistence shape and whether it must be rewritten canonically.
+     */
     private enum PersistedSchema {
 
         CURRENT(false),
@@ -78,10 +81,12 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
 
     private final int patternCapacity;
     private final PatternDecoder decoder;
-    private final TrinityPatternRecipeIdResolvers recipeIdResolvers;
+    private final TrinityPatternRecipeIdLookup recipeIdResolvers;
     private final TrinityPatternSlot.ChangeListener changeListener;
     private final List<TrinityPatternSlotImpl> slots;
-    /** Constant-time slot lookup for stable occupied-directory entries. */
+    /**
+     * Constant-time slot lookup for stable occupied-directory entries.
+     */
     private Map<Integer, CachedPattern> cachedPatterns = new HashMap<>();
     /**
      * Slots retaining an encoded pattern, ordered for reload and persistence without a capacity scan.
@@ -103,9 +108,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
      * Per-host output slot indexes isolate sleeping routes after a movable core changes hosts.
      */
     private Map<UUID, TreeSet<Integer>> pendingOutputSlotsByHost = new HashMap<>();
-    /** Installed patterns cleared for refund but not yet confirmed by an external destination. */
+    /**
+     * Installed patterns cleared for refund but not yet confirmed by an external destination.
+     */
     private List<PatternRefundEntry> patternRefundOutbox = new ArrayList<>();
-    /** Host-isolated FIFO entries cleared for refund but not yet confirmed by an external destination. */
+    /**
+     * Host-isolated FIFO entries cleared for refund but not yet confirmed by an external destination.
+     */
     private Map<UUID, ArrayList<RetainedRefundEntry>> retainedRefundOutboxByHost = new TreeMap<>();
     private final InternalInventory patternInventory = new PatternInventory();
 
@@ -116,7 +125,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
      * Latest structurally immutable occupied directory; runtime bindings change through stable entries.
      */
     private PatternCacheSnapshot patternCacheSnapshot = new PatternCacheSnapshot(0L, List.of());
-    /** Latest immutable occupied-slot index, replaced only with the pattern directory. */
+    /**
+     * Latest immutable occupied-slot index, replaced only with the pattern directory.
+     */
     private List<Integer> occupiedPatternSlotSnapshot = List.of();
     @Nullable
     private CoreRefundTransaction activeRefundTransaction;
@@ -132,7 +143,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
      * @param changeListener    typed owner callback
      */
     public TrinityPatternCoreImpl(int patternCapacity, PatternDecoder decoder,
-                                  TrinityPatternRecipeIdResolvers recipeIdResolvers,
+                                  TrinityPatternRecipeIdLookup recipeIdResolvers,
                                   TrinityPatternSlot.ChangeListener changeListener) {
         this(patternCapacity, UUID.randomUUID(), decoder, recipeIdResolvers, changeListener);
     }
@@ -147,7 +158,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
      * @param changeListener    typed owner callback
      */
     public TrinityPatternCoreImpl(int patternCapacity, UUID coreId, PatternDecoder decoder,
-                                  TrinityPatternRecipeIdResolvers recipeIdResolvers,
+                                  TrinityPatternRecipeIdLookup recipeIdResolvers,
                                   TrinityPatternSlot.ChangeListener changeListener) {
         validateCapacity(patternCapacity);
         this.patternCapacity = patternCapacity;
@@ -880,13 +891,14 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private Map<Integer, TrinityPatternSlotImpl> readSlots(
-                                                           ListTag entries,
-                                                           HolderLookup.Provider registries,
-                                                           UUID loadedId) {
+            ListTag entries,
+            HolderLookup.Provider registries,
+            UUID loadedId) {
         HashMap<Integer, TrinityPatternSlotImpl> loaded = new HashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             TrinityPatternSlotImpl slot = TrinityPatternSlotImpl.readFromTag(
-                    entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {}, registries);
+                    entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {
+                    }, registries);
             checkSlot(slot.index());
             if (!slot.hasPersistentState()) {
                 throw new IllegalArgumentException("Empty persisted Trinity pattern slot " + slot.index());
@@ -905,7 +917,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private TrinityPatternSlotImpl newDetachedSlot(int slot) {
-        return new TrinityPatternSlotImpl(slot, this.decoder, this.recipeIdResolvers, change -> {});
+        return new TrinityPatternSlotImpl(slot, this.decoder, this.recipeIdResolvers, change -> {
+        });
     }
 
     private void validateOwnedRoute(PatternRoute route) {
@@ -1359,9 +1372,12 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                                long stateRevision,
                                List<TrinityPatternSlotImpl.WorkState> slots,
                                List<RetainedRefundOffer> offeredEntries,
-                               int existingOutboxEntryCount) {}
+                               int existingOutboxEntryCount) {
+    }
 
-    /** One installed pattern awaiting an acknowledged player/world delivery. */
+    /**
+     * One installed pattern awaiting an acknowledged player/world delivery.
+     */
     private record PatternRefundEntry(int slot, ItemStack pattern) {
 
         private PatternRefundEntry {
@@ -1383,7 +1399,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
     }
 
-    /** One host-owned input or pending output awaiting an acknowledged external delivery. */
+    /**
+     * One host-owned input or pending output awaiting an acknowledged external delivery.
+     */
     private record RetainedRefundEntry(int slot, TrinityItemAmount item) {
 
         private RetainedRefundEntry {
@@ -1400,7 +1418,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
     }
 
-    /** Associates a durable retained refund entry with the host that owns its retry queue. */
+    /**
+     * Associates a durable retained refund entry with the host that owns its retry queue.
+     */
     private record RetainedRefundOffer(UUID hostId, RetainedRefundEntry entry) {
 
         private RetainedRefundOffer {
@@ -1413,7 +1433,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
     }
 
-    /** Fully parsed, isolated durable refund queues that can be atomically applied to a core. */
+    /**
+     * Fully parsed, isolated durable refund queues that can be atomically applied to a core.
+     */
     private record RefundOutbox(List<PatternRefundEntry> patterns,
                                 Map<UUID, ArrayList<RetainedRefundEntry>> retainedByHost) {
 
@@ -1427,7 +1449,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
     }
 
-    /** Immutable pattern capture guarded by the core and exact physical-slot revisions. */
+    /**
+     * Immutable pattern capture guarded by the core and exact physical-slot revisions.
+     */
     private record PatternRefundSlot(int slot, long slotRevision, ItemStack pattern) {
 
         private PatternRefundSlot {
@@ -1441,11 +1465,14 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private record WorkIndexes(TreeSet<Integer> queuedSlots,
                                TreeSet<Integer> pendingOutputSlots,
                                Map<UUID, TreeSet<Integer>> workingSlotsByHost,
-                               Map<UUID, TreeSet<Integer>> pendingSlotsByHost) {}
+                               Map<UUID, TreeSet<Integer>> pendingSlotsByHost) {
+    }
 
-    private record SlotApplication(TrinityPatternSlotImpl target, TrinityPatternSlotImpl loaded) {}
+    private record SlotApplication(TrinityPatternSlotImpl target, TrinityPatternSlotImpl loaded) {
+    }
 
-    private record CachedRebind(CachedPattern target, CachedPattern.PreparedRebind prepared) {}
+    private record CachedRebind(CachedPattern target, CachedPattern.PreparedRebind prepared) {
+    }
 
     /**
      * Reversible state transition for one core participating in an aggregate host refund.
@@ -1560,7 +1587,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
     }
 
-    /** Reversible all-or-nothing installed-pattern removal for one core. */
+    /**
+     * Reversible all-or-nothing installed-pattern removal for one core.
+     */
     private final class PatternRefundTransactionImpl implements PatternRefundTransaction {
 
         private final long capturedStateRevision;

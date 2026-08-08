@@ -1,26 +1,28 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 
+import java.util.List;
+
 /**
  * Supplies a strict isolated recipe resolver for simplified pattern details used by Trinity logic tests.
  */
 final class TrinityPatternTestResolvers {
 
-    private TrinityPatternTestResolvers() {}
+    private TrinityPatternTestResolvers() {
+    }
 
     /**
      * @return isolated registry that recognizes the paper/map test definitions
      */
     static TrinityPatternRecipeIdResolvers create() {
-        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers();
-        resolvers.register(TestResolver.INSTANCE);
-        return resolvers;
+        return new TrinityPatternRecipeIdResolvers(List.of(TestResolver.INSTANCE));
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.api.entrypoint;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * Common-setup extension point for integrations supplied by a mod.
  *
@@ -17,5 +19,5 @@ public interface DataEnergisticsPlugin {
      *
      * @param registry plugin-scoped registration surface
      */
-    void register(DataEnergisticsRegistry registry);
+    void register(@NotNull DataEnergisticsRegistry registry);
 }

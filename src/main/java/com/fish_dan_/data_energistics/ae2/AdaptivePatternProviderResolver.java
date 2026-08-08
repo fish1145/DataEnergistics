@@ -1,81 +1,131 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
 import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.definitions.AEBlocks;
-import appeng.core.definitions.AEParts;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.crafting.PatternProviderPart;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Resolves installed provider stacks through the immutable adaptive-provider registration snapshot.
+ *
+ * <p>
+ * All mod-specific recognition belongs to registered definitions. The resolver performs no namespace, class-name,
+ * slot-count or reflection heuristics and rejects ambiguous claims instead of relying on registration order.
+ * </p>
+ */
 public final class AdaptivePatternProviderResolver {
 
-    private static final int BASE_PATTERN_SLOTS = 9;
-    private static final int SIMPLE_PATTERN_SLOTS = 5;
-    private static final int EXTENDED_PATTERN_SLOTS = 36;
-    private static final int METEORITE_PATTERN_SLOTS = 63;
-    private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
+    private static volatile List<AdaptivePatternProviderRegistration> registrations = List.of();
+    private static volatile boolean installed;
 
-    private AdaptivePatternProviderResolver() {}
+    private AdaptivePatternProviderResolver() {
+    }
 
-    public static boolean isSupportedProviderStack(ItemStack stack) {
+    /**
+     * Installs the complete common-setup snapshot exactly once.
+     *
+     * @param registrations frozen plugin and built-in registrations
+     */
+    public static synchronized void install(
+            @NotNull List<@NotNull AdaptivePatternProviderRegistration> registrations) {
+        if (installed) {
+            throw new IllegalStateException("Adaptive pattern provider definitions are already installed");
+        }
+        Set<ResourceLocation> registrationIds = new HashSet<>();
+        ArrayList<AdaptivePatternProviderRegistration> sorted = new ArrayList<>(registrations);
+        sorted.sort(Comparator.comparing(registration -> registration.registrationId().toString()));
+        for (AdaptivePatternProviderRegistration registration : sorted) {
+            if (!registrationIds.add(registration.registrationId())) {
+                throw new IllegalStateException(
+                        "Duplicate adaptive pattern provider registration ID: " + registration.registrationId());
+            }
+        }
+        AdaptivePatternProviderResolver.registrations = List.copyOf(sorted);
+        installed = true;
+    }
+
+    /**
+     * Returns whether exactly one installed definition recognizes the stack.
+     */
+    public static boolean isSupportedProviderStack(@NotNull ItemStack stack) {
         return resolveProviderProfile(stack) != null;
     }
 
-    @Nullable
-    public static ProviderKind getResolvedProviderKind(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
-        return profile != null ? profile.kind() : null;
-    }
-
-    public static int getResolvedSlotsPerProvider(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
+    /**
+     * Returns the configured pattern slots, or zero when no definition recognizes the stack.
+     */
+    public static int getResolvedSlotsPerProvider(@NotNull ItemStack stack) {
+        AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.slotsPerProvider() : 0;
     }
 
-    @Nullable
-    public static ItemStack getResolvedProviderMainMenuIcon(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
-        return profile != null ? profile.mainMenuIcon().copy() : null;
+    /**
+     * Returns an independently owned main-menu icon, or {@code null} for an unsupported stack.
+     */
+    public static @Nullable ItemStack getResolvedProviderMainMenuIcon(@NotNull ItemStack stack) {
+        AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.mainMenuIcon() : null;
     }
 
-    @Nullable
-    public static AEItemKey getResolvedProviderTerminalIcon(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
+    /**
+     * Returns the immutable AE terminal icon, or {@code null} for an unsupported stack.
+     */
+    public static @Nullable AEItemKey getResolvedProviderTerminalIcon(@NotNull ItemStack stack) {
+        AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.terminalIcon() : null;
     }
 
-    @Nullable
-    public static Component getResolvedProviderDisplayName(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
+    /**
+     * Returns an independently owned display component, or {@code null} for an unsupported stack.
+     */
+    public static @Nullable Component getResolvedProviderDisplayName(@NotNull ItemStack stack) {
+        AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.displayName() : null;
     }
 
-    public static boolean isAdvancedAeProviderStack(ItemStack stack) {
-        ProviderProfile profile = resolveProviderProfile(stack);
-        return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED);
+    /**
+     * Checks one composable behavior without exposing a closed provider-kind enum.
+     *
+     * @param stack      installed provider stack
+     * @param capability stable behavior identifier
+     * @return whether the resolved profile declares the behavior
+     */
+    public static boolean hasResolvedCapability(
+            @NotNull ItemStack stack,
+            @NotNull ResourceLocation capability) {
+        AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null && profile.supports(capability);
     }
 
-    public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {
+    /**
+     * Detects an AE2 pattern-provider attachment without attempting to infer adaptive profile metadata.
+     */
+    public static boolean isPatternProviderAttachment(
+            @NotNull Level level,
+            @NotNull BlockPos pos,
+            @Nullable Direction side) {
         if (level.getBlockEntity(pos) instanceof PatternProviderBlockEntity) {
             return true;
         }
@@ -102,238 +152,62 @@ public final class AdaptivePatternProviderResolver {
         return cableBus.getPart(side) instanceof PatternProviderPart;
     }
 
-    public static Component decorateAdaptiveProviderName(Component providerName) {
+    /**
+     * Decorates one recognized provider name with the standard block variant label.
+     */
+    public static @NotNull Component decorateAdaptiveProviderName(@NotNull Component providerName) {
         return decorateAdaptiveProviderName(
                 "screen.data_energistics.adaptive_pattern_provider.provider_variant",
                 providerName);
     }
 
-    public static Component decorateAdaptiveProviderName(String translationKey, Component providerName) {
+    /**
+     * Decorates one recognized provider name with the requested terminal variant label.
+     */
+    public static @NotNull Component decorateAdaptiveProviderName(
+            @NotNull String translationKey,
+            @NotNull Component providerName) {
         return Component.translatable(translationKey, providerName);
     }
 
-    @Nullable
-    public static ProviderProfile resolveProviderProfile(ItemStack stack) {
+    /**
+     * Resolves exactly one complete profile from the frozen definitions.
+     *
+     * @param stack installed provider stack
+     * @return matched profile, or {@code null} when no definition recognizes the stack
+     */
+    public static @Nullable AdaptivePatternProviderProfile resolveProviderProfile(@NotNull ItemStack stack) {
+        if (!installed) {
+            throw new IllegalStateException("Adaptive pattern provider definitions are not installed");
+        }
         if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem()) || stack.is(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
             return null;
         }
 
-        ProviderProfile profile = resolveAe2CrystalScienceProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        profile = resolveAdvancedAeProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        profile = resolveAppliedCreateProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        profile = resolvePartProviderProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        profile = resolveBlockProviderProfile(stack);
-        if (profile != null) {
-            return profile;
-        }
-
-        return resolveLegacyProviderProfile(stack);
-    }
-
-    @Nullable
-    private static ProviderProfile resolveAe2CrystalScienceProfile(ItemStack stack) {
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (!"ae2cs".equals(itemId.getNamespace())) {
-            return null;
-        }
-
-        String path = itemId.getPath();
-        int slotCount = switch (path) {
-            case "resonating_pattern_provider", "resonating_pattern_provider_part" -> BASE_PATTERN_SLOTS;
-            case "simple_pattern_provider", "simple_pattern_provider_part" -> SIMPLE_PATTERN_SLOTS;
-            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part", "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> EXTENDED_PATTERN_SLOTS;
-            case "meteorite_pattern_provider", "meteorite_pattern_provider_part" -> METEORITE_PATTERN_SLOTS;
-            default -> -1;
-        };
-        if (slotCount <= 0) {
-            return null;
-        }
-
-        ItemStack icon = new ItemStack(stack.getItem());
-        ProviderKind kind = switch (path) {
-            case "resonating_pattern_provider", "resonating_pattern_provider_part" -> ProviderKind.RESONATING;
-            case "simple_pattern_provider", "simple_pattern_provider_part" -> ProviderKind.SIMPLE;
-            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part", "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> ProviderKind.EXTENDED_RESONATING;
-            case "meteorite_pattern_provider", "meteorite_pattern_provider_part" -> ProviderKind.METEORITE;
-            default -> ProviderKind.UNKNOWN;
-        };
-        return new ProviderProfile(kind, slotCount, icon, AEItemKey.of(icon), icon.getHoverName());
-    }
-
-    @Nullable
-    private static ProviderProfile resolveAdvancedAeProfile(ItemStack stack) {
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (!"advanced_ae".equals(itemId.getNamespace())) {
-            return null;
-        }
-
-        String path = itemId.getPath();
-        int slotCount = switch (path) {
-            case "small_adv_pattern_provider", "small_adv_pattern_provider_part" -> BASE_PATTERN_SLOTS;
-            case "adv_pattern_provider", "adv_pattern_provider_part" -> EXTENDED_PATTERN_SLOTS;
-            default -> -1;
-        };
-        if (slotCount <= 0) {
-            return null;
-        }
-
-        ItemStack icon = new ItemStack(stack.getItem());
-        ProviderKind kind = switch (path) {
-            case "small_adv_pattern_provider", "small_adv_pattern_provider_part" -> ProviderKind.ADVANCED_SMALL;
-            case "adv_pattern_provider", "adv_pattern_provider_part" -> ProviderKind.ADVANCED_EXTENDED;
-            default -> ProviderKind.UNKNOWN;
-        };
-        return new ProviderProfile(kind, slotCount, icon, AEItemKey.of(icon), icon.getHoverName());
-    }
-
-    @Nullable
-    private static ProviderProfile resolveAppliedCreateProfile(ItemStack stack) {
-        if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
-            return null;
-        }
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (!APPLIED_CREATE_NAMESPACE.equals(itemId.getNamespace())) {
-            return null;
-        }
-
-        String path = itemId.getPath();
-        int slotCount = switch (path) {
-            case "andesite_pattern_provider" -> BASE_PATTERN_SLOTS;
-            case "brass_pattern_provider" -> EXTENDED_PATTERN_SLOTS;
-            default -> -1;
-        };
-        if (slotCount <= 0) {
-            return null;
-        }
-
-        ItemStack icon = new ItemStack(stack.getItem());
-        ProviderKind kind = switch (path) {
-            case "andesite_pattern_provider" -> ProviderKind.APPLIED_CREATE_ANDESITE;
-            case "brass_pattern_provider" -> ProviderKind.APPLIED_CREATE_BRASS;
-            default -> ProviderKind.UNKNOWN;
-        };
-        return new ProviderProfile(kind, slotCount, icon, AEItemKey.of(icon), icon.getHoverName());
-    }
-
-    @Nullable
-    private static ProviderProfile resolvePartProviderProfile(ItemStack stack) {
-        if (!(stack.getItem() instanceof IPartItem<?> partItem)) {
-            return null;
-        }
-
-        try {
-            IPart part = partItem.createPart();
-            if (!(part instanceof PatternProviderLogicHost host)) {
-                return null;
+        AdaptivePatternProviderRegistration matchedRegistration = null;
+        AdaptivePatternProviderProfile matchedProfile = null;
+        for (AdaptivePatternProviderRegistration registration : registrations) {
+            AdaptivePatternProviderProfile profile;
+            try {
+                profile = registration.definition().resolve(stack);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Adaptive pattern provider definition {} failed to resolve {}",
+                        registration.registrationId(),
+                        stack,
+                        exception);
+                continue;
             }
-
-            int slotCount = host.getLogic().getPatternInv().size();
-            if (slotCount <= 0) {
-                return null;
+            if (profile == null) {
+                continue;
             }
-
-            ItemStack menuIcon = resolveMainMenuIcon(part, new ItemStack(stack.getItem()));
-            return new ProviderProfile(resolveKindFromSlotCount(slotCount), slotCount, menuIcon, host.getTerminalIcon(), menuIcon.getHoverName());
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    @Nullable
-    private static ProviderProfile resolveBlockProviderProfile(ItemStack stack) {
-        if (!(stack.getItem() instanceof BlockItem blockItem) || !(blockItem.getBlock() instanceof EntityBlock entityBlock)) {
-            return null;
-        }
-
-        try {
-            BlockState state = blockItem.getBlock().defaultBlockState();
-            BlockEntity blockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, state);
-            if (!(blockEntity instanceof PatternProviderLogicHost host)) {
-                return null;
+            if (matchedRegistration != null) {
+                throw new IllegalStateException(
+                        "Ambiguous adaptive pattern provider definitions " + matchedRegistration.registrationId() + " and " + registration.registrationId() + " for " + stack);
             }
-
-            int slotCount = host.getLogic().getPatternInv().size();
-            if (slotCount <= 0) {
-                return null;
-            }
-
-            ItemStack menuIcon = resolveMainMenuIcon(blockEntity, new ItemStack(stack.getItem()));
-            return new ProviderProfile(resolveKindFromSlotCount(slotCount), slotCount, menuIcon, host.getTerminalIcon(), menuIcon.getHoverName());
-        } catch (Exception ignored) {
-            return null;
+            matchedRegistration = registration;
+            matchedProfile = profile;
         }
+        return matchedProfile;
     }
-
-    @Nullable
-    private static ProviderProfile resolveLegacyProviderProfile(ItemStack stack) {
-        if (AEBlocks.PATTERN_PROVIDER.is(stack) || AEParts.PATTERN_PROVIDER.is(stack)) {
-            ItemStack icon = new ItemStack(stack.getItem());
-            return new ProviderProfile(ProviderKind.STANDARD, BASE_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
-        }
-
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if ("extendedae".equals(itemId.getNamespace()) && ("ex_pattern_provider".equals(itemId.getPath()) || "ex_pattern_provider_part".equals(itemId.getPath()) || "wireless_ex_pat".equals(itemId.getPath()))) {
-            ItemStack icon = new ItemStack(stack.getItem());
-            return new ProviderProfile(ProviderKind.EXTENDED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
-        }
-
-        return null;
-    }
-
-    private static ProviderKind resolveKindFromSlotCount(int slotCount) {
-        if (slotCount == SIMPLE_PATTERN_SLOTS) {
-            return ProviderKind.SIMPLE;
-        }
-        if (slotCount == BASE_PATTERN_SLOTS) {
-            return ProviderKind.STANDARD;
-        }
-        if (slotCount == EXTENDED_PATTERN_SLOTS) {
-            return ProviderKind.EXTENDED;
-        }
-        if (slotCount == METEORITE_PATTERN_SLOTS) {
-            return ProviderKind.METEORITE;
-        }
-        return ProviderKind.UNKNOWN;
-    }
-
-    private static ItemStack resolveMainMenuIcon(Object source, ItemStack fallback) {
-        Object result = ReflectionAccess.invokeNoArg(source, "getMainMenuIcon");
-        if (result instanceof ItemStack stack && !stack.isEmpty()) {
-            return stack.copy();
-        }
-        return fallback.copy();
-    }
-
-    public enum ProviderKind {
-        UNKNOWN,
-        STANDARD,
-        SIMPLE,
-        EXTENDED,
-        ADVANCED_SMALL,
-        ADVANCED_EXTENDED,
-        APPLIED_CREATE_ANDESITE,
-        APPLIED_CREATE_BRASS,
-        RESONATING,
-        EXTENDED_RESONATING,
-        METEORITE
-    }
-
-    public record ProviderProfile(ProviderKind kind, int slotsPerProvider, ItemStack mainMenuIcon, AEItemKey terminalIcon,
-                                  Component displayName) {}
 }

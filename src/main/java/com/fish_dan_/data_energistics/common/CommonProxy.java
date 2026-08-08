@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridServices;
@@ -70,9 +71,10 @@ public class CommonProxy {
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             DataEnergisticsRegistrySnapshot snapshot = DataEnergisticsEntrypointLoader.initialize();
-            UniversalTerminalAdapters.install(snapshot.universalTerminalAdapters());
+            UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
             VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
             PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
+            AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             ModUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();
