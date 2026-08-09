@@ -38,9 +38,9 @@ import java.util.Objects;
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class BiologyDeathDropSimulationImplTest {
+public final class VanillaBiologyDeathDropSimulationTest {
 
-    private BiologyDeathDropSimulationImplTest() {}
+    private VanillaBiologyDeathDropSimulationTest() {}
 
     /**
      * Guards against reintroducing the full entity death lifecycle for every simulated loot roll.
@@ -54,7 +54,7 @@ public final class BiologyDeathDropSimulationImplTest {
         ServerLevel level = helper.getLevel();
         TrackingCow cow = new TrackingCow(level);
         Player fakePlayer = Platform.getFakePlayer(level, null);
-        BiologyDeathDropSimulation simulation = new BiologyDeathDropSimulationImpl();
+        VanillaBiologyDeathDropSimulation simulation = new VanillaBiologyDeathDropSimulation();
 
         simulation.generateDrops(level, cow, fakePlayer);
 

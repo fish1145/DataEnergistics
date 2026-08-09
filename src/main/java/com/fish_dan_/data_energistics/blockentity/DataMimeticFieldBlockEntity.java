@@ -146,7 +146,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final Direction[] DIRECTIONS = Direction.values();
 
     /** Produces actual death drops without notifying unrelated real-world death listeners. */
-    private static final BiologyDeathDropSimulation BIOLOGY_DEATH_DROP_SIMULATION = new BiologyDeathDropSimulationImpl();
+    private static final VanillaBiologyDeathDropSimulation BIOLOGY_DEATH_DROP_SIMULATION = new VanillaBiologyDeathDropSimulation();
     private static final List<ResourceKey<Instrument>> GOAT_HORN_INSTRUMENTS = List.of(
             Instruments.PONDER_GOAT_HORN,
             Instruments.SING_GOAT_HORN,

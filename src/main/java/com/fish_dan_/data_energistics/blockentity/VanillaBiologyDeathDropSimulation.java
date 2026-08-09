@@ -8,9 +8,15 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * Invokes the vanilla living-entity drop phase while excluding the real-world death lifecycle.
+ * Produces biology-carrier drops through the vanilla living-entity drop phase while excluding the real-world death
+ * lifecycle.
+ *
+ * <p>
+ * A data mimetic field needs vanilla loot tables, equipment and custom drops, plus the standard living-drops event. It
+ * does not represent an entity dying in the world, so the complete death lifecycle is deliberately not invoked.
+ * </p>
  */
-public final class BiologyDeathDropSimulationImpl implements BiologyDeathDropSimulation {
+public final class VanillaBiologyDeathDropSimulation {
 
     /**
      * Prepares player-kill loot context and invokes only {@code dropAllDeathLoot}.
@@ -19,7 +25,6 @@ public final class BiologyDeathDropSimulationImpl implements BiologyDeathDropSim
      * @param entity     initialized simulated entity
      * @param fakePlayer player context used by loot conditions
      */
-    @Override
     public void generateDrops(ServerLevel level, LivingEntity entity, Player fakePlayer) {
         DamageSource damageSource = level.damageSources().playerAttack(fakePlayer);
         entity.tickCount = 100;
