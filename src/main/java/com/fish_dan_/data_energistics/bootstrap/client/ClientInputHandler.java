@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
-import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
-import com.fish_dan_.data_energistics.network.DigitalStorageDepotScrollPayload;
-import com.fish_dan_.data_energistics.network.MeVacuumLaunchPayload;
+import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
+import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
+import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.client.Minecraft;

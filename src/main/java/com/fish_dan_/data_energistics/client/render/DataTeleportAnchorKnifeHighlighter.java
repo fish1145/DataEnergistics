@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.item.powered.PoweredCuttingKnifeItem;
-import com.fish_dan_.data_energistics.network.DataTeleportAnchorKnifeTeleportPayload;
+import com.fish_dan_.data_energistics.network.action.DataTeleportAnchorKnifeTeleportPayload;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Camera;

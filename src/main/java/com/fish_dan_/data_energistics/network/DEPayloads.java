@@ -1,5 +1,9 @@
 package com.fish_dan_.data_energistics.network;
 
+import com.fish_dan_.data_energistics.network.action.DataTeleportAnchorKnifeTeleportPayload;
+import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
+import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
+import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
