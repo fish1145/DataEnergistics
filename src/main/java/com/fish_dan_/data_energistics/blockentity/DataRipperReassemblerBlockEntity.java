@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
+import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
@@ -90,7 +92,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
-                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine {
+                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine,
+                                              DataRipperBatchTickable {
 
     public static final int ITEM_INPUT_START_SLOT = 0;
     public static final int ITEM_INPUT_SLOT_COUNT = 9;
@@ -207,13 +210,38 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public void serverTick() {
+        advanceServerTicks(1);
+    }
+
+    @Override
+    public void advanceAdditionalTicks(int additionalTicks) {
+        if (additionalTicks <= 0) {
+            throw new IllegalArgumentException("additionalTicks must be positive");
+        }
+        advanceServerTicks(additionalTicks);
+    }
+
+    private void advanceServerTicks(int tickBudget) {
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
         refillEnergyCache();
-        processRecipe();
-        tryAutoExport();
+        int remainingTicks = tickBudget;
+        boolean autoExportStalled = false;
+        while (remainingTicks > 0) {
+            boolean hasOutputBeforeWork = hasAnyOutput();
+            int progressBudget = isAutoExportEnabled() && hasOutputBeforeWork && !autoExportStalled ? 1 : remainingTicks;
+            RecipeAdvance advance = processRecipe(progressBudget);
+            remainingTicks -= advance.elapsedTicks();
+
+            boolean shouldAttemptExport = isAutoExportEnabled() && hasAnyOutput() &&
+                    (!autoExportStalled || advance.completedRecipe());
+            if (shouldAttemptExport) {
+                autoExportStalled = !tryAutoExport();
+            }
+
+        }
         updateOnlineState();
     }
 
@@ -571,23 +599,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private void processRecipe() {
+    private RecipeAdvance processRecipe(int tickBudget) {
         if (!isOnline()) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe();
         if (recipeHolder == null) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
-        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
-        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+        if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         if (!recipeHolder.id().equals(this.activeRecipeId)) {
@@ -598,13 +625,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         this.maxProgress = getEffectiveProcessTicks(recipe);
-        this.progress++;
+        this.progress = Math.max(0, Math.min(this.progress, this.maxProgress - 1));
+        BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
+                this.progress,
+                this.maxProgress,
+                tickBudget);
+        this.progress = segment.progress();
         setChanged();
 
-        if (this.progress < this.maxProgress) {
-            return;
+        if (!segment.reachedBoundary()) {
+            return RecipeAdvance.progressed(segment.elapsedTicks());
         }
 
+        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
+        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+            resetProcessingState();
+            return RecipeAdvance.blocked(segment.elapsedTicks());
+        }
         for (int batch = 0; batch < getParallel(); batch++) {
             List<ItemStack> batchOutputs = batch == 0 ? itemOutputs : recipe.getCraftedItemOutputs();
             if (!canAcceptItemOutputs(recipe, batchOutputs)) {
@@ -621,6 +658,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         resetProcessingState();
         saveChanges();
         markForClientUpdate();
+        return RecipeAdvance.completed(segment.elapsedTicks());
     }
 
     private void resetProcessingState() {
@@ -1031,9 +1069,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return remaining;
     }
 
-    private void tryAutoExport() {
+    private boolean tryAutoExport() {
         if (!isAutoExportEnabled()) {
-            return;
+            return false;
         }
 
         boolean changed = false;
@@ -1053,6 +1091,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             saveChanges();
             markForClientUpdate();
         }
+        return changed;
     }
 
     private boolean hasItemOutput() {
@@ -1066,6 +1105,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private boolean hasKeyOutput() {
         return this.keyOutputStack != null && this.keyOutputStack.what() != null && this.keyOutputStack.amount() > 0L;
+    }
+
+    private boolean hasAnyOutput() {
+        return hasItemOutput() || !this.fluidOutputTankA.getFluid().isEmpty() ||
+                !this.fluidOutputTankB.getFluid().isEmpty() || hasKeyOutput();
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
@@ -2106,6 +2150,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 setItemDirect(slot, remainder);
             }
             return result;
+        }
+    }
+
+    private record RecipeAdvance(int elapsedTicks, boolean completedRecipe) {
+
+        private static RecipeAdvance progressed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
+        }
+
+        private static RecipeAdvance completed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, true);
+        }
+
+        private static RecipeAdvance blocked(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
         }
     }
 

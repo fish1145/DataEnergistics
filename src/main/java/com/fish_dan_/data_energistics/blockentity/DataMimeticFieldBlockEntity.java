@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
+import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
@@ -103,7 +105,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject {
+public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
+                                         implements IUpgradeableObject, DataRipperBatchTickable {
 
     public static final int BASE_ACTIVE_SLOTS = 4;
     public static final int EXTRA_SLOTS_PER_CAPACITY_CARD = 4;
@@ -111,7 +114,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
     public static final long KEY_INPUT_CAPACITY = 640_000L;
-    /** Maximum hidden output slots: each carrier reserves 64 slots. */
+    /**
+     * Maximum hidden output slots: each carrier reserves 64 slots.
+     */
     private static final int HIDDEN_SLOTS_PER_CARRIER = 64;
     private static final int HIDDEN_BUFFER_SLOTS = SLOT_COUNT * HIDDEN_SLOTS_PER_CARRIER;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
@@ -120,9 +125,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final int OUTPUT_PER_SPEED_CARD = 800;
     private static final int OUTPUT_REDUCTION_DIVISOR = 7;
     private static final int OUTPUT_SCALE = 2;
-    /** Number of real biology loot simulations sampled before scaling a work-cycle result. */
+    /**
+     * Number of real biology loot simulations sampled before scaling a work-cycle result.
+     */
     private static final int BIOLOGY_LOOT_SAMPLE_ROLLS = 10;
-    /** Server ticks before cached biology loot samples are refreshed. */
+    /**
+     * Server ticks before cached biology loot samples are refreshed.
+     */
     private static final int BIOLOGY_LOOT_SAMPLE_REFRESH_INTERVAL_TICKS = 200;
     private static final int PENDING_OUTPUT_FLUSH_INTERVAL_TICKS = 5;
     private static final int PENDING_OUTPUT_OFFER_BUDGET = 64;
@@ -145,7 +154,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final ThreadLocal<SimulatedDeathDrops> SIMULATED_DEATH_DROPS = new ThreadLocal<>();
     private static final Direction[] DIRECTIONS = Direction.values();
 
-    /** Produces actual death drops without notifying unrelated real-world death listeners. */
+    /**
+     * Produces actual death drops without notifying unrelated real-world death listeners.
+     */
     private static final VanillaBiologyDeathDropSimulation BIOLOGY_DEATH_DROP_SIMULATION = new VanillaBiologyDeathDropSimulation();
     private static final List<ResourceKey<Instrument>> GOAT_HORN_INSTRUMENTS = List.of(
             Instruments.PONDER_GOAT_HORN,
@@ -160,7 +171,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
     private final MimeticPendingOutputLedger pendingOutput = new MimeticPendingOutputLedger(this::setChanged);
-    /** Keeps each component-sensitive item moving independently through bounded container slot attempts. */
+    /**
+     * Keeps each component-sensitive item moving independently through bounded container slot attempts.
+     */
     private final Map<AEItemKey, AdjacentContainerInsertionCursor> adjacentInsertionCursors = new HashMap<>();
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     @Getter
@@ -181,7 +194,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private Player cachedFakePlayer;
     private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
-    /** Reuses sampled biology results between refreshes to keep entity simulation off the hot work-cycle path. */
+    /**
+     * Reuses sampled biology results between refreshes to keep entity simulation off the hot work-cycle path.
+     */
     private final Map<BiologyLootSampleKey, BiologyLootSamples> biologyLootSamples = new HashMap<>();
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -376,51 +391,103 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public void serverTick() {
+        advanceServerTicks(1);
+    }
+
+    @Override
+    public void advanceAdditionalTicks(int additionalTicks) {
+        if (additionalTicks <= 0) {
+            throw new IllegalArgumentException("additionalTicks must be positive");
+        }
+        advanceServerTicks(additionalTicks);
+    }
+
+    private void advanceServerTicks(int tickBudget) {
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
         updatePowerUsageIfNeeded();
-        tickPendingOutputFlush();
+        int remainingTicks = tickBudget;
+        while (remainingTicks > 0) {
+            if (!this.pendingOutput.isEmpty()) {
+                if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+                    this.pendingOutputFlushCooldown = 0;
+                    refillInputsForWork();
+                    resetWorkProgress();
+                    break;
+                }
+                if (this.pendingOutputFlushCooldown > 0) {
+                    int pausedTicks = Math.min(remainingTicks, this.pendingOutputFlushCooldown);
+                    this.pendingOutputFlushCooldown -= pausedTicks;
+                    remainingTicks -= pausedTicks;
+                    refillInputsForWork();
+                    resetWorkProgress();
+                    continue;
+                }
+
+                this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1;
+                long accepted = flushPendingOutput();
+                refillInputsForWork();
+                if (!this.pendingOutput.isEmpty()) {
+                    remainingTicks--;
+                    resetWorkProgress();
+                    if (accepted == 0L && remainingTicks > 0) {
+                        skipStalledPendingOutputTicks(remainingTicks);
+                        remainingTicks = 0;
+                    }
+                    continue;
+                }
+            } else {
+                this.pendingOutputFlushCooldown = 0;
+                refillInputsForWork();
+            }
+
+            if (this.redstoneControlled && !isReceivingRedstonePower()) {
+                resetWorkProgress();
+                break;
+            }
+            if (getActiveCarrierCount() <= 0) {
+                resetWorkProgress();
+                break;
+            }
+            if (!hasEnoughDataFlowForWorkCycle()) {
+                resetWorkProgress();
+                break;
+            }
+
+            int workInterval = computeWorkIntervalTicks();
+            BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
+                    this.workTicks,
+                    workInterval,
+                    remainingTicks);
+            this.workTicks = segment.progress();
+            remainingTicks -= segment.elapsedTicks();
+            if (!segment.reachedBoundary()) {
+                break;
+            }
+            if (!consumeDataFlowPerWorkCycle()) {
+                resetWorkProgress();
+                break;
+            }
+
+            performBiologyMimeticWork();
+            performOreMimeticWork();
+            performCropMimeticWork();
+        }
+        updateOnlineState();
+    }
+
+    private void skipStalledPendingOutputTicks(int skippedTicks) {
+        int ticksSinceLastFlushAttempt = skippedTicks % PENDING_OUTPUT_FLUSH_INTERVAL_TICKS;
+        this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1 - ticksSinceLastFlushAttempt;
+    }
+
+    private void refillInputsForWork() {
         refillEnergyCache();
         if (this.autoPullKeyInput) {
             refillKeyFromNetwork();
         }
-        if (!this.pendingOutput.isEmpty()) {
-            resetWorkProgress();
-            updateOnlineState();
-            return;
-        }
-        if (this.redstoneControlled && !isReceivingRedstonePower()) {
-            resetWorkProgress();
-            updateOnlineState();
-            return;
-        }
-        if (getActiveCarrierCount() <= 0) {
-            resetWorkProgress();
-            updateOnlineState();
-            return;
-        }
-        if (!hasEnoughDataFlowForWorkCycle()) {
-            resetWorkProgress();
-            updateOnlineState();
-            return;
-        }
-        this.workTicks++;
-        if (this.workTicks < computeWorkIntervalTicks()) {
-            updateOnlineState();
-            return;
-        }
-        if (!consumeDataFlowPerWorkCycle()) {
-            resetWorkProgress();
-            updateOnlineState();
-            return;
-        }
-        this.workTicks = 0;
-        performBiologyMimeticWork();
-        performOreMimeticWork();
-        performCropMimeticWork();
-        updateOnlineState();
     }
 
     @Override
@@ -727,36 +794,20 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         submitGeneratedLoot(generated);
     }
 
-    private void tickPendingOutputFlush() {
-        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF || this.pendingOutput.isEmpty()) {
-            this.pendingOutputFlushCooldown = 0;
-            return;
-        }
-
-        if (this.pendingOutputFlushCooldown > 0) {
-            this.pendingOutputFlushCooldown--;
-            return;
-        }
-
-        this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1;
-        flushPendingOutput();
-    }
-
-    private void flushPendingOutput() {
+    private long flushPendingOutput() {
         if (this.level == null || this.pendingOutput.isEmpty() || this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
-            return;
+            return 0L;
         }
         if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
             MEStorage networkStorage = getConnectedItemNetwork();
-            this.pendingOutput.flush(stack -> acceptedAmount(
+            return this.pendingOutput.flush(stack -> acceptedAmount(
                     stack,
                     insertIntoNetwork(stack, networkStorage),
                     "AE network"),
                     PENDING_OUTPUT_OFFER_BUDGET);
-            return;
         }
 
-        flushIntoAdjacentContainers(
+        return flushIntoAdjacentContainers(
                 this.pendingOutput,
                 getAdjacentItemHandlers(),
                 this.adjacentInsertionCursors,
@@ -1889,20 +1940,30 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
     }
 
-    /** Stores the next direction and slot for one component-sensitive pending item. */
+    /**
+     * Stores the next direction and slot for one component-sensitive pending item.
+     */
     static final class AdjacentContainerInsertionCursor {
 
-        /** Next stable direction index to inspect. */
+        /**
+         * Next stable direction index to inspect.
+         */
         private int nextSideIndex;
 
-        /** Next slot per direction, normalized whenever a handler changes its reported size. */
+        /**
+         * Next slot per direction, normalized whenever a handler changes its reported size.
+         */
         private final EnumMap<Direction, Integer> nextSlots = new EnumMap<>(Direction.class);
     }
 
-    /** Identifies one cached biology sample set by entity and fixed-output mode. */
+    /**
+     * Identifies one cached biology sample set by entity and fixed-output mode.
+     */
     private record BiologyLootSampleKey(ResourceLocation entityId, boolean hasFixedOutputs) {}
 
-    /** Caches sampled biology results until the next refresh timestamp. */
+    /**
+     * Caches sampled biology results until the next refresh timestamp.
+     */
     private record BiologyLootSamples(List<GeneratedLoot> samples, long refreshedAt) {}
 
     /**

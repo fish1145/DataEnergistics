@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.part;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
+import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
@@ -374,26 +375,48 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private <T extends BlockEntity> void performBlockEntityTicks(T blockEntity, BlockEntityTicker<T> ticker, int speed) {
-        for (int i = 0; i < speed - 1; i++) {
-            try {
-                ticker.tick(blockEntity.getLevel(), blockEntity.getBlockPos(), blockEntity.getBlockState(), blockEntity);
-            } catch (IllegalStateException e) {
-                if (e.getMessage() != null && e.getMessage().contains("LegacyRandomSource")) {
-                    LOGGER.warn(
-                            "Detected random access conflict while accelerating block entity {} at {}. Stopping this acceleration pass.",
-                            blockEntity.getType(),
-                            blockEntity.getBlockPos());
-                    break;
-                }
-                throw e;
-            } catch (Exception e) {
-                LOGGER.error(
-                        "Failed while accelerating block entity {} at {}",
-                        blockEntity.getType(),
-                        blockEntity.getBlockPos(),
-                        e);
+        int additionalTicks = speed - 1;
+        if (additionalTicks <= 0) {
+            return;
+        }
+        if (blockEntity instanceof DataRipperBatchTickable batchTickable) {
+            invokeBlockEntityTickSafely(blockEntity, () -> batchTickable.advanceAdditionalTicks(additionalTicks));
+            return;
+        }
+
+        for (int i = 0; i < additionalTicks; i++) {
+            if (!invokeBlockEntityTickSafely(
+                    blockEntity,
+                    () -> ticker.tick(
+                            blockEntity.getLevel(),
+                            blockEntity.getBlockPos(),
+                            blockEntity.getBlockState(),
+                            blockEntity))) {
                 break;
             }
+        }
+    }
+
+    private boolean invokeBlockEntityTickSafely(BlockEntity blockEntity, Runnable tick) {
+        try {
+            tick.run();
+            return true;
+        } catch (IllegalStateException e) {
+            if (e.getMessage() != null && e.getMessage().contains("LegacyRandomSource")) {
+                LOGGER.warn(
+                        "Detected random access conflict while accelerating block entity {} at {}. Stopping this acceleration pass.",
+                        blockEntity.getType(),
+                        blockEntity.getBlockPos());
+                return false;
+            }
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error(
+                    "Failed while accelerating block entity {} at {}",
+                    blockEntity.getType(),
+                    blockEntity.getBlockPos(),
+                    e);
+            return false;
         }
     }
 
@@ -469,10 +492,14 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
             inventory.extract(DataFlowKey.of(), requiredDataFlow, Actionable.MODULATE, IActionSource.ofMachine(this));
             this.setNetworkEnergySufficient(true);
             return true;
-        } catch (Throwable ignored) {}
-
-        this.setNetworkEnergySufficient(false);
-        return false;
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Failed to extract {} Data Flow for accelerated ticks",
+                    requiredDataFlow,
+                    exception);
+            this.setNetworkEnergySufficient(false);
+            return false;
+        }
     }
 
     private record GridTickTarget(IGridNode node, IGridTickable tickable) {}
