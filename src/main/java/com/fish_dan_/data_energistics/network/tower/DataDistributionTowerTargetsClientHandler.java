@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.tower;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

@@ -10,10 +10,10 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsPayload;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsReceiver;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsSnapshot;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsReceiver;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsSnapshot;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;

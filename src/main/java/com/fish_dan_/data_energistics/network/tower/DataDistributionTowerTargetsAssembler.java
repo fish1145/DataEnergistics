@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.tower;
 
 import java.util.ArrayList;
 import java.util.HashMap;

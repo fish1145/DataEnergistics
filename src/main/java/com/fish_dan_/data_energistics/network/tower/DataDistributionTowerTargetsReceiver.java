@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.tower;
 
 /**
  * Narrow menu contract for accepting a complete Data Distribution Tower target snapshot.

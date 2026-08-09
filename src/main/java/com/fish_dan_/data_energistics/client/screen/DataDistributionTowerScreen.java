@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnect
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
