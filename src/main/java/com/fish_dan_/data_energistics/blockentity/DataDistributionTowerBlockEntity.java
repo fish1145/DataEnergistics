@@ -4,12 +4,11 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.tower.CachedTowerEnergyEndpointResolver;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributor;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyTransferEngine;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
@@ -166,7 +165,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, TowerBinding> towerBindings = new LinkedHashMap<>();
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
     private final TowerEnergyEndpointResolver energyEndpointResolver;
-    private final TowerEnergyDistributor energyDistributor;
+    private final TowerEnergyTransferEngine energyDistributor;
     private final TowerTargetSummaryResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
@@ -238,7 +237,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
         this.energyEndpointResolver = new CachedTowerEnergyEndpointResolver(
                 this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
-        this.energyDistributor = new TowerEnergyDistributorImpl(
+        this.energyDistributor = new TowerEnergyTransferEngine(
                 this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
         this.targetDisplayResolver = new TowerTargetSummaryResolver(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));

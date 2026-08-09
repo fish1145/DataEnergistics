@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class TowerEnergyDistributorImplTest {
+class TowerEnergyTransferEngineTest {
 
     private static final BlockPos FIRST_POS = new BlockPos(1, 0, 0);
     private static final BlockPos SECOND_POS = new BlockPos(2, 0, 0);
@@ -34,7 +34,7 @@ class TowerEnergyDistributorImplTest {
     void drainsTheFrozenQuotaEvenWhenEachOperationCanMoveOnlyOneFe() {
         TestEnergyStorage source = TestEnergyStorage.source(12, 1);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(12, 1);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)));
 
@@ -51,7 +51,7 @@ class TowerEnergyDistributorImplTest {
     void repeatedlyCallsStandardCapabilitiesWhenNoUnlimitedPlanIsAvailable() {
         TestEnergyStorage source = TestEnergyStorage.source(12, 1);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(12, 1);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new FallbackUnlimitedEnergyAccess());
@@ -70,7 +70,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage failedReceiver = TestEnergyStorage.receiver(5, Long.MAX_VALUE);
         TestEnergyStorage untouchedReceiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, failedReceiver), endpoint(SECOND_POS, untouchedReceiver)),
                 new UnknownMutationUnlimitedEnergyAccess(failedReceiver, UnknownOperation.INSERT),
@@ -94,7 +94,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage untouchedSource = TestEnergyStorage.source(7, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(17, Long.MAX_VALUE);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, failedSource), endpoint(SECOND_POS, untouchedSource)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new UnknownMutationUnlimitedEnergyAccess(failedSource, UnknownOperation.EXTRACT),
@@ -118,7 +118,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 3);
         receiver.reportFullInsertionDuringSimulation();
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new UnknownMutationUnlimitedEnergyAccess(source, UnknownOperation.ROLLBACK),
@@ -141,7 +141,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new TestUnlimitedEnergyAccess(),
@@ -160,7 +160,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage second = TestEnergyStorage.bidirectional(5, 100);
         TowerEnergyEndpoint firstEndpoint = endpoint(FIRST_POS, first);
         TowerEnergyEndpoint secondEndpoint = endpoint(SECOND_POS, second);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(firstEndpoint, secondEndpoint),
                 List.of(firstEndpoint, secondEndpoint));
 
@@ -179,7 +179,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage source = TestEnergyStorage.source(amount, amount);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(amount, amount);
         TestOpEnergyAccess opEnergyAccess = new TestOpEnergyAccess(source, receiver);
-        TowerEnergyDistributorImpl distributor = new TowerEnergyDistributorImpl(
+        TowerEnergyTransferEngine distributor = new TowerEnergyTransferEngine(
                 new TestContext(),
                 new TestEndpointResolver(
                         List.of(endpoint(FIRST_POS, source)),
@@ -204,7 +204,7 @@ class TowerEnergyDistributorImplTest {
         TestOpEnergyAccess opEnergyAccess = new TestOpEnergyAccess(source, receiver);
         opEnergyAccess.failInsertionAfterMutation(receiver);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = new TowerEnergyDistributorImpl(
+        TowerEnergyTransferEngine distributor = new TowerEnergyTransferEngine(
                 context,
                 new TestEndpointResolver(
                         List.of(endpoint(FIRST_POS, source)),
@@ -229,7 +229,7 @@ class TowerEnergyDistributorImplTest {
         TestOpEnergyAccess opEnergyAccess = new TestOpEnergyAccess(source, receiver);
         opEnergyAccess.failExtractionAfterMutation(source);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = new TowerEnergyDistributorImpl(
+        TowerEnergyTransferEngine distributor = new TowerEnergyTransferEngine(
                 context,
                 new TestEndpointResolver(
                         List.of(endpoint(FIRST_POS, source)),
@@ -252,7 +252,7 @@ class TowerEnergyDistributorImplTest {
         long amount = 4_000_000_000L;
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(amount);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(amount, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = new TowerEnergyDistributorImpl(
+        TowerEnergyTransferEngine distributor = new TowerEnergyTransferEngine(
                 new TestContext(),
                 new TestEndpointResolver(List.of(), List.of(endpoint(RECEIVER_POS, receiver))),
                 NO_OP_ENERGY_ACCESS,
@@ -276,7 +276,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(amount);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(amount, accepted);
         receiver.reportFullInsertionDuringSimulation();
-        TowerEnergyDistributorImpl distributor = new TowerEnergyDistributorImpl(
+        TowerEnergyTransferEngine distributor = new TowerEnergyTransferEngine(
                 new TestContext(),
                 new TestEndpointResolver(List.of(), List.of(endpoint(RECEIVER_POS, receiver))),
                 NO_OP_ENERGY_ACCESS,
@@ -297,7 +297,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.failExtraction();
         TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(
+        TowerEnergyTransferEngine distributor = createGridDistributor(
                 List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
 
         int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
@@ -312,7 +312,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.failExtraction(new AssertionError("Deliberate AppFlux assertion failure"));
         TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(
+        TowerEnergyTransferEngine distributor = createGridDistributor(
                 List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
 
         int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
@@ -327,7 +327,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.failExtraction(new Exception("Deliberate AppFlux checked failure"));
         TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(
+        TowerEnergyTransferEngine distributor = createGridDistributor(
                 List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
 
         int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
@@ -342,7 +342,7 @@ class TowerEnergyDistributorImplTest {
         TestVirtualMachineError failure = new TestVirtualMachineError("Deliberate fatal AppFlux failure");
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.failExtraction(failure);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+        TowerEnergyTransferEngine distributor = createGridDistributor(List.of(), gridEnergy);
 
         TestVirtualMachineError thrown = assertThrows(TestVirtualMachineError.class,
                 () -> distributor.extractGridEnergy(1L, false, "fatal throwable test"));
@@ -355,7 +355,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.returnExtractionResult(-1L);
         TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(
+        TowerEnergyTransferEngine distributor = createGridDistributor(
                 List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
 
         int extracted = distributor.extractEnergyFromRange(10, false, null);
@@ -370,7 +370,7 @@ class TowerEnergyDistributorImplTest {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.returnExtractionResult(11L);
         TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(
+        TowerEnergyTransferEngine distributor = createGridDistributor(
                 List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
 
         int extracted = distributor.extractEnergyFromRange(10, false, null);
@@ -384,7 +384,7 @@ class TowerEnergyDistributorImplTest {
     void guardedAppFluxExtractionPreservesLongWidth() {
         long amount = 4_000_000_000L;
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(amount);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+        TowerEnergyTransferEngine distributor = createGridDistributor(List.of(), gridEnergy);
 
         long extracted = distributor.extractGridEnergy(Long.MAX_VALUE, true, "long-width query test");
 
@@ -397,7 +397,7 @@ class TowerEnergyDistributorImplTest {
     void stopsWhenReceiversCannotMakeProgress() {
         TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 0);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)));
 
@@ -414,7 +414,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 3);
         receiver.reportFullInsertionDuringSimulation();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)));
 
@@ -434,7 +434,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 0);
         receiver.reportFullInsertionDuringSimulation();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)));
 
@@ -456,7 +456,7 @@ class TowerEnergyDistributorImplTest {
         receiver.reportFullInsertionDuringSimulation();
         receiver.stopRealInsertionAfterFirstAttempt();
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new FallbackUnlimitedEnergyAccess(),
@@ -485,7 +485,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 0);
         receiver.reportFullInsertionDuringSimulation();
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new FallbackUnlimitedEnergyAccess(),
@@ -514,7 +514,7 @@ class TowerEnergyDistributorImplTest {
         source.throwOnRealExtractionAttempt(2);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new FallbackUnlimitedEnergyAccess(),
@@ -537,7 +537,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 5);
         receiver.throwOnRealInsertionAttempt(2);
         TestContext context = new TestContext();
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(RECEIVER_POS, receiver)),
                 new FallbackUnlimitedEnergyAccess(),
@@ -566,7 +566,7 @@ class TowerEnergyDistributorImplTest {
     void exposesAndExtractsEscrowWithoutAnyEnergyEndpoints() {
         TestContext context = new TestContext();
         context.setBufferedTransferEnergy(10L);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(),
                 List.of(),
                 new FallbackUnlimitedEnergyAccess(),
@@ -592,7 +592,7 @@ class TowerEnergyDistributorImplTest {
         failingSource.failExtraction();
         TestEnergyStorage healthySource = TestEnergyStorage.source(7, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(11, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, failingSource), endpoint(SECOND_POS, healthySource)),
                 List.of(endpoint(RECEIVER_POS, receiver)));
 
@@ -614,7 +614,7 @@ class TowerEnergyDistributorImplTest {
         invalidReceiver.returnInvalidInsertion();
         TestEnergyStorage zeroProgressReceiver = TestEnergyStorage.receiver(11, 0);
         TestEnergyStorage healthyReceiver = TestEnergyStorage.receiver(11, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, firstSource), endpoint(SECOND_POS, secondSource)),
                 List.of(
                         endpoint(new BlockPos(3, 0, 0), throwingReceiver),
@@ -636,7 +636,7 @@ class TowerEnergyDistributorImplTest {
         TestEnergyStorage throwingReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
         throwingReceiver.failInsertion(new AssertionError("Deliberate capability assertion failure"));
         TestEnergyStorage healthyReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
-        TowerEnergyDistributorImpl distributor = createDistributor(
+        TowerEnergyTransferEngine distributor = createDistributor(
                 List.of(endpoint(FIRST_POS, source)),
                 List.of(endpoint(SECOND_POS, throwingReceiver), endpoint(RECEIVER_POS, healthyReceiver)),
                 new FallbackUnlimitedEnergyAccess());
@@ -649,22 +649,22 @@ class TowerEnergyDistributorImplTest {
         assertEquals(1, throwingReceiver.insertAttempts());
     }
 
-    private static TowerEnergyDistributorImpl createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
-                                                                List<TowerEnergyEndpoint> receiveEndpoints) {
+    private static TowerEnergyTransferEngine createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
+                                                               List<TowerEnergyEndpoint> receiveEndpoints) {
         return createDistributor(extractEndpoints, receiveEndpoints, new TestUnlimitedEnergyAccess());
     }
 
-    private static TowerEnergyDistributorImpl createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
-                                                                List<TowerEnergyEndpoint> receiveEndpoints,
-                                                                UnlimitedEnergyAccess unlimitedEnergyAccess) {
+    private static TowerEnergyTransferEngine createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
+                                                               List<TowerEnergyEndpoint> receiveEndpoints,
+                                                               UnlimitedEnergyAccess unlimitedEnergyAccess) {
         return createDistributor(extractEndpoints, receiveEndpoints, unlimitedEnergyAccess, new TestContext());
     }
 
-    private static TowerEnergyDistributorImpl createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
-                                                                List<TowerEnergyEndpoint> receiveEndpoints,
-                                                                UnlimitedEnergyAccess unlimitedEnergyAccess,
-                                                                TestContext context) {
-        return new TowerEnergyDistributorImpl(
+    private static TowerEnergyTransferEngine createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
+                                                               List<TowerEnergyEndpoint> receiveEndpoints,
+                                                               UnlimitedEnergyAccess unlimitedEnergyAccess,
+                                                               TestContext context) {
+        return new TowerEnergyTransferEngine(
                 context,
                 new TestEndpointResolver(extractEndpoints, receiveEndpoints),
                 NO_OP_ENERGY_ACCESS,
@@ -673,10 +673,10 @@ class TowerEnergyDistributorImplTest {
                 new TestGridEnergyAccess(0));
     }
 
-    private static TowerEnergyDistributorImpl createGridDistributor(
-                                                                    List<TowerEnergyEndpoint> extractEndpoints,
-                                                                    TestGridEnergyAccess gridEnergyAccess) {
-        return new TowerEnergyDistributorImpl(
+    private static TowerEnergyTransferEngine createGridDistributor(
+                                                                   List<TowerEnergyEndpoint> extractEndpoints,
+                                                                   TestGridEnergyAccess gridEnergyAccess) {
+        return new TowerEnergyTransferEngine(
                 new TestContext(),
                 new TestEndpointResolver(extractEndpoints, List.of()),
                 NO_OP_ENERGY_ACCESS,

@@ -7,7 +7,7 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Supplies block-entity-owned state required by {@link TowerEnergyDistributorImpl}.
+ * Supplies block-entity-owned state required by {@link TowerEnergyTransferEngine}.
  *
  * <p>
  * The distributor owns transfer logic, while the context keeps world access, AE flux host access, and diagnostic

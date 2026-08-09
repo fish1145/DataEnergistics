@@ -25,9 +25,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default active FE balancing implementation for Data Distribution Towers.
+ * Performs active FE balancing for a Data Distribution Tower cluster.
+ *
+ * <p>
+ * The engine owns transfer scan caches, simulated extraction caches, and round-robin cursors so the block entity can
+ * expose energy capability behavior without embedding the transfer algorithm.
+ * </p>
  */
-public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor {
+public final class TowerEnergyTransferEngine {
 
     private static final int MAX_CURSOR_ENTRIES = 128;
 
@@ -52,9 +57,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
      * @param endpointResolver      endpoint resolver used for side probing and caching
      * @param unlimitedEnergyAccess rate-limit-free storage access bridge
      */
-    public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                                      TowerEnergyEndpointResolver endpointResolver,
-                                      UnlimitedEnergyAccess unlimitedEnergyAccess) {
+    public TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                                     TowerEnergyEndpointResolver endpointResolver,
+                                     UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
                 ModFlags.isAppFluxEnergySupportLoaded(),
                 new AppFluxTowerGridEnergyAccess());
@@ -68,48 +73,48 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
      * @param brandonsCoreEnergyBridge direct long-width OP access
      * @param unlimitedEnergyAccess    rate-limit-free non-OP storage access
      */
-    public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                                      TowerEnergyEndpointResolver endpointResolver,
-                                      BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
-                                      UnlimitedEnergyAccess unlimitedEnergyAccess) {
+    public TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                                     TowerEnergyEndpointResolver endpointResolver,
+                                     BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                                     UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this(context, endpointResolver, brandonsCoreEnergyBridge, unlimitedEnergyAccess,
                 ModFlags.isAppFluxEnergySupportLoaded(), new AppFluxTowerGridEnergyAccess());
     }
 
-    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                               TowerEnergyEndpointResolver endpointResolver,
-                               UnlimitedEnergyAccess unlimitedEnergyAccess,
-                               boolean appFluxEnergySupportLoaded) {
+    TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                              TowerEnergyEndpointResolver endpointResolver,
+                              UnlimitedEnergyAccess unlimitedEnergyAccess,
+                              boolean appFluxEnergySupportLoaded) {
         this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
                 appFluxEnergySupportLoaded,
                 new AppFluxTowerGridEnergyAccess());
     }
 
-    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                               TowerEnergyEndpointResolver endpointResolver,
-                               UnlimitedEnergyAccess unlimitedEnergyAccess,
-                               boolean appFluxEnergySupportLoaded,
-                               TowerGridEnergyAccess gridEnergyAccess) {
+    TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                              TowerEnergyEndpointResolver endpointResolver,
+                              UnlimitedEnergyAccess unlimitedEnergyAccess,
+                              boolean appFluxEnergySupportLoaded,
+                              TowerGridEnergyAccess gridEnergyAccess) {
         this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
                 appFluxEnergySupportLoaded, gridEnergyAccess);
     }
 
-    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                               TowerEnergyEndpointResolver endpointResolver,
-                               BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
-                               UnlimitedEnergyAccess unlimitedEnergyAccess,
-                               boolean appFluxEnergySupportLoaded,
-                               TowerGridEnergyAccess gridEnergyAccess) {
+    TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                              TowerEnergyEndpointResolver endpointResolver,
+                              BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                              UnlimitedEnergyAccess unlimitedEnergyAccess,
+                              boolean appFluxEnergySupportLoaded,
+                              TowerGridEnergyAccess gridEnergyAccess) {
         this(context, endpointResolver, new BrandonsCoreTowerOpEnergyAccess(brandonsCoreEnergyBridge), unlimitedEnergyAccess,
                 appFluxEnergySupportLoaded, gridEnergyAccess);
     }
 
-    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
-                               TowerEnergyEndpointResolver endpointResolver,
-                               TowerOpEnergyAccess opEnergyAccess,
-                               UnlimitedEnergyAccess unlimitedEnergyAccess,
-                               boolean appFluxEnergySupportLoaded,
-                               TowerGridEnergyAccess gridEnergyAccess) {
+    TowerEnergyTransferEngine(TowerEnergyDistributorContext context,
+                              TowerEnergyEndpointResolver endpointResolver,
+                              TowerOpEnergyAccess opEnergyAccess,
+                              UnlimitedEnergyAccess unlimitedEnergyAccess,
+                              boolean appFluxEnergySupportLoaded,
+                              TowerGridEnergyAccess gridEnergyAccess) {
         this.context = context;
         this.endpointResolver = endpointResolver;
         this.opEnergyAccess = opEnergyAccess;
@@ -118,7 +123,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         this.gridEnergyAccess = gridEnergyAccess;
     }
 
-    @Override
+    /**
+     * Runs one active range transfer tick for the cluster coordinator.
+     *
+     * @return true when at least one FE transfer completed
+     */
     public boolean performActiveRangeTransfer() {
         if (!this.context.isTowerActive() || this.context.quarantinedTransferEnergy() > 0) {
             return false;
@@ -171,7 +180,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return transferred;
     }
 
-    @Override
+    /**
+     * Attempts to deliver energy retained by the owning tower after an incomplete transfer.
+     *
+     * @return true when buffered FE was delivered
+     */
     public boolean flushBufferedEnergy() {
         long bufferedEnergy = this.context.bufferedTransferEnergy();
         if (!this.context.isTowerActive() || bufferedEnergy <= 0 || this.context.quarantinedTransferEnergy() > 0) {
@@ -387,14 +400,28 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return false;
     }
 
-    @Override
+    /**
+     * Inserts FE into receiver endpoints in range.
+     *
+     * @param amount      requested FE amount
+     * @param simulate    true for simulation
+     * @param excludedPos target position to exclude, or null
+     * @return inserted amount
+     */
     public long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
         Set<IEnergyStorage> stalledReceiveStorages = Collections.newSetFromMap(new IdentityHashMap<>());
         return distributeEnergyInRange(amount, simulate, excludedPos,
                 this.endpointResolver.getCachedResolvedEnergyEndpoints(true), stalledReceiveStorages);
     }
 
-    @Override
+    /**
+     * Extracts FE from source endpoints and optional AE flux storage.
+     *
+     * @param amount      requested FE amount
+     * @param simulate    true for simulation
+     * @param excludedPos target position to exclude, or null
+     * @return extracted amount clamped to integer storage limits
+     */
     public int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
         if (simulate) {
             return getCachedSimulatedExtract(amount, excludedPos);
@@ -402,32 +429,59 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return clampStoredAmount(extractEnergyFromRangeLong(amount, false, excludedPos));
     }
 
-    @Override
+    /**
+     * Returns total extractable FE for UI/capability queries.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return extractable FE
+     */
     public long getTotalExtractableEnergy(@Nullable BlockPos excludedPos) {
         return getExtractQuerySummary(excludedPos).totalStored();
     }
 
-    @Override
+    /**
+     * Returns total FE capacity for source endpoints.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return FE capacity
+     */
     public long getTotalEnergyCapacity(@Nullable BlockPos excludedPos) {
         return getExtractQuerySummary(excludedPos).totalCapacity();
     }
 
-    @Override
+    /**
+     * Returns the FE that receiver endpoints can currently accept.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return currently receivable FE
+     */
     public long getTotalReceivableEnergy(@Nullable BlockPos excludedPos) {
         return getReceiveQuerySummary(excludedPos).totalReceivable();
     }
 
-    @Override
+    /**
+     * Checks whether any receiver endpoint is available.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return true when energy can be inserted somewhere
+     */
     public boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
         return getReceiveQuerySummary(excludedPos).hasReceiver();
     }
 
-    @Override
+    /**
+     * Checks whether any source endpoint or AE flux source is available.
+     *
+     * @param excludedPos target position to exclude, or null
+     * @return true when energy can be extracted somewhere
+     */
     public boolean hasAnySource(@Nullable BlockPos excludedPos) {
         return getExtractQuerySummary(excludedPos).hasSource();
     }
 
-    @Override
+    /**
+     * Clears transfer and query caches after storage state changes.
+     */
     public void invalidateEnergyQueryCache() {
         this.cachedExtractQuerySummaries.clear();
         this.cachedReceiveQuerySummaries.clear();
@@ -435,14 +489,18 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         this.cachedSimulatedExtractTick = Long.MIN_VALUE;
     }
 
-    @Override
+    /**
+     * Clears cursor state and dependent transfer caches after endpoint topology changes.
+     */
     public void invalidateResolvedEndpointCache() {
         this.extractRoundRobinCursor.clear();
         this.receiveRoundRobinCursor.clear();
         invalidateEnergyQueryCache();
     }
 
-    @Override
+    /**
+     * Trims bounded caches used by round-robin and query summaries.
+     */
     public void trimCaches() {
         if (this.extractRoundRobinCursor.size() > MAX_CURSOR_ENTRIES) {
             this.extractRoundRobinCursor.clear();
@@ -1277,9 +1335,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
         private long extract(long amount, boolean simulate) {
             if (this.endpoint == null) {
-                return TowerEnergyDistributorImpl.this.extractGridEnergy(amount, simulate, "active source transfer");
+                return TowerEnergyTransferEngine.this.extractGridEnergy(amount, simulate, "active source transfer");
             }
-            EndpointTransferResult result = TowerEnergyDistributorImpl.this.extractEnergyFromEndpointResult(
+            EndpointTransferResult result = TowerEnergyTransferEngine.this.extractEnergyFromEndpointResult(
                     this.endpoint, amount, simulate);
             this.stalled |= result.stalled();
             return result.amount();
@@ -1287,15 +1345,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
         private long rollbackExtraction(long amount) {
             if (this.endpoint == null) {
-                return TowerEnergyDistributorImpl.this.gridEnergyAccess.restore(
-                        TowerEnergyDistributorImpl.this.context.aeNetworkHost(), amount);
+                return TowerEnergyTransferEngine.this.gridEnergyAccess.restore(
+                        TowerEnergyTransferEngine.this.context.aeNetworkHost(), amount);
             }
 
             IEnergyStorage storage = this.endpoint.storage();
-            Level level = TowerEnergyDistributorImpl.this.context.level();
+            Level level = TowerEnergyTransferEngine.this.context.level();
             long restored;
-            if (TowerEnergyDistributorImpl.this.opEnergyAccess.supports(storage)) {
-                restored = TowerEnergyDistributorImpl.this.opEnergyAccess.insert(storage, amount, false);
+            if (TowerEnergyTransferEngine.this.opEnergyAccess.supports(storage)) {
+                restored = TowerEnergyTransferEngine.this.opEnergyAccess.insert(storage, amount, false);
             } else if (level != null && MekanismEnergyAccess.supports(
                     level, this.endpoint.pos(), this.endpoint.side(), storage)) {
                         restored = MekanismEnergyAccess.compensateExtraction(
@@ -1304,17 +1362,17 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                 storage,
                                 amount);
                     } else {
-                        restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+                        restored = TowerEnergyTransferEngine.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
                     }
             if (restored > 0) {
-                TowerEnergyDistributorImpl.this.publishMutation(this.endpoint, storage, "source compensation");
+                TowerEnergyTransferEngine.this.publishMutation(this.endpoint, storage, "source compensation");
             }
             return restored;
         }
 
         private void publishFailedMutation(String operation) {
             if (this.endpoint != null) {
-                TowerEnergyDistributorImpl.this.publishFailedMutation(
+                TowerEnergyTransferEngine.this.publishFailedMutation(
                         this.endpoint, this.endpoint.storage(), operation);
             }
         }
