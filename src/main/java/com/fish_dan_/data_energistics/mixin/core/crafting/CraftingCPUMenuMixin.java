@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core;
+package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 

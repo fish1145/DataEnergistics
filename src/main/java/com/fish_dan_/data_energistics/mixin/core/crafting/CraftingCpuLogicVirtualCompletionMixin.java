@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core;
+package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
