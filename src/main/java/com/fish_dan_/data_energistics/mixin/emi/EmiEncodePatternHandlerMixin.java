@@ -88,7 +88,7 @@ public abstract class EmiEncodePatternHandlerMixin {
         if (transferMode == EncodingMode.PROCESSING) {
             PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
         } else {
-            PatternEncodingPreferencesClient.captureTransferredRecipe(menu);
+            PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
         }
     }
 }

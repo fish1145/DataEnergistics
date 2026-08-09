@@ -66,7 +66,7 @@ public abstract class RecipeTransferUtilMixin {
             if (transferMode == EncodingMode.PROCESSING) {
                 PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, context);
             } else {
-                PatternEncodingPreferencesClient.captureTransferredRecipe(menu);
+                PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
             }
         }
         return result;
