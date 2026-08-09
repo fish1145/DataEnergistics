@@ -15,7 +15,6 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -32,7 +31,7 @@ import java.util.Map;
  * registration.
  * </p>
  */
-final class DataEnergisticsRegistryImpl {
+final class PluginRegistrationAccumulator {
 
     private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
     private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
@@ -70,6 +69,7 @@ final class DataEnergisticsRegistryImpl {
         }
         for (PatternProviderRegistration registration : staging.patternProviders.values()) {
             ProviderIdentityDescriptor identity = registration.metadata().providerIdentity();
+            @Nullable
             ResourceLocation existingId = this.patternProviderIdentities.get(identity);
             if (existingId != null) {
                 throw new IllegalStateException("Duplicate pattern provider identity '" + identity + "' from " + staging.description() + "; already registered as '" + existingId + "'");
@@ -130,7 +130,7 @@ final class DataEnergisticsRegistryImpl {
      */
     static final class PluginStaging implements DataEnergisticsRegistry {
 
-        private final DataEnergisticsRegistryImpl owner;
+        private final PluginRegistrationAccumulator owner;
         private final String owningModId;
         private final String pluginClassName;
         private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
@@ -148,34 +148,34 @@ final class DataEnergisticsRegistryImpl {
         /**
          * Captures plugin ownership so every registration failure has actionable context.
          */
-        private PluginStaging(DataEnergisticsRegistryImpl owner, String owningModId, String pluginClassName) {
+        private PluginStaging(PluginRegistrationAccumulator owner, String owningModId, String pluginClassName) {
             this.owner = owner;
             this.owningModId = owningModId;
             this.pluginClassName = pluginClassName;
         }
 
         @Override
-        public @NotNull UniversalTerminalRegistry universalTerminals() {
+        public UniversalTerminalRegistry universalTerminals() {
             return this.universalTerminalRegistry;
         }
 
         @Override
-        public @NotNull PatternProviderRegistry patternProviders() {
+        public PatternProviderRegistry patternProviders() {
             return this.patternProviderRegistry;
         }
 
         @Override
-        public @NotNull AdaptivePatternProviderRegistry adaptivePatternProviders() {
+        public AdaptivePatternProviderRegistry adaptivePatternProviders() {
             return this.adaptivePatternProviderRegistry;
         }
 
         @Override
-        public @NotNull TrinityPatternRecipeIdRegistry trinityPatternRecipes() {
+        public TrinityPatternRecipeIdRegistry trinityPatternRecipes() {
             return this.trinityPatternRecipeIdRegistry;
         }
 
         @Override
-        public @NotNull VirtualCraftingRegistry virtualCrafting() {
+        public VirtualCraftingRegistry virtualCrafting() {
             return this.virtualCraftingRegistry;
         }
 
@@ -197,7 +197,7 @@ final class DataEnergisticsRegistryImpl {
         /**
          * Verifies that a loader did not accidentally commit this staging transaction through another accumulator.
          */
-        private void requireOwnedBy(DataEnergisticsRegistryImpl expectedOwner) {
+        private void requireOwnedBy(PluginRegistrationAccumulator expectedOwner) {
             if (this.owner != expectedOwner) {
                 throw new IllegalArgumentException("Plugin staging transaction belongs to a different registry");
             }
@@ -229,7 +229,7 @@ final class DataEnergisticsRegistryImpl {
         /**
          * Rejects an invalid plugin value before it can poison a committed global snapshot.
          */
-        private <T> @NotNull T requireStagedValue(@Nullable T value, @NotNull String role) {
+        private <T> T requireStagedValue(@Nullable T value, String role) {
             if (value == null) {
                 throw new IllegalArgumentException(role + " must not be null in " + this.description());
             }
@@ -242,7 +242,7 @@ final class DataEnergisticsRegistryImpl {
         private final class StagedUniversalTerminalRegistry implements UniversalTerminalRegistry {
 
             @Override
-            public void register(@NotNull UniversalTerminalRegistration registration) {
+            public void register(UniversalTerminalRegistration registration) {
                 requireOpen();
                 registration = requireStagedValue(registration, "Universal terminal registration");
                 String terminalName = registration.name();
@@ -258,7 +258,7 @@ final class DataEnergisticsRegistryImpl {
         private final class StagedPatternProviderRegistry implements PatternProviderRegistry {
 
             @Override
-            public void register(@NotNull PatternProviderRegistration registration) {
+            public void register(PatternProviderRegistration registration) {
                 requireOpen();
                 registration = requireStagedValue(registration, "Pattern provider registration");
                 var metadata = requireStagedValue(registration.metadata(), "Pattern provider metadata");
@@ -284,7 +284,7 @@ final class DataEnergisticsRegistryImpl {
         private final class StagedAdaptivePatternProviderRegistry implements AdaptivePatternProviderRegistry {
 
             @Override
-            public void register(@NotNull AdaptivePatternProviderRegistration registration) {
+            public void register(AdaptivePatternProviderRegistration registration) {
                 requireOpen();
                 registration = requireStagedValue(registration, "Adaptive pattern provider registration");
                 ResourceLocation registrationId = requireStagedValue(
@@ -302,7 +302,7 @@ final class DataEnergisticsRegistryImpl {
         private final class StagedTrinityPatternRecipeIdRegistry implements TrinityPatternRecipeIdRegistry {
 
             @Override
-            public void register(@NotNull TrinityPatternRecipeIdResolver resolver) {
+            public void register(TrinityPatternRecipeIdResolver resolver) {
                 requireOpen();
                 resolver = requireStagedValue(resolver, "Trinity pattern recipe resolver");
                 ResourceLocation resolverId = requireStagedValue(
@@ -319,7 +319,7 @@ final class DataEnergisticsRegistryImpl {
         private final class StagedVirtualCraftingRegistry implements VirtualCraftingRegistry {
 
             @Override
-            public void registerOutputAdapter(@NotNull VirtualCraftingOutputAdapter adapter) {
+            public void registerOutputAdapter(VirtualCraftingOutputAdapter adapter) {
                 requireOpen();
                 VirtualCraftingOutputAdapter stagedAdapter = requireStagedValue(adapter, "Virtual crafting output adapter");
                 if (virtualCraftingOutputAdapters.stream().anyMatch(existing -> existing == stagedAdapter)) {

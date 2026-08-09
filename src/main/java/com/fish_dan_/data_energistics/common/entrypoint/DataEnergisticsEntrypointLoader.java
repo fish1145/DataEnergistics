@@ -9,6 +9,8 @@ import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
@@ -29,7 +31,7 @@ import java.util.function.Predicate;
 public final class DataEnergisticsEntrypointLoader {
 
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
-    private static volatile DataEnergisticsRegistrySnapshot publishedSnapshot;
+    private static volatile @Nullable DataEnergisticsRegistrySnapshot publishedSnapshot;
 
     private DataEnergisticsEntrypointLoader() {}
 
@@ -43,11 +45,12 @@ public final class DataEnergisticsEntrypointLoader {
             throw new IllegalStateException("Data Energistics entrypoints have already been initialized");
         }
 
-        DataEnergisticsRegistryImpl registry = new DataEnergisticsRegistryImpl();
+        PluginRegistrationAccumulator registry = new PluginRegistrationAccumulator();
         List<EntrypointCandidate> candidates = discoverCandidates();
         int loaded = 0;
         for (EntrypointCandidate candidate : candidates) {
-            DataEnergisticsRegistryImpl.PluginStaging staging = null;
+            @Nullable
+            PluginRegistrationAccumulator.PluginStaging staging = null;
             try {
                 DataEnergisticsPlugin plugin = instantiate(candidate);
                 staging = registry.createStaging(candidate.owningModId(), candidate.className());
@@ -142,6 +145,7 @@ public final class DataEnergisticsEntrypointLoader {
      * Decodes the marker's string-array member without resolving the annotated plugin class.
      */
     static List<String> requiredMods(ModFileScanData.AnnotationData annotation) {
+        @Nullable
         Object encoded = annotation.annotationData().get(REQUIRED_MODS_MEMBER);
         if (encoded == null) {
             return List.of();
