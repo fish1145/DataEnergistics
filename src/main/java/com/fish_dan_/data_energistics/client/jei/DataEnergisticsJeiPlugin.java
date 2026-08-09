@@ -7,8 +7,8 @@ import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngre
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
-import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
-import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;

@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackSerializer;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
-import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;

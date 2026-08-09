@@ -1,7 +1,7 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
-import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
+import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,15 +27,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 
-public class DataMimeticFieldOutputSideScreen extends AESubScreen<DataMimeticFieldMenu, DataMimeticFieldScreen> {
+public class DataExtractorOutputSideScreen extends AESubScreen<DataExtractorMenu, DataExtractorScreen> {
 
     private final EnumMap<Direction, OutputSideDisplayButton> buttons = new EnumMap<>(Direction.class);
 
-    public DataMimeticFieldOutputSideScreen(
-                                            DataMimeticFieldScreen parent,
-                                            AEBaseBlockEntity host,
-                                            List<Direction> selectedSides,
-                                            BiConsumer<Direction, Boolean> setter) {
+    public DataExtractorOutputSideScreen(
+                                         DataExtractorScreen parent,
+                                         AEBaseBlockEntity host,
+                                         List<Direction> selectedSides,
+                                         BiConsumer<Direction, Boolean> setter) {
         super(parent, "/screens/data_ripper_output_sides.json");
 
         ItemStack icon = new ItemStack(host.getBlockState().getBlock());

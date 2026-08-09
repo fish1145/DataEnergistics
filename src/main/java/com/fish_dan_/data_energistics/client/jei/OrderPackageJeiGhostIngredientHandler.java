@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.client.OrderPackageGhostIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
-import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
 
 import net.minecraft.client.renderer.Rect2i;
