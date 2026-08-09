@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternprovider;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderMenuOpenAdapter;

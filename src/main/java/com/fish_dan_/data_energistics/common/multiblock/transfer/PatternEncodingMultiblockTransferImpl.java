@@ -13,8 +13,8 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreview
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferState;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import appeng.api.stacks.GenericStack;

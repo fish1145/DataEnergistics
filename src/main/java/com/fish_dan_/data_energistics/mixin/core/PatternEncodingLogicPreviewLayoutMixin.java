@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 
 import net.minecraft.core.HolderLookup;

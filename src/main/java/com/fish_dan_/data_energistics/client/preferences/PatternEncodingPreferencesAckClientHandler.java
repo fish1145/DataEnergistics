@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.client.preferences;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
 
 import net.minecraft.world.entity.player.Player;

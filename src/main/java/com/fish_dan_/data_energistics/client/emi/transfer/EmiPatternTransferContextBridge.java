@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi.transfer;
 
 import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.api.recipe.EmiRecipe;

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
+import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;

@@ -1,8 +1,6 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import net.minecraft.resources.ResourceLocation;
-
-import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
 
@@ -14,7 +12,7 @@ import java.nio.charset.StandardCharsets;
  * from provider metadata exposed by the current server grid.
  * </p>
  */
-public record PatternEncodingRankingContext(@NotNull ResourceLocation recipeTypeId) {
+public record PatternEncodingRankingContext(ResourceLocation recipeTypeId) {
 
     /**
      * Maximum UTF-8 bytes accepted for one registry identifier on the wire and in persistence.
@@ -31,7 +29,7 @@ public record PatternEncodingRankingContext(@NotNull ResourceLocation recipeType
     /**
      * Creates a validated context from the stable viewer recipe-type identifier.
      */
-    public static @NotNull PatternEncodingRankingContext of(@NotNull ResourceLocation recipeTypeId) {
+    public static PatternEncodingRankingContext of(ResourceLocation recipeTypeId) {
         return new PatternEncodingRankingContext(recipeTypeId);
     }
 

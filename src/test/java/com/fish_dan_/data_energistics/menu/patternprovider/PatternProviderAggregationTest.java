@@ -1,7 +1,9 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternprovider;
 
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.network.chat.Component;

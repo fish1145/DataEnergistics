@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.client.emi;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;

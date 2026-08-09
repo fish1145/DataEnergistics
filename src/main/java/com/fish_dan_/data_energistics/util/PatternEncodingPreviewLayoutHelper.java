@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 
 import net.minecraft.nbt.CompoundTag;
 

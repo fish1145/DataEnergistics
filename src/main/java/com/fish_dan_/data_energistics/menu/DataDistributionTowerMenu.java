@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
+import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsPayload;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsReceiver;

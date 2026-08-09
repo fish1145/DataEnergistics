@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternprovider;
+
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import java.util.regex.Pattern;
 

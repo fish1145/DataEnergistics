@@ -2,12 +2,12 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModRecipes;

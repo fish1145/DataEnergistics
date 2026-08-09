@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 
 import net.minecraft.network.chat.Component;
 

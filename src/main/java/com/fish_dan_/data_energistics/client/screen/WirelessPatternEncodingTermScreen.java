@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
-import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;

@@ -1,9 +1,8 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import net.minecraft.resources.ResourceLocation;
 
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -18,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 public interface PatternEncodingInheritedState {
 
     /** Returns the provider rows synchronized by the base menu. */
-    @NotNull
     PatternEncodingPreviewMenu.SyncedPatternProviderList dataEnergistics$getInheritedSyncedPatternProviders();
 
     /** Returns the pending workstation held by the base menu. */

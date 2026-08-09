@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei.transfer;
 
 import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import org.jetbrains.annotations.NotNull;

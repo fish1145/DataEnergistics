@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;

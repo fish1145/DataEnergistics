@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.network.PatternUploadSource;
 import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
@@ -10,7 +11,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -23,9 +23,9 @@ public final class PatternUploadRecorder {
     /**
      * Records exactly one successful operation against its first committed provider leaf.
      */
-    public static void record(@NotNull ServerPlayer player, @NotNull Object menu,
-                              @NotNull PatternProviderSyncHelper.PatternUploadTarget target,
-                              @NotNull PatternUploadSource source) {
+    public static void record(ServerPlayer player, Object menu,
+                              PatternProviderSyncHelper.PatternUploadTarget target,
+                              PatternUploadSource source) {
         if (!(menu instanceof PatternEncodingPreferenceMenu preferenceMenu) ||
                 !(menu instanceof PatternEncodingPreviewMenu previewMenu) ||
                 !(menu instanceof PatternEncodingSourceAware sourceAware)) {
@@ -45,11 +45,11 @@ public final class PatternUploadRecorder {
     /**
      * Records a committed upload against the context captured when an asynchronous handoff began.
      */
-    public static void record(@NotNull ServerPlayer player,
-                              @NotNull PatternEncodingPreferenceSession session,
+    public static void record(ServerPlayer player,
+                              PatternEncodingPreferenceSession session,
                               @Nullable PatternEncodingRankingContext rankingContext,
-                              @NotNull PatternProviderSyncHelper.PatternUploadTarget target,
-                              @NotNull PatternUploadSource source) {
+                              PatternProviderSyncHelper.PatternUploadTarget target,
+                              PatternUploadSource source) {
         try {
             publish(player, session, rankingContext, target, source, null);
         } catch (RuntimeException | LinkageError exception) {
@@ -58,11 +58,11 @@ public final class PatternUploadRecorder {
         }
     }
 
-    private static void publish(@NotNull ServerPlayer player,
-                                @NotNull PatternEncodingPreferenceSession session,
+    private static void publish(ServerPlayer player,
+                                PatternEncodingPreferenceSession session,
                                 @Nullable PatternEncodingRankingContext rankingContext,
-                                @NotNull PatternProviderSyncHelper.PatternUploadTarget target,
-                                @NotNull PatternUploadSource source,
+                                PatternProviderSyncHelper.PatternUploadTarget target,
+                                PatternUploadSource source,
                                 @Nullable PatternEncodingSourceAware sourceAware) {
         ResourceLocation confirmedWorkstation = target.confirmedWorkstation();
         if (confirmedWorkstation != null) {
@@ -91,8 +91,8 @@ public final class PatternUploadRecorder {
     }
 
     private static @Nullable PatternEncodingRankingContext resolveRankingContext(
-                                                                                 @NotNull PatternEncodingPreviewMenu previewMenu,
-                                                                                 @NotNull PatternEncodingPreferenceSession session) {
+                                                                                 PatternEncodingPreviewMenu previewMenu,
+                                                                                 PatternEncodingPreferenceSession session) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
         if (fixedWorkstation != null) {

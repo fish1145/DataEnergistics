@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.MultiblockPatternTransferRequest;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.PatternEncodingMultiblockTransfer;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.PatternEncodingMultiblockTransferImpl;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;

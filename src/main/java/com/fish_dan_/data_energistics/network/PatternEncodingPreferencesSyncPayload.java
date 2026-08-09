@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.core.registries.BuiltInRegistries;

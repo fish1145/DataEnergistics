@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 /**
  * Exposes the connection-scoped preference protocol state owned by a pattern encoding menu.

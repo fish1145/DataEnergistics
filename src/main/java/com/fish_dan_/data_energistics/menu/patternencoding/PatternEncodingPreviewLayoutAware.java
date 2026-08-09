@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 /**
  * Stores the upload preview panel layout for the concrete pattern terminal host.

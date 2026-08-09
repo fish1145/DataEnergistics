@@ -1,8 +1,7 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.IdentityHashMap;
@@ -37,7 +36,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Returns or creates the session associated with one live menu instance.
      */
-    public static PatternEncodingPreferenceSession forMenu(@NotNull Object menu) {
+    public static PatternEncodingPreferenceSession forMenu(Object menu) {
         synchronized (SESSIONS) {
             return SESSIONS.computeIfAbsent(menu, ignored -> new PatternEncodingPreferenceSession());
         }
@@ -127,7 +126,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Confirms the workstation selected by a server-side upload preflight after the inventory commit succeeds.
      */
-    public void confirmWorkstation(@NotNull ResourceLocation workstationId) {
+    public void confirmWorkstation(ResourceLocation workstationId) {
         this.confirmedWorkstation = workstationId;
     }
 
@@ -142,7 +141,7 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Applies one validated absolute-count snapshot without lowering server-authoritative successes.
      */
-    public void replaceLeafCounts(@NotNull Map<String, Long> counts) {
+    public void replaceLeafCounts(Map<String, Long> counts) {
         if (this.rankingContext == null) {
             if (!counts.isEmpty()) {
                 throw new IllegalStateException("Pattern preference leaf counts require a ranking context");
@@ -178,8 +177,8 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Increments a server-authoritative leaf count with long saturation.
      */
-    public long incrementLeafCount(@NotNull PatternEncodingRankingContext context,
-                                   @NotNull String digest) {
+    public long incrementLeafCount(PatternEncodingRankingContext context,
+                                   String digest) {
         if (digest.isBlank()) {
             throw new IllegalArgumentException("Pattern preference leaf digest must not be blank");
         }

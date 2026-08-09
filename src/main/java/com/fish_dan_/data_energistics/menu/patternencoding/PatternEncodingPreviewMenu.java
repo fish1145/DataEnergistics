@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu.common;
+package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.menu.guisync.PacketWritable;
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -20,19 +19,17 @@ public interface PatternEncodingPreviewMenu {
 
     long data_energistics$getNetworkBlankPatternCount();
 
-    @NotNull
     EncodingMode data_energistics$getEncodingMode();
 
     /**
      * Returns provider rows together with the exact ranking context used to resolve their workstation metadata.
      */
-    @NotNull
     SyncedPatternProviderList data_energistics$getSyncedPatternProviderState();
 
     /**
      * Returns the provider rows for existing preview consumers that do not need workstation resolution state.
      */
-    default @NotNull List<@NotNull SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
+    default List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
         return data_energistics$getSyncedPatternProviderState().providers();
     }
 
@@ -51,22 +48,22 @@ public interface PatternEncodingPreviewMenu {
      * Context-bound provider snapshot synchronized through the menu.
      */
     record SyncedPatternProviderList(
-                                     @NotNull List<@NotNull SyncedPatternProvider> providers,
+                                     List<SyncedPatternProvider> providers,
                                      @Nullable PatternEncodingRankingContext rankingContext)
             implements PacketWritable {
 
-        public static final @NotNull SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null);
+        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null);
 
         public SyncedPatternProviderList {
             providers = List.copyOf(providers);
         }
 
-        public SyncedPatternProviderList(@NotNull RegistryFriendlyByteBuf data) {
+        public SyncedPatternProviderList(RegistryFriendlyByteBuf data) {
             this(readProviders(data), readRankingContext(data));
         }
 
         @Override
-        public void writeToPacket(@NotNull RegistryFriendlyByteBuf data) {
+        public void writeToPacket(RegistryFriendlyByteBuf data) {
             data.writeVarInt(this.providers.size());
             for (var provider : this.providers) {
                 provider.writeToPacket(data);
@@ -74,8 +71,8 @@ public interface PatternEncodingPreviewMenu {
             writeRankingContext(data, this.rankingContext);
         }
 
-        private static @NotNull List<@NotNull SyncedPatternProvider> readProviders(
-                                                                                   @NotNull RegistryFriendlyByteBuf data) {
+        private static List<SyncedPatternProvider> readProviders(
+                                                                 RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             List<SyncedPatternProvider> providers = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
@@ -85,7 +82,7 @@ public interface PatternEncodingPreviewMenu {
         }
 
         private static void writeRankingContext(
-                                                @NotNull RegistryFriendlyByteBuf data,
+                                                RegistryFriendlyByteBuf data,
                                                 @Nullable PatternEncodingRankingContext rankingContext) {
             data.writeBoolean(rankingContext != null);
             if (rankingContext == null) {
@@ -95,7 +92,7 @@ public interface PatternEncodingPreviewMenu {
         }
 
         private static @Nullable PatternEncodingRankingContext readRankingContext(
-                                                                                  @NotNull RegistryFriendlyByteBuf data) {
+                                                                                  RegistryFriendlyByteBuf data) {
             if (!data.readBoolean()) {
                 return null;
             }
@@ -103,14 +100,14 @@ public interface PatternEncodingPreviewMenu {
         }
 
         private static void writeBoundedResourceLocation(
-                                                         @NotNull RegistryFriendlyByteBuf data,
-                                                         @NotNull ResourceLocation id) {
+                                                         RegistryFriendlyByteBuf data,
+                                                         ResourceLocation id) {
             data.writeUtf(id.toString(), PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
         }
 
-        private static @NotNull ResourceLocation readBoundedResourceLocation(
-                                                                             @NotNull RegistryFriendlyByteBuf data,
-                                                                             @NotNull String label) {
+        private static ResourceLocation readBoundedResourceLocation(
+                                                                    RegistryFriendlyByteBuf data,
+                                                                    String label) {
             String encoded = data.readUtf(PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
             ResourceLocation id = ResourceLocation.tryParse(encoded);
             if (id == null) {
@@ -125,20 +122,20 @@ public interface PatternEncodingPreviewMenu {
      */
     record SyncedPatternProvider(
                                  long id,
-                                 @NotNull Component displayName,
-                                 @NotNull ResourceLocation iconItemId,
+                                 Component displayName,
+                                 ResourceLocation iconItemId,
                                  boolean useAeButtonStyle,
                                  boolean renameable,
                                  int patternSlotCount,
                                  int usedPatternSlotCount,
-                                 @NotNull List<@NotNull String> leafDigests,
+                                 List<String> leafDigests,
                                  @Nullable ResourceLocation preferredWorkstationId) {
 
         public SyncedPatternProvider {
             leafDigests = List.copyOf(leafDigests);
         }
 
-        public SyncedPatternProvider(@NotNull RegistryFriendlyByteBuf data) {
+        public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
             this(
                     data.readLong(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(data),
@@ -151,7 +148,7 @@ public interface PatternEncodingPreviewMenu {
                     readNullableResourceLocation(data));
         }
 
-        private void writeToPacket(@NotNull RegistryFriendlyByteBuf data) {
+        private void writeToPacket(RegistryFriendlyByteBuf data) {
             data.writeLong(this.id);
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(data, this.displayName);
             data.writeResourceLocation(this.iconItemId);
@@ -169,8 +166,8 @@ public interface PatternEncodingPreviewMenu {
             }
         }
 
-        private static @NotNull List<@NotNull String> readLeafDigests(
-                                                                      @NotNull RegistryFriendlyByteBuf data) {
+        private static List<String> readLeafDigests(
+                                                    RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             if (size < 0 || size > 2048) {
                 throw new IllegalArgumentException("Pattern provider leaf digest count is outside [0, 2048]: " + size);
@@ -187,7 +184,7 @@ public interface PatternEncodingPreviewMenu {
         }
 
         private static @Nullable ResourceLocation readNullableResourceLocation(
-                                                                               @NotNull RegistryFriendlyByteBuf data) {
+                                                                               RegistryFriendlyByteBuf data) {
             return data.readBoolean() ? data.readResourceLocation() : null;
         }
     }

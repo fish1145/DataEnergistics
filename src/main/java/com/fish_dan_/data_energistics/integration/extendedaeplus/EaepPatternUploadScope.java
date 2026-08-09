@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.integration.extendedaeplus;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceSession;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.network.PatternUploadSource;
 
 import net.minecraft.core.BlockPos;

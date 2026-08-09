@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.transfer;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
 /**
  * Reconstructs and atomically fills an AE2 pattern terminal from an untrusted multiblock XEI request.

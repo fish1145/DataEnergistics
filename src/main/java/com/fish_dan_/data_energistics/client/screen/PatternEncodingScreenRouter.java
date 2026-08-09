@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae2wtlib.Ae2WtLibCompat;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
