@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockReloadEventHandler;
-import com.fish_dan_.data_energistics.common.multiblock.json.MdlibJsonMultiBlockDefinitionLoader;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.LazyJsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.loading.JsonMultiBlockReloadEventHandler;
+import com.fish_dan_.data_energistics.common.multiblock.json.loading.MdlibJsonMultiBlockDefinitionLoader;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistry;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.LayeredJsonMultiBlockDefinitionRegistry;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalog;
