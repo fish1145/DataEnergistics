@@ -533,7 +533,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                                                  @Nullable PatternEncodingRankingContext rankingContext) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
-                data_energistics$getEncodingMode(),
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,

@@ -98,16 +98,16 @@ class PatternProviderAggregationTest {
     }
 
     @Test
-    void acceptsOnlyMatchingProvidersWithAFreePatternSlot() {
-        assertTrue(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
-                entry(new OrdinaryPatternProvider(), 1, 10, "Compressor", CRAFTING_TABLE, true,
-                        2, 1, providerKey("available"), true, "test:available")));
-        assertFalse(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
-                entry(new OrdinaryPatternProvider(), 2, 10, "Compressor", CRAFTING_TABLE, true,
-                        2, 2, providerKey("full"), true, "test:full")));
-        assertFalse(PatternProviderSyncHelper.isAvailableRecipeTypeCandidate(
-                entry(new OrdinaryPatternProvider(), 3, 10, "Mixer", CRAFTING_TABLE, true,
-                        2, 0, providerKey("unrelated"), false, "test:unrelated")));
+    void mergesEverySupportedRecipeTypeIntoTheSyncedProvider() {
+        var result = aggregate(List.of(
+                entry(new OrdinaryPatternProvider(), 1, 10, "Assembler", CRAFTING_TABLE, true,
+                        2, 0, providerKey("typed"), false, "test:first", List.of(RECIPE_TYPE)),
+                entry(new OrdinaryPatternProvider(), 2, 20, "Assembler", CRAFTING_TABLE, true,
+                        2, 0, providerKey("typed"), false, "test:second", List.of(OTHER_RECIPE_TYPE))),
+                new HashMap<>());
+
+        assertEquals(List.of(RECIPE_TYPE, OTHER_RECIPE_TYPE),
+                result.providers().getFirst().supportedRecipeTypeIds());
     }
 
     @Test
@@ -233,6 +233,29 @@ class PatternProviderAggregationTest {
                 totalSlots,
                 usedSlots,
                 providerDigest);
+    }
+
+    private static PatternProviderSyncHelper.PatternProviderAggregationEntry entry(
+                                                                                   PatternContainer container, long id, long sortOrder, String displayName,
+                                                                                   ResourceLocation icon, boolean renameable, int totalSlots, int usedSlots,
+                                                                                   PatternProviderSyncHelper.PatternProviderAggregationKey aggregationKey,
+                                                                                   boolean exactContextMatch, String providerDigest,
+                                                                                   List<ResourceLocation> supportedRecipeTypeIds) {
+        return new PatternProviderSyncHelper.PatternProviderAggregationEntry(
+                container,
+                id,
+                sortOrder,
+                Component.literal(displayName),
+                icon,
+                aggregationKey,
+                exactContextMatch,
+                true,
+                renameable,
+                totalSlots,
+                usedSlots,
+                providerDigest,
+                supportedRecipeTypeIds,
+                List.of());
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationKey providerKey(String path) {

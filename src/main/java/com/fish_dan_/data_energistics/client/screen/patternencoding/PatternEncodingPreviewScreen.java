@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.screen.patternencoding;
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
+import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
@@ -48,7 +49,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 
 import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -130,7 +130,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private PatternEncodingPreviewDragButton previewDragButton;
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
     private boolean visibleProvidersCacheDirty = true;
-    private final Map<Long, String> providerSearchIndexSourceCache = new HashMap<>();
     private boolean previewPanelDragging;
     private int previewPanelDragOffsetX;
     private int previewPanelDragOffsetY;
@@ -1069,28 +1068,17 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return this.cachedVisibleProviders;
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().data_energistics$getSyncedPatternProviders();
-        if (isRenamingProvider()) {
-            this.cachedVisibleProviders = providers;
-            this.visibleProvidersCacheDirty = false;
-            return providers;
-        }
-
-        String query = PinyinUtil.normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
-        if (query.isEmpty()) {
-            this.cachedVisibleProviders = providers;
-            this.visibleProvidersCacheDirty = false;
-            return providers;
-        }
-
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
-        for (var provider : providers) {
-            String source = getCachedProviderSource(provider);
-            if (PinyinUtil.matchesSearch(source, query)) {
-                filtered.add(provider);
-            }
-        }
-        this.cachedVisibleProviders = List.copyOf(filtered);
+        PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
+        var rankingContext = providerState.rankingContext();
+        ResourceLocation currentRecipeTypeId = rankingContext == null ? null : rankingContext.recipeTypeId();
+        String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
+        this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
+                providerState.providers(),
+                currentRecipeTypeId,
+                query,
+                this::getDefaultProviderName,
+                PatternProviderRecipeTypeNames::resolve,
+                PinyinUtil::matchesSearch);
         this.visibleProvidersCacheDirty = false;
         return this.cachedVisibleProviders;
     }
@@ -1099,14 +1087,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.visibleProvidersCacheDirty = true;
     }
 
-    private String getCachedProviderSource(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        long providerId = provider.id();
-        String source = provider.displayName().getString() + " " + provider.iconItemId();
-        String cachedSource = this.providerSearchIndexSourceCache.get(providerId);
-        if (!source.equals(cachedSource)) {
-            this.providerSearchIndexSourceCache.put(providerId, source);
-        }
-        return source;
+    private String getDefaultProviderName(ResourceLocation iconItemId) {
+        return new ItemStack(BuiltInRegistries.ITEM.get(iconItemId)).getHoverName().getString();
     }
 
     private static Optional<VarHandle> resolveField(Class<?> owner, String name) {

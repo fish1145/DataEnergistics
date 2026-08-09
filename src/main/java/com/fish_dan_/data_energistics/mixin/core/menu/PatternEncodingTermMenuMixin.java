@@ -1018,7 +1018,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                  @Nullable PatternEncodingRankingContext rankingContext) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
-                data_energistics$getEncodingMode(),
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,

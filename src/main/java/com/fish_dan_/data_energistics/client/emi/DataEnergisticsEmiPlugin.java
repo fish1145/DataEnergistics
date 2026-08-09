@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
@@ -27,6 +28,7 @@ import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiInitRegistry;
 import dev.emi.emi.api.EmiPlugin;
@@ -49,6 +51,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("emi_recipe_type_names");
     private static final ConverterRegistration CONVERTER_REGISTRATION = new ConverterRegistration();
 
     @Override
@@ -71,6 +74,8 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
             LOGGER.error(exception.getMessage());
             throw exception;
         }
+        PatternProviderRecipeTypeNames.register(RECIPE_TYPE_NAME_SOURCE_ID,
+                DataEnergisticsEmiPlugin::resolveRecipeTypeName);
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
@@ -139,6 +144,14 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 1,
                 Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
         registry.addDeferredRecipes(consumer -> registerAe2ChargerWorkstations(registry));
+    }
+
+    private static List<Component> resolveRecipeTypeName(ResourceLocation recipeTypeId) {
+        return EmiApi.getRecipeManager().getCategories().stream()
+                .filter(category -> category.getId().equals(recipeTypeId))
+                .map(category -> List.of(category.getName()))
+                .findFirst()
+                .orElseGet(List::of);
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {

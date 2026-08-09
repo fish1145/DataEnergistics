@@ -118,7 +118,8 @@ public interface PatternEncodingPreviewMenu {
     }
 
     /**
-     * One displayed provider group and its preferred workstation for the enclosing snapshot context.
+     * One displayed provider group, its advertised recipe types, and its preferred workstation for the enclosing
+     * snapshot context.
      */
     record SyncedPatternProvider(
                                  long id,
@@ -129,10 +130,12 @@ public interface PatternEncodingPreviewMenu {
                                  int patternSlotCount,
                                  int usedPatternSlotCount,
                                  List<String> leafDigests,
+                                 List<ResourceLocation> supportedRecipeTypeIds,
                                  @Nullable ResourceLocation preferredWorkstationId) {
 
         public SyncedPatternProvider {
             leafDigests = List.copyOf(leafDigests);
+            supportedRecipeTypeIds = List.copyOf(supportedRecipeTypeIds);
         }
 
         public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
@@ -145,6 +148,7 @@ public interface PatternEncodingPreviewMenu {
                     data.readVarInt(),
                     data.readVarInt(),
                     readLeafDigests(data),
+                    readSupportedRecipeTypeIds(data),
                     readNullableResourceLocation(data));
         }
 
@@ -159,6 +163,10 @@ public interface PatternEncodingPreviewMenu {
             data.writeVarInt(this.leafDigests.size());
             for (String digest : this.leafDigests) {
                 data.writeUtf(digest, 71);
+            }
+            data.writeVarInt(this.supportedRecipeTypeIds.size());
+            for (ResourceLocation recipeTypeId : this.supportedRecipeTypeIds) {
+                data.writeResourceLocation(recipeTypeId);
             }
             data.writeBoolean(this.preferredWorkstationId != null);
             if (this.preferredWorkstationId != null) {
@@ -181,6 +189,20 @@ public interface PatternEncodingPreviewMenu {
                 digests.add(digest);
             }
             return List.copyOf(digests);
+        }
+
+        private static List<ResourceLocation> readSupportedRecipeTypeIds(
+                                                                         RegistryFriendlyByteBuf data) {
+            int size = data.readVarInt();
+            if (size < 0 || size > 2048) {
+                throw new IllegalArgumentException(
+                        "Pattern provider supported recipe type count is outside [0, 2048]: " + size);
+            }
+            List<ResourceLocation> recipeTypeIds = new ArrayList<>(size);
+            for (int index = 0; index < size; index++) {
+                recipeTypeIds.add(data.readResourceLocation());
+            }
+            return List.copyOf(recipeTypeIds);
         }
 
         private static @Nullable ResourceLocation readNullableResourceLocation(

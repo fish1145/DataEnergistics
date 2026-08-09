@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
+import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
@@ -868,28 +869,17 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             return this.cachedVisibleProviders;
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().data_energistics$getSyncedPatternProviders();
-        if (isRenamingProvider()) {
-            this.cachedVisibleProviders = providers;
-            this.visibleProvidersCacheDirty = false;
-            return providers;
-        }
-
-        String query = PinyinUtil.normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
-        if (query.isEmpty()) {
-            this.cachedVisibleProviders = providers;
-            this.visibleProvidersCacheDirty = false;
-            return providers;
-        }
-
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
-        for (var provider : providers) {
-            String source = provider.displayName().getString() + " " + provider.iconItemId();
-            if (PinyinUtil.matchesSearch(source, query)) {
-                filtered.add(provider);
-            }
-        }
-        this.cachedVisibleProviders = List.copyOf(filtered);
+        PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
+        var rankingContext = providerState.rankingContext();
+        ResourceLocation currentRecipeTypeId = rankingContext == null ? null : rankingContext.recipeTypeId();
+        String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
+        this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
+                providerState.providers(),
+                currentRecipeTypeId,
+                query,
+                this::getDefaultProviderName,
+                PatternProviderRecipeTypeNames::resolve,
+                PinyinUtil::matchesSearch);
         this.visibleProvidersCacheDirty = false;
         return this.cachedVisibleProviders;
     }
@@ -1322,6 +1312,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     private ItemStack getProviderIconStack(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         return new ItemStack(BuiltInRegistries.ITEM.get(provider.iconItemId()));
+    }
+
+    private String getDefaultProviderName(ResourceLocation iconItemId) {
+        return new ItemStack(BuiltInRegistries.ITEM.get(iconItemId)).getHoverName().getString();
     }
 
     private static Optional<VarHandle> resolveField(Class<?> owner, String name) {

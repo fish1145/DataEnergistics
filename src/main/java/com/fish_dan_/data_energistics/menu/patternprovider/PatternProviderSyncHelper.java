@@ -55,11 +55,11 @@ public final class PatternProviderSyncHelper {
     private PatternProviderSyncHelper() {}
 
     /**
-     * Discovers providers and applies the supplied per-leaf history before grouping rows.
+     * Discovers every visible provider and applies the supplied per-leaf history before grouping rows. Ranking
+     * context annotates and orders the snapshot but never removes providers from it.
      */
     public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
                                                                                                      @Nullable IGrid grid,
-                                                                                                     EncodingMode mode,
                                                                                                      Map<PatternContainer, Long> syncedPatternProviderIds,
                                                                                                      Map<Long, List<PatternContainer>> syncedProviderTargetsById,
                                                                                                      LongSupplier nextIdSupplier,
@@ -90,10 +90,6 @@ public final class PatternProviderSyncHelper {
         }
 
         syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.contains(provider));
-
-        if (mode == EncodingMode.PROCESSING && rankingContext != null) {
-            discoveredProviders.removeIf(provider -> !isAvailableRecipeTypeCandidate(provider));
-        }
 
         return aggregateSyncedPatternProviders(
                 discoveredProviders, syncedProviderTargetsById, leafClickCounts, rankingContext);
@@ -142,6 +138,7 @@ public final class PatternProviderSyncHelper {
                     provider.patternSlotCount(),
                     provider.usedPatternSlotCount(),
                     provider.leafDigests(),
+                    provider.supportedRecipeTypeIds(),
                     provider.preferredWorkstationId()));
         }
 
@@ -714,6 +711,7 @@ public final class PatternProviderSyncHelper {
         PatternProviderAggregationKey aggregationKey;
         String providerDigest;
         boolean exactContextMatch;
+        List<ResourceLocation> supportedRecipeTypeIds;
         List<ResourceLocation> matchingWorkstationIds;
         try {
             displayName = resolveProviderDisplayName(container);
@@ -725,12 +723,14 @@ public final class PatternProviderSyncHelper {
                 aggregationKey = new PatternProviderAggregationKey.Registered(
                         metadata.registrationId(), metadata.providerIdentity());
                 exactContextMatch = matchesRankingContext(metadata, rankingContext);
+                supportedRecipeTypeIds = metadata.categoryIds();
                 matchingWorkstationIds = resolveMatchingWorkstationIds(metadata, rankingContext);
             } else {
                 aggregationKey = ProviderIdentityDescriptor.from(identity)
                         .<PatternProviderAggregationKey>map(PatternProviderAggregationKey.Core::new)
                         .orElseGet(() -> new PatternProviderAggregationKey.Leaf(providerId));
                 exactContextMatch = false;
+                supportedRecipeTypeIds = List.of();
                 matchingWorkstationIds = List.of();
             }
             providerDigest = identity.digest();
@@ -755,6 +755,7 @@ public final class PatternProviderSyncHelper {
                 patternInventory.size(),
                 usedPatternSlots,
                 providerDigest,
+                supportedRecipeTypeIds,
                 matchingWorkstationIds));
     }
 
@@ -864,10 +865,6 @@ public final class PatternProviderSyncHelper {
     static boolean matchesRecipeType(PatternProviderMetadata metadata,
                                      @Nullable PatternEncodingRankingContext rankingContext) {
         return rankingContext != null && metadata.categoryIds().contains(rankingContext.recipeTypeId());
-    }
-
-    static boolean isAvailableRecipeTypeCandidate(PatternProviderAggregationEntry provider) {
-        return provider.exactContextMatch() && provider.usedPatternSlotCount() < provider.patternSlotCount();
     }
 
     private static List<ResourceLocation> resolveMatchingWorkstationIds(
@@ -1017,6 +1014,7 @@ public final class PatternProviderSyncHelper {
                                            int patternSlotCount,
                                            int usedPatternSlotCount,
                                            String providerDigest,
+                                           List<ResourceLocation> supportedRecipeTypeIds,
                                            List<ResourceLocation> matchingWorkstationIds) {
 
         PatternProviderAggregationEntry(
@@ -1045,10 +1043,12 @@ public final class PatternProviderSyncHelper {
                     patternSlotCount,
                     usedPatternSlotCount,
                     providerDigest,
+                    List.of(),
                     List.of());
         }
 
         PatternProviderAggregationEntry {
+            supportedRecipeTypeIds = List.copyOf(supportedRecipeTypeIds);
             matchingWorkstationIds = List.copyOf(matchingWorkstationIds);
         }
     }
@@ -1077,6 +1077,7 @@ public final class PatternProviderSyncHelper {
         private int usedPatternSlotCount;
         private final List<PatternContainer> containers = new ArrayList<>();
         private final Set<String> leafDigests = new LinkedHashSet<>();
+        private final Set<ResourceLocation> supportedRecipeTypeIds = new LinkedHashSet<>();
         private final Set<ResourceLocation> matchingWorkstationIds = new LinkedHashSet<>();
 
         private AggregatedPatternProvider(PatternProviderAggregationEntry provider) {
@@ -1088,6 +1089,7 @@ public final class PatternProviderSyncHelper {
             this.useAeButtonStyle = provider.useAeButtonStyle();
             this.renameable = provider.renameable();
             this.leafDigests.add(provider.providerDigest());
+            this.supportedRecipeTypeIds.addAll(provider.supportedRecipeTypeIds());
             this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
@@ -1113,6 +1115,7 @@ public final class PatternProviderSyncHelper {
             this.renameable &= provider.renameable();
             this.containers.add(provider.container());
             this.leafDigests.add(provider.providerDigest());
+            this.supportedRecipeTypeIds.addAll(provider.supportedRecipeTypeIds());
             this.matchingWorkstationIds.addAll(provider.matchingWorkstationIds());
         }
 
@@ -1158,6 +1161,12 @@ public final class PatternProviderSyncHelper {
 
         private List<String> leafDigests() {
             return this.leafDigests.stream().sorted().toList();
+        }
+
+        private List<ResourceLocation> supportedRecipeTypeIds() {
+            return this.supportedRecipeTypeIds.stream()
+                    .sorted(Comparator.comparing(ResourceLocation::toString))
+                    .toList();
         }
 
         @Nullable

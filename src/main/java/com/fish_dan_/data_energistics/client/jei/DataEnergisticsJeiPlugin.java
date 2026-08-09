@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
@@ -46,6 +47,7 @@ import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
@@ -66,6 +68,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
     private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
+    private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("jei_recipe_type_names");
     private static final Object MULTIBLOCK_REFRESH_KEY = new Object();
     @Nullable
     private IJeiRuntime jeiRuntime;
@@ -249,15 +252,31 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         this.jeiRuntime = jeiRuntime;
+        PatternProviderRecipeTypeNames.register(
+                RECIPE_TYPE_NAME_SOURCE_ID,
+                recipeTypeId -> resolveRecipeTypeName(jeiRuntime.getRecipeManager(), recipeTypeId));
         hidePoweredRepairRecipes();
     }
 
     @Override
     public void onRuntimeUnavailable() {
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
+        PatternProviderRecipeTypeNames.unregister(RECIPE_TYPE_NAME_SOURCE_ID);
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();
+    }
+
+    private static List<Component> resolveRecipeTypeName(IRecipeManager recipeManager,
+                                                         ResourceLocation recipeTypeId) {
+        return recipeManager.getRecipeType(recipeTypeId)
+                .map(recipeType -> List.of(resolveRecipeTypeName(recipeManager, recipeType)))
+                .orElseGet(List::of);
+    }
+
+    private static <T> Component resolveRecipeTypeName(IRecipeManager recipeManager,
+                                                       RecipeType<T> recipeType) {
+        return recipeManager.getRecipeCategory(recipeType).getTitle();
     }
 
     /**
