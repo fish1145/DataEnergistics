@@ -36,7 +36,7 @@ public final class DataMimeticFieldInsertionTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void retainsOnlyUnconfirmedRemainderAfterSlotFailure(GameTestHelper helper) {
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(() -> {});
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND, 8)));
         PartiallyFailingItemHandler handler = new PartiallyFailingItemHandler();
@@ -62,7 +62,7 @@ public final class DataMimeticFieldInsertionTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void preservesOfferWhenFirstSlotFails(GameTestHelper helper) {
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(() -> {});
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND, 8)));
 
@@ -86,7 +86,7 @@ public final class DataMimeticFieldInsertionTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void boundsContainerSlotVisits(GameTestHelper helper) {
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(() -> {});
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND)));
         HugeRejectingItemHandler handler = new HugeRejectingItemHandler();
@@ -114,7 +114,7 @@ public final class DataMimeticFieldInsertionTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void avoidsContainerCursorPhaseLock(GameTestHelper helper) {
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(() -> {});
         pending.append(List.of(new ItemStack(Items.DIAMOND), new ItemStack(Items.GOLD_INGOT)));
         TypeRestrictedItemHandler handler = new TypeRestrictedItemHandler();
 

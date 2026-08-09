@@ -28,10 +28,10 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class MimeticPendingOutputImplTest {
+public final class MimeticPendingOutputLedgerTest {
 
     /** Utility test holder has no instances. */
-    private MimeticPendingOutputImplTest() {}
+    private MimeticPendingOutputLedgerTest() {}
 
     /**
      * Proves output volume is not constrained by the former 64-slot hidden inventory.
@@ -43,7 +43,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void flushesMoreThanSixtyFourStacks(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         List<ItemStack> generated = new ArrayList<>();
         for (int index = 0; index < 65; index++) {
             generated.add(new ItemStack(Items.DIAMOND, 64));
@@ -77,7 +77,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void retainsPartialRemainderForRetry(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND, 64), new ItemStack(Items.DIAMOND, 64),
                 new ItemStack(Items.DIAMOND, 2)));
@@ -106,7 +106,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void preservesFullyBlockedOutput(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey pearl = AEItemKey.of(Items.ENDER_PEARL);
         pending.append(List.of(new ItemStack(Items.ENDER_PEARL, 16)));
         AtomicInteger offers = new AtomicInteger();
@@ -132,7 +132,7 @@ public final class MimeticPendingOutputImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void preservesComponentsAndFirstSeenOrder(GameTestHelper helper) {
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(() -> {});
         ItemStack namedDiamond = namedStack(Items.DIAMOND.getDefaultInstance(), "variant-a", 3);
         AEItemKey plainDiamondKey = AEItemKey.of(Items.DIAMOND);
         AEItemKey goldKey = AEItemKey.of(Items.GOLD_INGOT);
@@ -166,7 +166,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsInvalidSinkResults(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND, 5)));
 
@@ -187,14 +187,14 @@ public final class MimeticPendingOutputImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void roundTripsGenericStackNbt(GameTestHelper helper) {
-        MimeticPendingOutput source = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger source = new MimeticPendingOutputLedger(() -> {});
         ItemStack namedPearl = namedStack(Items.ENDER_PEARL.getDefaultInstance(), "persisted-variant", 7);
         AEItemKey namedPearlKey = AEItemKey.of(namedPearl);
         AEItemKey diamondKey = AEItemKey.of(Items.DIAMOND);
         source.append(List.of(namedPearl, new ItemStack(Items.DIAMOND, 64), new ItemStack(Items.DIAMOND, 6)));
         ListTag saved = source.writeToNbt(helper.getLevel().registryAccess());
 
-        MimeticPendingOutput restored = new MimeticPendingOutputImpl(() -> {});
+        MimeticPendingOutputLedger restored = new MimeticPendingOutputLedger(() -> {});
         restored.readFromNbt(helper.getLevel().registryAccess(), saved);
 
         helper.assertValueEqual(restored.amount(namedPearlKey), 7L, "NBT must preserve item components and amount");
@@ -223,7 +223,7 @@ public final class MimeticPendingOutputImplTest {
     public static void boundsLongMaxValueProgress(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
         AtomicInteger offers = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         ListTag persisted = new ListTag();
         persisted.add(GenericStack.writeTag(helper.getLevel().registryAccess(),
@@ -253,7 +253,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void rotatesBlockedKeysAcrossFlushes(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
         AEItemKey emerald = AEItemKey.of(Items.EMERALD);
@@ -294,7 +294,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void boundsLargeBlockedLedgerWork(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         List<ItemStack> generated = new ArrayList<>();
         List<AEItemKey> expectedOrder = new ArrayList<>();
         for (int index = 0; index < 256; index++) {
@@ -332,7 +332,7 @@ public final class MimeticPendingOutputImplTest {
     public static void rejectsInvalidOfferBudgets(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
         AtomicInteger offers = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.DIAMOND, 5)));
 
@@ -355,7 +355,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsAppendOverflowAtomically(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         AEItemKey emerald = AEItemKey.of(Items.EMERALD);
         ListTag persisted = new ListTag();
@@ -391,7 +391,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsNbtAggregationOverflowAtomically(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.GOLD_INGOT, 4)));
@@ -427,7 +427,7 @@ public final class MimeticPendingOutputImplTest {
     @GameTest(template = "empty_5x5")
     public static void materializesLegalItemStacksAndClears(GameTestHelper helper) {
         AtomicInteger changes = new AtomicInteger();
-        MimeticPendingOutput pending = new MimeticPendingOutputImpl(changes::incrementAndGet);
+        MimeticPendingOutputLedger pending = new MimeticPendingOutputLedger(changes::incrementAndGet);
         AEItemKey pearl = AEItemKey.of(Items.ENDER_PEARL);
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         pending.append(List.of(new ItemStack(Items.ENDER_PEARL, 16), new ItemStack(Items.ENDER_PEARL, 16),

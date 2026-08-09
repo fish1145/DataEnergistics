@@ -159,7 +159,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
-    private final MimeticPendingOutput pendingOutput = new MimeticPendingOutputImpl(this::setChanged);
+    private final MimeticPendingOutputLedger pendingOutput = new MimeticPendingOutputLedger(this::setChanged);
     /** Keeps each component-sensitive item moving independently through bounded container slot attempts. */
     private final Map<AEItemKey, AdjacentContainerInsertionCursor> adjacentInsertionCursors = new HashMap<>();
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
@@ -773,7 +773,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
      * @return exact number of items accepted by adjacent handlers
      */
     static long flushIntoAdjacentContainers(
-                                            MimeticPendingOutput pendingOutput,
+                                            MimeticPendingOutputLedger pendingOutput,
                                             Map<Direction, IItemHandler> adjacentHandlers,
                                             Map<AEItemKey, AdjacentContainerInsertionCursor> insertionCursors,
                                             int offerBudget) {

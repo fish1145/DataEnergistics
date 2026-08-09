@@ -7,6 +7,8 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -14,12 +16,32 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
- * Ordered map-backed implementation of the mimetic pending-output ledger.
+ * Stores generated mimetic items until an external destination has actually accepted them.
+ *
+ * <p>
+ * The ordered map-backed ledger is authoritative because container capacity can be smaller than one mimetic work
+ * cycle.
+ * </p>
  */
-public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
+@NotNullByDefault
+public final class MimeticPendingOutputLedger {
+
+    /**
+     * Accepts one legal item stack and reports the number of items the destination consumed.
+     */
+    @FunctionalInterface
+    public interface ItemSink {
+
+        /**
+         * Attempts to consume the offered stack without retaining or mutating the ledger's state object.
+         *
+         * @param stack component-preserving stack whose count does not exceed its maximum stack size
+         * @return consumed count between zero and the offered count, inclusive
+         */
+        int accept(ItemStack stack);
+    }
 
     /** Largest practical number of elements that an {@link ArrayList} can address. */
     private static final long MAX_MATERIALIZED_STACKS = Integer.MAX_VALUE - 8L;
@@ -38,38 +60,47 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
      *
      * @param changeListener callback used to mark owning persistence dirty
      */
-    public MimeticPendingOutputImpl(Runnable changeListener) {
-        this.changeListener = Objects.requireNonNull(changeListener, "changeListener");
+    public MimeticPendingOutputLedger(Runnable changeListener) {
+        this.changeListener = changeListener;
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Reports whether no generated items remain pending.
+     *
+     * @return {@code true} when the ledger has no positive balances
+     */
     public boolean isEmpty() {
         return this.contents.isEmpty();
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Queries one component-sensitive item balance for routing and diagnostics.
+     *
+     * @param key item identity including data components
+     * @return pending item count, or zero when absent
+     */
     public long amount(AEItemKey key) {
-        return this.contents.getOrDefault(Objects.requireNonNull(key, "key"), 0L);
+        return this.contents.getOrDefault(key, 0L);
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Aggregates one generated batch without imposing inventory slot limits.
+     *
+     * @param stacks generated stacks; empty stacks are ignored
+     */
     public void append(List<ItemStack> stacks) {
-        Objects.requireNonNull(stacks, "stacks");
         LinkedHashMap<AEItemKey, Long> generated = new LinkedHashMap<>();
         for (ItemStack stack : stacks) {
-            Objects.requireNonNull(stack, "generated stack");
             if (stack.isEmpty()) {
                 continue;
             }
 
+            @Nullable
             AEItemKey key = AEItemKey.of(stack);
             if (key == null) {
                 throw new IllegalArgumentException("Non-empty generated stack has no AE item key");
             }
-            generated.merge(key, (long) stack.getCount(), MimeticPendingOutputImpl::addExact);
+            generated.merge(key, (long) stack.getCount(), MimeticPendingOutputLedger::addExact);
         }
         if (generated.isEmpty()) {
             return;
@@ -88,10 +119,19 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
         this.changeListener.run();
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Fairly offers pending keys within a strict work budget and removes only counts accepted by the sink.
+     *
+     * <p>
+     * Successive calls resume at the next key. A call may stop before exhausting its budget after every remaining key
+     * rejects one offer.
+     * </p>
+     *
+     * @param sink        destination adapter
+     * @param offerBudget positive maximum number of sink invocations
+     * @return exact accepted item count
+     */
     public long flush(ItemSink sink, int offerBudget) {
-        Objects.requireNonNull(sink, "sink");
         if (offerBudget <= 0) {
             throw new IllegalArgumentException("offerBudget must be positive");
         }
@@ -132,10 +172,13 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
         return totalAccepted;
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Serializes all balances as ordered {@code GenericStack} NBT entries.
+     *
+     * @param registries registry access required by item component codecs
+     * @return ordered serialized balances
+     */
     public ListTag writeToNbt(HolderLookup.Provider registries) {
-        Objects.requireNonNull(registries, "registries");
         ListTag entries = new ListTag();
         for (Map.Entry<AEItemKey, Long> entry : this.contents.entrySet()) {
             entries.add(GenericStack.writeTag(registries, new GenericStack(entry.getKey(), entry.getValue())));
@@ -143,19 +186,22 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
         return entries;
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Replaces all balances from ordered {@code GenericStack} NBT entries without reporting a runtime mutation.
+     *
+     * @param registries registry access required by item component codecs
+     * @param entries    ordered serialized balances
+     */
     public void readFromNbt(HolderLookup.Provider registries, ListTag entries) {
-        Objects.requireNonNull(registries, "registries");
-        Objects.requireNonNull(entries, "entries");
         LinkedHashMap<AEItemKey, Long> restored = new LinkedHashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             CompoundTag entryTag = entries.getCompound(index);
+            @Nullable
             GenericStack stack = GenericStack.readTag(registries, entryTag);
             if (stack == null || !(stack.what() instanceof AEItemKey itemKey) || stack.amount() <= 0L) {
                 throw new IllegalArgumentException("Invalid mimetic pending-output entry at index " + index);
             }
-            restored.merge(itemKey, stack.amount(), MimeticPendingOutputImpl::addExact);
+            restored.merge(itemKey, stack.amount(), MimeticPendingOutputLedger::addExact);
         }
 
         Deque<AEItemKey> restoredOfferQueue = new ArrayDeque<>(restored.keySet());
@@ -165,8 +211,11 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
         this.offerQueue.addAll(restoredOfferQueue);
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Materializes every practical balance as component-preserving legal stacks for block destruction drops.
+     *
+     * @return independent stacks without consuming the ledger
+     */
     public List<ItemStack> toItemStacks() {
         long stackCount = 0L;
         for (Map.Entry<AEItemKey, Long> entry : this.contents.entrySet()) {
@@ -190,8 +239,9 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
         return stacks;
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /**
+     * Removes all balances after they have been transferred or spawned.
+     */
     public void clear() {
         if (this.contents.isEmpty()) {
             return;
@@ -227,7 +277,7 @@ public final class MimeticPendingOutputImpl implements MimeticPendingOutput {
      * @return positive maximum stack size
      */
     private static int maximumStackSize(AEItemKey key) {
-        ItemStack prototype = Objects.requireNonNull(key, "key").toStack(1);
+        ItemStack prototype = key.toStack(1);
         int maximumStackSize = prototype.getMaxStackSize();
         if (prototype.isEmpty() || maximumStackSize <= 0) {
             throw new IllegalStateException("AE item key has no legal item-stack representation");
