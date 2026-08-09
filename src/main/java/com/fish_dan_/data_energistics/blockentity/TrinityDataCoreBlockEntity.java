@@ -22,7 +22,7 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.FailureType;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
-import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuildImpl;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.TransactionalMultiBlockAutoBuild;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.TrinityAutoBuildStagingPolicy;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockFrontFacing;
@@ -46,9 +46,6 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
@@ -157,7 +154,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     /** Atomic inventory-and-world transaction shared by every Trinity structure build request. */
-    private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
+    private static final MultiBlockAutoBuild AUTO_BUILD = new TransactionalMultiBlockAutoBuild();
 
     private UUID storageId = UUID.randomUUID();
     /**

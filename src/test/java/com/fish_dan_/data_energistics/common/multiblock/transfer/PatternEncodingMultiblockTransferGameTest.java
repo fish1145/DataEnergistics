@@ -62,7 +62,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         StructurePreviewSnapshot snapshot = new MdlibNorthFacingStructurePreviewProjection().project(spec, selection);
         MultiblockRecipeView current = MultiblockRecipeView.from(spec, snapshot);
         ProjectionFingerprint fingerprint = current.projectionFingerprint();
-        PatternEncodingMultiblockTransferImpl transfer = new PatternEncodingMultiblockTransferImpl();
+        CatalogValidatedPatternEncodingTransfer transfer = new CatalogValidatedPatternEncodingTransfer();
 
         MultiblockRecipeView rebuilt = transfer.resolveRecipe(request(current.registeredRecipeId(), fingerprint));
         helper.assertValueEqual(rebuilt, current, "Current recipe identity must reconstruct exactly");
@@ -188,7 +188,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         fillInventory(target.inputs, material(Items.DIRT, "old-input", 2L));
         fillInventory(target.outputs, material(Items.DIRT, "old-output", 3L));
 
-        new PatternEncodingMultiblockTransferImpl().applyRecipe(target, recipe(inputs, output));
+        new CatalogValidatedPatternEncodingTransfer().applyRecipe(target, recipe(inputs, output));
 
         helper.assertValueEqual(
                 target.mode,
@@ -217,7 +217,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void preflightRejectsCapacityFilterAndAmountWithoutBatch(GameTestHelper helper) {
-        PatternEncodingMultiblockTransferImpl transfer = new PatternEncodingMultiblockTransferImpl();
+        CatalogValidatedPatternEncodingTransfer transfer = new CatalogValidatedPatternEncodingTransfer();
         PreviewMaterial output = material(Items.CRAFTING_TABLE, "preflight-output", 1L);
 
         TestTarget eightyTwoInputs = new TestTarget(81, 27, true, null);
@@ -276,7 +276,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         GenericStack[] originalOutputs = snapshot(target.outputs);
         target.outputs.armFailures(2);
 
-        Throwable primary = assertRuntimeFailure(helper, () -> new PatternEncodingMultiblockTransferImpl().applyRecipe(
+        Throwable primary = assertRuntimeFailure(helper, () -> new CatalogValidatedPatternEncodingTransfer().applyRecipe(
                 target,
                 recipe(materials(2, "forward-failure"),
                         material(Items.CRAFTING_TABLE, "forward-output", 1L))),
@@ -301,7 +301,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         publishedTarget.inputs.armEndBatchFailure();
 
         Throwable publicationFailure = assertRuntimeFailure(helper,
-                () -> new PatternEncodingMultiblockTransferImpl().applyRecipe(
+                () -> new CatalogValidatedPatternEncodingTransfer().applyRecipe(
                         publishedTarget,
                         recipe(materials(2, "publication-failure"),
                                 material(Items.CRAFTING_TABLE, "publication-output", 1L))),
@@ -343,7 +343,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         stateFailureTarget.failNextStateClear = true;
 
         Throwable stateFailure = assertRuntimeFailure(helper,
-                () -> new PatternEncodingMultiblockTransferImpl().applyRecipe(
+                () -> new CatalogValidatedPatternEncodingTransfer().applyRecipe(
                         stateFailureTarget,
                         recipe(materials(2, "state-failure"),
                                 material(Items.CRAFTING_TABLE, "state-failure-output", 1L))),
@@ -385,7 +385,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         fillInventory(target.outputs, material(Items.DIRT, "invalid-output", 3L));
         target.outputs.armFailures(2, 3);
 
-        Throwable primary = assertRuntimeFailure(helper, () -> new PatternEncodingMultiblockTransferImpl().applyRecipe(
+        Throwable primary = assertRuntimeFailure(helper, () -> new CatalogValidatedPatternEncodingTransfer().applyRecipe(
                 target,
                 recipe(materials(2, "rollback-failure"),
                         material(Items.CRAFTING_TABLE, "rollback-output", 1L))),
@@ -500,7 +500,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
     }
 
     private static void assertPreflightFailureUnchanged(GameTestHelper helper,
-                                                        PatternEncodingMultiblockTransferImpl transfer,
+                                                        CatalogValidatedPatternEncodingTransfer transfer,
                                                         TestTarget target,
                                                         MultiblockRecipeView recipe,
                                                         String message) {

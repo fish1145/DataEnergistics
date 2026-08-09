@@ -1,10 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Context;
-import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Failure;
-import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.FailureType;
-import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -46,7 +42,7 @@ import java.util.Map;
  * Two-phase builder for MDLib-backed structures. Pre-publication failures restore staged state and supplies;
  * publication failures preserve observable world state.
  */
-public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
+public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBuild {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final int QUIET_UPDATE_FLAGS = Block.UPDATE_NONE | Block.UPDATE_KNOWN_SHAPE |

@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  * Production transfer using the current atomic preview catalog and the common structure projector.
  */
-public final class PatternEncodingMultiblockTransferImpl implements PatternEncodingMultiblockTransfer {
+public final class CatalogValidatedPatternEncodingTransfer implements PatternEncodingMultiblockTransfer {
 
     private final MultiblockPreviewCatalog catalog;
     private final StructurePreviewProjection projection;
@@ -36,7 +36,7 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
     /**
      * Creates the production transfer bound to the reload-aware global multiblock catalog.
      */
-    public PatternEncodingMultiblockTransferImpl() {
+    public CatalogValidatedPatternEncodingTransfer() {
         this(ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS, new MdlibNorthFacingStructurePreviewProjection());
     }
 
@@ -46,11 +46,8 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
      * @param catalog    authoritative preview catalog
      * @param projection common structure projection implementation
      */
-    public PatternEncodingMultiblockTransferImpl(MultiblockPreviewCatalog catalog,
-                                                 StructurePreviewProjection projection) {
-        if (catalog == null || projection == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer dependencies cannot be null");
-        }
+    public CatalogValidatedPatternEncodingTransfer(MultiblockPreviewCatalog catalog,
+                                                   StructurePreviewProjection projection) {
         this.catalog = catalog;
         this.projection = projection;
     }
@@ -60,9 +57,6 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
      */
     @Override
     public MultiblockRecipeView resolveRecipe(MultiblockPatternTransferRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer request cannot be null");
-        }
         ProjectionFingerprint fingerprint = request.projectionFingerprint();
         MultiblockPreviewCatalogSnapshot catalogSnapshot = this.catalog.snapshot();
         if (fingerprint.definitionRevision() != catalogSnapshot.definitionRevision()) {
@@ -126,9 +120,6 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
     @Override
     public void transfer(MultiblockPatternTransferRequest request,
                          PatternEncodingMultiblockTransferTarget target) {
-        if (target == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer target cannot be null");
-        }
         applyRecipe(target, resolveRecipe(request));
     }
 
@@ -137,9 +128,6 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
      * production path without exposing a second public transfer entry point.
      */
     void applyRecipe(PatternEncodingMultiblockTransferTarget target, MultiblockRecipeView recipe) {
-        if (target == null || recipe == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer application arguments cannot be null");
-        }
         ConfigInventory inputInventory = target.data_energistics$getMultiblockTransferInputInventory();
         ConfigInventory outputInventory = target.data_energistics$getMultiblockTransferOutputInventory();
         EncodingMode originalMode = target.data_energistics$getMultiblockTransferEncodingMode();
@@ -224,7 +212,7 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
         }
         for (int slot = 0; slot < materials.size(); slot++) {
             PreviewMaterial material = materials.get(slot);
-            if (material == null || material.key() == null || material.amount() <= 0L) {
+            if (material.amount() <= 0L) {
                 throw new IllegalArgumentException("Invalid multiblock pattern transfer " + role + " at slot " +
                         slot);
             }

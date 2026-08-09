@@ -61,7 +61,7 @@ public final class MultiBlockAutoBuildGameTest {
     private static final BlockPos ORIGIN = new BlockPos(4, 2, 4);
     private static final String STRUCTURE_NAME = "atomic_auto_build_test";
     private static final Direction FRONT = Direction.SOUTH;
-    private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
+    private static final MultiBlockAutoBuild AUTO_BUILD = new TransactionalMultiBlockAutoBuild();
     private static final StagingPolicy TEST_STAGING_POLICY = new StagingPolicy() {
 
         @Override

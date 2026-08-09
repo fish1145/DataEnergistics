@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.transfer.CatalogValidatedPatternEncodingTransfer;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.MultiblockPatternTransferRequest;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.PatternEncodingMultiblockTransfer;
-import com.fish_dan_.data_energistics.common.multiblock.transfer.PatternEncodingMultiblockTransferImpl;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
 import net.minecraft.resources.ResourceLocation;
@@ -18,7 +18,7 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
  */
 public final class MultiblockPatternTransferPayloadHandler {
 
-    private static final PatternEncodingMultiblockTransfer TRANSFER = new PatternEncodingMultiblockTransferImpl();
+    private static final PatternEncodingMultiblockTransfer TRANSFER = new CatalogValidatedPatternEncodingTransfer();
 
     private MultiblockPatternTransferPayloadHandler() {}
 

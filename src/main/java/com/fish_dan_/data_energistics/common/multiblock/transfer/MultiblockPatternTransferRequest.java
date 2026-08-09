@@ -28,8 +28,5 @@ public record MultiblockPatternTransferRequest(int containerId,
         if (containerId < 0 || containerId > MAX_CONTAINER_ID) {
             throw new IllegalArgumentException("Invalid multiblock pattern transfer container id: " + containerId);
         }
-        if (registeredRecipeId == null || projectionFingerprint == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer identities cannot be null");
-        }
     }
 }
