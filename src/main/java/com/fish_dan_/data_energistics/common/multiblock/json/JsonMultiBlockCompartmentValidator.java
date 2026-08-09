@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 
 import net.minecraft.world.level.block.state.BlockState;
 

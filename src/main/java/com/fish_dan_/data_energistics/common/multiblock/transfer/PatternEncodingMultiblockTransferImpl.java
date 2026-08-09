@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.transfer;
 
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalog;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;

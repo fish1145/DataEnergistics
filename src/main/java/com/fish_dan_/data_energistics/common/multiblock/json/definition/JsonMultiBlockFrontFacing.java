@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.json;
+package com.fish_dan_.data_energistics.common.multiblock.json.definition;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

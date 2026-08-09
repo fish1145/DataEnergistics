@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;

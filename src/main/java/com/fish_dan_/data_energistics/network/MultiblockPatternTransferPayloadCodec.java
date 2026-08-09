@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.network;
 
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.MultiblockPatternTransferRequest;

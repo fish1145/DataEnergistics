@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.common.multiblock.json;
+package com.fish_dan_.data_energistics.common.multiblock.json.definition;
 
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.multiblock.json.autobuild.JsonMultiBlockAutoBuildStagingMetadata;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -81,7 +82,7 @@ public final class JsonMultiBlockMetadata {
         return this.replaceableCompartmentTypes;
     }
 
-    JsonMultiBlockAutoBuildStagingMetadata autoBuildStagingMetadata() {
+    public JsonMultiBlockAutoBuildStagingMetadata autoBuildStagingMetadata() {
         return this.autoBuildStagingMetadata;
     }
 

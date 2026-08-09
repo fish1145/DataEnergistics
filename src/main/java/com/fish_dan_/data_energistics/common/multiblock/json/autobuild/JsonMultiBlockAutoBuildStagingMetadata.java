@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.json;
+package com.fish_dan_.data_energistics.common.multiblock.json.autobuild;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -16,7 +16,7 @@ import java.util.Set;
  * loader resolves these declarations into immutable runtime candidates only after every predicate is available.
  * </p>
  */
-final class JsonMultiBlockAutoBuildStagingMetadata {
+public final class JsonMultiBlockAutoBuildStagingMetadata {
 
     private static final String AUTO_BUILD_STAGING_PROPERTY = "auto_build_staging";
     private static final String BLOCK_SYMBOLS_PROPERTY = "block_symbols";
@@ -44,11 +44,11 @@ final class JsonMultiBlockAutoBuildStagingMetadata {
         this.partHostSymbols = Set.copyOf(partHostSymbols);
     }
 
-    static JsonMultiBlockAutoBuildStagingMetadata none() {
+    public static JsonMultiBlockAutoBuildStagingMetadata none() {
         return NONE;
     }
 
-    static JsonMultiBlockAutoBuildStagingMetadata read(JsonObject metadata, ResourceLocation resourceId) {
+    public static JsonMultiBlockAutoBuildStagingMetadata read(JsonObject metadata, ResourceLocation resourceId) {
         if (!metadata.has(AUTO_BUILD_STAGING_PROPERTY)) {
             return NONE;
         }
@@ -75,24 +75,24 @@ final class JsonMultiBlockAutoBuildStagingMetadata {
                 partHostSymbols);
     }
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return this.blockSymbols.isEmpty() && this.replaceableCompartmentSymbols.isEmpty() &&
                 this.partHostSymbols.isEmpty();
     }
 
-    Set<String> blockSymbols() {
+    public Set<String> blockSymbols() {
         return this.blockSymbols;
     }
 
-    Set<String> replaceableCompartmentSymbols() {
+    public Set<String> replaceableCompartmentSymbols() {
         return this.replaceableCompartmentSymbols;
     }
 
-    Set<String> physicalBlockSymbols() {
+    public Set<String> physicalBlockSymbols() {
         return this.physicalBlockSymbols;
     }
 
-    Set<String> partHostSymbols() {
+    public Set<String> partHostSymbols() {
         return this.partHostSymbols;
     }
 

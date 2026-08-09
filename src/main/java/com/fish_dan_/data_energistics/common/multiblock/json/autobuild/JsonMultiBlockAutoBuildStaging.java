@@ -1,4 +1,8 @@
-package com.fish_dan_.data_energistics.common.multiblock.json;
+package com.fish_dan_.data_energistics.common.multiblock.json.autobuild;
+
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockReplaceableCompartmentPredicate;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
@@ -48,9 +52,9 @@ public final class JsonMultiBlockAutoBuildStaging {
         return NONE;
     }
 
-    static JsonMultiBlockAutoBuildStaging resolve(ResourceLocation resourceId,
-                                                  JsonMultiBlockAutoBuildStagingMetadata metadata,
-                                                  StringArrayDefinition definition) {
+    public static JsonMultiBlockAutoBuildStaging resolve(ResourceLocation resourceId,
+                                                         JsonMultiBlockAutoBuildStagingMetadata metadata,
+                                                         StringArrayDefinition definition) {
         if (metadata.isEmpty()) {
             return NONE;
         }
