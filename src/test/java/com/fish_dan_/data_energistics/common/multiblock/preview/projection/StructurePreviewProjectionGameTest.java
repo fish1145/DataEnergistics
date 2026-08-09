@@ -1,8 +1,17 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.ResolvedJsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
@@ -62,7 +71,7 @@ public final class StructurePreviewProjectionGameTest {
                 ownerKey,
                 List.of(tierDomain),
                 new SubstructureSelection(List.of(1, 1), Map.of("tier", 1), Map.of()));
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         PreviewSelection initial = PreviewSelection.initial(spec);
 
         StructurePreviewSnapshot initialSnapshot = projection.project(spec, initial);
@@ -157,7 +166,7 @@ public final class StructurePreviewProjectionGameTest {
                 itemKey(Blocks.DIAMOND_BLOCK),
                 DEFINITION_REVISION,
                 List.of(substructure));
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         PreviewSelection stoneSelection = PreviewSelection.initial(spec);
         PreviewSelection goldSelection = stoneSelection.withVariantIndex(1);
 
@@ -187,7 +196,7 @@ public final class StructurePreviewProjectionGameTest {
                 itemKey(Blocks.DIAMOND_BLOCK),
                 List.of(),
                 new SubstructureSelection(List.of(1), Map.of(), Map.of()));
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         PreviewSelection initial = PreviewSelection.initial(spec);
 
         StructurePreviewSnapshot defaultSnapshot = projection.project(spec, initial);
@@ -239,7 +248,7 @@ public final class StructurePreviewProjectionGameTest {
                 List.of(),
                 new SubstructureSelection(List.of(1), Map.of(), Map.of()));
 
-        StructurePreviewSnapshot snapshot = new StructurePreviewProjectionImpl()
+        StructurePreviewSnapshot snapshot = new MdlibNorthFacingStructurePreviewProjection()
                 .project(spec, PreviewSelection.initial(spec));
 
         helper.assertFalse(alphaKey.equals(betaKey),
@@ -255,7 +264,7 @@ public final class StructurePreviewProjectionGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void rejectsInvalidAndAmbiguousCandidateSelections(GameTestHelper helper) {
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         MultiblockPreviewSpec orderedSpec = spec(
                 oneMaterialPattern(candidatePredicate(List.of(
                         candidate(Blocks.GOLD_BLOCK, new ItemStack(Blocks.GOLD_BLOCK)),

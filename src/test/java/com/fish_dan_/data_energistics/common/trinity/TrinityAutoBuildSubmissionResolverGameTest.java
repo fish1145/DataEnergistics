@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.common.trinity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.gametest.framework.GameTest;

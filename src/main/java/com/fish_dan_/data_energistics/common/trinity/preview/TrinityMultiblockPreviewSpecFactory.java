@@ -5,10 +5,10 @@ import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMult
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistrySnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpecFactory;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;

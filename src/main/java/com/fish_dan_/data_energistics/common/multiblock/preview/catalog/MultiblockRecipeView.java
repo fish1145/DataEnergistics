@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.catalog;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.item.OrderPackageTarget;
 
 import net.minecraft.resources.ResourceLocation;

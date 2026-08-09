@@ -9,13 +9,13 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicate
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalogSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
@@ -95,7 +95,7 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
         assertTierDomain(helper, cpuSpec, TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 10);
         assertTierDomain(helper, craftingSpec, TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 3);
 
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         PreviewSelection initial = PreviewSelection.initial(spec);
         StructurePreviewSnapshot main = projection.project(spec, initial);
         PreviewSelection cpuSelection = initial.select("cpu");

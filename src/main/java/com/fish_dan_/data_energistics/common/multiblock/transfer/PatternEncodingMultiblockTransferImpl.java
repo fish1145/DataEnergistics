@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.common.multiblock.transfer;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalog;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalogSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
@@ -37,7 +37,7 @@ public final class PatternEncodingMultiblockTransferImpl implements PatternEncod
      * Creates the production transfer bound to the reload-aware global multiblock catalog.
      */
     public PatternEncodingMultiblockTransferImpl() {
-        this(ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS, new StructurePreviewProjectionImpl());
+        this(ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS, new MdlibNorthFacingStructurePreviewProjection());
     }
 
     /**

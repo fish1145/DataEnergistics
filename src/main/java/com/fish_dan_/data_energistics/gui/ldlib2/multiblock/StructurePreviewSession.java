@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnaps
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 
 import net.minecraft.core.BlockPos;
 

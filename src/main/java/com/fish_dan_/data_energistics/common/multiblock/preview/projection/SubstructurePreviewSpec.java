@@ -1,6 +1,8 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 
 import net.minecraft.network.chat.Component;
 

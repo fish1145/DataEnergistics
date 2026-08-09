@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

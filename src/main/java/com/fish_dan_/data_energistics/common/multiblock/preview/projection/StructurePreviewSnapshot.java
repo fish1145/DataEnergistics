@@ -1,6 +1,11 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewVisibleLayer;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
 import net.minecraft.core.BlockPos;

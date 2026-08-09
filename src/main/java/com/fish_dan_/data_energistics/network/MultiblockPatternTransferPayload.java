@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.transfer.MultiblockPatternTransferRequest;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;

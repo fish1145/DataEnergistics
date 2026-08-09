@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMult
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import com.modularmc.mdl.api.multiblock.RepeatRange;

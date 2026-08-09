@@ -1,6 +1,14 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.ComponentAwarePreviewMaterialAggregator;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
@@ -35,14 +43,14 @@ import java.util.Set;
 /**
  * Canonical north-facing MDLib projector with explicit, component-aware candidate resolution.
  */
-public final class StructurePreviewProjectionImpl implements StructurePreviewProjection {
+public final class MdlibNorthFacingStructurePreviewProjection implements StructurePreviewProjection {
 
     private final PreviewMaterialAggregator materialAggregator;
 
     /**
      * Creates a projector with the standard exact material aggregator.
      */
-    public StructurePreviewProjectionImpl() {
+    public MdlibNorthFacingStructurePreviewProjection() {
         this(new ComponentAwarePreviewMaterialAggregator());
     }
 
@@ -51,18 +59,12 @@ public final class StructurePreviewProjectionImpl implements StructurePreviewPro
      *
      * @param materialAggregator component-aware aggregation implementation
      */
-    public StructurePreviewProjectionImpl(PreviewMaterialAggregator materialAggregator) {
-        if (materialAggregator == null) {
-            throw new IllegalArgumentException("Structure preview projection requires a material aggregator");
-        }
+    public MdlibNorthFacingStructurePreviewProjection(PreviewMaterialAggregator materialAggregator) {
         this.materialAggregator = materialAggregator;
     }
 
     @Override
     public StructurePreviewSnapshot project(MultiblockPreviewSpec spec, PreviewSelection selection) {
-        if (spec == null || selection == null) {
-            throw new IllegalArgumentException("Structure preview projection arguments cannot be null");
-        }
         selection.validateAgainst(spec);
         SubstructurePreviewSpec substructure = spec.substructure(selection.activeSubstructureId());
         JsonMultiBlockDefinition definition = substructure.definition(selection.activeSelection().variantIndex());

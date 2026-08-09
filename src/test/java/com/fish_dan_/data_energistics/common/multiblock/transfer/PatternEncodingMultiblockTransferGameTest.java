@@ -4,12 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
@@ -59,7 +59,7 @@ public final class PatternEncodingMultiblockTransferGameTest {
         MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
                 .require(ModVerticalMultiBlocks.trinityDataCoreId());
         PreviewSelection selection = PreviewSelection.initial(spec);
-        StructurePreviewSnapshot snapshot = new StructurePreviewProjectionImpl().project(spec, selection);
+        StructurePreviewSnapshot snapshot = new MdlibNorthFacingStructurePreviewProjection().project(spec, selection);
         MultiblockRecipeView current = MultiblockRecipeView.from(spec, snapshot);
         ProjectionFingerprint fingerprint = current.projectionFingerprint();
         PatternEncodingMultiblockTransferImpl transfer = new PatternEncodingMultiblockTransferImpl();

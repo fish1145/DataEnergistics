@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnaps
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;

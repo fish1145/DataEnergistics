@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;

@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.resources.ResourceLocation;
@@ -101,7 +101,7 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
                 spec,
                 initialSelection,
                 allowedStructureKeys,
-                new StructurePreviewProjectionImpl());
+                new MdlibNorthFacingStructurePreviewProjection());
         StructurePreviewPanel panel = new StructurePreviewPanel(idPrefix, session, presentation);
         if (logicalClient) {
             StructurePreviewSceneBinding binding = this.sceneBinder.get().bind(

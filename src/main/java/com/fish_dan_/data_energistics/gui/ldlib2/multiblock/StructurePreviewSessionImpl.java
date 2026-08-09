@@ -9,11 +9,11 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomai
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewVisibleLayer;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 
 import net.minecraft.core.BlockPos;
 
