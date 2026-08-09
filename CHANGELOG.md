@@ -1,5 +1,17 @@
 # ChangeLog
 
+## Version [v3.0.2](https://github.com/fish1145/DataEnergistics/compare/v3.0.1-1.21...v3.0.2-1.21)
+### Added
+
+- 修正合成计划耗时缓存语义 by @QiuYe-123 in [#178](https://github.com/fish1145/DataEnergistics/pull/178)
+
+### Fixed
+
+- 修复三位一体自动搭建的服务端定义同步 by @QiuYe-123 in [#180](https://github.com/fish1145/DataEnergistics/pull/180)
+- 修复 JEI 与 EMI 配方转移的编码模式竞态 by @QiuYe-123 in [#181](https://github.com/fish1145/DataEnergistics/pull/181)
+- 修复三位一体计算缓存的 bypass 发布竞态 by @QiuYe-123 in [#182](https://github.com/fish1145/DataEnergistics/pull/182)
+
+ 
 ## Version [v3.0.1](https://github.com/fish1145/DataEnergistics/compare/v3.0.0-1.21...v3.0.1-1.21)
 ### Changed
 
