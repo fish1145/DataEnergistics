@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.integration;
 
-import com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.patternencoding.WirelessPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
 import net.minecraft.client.Minecraft;

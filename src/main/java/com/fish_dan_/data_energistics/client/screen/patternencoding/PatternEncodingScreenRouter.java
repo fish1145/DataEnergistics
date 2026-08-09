@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae2wtlib.Ae2WtLibCompat;

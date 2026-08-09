@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import appeng.client.gui.widgets.AETextField;
 

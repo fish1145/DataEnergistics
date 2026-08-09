@@ -1,10 +1,9 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
-import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
+import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
@@ -20,7 +19,6 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -30,7 +28,6 @@ import appeng.client.Point;
 import appeng.client.gui.Icon;
 import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.me.common.StackSizeRenderer;
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.style.WidgetStyle;
@@ -40,21 +37,20 @@ import appeng.core.definitions.AEItems;
 import appeng.helpers.InventoryAction;
 import appeng.menu.SlotSemantics;
 import appeng.menu.me.common.GridInventoryEntry;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
+import de.mari_023.ae2wtlib.wet.WETMenu;
+import de.mari_023.ae2wtlib.wet.WETScreen;
 
 import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T>
-                                         implements Ae2NativeSlotHighlight {
+public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2NativeSlotHighlight {
 
     private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
@@ -65,62 +61,58 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller_disabled");
     private static final float PREVIEW_LAYER_Z = 400.0F;
     private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
-    private static final int COLOR_PANEL_TITLE = 0x000000;
     private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
     private static final Component ENCODE_BUTTON_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
-    private static final int PREVIEW_PANEL_WIDTH = 128;
-    private static final int PREVIEW_PANEL_HEIGHT = 128;
-    private static final int PREVIEW_TEXTURE_WIDTH = 128;
-    private static final int PREVIEW_TEXTURE_HEIGHT = 128;
-    private static final int PREVIEW_TEXTURE_U = 0;
-    private static final int PREVIEW_TEXTURE_V = 0;
+    private static final int PANEL_WIDTH = 128;
+    private static final int PANEL_HEIGHT = 128;
+    private static final int PANEL_TEXTURE_WIDTH = 128;
+    private static final int PANEL_TEXTURE_HEIGHT = 128;
     private static final int BUTTON_TEXTURE_WIDTH = 200;
     private static final int BUTTON_TEXTURE_HEIGHT = 20;
     private static final int BUTTON_SLICE_BORDER = 4;
-    private static final int DEFAULT_PREVIEW_PANEL_MARGIN = 0;
-    private static final int DEFAULT_PREVIEW_PANEL_X_OFFSET = 0;
-    private static final int DEFAULT_PREVIEW_PANEL_Y_OFFSET = 105;
-    private static final int DEFAULT_PANEL_CONTENT_X = 10;
-    private static final int DEFAULT_PANEL_CONTENT_RIGHT = 6;
-    private static final int DEFAULT_PANEL_CONTENT_BOTTOM = 6;
-    private static final int DEFAULT_PANEL_TITLE_Y = 4;
-    private static final int DEFAULT_SEARCH_BOX_X = 42;
-    private static final int DEFAULT_SEARCH_BOX_Y = 6;
-    private static final int DEFAULT_SEARCH_BOX_WIDTH = 55;
-    private static final int DEFAULT_SEARCH_BOX_HEIGHT = 12;
+    private static final int PANEL_TITLE_COLOR = 0x000000;
+    private static final int PANEL_EMPTY_TEXT_COLOR = 0x000000;
+    private static final int PANEL_TEXT_COLOR = 0xE7E7E7;
+    private static final int PANEL_COUNT_NORMAL_COLOR = 0x9CD3FF;
+    private static final int PANEL_COUNT_WARNING_COLOR = 0xC83A32;
+    private static final int PANEL_BUTTON_COLOR = 0x6A111111;
+    private static final int PANEL_BUTTON_HOVER_COLOR = 0x88333333;
+    private static final int PANEL_BUTTON_SELECTED_COLOR = 0xAA5F7991;
+    private static final int PANEL_BUTTON_BORDER_COLOR = 0xB0909090;
+    private static final int PANEL_X_OFFSET = 0;
+    private static final int PANEL_Y_OFFSET = 105;
+    private static final int PANEL_CONTENT_X = 10;
+    private static final int PANEL_CONTENT_RIGHT = 6;
+    private static final int PANEL_CONTENT_BOTTOM = 6;
+    private static final int PANEL_TITLE_Y = 4;
+    private static final int PANEL_SEARCH_X = 42;
+    private static final int PANEL_SEARCH_Y = 6;
+    private static final int PANEL_SEARCH_WIDTH = 55;
+    private static final int PANEL_SEARCH_HEIGHT = 12;
     private static final int PREVIEW_DRAG_BUTTON_RIGHT_PADDING = 4;
     private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = -7;
-    private static final int DEFAULT_PREVIEW_SCROLLBAR_X = 114;
-    private static final int PREVIEW_SCROLLBAR_Y_OFFSET = -3;
-    private static final int DEFAULT_PROVIDER_LIST_Y = 20;
-    private static final int DEFAULT_PROVIDER_BUTTON_GAP = -1;
-    private static final int DEFAULT_PROVIDER_VISIBLE_ROWS = 5;
-    private static final int DEFAULT_PROVIDER_BUTTON_WIDTH = 95;
-    private static final int DEFAULT_PROVIDER_BUTTON_HEIGHT = 20;
-    private static final int PROVIDER_NAME_X_PADDING = 4;
+    private static final int PANEL_SCROLLBAR_X = 114;
+    private static final int PANEL_SCROLLBAR_Y_OFFSET = -3;
+    private static final int PROVIDER_LIST_Y = 20;
+    private static final int PROVIDER_VISIBLE_ROWS = 5;
+    private static final int PROVIDER_BUTTON_WIDTH = 95;
+    private static final int PROVIDER_BUTTON_HEIGHT = 20;
+    private static final int PROVIDER_BUTTON_GAP = -1;
     private static final int PROVIDER_ICON_SIZE = 16;
     private static final int PROVIDER_ICON_X_PADDING = 2;
+    private static final int PROVIDER_NAME_X_PADDING = 4;
     private static final int PROVIDER_COUNT_RIGHT_PADDING = 4;
     private static final int PROVIDER_TEXT_Y_OFFSET = 5;
     private static final float PROVIDER_TEXT_SCALE = 0.75F;
     private static final float PROVIDER_COUNT_TEXT_SCALE = 0.68F;
-    private static final int COLOR_PANEL_TEXT = 0xE7E7E7;
-    private static final int COLOR_EMPTY_STATE_TEXT = 0x000000;
-    private static final int COLOR_PROVIDER_COUNT_NORMAL = 0x9CD3FF;
-    private static final int COLOR_PROVIDER_COUNT_WARNING = 0xC83A32;
-    private static final int COLOR_BUTTON = 0x6A111111;
-    private static final int COLOR_BUTTON_HOVER = 0x88333333;
-    private static final int COLOR_BUTTON_SELECTED = 0xAA5F7991;
-    private static final int COLOR_BUTTON_BORDER = 0xB0909090;
-    private static final Component SEARCH_BOX_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint");
 
+    private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
     private boolean previewVisible;
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
     private boolean suppressRenameKeyChar;
     private ResourceLocation lastLocatedWorkstationId;
-    private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
     private AbstractWidget encodePatternWidget;
     private Component originalEncodePatternMessage;
     private AETextField providerSearchBox;
@@ -129,7 +121,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private PatternEncodingPreviewDragButton previewDragButton;
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
     private boolean visibleProvidersCacheDirty = true;
-    private final Map<Long, String> providerSearchIndexSourceCache = new HashMap<>();
     private boolean previewPanelDragging;
     private int previewPanelDragOffsetX;
     private int previewPanelDragOffsetY;
@@ -137,9 +128,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private int previewPanelCurrentOffsetY;
     private Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
-    private String lastPreferenceLeafDigestSignature = "";
 
-    public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
+    public WirelessPatternEncodingTermScreen(WETMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.previewScrollbar.setCaptureMouseWheel(false);
         this.previewScrollbar.setRange(0, 0, 1);
@@ -148,7 +138,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void init() {
         super.init();
-        PatternEncodingPreferencesClient.initializeMenu(this.menu);
         this.encodePatternWidget = resolveEncodePatternWidget();
         if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
             this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
@@ -164,7 +153,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         updatePatternSourceToggleButton();
         updatePreviewDragButton();
         updatePreviewScrollbar();
-        syncPreferenceSnapshotIfProvidersChanged();
     }
 
     @Override
@@ -177,8 +165,16 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
-        syncPreferenceSnapshotIfProvidersChanged();
         applyEncodeButtonHint();
+    }
+
+    @Override
+    public void containerTick() {
+        super.containerTick();
+        this.suppressRenameKeyChar = false;
+        if (this.previewVisible) {
+            this.previewScrollbar.tick();
+        }
     }
 
     @Override
@@ -216,7 +212,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 return true;
             }
             if (button == 1) {
-                PatternEncodingPreferencesClient.setPreviewPanelOffset(this.menu, 0, 0);
+                previewLayout().data_energistics$resetPreviewPanelOffset();
                 this.previewPanelCurrentOffsetX = 0;
                 this.previewPanelCurrentOffsetY = 0;
                 this.previewPanelDragging = false;
@@ -232,7 +228,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 this.previewVisible = false;
-                return super.mouseClicked(mouseX, mouseY, button);
+                boolean handled = super.mouseClicked(mouseX, mouseY, button);
+                return handled || isOverEncodeButton(mouseX, mouseY);
             }
 
             if (hasShiftDown()) {
@@ -248,7 +245,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 this.previewVisible = false;
-                return super.mouseClicked(mouseX, mouseY, button);
+                this.menu.encode();
+                return true;
             }
 
             if (this.previewVisible) {
@@ -287,7 +285,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && isProviderOpenEnabled() && DEKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
+        if (this.previewVisible && DEKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
             var hit = getProviderButtonHit(mouseX, mouseY);
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
@@ -299,8 +297,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
-        return handled;
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -319,9 +316,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && isProviderRenameEnabled() && DEKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+        if (this.previewVisible && DEKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+            var hit = getProviderButtonHit(getMouseGuiX(), getMouseGuiY());
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
                 this.suppressRenameKeyChar = true;
@@ -329,9 +325,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && isProviderOpenEnabled() && DEKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+        if (this.previewVisible && DEKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+            var hit = getProviderButtonHit(getMouseGuiX(), getMouseGuiY());
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
                     cancelProviderRename();
@@ -379,8 +374,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             updatePreviewPanelDragOffset(mouseX, mouseY);
             return true;
         }
-        if (this.previewVisible && this.previewScrollbarDragging && this.previewScrollbar.onMouseDrag(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
-                mouseButton)) {
+        if (this.previewVisible && this.previewScrollbarDragging && this.previewScrollbar.onMouseDrag(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), mouseButton)) {
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, mouseButton, dragX, dragY);
@@ -388,8 +382,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
-                scrollY)) {
+        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY)) {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -412,8 +405,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     @Override
-    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY,
-                       float partialTicks) {
+    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY, float partialTicks) {
         super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
     }
 
@@ -428,7 +420,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         long networkStored = blankPatternEntry != null ? blankPatternEntry.getStoredAmount() : 0;
         boolean networkCraftable = blankPatternEntry != null && (blankPatternEntry.isCraftable() || blankPatternEntry.getRequestableAmount() > 0);
         int localBlankPatternCount = AEItems.BLANK_PATTERN.is(slot.getItem()) ? slot.getItem().getCount() : 0;
-        long displayedCount = networkStored > 0 ? networkStored : localBlankPatternCount;
+        long displayedCount = networkStored + localBlankPatternCount;
         boolean hasBlankPatterns = displayedCount > 0;
 
         if (slot.getItem().isEmpty() && !hasBlankPatterns) {
@@ -446,8 +438,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     ReadableNumberConverter.format(displayedCount, 4));
         }
 
-        PoseStack poseStack = guiGraphics.pose();
         if (networkCraftable) {
+            PoseStack poseStack = guiGraphics.pose();
             poseStack.pushPose();
             poseStack.translate(0.0F, 0.0F, 100.0F);
             StackSizeRenderer.renderSizeLabel(guiGraphics, this.font, (float) (slot.x - 11), (float) (slot.y - 11),
@@ -519,10 +511,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             guiGraphics.blit(AE2_UPLOAD_TEXTURE,
                     previewBounds.getX(), previewBounds.getY(),
                     0,
-                    PREVIEW_TEXTURE_U, PREVIEW_TEXTURE_V,
+                    0, 0,
                     previewBounds.getWidth(), previewBounds.getHeight(),
-                    PREVIEW_TEXTURE_WIDTH, PREVIEW_TEXTURE_HEIGHT);
-
+                    PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
             drawProviderButtons(guiGraphics, mouseX, mouseY);
             drawPreviewScrollbarHandle(guiGraphics);
             renderPreviewLayerWidget(this.providerSearchBox, guiGraphics, mouseX, mouseY, partialTicks);
@@ -556,15 +547,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         super.removed();
     }
 
-    @Override
-    public void containerTick() {
-        super.containerTick();
-        this.suppressRenameKeyChar = false;
-        if (this.previewVisible) {
-            this.previewScrollbar.tick();
-        }
-    }
-
     private PatternEncodingPreviewMenu previewBridge() {
         if (this.menu instanceof PatternEncodingPreviewMenu bridge) {
             return bridge;
@@ -582,84 +564,76 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private void drawProviderButtons(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         Rect2i previewBounds = getPreviewPanelBounds();
         guiGraphics.drawString(this.font, PANEL_TITLE,
-                previewBounds.getX() + getPanelContentX(),
-                previewBounds.getY() + getPanelTitleY(),
-                COLOR_PANEL_TITLE,
+                previewBounds.getX() + PANEL_CONTENT_X,
+                previewBounds.getY() + PANEL_TITLE_Y,
+                PANEL_TITLE_COLOR,
                 false);
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders();
-        if (visibleProviders.isEmpty()) {
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        if (providers.isEmpty()) {
             drawScaledText(guiGraphics, EMPTY_STATE_TEXT.getString(),
-                    previewBounds.getX() + getPanelContentX(),
-                    previewBounds.getY() + getProviderListY() + 2 + PROVIDER_TEXT_Y_OFFSET,
-                    COLOR_EMPTY_STATE_TEXT,
+                    previewBounds.getX() + PANEL_CONTENT_X,
+                    previewBounds.getY() + PROVIDER_LIST_Y + 2 + PROVIDER_TEXT_Y_OFFSET,
+                    PANEL_EMPTY_TEXT_COLOR,
                     PROVIDER_TEXT_SCALE);
             return;
         }
 
         int start = this.previewScrollbar.getCurrentScroll();
-        int end = Math.min(visibleProviders.size(), start + getProviderVisibleRows());
+        int end = Math.min(providers.size(), start + PROVIDER_VISIBLE_ROWS);
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
-            var provider = visibleProviders.get(rowIndex);
+            var provider = providers.get(rowIndex);
             int visibleRow = rowIndex - start;
-            Rect2i providerButtonBounds = getProviderButtonBounds(visibleRow);
+            Rect2i bounds = getProviderButtonBounds(visibleRow);
+            boolean hovered = bounds.contains(mouseX, mouseY);
             boolean selected = provider.id() == this.selectedPatternProviderId;
-            boolean hoveredProvider = providerButtonBounds.contains(mouseX, mouseY);
 
-            drawProviderButtonBackground(guiGraphics, providerButtonBounds, provider, selected, hoveredProvider);
+            drawProviderButtonBackground(guiGraphics, bounds, provider, selected, hovered);
 
-            ItemStack providerIcon = getProviderIconStack(provider);
-            int nameStartX = providerButtonBounds.getX() + PROVIDER_NAME_X_PADDING;
-            if (!providerIcon.isEmpty()) {
-                int iconX = providerButtonBounds.getX() + PROVIDER_ICON_X_PADDING;
-                int iconY = providerButtonBounds.getY() + (providerButtonBounds.getHeight() - PROVIDER_ICON_SIZE) / 2;
-                guiGraphics.renderItem(providerIcon, iconX, iconY);
+            ItemStack iconStack = getProviderIconStack(provider);
+            int nameStartX = bounds.getX() + PROVIDER_NAME_X_PADDING;
+            if (!iconStack.isEmpty()) {
+                int iconX = bounds.getX() + PROVIDER_ICON_X_PADDING;
+                int iconY = bounds.getY() + (bounds.getHeight() - PROVIDER_ICON_SIZE) / 2;
+                guiGraphics.renderItem(iconStack, iconX, iconY);
                 nameStartX = iconX + PROVIDER_ICON_SIZE + 2;
             }
 
             String countText = provider.usedPatternSlotCount() + "/" + provider.patternSlotCount();
             int countWidth = getScaledTextWidth(countText, PROVIDER_COUNT_TEXT_SCALE);
-            int maxNameWidth = providerButtonBounds.getX() + providerButtonBounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth - 4 - nameStartX;
-            String providerName = trimToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth),
-                    PROVIDER_TEXT_SCALE);
+            int maxNameWidth = bounds.getX() + bounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth - 4 - nameStartX;
+            String providerName = trimToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth), PROVIDER_TEXT_SCALE);
 
-            drawScaledText(guiGraphics, providerName,
-                    nameStartX,
-                    providerButtonBounds.getY() + 2 + PROVIDER_TEXT_Y_OFFSET,
-                    COLOR_PANEL_TEXT,
-                    PROVIDER_TEXT_SCALE);
+            drawScaledText(guiGraphics, providerName, nameStartX, bounds.getY() + 2 + PROVIDER_TEXT_Y_OFFSET, PANEL_TEXT_COLOR, PROVIDER_TEXT_SCALE);
             drawScaledText(guiGraphics, countText,
-                    providerButtonBounds.getX() + providerButtonBounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth,
-                    providerButtonBounds.getY() + 2 + PROVIDER_TEXT_Y_OFFSET,
+                    bounds.getX() + bounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth,
+                    bounds.getY() + 2 + PROVIDER_TEXT_Y_OFFSET,
                     getProviderCountColor(provider),
                     PROVIDER_COUNT_TEXT_SCALE);
         }
     }
 
     private void renderProviderTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        var buttonHit = getProviderButtonHit(mouseX, mouseY);
-        if (buttonHit == null) {
+        var hit = getProviderButtonHit(mouseX, mouseY);
+        if (hit == null) {
             return;
         }
 
         List<Component> tooltip = new ArrayList<>();
-        tooltip.add(buttonHit.provider().displayName().copy());
+        tooltip.add(hit.provider().displayName().copy());
         tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
-        if (isProviderOpenEnabled()) {
-            tooltip.add(getProviderOpenHint());
-        }
-        if (isProviderRenameEnabled() && buttonHit.provider().renameable()) {
+        tooltip.add(getProviderOpenHint());
+        if (hit.provider().renameable()) {
             tooltip.add(getProviderRenameHint());
         }
         tooltip.add(Component.translatable(
                 "screen.data_energistics.pattern_writer_preview.provider.slots",
-                buttonHit.provider().usedPatternSlotCount(),
-                buttonHit.provider().patternSlotCount()));
-        List<FormattedCharSequence> lines = tooltip.stream()
-                .map(Component::getVisualOrderText)
-                .toList();
-        Point tooltipPosition = getPreviewTooltipPosition(mouseX, mouseY, getPreviewPanelBounds());
-        guiGraphics.renderTooltip(this.font, lines, tooltipPosition.getX(), tooltipPosition.getY());
+                hit.provider().usedPatternSlotCount(),
+                hit.provider().patternSlotCount()));
+        guiGraphics.renderTooltip(this.font,
+                tooltip.stream().map(Component::getVisualOrderText).toList(),
+                getPreviewTooltipPosition(mouseX, mouseY, getPreviewPanelBounds()).getX(),
+                getPreviewTooltipPosition(mouseX, mouseY, getPreviewPanelBounds()).getY());
     }
 
     private Component getProviderRenameHint() {
@@ -674,182 +648,30 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage());
     }
 
-    private void updatePreviewScrollbar() {
-        int hiddenRows = getHiddenProviderRows();
-        Rect2i scrollbarBounds = getPreviewScrollbarBounds();
-        this.previewScrollbar.setPosition(new Point(scrollbarBounds.getX(), scrollbarBounds.getY()));
-        this.previewScrollbar.setHeight(scrollbarBounds.getHeight());
-        this.previewScrollbar.setSize(scrollbarBounds.getWidth(), scrollbarBounds.getHeight());
-        this.previewScrollbar.setRange(0, hiddenRows, 1);
-        this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
-        this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
-    }
-
-    private void syncProviderSelection() {
-        syncProviderLocationFromRecordedWorkstation();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
-        if (providers.isEmpty()) {
-            this.selectedPatternProviderId = -1L;
-            return;
-        }
-
-        if (getPatternProvider(this.selectedPatternProviderId) == null) {
-            this.selectedPatternProviderId = providers.getFirst().id();
-        }
-    }
-
-    private void syncProviderLocationFromRecordedWorkstation() {
-        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
-            this.lastLocatedWorkstationId = null;
-            return;
-        }
-
-        ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
-        if (Objects.equals(this.lastLocatedWorkstationId, workstationId)) {
-            return;
-        }
-
-        this.lastLocatedWorkstationId = workstationId;
-        this.previewScrollbar.setCurrentScroll(0);
-        this.selectedPatternProviderId = -1L;
-    }
-
-    private PatternEncodingPreviewMenu.SyncedPatternProvider getPatternProvider(long providerId) {
-        for (var provider : getVisibleProviders()) {
-            if (provider.id() == providerId) {
-                return provider;
-            }
-        }
-        return null;
-    }
-
-    private boolean isRenamingProvider() {
-        return this.renamingProviderId >= 0L;
-    }
-
-    private void beginProviderRename(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        this.selectedPatternProviderId = provider.id();
-        this.renamingProviderId = provider.id();
-        invalidateVisibleProvidersCache();
-        if (this.providerSearchBox != null) {
-            this.providerSearchBox.setFocused(false);
-        }
-        if (this.providerRenameBox != null) {
-            this.providerRenameBox.setValue(provider.displayName().getString());
-            this.providerRenameBox.setVisible(true);
-            this.providerRenameBox.active = true;
-            this.providerRenameBox.setFocused(true);
-        }
-    }
-
-    private void cancelProviderRename() {
-        this.renamingProviderId = -1L;
-        invalidateVisibleProvidersCache();
-        if (this.providerRenameBox != null) {
-            this.providerRenameBox.setFocused(false);
-            this.providerRenameBox.setVisible(false);
-        }
-    }
-
-    private void commitProviderRename() {
-        if (!isRenamingProvider() || this.providerRenameBox == null) {
-            return;
-        }
-
-        previewBridge().data_energistics$renamePatternProvider(this.renamingProviderId, this.providerRenameBox.getValue());
-        cancelProviderRename();
-    }
-
-    private ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
-        if (!isOverProviderList(mouseX, mouseY)) {
-            return null;
-        }
-
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
-        int start = this.previewScrollbar.getCurrentScroll();
-        int end = Math.min(providers.size(), start + getProviderVisibleRows());
-        for (int rowIndex = start; rowIndex < end; rowIndex++) {
-            int visibleRow = rowIndex - start;
-            var provider = providers.get(rowIndex);
-            if (getProviderButtonBounds(visibleRow).contains((int) mouseX, (int) mouseY)) {
-                return new ProviderButtonHit(provider);
-            }
-        }
-        return null;
-    }
-
-    private boolean isOverEncodeButton(double mouseX, double mouseY) {
-        if (this.encodePatternWidget != null && this.encodePatternWidget.visible) {
-            return this.encodePatternWidget.isMouseOver(mouseX, mouseY);
-        }
-
-        WidgetStyle buttonStyle = this.getStyle().getWidget("encodePattern");
-        Point position = buttonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
-        int width = buttonStyle.getWidth() > 0 ? buttonStyle.getWidth() : 16;
-        int height = buttonStyle.getHeight() > 0 ? buttonStyle.getHeight() : 16;
-        return mouseX >= position.getX() && mouseX < position.getX() + width && mouseY >= position.getY() && mouseY < position.getY() + height;
-    }
-
-    @SuppressWarnings("unchecked")
-    private AbstractWidget resolveEncodePatternWidget() {
-        Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
-        if (widgetsById == null) {
-            return null;
-        }
-        return widgetsById.get("encodePattern");
-    }
-
-    protected void applyEncodeButtonHint() {
-        if (this.encodePatternWidget != null) {
-            this.encodePatternWidget.setMessage(getEncodeButtonHint());
-        }
-    }
-
-    protected Component getEncodeButtonHint() {
-        if (isUploadEnabled()) {
-            return ENCODE_BUTTON_HINT;
-        }
-        return this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT;
-    }
-
     private void initProviderSearchBox() {
-        String currentText = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
-        this.providerSearchBox = new AETextField(this.getStyle(), this.font, 0, 0,
-                getSearchBoxWidth(), getSearchBoxHeight());
+        this.providerSearchBox = new AETextField(this.getStyle(), this.font, 0, 0, PANEL_SEARCH_WIDTH, PANEL_SEARCH_HEIGHT);
         this.providerSearchBox.setMaxLength(40);
         this.providerSearchBox.setBordered(false);
         this.providerSearchBox.setVisible(false);
         this.providerSearchBox.setCanLoseFocus(true);
-        this.providerSearchBox.setPlaceholder(SEARCH_BOX_HINT);
+        this.providerSearchBox.setPlaceholder(
+                Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint"));
         this.providerSearchBox.setResponder(value -> {
             this.previewScrollbar.setCurrentScroll(0);
             invalidateVisibleProvidersCache();
         });
-        this.providerSearchBox.setValue(currentText);
         this.addRenderableWidget(this.providerSearchBox);
     }
 
     private void initProviderRenameBox() {
         String currentText = this.providerRenameBox != null ? this.providerRenameBox.getValue() : "";
-        this.providerRenameBox = new AETextField(this.getStyle(), this.font, 0, 0,
-                getSearchBoxWidth(), Math.max(12, getSearchBoxHeight()));
+        this.providerRenameBox = new AETextField(this.getStyle(), this.font, 0, 0, PANEL_SEARCH_WIDTH, PANEL_SEARCH_HEIGHT);
         this.providerRenameBox.setMaxLength(40);
         this.providerRenameBox.setBordered(false);
         this.providerRenameBox.setVisible(false);
         this.providerRenameBox.setCanLoseFocus(false);
         this.providerRenameBox.setValue(currentText);
         this.addRenderableWidget(this.providerRenameBox);
-    }
-
-    private void initPatternSourceToggleButton() {
-        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
-            return;
-        }
-
-        this.patternSourceToggleButton = new PatternSourceToggleButton(
-                enabled -> PatternEncodingPreferencesClient.setPatternSourceEnabled(this.menu, enabled));
-        this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
-        this.addRenderableWidget(this.patternSourceToggleButton);
     }
 
     private void initPreviewDragButton() {
@@ -862,12 +684,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.providerSearchBox == null) {
             return;
         }
-
         Rect2i previewBounds = getPreviewPanelBounds();
-        this.providerSearchBox.setX(previewBounds.getX() + getSearchBoxX());
-        this.providerSearchBox.setY(previewBounds.getY() + getSearchBoxY());
-        this.providerSearchBox.setWidth(getSearchBoxWidth());
-        this.providerSearchBox.setHeight(getSearchBoxHeight());
+        this.providerSearchBox.setX(previewBounds.getX() + PANEL_SEARCH_X);
+        this.providerSearchBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
+        this.providerSearchBox.setWidth(PANEL_SEARCH_WIDTH);
+        this.providerSearchBox.setHeight(PANEL_SEARCH_HEIGHT);
         boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && !isRenamingProvider();
         this.providerSearchBox.setVisible(visible);
         this.providerSearchBox.active = visible;
@@ -882,7 +703,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         var provider = getPatternProvider(this.renamingProviderId);
-        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && isProviderRenameEnabled() && provider != null && provider.renameable();
+        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && provider != null && provider.renameable();
         this.providerRenameBox.setVisible(visible);
         this.providerRenameBox.active = visible;
         if (!visible && !this.previewLayerWidgetRenderingDeferred) {
@@ -891,10 +712,35 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         Rect2i previewBounds = getPreviewPanelBounds();
-        this.providerRenameBox.setX(previewBounds.getX() + getSearchBoxX());
-        this.providerRenameBox.setY(previewBounds.getY() + getSearchBoxY());
-        this.providerRenameBox.setWidth(getSearchBoxWidth());
-        this.providerRenameBox.setHeight(Math.max(12, getSearchBoxHeight()));
+        this.providerRenameBox.setX(previewBounds.getX() + PANEL_SEARCH_X);
+        this.providerRenameBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
+        this.providerRenameBox.setWidth(PANEL_SEARCH_WIDTH);
+        this.providerRenameBox.setHeight(PANEL_SEARCH_HEIGHT);
+    }
+
+    private void updatePreviewDragButton() {
+        if (this.previewDragButton == null) {
+            return;
+        }
+
+        this.previewDragButton.setVisibility(this.previewVisible && !this.previewLayerWidgetRenderingDeferred);
+        if (!this.previewVisible) {
+            return;
+        }
+
+        Rect2i previewBounds = getPreviewPanelBounds();
+        this.previewDragButton.setX(previewBounds.getX() + previewBounds.getWidth() - this.previewDragButton.getWidth() - PREVIEW_DRAG_BUTTON_RIGHT_PADDING);
+        this.previewDragButton.setY(previewBounds.getY() + PREVIEW_DRAG_BUTTON_TOP_PADDING);
+    }
+
+    private void initPatternSourceToggleButton() {
+        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
+            return;
+        }
+
+        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::data_energistics$setPatternSourceEnabled);
+        this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
+        this.addRenderableWidget(this.patternSourceToggleButton);
     }
 
     private void updatePatternSourceToggleButton() {
@@ -912,28 +758,14 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             this.patternSourceToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_source_toggle.detail.none"));
         }
+
         boolean visible = this.menu.getMode() == EncodingMode.PROCESSING;
         this.patternSourceToggleButton.visible = visible;
         this.patternSourceToggleButton.active = visible;
         WidgetStyle clearButtonStyle = this.getStyle().getWidget("processingClearPattern");
         Point clearButtonPosition = clearButtonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
-        this.patternSourceToggleButton.setX(clearButtonPosition.getX() + 0);
+        this.patternSourceToggleButton.setX(clearButtonPosition.getX());
         this.patternSourceToggleButton.setY(clearButtonPosition.getY() + 10);
-    }
-
-    private void updatePreviewDragButton() {
-        if (this.previewDragButton == null) {
-            return;
-        }
-
-        this.previewDragButton.setVisibility(this.previewVisible && !this.previewLayerWidgetRenderingDeferred);
-        if (!this.previewVisible) {
-            return;
-        }
-
-        Rect2i previewBounds = getPreviewPanelBounds();
-        this.previewDragButton.setX(previewBounds.getX() + previewBounds.getWidth() - this.previewDragButton.getWidth() - PREVIEW_DRAG_BUTTON_RIGHT_PADDING);
-        this.previewDragButton.setY(previewBounds.getY() + PREVIEW_DRAG_BUTTON_TOP_PADDING);
     }
 
     private void updatePreviewPanelDragOffset(double mouseX, double mouseY) {
@@ -953,114 +785,82 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void savePreviewPanelDragOffset(double mouseX, double mouseY) {
         updatePreviewPanelDragOffset(mouseX, mouseY);
-        PatternEncodingPreferencesClient.setPreviewPanelOffset(
-                this.menu, this.previewPanelCurrentOffsetX, this.previewPanelCurrentOffsetY);
+        previewLayout().data_energistics$setPreviewPanelOffset(
+                this.previewPanelCurrentOffsetX,
+                this.previewPanelCurrentOffsetY);
         this.previewPanelDragBaseBounds = null;
-    }
-
-    private void syncPreferenceSnapshotIfProvidersChanged() {
-        String leafSignature = previewBridge().data_energistics$getSyncedPatternProviders().stream()
-                .flatMap(provider -> provider.leafDigests().stream())
-                .sorted()
-                .reduce("", (left, right) -> left + '\0' + right);
-        String contextSignature = this.menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? Objects.toString(preferenceMenu.data_energistics$getPreferenceSession().rankingContext(), "") : "";
-        String signature = contextSignature + '\1' + leafSignature;
-        if (signature.equals(this.lastPreferenceLeafDigestSignature)) {
-            return;
-        }
-        this.lastPreferenceLeafDigestSignature = signature;
-        PatternEncodingPreferencesClient.sendSnapshot(this.menu);
     }
 
     private boolean isUploadEnabled() {
         return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
     }
 
-    protected boolean isProviderOpenEnabled() {
-        return true;
+    private void updatePreviewScrollbar() {
+        int hiddenRows = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
+        Rect2i scrollbarBounds = getPreviewScrollbarBounds();
+        this.previewScrollbar.setPosition(new Point(scrollbarBounds.getX(), scrollbarBounds.getY()));
+        this.previewScrollbar.setHeight(scrollbarBounds.getHeight());
+        this.previewScrollbar.setSize(scrollbarBounds.getWidth(), scrollbarBounds.getHeight());
+        this.previewScrollbar.setRange(0, hiddenRows, 1);
+        this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
+        this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
     }
 
-    protected boolean isProviderRenameEnabled() {
-        return true;
-    }
-
-    private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
-        Slot slot = this.hoveredSlot;
-        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
-            return false;
+    private void syncProviderSelection() {
+        syncProviderLocationFromRecordedWorkstation();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        if (providers.isEmpty()) {
+            this.selectedPatternProviderId = -1L;
+            this.renamingProviderId = -1L;
+            return;
         }
-        if (!isMouseOverSlot(slot, mouseX, mouseY)) {
-            return false;
-        }
-
-        GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
-        if (blankPatternEntry == null || !blankPatternEntry.isCraftable()) {
-            return false;
-        }
-
-        this.menu.handleInteraction(blankPatternEntry.getSerial(), InventoryAction.AUTO_CRAFT);
-        return true;
-    }
-
-    private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
-        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu)) {
-            return false;
-        }
-
-        Slot slot = this.hoveredSlot;
-        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || !isMouseOverSlot(slot, mouseX, mouseY)) {
-            return false;
-        }
-
-        if (button == 0) {
-            if (this.menu.getCarried().isEmpty()) {
-                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(false);
-            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
-                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(false);
-            } else {
-                return false;
+        boolean found = false;
+        for (var provider : providers) {
+            if (provider.id() == this.selectedPatternProviderId) {
+                found = true;
+                break;
             }
-            return true;
         }
-
-        if (button == 1) {
-            if (this.menu.getCarried().isEmpty()) {
-                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(true);
-            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
-                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(true);
-            } else {
-                return false;
-            }
-            return true;
+        if (!found) {
+            this.selectedPatternProviderId = providers.getFirst().id();
         }
-
-        return false;
+        if (isRenamingProvider() && getPatternProvider(this.renamingProviderId) == null) {
+            cancelProviderRename();
+        }
     }
 
-    private GridInventoryEntry findBlankPatternEntry() {
-        AEItemKey blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
-        if (blankPatternKey == null) {
+    private void syncProviderLocationFromRecordedWorkstation() {
+        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
+            this.lastLocatedWorkstationId = null;
+            return;
+        }
+
+        ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
+        if (Objects.equals(this.lastLocatedWorkstationId, workstationId)) {
+            return;
+        }
+
+        this.lastLocatedWorkstationId = workstationId;
+        this.previewScrollbar.setCurrentScroll(0);
+        this.selectedPatternProviderId = -1L;
+    }
+
+    private ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
+        if (!isOverProviderList(mouseX, mouseY)) {
             return null;
         }
 
-        GridInventoryEntry fallback = null;
-        for (GridInventoryEntry entry : this.repo.getAllEntries()) {
-            if (!blankPatternKey.equals(entry.getWhat())) {
-                continue;
-            }
-            if (entry.isMeaningful()) {
-                return entry;
-            }
-            if (fallback == null) {
-                fallback = entry;
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        int start = this.previewScrollbar.getCurrentScroll();
+        int end = Math.min(providers.size(), start + PROVIDER_VISIBLE_ROWS);
+        for (int rowIndex = start; rowIndex < end; rowIndex++) {
+            int visibleRow = rowIndex - start;
+            var provider = providers.get(rowIndex);
+            if (getProviderButtonBounds(visibleRow).contains((int) mouseX, (int) mouseY)) {
+                return new ProviderButtonHit(provider);
             }
         }
-
-        return fallback;
-    }
-
-    private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
-        return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
+        return null;
     }
 
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
@@ -1084,7 +884,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
         for (var provider : providers) {
-            String source = getCachedProviderSource(provider);
+            String source = provider.displayName().getString() + " " + provider.iconItemId();
             if (PinyinUtil.matchesSearch(source, query)) {
                 filtered.add(provider);
             }
@@ -1096,24 +896,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void invalidateVisibleProvidersCache() {
         this.visibleProvidersCacheDirty = true;
-    }
-
-    private String getCachedProviderSource(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        long providerId = provider.id();
-        String source = provider.displayName().getString() + " " + provider.iconItemId();
-        String cachedSource = this.providerSearchIndexSourceCache.get(providerId);
-        if (!source.equals(cachedSource)) {
-            this.providerSearchIndexSourceCache.put(providerId, source);
-        }
-        return source;
-    }
-
-    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
-        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
-        if (field.isEmpty()) {
-            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
-        }
-        return field;
     }
 
     private Rect2i getPreviewPanelBounds() {
@@ -1128,22 +910,19 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private Rect2i getDefaultPreviewPanelBounds() {
-        int previewPanelWidth = getPreviewPanelWidth();
-        int previewPanelHeight = getPreviewPanelHeight();
         Rect2i encodeButtonBounds = getEncodeButtonBounds();
-        int preferredY = this.topPos + getPreviewPanelYOffset();
-        int y = Math.max(4, Math.min(preferredY, this.height - previewPanelHeight - 4));
+        int preferredY = this.topPos + PANEL_Y_OFFSET;
+        int y = Math.max(4, Math.min(preferredY, this.height - PANEL_HEIGHT - 4));
         Rect2i rightCandidate = clampPreviewPanelBounds(
-                encodeButtonBounds.getX() + encodeButtonBounds.getWidth() + getPreviewPanelMargin() + getPreviewPanelXOffset(),
+                encodeButtonBounds.getX() + encodeButtonBounds.getWidth() + PANEL_X_OFFSET,
                 y,
-                previewPanelWidth,
-                previewPanelHeight);
+                PANEL_WIDTH,
+                PANEL_HEIGHT);
         Rect2i leftCandidate = clampPreviewPanelBounds(
-                encodeButtonBounds.getX() - previewPanelWidth - getPreviewPanelMargin() + getPreviewPanelXOffset(),
+                encodeButtonBounds.getX() - PANEL_WIDTH + PANEL_X_OFFSET,
                 y,
-                previewPanelWidth,
-                previewPanelHeight);
-
+                PANEL_WIDTH,
+                PANEL_HEIGHT);
         List<Rect2i> occupiedZones = getOccupiedPreviewAnchorZones();
         boolean rightOccupied = intersectsAny(rightCandidate, occupiedZones);
         boolean leftOccupied = intersectsAny(leftCandidate, occupiedZones);
@@ -1163,8 +942,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         Rect2i listBounds = getProviderListBounds();
         int scrollbarWidth = this.previewScrollbar.getBounds().getWidth();
         return new Rect2i(
-                getPreviewPanelBounds().getX() + getPreviewScrollbarX(),
-                Math.max(4, listBounds.getY() - 1 + PREVIEW_SCROLLBAR_Y_OFFSET),
+                getPreviewPanelBounds().getX() + PANEL_SCROLLBAR_X,
+                Math.max(4, listBounds.getY() - 1 + PANEL_SCROLLBAR_Y_OFFSET),
                 scrollbarWidth,
                 Math.max(1, listBounds.getHeight() + 2));
     }
@@ -1249,8 +1028,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private Rect2i getProviderButtonBounds(int visibleRow) {
         Rect2i listBounds = getProviderListBounds();
         int x = listBounds.getX();
-        int y = listBounds.getY() + visibleRow * (getProviderButtonHeight() + getProviderButtonGap());
-        return new Rect2i(x, y, getProviderButtonWidth(), getProviderButtonHeight());
+        int y = listBounds.getY() + visibleRow * (PROVIDER_BUTTON_HEIGHT + PROVIDER_BUTTON_GAP);
+        return new Rect2i(x, y, PROVIDER_BUTTON_WIDTH, PROVIDER_BUTTON_HEIGHT);
     }
 
     private void drawPreviewScrollbarHandle(GuiGraphics guiGraphics) {
@@ -1259,7 +1038,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         Rect2i scrollbarBounds = getPreviewScrollbarBounds();
-        int range = getHiddenProviderRows();
+        int range = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
         int handleYOffset = 0;
         if (range > 0) {
             int availableHeight = scrollbarBounds.getHeight() - getPreviewScrollbarHandleHeight();
@@ -1276,32 +1055,189 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return Scrollbar.SMALL.handleHeight();
     }
 
+    private Rect2i getProviderListBounds() {
+        Rect2i bounds = getPreviewPanelBounds();
+        int x = bounds.getX() + PANEL_CONTENT_X;
+        int y = bounds.getY() + PROVIDER_LIST_Y;
+        int width = bounds.getWidth() - PANEL_CONTENT_X - PANEL_CONTENT_RIGHT;
+        int height = bounds.getHeight() - PROVIDER_LIST_Y - PANEL_CONTENT_BOTTOM;
+        return new Rect2i(x, y, Math.max(1, width), Math.max(1, height));
+    }
+
     private boolean isOverPreviewScrollbar(double mouseX, double mouseY) {
         Rect2i bounds = this.previewScrollbar.getBounds();
         return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth() && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
     }
 
-    private int getHiddenProviderRows() {
-        return Math.max(0, getVisibleProviders().size() - getProviderVisibleRows());
-    }
-
     private boolean isOverProviderList(double mouseX, double mouseY) {
-        Rect2i listBounds = getProviderListBounds();
-        return mouseX >= listBounds.getX() && mouseX < listBounds.getX() + listBounds.getWidth() && mouseY >= listBounds.getY() && mouseY < listBounds.getY() + listBounds.getHeight();
+        Rect2i bounds = getProviderListBounds();
+        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth() && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
     }
 
-    private void drawPanelButton(GuiGraphics guiGraphics, Rect2i bounds, int fillColor) {
-        guiGraphics.fill(bounds.getX(), bounds.getY(),
-                bounds.getX() + bounds.getWidth(), bounds.getY() + bounds.getHeight(),
-                fillColor);
-        guiGraphics.renderOutline(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(),
-                COLOR_BUTTON_BORDER);
+    private boolean isOverEncodeButton(double mouseX, double mouseY) {
+        if (this.encodePatternWidget != null && this.encodePatternWidget.visible) {
+            return this.encodePatternWidget.isMouseOver(mouseX, mouseY);
+        }
+
+        WidgetStyle buttonStyle = this.getStyle().getWidget("encodePattern");
+        Point position = buttonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
+        int width = buttonStyle.getWidth() > 0 ? buttonStyle.getWidth() : 16;
+        int height = buttonStyle.getHeight() > 0 ? buttonStyle.getHeight() : 16;
+        return mouseX >= position.getX() && mouseX < position.getX() + width && mouseY >= position.getY() && mouseY < position.getY() + height;
+    }
+
+    @SuppressWarnings("unchecked")
+    private AbstractWidget resolveEncodePatternWidget() {
+        Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        if (widgetsById == null) {
+            return null;
+        }
+        return widgetsById.get("encodePattern");
+    }
+
+    private void applyEncodeButtonHint() {
+        if (this.encodePatternWidget != null) {
+            this.encodePatternWidget.setMessage(isUploadEnabled() ? ENCODE_BUTTON_HINT : this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT);
+        }
+    }
+
+    private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
+        Slot slot = this.hoveredSlot;
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
+            return false;
+        }
+        if (!isMouseOverSlot(slot, mouseX, mouseY)) {
+            return false;
+        }
+
+        GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
+        if (blankPatternEntry == null || !blankPatternEntry.isCraftable()) {
+            return false;
+        }
+
+        this.menu.handleInteraction(blankPatternEntry.getSerial(), InventoryAction.AUTO_CRAFT);
+        return true;
+    }
+
+    private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
+        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu)) {
+            return false;
+        }
+
+        Slot slot = this.hoveredSlot;
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || !isMouseOverSlot(slot, mouseX, mouseY)) {
+            return false;
+        }
+
+        if (button == 0) {
+            if (this.menu.getCarried().isEmpty()) {
+                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(false);
+            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
+                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(false);
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        if (button == 1) {
+            if (this.menu.getCarried().isEmpty()) {
+                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(true);
+            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
+                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(true);
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private GridInventoryEntry findBlankPatternEntry() {
+        AEItemKey blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
+        if (blankPatternKey == null) {
+            return null;
+        }
+
+        GridInventoryEntry fallback = null;
+        for (GridInventoryEntry entry : this.repo.getAllEntries()) {
+            if (!blankPatternKey.equals(entry.getWhat())) {
+                continue;
+            }
+            if (entry.isMeaningful()) {
+                return entry;
+            }
+            if (fallback == null) {
+                fallback = entry;
+            }
+        }
+
+        return fallback;
+    }
+
+    private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
+        return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
+    }
+
+    private boolean isRenamingProvider() {
+        return this.renamingProviderId >= 0L;
+    }
+
+    private void beginProviderRename(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+        this.selectedPatternProviderId = provider.id();
+        this.renamingProviderId = provider.id();
+        invalidateVisibleProvidersCache();
+        if (this.providerSearchBox != null) {
+            this.providerSearchBox.setFocused(false);
+        }
+        if (this.providerRenameBox != null) {
+            this.providerRenameBox.setValue(provider.displayName().getString());
+            this.providerRenameBox.setVisible(true);
+            this.providerRenameBox.active = true;
+            this.providerRenameBox.setFocused(true);
+        }
+    }
+
+    private void cancelProviderRename() {
+        this.renamingProviderId = -1L;
+        invalidateVisibleProvidersCache();
+        if (this.providerRenameBox != null) {
+            this.providerRenameBox.setFocused(false);
+            this.providerRenameBox.setVisible(false);
+        }
+    }
+
+    private void commitProviderRename() {
+        if (!isRenamingProvider() || this.providerRenameBox == null) {
+            return;
+        }
+
+        previewBridge().data_energistics$renamePatternProvider(this.renamingProviderId, this.providerRenameBox.getValue());
+        cancelProviderRename();
+    }
+
+    private PatternEncodingPreviewMenu.SyncedPatternProvider getPatternProvider(long providerId) {
+        for (var provider : getVisibleProviders()) {
+            if (provider.id() == providerId) {
+                return provider;
+            }
+        }
+        return null;
+    }
+
+    private double getMouseGuiX() {
+        return this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth();
+    }
+
+    private double getMouseGuiY() {
+        return this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight();
     }
 
     private void drawProviderButtonBackground(GuiGraphics guiGraphics, Rect2i bounds,
                                               PatternEncodingPreviewMenu.SyncedPatternProvider provider,
                                               boolean selected, boolean hovered) {
-        if (isMePatternProvider(provider)) {
+        if (provider.useAeButtonStyle()) {
             ResourceLocation texture = selected ? AE2_BUTTON_DISABLED_TEXTURE : hovered ? AE2_BUTTON_HIGHLIGHTED_TEXTURE : AE2_BUTTON_TEXTURE;
             drawNineSlicedTexture(guiGraphics, texture, bounds,
                     BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT,
@@ -1309,97 +1245,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        drawPanelButton(guiGraphics, bounds,
-                selected ? COLOR_BUTTON_SELECTED : hovered ? COLOR_BUTTON_HOVER : COLOR_BUTTON);
-    }
-
-    private Rect2i getProviderListBounds() {
-        Rect2i panelBounds = getPreviewPanelBounds();
-        int x = panelBounds.getX() + getPanelContentX();
-        int y = panelBounds.getY() + getProviderListY();
-        int width = panelBounds.getWidth() - getPanelContentX() - getPanelContentRight();
-        int height = panelBounds.getHeight() - getProviderListY() - getPanelContentBottom();
-        return new Rect2i(x, y, Math.max(1, width), Math.max(1, height));
-    }
-
-    private boolean isMePatternProvider(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        return provider.useAeButtonStyle();
-    }
-
-    protected int getPreviewPanelWidth() {
-        return PREVIEW_PANEL_WIDTH;
-    }
-
-    protected int getPreviewPanelHeight() {
-        return PREVIEW_PANEL_HEIGHT;
-    }
-
-    protected int getPreviewPanelMargin() {
-        return DEFAULT_PREVIEW_PANEL_MARGIN;
-    }
-
-    protected int getPreviewPanelXOffset() {
-        return DEFAULT_PREVIEW_PANEL_X_OFFSET;
-    }
-
-    protected int getPreviewPanelYOffset() {
-        return DEFAULT_PREVIEW_PANEL_Y_OFFSET;
-    }
-
-    protected int getPanelContentX() {
-        return DEFAULT_PANEL_CONTENT_X;
-    }
-
-    protected int getPanelContentRight() {
-        return DEFAULT_PANEL_CONTENT_RIGHT;
-    }
-
-    protected int getPanelContentBottom() {
-        return DEFAULT_PANEL_CONTENT_BOTTOM;
-    }
-
-    protected int getPanelTitleY() {
-        return DEFAULT_PANEL_TITLE_Y;
-    }
-
-    protected int getSearchBoxX() {
-        return DEFAULT_SEARCH_BOX_X;
-    }
-
-    protected int getSearchBoxY() {
-        return DEFAULT_SEARCH_BOX_Y;
-    }
-
-    protected int getSearchBoxWidth() {
-        return DEFAULT_SEARCH_BOX_WIDTH;
-    }
-
-    protected int getSearchBoxHeight() {
-        return DEFAULT_SEARCH_BOX_HEIGHT;
-    }
-
-    protected int getProviderListY() {
-        return DEFAULT_PROVIDER_LIST_Y;
-    }
-
-    protected int getProviderButtonGap() {
-        return DEFAULT_PROVIDER_BUTTON_GAP;
-    }
-
-    protected int getProviderVisibleRows() {
-        return DEFAULT_PROVIDER_VISIBLE_ROWS;
-    }
-
-    protected int getProviderButtonWidth() {
-        return DEFAULT_PROVIDER_BUTTON_WIDTH;
-    }
-
-    protected int getProviderButtonHeight() {
-        return DEFAULT_PROVIDER_BUTTON_HEIGHT;
-    }
-
-    protected int getPreviewScrollbarX() {
-        return DEFAULT_PREVIEW_SCROLLBAR_X;
+        guiGraphics.fill(bounds.getX(), bounds.getY(),
+                bounds.getX() + bounds.getWidth(), bounds.getY() + bounds.getHeight(),
+                selected ? PANEL_BUTTON_SELECTED_COLOR : hovered ? PANEL_BUTTON_HOVER_COLOR : PANEL_BUTTON_COLOR);
+        guiGraphics.renderOutline(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(),
+                PANEL_BUTTON_BORDER_COLOR);
     }
 
     private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds,
@@ -1444,26 +1294,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         PoseStack poseStack = guiGraphics.pose();
         poseStack.pushPose();
         poseStack.scale(scale, scale, 1.0F);
-        guiGraphics.drawString(this.font, text,
-                Math.round(x / scale),
-                Math.round(y / scale),
-                color,
-                false);
+        guiGraphics.drawString(this.font, text, Math.round(x / scale), Math.round(y / scale), color, false);
         poseStack.popPose();
     }
 
     private int getScaledTextWidth(String text, float scale) {
         return (int) Math.ceil(this.font.width(text) * scale);
-    }
-
-    private int getProviderCountColor(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-        int total = provider.patternSlotCount();
-        if (total <= 0) {
-            return COLOR_PROVIDER_COUNT_NORMAL;
-        }
-
-        int remaining = Math.max(0, total - provider.usedPatternSlotCount());
-        return remaining * 9 < total * 2 ? COLOR_PROVIDER_COUNT_WARNING : COLOR_PROVIDER_COUNT_NORMAL;
     }
 
     private String trimToWidth(String text, int maxWidth, float scale) {
@@ -1475,8 +1311,25 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return this.font.plainSubstrByWidth(text, rawWidthLimit) + "...";
     }
 
+    private int getProviderCountColor(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+        int total = provider.patternSlotCount();
+        if (total <= 0) {
+            return PANEL_COUNT_NORMAL_COLOR;
+        }
+        int remaining = Math.max(0, total - provider.usedPatternSlotCount());
+        return remaining * 9 < total * 2 ? PANEL_COUNT_WARNING_COLOR : PANEL_COUNT_NORMAL_COLOR;
+    }
+
     private ItemStack getProviderIconStack(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         return new ItemStack(BuiltInRegistries.ITEM.get(provider.iconItemId()));
+    }
+
+    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
+        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
+        if (field.isEmpty()) {
+            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
+        }
+        return field;
     }
 
     private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}
