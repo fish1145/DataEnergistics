@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.ExposedControllerFaceChannelCapacity;
-import com.fish_dan_.data_energistics.ae2.TowerChannelCapacity;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeException;
+import com.fish_dan_.data_energistics.ae2.grid.ExposedControllerFaceChannelCapacity;
+import com.fish_dan_.data_energistics.ae2.grid.TowerChannelCapacity;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridgeException;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;

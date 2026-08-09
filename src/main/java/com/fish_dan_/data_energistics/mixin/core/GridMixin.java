@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeException;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeInternal;
-import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridgeException;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridgeInternal;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomainChange;
 

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.grid;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;

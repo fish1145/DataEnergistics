@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
+import com.fish_dan_.data_energistics.ae2.grid.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 
 import net.minecraft.core.BlockPos;

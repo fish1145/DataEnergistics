@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.grid;
 
 /**
  * Exposes a monotonic revision for AE2 pathing and controller-topology changes.

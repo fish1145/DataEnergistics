@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;

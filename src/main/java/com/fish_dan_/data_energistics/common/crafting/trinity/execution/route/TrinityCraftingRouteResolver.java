@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.route;
 
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
-import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
