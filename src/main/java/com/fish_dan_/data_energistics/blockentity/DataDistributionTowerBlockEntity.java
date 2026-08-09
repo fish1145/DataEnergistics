@@ -3,8 +3,6 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverage;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverageImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributor;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorImpl;
@@ -35,6 +33,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetw
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerCoverageGeometry;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
@@ -164,7 +163,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
     private static MinecraftServer boundServer;
 
-    private final TowerCoverage coverage;
+    private final TowerCoverageGeometry coverage;
     private final TowerLinkGraph linkGraph = new TowerLinkGraphImpl();
     private final Map<BlockPos, TowerBinding> towerBindings = new LinkedHashMap<>();
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
@@ -235,7 +234,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
-        this.coverage = new TowerCoverageImpl(blockPos);
+        this.coverage = new TowerCoverageGeometry(blockPos);
         BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();

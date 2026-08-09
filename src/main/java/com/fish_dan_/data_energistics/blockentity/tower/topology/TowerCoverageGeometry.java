@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
@@ -11,9 +11,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.function.IntSupplier;
 
 /**
- * Default coordinate implementation for Data Distribution Tower coverage.
+ * Coordinate geometry for the spatial coverage owned by a Data Distribution Tower.
+ *
+ * <p>
+ * The tower needs one boundary for chunk radius, vertical reach, and chunk index keys so block entity logic can ask
+ * range questions without duplicating coordinate math.
+ * </p>
  */
-public final class TowerCoverageImpl implements TowerCoverage {
+public final class TowerCoverageGeometry {
 
     private static final int BOOSTERS_PER_CHUNK_RING = 16;
     private static final int VERTICAL_RANGE_ABOVE = 256;
@@ -27,32 +32,54 @@ public final class TowerCoverageImpl implements TowerCoverage {
      *
      * @param origin tower base position used as coverage center
      */
-    public TowerCoverageImpl(BlockPos origin) {
+    public TowerCoverageGeometry(BlockPos origin) {
         this(origin, () -> DataEnergisticsConfiguration.INSTANCE.dataDistributionTower().range());
     }
 
-    TowerCoverageImpl(BlockPos origin, IntSupplier baseRange) {
+    TowerCoverageGeometry(BlockPos origin, IntSupplier baseRange) {
         this.origin = origin.immutable();
         this.baseRange = baseRange;
     }
 
-    @Override
+    /**
+     * Computes the server-side chunk radius from the configured base range and booster count.
+     *
+     * @param boosterCount amount of wireless boosters installed in the tower
+     * @return horizontal chunk radius around the tower base
+     */
     public int computeChunkRadius(int boosterCount) {
         return Math.max(0, this.baseRange.getAsInt() - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
     }
 
-    @Override
+    /**
+     * Returns the number of chunks covered by the supplied radius.
+     *
+     * @param chunkRadius radius returned by {@link #computeChunkRadius(int)}
+     * @return covered chunk count
+     */
     public int coveredChunkCount(int chunkRadius) {
         int diameter = chunkRadius * 2 + 1;
         return diameter * diameter;
     }
 
-    @Override
+    /**
+     * Checks whether a target block position is inside tower coverage.
+     *
+     * @param targetPos   target position being tested
+     * @param chunkRadius active horizontal chunk radius
+     * @return true when the target is horizontally and vertically covered
+     */
     public boolean contains(BlockPos targetPos, int chunkRadius) {
         return isWithinCenteredHorizontalRange(targetPos, chunkRadius) && targetPos.getY() >= this.origin.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.origin.getY() + VERTICAL_RANGE_ABOVE;
     }
 
-    @Override
+    /**
+     * Builds the render/query bounding box for the active range.
+     *
+     * @param level       optional level used to clamp build height on server/client
+     * @param chunkRadius active horizontal chunk radius
+     * @return coverage AABB
+     */
     public AABB aabb(@Nullable Level level, int chunkRadius) {
         double minX = minX(chunkRadius);
         double minZ = minZ(chunkRadius);
@@ -74,22 +101,42 @@ public final class TowerCoverageImpl implements TowerCoverage {
                 maxZ);
     }
 
-    @Override
+    /**
+     * Returns the minimum covered chunk X.
+     *
+     * @param chunkRadius active horizontal chunk radius
+     * @return chunk coordinate
+     */
     public int minChunkX(int chunkRadius) {
         return Math.floorDiv((int) Math.floor(minX(chunkRadius)), 16);
     }
 
-    @Override
+    /**
+     * Returns the maximum covered chunk X.
+     *
+     * @param chunkRadius active horizontal chunk radius
+     * @return chunk coordinate
+     */
     public int maxChunkX(int chunkRadius) {
         return Math.floorDiv((int) Math.ceil(maxX(chunkRadius)) - 1, 16);
     }
 
-    @Override
+    /**
+     * Returns the minimum covered chunk Z.
+     *
+     * @param chunkRadius active horizontal chunk radius
+     * @return chunk coordinate
+     */
     public int minChunkZ(int chunkRadius) {
         return Math.floorDiv((int) Math.floor(minZ(chunkRadius)), 16);
     }
 
-    @Override
+    /**
+     * Returns the maximum covered chunk Z.
+     *
+     * @param chunkRadius active horizontal chunk radius
+     * @return chunk coordinate
+     */
     public int maxChunkZ(int chunkRadius) {
         return Math.floorDiv((int) Math.ceil(maxZ(chunkRadius)) - 1, 16);
     }

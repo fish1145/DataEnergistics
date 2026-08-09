@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import net.minecraft.core.BlockPos;
 
@@ -6,11 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class TowerCoverageImplTest {
+class TowerCoverageGeometryTest {
 
     @Test
     void expandsOneChunkRingForEverySixteenWirelessBoosters() {
-        TowerCoverage coverage = new TowerCoverageImpl(BlockPos.ZERO, () -> 1);
+        TowerCoverageGeometry coverage = new TowerCoverageGeometry(BlockPos.ZERO, () -> 1);
 
         assertEquals(0, coverage.computeChunkRadius(0));
         assertEquals(0, coverage.computeChunkRadius(15));
