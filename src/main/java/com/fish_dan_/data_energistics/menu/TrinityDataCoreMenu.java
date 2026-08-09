@@ -13,11 +13,11 @@ import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
-import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
+import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 

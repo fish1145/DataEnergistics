@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 

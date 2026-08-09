@@ -14,7 +14,7 @@ import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOp
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
 import com.fish_dan_.data_energistics.network.PatternUploadSource;
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;

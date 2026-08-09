@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuBridge;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
-import com.fish_dan_.data_energistics.network.UniversalTerminalSelectPayload;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalSelectPayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
