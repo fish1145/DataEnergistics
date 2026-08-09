@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.trinity;
 
 import org.jetbrains.annotations.Nullable;
 

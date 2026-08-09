@@ -1,19 +1,19 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.trinity;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.UUID;
 
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.CPU_NOT_ON_GRID;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.MISSING_ACTIVE_LEASE;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.MISSING_GRID;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.NONE;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.UNFORMED_STRUCTURE;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.UNKNOWN_CPU;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.WRONG_CONTAINER;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.WRONG_HOST;
-import static com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusValidator.Rejection.WRONG_MENU;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.CPU_NOT_ON_GRID;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.MISSING_ACTIVE_LEASE;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.MISSING_GRID;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.NONE;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.UNFORMED_STRUCTURE;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.UNKNOWN_CPU;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.WRONG_CONTAINER;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.WRONG_HOST;
+import static com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusValidator.Rejection.WRONG_MENU;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;

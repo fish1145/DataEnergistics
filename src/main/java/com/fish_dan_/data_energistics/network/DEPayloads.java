@@ -7,6 +7,11 @@ import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPre
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedActionResponsePayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiResponsePayload;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
