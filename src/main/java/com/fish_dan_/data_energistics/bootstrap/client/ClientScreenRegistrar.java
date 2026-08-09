@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
-import com.fish_dan_.data_energistics.client.screen.CompositeWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
@@ -12,13 +11,14 @@ import com.fish_dan_.data_energistics.client.screen.DataSanctumLargeInterfaceScr
 import com.fish_dan_.data_energistics.client.screen.DataSanctumStatusScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
-import com.fish_dan_.data_energistics.client.screen.DigitalStorageDepotScreen;
-import com.fish_dan_.data_energistics.client.screen.MeCompositeInputWarehouseScreen;
-import com.fish_dan_.data_energistics.client.screen.MeCompositeOutputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.MePatternBufferScreen;
 import com.fish_dan_.data_energistics.client.screen.MeVacuumScreen;
 import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.UniversalPatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.storage.CompositeWarehouseScreen;
+import com.fish_dan_.data_energistics.client.screen.storage.DigitalStorageDepotScreen;
+import com.fish_dan_.data_energistics.client.screen.storage.MeCompositeInputWarehouseScreen;
+import com.fish_dan_.data_energistics.client.screen.storage.MeCompositeOutputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalPatternAccessTermScreen;

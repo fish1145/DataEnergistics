@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.base;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotOutputTypeCycleButton;
@@ -31,7 +31,7 @@ import java.util.Locale;
 import java.util.function.Function;
 
 /** Shared AE2 sub-screen used by machines with item, fluid, and generic-key output masks. */
-abstract class TypedOutputSideScreen<C extends AEBaseMenu, P extends AEBaseScreen<C>> extends AESubScreen<C, P> {
+public abstract class TypedOutputSideScreen<C extends AEBaseMenu, P extends AEBaseScreen<C>> extends AESubScreen<C, P> {
 
     private static final String STYLE_PATH = "/screens/data_ripper_output_sides.json";
 

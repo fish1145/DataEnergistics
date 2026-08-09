@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.screen.base.CompartmentScreen;
 import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
 
 import net.minecraft.network.chat.Component;

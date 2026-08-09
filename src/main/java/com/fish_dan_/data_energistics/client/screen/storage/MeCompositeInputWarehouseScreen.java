@@ -1,5 +1,6 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.storage;
 
+import com.fish_dan_.data_energistics.client.screen.base.CompartmentScreen;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 
 import net.minecraft.network.chat.Component;
