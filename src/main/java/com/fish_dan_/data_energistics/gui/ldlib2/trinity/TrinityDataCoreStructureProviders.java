@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
@@ -41,8 +40,7 @@ public final class TrinityDataCoreStructureProviders {
             throw new IllegalArgumentException("Automatic-build hosted provider dependencies cannot be null");
         }
         return autoBuildForTesting(
-                () -> DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                        .require(DEVerticalMultiBlocks.trinityDataCoreId()),
+                menu::getAutoBuildPreviewSpec,
                 PREVIEW_FACTORY,
                 () -> menu.getPlayer().level().isClientSide,
                 hostedAutoBuildAction,
