@@ -16,8 +16,8 @@ import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBloc
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
-import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
+import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;

@@ -1,0 +1,7 @@
+/**
+ * ME vacuum item behavior and its item-backed storage menu host.
+ */
+@NotNullByDefault
+package com.fish_dan_.data_energistics.item.vacuum;
+
+import org.jetbrains.annotations.NotNullByDefault;

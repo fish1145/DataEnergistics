@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.MeVacuumItem;
+import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

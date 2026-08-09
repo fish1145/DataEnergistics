@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.vacuum;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
