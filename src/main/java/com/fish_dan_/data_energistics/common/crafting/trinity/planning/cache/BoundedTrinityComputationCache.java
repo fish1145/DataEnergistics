@@ -434,19 +434,12 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             if (!this.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.PUBLISHED)) {
                 return;
             }
-            if (!computed.cacheable()) {
+            if (!computed.cacheable() || !this.registered) {
                 synchronized (BoundedTrinityComputationCache.this.cacheLock) {
                     removeFromPartition();
                 }
-                this.result.complete(computed.value());
-                return;
             }
             this.result.complete(computed.value());
-            if (!this.registered) {
-                synchronized (BoundedTrinityComputationCache.this.cacheLock) {
-                    removeFromPartition();
-                }
-            }
         }
 
         private void fail(Throwable failure) {
