@@ -20,12 +20,20 @@ import java.util.Map;
 /**
  * Groups complete cycle rotations at exact affine balance breakpoints instead of searching firing-by-firing.
  */
-final class TrinityDeterministicRepeatSchedulerImpl implements TrinityDeterministicRepeatScheduler {
+final class AffineTrinityDeterministicRepeatScheduler implements TrinityDeterministicRepeatScheduler {
 
     private static final String CANCELLED_KEY = "gui.data_energistics.trinity_planning.diagnostic.cancelled";
     private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.diagnostic.search_limit";
     private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
 
+    /**
+     * @param oneCycleOrder   exact firing blocks for one cycle
+     * @param repetitions     positive number of complete cycles
+     * @param initialBalances exact seed and externally consumed inputs for all repetitions
+     * @param maxStates       positive compressed-state limit
+     * @param control         cancellation and deadline boundary
+     * @return aggregate executable schedule without per-firing expansion
+     */
     @Override
     public TrinityAlgorithmResult<TrinityCompressedSchedule> schedule(
                                                                       List<TrinityVariantFiring> oneCycleOrder,
