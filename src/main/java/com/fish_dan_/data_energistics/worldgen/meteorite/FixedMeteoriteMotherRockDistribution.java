@@ -1,11 +1,45 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
+import org.jetbrains.annotations.NotNullByDefault;
+
 import java.util.List;
 
 /**
- * Applies the fixed 10,000-basis-point mother-rock distribution used by digitized meteorites.
+ * Selects one mother-rock tier for each independent position in a digitized meteorite core.
+ *
+ * <p>
+ * The fixed selector accepts an integer basis-point roll so generation probabilities remain exact and deterministic.
+ * </p>
  */
-public final class MeteoriteMotherRockDistributionImpl implements MeteoriteMotherRockDistribution {
+@NotNullByDefault
+public final class FixedMeteoriteMotherRockDistribution {
+
+    /** Number of mutually exclusive integer rolls in the complete probability space. */
+    static final int TOTAL_BASIS_POINTS = 10_000;
+
+    /**
+     * Identifies every mother rock that may occupy a digitized meteorite core position.
+     */
+    enum MotherRock {
+        /** Damaged Certus Quartz mother rock. */
+        DAMAGED_CERTUS,
+        /** Chipped Certus Quartz mother rock. */
+        CHIPPED_CERTUS,
+        /** Flawed Certus Quartz mother rock. */
+        FLAWED_CERTUS,
+        /** Flawless Certus Quartz mother rock. */
+        FLAWLESS_CERTUS,
+        /** Deactivated Data Crystal mother rock. */
+        DEACTIVATED_DATA,
+        /** Powerless Data Crystal mother rock. */
+        POWERLESS_DATA,
+        /** Fatigued Data Crystal mother rock. */
+        FATIGUED_DATA,
+        /** Deficient Data Crystal mother rock. */
+        DEFICIENT_DATA,
+        /** Charged Data Crystal mother rock. */
+        CHARGED_DATA
+    }
 
     /** Ordered probability intervals for the four Certus tiers followed by the five Data Crystal tiers. */
     private static final List<WeightedMotherRock> DISTRIBUTION = List.of(
@@ -25,7 +59,7 @@ public final class MeteoriteMotherRockDistributionImpl implements MeteoriteMothe
     /**
      * Validates that the production distribution covers the complete basis-point space exactly once.
      */
-    public MeteoriteMotherRockDistributionImpl() {
+    public FixedMeteoriteMotherRockDistribution() {
         this.totalBasisPoints = DISTRIBUTION.stream().mapToInt(WeightedMotherRock::basisPoints).sum();
         if (this.totalBasisPoints != TOTAL_BASIS_POINTS) {
             throw new IllegalStateException(
@@ -40,7 +74,6 @@ public final class MeteoriteMotherRockDistributionImpl implements MeteoriteMothe
      * @return the selected mother-rock tier
      * @throws IllegalArgumentException when the roll is outside the validated distribution
      */
-    @Override
     public MotherRock select(int basisPoint) {
         if (basisPoint < 0 || basisPoint >= this.totalBasisPoints) {
             throw new IllegalArgumentException(

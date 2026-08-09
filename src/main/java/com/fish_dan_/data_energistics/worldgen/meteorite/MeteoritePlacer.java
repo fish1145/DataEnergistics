@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.worldgen.meteorite;
 
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModFluids;
-import com.fish_dan_.data_energistics.worldgen.meteorite.MeteoriteMotherRockDistribution.MotherRock;
+import com.fish_dan_.data_energistics.worldgen.meteorite.FixedMeteoriteMotherRockDistribution.MotherRock;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
@@ -40,7 +40,7 @@ public final class MeteoritePlacer {
     private static final int CORE_RADIUS = 1;
     private static final int METEORITE_BODY_RADIUS = 20;
     private static final int METEORITE_FALLOUT_RADIUS = 80;
-    private static final MeteoriteMotherRockDistribution MOTHER_ROCK_DISTRIBUTION = new MeteoriteMotherRockDistributionImpl();
+    private static final FixedMeteoriteMotherRockDistribution MOTHER_ROCK_DISTRIBUTION = new FixedMeteoriteMotherRockDistribution();
     private final BlockState skyStone;
     private final BlockState crackedMeteorite;
     private final BlockState exposedMeteorite;
@@ -285,7 +285,7 @@ public final class MeteoritePlacer {
 
     private MotherRock randomMotherRock() {
         return MOTHER_ROCK_DISTRIBUTION.select(
-                this.random.nextInt(MeteoriteMotherRockDistribution.TOTAL_BASIS_POINTS));
+                this.random.nextInt(FixedMeteoriteMotherRockDistribution.TOTAL_BASIS_POINTS));
     }
 
     private BlockState resolveMotherRock(MotherRock motherRock) {
