@@ -12,7 +12,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
@@ -32,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-final class TrinityInitialPlanCalculationImplTest {
+final class TrinityInitialPlanCalculationTest {
 
     private static final AEKey TARGET = DataKey.of();
     private static final AEKey INPUT = DataFlowKey.of();
@@ -51,7 +50,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 .settings(TrinityCraftingSettings.defaults(4))
                 .maxTrinityBytes(10L)
                 .build();
-        TrinityInitialPlanCalculationImpl calculation = new TrinityInitialPlanCalculationImpl(
+        TrinityInitialPlanCalculation calculation = new TrinityInitialPlanCalculation(
                 ignored -> new TrinityPlanningComputationResult(
                         TrinityAlgorithmResult.success(oversizedPlan),
                         PlanningCachePath.EXACT_HIT));
@@ -88,7 +87,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 .maxTrinityBytes(Long.MAX_VALUE)
                 .build();
 
-        TrinityPlanningAttempt attempt = new TrinityInitialPlanCalculationImpl(planner).calculate(request);
+        TrinityPlanningAttempt attempt = new TrinityInitialPlanCalculation(planner).calculate(request);
 
         assertFalse(attempt.successful());
         TrinityDiagnosedCraftingPlan simulation = attempt.authoritativeSimulation().orElseThrow();
@@ -108,7 +107,7 @@ final class TrinityInitialPlanCalculationImplTest {
                 List.of(new TrinityPlanPatternFiring(identity, TARGET, 0, BigInteger.ONE)),
                 Map.of(INPUT, BigInteger.ONE),
                 Map.of(INPUT, BigInteger.ONE.negate(), TARGET, BigInteger.ONE));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(TARGET, 1L))
                 .bytes(11L)
                 .catalogRevision(19L)

@@ -24,7 +24,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @return independently owned gateway
      */
     static TrinityPlanningGateway create(TrinityCrafting settings) {
-        return new TrinityPlanningGatewayImpl(settings);
+        return new ConcurrentTrinityPlanningGateway(settings);
     }
 
     /**

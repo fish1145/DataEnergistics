@@ -35,7 +35,7 @@ import java.util.function.Supplier;
 /**
  * Bounded-executor implementation that waits for a proved Trinity result before adopting the AE2 result.
  */
-final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
+final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
     private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
@@ -44,11 +44,11 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
     private final TrinityComputationCache computationCache;
     private final TrinityPlanningComputation planningComputation;
 
-    TrinityPlanningGatewayImpl(TrinityCrafting settings) {
+    ConcurrentTrinityPlanningGateway(TrinityCrafting settings) {
         this(createExecutor(settings), true);
     }
 
-    TrinityPlanningGatewayImpl(ExecutorService plannerExecutor, boolean ownsExecutor) {
+    ConcurrentTrinityPlanningGateway(ExecutorService plannerExecutor, boolean ownsExecutor) {
         if (plannerExecutor == null) {
             throw new IllegalArgumentException("A Trinity planning gateway requires an executor");
         }

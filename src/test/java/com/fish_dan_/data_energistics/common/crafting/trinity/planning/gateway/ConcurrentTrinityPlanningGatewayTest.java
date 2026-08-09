@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 
@@ -46,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class TrinityPlanningGatewayImplTest {
+public final class ConcurrentTrinityPlanningGatewayTest {
 
     private static final long AE2_CALCULATION_NANOS = 12_345_678L;
     private static final AEKey TARGET = DataKey.of();
@@ -64,7 +63,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void startsBothTracksAndPrefersValidTrinityPlan() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         TrinityCraftingPlan trinityPlan = trinityPlan();
         CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
         AtomicBoolean ae2Started = new AtomicBoolean();
@@ -87,7 +86,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void skipsTrinityTrackWhenNoQualifiedCpuExists() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         AtomicBoolean trinityStarted = new AtomicBoolean();
         ICraftingPlan ae2 = ae2Plan(false);
 
@@ -108,7 +107,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void retainsAe2SimulationAndAddsTrinityDiagnostic() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         ICraftingPlan simulation = ae2Plan(true);
         TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
@@ -132,7 +131,7 @@ public final class TrinityPlanningGatewayImplTest {
     void publishesExactTrinityShortageWithoutWaitingForAe2() throws Exception {
         ManualExecutor manualExecutor = new ManualExecutor();
         this.executor = manualExecutor;
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(manualExecutor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(manualExecutor, false);
         TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                 TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                 Component.literal("material shortage"),
@@ -164,7 +163,7 @@ public final class TrinityPlanningGatewayImplTest {
     void unsupportedTrinityResultStillWaitsForAe2() throws Exception {
         ManualExecutor manualExecutor = new ManualExecutor();
         this.executor = manualExecutor;
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(manualExecutor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(manualExecutor, false);
         TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
                 "unsupported by Trinity");
@@ -187,7 +186,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void callerTimeoutDoesNotPrematurelyAdoptAe2Result() {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         CountDownLatch release = new CountDownLatch(1);
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
@@ -206,7 +205,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void cancellationCancelsAe2CallerWithoutInterruptingSharedTrinityWork() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch finished = new CountDownLatch(1);
@@ -242,7 +241,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void queueRejectionProducesSimulationDiagnosticInsteadOfDroppingAe2() throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(rejecting, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(rejecting, false);
 
         ICraftingPlan selected = gateway.begin(
                 true,
@@ -258,7 +257,7 @@ public final class TrinityPlanningGatewayImplTest {
     @Test
     void submitsTrinityOnlyContinuationThroughSharedBoundedExecutor() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(this.executor, false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         TrinityCraftingPlan plan = trinityPlan();
 
         TrinityPlanningAttempt attempt = gateway.beginTrinity(1L, 1L,
@@ -270,7 +269,7 @@ public final class TrinityPlanningGatewayImplTest {
 
     @Test
     void reportsQueueFullForRejectedTrinityOnlyContinuation() throws Exception {
-        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(new RejectingExecutor(), false);
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(new RejectingExecutor(), false);
 
         TrinityPlanningAttempt attempt = gateway.beginTrinity(1L, 1L,
                 () -> TrinityPlanningAttempt.success(trinityPlan())).get();
@@ -297,7 +296,7 @@ public final class TrinityPlanningGatewayImplTest {
                 List.of(new TrinityPlanPatternFiring(pattern, TARGET, 0, BigInteger.ONE)),
                 Map.of(INPUT, BigInteger.ONE),
                 Map.of(INPUT, BigInteger.ONE.negate(), TARGET, BigInteger.ONE));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(TARGET, 1L))
                 .bytes(1L)
                 .catalogRevision(1L)

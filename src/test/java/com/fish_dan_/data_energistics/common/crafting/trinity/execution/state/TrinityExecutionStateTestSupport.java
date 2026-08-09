@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
@@ -82,7 +81,7 @@ final class TrinityExecutionStateTestSupport {
                 List.of(new TrinityPlanPatternFiring(FIRST, target, 0, amount)),
                 Map.of(input, amount),
                 Map.of(input, amount.negate(), target, amount));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, count))
                 .bytes(16L)
                 .catalogRevision(7L)
@@ -110,7 +109,7 @@ final class TrinityExecutionStateTestSupport {
                         new TrinityPlanPatternFiring(SECOND, target, 1, BigInteger.valueOf(3L))),
                 Map.of(input, BigInteger.ONE),
                 Map.of(input, BigInteger.ONE.negate(), target, BigInteger.ONE));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, 1L))
                 .bytes(16L)
                 .catalogRevision(8L)
@@ -146,7 +145,7 @@ final class TrinityExecutionStateTestSupport {
                 repeated,
                 Map.of(target, BigInteger.ONE),
                 Map.of(target, repeated));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, repetitions))
                 .bytes(24L)
                 .catalogRevision(9L)
@@ -191,7 +190,7 @@ final class TrinityExecutionStateTestSupport {
                 repeated,
                 Map.of(seed, BigInteger.ONE),
                 Map.of(seed, repeated));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(seed, repetitions))
                 .bytes(32L)
                 .catalogRevision(10L)
@@ -241,7 +240,7 @@ final class TrinityExecutionStateTestSupport {
                 repetitions,
                 Map.of(seed, BigInteger.TWO),
                 Map.of(target, repetitions));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, repetitions.longValueExact()))
                 .bytes(32L)
                 .catalogRevision(11L)

@@ -36,7 +36,7 @@ import java.util.Map;
 /**
  * Coordinates graph expansion, topology analysis, demand solving, and final plan assembly at one exact boundary.
  */
-final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
+final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPipeline {
 
     private static final String ARITHMETIC_OVERFLOW_KEY = "gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow";
     private static final String TARGET_ABSENT_KEY = "gui.data_energistics.trinity_planning.diagnostic.target_absent";
@@ -49,11 +49,11 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanningPipeline {
     private final TrinityGraphDemandAggregator demandAggregator;
     private final TrinityGraphPlanAssembler planAssembler;
 
-    TrinityGraphPlannerImpl(TrinityPatternVariantExpander variantExpander,
-                            TrinityGraphTopologyAnalyzer topologyAnalyzer,
-                            TrinityAcyclicDemandPropagator acyclicDemandPropagator,
-                            TrinityGraphDemandAggregator demandAggregator,
-                            TrinityGraphPlanAssembler planAssembler) {
+    ExactTrinityGraphPlanningPipeline(TrinityPatternVariantExpander variantExpander,
+                                      TrinityGraphTopologyAnalyzer topologyAnalyzer,
+                                      TrinityAcyclicDemandPropagator acyclicDemandPropagator,
+                                      TrinityGraphDemandAggregator demandAggregator,
+                                      TrinityGraphPlanAssembler planAssembler) {
         this.variantExpander = variantExpander;
         this.topologyAnalyzer = topologyAnalyzer;
         this.acyclicDemandPropagator = acyclicDemandPropagator;
