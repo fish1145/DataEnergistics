@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.client.integration.Ae2WtLibClientCompat;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesAckClientHandler;
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
 import com.fish_dan_.data_energistics.client.screen.MenuClientRefreshHandler;
-import com.fish_dan_.data_energistics.client.screen.UniversalTerminalStateSyncClientHandler;
+import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalStateSyncClientHandler;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
+import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalScreenHook;
 
 import net.minecraft.client.gui.screens.Screen;
 

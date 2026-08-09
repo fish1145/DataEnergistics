@@ -21,10 +21,10 @@ import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityAccessHatchScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityDataCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityPatternCoreScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.UniversalPatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.terminal.UniversalCraftingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.terminal.UniversalMEStorageScreen;
+import com.fish_dan_.data_energistics.client.screen.terminal.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
