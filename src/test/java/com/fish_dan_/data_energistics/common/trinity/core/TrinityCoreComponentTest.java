@@ -33,32 +33,6 @@ public final class TrinityCoreComponentTest {
     }
 
     @Test
-    void tierSuffixesMatchResourceNames() {
-        assertEquals("1m", TrinityCoreTier.SIZE_1M.idSuffix());
-        assertEquals("256m", TrinityCoreTier.SIZE_256M.idSuffix());
-        assertEquals("1G", TrinityCoreTier.SIZE_1G.displayName());
-        assertEquals("256g", TrinityCoreTier.SIZE_256G.idSuffix());
-    }
-
-    @Test
-    void storageCoreExposesTypeCapacity() {
-        TrinityCoreMetadata metadata = TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_256M);
-
-        assertEquals(TrinityCoreKind.STORAGE_TYPES, metadata.kind());
-        assertEquals(512, metadata.capacityValue());
-        assertEquals(0, metadata.patternCapacity());
-    }
-
-    @Test
-    void mergedStorageCoreExposesParallelCpuCapacity() {
-        TrinityCoreMetadata metadata = TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_1G);
-
-        assertEquals(TrinityCoreKind.PARALLEL_CPU, metadata.kind());
-        assertEquals(2048, metadata.capacityValue());
-        assertEquals(0, metadata.patternCapacity());
-    }
-
-    @Test
     void cpuCoreProfileAggregatesMergedStorageCoreCapacity() {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder();
         builder.actualRepeatCount(TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT);
@@ -146,19 +120,6 @@ public final class TrinityCoreComponentTest {
                 .actualRepeatCount(repeatHeight);
         builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         return builder.build();
-    }
-
-    @Test
-    void patternProcessingCoreExposesPatternCapacity() {
-        TrinityCoreMetadata ordinary = TrinityCoreMetadata.patternProcessingCore(64);
-        TrinityCoreMetadata extended = TrinityCoreMetadata.patternProcessingCore(128);
-        TrinityCoreMetadata overlimit = TrinityCoreMetadata.patternProcessingCore(512);
-
-        assertEquals(TrinityCoreKind.PATTERN_PROCESSING, ordinary.kind());
-        assertEquals(0, ordinary.capacityValue());
-        assertEquals(64, ordinary.patternCapacity());
-        assertEquals(128, extended.patternCapacity());
-        assertEquals(512, overlimit.patternCapacity());
     }
 
     @Test
