@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndexImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationSink;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.IdentityCraftingProviderPublicationIndex;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -26,7 +26,7 @@ public abstract class NetworkCraftingProvidersPublicationMixin
      * Index whose live references remain confined to the owning server thread.
      */
     @Unique
-    private final CraftingProviderPublicationIndexImpl dataEnergistics$publicationIndex = new CraftingProviderPublicationIndexImpl();
+    private final IdentityCraftingProviderPublicationIndex dataEnergistics$publicationIndex = new IdentityCraftingProviderPublicationIndex();
 
     @Override
     public long publicationScope() {

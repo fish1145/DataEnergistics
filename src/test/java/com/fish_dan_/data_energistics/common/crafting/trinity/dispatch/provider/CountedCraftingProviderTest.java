@@ -85,7 +85,7 @@ public final class CountedCraftingProviderTest {
     void capacityResolverPreservesEveryDeclaredRoutingContract(ProviderRoutingMode routingMode) {
         TestPattern pattern = new TestPattern();
         RoutingProvider provider = new RoutingProvider(pattern, routingMode);
-        CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+        IdentityCraftingProviderPublicationIndex publications = new IdentityCraftingProviderPublicationIndex();
         publications.publish(provider, List.of(pattern));
         ProviderCapacityResolver resolver = ProviderCapacityResolver.create();
 
@@ -117,7 +117,7 @@ public final class CountedCraftingProviderTest {
         RegisteredTargetAdapter adapter = new RegisteredTargetAdapter();
         CountedCraftingProviderAdapters.register(provider, adapter);
         try {
-            CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+            IdentityCraftingProviderPublicationIndex publications = new IdentityCraftingProviderPublicationIndex();
             publications.publish(provider, List.of(pattern));
             ProviderCapacityResolver resolver = ProviderCapacityResolver.create();
             ProviderCapacitySnapshot snapshot = resolver.capture(
@@ -205,7 +205,7 @@ public final class CountedCraftingProviderTest {
         };
         CountedCraftingProviderAdapters.register(provider, adapter);
         try {
-            CraftingProviderPublicationIndexImpl publications = new CraftingProviderPublicationIndexImpl();
+            IdentityCraftingProviderPublicationIndex publications = new IdentityCraftingProviderPublicationIndex();
             publications.publish(provider, List.of(pattern));
 
             assertTrue(ProviderCapacityResolver.create()

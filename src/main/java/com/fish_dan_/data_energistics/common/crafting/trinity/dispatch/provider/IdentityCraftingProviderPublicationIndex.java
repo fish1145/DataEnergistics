@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * occur on the owning server thread. Immutable IDs and copied ID lists may be transferred to pure planning code.
  * </p>
  */
-public final class CraftingProviderPublicationIndexImpl implements CraftingProviderPublicationIndex {
+public final class IdentityCraftingProviderPublicationIndex implements CraftingProviderPublicationIndex {
 
     /**
      * Allocates a process-local namespace for each grid publication index.
