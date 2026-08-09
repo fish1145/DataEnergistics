@@ -1280,6 +1280,9 @@ public final class TowerEnergyTransferEngine {
     }
 
     private void publishMutation(TowerEnergyEndpoint endpoint, IEnergyStorage storage, String operation) {
+        if (this.appFluxEnergySupportLoaded && this.gridEnergyAccess.isSelfPersistingNetworkStorage(storage)) {
+            return;
+        }
         if (!this.opEnergyAccess.supports(storage)) {
             try {
                 this.unlimitedEnergyAccess.notifyStorageChanged(storage);

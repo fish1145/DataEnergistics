@@ -71,6 +71,11 @@ public interface TowerEnergyTransferEndpoint {
 
     /**
      * Publishes callbacks required by a successful or partially successful mutation.
+     *
+     * <p>
+     * This is intentionally a no-op for network inventories that publish and persist their own modulated storage
+     * operations; their action-source or capability-owner block must not be dirtied as a surrogate storage owner.
+     * </p>
      */
     void publishMutation();
 

@@ -183,6 +183,9 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
 
     @Override
     public void publishMutation() {
+        if (this.appFluxStorage) {
+            return;
+        }
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
         if (!this.brandonsCoreStorage) {

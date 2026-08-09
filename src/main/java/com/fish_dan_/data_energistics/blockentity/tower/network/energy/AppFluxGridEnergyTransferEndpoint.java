@@ -99,8 +99,8 @@ public final class AppFluxGridEnergyTransferEndpoint implements TowerEnergyTrans
 
     @Override
     public void publishMutation() {
-        requireLoaded();
-        this.host.setChanged();
+        // Applied Flux persists MODULATE operations through its ME storage cells. Dirtying the action-source tower
+        // would only keep its chunk pending for save while FE is flowing through the network.
     }
 
     @Override
