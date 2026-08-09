@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

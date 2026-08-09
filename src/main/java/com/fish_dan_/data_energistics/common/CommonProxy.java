@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBri
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotKeyContainerItemStrategy;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DECreativeTabs;

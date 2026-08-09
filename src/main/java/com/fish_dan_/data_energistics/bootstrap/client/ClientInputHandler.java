@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.MeVacuumItem;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.network.MeVacuumLaunchPayload;
