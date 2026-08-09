@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -37,10 +38,11 @@ import java.util.Set;
  */
 public final class DataFlowCellInventory implements StorageCell {
 
-    public static final Set<AEKeyType> SUPPORTED_KEY_TYPES = Set.of(DataFlowKeyType.TYPE, EchoKeyType.TYPE);
+    public static final Set<AEKeyType> SUPPORTED_KEY_TYPES = Set.of(DigitalizationKeyType.TYPE);
 
     private static final int MAX_STORED_TYPES = 63;
-    private static final int AMOUNT_PER_BYTE = DataFlowKeyType.TYPE.getAmountPerByte();
+    private static final int SUPPORTED_RESOURCE_COUNT = 2;
+    private static final int AMOUNT_PER_BYTE = DigitalizationKeyType.TYPE.getAmountPerByte();
 
     private final ItemStack stack;
     private final IBasicCellItem cellItem;
@@ -69,7 +71,7 @@ public final class DataFlowCellInventory implements StorageCell {
         this.configInventory = cellItem.getConfigInventory(stack);
         this.upgrades = cellItem.getUpgrades(stack);
         this.totalTypes = Math.min(
-                SUPPORTED_KEY_TYPES.size(),
+                SUPPORTED_RESOURCE_COUNT,
                 Math.min(MAX_STORED_TYPES, Math.max(1, cellItem.getTotalTypes(stack))));
         this.hasVoidUpgrade = upgrades.isInstalled(AEItems.VOID_CARD);
 
@@ -287,7 +289,7 @@ public final class DataFlowCellInventory implements StorageCell {
     }
 
     private static boolean supports(AEKey key) {
-        return SUPPORTED_KEY_TYPES.contains(key.getType());
+        return key == DataFlowKey.of() || key == EchoKey.of();
     }
 
     private long getFreeBytes() {

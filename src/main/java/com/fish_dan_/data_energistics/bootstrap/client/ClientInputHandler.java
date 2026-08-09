@@ -24,7 +24,7 @@ final class ClientInputHandler {
     private ClientInputHandler() {}
 
     static void onMovementInputUpdate(MovementInputUpdateEvent event) {
-        if (!event.getEntity().hasEffect(DEMobEffects.DATA_DISORDER)) {
+        if (!event.getEntity().hasEffect(DEMobEffects.RADIX_LOSS)) {
             return;
         }
 
@@ -45,7 +45,7 @@ final class ClientInputHandler {
             return;
         }
 
-        if (minecraft.player.hasEffect(DEMobEffects.DATA_DISORDER)) {
+        if (minecraft.player.hasEffect(DEMobEffects.RADIX_LOSS)) {
             if (event.isAttack() || event.isUseItem() || event.isPickBlock()) {
                 event.setCanceled(true);
                 event.setSwingHand(false);
@@ -92,7 +92,7 @@ final class ClientInputHandler {
             return false;
         }
 
-        if (minecraft.player.hasEffect(DEMobEffects.DATA_DISORDER) || !minecraft.player.isUsingItem() || minecraft.player.isShiftKeyDown()) {
+        if (minecraft.player.hasEffect(DEMobEffects.RADIX_LOSS) || !minecraft.player.isUsingItem() || minecraft.player.isShiftKeyDown()) {
             return false;
         }
 

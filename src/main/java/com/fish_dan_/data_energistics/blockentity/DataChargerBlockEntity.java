@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
@@ -340,7 +340,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         if (stack.isEmpty()) {
             return false;
         }
-        if (stack.getItem() instanceof IBasicCellItem basicCellItem && basicCellItem.getKeyType() == DataFlowKeyType.TYPE && basicCellItem.getBytes(stack) > 0 && !basicCellItem.isBlackListed(stack, DataFlowKey.of())) {
+        if (stack.getItem() instanceof IBasicCellItem basicCellItem && basicCellItem.getKeyType() == DigitalizationKeyType.TYPE && basicCellItem.getBytes(stack) > 0 && !basicCellItem.isBlackListed(stack, DataFlowKey.of())) {
             return true;
         }
 

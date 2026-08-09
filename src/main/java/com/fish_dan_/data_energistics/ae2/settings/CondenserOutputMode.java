@@ -7,7 +7,7 @@ public enum CondenserOutputMode {
     TRASH,
     MATTER_BALLS,
     SINGULARITY,
-    DATA_CAPTURE_BALL;
+    RADIX_CONTAINMENT_SPHERE;
 
     public static CondenserOutputMode fromOrdinal(int ordinal) {
         var values = values();
@@ -17,9 +17,9 @@ public enum CondenserOutputMode {
         return values[ordinal];
     }
 
-    public static CondenserOutputMode fromState(CondenserOutput output, boolean dataCaptureBallMode) {
-        if (dataCaptureBallMode) {
-            return DATA_CAPTURE_BALL;
+    public static CondenserOutputMode fromState(CondenserOutput output, boolean radixContainmentSphereMode) {
+        if (radixContainmentSphereMode) {
+            return RADIX_CONTAINMENT_SPHERE;
         }
 
         return switch (output) {
@@ -32,12 +32,12 @@ public enum CondenserOutputMode {
     public CondenserOutput toVanillaOutput() {
         return switch (this) {
             case MATTER_BALLS -> CondenserOutput.MATTER_BALLS;
-            case SINGULARITY, DATA_CAPTURE_BALL -> CondenserOutput.SINGULARITY;
+            case SINGULARITY, RADIX_CONTAINMENT_SPHERE -> CondenserOutput.SINGULARITY;
             default -> CondenserOutput.TRASH;
         };
     }
 
-    public boolean isDataCaptureBallMode() {
-        return this == DATA_CAPTURE_BALL;
+    public boolean isRadixContainmentSphereMode() {
+        return this == RADIX_CONTAINMENT_SPHERE;
     }
 }

@@ -1,11 +1,9 @@
 package com.fish_dan_.data_energistics.client;
 
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
-import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
-import com.fish_dan_.data_energistics.ae2.key.EchoKey;
-import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKey;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
+import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
 
 import appeng.api.client.AEKeyRenderHandler;
 import appeng.api.client.AEKeyRendering;
@@ -18,9 +16,8 @@ import java.util.Map;
 public final class ClientAeKeyRenderers {
 
     private static boolean registered;
-    private static final DataFlowKeyRenderHandler DATA_FLOW_RENDER_HANDLER = new DataFlowKeyRenderHandler();
+    private static final DigitalizationKeyRenderHandler DIGITALIZATION_RENDER_HANDLER = new DigitalizationKeyRenderHandler();
     private static final DataKeyRenderHandler DATA_RENDER_HANDLER = new DataKeyRenderHandler();
-    private static final EchoKeyRenderHandler ECHO_RENDER_HANDLER = new EchoKeyRenderHandler();
 
     private ClientAeKeyRenderers() {}
 
@@ -30,15 +27,13 @@ public final class ClientAeKeyRenderers {
         }
 
         registered = true;
-        AEKeyRendering.register(DataFlowKeyType.TYPE, DataFlowKey.class, DATA_FLOW_RENDER_HANDLER);
-        AEKeyRendering.register(DataKeyType.TYPE, DataKey.class, DATA_RENDER_HANDLER);
-        AEKeyRendering.register(EchoKeyType.TYPE, EchoKey.class, ECHO_RENDER_HANDLER);
+        AEKeyRendering.register(DigitalizationKeyType.TYPE, DigitalizationKey.class, DIGITALIZATION_RENDER_HANDLER);
+        AEKeyRendering.register(ManifestBinaryKeyType.TYPE, DataKey.class, DATA_RENDER_HANDLER);
     }
 
     public static void reregister() {
-        overwrite(DataFlowKeyType.TYPE, DATA_FLOW_RENDER_HANDLER);
-        overwrite(DataKeyType.TYPE, DATA_RENDER_HANDLER);
-        overwrite(EchoKeyType.TYPE, ECHO_RENDER_HANDLER);
+        overwrite(DigitalizationKeyType.TYPE, DIGITALIZATION_RENDER_HANDLER);
+        overwrite(ManifestBinaryKeyType.TYPE, DATA_RENDER_HANDLER);
         registered = true;
     }
 

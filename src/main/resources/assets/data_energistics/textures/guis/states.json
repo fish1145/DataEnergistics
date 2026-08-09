@@ -51,7 +51,7 @@
 			"width": 8,
 			"height": 8
 		},
-		"CONDENSER_OUTPUT_DATA_CAPTURE_BALL": {
+		"CONDENSER_OUTPUT_RADIX_CONTAINMENT_SPHERE": {
 			"x": 48,
 			"y": 48,
 			"width": 16,

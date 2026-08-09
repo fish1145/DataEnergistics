@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
-import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
-import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
 
+import net.neoforged.neoforge.registries.IRegistryExtension;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
 import appeng.api.stacks.AEKey;
@@ -20,9 +20,8 @@ import java.util.List;
 public final class DEAE2Keys {
 
     private static final List<AEKeyType> TYPES = List.of(
-            DataFlowKeyType.TYPE,
-            DataKeyType.TYPE,
-            EchoKeyType.TYPE);
+            DigitalizationKeyType.TYPE,
+            ManifestBinaryKeyType.TYPE);
     private static final List<AEKey> KEYS = List.of(
             DataFlowKey.of(),
             DataKey.of(),
@@ -31,9 +30,16 @@ public final class DEAE2Keys {
     private DEAE2Keys() {}
 
     public static void register(RegisterEvent event) {
+        if (!event.getRegistryKey().equals(AEKeyType.REGISTRY_KEY)) {
+            return;
+        }
         for (AEKeyType type : TYPES) {
             event.register(AEKeyType.REGISTRY_KEY, type.getId(), () -> type);
         }
+        IRegistryExtension<?> registry = (IRegistryExtension<?>) event.getRegistry();
+        registry.addAlias(DataFlowKey.ID, DigitalizationKeyType.TYPE.getId());
+        registry.addAlias(EchoKey.ID, DigitalizationKeyType.TYPE.getId());
+        registry.addAlias(DataKey.ID, ManifestBinaryKeyType.TYPE.getId());
     }
 
     /**
@@ -44,7 +50,7 @@ public final class DEAE2Keys {
     }
 
     /**
-     * Returns the singleton keys corresponding one-to-one with {@link #types()}.
+     * Returns every singleton key supplied by this mod in stable display order.
      */
     public static List<AEKey> keys() {
         return KEYS;

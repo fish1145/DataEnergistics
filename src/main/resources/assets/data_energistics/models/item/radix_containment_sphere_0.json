@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "data_energistics:item/radix_containment_sphere/radix_containment_sphere_0"
+	}
+}

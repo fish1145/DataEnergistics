@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
+import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -38,7 +38,7 @@ public final class DataReassemblerCraftingRecipe extends ShapedRecipe {
     @Override
     public NonNullList<ItemStack> getRemainingItems(CraftingInput input) {
         NonNullList<ItemStack> remainders = this.wrapped.getRemainingItems(input);
-        DataCaptureBallCraftingRemainderHelper.applyDataReassemblerRemainder(input, remainders);
+        RadixContainmentSphereCraftingRemainderHelper.applyDataReassemblerRemainder(input, remainders);
         return remainders;
     }
 

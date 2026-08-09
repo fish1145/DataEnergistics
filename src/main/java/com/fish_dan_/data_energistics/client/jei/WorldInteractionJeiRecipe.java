@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.jei;
 
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
 
 import net.minecraft.resources.ResourceLocation;
@@ -19,7 +19,7 @@ sealed interface WorldInteractionJeiRecipe permits WorldInteractionJeiRecipe.Tim
         }
     }
 
-    record RightClickView(RecipeHolder<DataCaptureBallRightClickRecipe> holder) implements WorldInteractionJeiRecipe {
+    record RightClickView(RecipeHolder<RadixContainmentSphereRightClickRecipe> holder) implements WorldInteractionJeiRecipe {
 
         @Override
         public ResourceLocation id() {

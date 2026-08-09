@@ -77,10 +77,10 @@ public final class DEUpgrades {
                 "item.data_energistics.portable_data_flow_cell_64m");
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_256m");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CAPTURE_BALL.get(), 3,
-                "item.data_energistics.data_capture_ball");
-        Upgrades.add(AEItems.FUZZY_CARD, DEItems.DATA_CAPTURE_BALL.get(), 1,
-                "item.data_energistics.data_capture_ball");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.RADIX_CONTAINMENT_SPHERE.get(), 3,
+                "item.data_energistics.radix_containment_sphere");
+        Upgrades.add(AEItems.FUZZY_CARD, DEItems.RADIX_CONTAINMENT_SPHERE.get(), 1,
+                "item.data_energistics.radix_containment_sphere");
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.ME_VACUUM.get(), 3,
                 "item.data_energistics.me_vacuum");
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_SWORD.get(), 3,
