@@ -42,7 +42,7 @@ final class ClientTickHandler {
             return;
         }
 
-        spawnDataDisorderParticles(minecraft);
+        spawnRadixLossParticles(minecraft);
         spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
         spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
     }
@@ -99,13 +99,13 @@ final class ClientTickHandler {
         minecraft.level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
     }
 
-    private static void spawnDataDisorderParticles(Minecraft minecraft) {
+    private static void spawnRadixLossParticles(Minecraft minecraft) {
         if (minecraft.level == null) {
             return;
         }
 
         for (Entity entity : minecraft.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(DEMobEffects.DATA_DISORDER) || livingEntity.isInvisible()) {
+            if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(DEMobEffects.RADIX_LOSS) || livingEntity.isInvisible()) {
                 continue;
             }
 
@@ -117,7 +117,7 @@ final class ClientTickHandler {
             double xSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
             double ySpeed = 0.015D + livingEntity.getRandom().nextDouble() * 0.02D;
             double zSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
-            minecraft.level.addParticle(DEParticles.DATA_DISORDER.get(), x, y, z, xSpeed, ySpeed, zSpeed);
+            minecraft.level.addParticle(DEParticles.RADIX_LOSS.get(), x, y, z, xSpeed, ySpeed, zSpeed);
         }
     }
 

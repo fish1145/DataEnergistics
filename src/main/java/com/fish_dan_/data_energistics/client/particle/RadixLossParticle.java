@@ -7,12 +7,12 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.particles.SimpleParticleType;
 
-public class DataDisorderParticle extends TextureSheetParticle {
+public class RadixLossParticle extends TextureSheetParticle {
 
     private final SpriteSet sprites;
 
-    protected DataDisorderParticle(ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed,
-                                   double zSpeed, SpriteSet sprites) {
+    protected RadixLossParticle(ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed,
+                                double zSpeed, SpriteSet sprites) {
         super(level, x, y, z, xSpeed, ySpeed, zSpeed);
         this.sprites = sprites;
         this.friction = 0.82F;
@@ -49,9 +49,9 @@ public class DataDisorderParticle extends TextureSheetParticle {
         }
 
         @Override
-        public DataDisorderParticle createParticle(SimpleParticleType type, ClientLevel level, double x, double y,
-                                                   double z, double xSpeed, double ySpeed, double zSpeed) {
-            return new DataDisorderParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, this.sprites);
+        public RadixLossParticle createParticle(SimpleParticleType type, ClientLevel level, double x, double y,
+                                                double z, double xSpeed, double ySpeed, double zSpeed) {
+            return new RadixLossParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, this.sprites);
         }
     }
 }

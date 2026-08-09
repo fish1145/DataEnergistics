@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.effect.DataDisorderMobEffect;
+import com.fish_dan_.data_energistics.effect.RadixLossMobEffect;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.effect.MobEffect;
@@ -13,9 +13,9 @@ public final class DEMobEffects {
 
     public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, Data_Energistics.MODID);
 
-    public static final DeferredHolder<MobEffect, DataDisorderMobEffect> DATA_DISORDER = MOB_EFFECTS.register(
-            "data_disorder",
-            DataDisorderMobEffect::new);
+    public static final DeferredHolder<MobEffect, RadixLossMobEffect> RADIX_LOSS = MOB_EFFECTS.register(
+            "radix_loss",
+            RadixLossMobEffect::new);
 
     private DEMobEffects() {}
 

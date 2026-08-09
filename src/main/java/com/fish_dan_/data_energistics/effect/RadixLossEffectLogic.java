@@ -10,18 +10,18 @@ import net.minecraft.world.entity.player.Player;
 
 import org.jetbrains.annotations.Nullable;
 
-public final class DataDisorderEffectLogic {
+public final class RadixLossEffectLogic {
 
     private static final int MAX_AMPLIFIER = 9;
     private static final float WEAPON_DAMAGE_BONUS_PER_LEVEL = 0.05F;
     private static final float MISSING_HEALTH_DAMAGE_RATIO = 0.25F;
 
-    private DataDisorderEffectLogic() {}
+    private RadixLossEffectLogic() {}
 
     public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage) {
-        MobEffectInstance existingEffect = target.getEffect(DEMobEffects.DATA_DISORDER);
+        MobEffectInstance existingEffect = target.getEffect(DEMobEffects.RADIX_LOSS);
         if (existingEffect == null) {
-            target.addEffect(new MobEffectInstance(DEMobEffects.DATA_DISORDER, durationTicks, 0, false, true, true));
+            target.addEffect(new MobEffectInstance(DEMobEffects.RADIX_LOSS, durationTicks, 0, false, true, true));
             return;
         }
 
@@ -32,13 +32,13 @@ public final class DataDisorderEffectLogic {
 
         int nextAmplifier = existingEffect.getAmplifier() + 1;
         if (nextAmplifier >= MAX_AMPLIFIER) {
-            target.removeEffect(DEMobEffects.DATA_DISORDER);
+            target.removeEffect(DEMobEffects.RADIX_LOSS);
             dealBurstDamage(target, attacker);
             return;
         }
 
         int duration = Math.max(existingEffect.getDuration(), durationTicks);
-        target.addEffect(new MobEffectInstance(DEMobEffects.DATA_DISORDER, duration, nextAmplifier, false, true, true));
+        target.addEffect(new MobEffectInstance(DEMobEffects.RADIX_LOSS, duration, nextAmplifier, false, true, true));
     }
 
     private static void dealWeaponBonusDamage(LivingEntity target, @Nullable Entity attacker, float weaponDamage, int level) {

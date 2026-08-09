@@ -35,7 +35,7 @@
 	"block.data_energistics.residual_data_ore": "残存数据矿石",
 	"entity.data_energistics.dispersing_data": "即散显性二进制",
 	"entity.data_energistics.thrown_light_saber": "投出的光剑",
-	"effect.data_energistics.data_disorder": "数据紊乱",
+	"effect.data_energistics.radix_loss": "进制缺失",
 	"screen.data_energistics.adaptive_pattern_provider.attached_machine": "%s[%s]",
 	"screen.data_energistics.adaptive_pattern_provider.provider_variant": "自适应[%s]",
 	"screen.data_energistics.adaptive_pattern_provider_part.provider_variant": "自适应部件[%s]",

@@ -20,7 +20,7 @@ public final class DataCrystalSwordAiStripLogic {
         }
 
         CompoundTag persistentData = mob.getPersistentData();
-        if (mob.hasEffect(DEMobEffects.DATA_DISORDER)) {
+        if (mob.hasEffect(DEMobEffects.RADIX_LOSS)) {
             if (!persistentData.contains(TAG_ORIGINAL_NO_AI)) {
                 persistentData.putBoolean(TAG_ORIGINAL_NO_AI, mob.isNoAi());
             }

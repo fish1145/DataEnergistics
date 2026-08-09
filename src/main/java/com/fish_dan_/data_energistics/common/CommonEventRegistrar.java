@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
-import com.fish_dan_.data_energistics.effect.DataDisorderControlLogic;
+import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipeLogic;
@@ -27,7 +27,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
         NeoForge.EVENT_BUS.register(new DataCaptureBallRightClickRecipeLogic());
         NeoForge.EVENT_BUS.register(new DataCrystalSwordAiStripLogic());
-        NeoForge.EVENT_BUS.register(new DataDisorderControlLogic());
+        NeoForge.EVENT_BUS.register(new RadixLossControlLogic());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());
         NeoForge.EVENT_BUS.register(new RecipeReloadEventHandler());
         NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());

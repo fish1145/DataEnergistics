@@ -9,21 +9,27 @@ public final class DELegacyRegistryAliases {
 
     private static final ResourceLocation LEGACY_TRINITY_ACCESS_HATCH = Data_Energistics.id("trinity_access_hatch");
     private static final ResourceLocation ME_ACCESS_HATCH = Data_Energistics.id("me_access_hatch");
+    private static final ResourceLocation LEGACY_DATA_DISORDER = Data_Energistics.id("data_disorder");
 
     private DELegacyRegistryAliases() {}
 
-    /**
-     * Registers every persisted form of the renamed Trinity access hatch before registry events are fired.
-     */
+    /** Registers aliases for persisted IDs renamed during 3.0 development before registry events are fired. */
     public static void register() {
         DEBlocks.BLOCKS.addAlias(LEGACY_TRINITY_ACCESS_HATCH, ME_ACCESS_HATCH);
         DEItems.ITEMS.addAlias(LEGACY_TRINITY_ACCESS_HATCH, ME_ACCESS_HATCH);
         DEBlockEntities.BLOCK_ENTITY_TYPES.addAlias(LEGACY_TRINITY_ACCESS_HATCH, ME_ACCESS_HATCH);
+        DEMobEffects.MOB_EFFECTS.addAlias(LEGACY_DATA_DISORDER, DEMobEffects.RADIX_LOSS.getId());
+        DEParticles.PARTICLE_TYPES.addAlias(LEGACY_DATA_DISORDER, DEParticles.RADIX_LOSS.getId());
         Data_Energistics.LOGGER.warn(
                 "Enabled legacy Trinity access hatch registry aliases {} -> {} for block, item, and block entity " +
                         "type. Keep a world backup before its first 3.0.x load; a successful save will persist the " +
                         "current ID.",
                 LEGACY_TRINITY_ACCESS_HATCH,
                 ME_ACCESS_HATCH);
+        Data_Energistics.LOGGER.warn(
+                "Enabled legacy Radix Loss registry aliases {} -> {} for mob effect and particle type. Keep a " +
+                        "world backup before its first 3.0.x load; a successful save will persist the current ID.",
+                LEGACY_DATA_DISORDER,
+                DEMobEffects.RADIX_LOSS.getId());
     }
 }

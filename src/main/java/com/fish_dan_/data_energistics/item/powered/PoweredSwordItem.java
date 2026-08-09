@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
+import com.fish_dan_.data_energistics.effect.RadixLossEffectLogic;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -72,8 +72,8 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     private static final float THROW_POWER = 2.5F;
     private static final float LIGHT_BLADE_SPEED = 2.8F;
     private static final float LIGHT_BLADE_DAMAGE_RATIO = 5.0F / 6.0F;
-    private static final long SWORD_DATA_DISORDER_DATA_FLOW_COST = 20L;
-    private static final int DATA_DISORDER_DURATION_TICKS = 20;
+    private static final long SWORD_RADIX_LOSS_DATA_FLOW_COST = 20L;
+    private static final int RADIX_LOSS_DURATION_TICKS = 20;
     public static final float SANCTIFIER_THROWN_LIGHT_BLADE_SPEED = 2.4F;
     private final boolean throwable;
 
@@ -175,7 +175,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         }
         boolean result = true;
         if (result && !attacker.level().isClientSide) {
-            this.tryApplyDataDisorder(stack, target, attacker);
+            this.tryApplyRadixLoss(stack, target, attacker);
             if (this.canFireLightBlade(stack)) {
                 this.fireLightBlade((Level) attacker.level(), attacker, stack);
                 this.consumeActionEnergy(stack);
@@ -405,7 +405,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         return Math.max(0.0D, panelDamage);
     }
 
-    private void tryApplyDataDisorder(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+    private void tryApplyRadixLoss(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         if (this.getSaberEnergyCardCount(stack) <= 0) {
             return;
         }
@@ -415,29 +415,29 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         }
 
         if (stack.is(DEItems.DATA_CRYSTAL_SWORD.get())) {
-            this.tryApplyDataCrystalSwordDisorder(stack, target, attacker);
+            this.tryApplyDataCrystalSwordRadixLoss(stack, target, attacker);
             return;
         }
 
         if (stack.is(DEItems.DATA_LIGHT_SABER.get())) {
-            DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker,
+            RadixLossEffectLogic.applyOrBurst(target, RADIX_LOSS_DURATION_TICKS, attacker,
                     (float) getPanelAttackDamage(stack));
         }
     }
 
-    private void tryApplyDataCrystalSwordDisorder(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+    private void tryApplyDataCrystalSwordRadixLoss(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         var cellInventory = StorageCells.getCellInventory(stack, null);
         if (cellInventory == null) {
             return;
         }
 
-        long extracted = cellInventory.extract(DataFlowKey.of(), SWORD_DATA_DISORDER_DATA_FLOW_COST,
+        long extracted = cellInventory.extract(DataFlowKey.of(), SWORD_RADIX_LOSS_DATA_FLOW_COST,
                 Actionable.MODULATE, IActionSource.empty());
-        if (extracted < SWORD_DATA_DISORDER_DATA_FLOW_COST) {
+        if (extracted < SWORD_RADIX_LOSS_DATA_FLOW_COST) {
             return;
         }
 
-        DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker,
+        RadixLossEffectLogic.applyOrBurst(target, RADIX_LOSS_DURATION_TICKS, attacker,
                 (float) getPanelAttackDamage(stack));
     }
 
