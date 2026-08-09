@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridge;
-import com.fish_dan_.data_energistics.client.gui.ldlib2.multiblock.StructurePreviewSceneBinderImpl;
+import com.fish_dan_.data_energistics.client.gui.ldlib2.multiblock.LdlibStructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.client.guideme.DataRipperReassemblerGuideRecipeBody;
 import com.fish_dan_.data_energistics.client.integration.Ae2WtLibClientCompat;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesAckClientHandler;
@@ -25,7 +25,7 @@ public final class DataEnergisticsClientBridgeImpl implements DataEnergisticsCli
     /**
      * Stateless factory retained so every preview consumer enters the same audited client adapter.
      */
-    private final StructurePreviewSceneBinder structurePreviewSceneBinder = new StructurePreviewSceneBinderImpl();
+    private final StructurePreviewSceneBinder structurePreviewSceneBinder = new LdlibStructurePreviewSceneBinder();
 
     @Override
     public boolean isClientThread() {

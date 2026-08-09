@@ -34,7 +34,7 @@ public interface MultiblockXeiUiFactory {
     static MultiblockXeiUiFactory create(MultiblockPreviewCatalog catalog,
                                          StructurePreviewUiFactory previewFactory,
                                          boolean logicalClient) {
-        return new MultiblockXeiUiFactoryImpl(catalog, previewFactory, logicalClient);
+        return new CatalogBackedMultiblockXeiUiFactory(catalog, previewFactory, logicalClient);
     }
 
     /**

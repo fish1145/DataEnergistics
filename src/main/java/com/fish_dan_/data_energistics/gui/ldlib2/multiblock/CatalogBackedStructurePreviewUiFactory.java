@@ -15,11 +15,11 @@ import java.util.function.Supplier;
 /**
  * Production factory implementation that resolves one atomic catalog generation per invocation.
  */
-final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
+final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUiFactory {
 
     private final Supplier<StructurePreviewSceneBinder> sceneBinder;
 
-    private StructurePreviewUiFactoryImpl(Supplier<StructurePreviewSceneBinder> sceneBinder) {
+    private CatalogBackedStructurePreviewUiFactory(Supplier<StructurePreviewSceneBinder> sceneBinder) {
         if (sceneBinder == null) {
             throw new IllegalArgumentException("Structure preview scene binder supplier cannot be null");
         }
@@ -27,7 +27,7 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
     }
 
     static StructurePreviewUiFactory createDefault() {
-        return new StructurePreviewUiFactoryImpl(
+        return new CatalogBackedStructurePreviewUiFactory(
                 () -> DataEnergisticsClientBridgeAccess.get().structurePreviewSceneBinder());
     }
 
@@ -35,7 +35,7 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
         if (sceneBinder == null) {
             throw new IllegalArgumentException("Structure preview scene binder cannot be null");
         }
-        return new StructurePreviewUiFactoryImpl(() -> sceneBinder);
+        return new CatalogBackedStructurePreviewUiFactory(() -> sceneBinder);
     }
 
     @Override
@@ -97,7 +97,7 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
                                               String idPrefix,
                                               boolean logicalClient,
                                               StructurePreviewPresentation presentation) {
-        StructurePreviewSession session = new StructurePreviewSessionImpl(
+        StructurePreviewSession session = new ProjectedStructurePreviewSession(
                 spec,
                 initialSelection,
                 allowedStructureKeys,

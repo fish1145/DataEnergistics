@@ -13,15 +13,15 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Default catalog-backed implementation of the platform-neutral XEI composition factory.
  */
-final class MultiblockXeiUiFactoryImpl implements MultiblockXeiUiFactory {
+final class CatalogBackedMultiblockXeiUiFactory implements MultiblockXeiUiFactory {
 
     private final MultiblockPreviewCatalog catalog;
     private final StructurePreviewUiFactory previewFactory;
     private final boolean logicalClient;
 
-    MultiblockXeiUiFactoryImpl(MultiblockPreviewCatalog catalog,
-                               StructurePreviewUiFactory previewFactory,
-                               boolean logicalClient) {
+    CatalogBackedMultiblockXeiUiFactory(MultiblockPreviewCatalog catalog,
+                                        StructurePreviewUiFactory previewFactory,
+                                        boolean logicalClient) {
         if (catalog == null || previewFactory == null) {
             throw new IllegalArgumentException("Multiblock XEI factory arguments cannot be null");
         }

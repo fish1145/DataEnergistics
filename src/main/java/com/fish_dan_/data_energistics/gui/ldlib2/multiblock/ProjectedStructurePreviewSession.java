@@ -27,7 +27,7 @@ import java.util.stream.IntStream;
 /**
  * Default mutable session shell whose published model values remain immutable common-layer snapshots.
  */
-final class StructurePreviewSessionImpl implements StructurePreviewSession {
+final class ProjectedStructurePreviewSession implements StructurePreviewSession {
 
     private final MultiblockPreviewSpec spec;
     private final List<String> allowedStructureKeys;
@@ -40,10 +40,10 @@ final class StructurePreviewSessionImpl implements StructurePreviewSession {
     private PreviewCellSnapshot selectedCell;
     private int selectedCellLayer = -1;
 
-    StructurePreviewSessionImpl(MultiblockPreviewSpec spec,
-                                PreviewSelection initialSelection,
-                                List<String> allowedStructureKeys,
-                                StructurePreviewProjection projection) {
+    ProjectedStructurePreviewSession(MultiblockPreviewSpec spec,
+                                     PreviewSelection initialSelection,
+                                     List<String> allowedStructureKeys,
+                                     StructurePreviewProjection projection) {
         if (spec == null || initialSelection == null || allowedStructureKeys == null || projection == null) {
             throw new IllegalArgumentException("Structure preview session arguments cannot be null");
         }

@@ -30,7 +30,7 @@ import java.util.function.BiConsumer;
  * LDLib2 client adapter that gives every bound scene its own synthetic world and camera state.
  */
 @OnlyIn(Dist.CLIENT)
-public final class StructurePreviewSceneBinderImpl implements StructurePreviewSceneBinder {
+public final class LdlibStructurePreviewSceneBinder implements StructurePreviewSceneBinder {
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
 
