@@ -25,7 +25,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
-import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -99,7 +98,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                            implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolverImpl();
+    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolver();
     /** Stable target identity for the bound Trinity pattern catalog. */
     private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
     private static final String TERMINAL_CONFIG_TAG = "terminal_config";

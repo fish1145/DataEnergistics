@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
-import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
@@ -712,7 +712,7 @@ public final class CompartmentBlockEntityTest {
                     if (owningRoute == null) {
                         throw new GameTestAssertException("Local Trinity CPU route was not resolved");
                     }
-                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    TrinityCraftingRouteResolver routeResolver = new TrinityCraftingRouteResolver();
                     virtualNode.updateVirtualMembership(towerGrid, true);
                     try {
                         helper.assertTrue(
@@ -793,7 +793,7 @@ public final class CompartmentBlockEntityTest {
                     if (activeRoute == null) {
                         throw new GameTestAssertException("Active virtual Trinity CPU route was not resolved");
                     }
-                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    TrinityCraftingRouteResolver routeResolver = new TrinityCraftingRouteResolver();
                     virtualNode.updateVirtualMembership(serviceGrid, false);
                     try {
                         helper.assertTrue(
