@@ -5,10 +5,10 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.StagingPolicy;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPlacementPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate.StatePattern;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

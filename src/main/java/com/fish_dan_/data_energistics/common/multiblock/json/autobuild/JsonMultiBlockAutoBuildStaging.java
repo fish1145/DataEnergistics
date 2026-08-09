@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.multiblock.json.autobuild;
 
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockReplaceableCompartmentPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPlacementPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockReplaceableCompartmentPredicate;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;

@@ -24,13 +24,13 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuildImpl;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.TrinityAutoBuildStagingPolicy;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonDeclaredCompartmentBinder;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentBinder;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
