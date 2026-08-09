@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
@@ -20,7 +20,7 @@ import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Optional;
 
-final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
+final class RadixContainmentSphereEmiCondenserRecipe extends BasicEmiRecipe {
 
     private static final Optional<VarHandle> AE2_CONDENSER_CATEGORY_FIELD = ReflectionAccess.findStaticField(
             "appeng.integration.modules.emi.EmiCondenserRecipe",
@@ -28,9 +28,9 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     static final EmiRecipeCategory CATEGORY = resolveCategory();
     private static final int REQUIRED_POWER = 131072;
 
-    DataCaptureBallEmiCondenserRecipe() {
-        super(CATEGORY, Data_Energistics.id("/condenser/data_capture_ball"), 96, 48);
-        this.outputs.add(EmiStack.of(DataCaptureBallItem.createChargedStack()));
+    RadixContainmentSphereEmiCondenserRecipe() {
+        super(CATEGORY, Data_Energistics.id("/condenser/radix_containment_sphere"), 96, 48);
+        this.outputs.add(EmiStack.of(RadixContainmentSphereItem.createChargedStack()));
         this.catalysts.add(EmiIngredient.of(List.of(
                 EmiStack.of(DEItems.DATA_STORAGE_COMPONENT_16K.get()),
                 EmiStack.of(DEItems.DATA_STORAGE_COMPONENT_64K.get()),
@@ -50,14 +50,14 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
         widgets.addTexture(statesLocation, 4, 28, 14, 14, 241, 81);
         widgets.addTexture(statesLocation, 80, 28, 16, 16, 240, 240);
         widgets.addAnimatedTexture(background, 72, 0, 6, 18, 176, 0, 2000, false, true, false);
-        widgets.addDrawable(81, 28, 14, 14, (guiGraphics, mouseX, mouseY, delta) -> DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_DATA_CAPTURE_BALL")
+        widgets.addDrawable(81, 28, 14, 14, (guiGraphics, mouseX, mouseY, delta) -> DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_RADIX_CONTAINMENT_SPHERE")
                 .dest(0, 0, 14, 14)
                 .blit(guiGraphics));
         widgets.addTooltipText(List.of(
-                Component.translatable("item.data_energistics.data_capture_ball"),
-                Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"),
+                Component.translatable("item.data_energistics.radix_containment_sphere"),
+                Component.translatable("button.data_energistics.condenser_output.radix_containment_sphere.detail"),
                 Component.translatable("button.data_energistics.condenser_output.power", REQUIRED_POWER)), 80, 28, 16, 16);
-        widgets.addSlot(EmiStack.of(DataCaptureBallItem.createChargedStack()), 56, 26).drawBack(false);
+        widgets.addSlot(EmiStack.of(RadixContainmentSphereItem.createChargedStack()), 56, 26).drawBack(false);
         widgets.addSlot(EmiIngredient.of(List.of(
                 EmiStack.of(DEItems.DATA_STORAGE_COMPONENT_16K.get()),
                 EmiStack.of(DEItems.DATA_STORAGE_COMPONENT_64K.get()),
@@ -76,7 +76,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
         }
 
         return new EmiRecipeCategory(
-                Data_Energistics.id("condenser_data_capture_ball"),
-                EmiStack.of(DataCaptureBallItem.createChargedStack()));
+                Data_Energistics.id("condenser_radix_containment_sphere"),
+                EmiStack.of(RadixContainmentSphereItem.createChargedStack()));
     }
 }

@@ -114,10 +114,10 @@ item_ids:
 > 
 当他出现于世界中，你需要使用
 <Row> 
-    <ItemLink id="data_energistics:data_capture_ball" />
-    <ItemImage id="data_energistics:data_capture_ball" />
+    <ItemLink id="data_energistics:radix_containment_sphere" />
+    <ItemImage id="data_energistics:radix_containment_sphere" />
 </Row>  
-    <RecipeFor id="data_energistics:data_capture_ball" />
+    <RecipeFor id="data_energistics:radix_containment_sphere" />
 进行捕捉,当能量耗空时它会被销毁里面的数据也会被销毁
   
 
@@ -127,7 +127,7 @@ item_ids:
     <ItemImage id="data_energistics:me_vacuum" />
 </Row>  
     <RecipeFor id="data_energistics:me_vacuum" />
-将数据捕捉球放入其中进行范围性捕捉
+将进制收容球体放入其中进行范围性捕捉
 
 ---
 

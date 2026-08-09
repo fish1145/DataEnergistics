@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.NonNullList;
@@ -36,11 +36,11 @@ import java.util.List;
 @PrefixGameTestTemplate(false)
 public final class DataReassemblerCraftingRecipeGameTest {
 
-    private static final double CAPTURE_BALL_ENERGY = 1_000.0D;
+    private static final double RADIX_CONTAINMENT_SPHERE_ENERGY = 1_000.0D;
 
     private DataReassemblerCraftingRecipeGameTest() {}
 
-    @TestHolder("data_capture_ball_remainder_follows_data_reassembler_recipe")
+    @TestHolder("radix_containment_sphere_remainder_follows_data_reassembler_recipe")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void remainderFollowsDataReassemblerRecipe(GameTestHelper helper) {
@@ -78,19 +78,19 @@ public final class DataReassemblerCraftingRecipeGameTest {
                                            CraftingRecipe recipe,
                                            CraftingInput input,
                                            long expectedData) {
-        int captureBallSlot = findCaptureBallSlot(input);
-        long originalData = DataCaptureBallItem.getStoredDataAmount(input.getItem(captureBallSlot));
+        int containmentSphereSlot = findRadixContainmentSphereSlot(input);
+        long originalData = RadixContainmentSphereItem.getStoredDataAmount(input.getItem(containmentSphereSlot));
         NonNullList<ItemStack> remainders = recipe.getRemainingItems(input);
 
-        ItemStack returned = remainders.get(captureBallSlot);
-        helper.assertTrue(returned.is(DEItems.DATA_CAPTURE_BALL.get()),
-                "Crafting a Data Reassembler must return the Data Capture Ball");
+        ItemStack returned = remainders.get(containmentSphereSlot);
+        helper.assertTrue(returned.is(DEItems.RADIX_CONTAINMENT_SPHERE.get()),
+                "Crafting a Data Reassembler must return the Radix Containment Sphere");
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(returned),
+                RadixContainmentSphereItem.getStoredDataAmount(returned),
                 expectedData,
-                "The returned Data Capture Ball must consume exactly eight data");
+                "The returned Radix Containment Sphere must consume exactly eight data");
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(input.getItem(captureBallSlot)),
+                RadixContainmentSphereItem.getStoredDataAmount(input.getItem(containmentSphereSlot)),
                 originalData,
                 "Applying the crafting remainder must not mutate the crafting input");
     }
@@ -118,51 +118,51 @@ public final class DataReassemblerCraftingRecipeGameTest {
             throw new GameTestAssertException("AE2 did not expose the pattern to Molecular Assemblers");
         }
 
-        int captureBallSlot = findCaptureBallSlot(input);
-        ItemStack assemblerRemainder = assemblerPattern.getRemainingItems(input).get(captureBallSlot);
+        int containmentSphereSlot = findRadixContainmentSphereSlot(input);
+        ItemStack assemblerRemainder = assemblerPattern.getRemainingItems(input).get(containmentSphereSlot);
         helper.assertTrue(
-                assemblerRemainder.is(DEItems.DATA_CAPTURE_BALL.get()),
-                "Molecular Assembler execution must return the Data Capture Ball");
+                assemblerRemainder.is(DEItems.RADIX_CONTAINMENT_SPHERE.get()),
+                "Molecular Assembler execution must return the Radix Containment Sphere");
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(assemblerRemainder),
+                RadixContainmentSphereItem.getStoredDataAmount(assemblerRemainder),
                 expectedData,
                 "Molecular Assembler execution must consume exactly eight data");
 
-        AEItemKey captureBallKey = AEItemKey.of(input.getItem(captureBallSlot));
-        IPatternDetails.IInput captureBallInput = Arrays.stream(pattern.getInputs())
+        AEItemKey containmentSphereKey = AEItemKey.of(input.getItem(containmentSphereSlot));
+        IPatternDetails.IInput containmentSphereInput = Arrays.stream(pattern.getInputs())
                 .filter(patternInput -> Arrays.stream(patternInput.getPossibleInputs())
-                        .anyMatch(possibleInput -> possibleInput.what().equals(captureBallKey)))
+                        .anyMatch(possibleInput -> possibleInput.what().equals(containmentSphereKey)))
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException(
-                        "AE2 pattern did not retain the configured Data Capture Ball input"));
-        AEKey remainingKey = captureBallInput.getRemainingKey(captureBallKey);
+                        "AE2 pattern did not retain the configured Radix Containment Sphere input"));
+        AEKey remainingKey = containmentSphereInput.getRemainingKey(containmentSphereKey);
         if (!(remainingKey instanceof AEItemKey remainingItem)) {
-            throw new GameTestAssertException("AE2 pattern did not expose the Data Capture Ball remainder");
+            throw new GameTestAssertException("AE2 pattern did not expose the Radix Containment Sphere remainder");
         }
 
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(remainingItem.toStack()),
+                RadixContainmentSphereItem.getStoredDataAmount(remainingItem.toStack()),
                 expectedData,
-                "AE2 autocrafting must see the Data Capture Ball with exactly eight data consumed");
+                "AE2 autocrafting must see the Radix Containment Sphere with exactly eight data consumed");
         helper.assertTrue(
-                captureBallInput.getRemainingKey(
-                        AEItemKey.of(DataCaptureBallItem.createConfiguredStack(CAPTURE_BALL_ENERGY, 7L))) == null,
-                "AE2 autocrafting must not return an insufficient Data Capture Ball as a valid remainder");
+                containmentSphereInput.getRemainingKey(
+                        AEItemKey.of(RadixContainmentSphereItem.createConfiguredStack(RADIX_CONTAINMENT_SPHERE_ENERGY, 7L))) == null,
+                "AE2 autocrafting must not return an insufficient Radix Containment Sphere as a valid remainder");
     }
 
     private static void assertInsufficientDataConsumesBall(GameTestHelper helper) {
         for (long dataAmount : new long[] { 0L, 7L }) {
             CraftingInput input = dataReassemblerInput(dataAmount, false);
             CraftingRecipe recipe = requireDataReassemblerRecipe(helper, input).value();
-            int captureBallSlot = findCaptureBallSlot(input);
+            int containmentSphereSlot = findRadixContainmentSphereSlot(input);
 
             helper.assertTrue(
-                    recipe.getRemainingItems(input).get(captureBallSlot).isEmpty(),
-                    "A Data Capture Ball with fewer than eight data must be consumed as a normal ingredient");
+                    recipe.getRemainingItems(input).get(containmentSphereSlot).isEmpty(),
+                    "A Radix Containment Sphere with fewer than eight data must be consumed as a normal ingredient");
             helper.assertValueEqual(
-                    DataCaptureBallItem.getStoredDataAmount(input.getItem(captureBallSlot)),
+                    RadixContainmentSphereItem.getStoredDataAmount(input.getItem(containmentSphereSlot)),
                     dataAmount,
-                    "Consuming an insufficient Data Capture Ball must not mutate the crafting input");
+                    "Consuming an insufficient Radix Containment Sphere must not mutate the crafting input");
         }
     }
 
@@ -181,16 +181,16 @@ public final class DataReassemblerCraftingRecipeGameTest {
                         .isEmpty(),
                 "A different crafting layout must not use the Data Reassembler remainder");
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(invalidInput.getItem(findCaptureBallSlot(invalidInput))),
+                RadixContainmentSphereItem.getStoredDataAmount(invalidInput.getItem(findRadixContainmentSphereSlot(invalidInput))),
                 16L,
                 "A different crafting layout must not consume stored data");
     }
 
     private static CraftingInput dataReassemblerInput(long dataAmount, boolean mirrored) {
-        ItemStack captureBall = DataCaptureBallItem.createConfiguredStack(CAPTURE_BALL_ENERGY, dataAmount);
+        ItemStack containmentSphere = RadixContainmentSphereItem.createConfiguredStack(RADIX_CONTAINMENT_SPHERE_ENERGY, dataAmount);
         if (mirrored) {
             return CraftingInput.of(3, 3, List.of(
-                    captureBall,
+                    containmentSphere,
                     DEItems.DATA_FRAMEWORK.toStack(),
                     DEItems.DATA_PROCESSOR.toStack(),
                     AEBlocks.QUARTZ_GLASS.stack(),
@@ -203,7 +203,7 @@ public final class DataReassemblerCraftingRecipeGameTest {
         return CraftingInput.of(3, 3, List.of(
                 DEItems.DATA_PROCESSOR.toStack(),
                 DEItems.DATA_FRAMEWORK.toStack(),
-                captureBall,
+                containmentSphere,
                 AEBlocks.ENERGY_CELL.stack(),
                 AEParts.TERMINAL.stack(),
                 AEBlocks.QUARTZ_GLASS.stack(),
@@ -212,12 +212,12 @@ public final class DataReassemblerCraftingRecipeGameTest {
                 AEItems.ANNIHILATION_CORE.stack()));
     }
 
-    private static int findCaptureBallSlot(CraftingInput input) {
+    private static int findRadixContainmentSphereSlot(CraftingInput input) {
         for (int slot = 0; slot < input.size(); slot++) {
-            if (input.getItem(slot).is(DEItems.DATA_CAPTURE_BALL.get())) {
+            if (input.getItem(slot).is(DEItems.RADIX_CONTAINMENT_SPHERE.get())) {
                 return slot;
             }
         }
-        throw new GameTestAssertException("Crafting input does not contain a Data Capture Ball");
+        throw new GameTestAssertException("Crafting input does not contain a Radix Containment Sphere");
     }
 }

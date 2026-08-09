@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -25,18 +25,18 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<DataCaptureBallCondenserRecipe> {
+public class RadixContainmentSphereCondenserCategory extends AbstractRecipeCategory<RadixContainmentSphereCondenserRecipe> {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
     private static final int REQUIRED_POWER = 131072;
-    public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE = RecipeType.create(Data_Energistics.MODID, "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
+    public static final RecipeType<RadixContainmentSphereCondenserRecipe> RECIPE_TYPE = RecipeType.create(Data_Energistics.MODID, "condenser_radix_containment_sphere", RadixContainmentSphereCondenserRecipe.class);
 
     private final IDrawableAnimated progress;
     private final IDrawable background;
     private final IDrawable trashBackground;
     private final IDrawable buttonBackground;
 
-    public DataCaptureBallCondenserCategory(IGuiHelper guiHelper) {
+    public RadixContainmentSphereCondenserCategory(IGuiHelper guiHelper) {
         super(
                 RECIPE_TYPE,
                 Component.translatable("block.ae2.condenser"),
@@ -52,20 +52,20 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
     }
 
     @Override
-    public void draw(DataCaptureBallCondenserRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
+    public void draw(RadixContainmentSphereCondenserRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
                      double mouseX, double mouseY) {
         this.background.draw(guiGraphics);
         this.progress.draw(guiGraphics);
         this.trashBackground.draw(guiGraphics, 3, 27);
         this.buttonBackground.draw(guiGraphics, 80, 26);
-        DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_DATA_CAPTURE_BALL")
+        DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_RADIX_CONTAINMENT_SPHERE")
                 .dest(81, 27, 14, 14)
                 .blit(guiGraphics);
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, DataCaptureBallCondenserRecipe recipe, IFocusGroup focuses) {
-        builder.addOutputSlot(57, 27).addItemStack(DataCaptureBallItem.createChargedStack());
+    public void setRecipe(IRecipeLayoutBuilder builder, RadixContainmentSphereCondenserRecipe recipe, IFocusGroup focuses) {
+        builder.addOutputSlot(57, 27).addItemStack(RadixContainmentSphereItem.createChargedStack());
         builder.addSlot(RecipeIngredientRole.CATALYST, 53, 1)
                 .addItemStacks(List.of(
                         DEItems.DATA_STORAGE_COMPONENT_16K.toStack(),
@@ -79,17 +79,17 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
     }
 
     @Override
-    public void getTooltip(ITooltipBuilder tooltip, DataCaptureBallCondenserRecipe recipe,
+    public void getTooltip(ITooltipBuilder tooltip, RadixContainmentSphereCondenserRecipe recipe,
                            IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
         if (mouseX >= 80 && mouseX < 96 && mouseY >= 26 && mouseY < 42) {
-            tooltip.add(Component.translatable("item.data_energistics.data_capture_ball"));
-            tooltip.add(Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"));
+            tooltip.add(Component.translatable("item.data_energistics.radix_containment_sphere"));
+            tooltip.add(Component.translatable("button.data_energistics.condenser_output.radix_containment_sphere.detail"));
             tooltip.add(Component.translatable("button.data_energistics.condenser_output.power", REQUIRED_POWER));
         }
     }
 
     @Override
-    public @Nullable ResourceLocation getRegistryName(DataCaptureBallCondenserRecipe recipe) {
-        return Data_Energistics.id("condenser/data_capture_ball");
+    public @Nullable ResourceLocation getRegistryName(RadixContainmentSphereCondenserRecipe recipe) {
+        return Data_Energistics.id("condenser/radix_containment_sphere");
     }
 }

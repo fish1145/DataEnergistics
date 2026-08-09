@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.world.item.ItemStack;
@@ -17,16 +17,16 @@ import guideme.document.block.recipes.LytStandardRecipeBox;
 import java.util.List;
 import java.util.Locale;
 
-public final class DataCaptureBallRightClickGuideRecipeMappings implements RecipeTypeMappingSupplier {
+public final class RadixContainmentSphereRightClickGuideRecipeMappings implements RecipeTypeMappingSupplier {
 
     @Override
     public void collect(RecipeTypeMappings mappings) {
-        mappings.add(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get(),
-                DataCaptureBallRightClickGuideRecipeMappings::createRecipe);
+        mappings.add(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get(),
+                RadixContainmentSphereRightClickGuideRecipeMappings::createRecipe);
     }
 
-    private static LytStandardRecipeBox<DataCaptureBallRightClickRecipe> createRecipe(
-                                                                                      RecipeHolder<DataCaptureBallRightClickRecipe> holder) {
+    private static LytStandardRecipeBox<RadixContainmentSphereRightClickRecipe> createRecipe(
+                                                                                             RecipeHolder<RadixContainmentSphereRightClickRecipe> holder) {
         var recipe = holder.value();
         var details = LytParagraph.of(buildDetails(recipe));
         details.modifyStyle(style -> style.color(SymbolicColor.CRAFTING_RECIPE_TYPE));
@@ -42,15 +42,15 @@ public final class DataCaptureBallRightClickGuideRecipeMappings implements Recip
                 .build(holder);
     }
 
-    private static Ingredient getItemInput(DataCaptureBallRightClickRecipe recipe) {
+    private static Ingredient getItemInput(RadixContainmentSphereRightClickRecipe recipe) {
         ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
-        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
-            return Ingredient.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof RadixContainmentSphereItem) {
+            return Ingredient.of(RadixContainmentSphereItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
         }
         return recipe.getItemIngredient();
     }
 
-    private static String buildDetails(DataCaptureBallRightClickRecipe recipe) {
+    private static String buildDetails(RadixContainmentSphereRightClickRecipe recipe) {
         return String.format(
                 Locale.ROOT,
                 "Right Click | %d Data | %s AE",

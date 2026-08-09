@@ -15,7 +15,7 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
+import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -101,14 +101,14 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
-        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()));
+        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()));
         registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
         registry.addRecipe(new TrinityMultiblockEmiRecipe());
         registry.addWorkstation(
                 TrinityMultiblockEmiRecipe.CATEGORY,
                 EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
-        registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
-                .map(DataCaptureBallRightClickEmiRecipe::new)
+        registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
+                .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
@@ -127,17 +127,17 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
                 List.of(
-                        EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()),
+                        EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()),
                         EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get())),
                 List.of(
-                        Component.translatable("jei.data_energistics.data_capture_ball.line1"),
-                        Component.translatable("jei.data_energistics.data_capture_ball.line2"),
-                        Component.translatable("jei.data_energistics.data_capture_ball.line3"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line1"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line2"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line3"),
                         Component.translatable(
                                 "jei.data_energistics.data_reassembler.crafting_requirement",
-                                DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
+                                RadixContainmentSphereCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
                 null));
-        registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
+        registry.addRecipe(new RadixContainmentSphereEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
                 DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),

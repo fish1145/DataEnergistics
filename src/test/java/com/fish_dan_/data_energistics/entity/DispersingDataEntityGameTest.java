@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
@@ -116,25 +116,25 @@ public final class DispersingDataEntityGameTest {
         helper.succeed();
     }
 
-    @TestHolder("capture_ball_partially_collects_merged_dispersing_data")
+    @TestHolder("radix_containment_sphere_partially_collects_merged_dispersing_data")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5")
-    public static void captureBallPartiallyCollectsMergedData(GameTestHelper helper) {
+    public static void containmentSpherePartiallyCollectsMergedData(GameTestHelper helper) {
         var player = helper.makeMockPlayer(GameType.SURVIVAL);
-        ItemStack captureBall = DataCaptureBallItem.createConfiguredStack(2_500.0D, 0L);
-        DataCaptureBallItem captureBallItem = (DataCaptureBallItem) captureBall.getItem();
+        ItemStack containmentSphere = RadixContainmentSphereItem.createConfiguredStack(2_500.0D, 0L);
+        RadixContainmentSphereItem containmentSphereItem = (RadixContainmentSphereItem) containmentSphere.getItem();
         DispersingDataEntity entity = create(helper.getLevel(), Vec3.ZERO, 3);
 
-        boolean captured = captureBallItem.captureDispersingData(captureBall, player, entity);
+        boolean captured = containmentSphereItem.captureDispersingData(containmentSphere, player, entity);
 
-        helper.assertTrue(captured, "The capture ball must collect affordable data from a merged entity");
+        helper.assertTrue(captured, "The containment sphere must collect affordable data from a merged entity");
         helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(captureBall),
+                RadixContainmentSphereItem.getStoredDataAmount(containmentSphere),
                 2L,
-                "The capture ball must store each collected data unit");
+                "The containment sphere must store each collected data unit");
         helper.assertValueEqual(entity.getDataAmount(), 1, "Unpaid data must remain in the entity");
         helper.assertTrue(
-                Math.abs(captureBallItem.getAECurrentPower(captureBall) - 500.0D) < EPSILON,
+                Math.abs(containmentSphereItem.getAECurrentPower(containmentSphere) - 500.0D) < EPSILON,
                 "Capturing two data units must consume energy twice");
         helper.succeed();
     }

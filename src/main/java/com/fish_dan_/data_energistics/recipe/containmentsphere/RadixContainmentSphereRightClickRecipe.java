@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.recipe.captureball;
+package com.fish_dan_.data_energistics.recipe.containmentsphere;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 
-public final class DataCaptureBallRightClickRecipe implements Recipe<DataCaptureBallRightClickRecipeInput> {
+public final class RadixContainmentSphereRightClickRecipe implements Recipe<RadixContainmentSphereRightClickRecipeInput> {
 
     private static final Codec<Block> BLOCK_CODEC = ResourceLocation.CODEC.flatXmap(
             id -> BuiltInRegistries.BLOCK.getOptional(id)
@@ -60,34 +60,34 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
                         return Either.right(ingredient);
                     });
     private static final Codec<List<IngredientEntry>> INGREDIENTS_CODEC = IngredientEntry.CODEC.listOf().flatXmap(
-            DataCaptureBallRightClickRecipe::validateIngredientEntries,
+            RadixContainmentSphereRightClickRecipe::validateIngredientEntries,
             DataResult::success);
     private static final Codec<List<ResultEntry>> RESULTS_CODEC = ResultEntry.CODEC.listOf().flatXmap(
             results -> results.isEmpty() ? DataResult.error(() -> "results must contain at least one entry") : DataResult.success(results),
             DataResult::success);
 
-    public static final MapCodec<DataCaptureBallRightClickRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(DataCaptureBallRightClickRecipe::toIngredientEntries),
-            RESULTS_CODEC.fieldOf("results").forGetter(DataCaptureBallRightClickRecipe::toResultEntries),
+    public static final MapCodec<RadixContainmentSphereRightClickRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(RadixContainmentSphereRightClickRecipe::toIngredientEntries),
+            RESULTS_CODEC.fieldOf("results").forGetter(RadixContainmentSphereRightClickRecipe::toResultEntries),
             DATA_COST_CODEC.optionalFieldOf("data_cost").forGetter(recipe -> Optional.empty()),
-            ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(recipe -> Optional.empty())).apply(instance, DataCaptureBallRightClickRecipe::fromEntries));
+            ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(recipe -> Optional.empty())).apply(instance, RadixContainmentSphereRightClickRecipe::fromEntries));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallRightClickRecipe> STREAM_CODEC = StreamCodec.composite(
+    public static final StreamCodec<RegistryFriendlyByteBuf, RadixContainmentSphereRightClickRecipe> STREAM_CODEC = StreamCodec.composite(
             Ingredient.CONTENTS_STREAM_CODEC,
-            DataCaptureBallRightClickRecipe::getItemIngredient,
+            RadixContainmentSphereRightClickRecipe::getItemIngredient,
             ResourceLocation.STREAM_CODEC.map(
                     id -> BuiltInRegistries.BLOCK.get(id),
                     block -> BuiltInRegistries.BLOCK.getKey(block)),
-            DataCaptureBallRightClickRecipe::getInputBlock,
+            RadixContainmentSphereRightClickRecipe::getInputBlock,
             ResourceLocation.STREAM_CODEC.map(
                     id -> BuiltInRegistries.BLOCK.get(id),
                     block -> BuiltInRegistries.BLOCK.getKey(block)),
-            DataCaptureBallRightClickRecipe::getResultBlock,
+            RadixContainmentSphereRightClickRecipe::getResultBlock,
             ByteBufCodecs.VAR_LONG,
-            DataCaptureBallRightClickRecipe::getDataCost,
+            RadixContainmentSphereRightClickRecipe::getDataCost,
             ByteBufCodecs.DOUBLE,
-            DataCaptureBallRightClickRecipe::getEnergyCost,
-            DataCaptureBallRightClickRecipe::new);
+            RadixContainmentSphereRightClickRecipe::getEnergyCost,
+            RadixContainmentSphereRightClickRecipe::new);
 
     private final Ingredient itemIngredient;
     private final Block inputBlock;
@@ -95,8 +95,8 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     private final long dataCost;
     private final double energyCost;
 
-    public DataCaptureBallRightClickRecipe(Ingredient itemIngredient, Block inputBlock, Block resultBlock, long dataCost,
-                                           double energyCost) {
+    public RadixContainmentSphereRightClickRecipe(Ingredient itemIngredient, Block inputBlock, Block resultBlock, long dataCost,
+                                                  double energyCost) {
         this.itemIngredient = itemIngredient;
         this.inputBlock = inputBlock;
         this.resultBlock = resultBlock;
@@ -105,7 +105,7 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     }
 
     @Override
-    public boolean matches(DataCaptureBallRightClickRecipeInput input, Level level) {
+    public boolean matches(RadixContainmentSphereRightClickRecipeInput input, Level level) {
         return this.matches(input.stack(), input.state());
     }
 
@@ -114,7 +114,7 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     }
 
     @Override
-    public ItemStack assemble(DataCaptureBallRightClickRecipeInput input, HolderLookup.Provider registries) {
+    public ItemStack assemble(RadixContainmentSphereRightClickRecipeInput input, HolderLookup.Provider registries) {
         return ItemStack.EMPTY;
     }
 
@@ -133,12 +133,12 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_SERIALIZER.get();
+        return DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get();
+        return DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get();
     }
 
     @Override
@@ -166,10 +166,10 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
         return this.energyCost;
     }
 
-    private static DataCaptureBallRightClickRecipe fromEntries(List<IngredientEntry> ingredients, List<ResultEntry> results,
-                                                               Optional<Long> topLevelDataCost, Optional<Double> topLevelEnergyCost) {
+    private static RadixContainmentSphereRightClickRecipe fromEntries(List<IngredientEntry> ingredients, List<ResultEntry> results,
+                                                                      Optional<Long> topLevelDataCost, Optional<Double> topLevelEnergyCost) {
         ItemIngredientEntry itemEntry = findItemEntry(ingredients);
-        return new DataCaptureBallRightClickRecipe(
+        return new RadixContainmentSphereRightClickRecipe(
                 itemEntry.ingredient(),
                 findInputBlock(ingredients),
                 results.getFirst().block(),

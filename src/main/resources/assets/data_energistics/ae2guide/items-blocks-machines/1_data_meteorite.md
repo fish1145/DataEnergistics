@@ -114,10 +114,10 @@ Nearby Dispersing Manifest Binary attract and merge automatically. Their names s
 > 
 When he appears in the world, you need to use it
 <Row> 
-    <ItemLink id="data_energistics:data_capture_ball" />
-    <ItemImage id="data_energistics:data_capture_ball" />
+    <ItemLink id="data_energistics:radix_containment_sphere" />
+    <ItemImage id="data_energistics:radix_containment_sphere" />
 </Row>  
-    <RecipeFor id="data_energistics:data_capture_ball" />
+    <RecipeFor id="data_energistics:radix_containment_sphere" />
 captures it; when energy is depleted, it is destroyed and the data inside is also destroyed
   
 
@@ -127,7 +127,7 @@ You can also make one
     <ItemImage id="data_energistics:me_vacuum" />
 </Row>  
     <RecipeFor id="data_energistics:me_vacuum" />
-Place Data Capture Ball in it for area capture
+Place Radix Containment Sphere in it for area capture
 
 ---
 

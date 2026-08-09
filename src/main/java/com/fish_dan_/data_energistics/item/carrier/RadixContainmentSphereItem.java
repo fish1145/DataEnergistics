@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.item.carrier;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
@@ -40,7 +40,7 @@ import appeng.util.ConfigInventory;
 import java.util.Comparator;
 import java.util.List;
 
-public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IBasicCellItem {
+public class RadixContainmentSphereItem extends Item implements IAEItemPowerStorage, IBasicCellItem {
 
     private static final double MAX_POWER = 50_000.0D;
     private static final double CHARGE_RATE = 50_000.0D;
@@ -53,7 +53,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     private static final double RANGE_CAPTURE_RADIUS = 3.0D;
     private static final double RANGE_CAPTURE_RADIUS_SQR = RANGE_CAPTURE_RADIUS * RANGE_CAPTURE_RADIUS;
 
-    public DataCaptureBallItem(Properties properties) {
+    public RadixContainmentSphereItem(Properties properties) {
         super(properties);
     }
 
@@ -205,13 +205,13 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     public static ItemStack createChargedStack() {
-        ItemStack stack = DEItems.DATA_CAPTURE_BALL.toStack();
+        ItemStack stack = DEItems.RADIX_CONTAINMENT_SPHERE.toStack();
         stack.set(AEComponents.STORED_ENERGY, INITIAL_POWER);
         return stack;
     }
 
     public static ItemStack createConfiguredStack(double energy, long dataAmount) {
-        ItemStack stack = DEItems.DATA_CAPTURE_BALL.toStack();
+        ItemStack stack = DEItems.RADIX_CONTAINMENT_SPHERE.toStack();
         if (energy > 0.0D) {
             stack.set(AEComponents.STORED_ENERGY, energy);
         }
@@ -333,11 +333,11 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
         return this.getUpgrades(stack).getInstalledUpgrades(AEItems.FUZZY_CARD) > 0;
     }
 
-    public boolean canRunRightClickRecipe(ItemStack stack, DataCaptureBallRightClickRecipe recipe) {
+    public boolean canRunRightClickRecipe(ItemStack stack, RadixContainmentSphereRightClickRecipe recipe) {
         return this.getAECurrentPower(stack) >= recipe.getEnergyCost() && this.getStoredDataAmount(stack) >= recipe.getDataCost();
     }
 
-    public boolean runRightClickRecipe(ItemStack stack, Player player, DataCaptureBallRightClickRecipe recipe) {
+    public boolean runRightClickRecipe(ItemStack stack, Player player, RadixContainmentSphereRightClickRecipe recipe) {
         if (!this.canRunRightClickRecipe(stack, recipe)) {
             return false;
         }

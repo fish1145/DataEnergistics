@@ -11,14 +11,14 @@ import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.StorageCells;
 
-public final class DataCaptureBallCraftingRemainderHelper {
+public final class RadixContainmentSphereCraftingRemainderHelper {
 
     public static final long DATA_REASSEMBLER_DATA_COST = 8L;
 
-    private DataCaptureBallCraftingRemainderHelper() {}
+    private RadixContainmentSphereCraftingRemainderHelper() {}
 
     public static void applyDataReassemblerRemainder(CraftingInput input, NonNullList<ItemStack> remainders) {
-        int slot = findDataCaptureBallSlot(input);
+        int slot = findRadixContainmentSphereSlot(input);
         if (slot < 0 || slot >= remainders.size()) {
             return;
         }
@@ -35,10 +35,10 @@ public final class DataCaptureBallCraftingRemainderHelper {
         }
     }
 
-    private static int findDataCaptureBallSlot(CraftingInput input) {
+    private static int findRadixContainmentSphereSlot(CraftingInput input) {
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getItem(i);
-            if (stack.is(DEItems.DATA_CAPTURE_BALL.get()) && hasRequiredData(stack)) {
+            if (stack.is(DEItems.RADIX_CONTAINMENT_SPHERE.get()) && hasRequiredData(stack)) {
                 return i;
             }
         }

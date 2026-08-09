@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -124,7 +124,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
         }
     }
 
-    private void drawRightClick(DataCaptureBallRightClickRecipe recipe, GuiGraphics guiGraphics) {
+    private void drawRightClick(RadixContainmentSphereRightClickRecipe recipe, GuiGraphics guiGraphics) {
         this.rightClickBackground.draw(guiGraphics);
         this.slotDrawable.draw(guiGraphics, RIGHT_CLICK_ITEM_X - 1, RIGHT_CLICK_ITEM_Y - 1);
         this.slotDrawable.draw(guiGraphics, RIGHT_CLICK_OUTPUT_X - 1, RIGHT_CLICK_OUTPUT_Y - 1);
@@ -133,34 +133,34 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
 
         Font font = Minecraft.getInstance().font;
         drawCenteredString(guiGraphics, font,
-                Component.translatable("recipe.data_energistics.data_capture_ball_right_click.apply"),
+                Component.translatable("recipe.data_energistics.radix_containment_sphere_right_click.apply"),
                 RIGHT_CLICK_BLOCK_X + 8,
                 8);
     }
 
-    private void setRightClickRecipe(IRecipeLayoutBuilder builder, DataCaptureBallRightClickRecipe recipe) {
+    private void setRightClickRecipe(IRecipeLayoutBuilder builder, RadixContainmentSphereRightClickRecipe recipe) {
         var itemSlot = builder.addInputSlot(RIGHT_CLICK_ITEM_X, RIGHT_CLICK_ITEM_Y)
                 .addItemStacks(getItemInputStacks(recipe));
-        if (isDataCaptureBallInput(recipe)) {
+        if (isRadixContainmentSphereInput(recipe)) {
             itemSlot.addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(
-                    "recipe.data_energistics.data_capture_ball_right_click.preset",
+                    "recipe.data_energistics.radix_containment_sphere_right_click.preset",
                     recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
         }
         builder.addInputSlot(RIGHT_CLICK_BLOCK_X, RIGHT_CLICK_BLOCK_Y).addItemStack(new ItemStack(recipe.getInputBlock()));
         builder.addOutputSlot(RIGHT_CLICK_OUTPUT_X, RIGHT_CLICK_OUTPUT_Y).addItemStack(new ItemStack(recipe.getResultBlock()));
     }
 
-    private static List<ItemStack> getItemInputStacks(DataCaptureBallRightClickRecipe recipe) {
+    private static List<ItemStack> getItemInputStacks(RadixContainmentSphereRightClickRecipe recipe) {
         ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
-        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
-            return List.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof RadixContainmentSphereItem) {
+            return List.of(RadixContainmentSphereItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
         }
         return Arrays.stream(itemStacks).map(ItemStack::copy).toList();
     }
 
-    private static boolean isDataCaptureBallInput(DataCaptureBallRightClickRecipe recipe) {
+    private static boolean isRadixContainmentSphereInput(RadixContainmentSphereRightClickRecipe recipe) {
         return Arrays.stream(recipe.getItemIngredient().getItems())
-                .anyMatch(stack -> stack.getItem() instanceof DataCaptureBallItem);
+                .anyMatch(stack -> stack.getItem() instanceof RadixContainmentSphereItem);
     }
 
     private void drawSlotFrames(GuiGraphics guiGraphics, TimeShiftRecipe recipe) {

@@ -16,7 +16,7 @@ import java.util.List;
 
 public class CondenserOutputModeButton extends IconButton {
 
-    private static final int DATA_CAPTURE_BALL_REQUIRED_POWER = 131072;
+    private static final int RADIX_CONTAINMENT_SPHERE_REQUIRED_POWER = 131072;
 
     private final CondenserMenuAccessor menu;
     private CondenserOutputMode mode = CondenserOutputMode.TRASH;
@@ -38,7 +38,7 @@ public class CondenserOutputModeButton extends IconButton {
 
     @Override
     public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (this.mode != CondenserOutputMode.DATA_CAPTURE_BALL) {
+        if (this.mode != CondenserOutputMode.RADIX_CONTAINMENT_SPHERE) {
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
             return;
         }
@@ -55,7 +55,7 @@ public class CondenserOutputModeButton extends IconButton {
                 .zOffset(2)
                 .blit(guiGraphics);
 
-        Blitter blitter = DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_DATA_CAPTURE_BALL");
+        Blitter blitter = DataEnergisticsIcon.getBlitter("CONDENSER_OUTPUT_RADIX_CONTAINMENT_SPHERE");
         if (!this.active) {
             blitter.opacity(0.5f);
         }
@@ -67,7 +67,7 @@ public class CondenserOutputModeButton extends IconButton {
         return switch (this.mode) {
             case MATTER_BALLS -> Icon.CONDENSER_OUTPUT_MATTER_BALL;
             case SINGULARITY -> Icon.CONDENSER_OUTPUT_SINGULARITY;
-            case DATA_CAPTURE_BALL -> Icon.TOOLBAR_BUTTON_BACKGROUND;
+            case RADIX_CONTAINMENT_SPHERE -> Icon.TOOLBAR_BUTTON_BACKGROUND;
             default -> Icon.CONDENSER_OUTPUT_TRASH;
         };
     }
@@ -87,13 +87,13 @@ public class CondenserOutputModeButton extends IconButton {
                     Component.translatable(
                             "button.data_energistics.condenser_output.power",
                             CondenserOutput.SINGULARITY.requiredPower));
-            case DATA_CAPTURE_BALL -> List.of(
+            case RADIX_CONTAINMENT_SPHERE -> List.of(
                     Component.translatable("button.data_energistics.condenser_output.header"),
-                    Component.translatable("item.data_energistics.data_capture_ball"),
-                    Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"),
+                    Component.translatable("item.data_energistics.radix_containment_sphere"),
+                    Component.translatable("button.data_energistics.condenser_output.radix_containment_sphere.detail"),
                     Component.translatable(
                             "button.data_energistics.condenser_output.power",
-                            DATA_CAPTURE_BALL_REQUIRED_POWER));
+                            RADIX_CONTAINMENT_SPHERE_REQUIRED_POWER));
             default -> List.of(
                     Component.translatable("button.data_energistics.condenser_output.header"),
                     Component.translatable("button.data_energistics.condenser_output.trash"));

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -18,7 +18,7 @@ import dev.emi.emi.api.widget.WidgetHolder;
 import java.util.Arrays;
 import java.util.List;
 
-public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
+public final class RadixContainmentSphereRightClickEmiRecipe extends BasicEmiRecipe {
 
     private static final int WIDTH = 148;
     private static final int HEIGHT = 72;
@@ -34,9 +34,9 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
 
     public static final EmiRecipeCategory CATEGORY = TimeShiftEmiRecipe.CATEGORY;
 
-    private final DataCaptureBallRightClickRecipe recipe;
+    private final RadixContainmentSphereRightClickRecipe recipe;
 
-    public DataCaptureBallRightClickEmiRecipe(RecipeHolder<DataCaptureBallRightClickRecipe> holder) {
+    public RadixContainmentSphereRightClickEmiRecipe(RecipeHolder<RadixContainmentSphereRightClickRecipe> holder) {
         super(CATEGORY, holder.id(), WIDTH, HEIGHT);
         this.recipe = holder.value();
         this.inputs.add(getItemInput(this.recipe));
@@ -47,10 +47,10 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
     @Override
     public void addWidgets(WidgetHolder widgets) {
         widgets.addSlot(this.inputs.get(0), INPUT_ITEM_X, INPUT_ITEM_Y);
-        if (isDataCaptureBallInput(this.recipe)) {
+        if (isRadixContainmentSphereInput(this.recipe)) {
             widgets.addTooltipText(
                     List.of(Component.translatable(
-                            "recipe.data_energistics.data_capture_ball_right_click.preset",
+                            "recipe.data_energistics.radix_containment_sphere_right_click.preset",
                             this.recipe.getDataCost(), formatEnergy(this.recipe.getEnergyCost()))),
                     INPUT_ITEM_X, INPUT_ITEM_Y, 18, 18);
         }
@@ -59,7 +59,7 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
         widgets.addTexture(EmiTexture.EMPTY_ARROW, ARROW_RIGHT_X, ARROW_Y);
         widgets.addSlot(this.outputs.get(0), OUTPUT_X, OUTPUT_Y).recipeContext(this);
         widgets.addText(
-                Component.translatable("recipe.data_energistics.data_capture_ball_right_click.apply"),
+                Component.translatable("recipe.data_energistics.radix_containment_sphere_right_click.apply"),
                 INPUT_BLOCK_X + 8,
                 8,
                 0x7E7E7E,
@@ -67,17 +67,17 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
                 .horizontalAlign(TextWidget.Alignment.CENTER);
     }
 
-    private static EmiIngredient getItemInput(DataCaptureBallRightClickRecipe recipe) {
+    private static EmiIngredient getItemInput(RadixContainmentSphereRightClickRecipe recipe) {
         ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
-        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
-            return EmiStack.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof RadixContainmentSphereItem) {
+            return EmiStack.of(RadixContainmentSphereItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
         }
         return EmiIngredient.of(Arrays.stream(itemStacks).map(EmiStack::of).toList());
     }
 
-    private static boolean isDataCaptureBallInput(DataCaptureBallRightClickRecipe recipe) {
+    private static boolean isRadixContainmentSphereInput(RadixContainmentSphereRightClickRecipe recipe) {
         return Arrays.stream(recipe.getItemIngredient().getItems())
-                .anyMatch(stack -> stack.getItem() instanceof DataCaptureBallItem);
+                .anyMatch(stack -> stack.getItem() instanceof RadixContainmentSphereItem);
     }
 
     private static String formatEnergy(double energy) {

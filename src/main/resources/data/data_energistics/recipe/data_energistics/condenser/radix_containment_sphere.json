@@ -1,5 +1,5 @@
 {
-	"type": "data_energistics:data_capture_ball_condenser",
+	"type": "data_energistics:radix_containment_sphere_condenser",
 	"catalyst": [
 		{
 			"item": "data_energistics:data_storage_component_16k"
@@ -27,7 +27,7 @@
 		}
 	],
 	"result": {
-		"id": "data_energistics:data_capture_ball",
+		"id": "data_energistics:radix_containment_sphere",
 		"count": 1
 	},
 	"required_power": 131072

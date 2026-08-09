@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBri
 import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
-import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipeLogic;
+import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.world.DataMeteoriteCompassTargetInvalidation;
@@ -25,7 +25,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new ServerLifecycleEventHandler());
         NeoForge.EVENT_BUS.register(new PoweredToolAttributeModifierHandler());
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
-        NeoForge.EVENT_BUS.register(new DataCaptureBallRightClickRecipeLogic());
+        NeoForge.EVENT_BUS.register(new RadixContainmentSphereRightClickRecipeLogic());
         NeoForge.EVENT_BUS.register(new DataCrystalSwordAiStripLogic());
         NeoForge.EVENT_BUS.register(new RadixLossControlLogic());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());

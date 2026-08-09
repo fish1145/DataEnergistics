@@ -1,6 +1,6 @@
-package com.fish_dan_.data_energistics.recipe.captureball;
+package com.fish_dan_.data_energistics.recipe.containmentsphere;
 
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
@@ -21,31 +21,31 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput> {
+public final class RadixContainmentSphereCondenserRecipe implements Recipe<RecipeInput> {
 
     private static final Codec<Integer> REQUIRED_POWER_CODEC = Codec.INT.flatXmap(
             power -> power < 0 ? DataResult.error(() -> "required_power must be >= 0") : DataResult.success(power),
             DataResult::success);
 
-    public static final MapCodec<DataCaptureBallCondenserRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            Ingredient.CODEC_NONEMPTY.fieldOf("catalyst").forGetter(DataCaptureBallCondenserRecipe::getCatalyst),
+    public static final MapCodec<RadixContainmentSphereCondenserRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Ingredient.CODEC_NONEMPTY.fieldOf("catalyst").forGetter(RadixContainmentSphereCondenserRecipe::getCatalyst),
             ItemStack.CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
-            REQUIRED_POWER_CODEC.fieldOf("required_power").forGetter(DataCaptureBallCondenserRecipe::getRequiredPower)).apply(instance, DataCaptureBallCondenserRecipe::new));
+            REQUIRED_POWER_CODEC.fieldOf("required_power").forGetter(RadixContainmentSphereCondenserRecipe::getRequiredPower)).apply(instance, RadixContainmentSphereCondenserRecipe::new));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallCondenserRecipe> STREAM_CODEC = StreamCodec.composite(
+    public static final StreamCodec<RegistryFriendlyByteBuf, RadixContainmentSphereCondenserRecipe> STREAM_CODEC = StreamCodec.composite(
             Ingredient.CONTENTS_STREAM_CODEC,
-            DataCaptureBallCondenserRecipe::getCatalyst,
+            RadixContainmentSphereCondenserRecipe::getCatalyst,
             ItemStack.STREAM_CODEC,
             recipe -> recipe.result,
             ByteBufCodecs.VAR_INT,
-            DataCaptureBallCondenserRecipe::getRequiredPower,
-            DataCaptureBallCondenserRecipe::new);
+            RadixContainmentSphereCondenserRecipe::getRequiredPower,
+            RadixContainmentSphereCondenserRecipe::new);
 
     private final Ingredient catalyst;
     private final ItemStack result;
     private final int requiredPower;
 
-    public DataCaptureBallCondenserRecipe(Ingredient catalyst, ItemStack result, int requiredPower) {
+    public RadixContainmentSphereCondenserRecipe(Ingredient catalyst, ItemStack result, int requiredPower) {
         this.catalyst = catalyst;
         this.result = result.copy();
         this.requiredPower = requiredPower;
@@ -58,7 +58,7 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public ItemStack assemble(RecipeInput input, HolderLookup.Provider registries) {
-        return DataCaptureBallItem.createChargedStack();
+        return RadixContainmentSphereItem.createChargedStack();
     }
 
     @Override
@@ -68,7 +68,7 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
-        return DataCaptureBallItem.createChargedStack();
+        return RadixContainmentSphereItem.createChargedStack();
     }
 
     @Override
@@ -78,12 +78,12 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return DERecipes.DATA_CAPTURE_BALL_CONDENSER_SERIALIZER.get();
+        return DERecipes.RADIX_CONTAINMENT_SPHERE_CONDENSER_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return DERecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get();
+        return DERecipes.RADIX_CONTAINMENT_SPHERE_CONDENSER_TYPE.get();
     }
 
     @Override
