@@ -23,28 +23,28 @@ public final class ModStorageCells {
     private ModStorageCells() {}
 
     public static void registerClientModels() {
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_1K.get(), DRIVE_1K);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_4K.get(), DRIVE_4K);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_16K.get(), DRIVE_16K);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_64K.get(), DRIVE_64K);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_256K.get(), DRIVE_256K);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_1M.get(), DRIVE_1M);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_4M.get(), DRIVE_4M);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_16M.get(), DRIVE_16M);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_64M.get(), DRIVE_64M);
-        StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_256M.get(), DRIVE_256M);
-        StorageCellModels.registerModel(ModItems.DATA_CELL_INFINITY.get(), DRIVE_INFINITY);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_1K.get(), DRIVE_1K);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_4K.get(), DRIVE_4K);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_16K.get(), DRIVE_16K);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_64K.get(), DRIVE_64K);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_256K.get(), DRIVE_256K);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_1M.get(), DRIVE_1M);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_4M.get(), DRIVE_4M);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_16M.get(), DRIVE_16M);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_64M.get(), DRIVE_64M);
+        StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_256M.get(), DRIVE_256M);
+        StorageCellModels.registerModel(DEItems.DATA_CELL_INFINITY.get(), DRIVE_INFINITY);
 
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(), DRIVE_1K);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(), DRIVE_4K);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_16K.get(), DRIVE_16K);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_64K.get(), DRIVE_64K);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(), DRIVE_256K);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_1M.get(), DRIVE_1M);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_4M.get(), DRIVE_4M);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_16M.get(), DRIVE_16M);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_64M.get(), DRIVE_64M);
-        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_256M.get(), DRIVE_256M);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(), DRIVE_1K);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(), DRIVE_4K);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(), DRIVE_16K);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_64K.get(), DRIVE_64K);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_256K.get(), DRIVE_256K);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_1M.get(), DRIVE_1M);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_4M.get(), DRIVE_4M);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_16M.get(), DRIVE_16M);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_64M.get(), DRIVE_64M);
+        StorageCellModels.registerModel(DEItems.PORTABLE_DATA_FLOW_CELL_256M.get(), DRIVE_256M);
     }
 
     private static ResourceLocation model(String tier) {

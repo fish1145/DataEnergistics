@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.extendedae;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -36,12 +36,12 @@ public abstract class ExtendedInscriberThreadMixin {
         this.dataEnergistics$templateSnapshot = ItemStack.EMPTY;
 
         InscriberRecipe task = this.getTask();
-        if (task == null || !task.getResultItem().is(ModItems.DATA_CIRCUIT_BOARD.get())) {
+        if (task == null || !task.getResultItem().is(DEItems.DATA_CIRCUIT_BOARD.get())) {
             return;
         }
 
         ItemStack stack = this.sideItemHandler.getStackInSlot(0);
-        if (stack.is(ModItems.DATA_INSCRIBER_TEMPLATE.get())) {
+        if (stack.is(DEItems.DATA_INSCRIBER_TEMPLATE.get())) {
             this.dataEnergistics$templateSnapshot = stack.copy();
         }
     }

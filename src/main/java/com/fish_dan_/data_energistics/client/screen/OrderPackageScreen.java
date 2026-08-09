@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
@@ -45,8 +45,8 @@ public final class OrderPackageScreen extends AEBaseScreen<OrderPackageMenu> imp
             return;
         }
 
-        if (target instanceof AEItemKey itemKey && itemKey.is(ModItems.ORDER_PACKAGE.get())) {
-            guiGraphics.renderItem(ModItems.ORDER_PACKAGE.toStack(), slot.x, slot.y);
+        if (target instanceof AEItemKey itemKey && itemKey.is(DEItems.ORDER_PACKAGE.get())) {
+            guiGraphics.renderItem(DEItems.ORDER_PACKAGE.toStack(), slot.x, slot.y);
         } else {
             CustomKeyGuiRenderer.draw(this.minecraft, guiGraphics, slot.x, slot.y, target);
         }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -73,7 +73,7 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     }
 
     default int getSaberEnergyCardCount(ItemStack stack) {
-        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     default double getSaberEnergyAttackDamageBonus(ItemStack stack, double baseAttackDamage) {

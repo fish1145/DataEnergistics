@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -41,7 +41,7 @@ public final class OrderPackageTarget {
      * @return a new marked order package
      */
     public ItemStack createMarkedPackage(AEKey target) {
-        ItemStack stack = ModItems.ORDER_PACKAGE.toStack();
+        ItemStack stack = DEItems.ORDER_PACKAGE.toStack();
         setTarget(stack, target);
         return stack;
     }
@@ -58,7 +58,7 @@ public final class OrderPackageTarget {
      * @return the package target, or empty for an unmarked package or any ordinary key
      */
     public Optional<AEKey> resolveMarkedTarget(AEKey outputKey) {
-        if (!(outputKey instanceof AEItemKey itemKey) || !itemKey.is(ModItems.ORDER_PACKAGE.get())) {
+        if (!(outputKey instanceof AEItemKey itemKey) || !itemKey.is(DEItems.ORDER_PACKAGE.get())) {
             return Optional.empty();
         }
         return getTarget(itemKey.toStack());
@@ -81,7 +81,7 @@ public final class OrderPackageTarget {
      * @return whether the registered item is an order package
      */
     public boolean isOrderPackage(ItemStack stack) {
-        return stack.is(ModItems.ORDER_PACKAGE.get());
+        return stack.is(DEItems.ORDER_PACKAGE.get());
     }
 
     /**
@@ -94,7 +94,7 @@ public final class OrderPackageTarget {
         if (!isOrderPackage(stack)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(stack.get(ModDataComponents.ORDER_PACKAGE_TARGET.get()));
+        return Optional.ofNullable(stack.get(DEDataComponents.ORDER_PACKAGE_TARGET.get()));
     }
 
     /**
@@ -106,7 +106,7 @@ public final class OrderPackageTarget {
      */
     public void setTarget(ItemStack stack, AEKey target) {
         requireOrderPackage(stack);
-        stack.set(ModDataComponents.ORDER_PACKAGE_TARGET.get(), target);
+        stack.set(DEDataComponents.ORDER_PACKAGE_TARGET.get(), target);
     }
 
     /**
@@ -118,7 +118,7 @@ public final class OrderPackageTarget {
      */
     public Optional<AEKey> clearTarget(ItemStack stack) {
         requireOrderPackage(stack);
-        return Optional.ofNullable(stack.remove(ModDataComponents.ORDER_PACKAGE_TARGET.get()));
+        return Optional.ofNullable(stack.remove(DEDataComponents.ORDER_PACKAGE_TARGET.get()));
     }
 
     /**

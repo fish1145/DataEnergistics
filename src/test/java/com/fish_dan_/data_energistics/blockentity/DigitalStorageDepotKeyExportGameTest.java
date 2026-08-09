@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -36,8 +36,8 @@ public final class DigitalStorageDepotKeyExportGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void exportsKeysToGenericInventory(GameTestHelper helper) {
-        helper.setBlock(DEPOT_POS, ModBlocks.DIGITAL_STORAGE_DEPOT.get());
-        helper.setBlock(EAST_POS, ModBlocks.DATA_MIMETIC_FIELD.get());
+        helper.setBlock(DEPOT_POS, DEBlocks.DIGITAL_STORAGE_DEPOT.get());
+        helper.setBlock(EAST_POS, DEBlocks.DATA_MIMETIC_FIELD.get());
 
         DigitalStorageDepotBlockEntity depot = requireDepot(helper);
         DataMimeticFieldBlockEntity mimeticField = requireMimeticField(helper);
@@ -75,7 +75,7 @@ public final class DigitalStorageDepotKeyExportGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void doesNotExportKeysAsItems(GameTestHelper helper) {
-        helper.setBlock(DEPOT_POS, ModBlocks.DIGITAL_STORAGE_DEPOT.get());
+        helper.setBlock(DEPOT_POS, DEBlocks.DIGITAL_STORAGE_DEPOT.get());
         helper.setBlock(EAST_POS, Blocks.CHEST);
 
         DigitalStorageDepotBlockEntity depot = requireDepot(helper);

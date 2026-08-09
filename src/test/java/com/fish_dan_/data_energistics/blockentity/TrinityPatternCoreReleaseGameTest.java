@@ -5,10 +5,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatal
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreBinding;
-import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseRequest;
-import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -35,7 +33,7 @@ public final class TrinityPatternCoreReleaseGameTest {
     @GameTest(template = "empty_5x5")
     public static void releaseRequiresHostConfirmation(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
-        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(pos, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
 
         ConfirmingPatternHost oldHost = new ConfirmingPatternHost(core);

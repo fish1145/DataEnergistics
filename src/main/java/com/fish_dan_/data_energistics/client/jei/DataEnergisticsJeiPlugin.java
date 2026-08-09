@@ -13,8 +13,8 @@ import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
@@ -108,11 +108,11 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
-        registration.addRecipeCatalyst(ModItems.DATA_CAPTURE_BALL.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
-        registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
-        registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
-        registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
-        registration.addRecipeCatalyst(ModBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEItems.DATA_CAPTURE_BALL.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
         registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -181,7 +181,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                     RecipeHolder::value);
         }
         registration.addIngredientInfo(
-                new ItemStack(ModItems.DATA_CAPTURE_BALL.get()),
+                new ItemStack(DEItems.DATA_CAPTURE_BALL.get()),
                 VanillaTypes.ITEM_STACK,
                 Component.translatable("jei.data_energistics.data_capture_ball.line1"),
                 Component.translatable("jei.data_energistics.data_capture_ball.line2"),
@@ -190,7 +190,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         "jei.data_energistics.data_reassembler.crafting_requirement",
                         DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
         registration.addIngredientInfo(
-                ModItems.DATA_RIPPER_REASSEMBLER.toStack(),
+                DEItems.DATA_RIPPER_REASSEMBLER.toStack(),
                 VanillaTypes.ITEM_STACK,
                 Component.translatable(
                         "jei.data_energistics.data_reassembler.crafting_requirement",
@@ -220,15 +220,15 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     }
 
     private static void registerDataChargerCatalysts(IRecipeCatalystRegistration registration, RecipeType<?> recipeType) {
-        registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), recipeType);
-        registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), recipeType);
+        registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), recipeType);
+        registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), recipeType);
     }
 
     private static void registerMatterConvergingCrossbowAnvilRecipes(IRecipeRegistration registration) {
         HolderLookup.RegistryLookup<Enchantment> lookup = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         var power = lookup.getOrThrow(Enchantments.POWER);
 
-        ItemStack baseCrossbow = ModItems.MATTER_CONVERGING_CROSSBOW.get().getDefaultInstance();
+        ItemStack baseCrossbow = DEItems.MATTER_CONVERGING_CROSSBOW.get().getDefaultInstance();
         ItemStack enchantedCrossbow = baseCrossbow.copy();
         enchantedCrossbow.enchant(power, 1);
 

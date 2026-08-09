@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.integration.extendedae;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,7 +28,7 @@ public final class ExtendedAeRenamerCompat {
 
     public static InteractionResult tryOpenRenamer(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
-        if (!stack.is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get())) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get())) {
             return InteractionResult.PASS;
         }
 

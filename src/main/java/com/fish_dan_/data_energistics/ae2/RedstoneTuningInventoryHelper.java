@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import appeng.api.upgrades.IUpgradeInventory;
@@ -52,6 +52,6 @@ public final class RedstoneTuningInventoryHelper {
     }
 
     private static boolean containsCard(@Nullable IUpgradeInventory inventory) {
-        return inventory != null && inventory.getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+        return inventory != null && inventory.getInstalledUpgrades(DEItems.REDSTONE_TUNING_CARD.get()) > 0;
     }
 }

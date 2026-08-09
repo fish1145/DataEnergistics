@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -57,7 +57,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -159,7 +159,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     private void tryMarkPersistentFarmland(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
-        if (!stack.is(ModItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 

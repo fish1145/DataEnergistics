@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.core.BlockPos;
@@ -359,12 +359,12 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private static boolean isLightBladeEmitter(ItemStack stack) {
-        return stack.is(ModItems.DATA_LIGHT_SABER.get()) || stack.is(ModItems.DATA_SANCTIFIER.get());
+        return stack.is(DEItems.DATA_LIGHT_SABER.get()) || stack.is(DEItems.DATA_SANCTIFIER.get());
     }
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_SWORD.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     public static float getLightBladeDamage(ItemStack stack) {
@@ -372,7 +372,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private static int getLightBladeColor(Level level, ItemStack stack) {
-        if (stack.is(ModItems.DATA_SANCTIFIER.get())) {
+        if (stack.is(DEItems.DATA_SANCTIFIER.get())) {
             return LightSaberColorData.getSanctifierAnimatedColor(level.getGameTime());
         }
         return LightSaberColorData.getBladeColor(stack);
@@ -414,12 +414,12 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
             return;
         }
 
-        if (stack.is(ModItems.DATA_CRYSTAL_SWORD.get())) {
+        if (stack.is(DEItems.DATA_CRYSTAL_SWORD.get())) {
             this.tryApplyDataCrystalSwordDisorder(stack, target, attacker);
             return;
         }
 
-        if (stack.is(ModItems.DATA_LIGHT_SABER.get())) {
+        if (stack.is(DEItems.DATA_LIGHT_SABER.get())) {
             DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker,
                     (float) getPanelAttackDamage(stack));
         }

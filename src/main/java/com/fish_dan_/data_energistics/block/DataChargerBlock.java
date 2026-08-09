@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -170,7 +170,7 @@ public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
     }
 
     public static boolean isExtended(BlockState state) {
-        return state.is(ModBlocks.EXTENDED_DATA_CHARGER.get());
+        return state.is(DEBlocks.EXTENDED_DATA_CHARGER.get());
     }
 
     private static VoxelShape getRegularShape(BlockState state) {

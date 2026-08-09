@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildOptions;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -198,7 +198,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
     }
 
     private static TrinityDataCoreBlockEntity placeHost(GameTestHelper helper) {
-        helper.setBlock(LOCAL_ORIGIN, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(LOCAL_ORIGIN, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockPos origin = helper.absolutePos(LOCAL_ORIGIN);

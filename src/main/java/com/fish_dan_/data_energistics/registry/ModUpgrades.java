@@ -35,140 +35,140 @@ public final class ModUpgrades {
 
     public static void init() {
         DataFlowBusStrategies.register();
-        ((AdaptivePatternProviderBlock<?>) ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), ModBlocks.DATA_SOLAR_PANEL.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), ModBlocks.DIGITAL_STORAGE_DEPOT.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), ModBlocks.DATA_EXTRACTOR.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), ModBlocks.TRINITY_DATA_CORE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), ModBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), ModBlocks.DATA_MIMETIC_FIELD.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), ModBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM_INTERFACE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), ModBlocks.ME_PATTERN_BUFFER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), ModBlocks.TRINITY_ACCESS_HATCH.get().asItem());
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
-        Upgrades.add(AEItems.INVERTER_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(), 3,
+        ((AdaptivePatternProviderBlock<?>) DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), DEBlocks.DATA_SOLAR_PANEL.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), DEBlocks.DIGITAL_STORAGE_DEPOT.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DEBlocks.DATA_EXTRACTOR.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), DEBlocks.TRINITY_DATA_CORE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DEBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DEBlocks.DATA_MIMETIC_FIELD.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), DEBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), DEBlocks.DATA_SANCTUM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), DEBlocks.DATA_SANCTUM_INTERFACE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), DEBlocks.ME_PATTERN_BUFFER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), DEBlocks.TRINITY_ACCESS_HATCH.get().asItem());
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
+        Upgrades.add(AEItems.INVERTER_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_1k");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_4k");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_16k");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_64K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_64k");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_256K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_256k");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_1M.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_1M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_1m");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_4M.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_4M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_4m");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_16M.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_16M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_16m");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_64M.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_64M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_64m");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_256M.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_256m");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CAPTURE_BALL.get(), 3,
                 "item.data_energistics.data_capture_ball");
-        Upgrades.add(AEItems.FUZZY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 1,
+        Upgrades.add(AEItems.FUZZY_CARD, DEItems.DATA_CAPTURE_BALL.get(), 1,
                 "item.data_energistics.data_capture_ball");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.ME_VACUUM.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.ME_VACUUM.get(), 3,
                 "item.data_energistics.me_vacuum");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_SWORD.get(), 3,
                 "item.data_energistics.data_crystal_sword");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_CRYSTAL_SWORD.get(), 3,
                 "item.data_energistics.data_crystal_sword");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_SWORD.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_SWORD.get(), 1,
                 "item.data_energistics.data_crystal_sword");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_AXE.get(), 3,
                 "item.data_energistics.data_crystal_axe");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_CRYSTAL_AXE.get(), 3,
                 "item.data_energistics.data_crystal_axe");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_AXE.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_AXE.get(), 1,
                 "item.data_energistics.data_crystal_axe");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_PICKAXE.get(), 3,
                 "item.data_energistics.data_crystal_pickaxe");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_CRYSTAL_PICKAXE.get(), 3,
                 "item.data_energistics.data_crystal_pickaxe");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_PICKAXE.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_PICKAXE.get(), 1,
                 "item.data_energistics.data_crystal_pickaxe");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_HOE.get(), 3,
                 "item.data_energistics.data_crystal_hoe");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_CRYSTAL_HOE.get(), 3,
                 "item.data_energistics.data_crystal_hoe");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_HOE.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_HOE.get(), 1,
                 "item.data_energistics.data_crystal_hoe");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_SHOVEL.get(), 3,
                 "item.data_energistics.data_crystal_shovel");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_CRYSTAL_SHOVEL.get(), 3,
                 "item.data_energistics.data_crystal_shovel");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_SHOVEL.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_SHOVEL.get(), 1,
                 "item.data_energistics.data_crystal_shovel");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 3,
                 "item.data_energistics.data_crystal_cutting_knife");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 1,
                 "item.data_energistics.data_crystal_cutting_knife");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_LIGHT_SABER.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_LIGHT_SABER.get(), 3,
                 "item.data_energistics.data_light_saber");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_LIGHT_SABER.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_LIGHT_SABER.get(), 3,
                 "item.data_energistics.data_light_saber");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_LIGHT_SABER.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_LIGHT_SABER.get(), 1,
                 "item.data_energistics.data_light_saber");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_SANCTIFIER.get(), 3,
                 "item.data_energistics.data_sanctifier");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_SANCTIFIER.get(), 3,
                 "item.data_energistics.data_sanctifier");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_SANCTIFIER.get(), 1,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_SANCTIFIER.get(), 1,
                 "item.data_energistics.data_sanctifier");
-        Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.FUZZY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 2, "block.data_energistics.data_reassembler");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 5, "block.data_energistics.data_reassembler");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
-        Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DIGITAL_STORAGE_DEPOT.get(), 4, "block.data_energistics.digital_storage_depot");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
-        Upgrades.add(AEItems.VOID_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
-        Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SANCTUM.get(), 3, "block.data_energistics.data_sanctum");
+        Upgrades.add(AEItems.ENERGY_CARD, DEBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.FUZZY_CARD, DEBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get(), 2, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_RIPPER_REASSEMBLER.get(), 5, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
+        Upgrades.add(AEItems.ENERGY_CARD, DEBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.DIGITAL_STORAGE_DEPOT.get(), 4, "block.data_energistics.digital_storage_depot");
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
+        Upgrades.add(AEItems.VOID_CARD, DEBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
+        Upgrades.add(AEItems.ENERGY_CARD, DEBlocks.DATA_SANCTUM.get(), 3, "block.data_energistics.data_sanctum");
         registerCompartmentCapacityUpgrade();
         registerDataSanctumInterfaceUpgrade(AEItems.CAPACITY_CARD, 3);
         registerDataSanctumInterfaceUpgrade(AEItems.CRAFTING_CARD, 1);
         registerDataSanctumInterfaceUpgrade(AEItems.FUZZY_CARD, 1);
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(AEItems.SPEED_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(AEItems.ENERGY_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(AEItems.CAPACITY_CARD, DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(AEItems.FUZZY_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+        Upgrades.add(AEItems.FUZZY_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(AEItems.INVERTER_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+        Upgrades.add(AEItems.INVERTER_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(AEItems.VOID_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+        Upgrades.add(AEItems.VOID_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(AEItems.SPEED_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 4,
+        Upgrades.add(AEItems.SPEED_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 4,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
                 "item.data_energistics.matter_converging_crossbow");
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         registerExternalRedstoneTuningCardCompat();
         registerExternalDataSanctumInterfaceCompat();
@@ -179,8 +179,8 @@ public final class ModUpgrades {
     }
 
     private static void registerCompartmentCapacityUpgrade() {
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_input_warehouse");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_output_warehouse");
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_input_warehouse");
+        Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_output_warehouse");
     }
 
     public static void registerPartModels() {
@@ -197,9 +197,9 @@ public final class ModUpgrades {
     }
 
     private static void registerDataSanctumInterfaceUpgrade(ItemLike upgradeCard, int maxInstalled) {
-        Upgrades.add(upgradeCard, ModBlocks.DATA_SANCTUM_INTERFACE.get(), maxInstalled,
+        Upgrades.add(upgradeCard, DEBlocks.DATA_SANCTUM_INTERFACE.get(), maxInstalled,
                 DATA_SANCTUM_INTERFACE_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(upgradeCard, ModItems.DATA_SANCTUM_INTERFACE_PART.get(), maxInstalled,
+        Upgrades.add(upgradeCard, DEItems.DATA_SANCTUM_INTERFACE_PART.get(), maxInstalled,
                 DATA_SANCTUM_INTERFACE_PART_UPGRADE_TOOLTIP_GROUP);
     }
 
@@ -223,8 +223,8 @@ public final class ModUpgrades {
             return;
         }
 
-        Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(inductionCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(inductionCard, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(inductionCard, DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
     }
 
     private static void registerAe2CrystalScienceAdaptivePatternProviderCompat() {
@@ -233,9 +233,9 @@ public final class ModUpgrades {
             return;
         }
 
-        Upgrades.add(crystalGrowthCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1,
+        Upgrades.add(crystalGrowthCard, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1,
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
-        Upgrades.add(crystalGrowthCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
+        Upgrades.add(crystalGrowthCard, DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
     }
 
@@ -281,7 +281,7 @@ public final class ModUpgrades {
         if (block == null || block == Blocks.AIR) {
             return;
         }
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), block, 1, tooltipKey);
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), block, 1, tooltipKey);
     }
 
     private static void registerExternalRedstoneTuningItemTarget(String namespace, String path, String tooltipKey) {
@@ -289,6 +289,6 @@ public final class ModUpgrades {
         if (item == null || item == Items.AIR) {
             return;
         }
-        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), item, 1, tooltipKey);
+        Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), item, 1, tooltipKey);
     }
 }

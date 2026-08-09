@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -68,14 +68,14 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
         builder.addOutputSlot(57, 27).addItemStack(DataCaptureBallItem.createChargedStack());
         builder.addSlot(RecipeIngredientRole.CATALYST, 53, 1)
                 .addItemStacks(List.of(
-                        ModItems.DATA_STORAGE_COMPONENT_16K.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_64K.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_256K.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_1M.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_4M.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_16M.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_64M.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_256M.toStack()));
+                        DEItems.DATA_STORAGE_COMPONENT_16K.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_64K.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_256K.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_1M.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_4M.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_16M.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_64M.toStack(),
+                        DEItems.DATA_STORAGE_COMPONENT_256M.toStack()));
     }
 
     @Override

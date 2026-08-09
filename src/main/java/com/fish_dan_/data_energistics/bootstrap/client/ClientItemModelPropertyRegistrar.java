@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.block.decor.DollVariant;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -29,7 +29,7 @@ final class ClientItemModelPropertyRegistrar {
     }
 
     private static void registerMatterConvergingCrossbowProperties() {
-        var item = ModItems.MATTER_CONVERGING_CROSSBOW.get();
+        var item = DEItems.MATTER_CONVERGING_CROSSBOW.get();
         ItemProperties.register(item, Data_Energistics.id("loaded_special_light_saber"),
                 (stack, level, entity, seed) -> {
                     ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
@@ -76,21 +76,21 @@ final class ClientItemModelPropertyRegistrar {
     }
 
     private static void registerDataCaptureBallProperties() {
-        ItemProperties.register(ModItems.DATA_CAPTURE_BALL.get(), Data_Energistics.id("fill_level"),
+        ItemProperties.register(DEItems.DATA_CAPTURE_BALL.get(), Data_Energistics.id("fill_level"),
                 (stack, level, entity, seed) -> DataCaptureBallItem.getFillModelValue(stack));
     }
 
     private static void registerLightSaberProperties() {
-        ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("powered"),
+        ItemProperties.register(DEItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("powered"),
                 (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
-        ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("light_saber_color"),
+        ItemProperties.register(DEItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("light_saber_color"),
                 (stack, level, entity, seed) -> LightSaberColorData.getModelValue(stack));
-        ItemProperties.register(ModItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
+        ItemProperties.register(DEItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
                 (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
     }
 
     private static void registerDollProperties() {
-        ItemProperties.register(ModItems.FISH_DAN.get(), Data_Energistics.id("doll_variant"),
+        ItemProperties.register(DEItems.FISH_DAN.get(), Data_Energistics.id("doll_variant"),
                 (stack, level, entity, seed) -> DollVariant.fromStack(stack));
     }
 

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -62,7 +62,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_PICKAXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_PICKAXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -165,7 +165,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     }
 
     public static boolean tryDropDuplicateOreLoot(ItemStack stack, ServerLevel level, BlockPos pos, BlockState state, LivingEntity miner) {
-        if (!(stack.getItem() instanceof PoweredPickaxeItem pickaxe) || !stack.is(ModItems.DATA_CRYSTAL_PICKAXE.get())) {
+        if (!(stack.getItem() instanceof PoweredPickaxeItem pickaxe) || !stack.is(DEItems.DATA_CRYSTAL_PICKAXE.get())) {
             return false;
         }
 

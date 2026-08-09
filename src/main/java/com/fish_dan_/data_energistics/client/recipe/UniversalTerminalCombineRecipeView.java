@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.resources.ResourceLocation;
@@ -49,9 +49,9 @@ public record UniversalTerminalCombineRecipeView(
         List<UniversalTerminalData.TerminalEntry> terminals = UniversalTerminalData.getDefinitions().stream()
                 .map(definition -> new UniversalTerminalData.TerminalEntry(definition.name(), definition.createIcon()))
                 .filter(entry -> !entry.stack().isEmpty())
-                .filter(entry -> !entry.stack().is(ModItems.UNIVERSAL_TERMINAL.get()))
+                .filter(entry -> !entry.stack().is(DEItems.UNIVERSAL_TERMINAL.get()))
                 .toList();
-        return build(terminals, new ItemStack(ModItems.UNIVERSAL_TERMINAL.get()));
+        return build(terminals, new ItemStack(DEItems.UNIVERSAL_TERMINAL.get()));
     }
 
     static List<UniversalTerminalCombineRecipeView> build(

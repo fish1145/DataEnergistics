@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.trinity.autobuild;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
@@ -38,55 +38,55 @@ public final class TrinityAutoBuildBlockMap {
             STORAGE_CORE,
             List.of(
                     tier("me_digital_storage_core_1m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_1M.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_1M.get()),
                     tier("me_digital_storage_core_4m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_4M.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_4M.get()),
                     tier("me_digital_storage_core_16m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_16M.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_16M.get()),
                     tier("me_digital_storage_core_64m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_64M.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_64M.get()),
                     tier("me_digital_storage_core_256m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_256M.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_256M.get()),
                     tier("me_digital_storage_core_1g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_1G.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_1G.get()),
                     tier("me_digital_storage_core_4g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_4G.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_4G.get()),
                     tier("me_digital_storage_core_16g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_16G.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_16G.get()),
                     tier("me_digital_storage_core_64g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_64G.get()),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_64G.get()),
                     tier("me_digital_storage_core_256g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> ModBlocks.ME_DIGITAL_STORAGE_CORE_256G.get())),
+                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_256G.get())),
             PARALLEL_CPU_CORE,
             List.of(
                     tier("me_digital_merged_storage_core_1m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M.get()),
                     tier("me_digital_merged_storage_core_4m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M.get()),
                     tier("me_digital_merged_storage_core_16m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M.get()),
                     tier("me_digital_merged_storage_core_64m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M.get()),
                     tier("me_digital_merged_storage_core_256m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get()),
                     tier("me_digital_merged_storage_core_1g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G.get()),
                     tier("me_digital_merged_storage_core_4g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G.get()),
                     tier("me_digital_merged_storage_core_16g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G.get()),
                     tier("me_digital_merged_storage_core_64g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G.get()),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G.get()),
                     tier("me_digital_merged_storage_core_256g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G.get())),
+                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G.get())),
             PATTERN_PROCESSING_CORE,
             List.of(
                     tier("me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
+                            () -> DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
                     tier("extended_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
+                            () -> DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
                     tier("overlimit_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get())));
+                            () -> DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get())));
 
     private TrinityAutoBuildBlockMap() {}
 

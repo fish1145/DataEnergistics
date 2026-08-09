@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -80,8 +80,8 @@ public final class DataDistributionTowerDiscoveryGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 100)
     public static void discoversBothDataChargers(GameTestHelper helper) {
-        helper.setBlock(REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
-        helper.setBlock(EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(EXTENDED_CHARGER_POS, DEBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
 
         DataChargerBlockEntity regular = requireDataCharger(helper, REGULAR_CHARGER_POS);
         DataChargerBlockEntity extended = requireDataCharger(helper, EXTENDED_CHARGER_POS);
@@ -99,8 +99,8 @@ public final class DataDistributionTowerDiscoveryGameTest {
     @GameTest(template = "empty_50x32x50", timeoutTicks = 200)
     public static void connectsAndDisplaysBothDataChargers(GameTestHelper helper) {
         DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
-        helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
-        helper.setBlock(CONNECTED_EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(CONNECTED_EXTENDED_CHARGER_POS, DEBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
         DataChargerBlockEntity regular = requireDataCharger(helper, CONNECTED_REGULAR_CHARGER_POS);
         DataChargerBlockEntity extended = requireDataCharger(helper, CONNECTED_EXTENDED_CHARGER_POS);
         GridPower power = new GridPower(helper);
@@ -130,7 +130,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     @GameTest(template = "empty_50x32x50", timeoutTicks = 400)
     public static void recoversPersistedLinkAfterTargetNodeReady(GameTestHelper helper) {
         DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
-        helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
         DataChargerBlockEntity charger = requireDataCharger(helper, CONNECTED_REGULAR_CHARGER_POS);
         GridPower power = new GridPower(helper);
         CompoundTag savedData = new CompoundTag();
@@ -177,7 +177,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
                             0,
                             "A target without a ready AE node must not retain a live connection");
 
-                    helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+                    helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
                     DataChargerBlockEntity restored = requireDataCharger(helper, CONNECTED_REGULAR_CHARGER_POS);
                     restoredCharger[0] = restored;
                 })
@@ -195,8 +195,8 @@ public final class DataDistributionTowerDiscoveryGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 100)
     public static void collectsEveryUniqueHostNode(GameTestHelper helper) {
-        helper.setBlock(REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
-        helper.setBlock(EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(EXTENDED_CHARGER_POS, DEBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
 
         DataChargerBlockEntity regular = requireDataCharger(helper, REGULAR_CHARGER_POS);
         DataChargerBlockEntity extended = requireDataCharger(helper, EXTENDED_CHARGER_POS);
@@ -435,7 +435,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static void assertSanctumPortDiscovery(
                                                    GameTestHelper helper, ServerLevel level, BlockPos networkPort) {
         BlockState portState = level.getBlockState(networkPort);
-        helper.assertTrue(portState.is(ModBlocks.DATA_SANCTUM.get()), "The expected sanctum network port block must exist");
+        helper.assertTrue(portState.is(DEBlocks.DATA_SANCTUM.get()), "The expected sanctum network port block must exist");
         helper.assertTrue(
                 DataSanctumBlockEntity.isNetworkPortPart(portState),
                 "The expected sanctum network port must carry the port offsets");
@@ -570,7 +570,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static DataDistributionTowerBlockEntity placeTower(GameTestHelper helper, BlockPos localBasePos) {
         ServerLevel level = helper.getLevel();
         for (int part = 2; part >= 0; part--) {
-            BlockState state = ModBlocks.DATA_DISTRIBUTION_TOWER.get()
+            BlockState state = DEBlocks.DATA_DISTRIBUTION_TOWER.get()
                     .defaultBlockState()
                     .setValue(DataDistributionTowerBlock.PART, part)
                     .setValue(DataDistributionTowerBlock.FACING, Direction.NORTH)
@@ -619,7 +619,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
                                          int offsetY) {
         BlockPos localPartPos = DataSanctumBlockEntity.getPartPos(
                 localMainPos, facing, offsetX, offsetZ, offsetY);
-        BlockState state = ModBlocks.DATA_SANCTUM.get()
+        BlockState state = DEBlocks.DATA_SANCTUM.get()
                 .defaultBlockState()
                 .setValue(DataSanctumBlock.FACING, facing)
                 .setValue(DataSanctumBlock.OFFSET_X, DataSanctumBlockEntity.encodeOffsetX(offsetX))

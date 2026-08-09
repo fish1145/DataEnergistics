@@ -166,7 +166,7 @@ public final class ModMenus {
 
     public static final DeferredHolder<MenuType<?>, MenuType<TrinityAccessHatchMenu>> TRINITY_ACCESS_HATCH = MENUS.register("trinity_access_hatch", () -> MenuTypeBuilder
             .create(TrinityAccessHatchMenu::new, TrinityAccessHatchMenuHost.class)
-            .withMenuTitle(host -> ModBlocks.TRINITY_ACCESS_HATCH.get().getName())
+            .withMenuTitle(host -> DEBlocks.TRINITY_ACCESS_HATCH.get().getName())
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_access_hatch")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<UniversalMEStorageMenu>> UNIVERSAL_ME_STORAGE = MENUS.register("universal_me_storage", () -> MenuTypeBuilder

@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.core.BlockPos;
@@ -127,7 +127,7 @@ public final class DataDistributionTowerTargetsGameTest {
         ArrayList<DataChargerBlockEntity> chargers = new ArrayList<>(count);
         for (int index = 0; index < count; index++) {
             BlockPos localPos = TARGET_GRID_ORIGIN.offset(index / 7, 0, index % 7);
-            helper.setBlock(localPos, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+            helper.setBlock(localPos, DEBlocks.DATA_CHARGER.get().defaultBlockState());
             BlockEntity blockEntity = helper.getBlockEntity(localPos);
             if (!(blockEntity instanceof DataChargerBlockEntity charger)) {
                 helper.fail("Expected a real data charger block entity", localPos);
@@ -141,7 +141,7 @@ public final class DataDistributionTowerTargetsGameTest {
 
     private static DataDistributionTowerBlockEntity placeTower(GameTestHelper helper, BlockPos localBasePos) {
         for (int part = 2; part >= 0; part--) {
-            BlockState state = ModBlocks.DATA_DISTRIBUTION_TOWER.get()
+            BlockState state = DEBlocks.DATA_DISTRIBUTION_TOWER.get()
                     .defaultBlockState()
                     .setValue(DataDistributionTowerBlock.PART, part)
                     .setValue(DataDistributionTowerBlock.FACING, Direction.NORTH)

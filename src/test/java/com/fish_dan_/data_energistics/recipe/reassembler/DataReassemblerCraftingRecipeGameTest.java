@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.gametest.framework.GameTest;
@@ -65,7 +65,7 @@ public final class DataReassemblerCraftingRecipeGameTest {
                 .getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel())
                 .orElseThrow(() -> new GameTestAssertException("Data Reassembler crafting input did not match a recipe"));
         helper.assertTrue(
-                recipe.value().getResultItem(helper.getLevel().registryAccess()).is(ModItems.DATA_RIPPER_REASSEMBLER.get()),
+                recipe.value().getResultItem(helper.getLevel().registryAccess()).is(DEItems.DATA_RIPPER_REASSEMBLER.get()),
                 "Crafting input must match the current Data Reassembler recipe");
         helper.assertTrue(
                 recipe.value() instanceof DataReassemblerCraftingRecipe,
@@ -83,7 +83,7 @@ public final class DataReassemblerCraftingRecipeGameTest {
         NonNullList<ItemStack> remainders = recipe.getRemainingItems(input);
 
         ItemStack returned = remainders.get(captureBallSlot);
-        helper.assertTrue(returned.is(ModItems.DATA_CAPTURE_BALL.get()),
+        helper.assertTrue(returned.is(DEItems.DATA_CAPTURE_BALL.get()),
                 "Crafting a Data Reassembler must return the Data Capture Ball");
         helper.assertValueEqual(
                 DataCaptureBallItem.getStoredDataAmount(returned),
@@ -121,7 +121,7 @@ public final class DataReassemblerCraftingRecipeGameTest {
         int captureBallSlot = findCaptureBallSlot(input);
         ItemStack assemblerRemainder = assemblerPattern.getRemainingItems(input).get(captureBallSlot);
         helper.assertTrue(
-                assemblerRemainder.is(ModItems.DATA_CAPTURE_BALL.get()),
+                assemblerRemainder.is(DEItems.DATA_CAPTURE_BALL.get()),
                 "Molecular Assembler execution must return the Data Capture Ball");
         helper.assertValueEqual(
                 DataCaptureBallItem.getStoredDataAmount(assemblerRemainder),
@@ -191,30 +191,30 @@ public final class DataReassemblerCraftingRecipeGameTest {
         if (mirrored) {
             return CraftingInput.of(3, 3, List.of(
                     captureBall,
-                    ModItems.DATA_FRAMEWORK.toStack(),
-                    ModItems.DATA_PROCESSOR.toStack(),
+                    DEItems.DATA_FRAMEWORK.toStack(),
+                    DEItems.DATA_PROCESSOR.toStack(),
                     AEBlocks.QUARTZ_GLASS.stack(),
                     AEParts.TERMINAL.stack(),
                     AEBlocks.ENERGY_CELL.stack(),
                     AEItems.ANNIHILATION_CORE.stack(),
-                    ModItems.DIGITAL_STORAGE_DEPOT.toStack(),
+                    DEItems.DIGITAL_STORAGE_DEPOT.toStack(),
                     AEItems.FORMATION_CORE.stack()));
         }
         return CraftingInput.of(3, 3, List.of(
-                ModItems.DATA_PROCESSOR.toStack(),
-                ModItems.DATA_FRAMEWORK.toStack(),
+                DEItems.DATA_PROCESSOR.toStack(),
+                DEItems.DATA_FRAMEWORK.toStack(),
                 captureBall,
                 AEBlocks.ENERGY_CELL.stack(),
                 AEParts.TERMINAL.stack(),
                 AEBlocks.QUARTZ_GLASS.stack(),
                 AEItems.FORMATION_CORE.stack(),
-                ModItems.DIGITAL_STORAGE_DEPOT.toStack(),
+                DEItems.DIGITAL_STORAGE_DEPOT.toStack(),
                 AEItems.ANNIHILATION_CORE.stack()));
     }
 
     private static int findCaptureBallSlot(CraftingInput input) {
         for (int slot = 0; slot < input.size(); slot++) {
-            if (input.getItem(slot).is(ModItems.DATA_CAPTURE_BALL.get())) {
+            if (input.getItem(slot).is(DEItems.DATA_CAPTURE_BALL.get())) {
                 return slot;
             }
         }

@@ -35,7 +35,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModBlocks {
+public final class DEBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
 
@@ -294,7 +294,7 @@ public final class ModBlocks {
             DollBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
 
-    private ModBlocks() {}
+    private DEBlocks() {}
 
     private static DeferredBlock<CompartmentBlock> registerCompartment(String id, CompartmentType type) {
         return BLOCKS.registerBlock(

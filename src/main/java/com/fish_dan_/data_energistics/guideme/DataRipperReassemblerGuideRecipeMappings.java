@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.guideme;
 
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -24,7 +24,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
 
         return LytStandardRecipeBox.builder()
                 .title("Data Reassembler")
-                .icon(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .icon(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
                 .customBody(DataRipperReassemblerGuideRecipeBodyFactory.create(recipe))
                 .build(holder);
     }

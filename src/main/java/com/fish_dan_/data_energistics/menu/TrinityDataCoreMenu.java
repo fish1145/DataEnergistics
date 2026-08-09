@@ -18,7 +18,7 @@ import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -540,7 +540,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         var level = host.getLevel();
         var position = host.getBlockPos();
         return level != null && player.level() == level && level.getBlockEntity(position) == host &&
-                level.getBlockState(position).is(ModBlocks.TRINITY_DATA_CORE.get()) &&
+                level.getBlockState(position).is(DEBlocks.TRINITY_DATA_CORE.get()) &&
                 player.distanceToSqr(
                         position.getX() + 0.5D,
                         position.getY() + 0.5D,

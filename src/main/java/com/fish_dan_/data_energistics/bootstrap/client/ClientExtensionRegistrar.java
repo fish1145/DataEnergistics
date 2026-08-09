@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.render.MeVacuumItemRenderer;
 import com.fish_dan_.data_energistics.client.render.OrderPackageItemRenderer;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
@@ -26,7 +26,7 @@ final class ClientExtensionRegistrar {
                 }
                 return this.renderer;
             }
-        }, ModItems.ME_VACUUM.get());
+        }, DEItems.ME_VACUUM.get());
         event.registerItem(new IClientItemExtensions() {
 
             private BlockEntityWithoutLevelRenderer renderer;
@@ -38,6 +38,6 @@ final class ClientExtensionRegistrar {
                 }
                 return this.renderer;
             }
-        }, ModItems.ORDER_PACKAGE.get());
+        }, DEItems.ORDER_PACKAGE.get());
     }
 }

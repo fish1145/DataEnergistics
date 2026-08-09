@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.Direction;
@@ -231,7 +231,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return (stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
+            return (stack.is(DEItems.MOB_DATA_CARRIER.get()) || stack.is(DEItems.ORE_DATA_CARRIER.get()) || stack.is(DEItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
         }
     }
 
@@ -244,7 +244,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return (stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
+            return (stack.is(DEItems.MOB_DATA_CARRIER.get()) || stack.is(DEItems.ORE_DATA_CARRIER.get()) || stack.is(DEItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
         }
     }
 }

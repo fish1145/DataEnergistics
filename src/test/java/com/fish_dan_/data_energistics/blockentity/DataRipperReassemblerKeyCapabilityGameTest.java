@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -44,8 +44,8 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void acceptsDirectKeyFromDigitalStorageDepot(GameTestHelper helper) {
-        helper.setBlock(SOURCE_POS, ModBlocks.DIGITAL_STORAGE_DEPOT.get());
-        helper.setBlock(TARGET_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(SOURCE_POS, DEBlocks.DIGITAL_STORAGE_DEPOT.get());
+        helper.setBlock(TARGET_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
 
         DigitalStorageDepotBlockEntity depot = requireDepot(helper, SOURCE_POS);
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper, TARGET_POS);
@@ -78,8 +78,8 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void exportsKeyOutputToGenericInventory(GameTestHelper helper) {
-        helper.setBlock(SOURCE_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
-        helper.setBlock(TARGET_POS, ModBlocks.DATA_MIMETIC_FIELD.get());
+        helper.setBlock(SOURCE_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(TARGET_POS, DEBlocks.DATA_MIMETIC_FIELD.get());
 
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper, SOURCE_POS);
         DataMimeticFieldBlockEntity mimeticField = requireMimeticField(helper, TARGET_POS);
@@ -105,7 +105,7 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void keepsTypedOutputSidesIndependent(GameTestHelper helper) {
-        helper.setBlock(SOURCE_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(SOURCE_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper, SOURCE_POS);
 
         Set<Direction> itemSides = EnumSet.of(Direction.NORTH, Direction.WEST);
@@ -134,7 +134,7 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void migratesLegacyOutputSidesToItemOnly(GameTestHelper helper) {
-        helper.setBlock(SOURCE_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(SOURCE_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper, SOURCE_POS);
         Set<Direction> allSides = EnumSet.allOf(Direction.class);
 
@@ -162,7 +162,7 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
         CompoundTag legacySettings = new CompoundTag();
         legacySettings.putInt("output_sides", MemoryCardSettingsHelper.encodeSides(EnumSet.of(Direction.NORTH)));
         DataComponentMap legacyCardSettings = DataComponentMap.builder()
-                .set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), legacySettings)
+                .set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), legacySettings)
                 .build();
         configureOutputSides(reassembler, DigitalStorageDepotOutputType.ITEMS, EnumSet.of(Direction.WEST));
         configureOutputSides(reassembler, DigitalStorageDepotOutputType.FLUIDS, EnumSet.of(Direction.SOUTH));

@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -189,7 +189,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
 
     private boolean canApplyDataDisorder() {
         ItemStack weaponStack = this.getWeaponStack();
-        return weaponStack.is(ModItems.DATA_LIGHT_SABER.get()) && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
+        return weaponStack.is(DEItems.DATA_LIGHT_SABER.get()) && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
     }
 
     private void resetTargetInvulnerability(Entity target) {

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.BreezeModel;
@@ -90,7 +90,7 @@ public final class MeVacuumBreezeVisualRenderer {
     }
 
     static boolean isWorkingVacuum(ItemStack stack) {
-        return stack.is(ModItems.ME_VACUUM.get()) && stack.getItem() instanceof PoweredEnergyItem poweredItem && poweredItem.hasSufficientEnergy(stack);
+        return stack.is(DEItems.ME_VACUUM.get()) && stack.getItem() instanceof PoweredEnergyItem poweredItem && poweredItem.hasSufficientEnergy(stack);
     }
 
     static void renderFirstPersonItemWind(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource) {
@@ -226,7 +226,7 @@ public final class MeVacuumBreezeVisualRenderer {
         if (stack.isEmpty()) {
             return HumanoidModel.ArmPose.EMPTY;
         }
-        if (player.getUsedItemHand() == hand && player.getUseItemRemainingTicks() > 0 && stack.is(ModItems.ME_VACUUM.get())) {
+        if (player.getUsedItemHand() == hand && player.getUseItemRemainingTicks() > 0 && stack.is(DEItems.ME_VACUUM.get())) {
             return HumanoidModel.ArmPose.BOW_AND_ARROW;
         }
         return HumanoidModel.ArmPose.ITEM;

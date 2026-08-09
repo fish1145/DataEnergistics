@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
@@ -347,7 +347,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     private int calculateSpeed() {
         int aeSpeedCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
-        int saberCardCount = this.getUpgrades().getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get());
+        int saberCardCount = this.getUpgrades().getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get());
         if (aeSpeedCardCount <= 0 && saberCardCount <= 0) {
             this.cachedAeSpeedCards = 0;
             this.cachedSaberSpeedCards = 0;

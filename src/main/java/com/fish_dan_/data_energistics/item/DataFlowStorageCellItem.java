@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.item;
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellTooltip;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -63,7 +63,7 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
 
         if (!level.isClientSide) {
             player.setItemInHand(usedHand, ItemStack.EMPTY);
-            giveBack(player, ModItems.DATA_FLOW_COMPONENT_HOUSING.toStack());
+            giveBack(player, DEItems.DATA_FLOW_COMPONENT_HOUSING.toStack());
             giveBack(player, storageComponent);
             getUpgrades(stack).forEach(upgrade -> giveBack(player, upgrade));
         }
@@ -84,35 +84,35 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
 
     private static ItemStack getStorageComponent(ItemStack stack) {
         var item = stack.getItem();
-        if (item == ModItems.DATA_FLOW_CELL_1K.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_1K.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_1K.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_1K.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_4K.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_4K.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_4K.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_4K.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_16K.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_16K.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_16K.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_16K.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_64K.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_64K.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_64K.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_64K.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_256K.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_256K.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_256K.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_256K.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_1M.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_1M.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_1M.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_1M.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_4M.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_4M.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_4M.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_4M.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_16M.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_16M.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_16M.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_16M.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_64M.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_64M.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_64M.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_64M.toStack();
         }
-        if (item == ModItems.DATA_FLOW_CELL_256M.get()) {
-            return ModItems.DATA_STORAGE_COMPONENT_256M.toStack();
+        if (item == DEItems.DATA_FLOW_CELL_256M.get()) {
+            return DEItems.DATA_STORAGE_COMPONENT_256M.toStack();
         }
 
         return ItemStack.EMPTY;

@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -48,8 +48,8 @@ public final class DataChargerCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void exposesFilteredCapabilities(GameTestHelper helper) {
-        helper.setBlock(REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
-        helper.setBlock(EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(EXTENDED_CHARGER_POS, DEBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
 
         DataChargerBlockEntity regularCharger = requireCharger(helper, REGULAR_CHARGER_POS);
         DataChargerBlockEntity extendedCharger = requireCharger(helper, EXTENDED_CHARGER_POS);
@@ -77,8 +77,8 @@ public final class DataChargerCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void wrenchDisassemblyReturnsInternalInventoryOnce(GameTestHelper helper) {
-        helper.setBlock(REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
-        helper.setBlock(EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(REGULAR_CHARGER_POS, DEBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(EXTENDED_CHARGER_POS, DEBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
 
         DataChargerBlockEntity regularCharger = requireCharger(helper, REGULAR_CHARGER_POS);
         DataChargerBlockEntity extendedCharger = requireCharger(helper, EXTENDED_CHARGER_POS);
@@ -127,7 +127,7 @@ public final class DataChargerCapabilityGameTest {
 
     private static void assertAePowerExtraction(GameTestHelper helper, DataChargerBlockEntity charger,
                                                 IItemHandler items) {
-        ItemStack poweredTool = ModItems.DATA_CRYSTAL_PICKAXE.toStack();
+        ItemStack poweredTool = DEItems.DATA_CRYSTAL_PICKAXE.toStack();
         charger.getInternalInventory().setItemDirect(0, poweredTool);
         assertBlockedExtraction(helper, items, "An AE-powered item that is not fully charged");
 
@@ -137,7 +137,7 @@ public final class DataChargerCapabilityGameTest {
 
     private static void assertDataFlowExtraction(GameTestHelper helper, DataChargerBlockEntity charger,
                                                  IItemHandler items) {
-        ItemStack dataFlowCell = ModItems.DATA_FLOW_CELL_1K.toStack();
+        ItemStack dataFlowCell = DEItems.DATA_FLOW_CELL_1K.toStack();
         charger.getInternalInventory().setItemDirect(0, dataFlowCell);
         assertBlockedExtraction(helper, items, "A Data Flow cell that is not full");
 
@@ -147,13 +147,13 @@ public final class DataChargerCapabilityGameTest {
 
     private static void assertCombinedExtraction(GameTestHelper helper, DataChargerBlockEntity charger,
                                                  IItemHandler items) {
-        ItemStack portableCell = ModItems.PORTABLE_DATA_FLOW_CELL_1K.toStack();
+        ItemStack portableCell = DEItems.PORTABLE_DATA_FLOW_CELL_1K.toStack();
         charger.getInternalInventory().setItemDirect(0, portableCell);
         fillAePower(portableCell);
         assertBlockedExtraction(helper, items,
                 "A combined AE and Data Flow item with only its AE power full");
 
-        portableCell = ModItems.PORTABLE_DATA_FLOW_CELL_1K.toStack();
+        portableCell = DEItems.PORTABLE_DATA_FLOW_CELL_1K.toStack();
         charger.getInternalInventory().setItemDirect(0, portableCell);
         fillDataFlow(portableCell);
         assertBlockedExtraction(helper, items,

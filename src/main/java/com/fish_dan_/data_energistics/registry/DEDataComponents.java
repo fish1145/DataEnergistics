@@ -23,7 +23,7 @@ import com.mojang.serialization.Codec;
 
 import java.util.UUID;
 
-public final class ModDataComponents {
+public final class DEDataComponents {
 
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENT_TYPES = DeferredRegister.create(
             Registries.DATA_COMPONENT_TYPE,
@@ -171,7 +171,7 @@ public final class ModDataComponents {
                     .cacheEncoding()
                     .build());
 
-    private ModDataComponents() {}
+    private DEDataComponents() {}
 
     public static void register(IEventBus eventBus) {
         DATA_COMPONENT_TYPES.register(eventBus);

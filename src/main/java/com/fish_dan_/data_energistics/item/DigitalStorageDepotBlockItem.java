@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -700,12 +700,12 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     }
 
     private static DigitalStorageDepotItemData getDepotData(ItemStack stack) {
-        DigitalStorageDepotItemData data = stack.get(ModDataComponents.DIGITAL_STORAGE_DEPOT.get());
+        DigitalStorageDepotItemData data = stack.get(DEDataComponents.DIGITAL_STORAGE_DEPOT.get());
         return data != null ? data : DigitalStorageDepotItemData.DEFAULT;
     }
 
     private static void setDepotData(ItemStack stack, DigitalStorageDepotItemData data) {
-        stack.set(ModDataComponents.DIGITAL_STORAGE_DEPOT.get(), data);
+        stack.set(DEDataComponents.DIGITAL_STORAGE_DEPOT.get(), data);
     }
 
     private static void writeStoredFluids(ItemStack stack, HolderLookup.Provider registries, FluidStack[] fluids) {

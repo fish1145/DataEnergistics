@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -42,7 +42,7 @@ public class DataDistributionConnectorItem extends Item {
         BlockState clickedState = level.getBlockState(clickedPos);
         ItemStack stack = context.getItemInHand();
 
-        if (clickedState.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) && player.isShiftKeyDown()) {
+        if (clickedState.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get()) && player.isShiftKeyDown()) {
             return bindTower(stack, player, level, clickedPos, clickedState);
         }
 
@@ -103,7 +103,7 @@ public class DataDistributionConnectorItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        stack.set(ModDataComponents.DATA_DISTRIBUTION_CONNECTOR.get(),
+        stack.set(DEDataComponents.DATA_DISTRIBUTION_CONNECTOR.get(),
                 getConnectorData(stack).withTower(level.dimension().location().toString(), basePos));
         player.displayClientMessage(Component.translatable(
                 KEY_PREFIX + ".bound",
@@ -156,7 +156,7 @@ public class DataDistributionConnectorItem extends Item {
 
         BlockEntity blockEntity = level.getBlockEntity(towerPos);
         if (!(blockEntity instanceof DataDistributionTowerBlockEntity tower)) {
-            stack.set(ModDataComponents.DATA_DISTRIBUTION_CONNECTOR.get(), data.clear());
+            stack.set(DEDataComponents.DATA_DISTRIBUTION_CONNECTOR.get(), data.clear());
             if (showFailureMessages) {
                 player.displayClientMessage(Component.translatable(KEY_PREFIX + ".tower_missing"), true);
             }
@@ -192,7 +192,7 @@ public class DataDistributionConnectorItem extends Item {
     }
 
     private static DataDistributionConnectorItemData getConnectorData(ItemStack stack) {
-        DataDistributionConnectorItemData data = stack.get(ModDataComponents.DATA_DISTRIBUTION_CONNECTOR.get());
+        DataDistributionConnectorItemData data = stack.get(DEDataComponents.DATA_DISTRIBUTION_CONNECTOR.get());
         return data != null ? data : DataDistributionConnectorItemData.EMPTY;
     }
 }

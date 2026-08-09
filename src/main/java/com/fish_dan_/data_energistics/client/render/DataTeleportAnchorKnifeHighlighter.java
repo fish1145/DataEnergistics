@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.network.DataTeleportAnchorKnifeTeleportPayload;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -109,7 +109,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     }
 
     private static boolean tryTriggerRemoteTeleport(Minecraft minecraft, InteractionHand hand) {
-        if (!minecraft.player.getItemInHand(hand).is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get())) {
+        if (!minecraft.player.getItemInHand(hand).is(DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get())) {
             return false;
         }
 
@@ -193,7 +193,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     }
 
     private static boolean isHoldingCuttingKnife(Minecraft minecraft) {
-        return minecraft.player.getMainHandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get()) || minecraft.player.getOffhandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        return minecraft.player.getMainHandItem().is(DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get()) || minecraft.player.getOffhandItem().is(DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
     }
 
     private static Optional<BlockPos> findSelectedAnchor(Minecraft minecraft, List<BlockPos> anchors) {
@@ -326,6 +326,6 @@ public final class DataTeleportAnchorKnifeHighlighter {
             return CHUNK_RADIUS;
         }
 
-        return player.getMainHandItem().getItem() instanceof PoweredCuttingKnifeItem knife && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 || player.getOffhandItem().getItem() instanceof PoweredCuttingKnifeItem offhandKnife && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_CHUNK_RADIUS : CHUNK_RADIUS;
+        return player.getMainHandItem().getItem() instanceof PoweredCuttingKnifeItem knife && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()) > 0 || player.getOffhandItem().getItem() instanceof PoweredCuttingKnifeItem offhandKnife && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_CHUNK_RADIUS : CHUNK_RADIUS;
     }
 }

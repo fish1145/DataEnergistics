@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.settings.DigitalStorageDepotSettings;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -102,7 +102,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
 
     private final AppEngInternalInventory storage = new DepotItemInventory();
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     @Getter
     private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
     @Getter
@@ -149,7 +149,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         this.configManager.registerSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, DataExtractorAutoExportMode.OFF);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
-                .setVisualRepresentation(ModBlocks.DIGITAL_STORAGE_DEPOT.get())
+                .setVisualRepresentation(DEBlocks.DIGITAL_STORAGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
         syncMenuFluidsFromTanks();
     }
@@ -221,7 +221,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     @Override
     public ItemStack getMainMenuIcon() {
-        return ModBlocks.DIGITAL_STORAGE_DEPOT.get().asItem().getDefaultInstance();
+        return DEBlocks.DIGITAL_STORAGE_DEPOT.get().asItem().getDefaultInstance();
     }
 
     @Override
@@ -440,7 +440,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return;
         }
 
-        builder.set(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
+        builder.set(DEDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
                 this.autoExportMode.ordinal(),
                 encodeOutputSides(this.itemOutputSides),
                 encodeOutputSides(this.fluidOutputSides),
@@ -454,7 +454,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return;
         }
 
-        DigitalStorageDepotMemoryCardData outputSettings = input.get(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get());
+        DigitalStorageDepotMemoryCardData outputSettings = input.get(DEDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get());
         if (outputSettings != null) {
             applyOutputSettings(outputSettings);
         }
@@ -1518,7 +1518,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
         @Override
         public Component getDescription() {
-            return ModBlocks.DIGITAL_STORAGE_DEPOT.get().getName();
+            return DEBlocks.DIGITAL_STORAGE_DEPOT.get().getName();
         }
 
         private long insertItem(AEItemKey what, long amount, Actionable mode) {

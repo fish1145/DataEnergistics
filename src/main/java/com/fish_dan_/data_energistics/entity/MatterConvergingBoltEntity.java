@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -247,7 +247,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private boolean isDataDustAmmo() {
-        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(this.getItem().getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+        return this.getItem().is(DEItems.DATA_LIGHT_SABER.get()) && Math.abs(this.getItem().getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     public int getColor() {
@@ -412,7 +412,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getDataDustDamageRatio() {
-        Float ratio = this.getItem().get(ModDataComponents.MATTER_CONVERGING_BOLT_DAMAGE_RATIO.get());
+        Float ratio = this.getItem().get(DEDataComponents.MATTER_CONVERGING_BOLT_DAMAGE_RATIO.get());
         if (ratio != null) {
             return Mth.clamp(ratio, DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
         }
@@ -434,7 +434,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     private int getSaberEnergyCardCount(ItemStack stack) {
         return Math.max(0, UpgradeInventories.forItem(stack, 6)
-                .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+                .getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     private float getSaberEnergyDamageMultiplier() {

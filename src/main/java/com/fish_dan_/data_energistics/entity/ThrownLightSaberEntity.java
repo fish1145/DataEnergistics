@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
@@ -408,7 +408,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     private int getSaberEnergyCardCount(ItemStack stack) {
         return stack.isEmpty() ? 0 : Math.max(0, UpgradeInventories.forItem(stack, 6)
-                .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+                .getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     private boolean shouldUseExpandedDimensions() {
@@ -416,7 +416,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private static boolean shouldUseExpandedDimensions(ItemStack stack, int saberEnergyCardCount) {
-        return !stack.isEmpty() && stack.is(ModItems.DATA_SANCTIFIER.get()) && saberEnergyCardCount > 0;
+        return !stack.isEmpty() && stack.is(DEItems.DATA_SANCTIFIER.get()) && saberEnergyCardCount > 0;
     }
 
     private ItemStack getExpansionSourceStack() {

@@ -15,7 +15,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiB
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentValidator;
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockReplaceableCompartmentPredicate;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -209,10 +209,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.autoBuildStaging().allowsPhysicalBlock(block("ae2:quartz_vibrant_glass").defaultBlockState()),
                 "JSON-declared base candidate should retain its physical staging mode");
         helper.assertTrue(
-                definition.autoBuildStaging().allowsBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                definition.autoBuildStaging().allowsBlock(DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
                 "Replaceable compartment candidate should enter the staging overlay");
         helper.assertFalse(
-                definition.autoBuildStaging().allowsPhysicalBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                definition.autoBuildStaging().allowsPhysicalBlock(DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
                 "Replaceable compartment candidate must not create a block entity during physical staging");
         JsonMultiBlockDefinition dataPackDefinition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("datapack_auto_build_staging"),
@@ -315,7 +315,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(countSymbol(pattern, 'K'), 58, "Main Trinity Data Core should retain every sky stone wall");
         ItemStack firstAccessPlacementCandidate = predicateForFirstSymbol(pattern, '@').placementCandidates().getFirst();
         helper.assertTrue(
-                firstAccessPlacementCandidate.is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                firstAccessPlacementCandidate.is(DEBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
                 "Auto-build should prefer placing the Trinity access hatch in @ slots before falling back to quartz glass");
         JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
         helper.assertValueEqual(structureDir.get("char").getAsString(), "left", "Main JSON should map chars to left");
@@ -404,7 +404,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "The sole access hatch slot should remain directly below the controller");
         BlockPos accessSlot = mapPatternPosition(pattern, accessPatternPos, hostPos, frontFacing, Direction.NORTH);
         Map<BlockPos, BlockState> accessStates = new LinkedHashMap<>(states);
-        accessStates.put(accessSlot, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
+        accessStates.put(accessSlot, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult accessResult = JsonMultiBlockPatternMatcher.matchExact(
                 pattern,
                 world(accessStates),
@@ -419,7 +419,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         BlockPos fixedGlassSlot = mapPatternPosition(pattern, firstSymbol(pattern, 'H'), hostPos, frontFacing, Direction.NORTH);
         Map<BlockPos, BlockState> fixedGlassStates = new LinkedHashMap<>(states);
-        fixedGlassStates.put(fixedGlassSlot, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
+        fixedGlassStates.put(fixedGlassSlot, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult fixedGlassResult = JsonMultiBlockPatternMatcher.matchExact(
                 pattern,
                 world(fixedGlassStates),
@@ -550,7 +550,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.EAST,
-                        ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "cpu");
@@ -561,7 +561,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.SOUTH,
-                        ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "cpu");
@@ -587,7 +587,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         hostPos,
                         Direction.SOUTH,
                         true,
-                        ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
                 hostPos,
                 Direction.SOUTH,
                 true,
@@ -712,7 +712,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.EAST,
-                        ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "crafting");
@@ -723,7 +723,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.EAST,
-                        ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                        DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "crafting");
@@ -734,7 +734,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.EAST,
-                        ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                        DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "crafting");
@@ -745,7 +745,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         pattern,
                         hostPos,
                         Direction.SOUTH,
-                        ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
                 hostPos,
                 Direction.EAST,
                 "crafting");
@@ -771,7 +771,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                         hostPos,
                         Direction.SOUTH,
                         true,
-                        ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                        DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
                 hostPos,
                 Direction.SOUTH,
                 true,
@@ -1068,7 +1068,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 JsonMultiBlockCompartmentValidator.matchesDeclaredType(
                         definition,
                         "I",
-                        ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                        DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
                 "Input compartment symbol should accept input compartment block");
         helper.succeed();
     }
@@ -1085,7 +1085,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 JsonMultiBlockCompartmentValidator.matchesDeclaredType(
                         definition,
                         "I",
-                        ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                        DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
                 "Input compartment symbol should reject output compartment block");
         helper.succeed();
     }
@@ -1120,7 +1120,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                        compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
@@ -1130,7 +1130,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
+                        compartmentPos, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
@@ -1161,7 +1161,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        replaceablePos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                        replaceablePos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
@@ -1175,7 +1175,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        replaceablePos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState())),
+                        replaceablePos, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
@@ -1199,10 +1199,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         List<ItemStack> candidates = predicate.placementCandidates();
         helper.assertValueEqual(candidates.size(), 3, "Replacement candidates should contain two compartments and the delegate block");
         helper.assertTrue(
-                candidates.get(0).is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
+                candidates.get(0).is(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
                 "First declared compartment should remain the first placement candidate");
         helper.assertTrue(
-                candidates.get(1).is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                candidates.get(1).is(DEBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
                 "Second declared compartment should remain the second placement candidate");
         helper.assertTrue(
                 candidates.get(2).is(Items.GLASS),
@@ -1213,17 +1213,17 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Replacement state and placement candidates should remain paired");
         helper.assertValueEqual(
                 pairedCandidates.get(0).previewState(),
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
                 "First declared compartment should remain the first preview state");
         helper.assertTrue(
-                pairedCandidates.get(0).placementStack().is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
+                pairedCandidates.get(0).placementStack().is(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
                 "First declared compartment state should retain its placement item");
         helper.assertValueEqual(
                 pairedCandidates.get(1).previewState(),
-                ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(),
+                DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(),
                 "Second declared compartment should remain the second preview state");
         helper.assertTrue(
-                pairedCandidates.get(1).placementStack().is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                pairedCandidates.get(1).placementStack().is(DEBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
                 "Second declared compartment state should retain its placement item");
         helper.assertValueEqual(
                 pairedCandidates.get(2).previewState(),
@@ -1247,7 +1247,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        replaceablePos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
+                        replaceablePos, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
@@ -1278,17 +1278,17 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 new PatternMatchContext());
 
         PatternDiagnostic missing = binder.validate(
-                world(Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                world(Map.of(compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
                 result,
                 Map.of(compartmentPos, CompartmentType.INPUT));
         assertDiagnosticCode(helper, missing, "compartment_part_missing", "Missing compartment block entity should fail");
 
         CompartmentBlockEntity outputPart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         PatternDiagnostic mismatched = binder.validate(
                 world(
-                        Map.of(compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                        Map.of(compartmentPos, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
                         Map.of(compartmentPos, outputPart)),
                 result,
                 Map.of(compartmentPos, CompartmentType.INPUT));
@@ -1300,10 +1300,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         CompartmentBlockEntity inputPart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         PatternDiagnostic undeclared = binder.validate(
                 world(
-                        Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                        Map.of(compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
                         Map.of(compartmentPos, inputPart)),
                 result,
                 Map.of());
@@ -1324,9 +1324,9 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         CompartmentBlockEntity inputPart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         StructureWorldView world = world(
-                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
                 Map.of(compartmentPos, inputPart));
         Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
 
@@ -1367,14 +1367,14 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         BlockPos hatchPos = new BlockPos(1, 0, 0);
         TrinityAccessHatchBlockEntity hatch = new TrinityAccessHatchBlockEntity(
                 hatchPos,
-                ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
+                DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult result = StructureMatchResult.success(
                 false,
                 Direction.NORTH,
                 List.of(hatchPos),
                 new PatternMatchContext());
         StructureWorldView world = world(
-                Map.of(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                Map.of(hatchPos, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
                 Map.of(hatchPos, hatch));
         Map<BlockPos, CompartmentType> declaredCompartments = Map.of(hatchPos, CompartmentType.TRINITY_ACCESS);
 
@@ -1449,12 +1449,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         CompartmentBlockEntity stalePart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompartmentBlockEntity currentPart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         StructureWorldView currentWorld = world(
-                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
                 Map.of(compartmentPos, currentPart));
         Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
 
@@ -1484,7 +1484,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         CompartmentBlockEntity stalePart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
 
         stalePart.compartment$bindToHost("main", host);
 
@@ -1510,12 +1510,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
         StructureWorldView missingWorld = world(
-                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()));
+                Map.of(compartmentPos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()));
         CompartmentBlockEntity outputPart = new CompositeWarehouseBlockEntity(
                 compartmentPos,
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         StructureWorldView mismatchedWorld = world(
-                Map.of(compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
                 Map.of(compartmentPos, outputPart));
 
         assertIllegalStateThrows(
@@ -1822,7 +1822,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
     private static BlockState cpuStructureState(char symbol, BlockState coreSlotState) {
         return switch (symbol) {
-            case 'A' -> ModBlocks.DATA_FRAMEWORK.get().defaultBlockState();
+            case 'A' -> DEBlocks.DATA_FRAMEWORK.get().defaultBlockState();
             case 'B' -> block("ae2:quartz_glass").defaultBlockState();
             case 'C' -> coreSlotState;
             case 'E' -> block("ae2:smooth_sky_stone_slab").defaultBlockState();
@@ -1832,7 +1832,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
     private static BlockState craftingStructureState(char symbol, BlockState patternCoreState) {
         return switch (symbol) {
-            case 'A' -> ModBlocks.DATA_FRAMEWORK.get().defaultBlockState();
+            case 'A' -> DEBlocks.DATA_FRAMEWORK.get().defaultBlockState();
             case 'B' -> block("ae2:quartz_glass").defaultBlockState();
             case 'P' -> patternCoreState;
             case 'E' -> block("ae2:smooth_sky_stone_slab").defaultBlockState();

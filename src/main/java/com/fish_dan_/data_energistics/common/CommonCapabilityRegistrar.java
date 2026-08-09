@@ -11,9 +11,9 @@ import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
 import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -110,28 +110,28 @@ final class CommonCapabilityRegistrar {
         event.registerItem(
                 Capabilities.FluidHandler.ITEM,
                 (stack, context) -> DigitalStorageDepotBlockItem.isBucketMode(stack) && !DigitalStorageDepotBlockItem.isKeySlotMarked(stack) ? new DigitalStorageDepotFluidHandlerItem(stack) : null,
-                ModItems.DIGITAL_STORAGE_DEPOT.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SWORD.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_AXE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_PICKAXE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_HOE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SHOVEL.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_LIGHT_SABER.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_SANCTIFIER.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.ME_VACUUM.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CAPTURE_BALL.get());
-        registerPoweredItemEnergyStorage(event, ModItems.MATTER_CONVERGING_CROSSBOW.get());
+                DEItems.DIGITAL_STORAGE_DEPOT.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_SWORD.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_AXE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_PICKAXE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_HOE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_SHOVEL.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_LIGHT_SABER.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_SANCTIFIER.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_1K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_4K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_16K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_64K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_256K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_1M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_4M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_16M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_64M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.ME_VACUUM.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CAPTURE_BALL.get());
+        registerPoweredItemEnergyStorage(event, DEItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
@@ -178,7 +178,7 @@ final class CommonCapabilityRegistrar {
                     DataSanctumBlockEntity sanctum = DataSanctumBlock.getMainBlockEntity(level, pos, state);
                     return sanctum != null ? sanctum.createNetworkPortHost() : null;
                 },
-                ModBlocks.DATA_SANCTUM.get());
+                DEBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
                 ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
@@ -281,7 +281,7 @@ final class CommonCapabilityRegistrar {
 
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
-                ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+                DEBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     static void registerPartCapabilities(RegisterPartCapabilitiesEvent event) {

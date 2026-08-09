@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
@@ -75,7 +75,7 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
     @Inject(method = "exportSettings", at = @At("TAIL"))
     private void dataEnergistics$exportTuning(SettingsFrom mode, DataComponentMap.Builder builder, Player player, CallbackInfo ci) {
         if (mode == SettingsFrom.MEMORY_CARD) {
-            builder.set(ModDataComponents.REDSTONE_TUNING_MODE.get(), this.dataEnergistics$getRedstoneTuningMode().ordinal());
+            builder.set(DEDataComponents.REDSTONE_TUNING_MODE.get(), this.dataEnergistics$getRedstoneTuningMode().ordinal());
         }
     }
 
@@ -85,7 +85,7 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
             return;
         }
 
-        Integer ordinal = input.get(ModDataComponents.REDSTONE_TUNING_MODE.get());
+        Integer ordinal = input.get(DEDataComponents.REDSTONE_TUNING_MODE.get());
         if (ordinal == null) {
             return;
         }

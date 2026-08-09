@@ -43,9 +43,9 @@ import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
@@ -409,7 +409,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (this.quarantinedTransferEnergy > 0) {
                     settings.putLong(QUARANTINED_TRANSFER_ENERGY_TAG, this.quarantinedTransferEnergy);
                 }
-                builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+                builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
             }
             return;
         }
@@ -422,13 +422,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         settings.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
         settings.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         settings.put(TARGET_TRANSFER_MODES_TAG, createTargetTransferModesTag());
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (mode == SettingsFrom.DISMANTLE_ITEM) {
             if (settings != null) {
                 setBufferedTransferEnergy(readBufferedTransferEnergy(settings));
@@ -1639,7 +1639,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (int part = 0; part <= 2; part++) {
             BlockPos partPos = this.worldPosition.above(part);
             BlockState state = level.getBlockState(partPos);
-            if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) || !state.hasProperty(DataDistributionTowerBlock.ACTIVE) || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
+            if (!state.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get()) || !state.hasProperty(DataDistributionTowerBlock.ACTIVE) || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
                 continue;
             }
 
@@ -2045,7 +2045,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public boolean isTowerBlock(BlockPos pos) {
-        return this.level != null && this.level.getBlockState(pos).is(ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+        return this.level != null && this.level.getBlockState(pos).is(DEBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     @Nullable

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.integration.extendedae.ExtendedAeRenamerCompat;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -109,6 +109,6 @@ public class PoweredItem extends Item implements PoweredEnergyItem, IMenuItem {
     }
 
     private boolean isCuttingKnife(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        return stack.is(DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
     }
 }

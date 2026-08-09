@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.multiblock.json.matching;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -136,12 +136,12 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
 
     public static Block blockFor(CompartmentType type) {
         return switch (type) {
-            case INPUT -> ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get();
-            case OUTPUT -> ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get();
-            case ME_INPUT -> ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
-            case ME_OUTPUT -> ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
-            case PATTERN_BUFFER -> ModBlocks.ME_PATTERN_BUFFER.get();
-            case TRINITY_ACCESS -> ModBlocks.TRINITY_ACCESS_HATCH.get();
+            case INPUT -> DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get();
+            case OUTPUT -> DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get();
+            case ME_INPUT -> DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
+            case ME_OUTPUT -> DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
+            case PATTERN_BUFFER -> DEBlocks.ME_PATTERN_BUFFER.get();
+            case TRINITY_ACCESS -> DEBlocks.TRINITY_ACCESS_HATCH.get();
         };
     }
 

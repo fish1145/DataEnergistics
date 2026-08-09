@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.render;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
@@ -102,13 +102,13 @@ public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimetic
     }
 
     private static BakedModel getCarrierModel(Minecraft minecraft, ItemStack stack) {
-        if (stack.is(ModItems.MOB_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.MOB_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(MOB_CARRIER_MODEL);
         }
-        if (stack.is(ModItems.ORE_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.ORE_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(ORE_CARRIER_MODEL);
         }
-        if (stack.is(ModItems.CROP_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.CROP_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(CROP_CARRIER_MODEL);
         }
         return null;

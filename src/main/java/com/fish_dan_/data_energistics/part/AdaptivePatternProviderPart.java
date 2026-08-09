@@ -13,8 +13,8 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandl
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -273,7 +273,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return;
         }
 
-        builder.set(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
+        builder.set(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
     }
 
     @Override
@@ -285,7 +285,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
         boolean patternInventoryChanged = this.getLogic().runWithPatternInventoryCallbacksSuppressed(
                 () -> super.importSettings(mode, input, player));
-        CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
         boolean stateChanged = settings != null && getAdaptiveState().readMemoryCardSettings(settings);
         boolean patternSlotsReconciled = this.getLogic().reconcileConfiguredPatternSlotsAfterSettingsImport();
         boolean patternsUpdated = patternSlotsReconciled;
@@ -405,7 +405,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {
-        return this.getUpgrades().getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+        return this.getUpgrades().getInstalledUpgrades(DEItems.REDSTONE_TUNING_CARD.get()) > 0;
     }
 
     @Override

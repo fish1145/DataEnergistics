@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
@@ -49,7 +49,7 @@ public class PoweredCuttingKnifeItem extends PoweredItem implements IBasicCellIt
 
     @Override
     public int getBytes(ItemStack stack) {
-        return this.getUpgrades(stack).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_DATA_FLOW_BYTES : DATA_FLOW_BYTES;
+        return this.getUpgrades(stack).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_DATA_FLOW_BYTES : DATA_FLOW_BYTES;
     }
 
     @Override

@@ -10,8 +10,8 @@ import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
@@ -96,17 +96,17 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
-        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
+        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()));
         registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
         registry.addRecipe(new TrinityMultiblockEmiRecipe());
         registry.addWorkstation(
                 TrinityMultiblockEmiRecipe.CATEGORY,
-                EmiStack.of(ModBlocks.TRINITY_DATA_CORE.get()));
+                EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
                 .map(DataCaptureBallRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
-        registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()));
+        registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
         registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
                 .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
@@ -114,16 +114,16 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registerRecipeCategory(
                 registry,
                 DataChargerEmiRecipe.CATEGORY,
-                EmiStack.of(ModBlocks.DATA_CHARGER.get()),
-                EmiStack.of(ModBlocks.EXTENDED_DATA_CHARGER.get()),
+                EmiStack.of(DEBlocks.DATA_CHARGER.get()),
+                EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()),
                 DataChargerEmiRecipe::new,
                 registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()));
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
                 List.of(
-                        EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()),
-                        EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get())),
+                        EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()),
+                        EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get())),
                 List.of(
                         Component.translatable("jei.data_energistics.data_capture_ball.line1"),
                         Component.translatable("jei.data_energistics.data_capture_ball.line2"),
@@ -134,7 +134,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 null));
         registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
-                ModItems.MATTER_CONVERGING_CROSSBOW.get(),
+                DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
                 Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
@@ -172,8 +172,8 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
             return;
         }
 
-        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(ModBlocks.DATA_CHARGER.get()));
-        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(ModBlocks.EXTENDED_DATA_CHARGER.get()));
+        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(DEBlocks.DATA_CHARGER.get()));
+        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()));
     }
 
     private static EmiRecipeCategory findCategoryById(ResourceLocation categoryId) {

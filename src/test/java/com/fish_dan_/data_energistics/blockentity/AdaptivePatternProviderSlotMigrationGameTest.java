@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -90,7 +90,7 @@ public final class AdaptivePatternProviderSlotMigrationGameTest {
     }
 
     private static AdaptivePatternProviderBlockEntity placeProvider(GameTestHelper helper, BlockPos position) {
-        helper.setBlock(position, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().defaultBlockState());
+        helper.setBlock(position, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get().defaultBlockState());
         BlockEntity blockEntity = helper.getBlockEntity(position);
         if (blockEntity instanceof AdaptivePatternProviderBlockEntity provider) {
             return provider;

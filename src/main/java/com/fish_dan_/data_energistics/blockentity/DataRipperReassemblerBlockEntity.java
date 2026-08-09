@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityC
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
@@ -128,7 +128,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
@@ -172,7 +172,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -232,8 +232,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public PatternContainerGroup getCraftingMachineInfo() {
-        return new PatternContainerGroup(AEItemKey.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
+        return new PatternContainerGroup(AEItemKey.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
     }
 
     @Override
@@ -303,7 +303,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public int getParallel() {
-        return computeParallel(this.upgrades.getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+        return computeParallel(this.upgrades.getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     public int getItemSlotCapacity() {
@@ -448,7 +448,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         settings.putInt(FLUID_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.fluidOutputSides));
         settings.putInt(KEY_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.keyOutputSides));
         settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -458,7 +458,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -1937,7 +1937,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public Component getDescription() {
-            return ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+            return DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
         }
     }
 

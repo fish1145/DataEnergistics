@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -54,7 +54,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -155,7 +155,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     }
 
     private void tryChainBreakTree(ItemStack stack, ServerLevel level, BlockPos origin, LivingEntity breaker) {
-        if (!stack.is(ModItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 

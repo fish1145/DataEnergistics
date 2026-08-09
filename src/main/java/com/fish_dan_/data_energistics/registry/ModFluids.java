@@ -97,7 +97,7 @@ public final class ModFluids {
     public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_DATA_CORROSION_LIQUID = FLUIDS.register("flowing_data_corrosion_liquid",
             () -> new BaseFlowingFluid.Flowing(dataCorrosionLiquidProperties()));
 
-    public static final DeferredBlock<LiquidBlock> ENDER_BLOCK = ModBlocks.BLOCKS.register(
+    public static final DeferredBlock<LiquidBlock> ENDER_BLOCK = DEBlocks.BLOCKS.register(
             "ender",
             () -> new LiquidBlock((FlowingFluid) ENDER.get(),
                     BlockBehaviour.Properties.ofLegacyCopy(Blocks.WATER)
@@ -105,7 +105,7 @@ public final class ModFluids {
                             .replaceable()
                             .strength(100.0F)
                             .noCollission()));
-    public static final DeferredBlock<LiquidBlock> DATA_CORROSION_LIQUID_BLOCK = ModBlocks.BLOCKS.register(
+    public static final DeferredBlock<LiquidBlock> DATA_CORROSION_LIQUID_BLOCK = DEBlocks.BLOCKS.register(
             "data_corrosion_liquid",
             () -> new LiquidBlock((FlowingFluid) DATA_CORROSION_LIQUID.get(),
                     BlockBehaviour.Properties.ofLegacyCopy(Blocks.WATER)
@@ -115,10 +115,10 @@ public final class ModFluids {
                             .lightLevel(state -> 4)
                             .noCollission()));
 
-    public static final DeferredItem<Item> ENDER_BUCKET = ModItems.ITEMS.register(
+    public static final DeferredItem<Item> ENDER_BUCKET = DEItems.ITEMS.register(
             "ender_bucket",
             () -> new BucketItem(ENDER.get(), new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET)));
-    public static final DeferredItem<Item> DATA_CORROSION_LIQUID_BUCKET = ModItems.ITEMS.register(
+    public static final DeferredItem<Item> DATA_CORROSION_LIQUID_BUCKET = DEItems.ITEMS.register(
             "data_corrosion_liquid_bucket",
             () -> new BucketItem(DATA_CORROSION_LIQUID.get(),
                     new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET).rarity(Rarity.RARE)));

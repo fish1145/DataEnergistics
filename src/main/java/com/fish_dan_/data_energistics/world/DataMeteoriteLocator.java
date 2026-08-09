@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -161,6 +161,6 @@ public final class DataMeteoriteLocator {
     }
 
     private static boolean isDataMeteoriteBlock(Block block) {
-        return block == ModBlocks.ENDER_COHESION_METEORITE_0.get() || block == ModBlocks.ENDER_COHESION_METEORITE_1.get() || block == ModBlocks.ENDER_COHESION_METEORITE_2.get();
+        return block == DEBlocks.ENDER_COHESION_METEORITE_0.get() || block == DEBlocks.ENDER_COHESION_METEORITE_1.get() || block == DEBlocks.ENDER_COHESION_METEORITE_2.get();
     }
 }

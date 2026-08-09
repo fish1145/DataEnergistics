@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -36,7 +36,7 @@ public final class DataSanctumInterfacePartCapabilityGameTest {
     @GameTest(template = "empty_5x5")
     public static void exposesReturnInventoryCapability(GameTestHelper helper) {
         CableBusBlockEntity cableBus = placeCableBus(helper);
-        IPart installedPart = cableBus.addPart(ModItems.DATA_SANCTUM_INTERFACE_PART.get(), Direction.NORTH, null);
+        IPart installedPart = cableBus.addPart(DEItems.DATA_SANCTUM_INTERFACE_PART.get(), Direction.NORTH, null);
         if (!(installedPart instanceof DataSanctumInterfacePart interfacePart)) {
             throw new GameTestAssertException("The cable bus must install a data sanctum interface part");
         }

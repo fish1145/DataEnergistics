@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentBindingHandl
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -33,7 +33,7 @@ public final class TrinityAccessHatchBindingGameTest {
     public static void oldReleaseCannotClearNewBinding(GameTestHelper helper) {
         TrinityAccessHatchBlockEntity hatch = new TrinityAccessHatchBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
+                DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         TestHost previousHost = new TestHost();
         TestHost replacementHost = new TestHost();
 

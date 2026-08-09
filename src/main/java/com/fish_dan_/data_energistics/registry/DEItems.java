@@ -52,7 +52,7 @@ import appeng.items.storage.StorageTier;
 
 import java.util.List;
 
-public final class ModItems {
+public final class DEItems {
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Data_Energistics.MODID);
     private static final Tool NO_MINING_SWORD_TOOL = new Tool(List.of(), 1.0F, 2);
@@ -91,79 +91,79 @@ public final class ModItems {
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_64K = registerPortableDataFlowCell("portable_data_flow_cell_64k", StorageTier.SIZE_64K, 0xFF9B5C);
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256K = registerPortableDataFlowCell("portable_data_flow_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
 
-    public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SOLAR_PANEL);
-    public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_EXTRACTOR);
-    public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_RIPPER_REASSEMBLER);
-    public static final DeferredItem<BlockItem> TRINITY_DATA_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.TRINITY_DATA_CORE);
-    public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK);
-    public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_DISTRIBUTION_TOWER);
-    public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
-    public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
-    public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM);
-    public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM_INTERFACE);
-    public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CHARGER);
-    public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(ModBlocks.EXTENDED_DATA_CHARGER);
+    public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SOLAR_PANEL);
+    public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_EXTRACTOR);
+    public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_RIPPER_REASSEMBLER);
+    public static final DeferredItem<BlockItem> TRINITY_DATA_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_DATA_CORE);
+    public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_FRAMEWORK);
+    public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_DISTRIBUTION_TOWER);
+    public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_MIMETIC_FIELD);
+    public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_TELEPORT_ANCHOR);
+    public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM);
+    public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM_INTERFACE);
+    public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);
+    public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_DATA_CHARGER);
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));
     public static final DeferredItem<PartItem<DataSanctumInterfacePart>> DATA_SANCTUM_INTERFACE_PART = ITEMS.register(
             "data_sanctum_interface_part",
             () -> new PartItem<>(new Item.Properties(), DataSanctumInterfacePart.class, DataSanctumInterfacePart::new));
-    public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
+    public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(DEBlocks.ADAPTIVE_PATTERN_PROVIDER);
     public static final DeferredItem<AdaptivePatternProviderUpgradeItem> ADAPTIVE_PATTERN_PROVIDER_UPGRADE = ITEMS.register(
             "adaptive_pattern_provider_upgrade",
             () -> new AdaptivePatternProviderUpgradeItem(new Item.Properties()));
-    public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_CONFIGURABLE);
-    public static final DeferredItem<BlockItem> DATA_NUKE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_NUKE);
-    public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
-    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);
-    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);
-    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_2);
+    public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.registerSimpleBlockItem(DEBlocks.TNT_CONFIGURABLE);
+    public static final DeferredItem<BlockItem> DATA_NUKE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_NUKE);
+    public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(DEBlocks.RESIDUAL_DATA_ORE);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_0);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_1);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_2);
     public static final DeferredItem<DataMeteoriteCompassItem> DATA_METEORITE_COMPASS = ITEMS.register(
             "data_meteorite_compass",
             () -> new DataMeteoriteCompassItem(new Item.Properties().stacksTo(1)));
-    public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CRYSTAL_BLOCK);
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
-            () -> new DigitalStorageDepotBlockItem(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_1M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_4M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_16M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_64M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_256G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
-    public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
-    public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
-    public static final DeferredItem<BlockItem> COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_INPUT_WAREHOUSE);
-    public static final DeferredItem<BlockItem> COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE);
-    public static final DeferredItem<BlockItem> ME_COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE);
-    public static final DeferredItem<BlockItem> ME_COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE);
-    public static final DeferredItem<BlockItem> ME_PATTERN_BUFFER = ITEMS.registerSimpleBlockItem(ModBlocks.ME_PATTERN_BUFFER);
-    public static final DeferredItem<BlockItem> TRINITY_ACCESS_HATCH = ITEMS.registerSimpleBlockItem(ModBlocks.TRINITY_ACCESS_HATCH);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_0);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_1);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_2);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_3 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_3);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_4 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_4);
-    public static final DeferredItem<BlockItem> SMALL_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_DATA_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> MEDIUM_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> LARGE_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.LARGE_DATA_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> DATA_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_CLUSTER);
+            () -> new DigitalStorageDepotBlockItem(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
+    public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
+    public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
+    public static final DeferredItem<BlockItem> COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.COMPOSITE_INPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_PATTERN_BUFFER = ITEMS.registerSimpleBlockItem(DEBlocks.ME_PATTERN_BUFFER);
+    public static final DeferredItem<BlockItem> TRINITY_ACCESS_HATCH = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_ACCESS_HATCH);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_0);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_1);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_2);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_3 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_3);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_4 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_4);
+    public static final DeferredItem<BlockItem> SMALL_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.SMALL_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> MEDIUM_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.MEDIUM_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> LARGE_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.LARGE_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> DATA_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CRYSTAL_CLUSTER);
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new));
@@ -292,11 +292,11 @@ public final class ModItems {
             () -> new DataRipperPartItem(new Item.Properties()));
     public static final DeferredItem<BlockItem> FISH_DAN = ITEMS.register(
             "fish_dan_",
-            () -> new DollBlockItem(ModBlocks.FISH_DAN.get(), new Item.Properties()));
-    public static final DeferredItem<BlockItem> QIUYEQAQ2024 = ITEMS.registerSimpleBlockItem(ModBlocks.QIUYEQAQ2024);
-    public static final DeferredItem<BlockItem> TED_XENON = ITEMS.registerSimpleBlockItem(ModBlocks.TED_XENON);
+            () -> new DollBlockItem(DEBlocks.FISH_DAN.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> QIUYEQAQ2024 = ITEMS.registerSimpleBlockItem(DEBlocks.QIUYEQAQ2024);
+    public static final DeferredItem<BlockItem> TED_XENON = ITEMS.registerSimpleBlockItem(DEBlocks.TED_XENON);
 
-    private ModItems() {}
+    private DEItems() {}
 
     public static void register(IEventBus modEventBus) {
         ITEMS.register(modEventBus);

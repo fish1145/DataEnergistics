@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProvider;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.network.chat.Component;
 
@@ -30,7 +30,7 @@ public final class DataRipperReassemblerRecipeCategory
 
     public DataRipperReassemblerRecipeCategory(IGuiHelper guiHelper) {
         super(UI_PROVIDER);
-        this.icon = guiHelper.createDrawableItemLike(ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        this.icon = guiHelper.createDrawableItemLike(DEBlocks.DATA_RIPPER_REASSEMBLER.get());
     }
 
     @Override

@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
@@ -295,7 +295,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     protected Projectile createProjectile(Level level, LivingEntity shooter, ItemStack weaponStack, ItemStack ammoStack,
                                           boolean isCrit) {
         if (this.isDataDustAmmo(ammoStack)) {
-            ItemStack thrownStack = new ItemStack(ModItems.DATA_LIGHT_SABER.get());
+            ItemStack thrownStack = new ItemStack(DEItems.DATA_LIGHT_SABER.get());
             ThrownLightSaberEntity projectile = new ThrownLightSaberEntity(level, shooter, thrownStack);
             projectile.pickup = Pickup.ALLOWED;
             projectile.setWeaponStack(weaponStack);
@@ -493,7 +493,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         }
 
         Item item = itemKey.getItem();
-        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != ModItems.DATA_LIGHT_SABER.get();
+        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != DEItems.DATA_LIGHT_SABER.get();
     }
 
     @Override
@@ -531,7 +531,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private boolean hasRedstoneCard(ItemStack stack) {
-        return this.getUpgrades(stack).getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+        return this.getUpgrades(stack).getInstalledUpgrades(DEItems.REDSTONE_TUNING_CARD.get()) > 0;
     }
 
     private boolean hasMaxSpeedCards(ItemStack stack) {
@@ -561,7 +561,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     public static boolean isSpecialLightSaberAmmo(ItemStack ammoStack) {
-        return !ammoStack.isEmpty() && ammoStack.is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(ammoStack.getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+        return !ammoStack.isEmpty() && ammoStack.is(DEItems.DATA_LIGHT_SABER.get()) && Math.abs(ammoStack.getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     private boolean isDataDustAmmo(ItemStack ammoStack) {
@@ -608,7 +608,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private long getStoredDataAmount(ItemStack weaponStack) {
-        Long stored = weaponStack.get(ModDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get());
+        Long stored = weaponStack.get(DEDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get());
         if (stored != null) {
             return Math.max(0L, stored);
         }
@@ -626,7 +626,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return 0L;
         }
         long updated = current + accepted;
-        weaponStack.set(ModDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get(), updated);
+        weaponStack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get(), updated);
         return accepted;
     }
 

@@ -60,9 +60,9 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutpu
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
@@ -325,7 +325,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.structureValidation = structureValidation;
         this.structureWorldViews = structureWorldViews;
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.TRINITY_DATA_CORE.get())
+                .setVisualRepresentation(DEBlocks.TRINITY_DATA_CORE.get())
                 .setExposedOnSides(Set.of())
                 .setIdlePowerUsage(0.0D);
     }
@@ -987,8 +987,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * @return whether a complete identity pair was restored
      */
     public boolean restoreIdentityFromItem(ItemStack stack) {
-        UUID itemStorageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
-        UUID itemHostId = stack.get(ModDataComponents.TRINITY_DATA_CORE_HOST_ID);
+        UUID itemStorageId = stack.get(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
+        UUID itemHostId = stack.get(DEDataComponents.TRINITY_DATA_CORE_HOST_ID);
         if (itemStorageId == null && itemHostId == null) {
             return false;
         }
@@ -1002,8 +1002,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     /** Saves the storage and crafting identities as one typed-component pair on a moved host item. */
     public void saveIdentityToItem(ItemStack stack) {
-        stack.set(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
-        stack.set(ModDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
+        stack.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
+        stack.set(DEDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
     }
 
     @Override

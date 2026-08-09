@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -205,13 +205,13 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     public static ItemStack createChargedStack() {
-        ItemStack stack = ModItems.DATA_CAPTURE_BALL.toStack();
+        ItemStack stack = DEItems.DATA_CAPTURE_BALL.toStack();
         stack.set(AEComponents.STORED_ENERGY, INITIAL_POWER);
         return stack;
     }
 
     public static ItemStack createConfiguredStack(double energy, long dataAmount) {
-        ItemStack stack = ModItems.DATA_CAPTURE_BALL.toStack();
+        ItemStack stack = DEItems.DATA_CAPTURE_BALL.toStack();
         if (energy > 0.0D) {
             stack.set(AEComponents.STORED_ENERGY, energy);
         }

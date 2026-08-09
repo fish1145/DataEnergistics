@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.worldgen.meteorite.FixedMeteoriteMotherRockDistribution.MotherRock;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
@@ -88,9 +88,9 @@ public final class MeteoritePlacer {
         double realCrater = this.meteoriteSize * 2.0F + 5.0F;
         this.crater = realCrater * realCrater;
         this.skyStone = ((AEDecorativeBlock) AEBlocks.SKY_STONE_BLOCK.block()).defaultBlockState();
-        this.crackedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
-        this.exposedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
-        this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
+        this.crackedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
+        this.exposedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
+        this.shatteredMeteorite = DEBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
         this.certusMotherRocks = this.getCertusMotherRocks();
         this.dataMotherRocks = this.getDataMotherRocks();
         this.quartzGrowthStages = this.getQuartzGrowthStages();
@@ -109,11 +109,11 @@ public final class MeteoritePlacer {
 
     private List<BlockState> getDataMotherRocks() {
         return Stream.of(
-                ModBlocks.BUDDING_DATA_CRYSTAL_0,
-                ModBlocks.BUDDING_DATA_CRYSTAL_1,
-                ModBlocks.BUDDING_DATA_CRYSTAL_2,
-                ModBlocks.BUDDING_DATA_CRYSTAL_3,
-                ModBlocks.BUDDING_DATA_CRYSTAL_4)
+                DEBlocks.BUDDING_DATA_CRYSTAL_0,
+                DEBlocks.BUDDING_DATA_CRYSTAL_1,
+                DEBlocks.BUDDING_DATA_CRYSTAL_2,
+                DEBlocks.BUDDING_DATA_CRYSTAL_3,
+                DEBlocks.BUDDING_DATA_CRYSTAL_4)
                 .map(def -> def.get().defaultBlockState())
                 .toList();
     }

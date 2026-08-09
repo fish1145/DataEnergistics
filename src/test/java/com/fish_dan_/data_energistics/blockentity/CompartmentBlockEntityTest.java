@@ -36,8 +36,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -147,7 +147,7 @@ public final class CompartmentBlockEntityTest {
     public static void meInputPullsMarkedKeysFromStorage(GameTestHelper helper) {
         MeCompositeInputWarehouseBlockEntity meInput = new MeCompositeInputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         SimpleMEStorage network = new SimpleMEStorage();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey wrappedIron = AEItemKey.of(GenericStack.wrapInItemStack(iron, 5000L));
@@ -258,31 +258,31 @@ public final class CompartmentBlockEntityTest {
         assertServerTickActiveState(
                 helper,
                 new BlockPos(1, 1, 1),
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
                 "plain input warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(2, 1, 1),
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
                 "plain output warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(3, 1, 1),
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MeCompositeInputWarehouseBlockEntity,
                 "ME input warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(1, 1, 2),
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MeCompositeOutputWarehouseBlockEntity,
                 "ME output warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(2, 1, 2),
-                ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
+                DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MePatternBufferBlockEntity,
                 "ME pattern buffer");
         assertTrinityAccessTickerClearsInactiveState(helper, new BlockPos(3, 1, 2));
@@ -296,7 +296,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
@@ -905,7 +905,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = validationTestLocalOrigin(helper);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
@@ -986,7 +986,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1009,7 +1009,7 @@ public final class CompartmentBlockEntityTest {
         BlockPos upgradedCorePosition = originalMount.position();
         level.setBlock(
                 upgradedCorePosition,
-                ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState(),
+                DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState(),
                 Block.UPDATE_ALL);
         host.requestStructureRecheck();
         host.serverTick();
@@ -1108,7 +1108,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1287,7 +1287,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1418,7 +1418,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1950,7 +1950,7 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static void assertTrinityAccessTickerClearsInactiveState(GameTestHelper helper, BlockPos relativePos) {
-        BlockState state = ModBlocks.TRINITY_ACCESS_HATCH.get()
+        BlockState state = DEBlocks.TRINITY_ACCESS_HATCH.get()
                 .defaultBlockState()
                 .setValue(CompartmentBlock.ACTIVE, true);
         helper.setBlock(relativePos, state);
@@ -2266,7 +2266,7 @@ public final class CompartmentBlockEntityTest {
         }
 
         for (int part = 2; part >= 0; part--) {
-            BlockState state = ModBlocks.DATA_DISTRIBUTION_TOWER.get()
+            BlockState state = DEBlocks.DATA_DISTRIBUTION_TOWER.get()
                     .defaultBlockState()
                     .setValue(DataDistributionTowerBlock.PART, part)
                     .setValue(DataDistributionTowerBlock.FACING, Direction.NORTH)
@@ -2287,7 +2287,7 @@ public final class CompartmentBlockEntityTest {
                                                                                  BlockPos origin,
                                                                                  TrinityDataCoreBlockEntity host) {
         BlockPos hatchPos = origin.offset(16, 0, 0);
-        level.setBlock(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(hatchPos, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
         BlockEntity blockEntity = level.getBlockEntity(hatchPos);
         if (!(blockEntity instanceof TrinityAccessHatchBlockEntity hatch)) {
             throw new IllegalStateException("Missing test-only Trinity access hatch at " + hatchPos);
@@ -2672,13 +2672,13 @@ public final class CompartmentBlockEntityTest {
     private static MeCompositeOutputWarehouseBlockEntity meOutputWarehouse() {
         return new MeCompositeOutputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static UpdateCountingMeOutputWarehouse updateCountingMeOutputWarehouse() {
         return new UpdateCountingMeOutputWarehouse(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static final class RecordingStorageMounts implements IStorageMounts {

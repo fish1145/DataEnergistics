@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -214,7 +214,7 @@ public final class CompartmentInventoryTest {
 
         for (int capacityCards = 0; capacityCards <= 5; capacityCards++) {
             CompositeWarehouseBlockEntity input = compositeWarehouse(
-                    ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                    DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
             installCapacityCards(input, capacityCards);
             int expectedRows = Math.min(
                     CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS,
@@ -269,7 +269,7 @@ public final class CompartmentInventoryTest {
         }
 
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         installCapacityCards(output);
         helper.assertValueEqual(
                 output.configurableSlotLimit(),
@@ -347,7 +347,7 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void menuLocksCapacityCardWhenPlainWarehouseHasOverflow(GameTestHelper helper) {
         BlockPos warehousePos = new BlockPos(1, 1, 1);
-        helper.setBlock(warehousePos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        helper.setBlock(warehousePos, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(warehousePos));
         if (!(blockEntity instanceof CompositeWarehouseBlockEntity input)) {
             helper.fail("Expected a placed plain input warehouse block entity", warehousePos);
@@ -416,7 +416,7 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void plainWarehouseFkExtensionSlotsDrawOptionalBackgrounds(GameTestHelper helper) {
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         var player = helper.makeMockPlayer(GameType.CREATIVE);
         CompositeWarehouseMenu menu = new CompositeWarehouseMenu(
                 0,
@@ -463,7 +463,7 @@ public final class CompartmentInventoryTest {
         AEFluidKey lava = AEFluidKey.of(Fluids.LAVA);
 
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         int firstExpansionFluidSlot = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS;
         helper.assertValueEqual(
                 input.fluidConfig().insert(0, water, 10L, Actionable.MODULATE),
@@ -515,12 +515,12 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void upgradesOnlyApplyToPlainWarehouses(GameTestHelper helper) {
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity meInput = compartment(ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity meOutput = compartment(ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity patternBuffer = compartment(ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity meInput = compartment(DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity meOutput = compartment(DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity patternBuffer = compartment(DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
 
         helper.assertTrue(input.supportsUpgrades(), "Plain input warehouse should support capacity cards");
         helper.assertTrue(output.supportsUpgrades(), "Plain output warehouse should support capacity cards");
@@ -542,23 +542,23 @@ public final class CompartmentInventoryTest {
                 "Pattern buffer should not expose an upgrade sub-inventory");
 
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get()),
                 5,
                 "Plain input warehouse should allow capacity cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get()),
                 5,
                 "Plain output warehouse should allow capacity cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get()),
                 0,
                 "ME input warehouse should not allow capacity cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get()),
                 0,
                 "ME output warehouse should not allow capacity cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.ME_PATTERN_BUFFER.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.ME_PATTERN_BUFFER.get()),
                 0,
                 "Pattern buffer should not allow capacity cards");
         helper.succeed();
@@ -575,14 +575,14 @@ public final class CompartmentInventoryTest {
                 new CompositeWarehouseMenu(
                         0,
                         playerInventory,
-                        compositeWarehouse(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                        compositeWarehouse(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
                 "Plain warehouse menu");
         assertPlainWarehouseMainSlots(
                 helper,
                 new CompositeWarehouseMenu(
                         4,
                         playerInventory,
-                        compositeWarehouse(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())));
+                        compositeWarehouse(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())));
         assertPlayerInventorySlots(
                 helper,
                 new MeCompositeInputWarehouseMenu(
@@ -617,13 +617,13 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void blockEntityAeConnectivityMatchesType(GameTestHelper helper) {
-        CompartmentBlockEntity input = compartment(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity output = compartment(ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity patternBuffer = compartment(ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
+        CompartmentBlockEntity input = compartment(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity output = compartment(DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity patternBuffer = compartment(DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
         CompartmentBlockEntity meInput = compartment(
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompartmentBlockEntity meOutput = compartment(
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
 
         helper.assertFalse(input instanceof IGridConnectedBlockEntity, "Input warehouse should not be an AE grid host");
         helper.assertTrue(input.getGridConnectableSides(null).isEmpty(), "Input warehouse should not connect to AE");
@@ -741,10 +741,10 @@ public final class CompartmentInventoryTest {
         meOutput.compartment$unbindFromHost("main", host);
         helper.assertTrue(meOutput.outputStorage() == null, "Unbound ME output warehouse should stop exposing storage");
 
-        CompartmentBlockEntity input = compartment(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity input = compartment(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompartmentBlockEntity meInput = compartment(
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
-        CompartmentBlockEntity patternBuffer = compartment(ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity patternBuffer = compartment(DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
 
         input.compartment$bindToHost("main", host);
         meInput.compartment$bindToHost("main", host);
@@ -761,7 +761,7 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void blockEntityStructureStorageRequiresBinding(GameTestHelper helper) {
         TestCompartmentHost host = new TestCompartmentHost();
-        CompartmentBlockEntity input = compartment(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity input = compartment(DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         CompartmentStorage structureStorage = input.compartmentStorage();
 
@@ -798,7 +798,7 @@ public final class CompartmentInventoryTest {
         TestCompartmentHost oldHost = new TestCompartmentHost();
         TestCompartmentHost newHost = new TestCompartmentHost();
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         CompartmentStorage oldOutputView = oldHost.compartmentHost$outputStorage("main");
         CompartmentStorage newOutputView = newHost.compartmentHost$outputStorage("alternate");
@@ -1064,9 +1064,9 @@ public final class CompartmentInventoryTest {
     public static void compartmentHostCachedStorageViewTracksBinding(GameTestHelper helper) {
         TestCompartmentHost host = new TestCompartmentHost();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
         CompartmentStorage inputView = host.compartmentHost$inputStorage("main");
@@ -1100,9 +1100,9 @@ public final class CompartmentInventoryTest {
     public static void trinityDataCoreHidesCompartmentViewsUntilFormed(GameTestHelper helper) {
         TrinityDataCoreBlockEntity host = trinityDataCore();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
 
@@ -1143,11 +1143,11 @@ public final class CompartmentInventoryTest {
     public static void trinityDataCoreExposesMainCompartmentViews(GameTestHelper helper) {
         TrinityDataCoreBlockEntity host = formedTrinityDataCore();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity alternateInput = compositeWarehouse(
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
 
@@ -1346,23 +1346,23 @@ public final class CompartmentInventoryTest {
     private static MeCompositeInputWarehouseBlockEntity meInputWarehouse() {
         return new MeCompositeInputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static MeCompositeOutputWarehouseBlockEntity meOutputWarehouse() {
         return new MeCompositeOutputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static MePatternBufferBlockEntity patternBuffer() {
-        return new MePatternBufferBlockEntity(BlockPos.ZERO, ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
+        return new MePatternBufferBlockEntity(BlockPos.ZERO, DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
     }
 
     private static MePatternBufferBlockEntity patternBuffer(int unlockedSlotCount) {
         return new LimitedPatternBufferBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
+                DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
                 unlockedSlotCount);
     }
 
@@ -1375,7 +1375,7 @@ public final class CompartmentInventoryTest {
     private static TrinityDataCoreBlockEntity trinityDataCore() {
         return new TrinityDataCoreBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+                DEBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
     }
 
     private static TrinityDataCoreBlockEntity formedTrinityDataCore() {

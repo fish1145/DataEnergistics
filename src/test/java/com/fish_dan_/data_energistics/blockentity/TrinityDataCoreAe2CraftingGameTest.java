@@ -17,7 +17,7 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatte
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityCraftingBatch;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -880,7 +880,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         for (TrinityPatternCatalog.CoreMount mount : mounts) {
             for (Direction direction : Direction.values()) {
                 BlockPos candidate = mount.position().relative(direction);
-                if (level.getBlockState(candidate).is(ModBlocks.DATA_FRAMEWORK.get())) {
+                if (level.getBlockState(candidate).is(DEBlocks.DATA_FRAMEWORK.get())) {
                     return candidate.immutable();
                 }
             }

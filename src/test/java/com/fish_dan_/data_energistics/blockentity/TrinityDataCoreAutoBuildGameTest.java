@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -245,7 +245,7 @@ public final class TrinityDataCoreAutoBuildGameTest {
     }
 
     private static TrinityDataCoreBlockEntity placeHost(GameTestHelper helper, BlockPos localOrigin) {
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockPos origin = helper.absolutePos(localOrigin);

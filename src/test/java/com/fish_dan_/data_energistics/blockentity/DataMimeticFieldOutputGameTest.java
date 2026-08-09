@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -61,7 +61,7 @@ public final class DataMimeticFieldOutputGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 700)
     public static void streamsLargeNonstackableOutputWithBackpressure(GameTestHelper helper) {
-        helper.setBlock(FIELD_POS, ModBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
         helper.setBlock(CHEST_POS, Blocks.CHEST.defaultBlockState());
         DataMimeticFieldBlockEntity field = requireField(helper);
         Container chest = requireChest(helper);
@@ -129,7 +129,7 @@ public final class DataMimeticFieldOutputGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 800)
     public static void persistsAndOutputsRealBhcHeart(GameTestHelper helper) {
-        helper.setBlock(FIELD_POS, ModBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
         helper.setBlock(CHEST_POS, Blocks.CHEST.defaultBlockState());
         DataMimeticFieldBlockEntity field = requireField(helper);
         Container chest = requireChest(helper);
@@ -226,17 +226,17 @@ public final class DataMimeticFieldOutputGameTest {
     }
 
     private static ItemStack completedNetheriteSwordCarrier() {
-        ItemStack carrier = new ItemStack(ModItems.ORE_DATA_CARRIER.get());
+        ItemStack carrier = new ItemStack(DEItems.ORE_DATA_CARRIER.get());
         carrier.set(
-                ModDataComponents.ORE_DATA_CARRIER.get(),
+                DEDataComponents.ORE_DATA_CARRIER.get(),
                 new OreDataCarrierItemData(BuiltInRegistries.ITEM.getKey(Items.NETHERITE_SWORD), 1.0F, 1.0F));
         return carrier;
     }
 
     private static ItemStack completedWitherCarrier() {
-        ItemStack carrier = new ItemStack(ModItems.MOB_DATA_CARRIER.get());
+        ItemStack carrier = new ItemStack(DEItems.MOB_DATA_CARRIER.get());
         carrier.set(
-                ModDataComponents.MOB_DATA_CARRIER.get(),
+                DEDataComponents.MOB_DATA_CARRIER.get(),
                 new MobDataCarrierItemData(BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.WITHER), 1.0F, 1.0F));
         return carrier;
     }

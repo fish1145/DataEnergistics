@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -59,7 +59,7 @@ public final class TrinityDataCoreHostIdentityGameTest {
                 !source.getHostId().equals(source.getStorageId()),
                 "Trinity crafting host UUID must be independent from the main-storage UUID");
 
-        ItemStack movedHost = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
+        ItemStack movedHost = new ItemStack(DEBlocks.TRINITY_DATA_CORE.get());
         source.saveIdentityToItem(movedHost);
         assertIdentity(helper, movedHost, source.getStorageId(), source.getHostId(), "Moved host item");
 
@@ -196,10 +196,10 @@ public final class TrinityDataCoreHostIdentityGameTest {
                 .getBlock()
                 .getCloneItemStack(helper.getLevel(), helper.absolutePos(sourcePos), source.getBlockState());
         helper.assertTrue(
-                !clone.has(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
+                !clone.has(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 "Middle-click clone must not copy the storage UUID");
         helper.assertTrue(
-                !clone.has(ModDataComponents.TRINITY_DATA_CORE_HOST_ID),
+                !clone.has(DEDataComponents.TRINITY_DATA_CORE_HOST_ID),
                 "Middle-click clone must not copy the crafting UUID");
 
         var player = helper.makeMockPlayer(GameType.SURVIVAL);
@@ -224,13 +224,13 @@ public final class TrinityDataCoreHostIdentityGameTest {
     public static void rejectsPartialItemIdentity(GameTestHelper helper) {
         TrinityDataCoreBlockEntity host = new TrinityDataCoreBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+                DEBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         UUID originalStorageId = host.getStorageId();
         UUID originalHostId = host.getHostId();
-        ItemStack storageOnly = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        storageOnly.set(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID, UUID.randomUUID());
-        ItemStack hostOnly = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        hostOnly.set(ModDataComponents.TRINITY_DATA_CORE_HOST_ID, UUID.randomUUID());
+        ItemStack storageOnly = new ItemStack(DEBlocks.TRINITY_DATA_CORE.get());
+        storageOnly.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID, UUID.randomUUID());
+        ItemStack hostOnly = new ItemStack(DEBlocks.TRINITY_DATA_CORE.get());
+        hostOnly.set(DEDataComponents.TRINITY_DATA_CORE_HOST_ID, UUID.randomUUID());
 
         assertPartialIdentityRejected(helper, host, storageOnly, originalStorageId, originalHostId, "storage-only");
         assertPartialIdentityRejected(helper, host, hostOnly, originalStorageId, originalHostId, "host-only");
@@ -238,7 +238,7 @@ public final class TrinityDataCoreHostIdentityGameTest {
     }
 
     private static void placeHost(GameTestHelper helper, BlockPos position) {
-        helper.setBlock(position, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(position, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
     }
@@ -256,7 +256,7 @@ public final class TrinityDataCoreHostIdentityGameTest {
         List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
         helper.assertValueEqual(drops.size(), 1, "Actual host break should create exactly one ItemEntity");
         ItemEntity drop = drops.getFirst();
-        helper.assertTrue(drop.getItem().is(ModBlocks.TRINITY_DATA_CORE.get().asItem()),
+        helper.assertTrue(drop.getItem().is(DEBlocks.TRINITY_DATA_CORE.get().asItem()),
                 "Actual host break should drop the Trinity Data Core item");
         return drop;
     }
@@ -267,11 +267,11 @@ public final class TrinityDataCoreHostIdentityGameTest {
                                        UUID hostId,
                                        String source) {
         helper.assertValueEqual(
-                stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
+                stack.get(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
                 source + " should carry the storage UUID");
         helper.assertValueEqual(
-                stack.get(ModDataComponents.TRINITY_DATA_CORE_HOST_ID),
+                stack.get(DEDataComponents.TRINITY_DATA_CORE_HOST_ID),
                 hostId,
                 source + " should carry the crafting UUID");
     }

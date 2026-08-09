@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.ae2;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -179,7 +179,7 @@ public final class AdaptivePatternProviderResolver {
         if (!installed) {
             throw new IllegalStateException("Adaptive pattern provider definitions are not installed");
         }
-        if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem()) || stack.is(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
+        if (stack.isEmpty() || stack.is(DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem()) || stack.is(DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
             return null;
         }
 

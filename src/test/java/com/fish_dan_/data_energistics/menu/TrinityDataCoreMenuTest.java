@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -88,8 +88,8 @@ public final class TrinityDataCoreMenuTest {
     private static RefundAggregate createAggregate(GameTestHelper helper) {
         BlockPos firstPosition = new BlockPos(1, 1, 1);
         BlockPos secondPosition = new BlockPos(2, 1, 1);
-        helper.setBlock(firstPosition, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
-        helper.setBlock(secondPosition, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(firstPosition, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(secondPosition, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity first = helper.getBlockEntity(firstPosition);
         TrinityPatternCoreBlockEntity second = helper.getBlockEntity(secondPosition);
         ItemStack pattern = encodedOakPlanksPattern(helper);

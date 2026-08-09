@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -36,7 +36,7 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
      */
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             MultiblockXeiRecipe.CATEGORY_ID,
-            EmiStack.of(ModBlocks.TRINITY_DATA_CORE.get()));
+            EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
 
     private final MultiblockXeiRecipe recipe;
     private final Object widgetRefreshKey = new Object();

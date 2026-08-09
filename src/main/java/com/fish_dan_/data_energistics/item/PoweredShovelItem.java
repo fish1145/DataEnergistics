@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -64,7 +64,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -128,7 +128,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
+        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
             if (!context.getLevel().isClientSide) {
                 this.toggleBreakSize(context.getItemInHand());
                 int size = this.getBreakSize(context.getItemInHand());
@@ -149,7 +149,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown() && stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
+        if (player.isShiftKeyDown() && stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
             if (!level.isClientSide) {
                 this.toggleBreakSize(stack);
                 int size = this.getBreakSize(stack);
@@ -181,7 +181,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     }
 
     private void tryAreaMine(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
-        if (!stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
@@ -201,11 +201,11 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     private void toggleBreakSize(ItemStack stack) {
         int radius = this.getBreakRadius(stack) == 1 ? 2 : 1;
-        stack.set(ModDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get(), radius);
+        stack.set(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get(), radius);
     }
 
     private int getBreakRadius(ItemStack stack) {
-        Integer radius = stack.get(ModDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
+        Integer radius = stack.get(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
         if (radius == null) {
             radius = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
                     .getInt(TAG_BREAK_RADIUS);

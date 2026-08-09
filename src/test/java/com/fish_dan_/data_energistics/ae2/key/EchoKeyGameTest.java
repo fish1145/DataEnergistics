@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellInventory;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -86,7 +86,7 @@ public final class EchoKeyGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void infiniteDataCellExposesEcho(GameTestHelper helper) {
-        ItemStack stack = new ItemStack(ModItems.DATA_CELL_INFINITY.get());
+        ItemStack stack = new ItemStack(DEItems.DATA_CELL_INFINITY.get());
         StorageCell cell = InfiniteDataCellHandler.INSTANCE.getCellInventory(stack, null);
         if (cell == null) {
             throw new GameTestAssertException("The infinite data cell must expose a real storage inventory");
@@ -124,7 +124,7 @@ public final class EchoKeyGameTest {
                 0L,
                 "The infinite data cell must not expand to ordinary items");
 
-        TooltipComponent tooltip = ModItems.DATA_CELL_INFINITY.get().getTooltipImage(stack).orElse(null);
+        TooltipComponent tooltip = DEItems.DATA_CELL_INFINITY.get().getTooltipImage(stack).orElse(null);
         if (!(tooltip instanceof StorageCellTooltipComponent storageTooltip)) {
             throw new GameTestAssertException("The infinite data cell must expose the standard storage tooltip");
         }
@@ -146,8 +146,8 @@ public final class EchoKeyGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void dataFlowCellsStoreEchoWithSharedByteAccounting(GameTestHelper helper) {
-        assertDataFlowCellStoresEcho(helper, ModItems.DATA_FLOW_CELL_1K.toStack(), "regular");
-        assertDataFlowCellStoresEcho(helper, ModItems.PORTABLE_DATA_FLOW_CELL_1K.toStack(), "portable");
+        assertDataFlowCellStoresEcho(helper, DEItems.DATA_FLOW_CELL_1K.toStack(), "regular");
+        assertDataFlowCellStoresEcho(helper, DEItems.PORTABLE_DATA_FLOW_CELL_1K.toStack(), "portable");
         helper.succeed();
     }
 
@@ -191,7 +191,7 @@ public final class EchoKeyGameTest {
     }
 
     private static DigitalStorageDepotBlockEntity placeDepot(GameTestHelper helper, BlockPos position) {
-        helper.setBlock(position, ModBlocks.DIGITAL_STORAGE_DEPOT.get());
+        helper.setBlock(position, DEBlocks.DIGITAL_STORAGE_DEPOT.get());
         BlockEntity blockEntity = helper.getBlockEntity(position);
         if (blockEntity instanceof DigitalStorageDepotBlockEntity depot) {
             return depot;

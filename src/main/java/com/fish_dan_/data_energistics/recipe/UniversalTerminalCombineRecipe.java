@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
@@ -60,7 +60,7 @@ public class UniversalTerminalCombineRecipe extends CustomRecipe {
         }
 
         return UniversalTerminalData.createCombinedTerminal(
-                new ItemStack(ModItems.UNIVERSAL_TERMINAL.get()),
+                new ItemStack(DEItems.UNIVERSAL_TERMINAL.get()),
                 registries,
                 first,
                 second);

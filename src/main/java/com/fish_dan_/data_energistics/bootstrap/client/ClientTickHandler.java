@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMobEffects;
 import com.fish_dan_.data_energistics.registry.ModParticles;
 
@@ -50,7 +50,7 @@ final class ClientTickHandler {
     private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {
         var player = minecraft.player;
         ItemStack stack = player.getItemInHand(hand);
-        if (!stack.is(ModItems.MATTER_CONVERGING_CROSSBOW.get())) {
+        if (!stack.is(DEItems.MATTER_CONVERGING_CROSSBOW.get())) {
             return;
         }
 

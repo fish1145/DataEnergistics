@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
@@ -250,7 +250,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return isCarrierInteractionAllowed() && stack.is(ModItems.DATA_CARRIER.get()) && super.mayPlace(stack);
+            return isCarrierInteractionAllowed() && stack.is(DEItems.DATA_CARRIER.get()) && super.mayPlace(stack);
         }
 
         @Override

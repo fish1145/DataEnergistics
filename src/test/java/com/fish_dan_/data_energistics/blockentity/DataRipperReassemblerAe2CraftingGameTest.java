@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.core.BlockPos;
@@ -83,27 +83,27 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
         PatternProviderBlockEntity provider = placePatternProvider(helper);
         DriveBlockEntity drive = placeDrive(helper);
         CraftingBlockEntity craftingStorage = placeCraftingCpu(helper);
-        AEItemKey dataCrystal = itemKey(ModItems.DATA_CRYSTAL.toStack());
+        AEItemKey dataCrystal = itemKey(DEItems.DATA_CRYSTAL.toStack());
         ItemStack encodedPattern = dataCrystalProcessingPattern();
         AEItemKey wrappedDataFlow = wrappedKey(DataFlowKey.of(), 1_200L);
         IActionSource actionSource = IActionSource.ofMachine(provider);
         AtomicReference<Future<ICraftingPlan>> planFuture = new AtomicReference<>();
         AtomicReference<ICraftingPlan> completedPlan = new AtomicReference<>();
 
-        drive.getInternalInventory().setItemDirect(0, ModItems.DATA_FLOW_CELL_1K.toStack());
+        drive.getInternalInventory().setItemDirect(0, DEItems.DATA_FLOW_CELL_1K.toStack());
         drive.getInternalInventory().setItemDirect(1, AEItems.ITEM_CELL_64K.stack());
         drive.getInternalInventory().setItemDirect(2, AEItems.FLUID_CELL_64K.stack());
         // AE2 excludes the requested output key from its planning inventory, so keep the recipe seed in the machine.
         reassembler.getStorageInventory().setItemDirect(
                 DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT,
-                ModItems.DATA_CRYSTAL.toStack(16));
+                DEItems.DATA_CRYSTAL.toStack(16));
 
         helper.startSequence()
                 .thenWaitUntil(() -> awaitRealNetwork(helper, reassembler, provider, drive, craftingStorage))
                 .thenExecute(() -> {
                     IGrid grid = requireGrid(provider);
                     insertIntoNetwork(helper, grid, DataFlowKey.of(), 2_400L);
-                    insertIntoNetwork(helper, grid, itemKey(ModItems.DATA_DUST.toStack()), 32L);
+                    insertIntoNetwork(helper, grid, itemKey(DEItems.DATA_DUST.toStack()), 32L);
                     insertIntoNetwork(helper, grid, AEFluidKey.of(Fluids.WATER), 100L);
                     provider.getLogic().getPatternInv().setItemDirect(0, encodedPattern);
                     provider.getLogic().updatePatterns();
@@ -185,14 +185,14 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
         ConfigInventory outputs = configInventory(4);
         AEItemKey wrappedDataFlow = wrappedKey(DataFlowKey.of(), 1_200L);
         AEItemKey wrappedData = wrappedKey(DataKey.of(), 6L);
-        GenericStack dataDust = new GenericStack(itemKey(ModItems.DATA_DUST.toStack()), 32L);
+        GenericStack dataDust = new GenericStack(itemKey(DEItems.DATA_DUST.toStack()), 32L);
         GenericStack ordinaryItem = new GenericStack(itemKey(new ItemStack(Items.IRON_INGOT)), 16L);
         GenericStack water = new GenericStack(AEFluidKey.of(Fluids.WATER), 100L);
         GenericStack nonTargetWrapper = new GenericStack(wrappedKey(AEFluidKey.of(Fluids.LAVA), 125L), 2L);
         GenericStack directData = new GenericStack(DataKey.of(), 7L);
         GenericStack realisticInnerAmount = new GenericStack(wrappedKey(DataFlowKey.of(), 2_400L), 1L);
         GenericStack realisticOuterAmount = new GenericStack(wrappedKey(DataKey.of(), 1L), 30L);
-        GenericStack dataCrystalOutput = new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 96L);
+        GenericStack dataCrystalOutput = new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 96L);
         GenericStack directDataFlow = new GenericStack(DataFlowKey.of(), 9L);
         GenericStack lava = new GenericStack(AEFluidKey.of(Fluids.LAVA), 250L);
 
@@ -262,8 +262,8 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
     public static void processingPatternRejectsInvalidWrappedAmounts(GameTestHelper helper) {
         ConfigInventory inputs = configInventory(1);
         ConfigInventory outputs = configInventory(1);
-        GenericStack validInput = new GenericStack(itemKey(ModItems.DATA_DUST.toStack()), 1L);
-        GenericStack validOutput = new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 1L);
+        GenericStack validInput = new GenericStack(itemKey(DEItems.DATA_DUST.toStack()), 1L);
+        GenericStack validOutput = new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 1L);
         outputs.setStack(0, validOutput);
 
         inputs.setStack(0, new GenericStack(wrappedKey(DataFlowKey.of(), Long.MAX_VALUE), 2L));
@@ -300,7 +300,7 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
         ConfigInventory inputs = configInventory(1);
         ConfigInventory outputs = configInventory(2);
         inputs.setStack(0, new GenericStack(wrappedKey(DataFlowKey.of(), Long.MAX_VALUE), 1L));
-        outputs.setStack(0, new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 1L));
+        outputs.setStack(0, new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 1L));
         outputs.setStack(1, new GenericStack(wrappedKey(DataKey.of(), 1L), Long.MAX_VALUE));
 
         ItemStack encodedPattern = PatternEncodingSourceHelper.encodeProcessingPattern(inputs, outputs);
@@ -322,23 +322,23 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
     public static void processingPatternPreservesEmptyInventorySemantics(GameTestHelper helper) {
         ConfigInventory inputs = configInventory(1);
         ConfigInventory outputs = configInventory(2);
-        outputs.setStack(0, new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 1L));
+        outputs.setStack(0, new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 1L));
         helper.assertTrue(PatternEncodingSourceHelper.encodeProcessingPattern(inputs, outputs) == null,
                 "An all-empty input inventory must not produce a processing pattern");
 
-        inputs.setStack(0, new GenericStack(itemKey(ModItems.DATA_DUST.toStack()), 1L));
+        inputs.setStack(0, new GenericStack(itemKey(DEItems.DATA_DUST.toStack()), 1L));
         outputs.clear();
         helper.assertTrue(PatternEncodingSourceHelper.encodeProcessingPattern(inputs, outputs) == null,
                 "An all-empty output inventory must not produce a processing pattern");
 
-        outputs.setStack(1, new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 1L));
+        outputs.setStack(1, new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 1L));
         helper.assertTrue(PatternEncodingSourceHelper.encodeProcessingPattern(inputs, outputs) == null,
                 "A missing primary output must return null even when a later output slot is populated");
         helper.succeed();
     }
 
     private static DataRipperReassemblerBlockEntity placeReassembler(GameTestHelper helper) {
-        helper.setBlock(PATTERN_SINK_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get()
+        helper.setBlock(PATTERN_SINK_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.NORTH));
         BlockEntity blockEntity = helper.getBlockEntity(PATTERN_SINK_POS);
@@ -382,10 +382,10 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
     private static ItemStack dataCrystalProcessingPattern() {
         ConfigInventory inputs = configInventory(3);
         ConfigInventory outputs = configInventory(1);
-        inputs.setStack(0, new GenericStack(itemKey(ModItems.DATA_DUST.toStack()), 32L));
+        inputs.setStack(0, new GenericStack(itemKey(DEItems.DATA_DUST.toStack()), 32L));
         inputs.setStack(1, new GenericStack(AEFluidKey.of(Fluids.WATER), 100L));
         inputs.setStack(2, new GenericStack(wrappedKey(DataFlowKey.of(), 1_200L), 2L));
-        outputs.setStack(0, new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 96L));
+        outputs.setStack(0, new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 96L));
 
         ItemStack encodedPattern = PatternEncodingSourceHelper.encodeProcessingPattern(inputs, outputs);
         if (encodedPattern == null || encodedPattern.isEmpty()) {
@@ -467,7 +467,7 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
                 "The real AE2 crafting plan must consume direct DataFlow");
         helper.assertValueEqual(plan.usedItems().get(wrappedDataFlow), 0L,
                 "The real AE2 crafting plan must not consume the wrapped AEK item");
-        helper.assertValueEqual(plan.usedItems().get(itemKey(ModItems.DATA_DUST.toStack())), 32L,
+        helper.assertValueEqual(plan.usedItems().get(itemKey(DEItems.DATA_DUST.toStack())), 32L,
                 "The real AE2 crafting plan must consume Data Dust");
         helper.assertValueEqual(plan.usedItems().get(AEFluidKey.of(Fluids.WATER)), 100L,
                 "The real AE2 crafting plan must consume water");
@@ -486,9 +486,9 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
                 "The Data Reassembler must receive DataFlow as a direct key");
         helper.assertValueEqual(keyInput.amount(), 2_400L,
                 "The Data Reassembler must receive the complete direct DataFlow amount");
-        helper.assertValueEqual(countInputItem(reassembler, itemKey(ModItems.DATA_DUST.toStack())), 32L,
+        helper.assertValueEqual(countInputItem(reassembler, itemKey(DEItems.DATA_DUST.toStack())), 32L,
                 "The Data Reassembler must receive Data Dust");
-        helper.assertValueEqual(countInputItem(reassembler, itemKey(ModItems.DATA_CRYSTAL.toStack())), 16L,
+        helper.assertValueEqual(countInputItem(reassembler, itemKey(DEItems.DATA_CRYSTAL.toStack())), 16L,
                 "The Data Reassembler must retain the preloaded Data Crystal recipe input");
         helper.assertValueEqual(AEFluidKey.of(reassembler.getFluidInputA()), AEFluidKey.of(Fluids.WATER),
                 "The Data Reassembler must receive water");
@@ -530,7 +530,7 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
                 new GenericStack(wrappedKey(DataFlowKey.of(), 1_200L), 2L));
         logic.getEncodedOutputInv().setStack(
                 0,
-                new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 96L));
+                new GenericStack(itemKey(DEItems.DATA_CRYSTAL.toStack()), 96L));
         logic.getEncodedPatternInv().setItemDirect(0, AEItems.BLANK_PATTERN.stack());
     }
 
@@ -551,7 +551,7 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
                 helper,
                 decodedPattern.getSparseOutputs(),
                 0,
-                itemKey(ModItems.DATA_CRYSTAL.toStack()),
+                itemKey(DEItems.DATA_CRYSTAL.toStack()),
                 96L,
                 menuDescription + " must retain Data Crystal as the primary output");
     }

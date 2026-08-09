@@ -7,8 +7,8 @@ import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionC
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -518,7 +518,7 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         BlockState state = event.getLevel().getBlockState(event.getPos());
-        if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) || !event.getEntity().isShiftKeyDown() || !canDisassembleWithWrench(event.getItemStack())) {
+        if (!state.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get()) || !event.getEntity().isShiftKeyDown() || !canDisassembleWithWrench(event.getItemStack())) {
             return;
         }
 
@@ -533,7 +533,7 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @SubscribeEvent
     public static void onBreakBlock(BlockEvent.BreakEvent event) {
         BlockState state = event.getState();
-        if (!(event.getLevel() instanceof Level level) || level.isClientSide() || !state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get())) {
+        if (!(event.getLevel() instanceof Level level) || level.isClientSide() || !state.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get())) {
             return;
         }
 

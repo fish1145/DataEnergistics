@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -61,9 +61,9 @@ public final class TrinityPatternCoreBlockEntityTest {
         ItemStack oakPattern = encodedOakPlanksPattern(helper);
         ItemStack cakePattern = encodedCakePattern(helper);
         List<TrinityPatternCoreBlock> blocks = List.of(
-                ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
-                ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
-                ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get());
+                DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get());
         int[] capacities = { 64, 128, 512 };
 
         for (int index = 0; index < blocks.size(); index++) {
@@ -123,7 +123,7 @@ public final class TrinityPatternCoreBlockEntityTest {
         BlockPos sourcePos = new BlockPos(1, 1, 1);
         BlockPos migratedPos = new BlockPos(3, 1, 1);
         BlockPos restoredPos = new BlockPos(3, 1, 3);
-        TrinityPatternCoreBlock block = ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
+        TrinityPatternCoreBlock block = DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
         helper.setBlock(sourcePos, block.defaultBlockState());
         TrinityPatternCoreBlockEntity source = helper.getBlockEntity(sourcePos);
         ItemStack oakPattern = encodedOakPlanksPattern(helper);
@@ -203,7 +203,7 @@ public final class TrinityPatternCoreBlockEntityTest {
     @GameTest(template = "empty_5x5")
     public static void dataReloadEpochRefreshesPatternCache(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
-        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(pos, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
         assertTrue(core.trySetPattern(0, encodedOakPlanksPattern(helper)));
         long revisionBeforeReload = core.revision();
@@ -227,7 +227,7 @@ public final class TrinityPatternCoreBlockEntityTest {
     @GameTest(template = "empty_5x5")
     public static void defersStateValidationUntilLevelAndRejectsInvalidInitialState(GameTestHelper helper) {
         BlockPos sourcePos = new BlockPos(1, 1, 1);
-        TrinityPatternCoreBlock block = ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
+        TrinityPatternCoreBlock block = DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
         helper.setBlock(sourcePos, block.defaultBlockState());
         TrinityPatternCoreBlockEntity source = helper.getBlockEntity(sourcePos);
         ItemStack encodedPattern = encodedOakPlanksPattern(helper);
@@ -293,7 +293,7 @@ public final class TrinityPatternCoreBlockEntityTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsBlankProcessingAndOrdinaryItemsUsingRealDecoder(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
-        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(pos, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
         ItemStack processingPattern = PatternDetailsHelper.encodeProcessingPattern(
                 List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 1L)),
@@ -311,7 +311,7 @@ public final class TrinityPatternCoreBlockEntityTest {
     @GameTest(template = "empty_5x5")
     public static void routesContainerRemaindersBeforePrimaryOutput(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
-        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(pos, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
         ItemStack encodedPattern = encodedCakePattern(helper);
         PatternRoute route = new PatternRoute(HOST_ID, core.coreId(), 0);

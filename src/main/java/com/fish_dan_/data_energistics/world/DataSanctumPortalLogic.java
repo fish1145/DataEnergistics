@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.world;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -110,7 +110,7 @@ public class DataSanctumPortalLogic {
         }
 
         BlockState state = sourceLevel.getBlockState(sourcePos);
-        return state.is(ModBlocks.DATA_SANCTUM.get()) && state.hasProperty(DataSanctumBlock.MODE) && state.getValue(DataSanctumBlock.MODE) == PORTAL_MODE && sanctum.isOnline();
+        return state.is(DEBlocks.DATA_SANCTUM.get()) && state.hasProperty(DataSanctumBlock.MODE) && state.getValue(DataSanctumBlock.MODE) == PORTAL_MODE && sanctum.isOnline();
     }
 
     private static void registerSourcePortal(MinecraftServer server, BlockPos returnPos, ResourceLocation sourceDimensionId,
@@ -200,7 +200,7 @@ public class DataSanctumPortalLogic {
                 for (int offsetY = 0; offsetY <= 3; offsetY++) {
                     BlockPos clearPos = portalPos.offset(offsetX, offsetY, offsetZ);
                     BlockState state = level.getBlockState(clearPos);
-                    if (!state.isAir() && !state.is(ModBlocks.DATA_SANCTUM_RETURN_PORTAL.get())) {
+                    if (!state.isAir() && !state.is(DEBlocks.DATA_SANCTUM_RETURN_PORTAL.get())) {
                         level.setBlock(clearPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
                     }
                 }
@@ -208,8 +208,8 @@ public class DataSanctumPortalLogic {
         }
 
         BlockState portalState = level.getBlockState(portalPos);
-        if (!portalState.is(ModBlocks.DATA_SANCTUM_RETURN_PORTAL.get())) {
-            level.setBlock(portalPos, ModBlocks.DATA_SANCTUM_RETURN_PORTAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!portalState.is(DEBlocks.DATA_SANCTUM_RETURN_PORTAL.get())) {
+            level.setBlock(portalPos, DEBlocks.DATA_SANCTUM_RETURN_PORTAL.get().defaultBlockState(), Block.UPDATE_ALL);
         }
     }
 

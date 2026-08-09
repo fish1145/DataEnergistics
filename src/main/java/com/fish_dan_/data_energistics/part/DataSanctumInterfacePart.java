@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
@@ -187,7 +187,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
         CompoundTag settings = new CompoundTag();
         settings.putInt(ACTIVE_PULL_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(getActivePullSides()));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -197,7 +197,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }

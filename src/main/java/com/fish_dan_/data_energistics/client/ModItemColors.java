@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModFluids;
-import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.client.color.item.ItemColor;
 import net.minecraft.util.FastColor;
@@ -18,28 +18,28 @@ public final class ModItemColors {
 
     public static void register(RegisterColorHandlersEvent.Item event) {
         event.register(makeOpaque(ModItemColors::getPortableCellColor),
-                ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_16K.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_64K.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_1M.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_4M.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_16M.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_64M.get(),
-                ModItems.PORTABLE_DATA_FLOW_CELL_256M.get());
+                DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_64K.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_256K.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_1M.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_4M.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_16M.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_64M.get(),
+                DEItems.PORTABLE_DATA_FLOW_CELL_256M.get());
 
         event.register(makeOpaque(BasicStorageCell::getColor),
-                ModItems.DATA_FLOW_CELL_1K.get(),
-                ModItems.DATA_FLOW_CELL_4K.get(),
-                ModItems.DATA_FLOW_CELL_16K.get(),
-                ModItems.DATA_FLOW_CELL_64K.get(),
-                ModItems.DATA_FLOW_CELL_256K.get(),
-                ModItems.DATA_FLOW_CELL_1M.get(),
-                ModItems.DATA_FLOW_CELL_4M.get(),
-                ModItems.DATA_FLOW_CELL_16M.get(),
-                ModItems.DATA_FLOW_CELL_64M.get(),
-                ModItems.DATA_FLOW_CELL_256M.get());
+                DEItems.DATA_FLOW_CELL_1K.get(),
+                DEItems.DATA_FLOW_CELL_4K.get(),
+                DEItems.DATA_FLOW_CELL_16K.get(),
+                DEItems.DATA_FLOW_CELL_64K.get(),
+                DEItems.DATA_FLOW_CELL_256K.get(),
+                DEItems.DATA_FLOW_CELL_1M.get(),
+                DEItems.DATA_FLOW_CELL_4M.get(),
+                DEItems.DATA_FLOW_CELL_16M.get(),
+                DEItems.DATA_FLOW_CELL_64M.get(),
+                DEItems.DATA_FLOW_CELL_256M.get());
 
         event.register(new DynamicFluidContainerModel.Colors(),
                 ModFluids.ENDER_BUCKET.get(),

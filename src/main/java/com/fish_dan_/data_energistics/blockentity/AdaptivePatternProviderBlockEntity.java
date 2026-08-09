@@ -13,10 +13,10 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -295,7 +295,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return;
         }
 
-        builder.set(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
+        builder.set(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
     }
 
     @Override
@@ -314,7 +314,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             patternInventoryChanged = logic.runWithPatternInventoryCallbacksSuppressed(() -> super.importSettings(mode, input, player));
         }
 
-        CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
         boolean stateChanged = settings != null && getAdaptiveState().readMemoryCardSettings(settings);
         boolean patternSlotsReconciled = logic != null && logic.reconcileConfiguredPatternSlotsAfterSettingsImport();
         if (patternInventoryChanged && !patternSlotsReconciled) {
@@ -448,7 +448,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {
-        return this.getUpgrades().getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+        return this.getUpgrades().getInstalledUpgrades(DEItems.REDSTONE_TUNING_CARD.get()) > 0;
     }
 
     @Override
@@ -767,7 +767,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     protected DeferredBlock<Block> getProviderBlock() {
-        return ModBlocks.ADAPTIVE_PATTERN_PROVIDER;
+        return DEBlocks.ADAPTIVE_PATTERN_PROVIDER;
     }
 
     protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -20,7 +20,7 @@ public final class DataChargerEmiRecipe extends BasicEmiRecipe {
     private static final int HEIGHT = 40;
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("data_charger"),
-            EmiStack.of(ModBlocks.DATA_CHARGER.get())) {
+            EmiStack.of(DEBlocks.DATA_CHARGER.get())) {
 
         @Override
         public Component getName() {

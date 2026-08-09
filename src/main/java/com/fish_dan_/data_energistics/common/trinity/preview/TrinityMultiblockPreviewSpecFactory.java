@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTie
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.Util;
@@ -49,7 +49,7 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
         JsonMultiBlockDefinition crafting = requireDefinition(
                 definitions,
                 ModVerticalMultiBlocks.trinityDataCoreCraftingKey());
-        AEItemKey ownerOutput = AEItemKey.of(ModBlocks.TRINITY_DATA_CORE.get());
+        AEItemKey ownerOutput = AEItemKey.of(DEBlocks.TRINITY_DATA_CORE.get());
         if (ownerOutput == null) {
             throw new IllegalStateException("Trinity data core block does not expose an owner item");
         }

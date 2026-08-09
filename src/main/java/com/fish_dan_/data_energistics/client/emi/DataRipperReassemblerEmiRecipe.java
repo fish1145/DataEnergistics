@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProvider;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -22,7 +22,7 @@ public final class DataRipperReassemblerEmiRecipe extends ModularUIEMIRecipe {
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("data_reassembler"),
-            EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get())) {
+            EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get())) {
 
         @Override
         public Component getName() {

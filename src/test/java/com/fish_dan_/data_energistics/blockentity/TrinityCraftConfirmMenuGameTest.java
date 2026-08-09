@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -196,7 +196,7 @@ public final class TrinityCraftConfirmMenuGameTest {
         if (!(blockEntity instanceof CableBusBlockEntity cableBus)) {
             throw new GameTestAssertException("Placed AE cable bus has no matching block entity");
         }
-        IPart installedPart = cableBus.addPart(ModItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
+        IPart installedPart = cableBus.addPart(DEItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
         if (installedPart instanceof UniversalTerminalPart terminal) {
             return terminal;
         }

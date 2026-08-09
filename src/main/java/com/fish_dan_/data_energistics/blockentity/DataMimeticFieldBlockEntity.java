@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
@@ -165,7 +165,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     @Getter
     private final GenericInternalInventory externalKeyInventory = new DataFlowExternalInventory();
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
     private boolean autoPullKeyInput;
     private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
@@ -187,7 +187,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_MIMETIC_FIELD.get())
+                .setVisualRepresentation(DEBlocks.DATA_MIMETIC_FIELD.get())
                 .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0);
         this.setInternalMaxPower(ENERGY_CACHE_CAPACITY);
@@ -307,7 +307,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         settings.putBoolean(AUTO_PULL_KEY_INPUT_TAG, this.autoPullKeyInput);
         settings.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
         settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.outputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -317,7 +317,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -587,7 +587,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get());
+            return stack.is(DEItems.MOB_DATA_CARRIER.get()) || stack.is(DEItems.ORE_DATA_CARRIER.get()) || stack.is(DEItems.CROP_DATA_CARRIER.get());
         }
     }
 
