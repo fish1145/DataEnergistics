@@ -1,7 +1,9 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.discovery;
 
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,11 +34,35 @@ import java.util.Set;
  * Capability-gated AE target resolver. Multipart fallback nodes come from a typed Mixin bridge on the capability host;
  * discovery never casts to a multipart host and never creates a grid connection.
  */
-public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
+public final class CapabilityExposedTowerAeTargetResolver {
 
-    @Override
+    /**
+     * Starts one reconciliation-scoped round so repeated anchors can share immutable target-grid device snapshots.
+     *
+     * @return isolated resolution round
+     */
     public ResolutionRound beginResolutionRound() {
         return new ResolutionRoundImpl();
+    }
+
+    /**
+     * Resolves anchors against one consistent set of target-grid raw-device snapshots.
+     */
+    public interface ResolutionRound {
+
+        /**
+         * Resolves and locally validates one loaded anchor without creating connections or loading chunks.
+         *
+         * @param level       anchor level
+         * @param anchor      connector/range anchor
+         * @param primaryGrid requesting tower grid
+         * @param mode        point or scope validation
+         * @return immutable partial-success result; empty when the anchor chunk is unloaded
+         */
+        TowerTargetResolution resolve(Level level,
+                                      BlockPos anchor,
+                                      IGrid primaryGrid,
+                                      TowerTargetDiscoveryMode mode);
     }
 
     private static TowerTargetResolution resolve(Level level,
@@ -75,7 +101,7 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
                                                             Map<IGrid, List<RawDevice>> rawDevicesByGrid) {
         List<RawDevice> rawDevices = rawDevicesByGrid.computeIfAbsent(
                 grid,
-                TowerAeTargetResolverImpl::snapshotRawDevices);
+                CapabilityExposedTowerAeTargetResolver::snapshotRawDevices);
         ArrayList<TowerResolvedDevice> devices = new ArrayList<>(rawDevices.size());
         for (RawDevice rawDevice : rawDevices) {
             RawDeviceIdentity identity = new RawDeviceIdentity(
@@ -104,7 +130,7 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
         }
         rawDevices.sort(Comparator
                 .comparing(RawDevice::dimensionId, Comparator.comparing(ResourceLocation::toString))
-                .thenComparing(RawDevice::position, Comparator.nullsLast(TowerAeTargetResolverImpl::comparePosition))
+                .thenComparing(RawDevice::position, Comparator.nullsLast(CapabilityExposedTowerAeTargetResolver::comparePosition))
                 .thenComparingInt(RawDevice::side)
                 .thenComparing(RawDevice::nodeType)
                 .thenComparingLong(RawDevice::registrationOrder));
@@ -192,7 +218,7 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
                                              BlockPos anchor,
                                              IGrid primaryGrid,
                                              TowerTargetDiscoveryMode mode) {
-            return TowerAeTargetResolverImpl.resolve(level, anchor, primaryGrid, mode, this.rawDevicesByGrid);
+            return CapabilityExposedTowerAeTargetResolver.resolve(level, anchor, primaryGrid, mode, this.rawDevicesByGrid);
         }
     }
 

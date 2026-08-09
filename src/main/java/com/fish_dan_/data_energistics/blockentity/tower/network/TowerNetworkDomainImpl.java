@@ -11,6 +11,11 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBin
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.CapabilityExposedTowerAeTargetResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerResolvedDevice;
+import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerResolvedGrid;
+import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerTargetDiscoveryMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerTargetResolution;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingRequest;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingSource;
@@ -82,7 +87,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final Set<IGrid> attachedTargets = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<IGrid, TowerRuntimeKey> attachedOwners = new IdentityHashMap<>();
     private final Map<IGrid, Long> lastBridgeFailureLogTicks = new IdentityHashMap<>();
-    private final TowerAeTargetResolver targetResolver = new TowerAeTargetResolverImpl();
+    private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
     private final TowerDomainEnergyResolver energyResolver = new TowerDomainEnergyResolverImpl();
     private final TowerEnergyTransaction energyTransaction = new TowerEnergyTransactionImpl();
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
@@ -534,7 +539,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         orderedTowers.sort(Comparator.comparing(TowerNetworkParticipant::towerKey));
         ArrayList<TowerWork> result = new ArrayList<>(orderedTowers.size());
         Map<TargetResolutionKey, TowerTargetResolution> resolutionCache = new HashMap<>();
-        TowerAeTargetResolver.ResolutionRound resolutionRound = this.targetResolver.beginResolutionRound();
+        CapabilityExposedTowerAeTargetResolver.ResolutionRound resolutionRound = this.targetResolver.beginResolutionRound();
         for (TowerNetworkParticipant participant : orderedTowers) {
             Set<EnergyLocationKey> energyLocations = new HashSet<>();
             if (participant.towerAllowsFe()) {
