@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.cell;
+
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;

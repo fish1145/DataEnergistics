@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.DataFlowCellHandler;
-import com.fish_dan_.data_energistics.ae2.InfiniteDataCellHandler;
+import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataRipperPart;

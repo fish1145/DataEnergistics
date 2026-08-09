@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.InfiniteDataCellInventory;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellInventory;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.component.DataComponents;
