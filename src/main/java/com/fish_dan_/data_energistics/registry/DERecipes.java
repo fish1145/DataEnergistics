@@ -22,7 +22,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModRecipes {
+public final class DERecipes {
 
     public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES = DeferredRegister.create(Registries.RECIPE_TYPE, Data_Energistics.MODID);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(Registries.RECIPE_SERIALIZER, Data_Energistics.MODID);
@@ -79,7 +79,7 @@ public final class ModRecipes {
             "universal_terminal_combine",
             () -> new SimpleCraftingRecipeSerializer<>(UniversalTerminalCombineRecipe::new));
 
-    private ModRecipes() {}
+    private DERecipes() {}
 
     public static void register(IEventBus modEventBus) {
         RECIPE_TYPES.register(modEventBus);

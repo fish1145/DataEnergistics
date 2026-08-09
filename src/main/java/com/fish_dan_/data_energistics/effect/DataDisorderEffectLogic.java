@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.effect;
 
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -19,9 +19,9 @@ public final class DataDisorderEffectLogic {
     private DataDisorderEffectLogic() {}
 
     public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage) {
-        MobEffectInstance existingEffect = target.getEffect(ModMobEffects.DATA_DISORDER);
+        MobEffectInstance existingEffect = target.getEffect(DEMobEffects.DATA_DISORDER);
         if (existingEffect == null) {
-            target.addEffect(new MobEffectInstance(ModMobEffects.DATA_DISORDER, durationTicks, 0, false, true, true));
+            target.addEffect(new MobEffectInstance(DEMobEffects.DATA_DISORDER, durationTicks, 0, false, true, true));
             return;
         }
 
@@ -32,13 +32,13 @@ public final class DataDisorderEffectLogic {
 
         int nextAmplifier = existingEffect.getAmplifier() + 1;
         if (nextAmplifier >= MAX_AMPLIFIER) {
-            target.removeEffect(ModMobEffects.DATA_DISORDER);
+            target.removeEffect(DEMobEffects.DATA_DISORDER);
             dealBurstDamage(target, attacker);
             return;
         }
 
         int duration = Math.max(existingEffect.getDuration(), durationTicks);
-        target.addEffect(new MobEffectInstance(ModMobEffects.DATA_DISORDER, duration, nextAmplifier, false, true, true));
+        target.addEffect(new MobEffectInstance(DEMobEffects.DATA_DISORDER, duration, nextAmplifier, false, true, true));
     }
 
     private static void dealWeaponBonusDamage(LivingEntity target, @Nullable Entity attacker, float weaponDamage, int level) {

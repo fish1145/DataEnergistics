@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.item.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.network.MeVacuumLaunchPayload;
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -24,7 +24,7 @@ final class ClientInputHandler {
     private ClientInputHandler() {}
 
     static void onMovementInputUpdate(MovementInputUpdateEvent event) {
-        if (!event.getEntity().hasEffect(ModMobEffects.DATA_DISORDER)) {
+        if (!event.getEntity().hasEffect(DEMobEffects.DATA_DISORDER)) {
             return;
         }
 
@@ -45,7 +45,7 @@ final class ClientInputHandler {
             return;
         }
 
-        if (minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
+        if (minecraft.player.hasEffect(DEMobEffects.DATA_DISORDER)) {
             if (event.isAttack() || event.isUseItem() || event.isPickBlock()) {
                 event.setCanceled(true);
                 event.setSwingHand(false);
@@ -92,7 +92,7 @@ final class ClientInputHandler {
             return false;
         }
 
-        if (minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER) || !minecraft.player.isUsingItem() || minecraft.player.isShiftKeyDown()) {
+        if (minecraft.player.hasEffect(DEMobEffects.DATA_DISORDER) || !minecraft.player.isUsingItem() || minecraft.player.isShiftKeyDown()) {
             return false;
         }
 

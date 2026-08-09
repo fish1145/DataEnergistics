@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.captureball;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +21,7 @@ public final class DataCaptureBallRightClickRecipeLogic {
 
         BlockState state = level.getBlockState(event.getPos());
         var input = new DataCaptureBallRightClickRecipeInput(stack, state);
-        for (var holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get())) {
+        for (var holder : level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get())) {
             var recipe = holder.value();
             if (!recipe.matches(input, level)) {
                 continue;

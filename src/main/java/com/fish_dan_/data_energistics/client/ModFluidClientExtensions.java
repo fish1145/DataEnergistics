@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModFluids;
+import com.fish_dan_.data_energistics.registry.DEFluids;
 
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
@@ -21,15 +21,15 @@ public final class ModFluidClientExtensions {
 
     public static void register(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new TintedFluidTypeExtensions(
-                () -> ((ModFluids.ClientTintedFluidType) ModFluids.ENDER_TYPE.get()).getTintColor(),
+                () -> ((DEFluids.ClientTintedFluidType) DEFluids.ENDER_TYPE.get()).getTintColor(),
                 ENDER_STILL,
-                ENDER_FLOW), ModFluids.ENDER_TYPE);
+                ENDER_FLOW), DEFluids.ENDER_TYPE);
         event.registerFluidType(
                 new TintedFluidTypeExtensions(
-                        () -> ((ModFluids.ClientTintedFluidType) ModFluids.DATA_CORROSION_LIQUID_TYPE.get()).getTintColor(),
+                        () -> ((DEFluids.ClientTintedFluidType) DEFluids.DATA_CORROSION_LIQUID_TYPE.get()).getTintColor(),
                         DATA_CORROSION_LIQUID_STILL,
                         DATA_CORROSION_LIQUID_FLOW),
-                ModFluids.DATA_CORROSION_LIQUID_TYPE);
+                DEFluids.DATA_CORROSION_LIQUID_TYPE);
     }
 
     private record TintedFluidTypeExtensions(IntSupplier tintColor, ResourceLocation stillTexture,

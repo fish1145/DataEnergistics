@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.guideme;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTimeCondition;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,7 +23,7 @@ public final class TimeShiftGuideRecipeMappings implements RecipeTypeMappingSupp
 
     @Override
     public void collect(RecipeTypeMappings mappings) {
-        mappings.add(ModRecipes.TIME_SHIFT_TYPE.get(), TimeShiftGuideRecipeMappings::createTimeShiftRecipe);
+        mappings.add(DERecipes.TIME_SHIFT_TYPE.get(), TimeShiftGuideRecipeMappings::createTimeShiftRecipe);
     }
 
     private static LytStandardRecipeBox<TimeShiftRecipe> createTimeShiftRecipe(RecipeHolder<TimeShiftRecipe> holder) {

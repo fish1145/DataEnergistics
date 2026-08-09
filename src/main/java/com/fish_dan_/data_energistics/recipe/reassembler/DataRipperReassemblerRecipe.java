@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -290,12 +290,12 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.DATA_RIPPER_REASSEMBLER_SERIALIZER.get();
+        return DERecipes.DATA_RIPPER_REASSEMBLER_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get();
+        return DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get();
     }
 
     @Override

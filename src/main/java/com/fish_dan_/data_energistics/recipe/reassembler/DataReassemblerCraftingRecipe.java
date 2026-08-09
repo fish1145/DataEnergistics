@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
 import net.minecraft.core.HolderLookup;
@@ -44,7 +44,7 @@ public final class DataReassemblerCraftingRecipe extends ShapedRecipe {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.DATA_REASSEMBLER_CRAFTING_SERIALIZER.get();
+        return DERecipes.DATA_REASSEMBLER_CRAFTING_SERIALIZER.get();
     }
 
     public ShapedRecipe wrapped() {

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.timeshift;
 
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -154,7 +154,7 @@ public final class TimeShiftTransformLogic {
         }
 
         List<ResourceLocation> candidates = new ArrayList<>();
-        for (var holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get())) {
+        for (var holder : level.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get())) {
             if (canBeIngredient(holder.value(), stack)) {
                 candidates.add(holder.id());
             }

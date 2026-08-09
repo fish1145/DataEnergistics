@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.captureball;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -78,12 +78,12 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.DATA_CAPTURE_BALL_CONDENSER_SERIALIZER.get();
+        return DERecipes.DATA_CAPTURE_BALL_CONDENSER_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get();
+        return DERecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get();
     }
 
     @Override

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.guideme;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -21,7 +21,7 @@ public final class DataCaptureBallRightClickGuideRecipeMappings implements Recip
 
     @Override
     public void collect(RecipeTypeMappings mappings) {
-        mappings.add(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get(),
+        mappings.add(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get(),
                 DataCaptureBallRightClickGuideRecipeMappings::createRecipe);
     }
 

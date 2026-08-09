@@ -11,7 +11,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModStructures {
+public final class DEStructures {
 
     public static final DeferredRegister<StructureType<?>> STRUCTURE_TYPES = DeferredRegister.create(Registries.STRUCTURE_TYPE, Data_Energistics.MODID);
     public static final DeferredRegister<StructurePieceType> STRUCTURE_PIECES = DeferredRegister.create(Registries.STRUCTURE_PIECE, Data_Energistics.MODID);
@@ -19,7 +19,7 @@ public final class ModStructures {
     public static final DeferredHolder<StructureType<?>, StructureType<?>> METEORITE = STRUCTURE_TYPES.register("meteorite", () -> MeteoriteStructure.TYPE);
     public static final DeferredHolder<StructurePieceType, StructurePieceType> METEORITE_PIECE = STRUCTURE_PIECES.register("meteorite_piece", () -> MeteoriteStructurePiece.TYPE);
 
-    private ModStructures() {}
+    private DEStructures() {}
 
     public static void register(IEventBus modEventBus) {
         STRUCTURE_PIECES.register(modEventBus);

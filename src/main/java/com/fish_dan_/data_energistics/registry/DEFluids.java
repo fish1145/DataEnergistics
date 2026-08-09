@@ -38,7 +38,7 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import java.util.Set;
 import java.util.function.Supplier;
 
-public final class ModFluids {
+public final class DEFluids {
 
     private static final String ENDER_TELEPORT_TAG = "data_energistics.ender_fluid_teleport_time";
     private static final String DATA_CORROSION_DEATH_MESSAGE_KEY = "death.attack.data_energistics.data_corrosion_liquid";
@@ -123,7 +123,7 @@ public final class ModFluids {
             () -> new BucketItem(DATA_CORROSION_LIQUID.get(),
                     new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET).rarity(Rarity.RARE)));
 
-    private ModFluids() {}
+    private DEFluids() {}
 
     public static void register(IEventBus modEventBus) {
         FLUID_TYPES.register(modEventBus);

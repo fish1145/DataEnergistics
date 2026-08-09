@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
@@ -20,7 +20,7 @@ public final class DataCrystalSwordAiStripLogic {
         }
 
         CompoundTag persistentData = mob.getPersistentData();
-        if (mob.hasEffect(ModMobEffects.DATA_DISORDER)) {
+        if (mob.hasEffect(DEMobEffects.DATA_DISORDER)) {
             if (!persistentData.contains(TAG_ORIGINAL_NO_AI)) {
                 persistentData.putBoolean(TAG_ORIGINAL_NO_AI, mob.isNoAi());
             }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.captureball;
 
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -133,12 +133,12 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_SERIALIZER.get();
+        return DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get();
+        return DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get();
     }
 
     @Override

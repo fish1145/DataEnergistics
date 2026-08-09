@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTer
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
 import net.minecraft.network.chat.Component;
@@ -93,7 +93,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 new EmiMultiblockPatternTransferHandler<>(UniversalPatternEncodingTermMenu.class));
 
         registry.addCategory(TimeShiftEmiRecipe.CATEGORY);
-        registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
+        registry.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()));
@@ -102,13 +102,13 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addWorkstation(
                 TrinityMultiblockEmiRecipe.CATEGORY,
                 EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
-        registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+        registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
                 .map(DataCaptureBallRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
         registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
+                .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
                 .forEach(consumer));
         registerRecipeCategory(
@@ -117,7 +117,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiStack.of(DEBlocks.DATA_CHARGER.get()),
                 EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()),
                 DataChargerEmiRecipe::new,
-                registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()));
+                registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()));
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(

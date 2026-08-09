@@ -110,8 +110,8 @@ public final class DECreativeTabs {
                         output.accept(DEItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(DEItems.DATA_DUST);
                         output.accept(DEItems.OBSIDIAN_DUST);
-                        output.accept(ModFluids.ENDER_BUCKET);
-                        output.accept(ModFluids.DATA_CORROSION_LIQUID_BUCKET);
+                        output.accept(DEFluids.ENDER_BUCKET);
+                        output.accept(DEFluids.DATA_CORROSION_LIQUID_BUCKET);
                         output.accept(DEItems.DATA_CARRIER);
                         output.accept(DEItems.MOB_DATA_CARRIER);
                         output.accept(DEItems.CROP_DATA_CARRIER);

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.guideme;
 
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.world.item.crafting.RecipeHolder;
 
@@ -14,7 +14,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
     @Override
     public void collect(RecipeTypeMappings mappings) {
         mappings.add(
-                ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get(),
+                DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get(),
                 DataRipperReassemblerGuideRecipeMappings::createRecipe);
     }
 

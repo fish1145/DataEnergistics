@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModFluids;
+import com.fish_dan_.data_energistics.registry.DEFluids;
 import com.fish_dan_.data_energistics.worldgen.meteorite.FixedMeteoriteMotherRockDistribution.MotherRock;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
@@ -442,7 +442,7 @@ public final class MeteoritePlacer {
 
     private void placeImpactCorrosionLiquid() {
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-        BlockState corrosionLiquid = ModFluids.DATA_CORROSION_LIQUID_BLOCK.get().defaultBlockState();
+        BlockState corrosionLiquid = DEFluids.DATA_CORROSION_LIQUID_BLOCK.get().defaultBlockState();
 
         for (int currentX = this.boundingBox.minX(); currentX <= this.boundingBox.maxX(); ++currentX) {
             blockPos.setX(currentX);
@@ -469,7 +469,7 @@ public final class MeteoritePlacer {
                 if (lowestAirY != Integer.MAX_VALUE) {
                     blockPos.setY(lowestAirY);
                     this.putter.put(this.level, blockPos, corrosionLiquid);
-                    this.level.scheduleTick(blockPos, ModFluids.DATA_CORROSION_LIQUID.get(), 0);
+                    this.level.scheduleTick(blockPos, DEFluids.DATA_CORROSION_LIQUID.get(), 0);
                 }
             }
         }

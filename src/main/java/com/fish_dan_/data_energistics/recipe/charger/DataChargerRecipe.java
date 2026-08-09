@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.charger;
 
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -68,11 +68,11 @@ public final class DataChargerRecipe implements Recipe<DataChargerRecipeInput> {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.DATA_CHARGER_SERIALIZER.get();
+        return DERecipes.DATA_CHARGER_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipes.DATA_CHARGER_TYPE.get();
+        return DERecipes.DATA_CHARGER_TYPE.get();
     }
 }

@@ -9,7 +9,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModMobEffects {
+public final class DEMobEffects {
 
     public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, Data_Energistics.MODID);
 
@@ -17,7 +17,7 @@ public final class ModMobEffects {
             "data_disorder",
             DataDisorderMobEffect::new);
 
-    private ModMobEffects() {}
+    private DEMobEffects() {}
 
     public static void register(IEventBus modEventBus) {
         MOB_EFFECTS.register(modEventBus);

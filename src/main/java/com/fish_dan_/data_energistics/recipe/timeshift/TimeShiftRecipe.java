@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.timeshift;
 
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -115,12 +115,12 @@ public final class TimeShiftRecipe implements Recipe<TimeShiftRecipeInput> {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.TIME_SHIFT_SERIALIZER.get();
+        return DERecipes.TIME_SHIFT_SERIALIZER.get();
     }
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipes.TIME_SHIFT_TYPE.get();
+        return DERecipes.TIME_SHIFT_TYPE.get();
     }
 
     @Override

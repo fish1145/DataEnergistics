@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTer
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
 import net.minecraft.client.Minecraft;
@@ -160,10 +160,10 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         var level = Minecraft.getInstance().level;
         if (level != null) {
             List<WorldInteractionJeiRecipe> worldInteractionRecipes = new ArrayList<>();
-            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
+            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.TimeShiftView::new)
                     .toList());
-            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.RightClickView::new)
                     .toList());
             registration.addRecipes(
@@ -171,13 +171,13 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                     worldInteractionRecipes);
             registration.addRecipes(
                     DataRipperReassemblerRecipeCategory.RECIPE_TYPE,
-                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
+                    level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                             .map(DataRipperReassemblerRecipeView::from)
                             .toList());
             registerRecipeType(
                     registration,
                     DataChargerRecipeCategory.RECIPE_TYPE,
-                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()),
+                    level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()),
                     RecipeHolder::value);
         }
         registration.addIngredientInfo(

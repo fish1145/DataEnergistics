@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe;
 
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
@@ -78,7 +78,7 @@ public class UniversalTerminalCombineRecipe extends CustomRecipe {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ModRecipes.UNIVERSAL_TERMINAL_COMBINE_SERIALIZER.get();
+        return DERecipes.UNIVERSAL_TERMINAL_COMBINE_SERIALIZER.get();
     }
 
     private static List<ItemStack> getNonEmptyStacks(CraftingInput input) {

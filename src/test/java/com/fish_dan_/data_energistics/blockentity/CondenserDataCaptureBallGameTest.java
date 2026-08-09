@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -97,7 +97,7 @@ public final class CondenserDataCaptureBallGameTest {
 
     private static void assertLoadedRecipeMatchesRuntime(GameTestHelper helper) {
         var recipes = helper.getLevel().getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get());
+                .getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get());
         helper.assertTrue(!recipes.isEmpty(), "The Data Capture Ball condenser recipe must be loaded");
         var recipe = recipes.getFirst().value();
 

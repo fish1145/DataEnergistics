@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSource
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -462,7 +462,7 @@ public final class PatternEncodingSourceHelper {
 
         var level = menu.getPlayer().level();
         for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+                .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
             DataRipperReassemblerRecipe recipe = holder.value();
             if (!recipe.matches(new DataRipperReassemblerRecipeInput(items, List.of(), null), level)) {
                 continue;

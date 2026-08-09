@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
+import com.fish_dan_.data_energistics.registry.DEFluids;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModFluids;
 
 import net.minecraft.client.color.item.ItemColor;
 import net.minecraft.util.FastColor;
@@ -42,8 +42,8 @@ public final class ModItemColors {
                 DEItems.DATA_FLOW_CELL_256M.get());
 
         event.register(new DynamicFluidContainerModel.Colors(),
-                ModFluids.ENDER_BUCKET.get(),
-                ModFluids.DATA_CORROSION_LIQUID_BUCKET.get());
+                DEFluids.ENDER_BUCKET.get(),
+                DEFluids.DATA_CORROSION_LIQUID_BUCKET.get());
     }
 
     private static ItemColor makeOpaque(ItemColor color) {

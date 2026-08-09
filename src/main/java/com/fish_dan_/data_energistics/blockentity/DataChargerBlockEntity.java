@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -480,7 +480,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static RecipeLookup computeRecipeLookup(Level level, ItemStack stack) {
         ResourceLocation dataChargerRecipeId = null;
         DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
-        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get())) {
+        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get())) {
             if (holder.value().matches(input, level)) {
                 dataChargerRecipeId = holder.id();
                 break;
