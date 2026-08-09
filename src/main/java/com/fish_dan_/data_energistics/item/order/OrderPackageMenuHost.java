@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.order;
 
 import net.minecraft.world.entity.player.Player;
 

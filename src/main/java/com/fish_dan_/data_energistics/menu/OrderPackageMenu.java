@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
-import com.fish_dan_.data_energistics.item.OrderPackageMenuHost;
+import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
