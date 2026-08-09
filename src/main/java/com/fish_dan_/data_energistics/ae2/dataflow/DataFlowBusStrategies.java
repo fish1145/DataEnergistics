@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.dataflow;
+
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 
 import appeng.api.behaviors.StackExportStrategy;
 import appeng.api.behaviors.StackImportStrategy;

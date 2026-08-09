@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.dataflow;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -59,7 +58,7 @@ public final class DataFlowCellInventory implements StorageCell {
      * Creates the inventory view backed by a single regular or portable Data Flow cell stack.
      */
     public DataFlowCellInventory(ItemStack stack, @Nullable ISaveProvider container) {
-        this.stack = Objects.requireNonNull(stack, "Cannot create a Data Flow cell inventory for a null stack");
+        this.stack = stack;
         if (!(stack.getItem() instanceof IBasicCellItem basicCellItem)) {
             throw new IllegalArgumentException("Data Flow cell stack must implement IBasicCellItem");
         }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowCellHandler;
+import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellHandler;
 
 import net.minecraft.world.item.ItemStack;
 

@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.dataflow;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,6 +25,7 @@ import appeng.api.storage.StorageHelper;
 import appeng.parts.automation.StackWorldBehaviors;
 import appeng.util.CowMap;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -122,10 +124,7 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
         return insertIntoTarget(normalized, maxAmount, mode);
     }
 
-    private AEKey normalizeKey(AEKey what) {
-        if (what == null) {
-            return null;
-        }
+    private @Nullable AEKey normalizeKey(AEKey what) {
         if (what.getType() == this.keyType) {
             return what;
         }
@@ -134,7 +133,7 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
         }
 
         GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-        if (wrapped == null || wrapped.what() == null || wrapped.what().getType() != this.keyType) {
+        if (wrapped == null || wrapped.what().getType() != this.keyType) {
             return null;
         }
         return wrapped.what();
@@ -194,7 +193,7 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
         }
 
         GenericStack remaining = GenericStack.fromItemStack(remainder);
-        if (remaining != null && remaining.what() != null && remaining.what().equals(what)) {
+        if (remaining != null && remaining.what().equals(what)) {
             return Math.max(0L, amount - remaining.amount());
         }
 

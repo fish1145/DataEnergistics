@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowCellTooltip;
+import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellTooltip;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
 import com.fish_dan_.data_energistics.registry.ModItems;

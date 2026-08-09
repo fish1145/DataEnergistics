@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowCellInventory;
 import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellHandler;
+import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellInventory;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
