@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.virtual.AcyclicFifoVirtualGridOwnership;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandidate;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnership;
-import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridTower;
 
@@ -82,7 +82,7 @@ public final class TowerGridOwnershipRegistry {
                                                                                              MinecraftServer server) {
         ServerOwnership state = SERVERS.get(server);
         if (state == null) {
-            return new VirtualGridOwnershipImpl<IGrid, TowerRuntimeKey>().snapshot();
+            return new AcyclicFifoVirtualGridOwnership<IGrid, TowerRuntimeKey>().snapshot();
         }
         return state.ownership.snapshot();
     }
@@ -109,7 +109,7 @@ public final class TowerGridOwnershipRegistry {
 
     private static final class ServerOwnership {
 
-        private final VirtualGridOwnership<IGrid, TowerRuntimeKey> ownership = new VirtualGridOwnershipImpl<>();
+        private final VirtualGridOwnership<IGrid, TowerRuntimeKey> ownership = new AcyclicFifoVirtualGridOwnership<>();
         private final Map<TowerRuntimeKey, Set<IGrid>> targetsByTower = new HashMap<>();
         private final Map<CandidateKey, Long> candidateOrders = new HashMap<>();
         private final Map<TowerRuntimeKey, TowerState> towerStates = new HashMap<>();

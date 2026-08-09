@@ -9,12 +9,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default deterministic in-memory implementation of {@link VirtualGridOwnership}.
+ * Deterministic {@link VirtualGridOwnership} that selects FIFO candidates while rejecting ownership cycles.
  *
  * @param <G> grid key type
  * @param <T> tower key type
  */
-public final class VirtualGridOwnershipImpl<G, T> implements VirtualGridOwnership<G, T> {
+public final class AcyclicFifoVirtualGridOwnership<G, T> implements VirtualGridOwnership<G, T> {
 
     private static final Comparator<VirtualGridCandidate<?, ?>> CANDIDATE_ORDER = Comparator.comparingLong(VirtualGridCandidate::fifoOrder);
 
@@ -24,7 +24,7 @@ public final class VirtualGridOwnershipImpl<G, T> implements VirtualGridOwnershi
     /**
      * Creates an empty ownership registry.
      */
-    public VirtualGridOwnershipImpl() {}
+    public AcyclicFifoVirtualGridOwnership() {}
 
     @Override
     public void upsertTower(VirtualGridTower<G, T> tower) {

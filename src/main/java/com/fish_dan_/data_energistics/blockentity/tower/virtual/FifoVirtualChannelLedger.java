@@ -8,12 +8,12 @@ import java.util.Map;
 import java.util.OptionalLong;
 
 /**
- * Default deterministic in-memory implementation of {@link VirtualChannelLedger}.
+ * Deterministic in-memory {@link VirtualChannelLedger} that allocates manual and automatic requests in FIFO order.
  *
  * @param <B> binding key type
  * @param <N> node key type
  */
-public final class VirtualChannelLedgerImpl<B, N> implements VirtualChannelLedger<B, N> {
+public final class FifoVirtualChannelLedger<B, N> implements VirtualChannelLedger<B, N> {
 
     private static final Comparator<MutableBinding<?, ?>> BINDING_ORDER = Comparator
             .comparingInt((MutableBinding<?, ?> binding) -> binding.source.allocationPriority())
@@ -29,7 +29,7 @@ public final class VirtualChannelLedgerImpl<B, N> implements VirtualChannelLedge
      *
      * @param totalCapacity initial finite or unlimited channel budget
      */
-    public VirtualChannelLedgerImpl(VirtualChannelCapacity totalCapacity) {
+    public FifoVirtualChannelLedger(VirtualChannelCapacity totalCapacity) {
         this.totalCapacity = totalCapacity;
     }
 

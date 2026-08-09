@@ -25,12 +25,12 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerDoma
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransactionResult;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.virtual.FifoVirtualChannelLedger;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingRequest;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingSource;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelCapacity;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelLedger;
-import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelLedgerImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelLedgerSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelNodeAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelNodeRequest;
@@ -296,7 +296,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         }
 
         List<DeviceWork> orderedDevices = dataEnergistics$orderedDevices(ownedTargets);
-        VirtualChannelLedger<DeviceLeaseKey, IGridNode> ledger = new VirtualChannelLedgerImpl<>(capacity);
+        VirtualChannelLedger<DeviceLeaseKey, IGridNode> ledger = new FifoVirtualChannelLedger<>(capacity);
         ledger.setPhysicalChannelUsage(physicalUsage);
         Map<DeviceLeaseKey, DeviceWork> devicesByLease = new LinkedHashMap<>();
         long manualOrder = 0;
