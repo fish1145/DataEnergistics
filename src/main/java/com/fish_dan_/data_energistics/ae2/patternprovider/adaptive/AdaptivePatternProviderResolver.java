@@ -18,7 +18,6 @@ import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.parts.crafting.PatternProviderPart;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -48,7 +47,7 @@ public final class AdaptivePatternProviderResolver {
      * @param registrations frozen plugin and built-in registrations
      */
     public static synchronized void install(
-                                            @NotNull List<@NotNull AdaptivePatternProviderRegistration> registrations) {
+                                            List<AdaptivePatternProviderRegistration> registrations) {
         if (installed) {
             throw new IllegalStateException("Adaptive pattern provider definitions are already installed");
         }
@@ -68,14 +67,14 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Returns whether exactly one installed definition recognizes the stack.
      */
-    public static boolean isSupportedProviderStack(@NotNull ItemStack stack) {
+    public static boolean isSupportedProviderStack(ItemStack stack) {
         return resolveProviderProfile(stack) != null;
     }
 
     /**
      * Returns the configured pattern slots, or zero when no definition recognizes the stack.
      */
-    public static int getResolvedSlotsPerProvider(@NotNull ItemStack stack) {
+    public static int getResolvedSlotsPerProvider(ItemStack stack) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.slotsPerProvider() : 0;
     }
@@ -83,7 +82,7 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Returns an independently owned main-menu icon, or {@code null} for an unsupported stack.
      */
-    public static @Nullable ItemStack getResolvedProviderMainMenuIcon(@NotNull ItemStack stack) {
+    public static @Nullable ItemStack getResolvedProviderMainMenuIcon(ItemStack stack) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.mainMenuIcon() : null;
     }
@@ -91,7 +90,7 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Returns the immutable AE terminal icon, or {@code null} for an unsupported stack.
      */
-    public static @Nullable AEItemKey getResolvedProviderTerminalIcon(@NotNull ItemStack stack) {
+    public static @Nullable AEItemKey getResolvedProviderTerminalIcon(ItemStack stack) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.terminalIcon() : null;
     }
@@ -99,7 +98,7 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Returns an independently owned display component, or {@code null} for an unsupported stack.
      */
-    public static @Nullable Component getResolvedProviderDisplayName(@NotNull ItemStack stack) {
+    public static @Nullable Component getResolvedProviderDisplayName(ItemStack stack) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null ? profile.displayName() : null;
     }
@@ -112,8 +111,8 @@ public final class AdaptivePatternProviderResolver {
      * @return whether the resolved profile declares the behavior
      */
     public static boolean hasResolvedCapability(
-                                                @NotNull ItemStack stack,
-                                                @NotNull ResourceLocation capability) {
+                                                ItemStack stack,
+                                                ResourceLocation capability) {
         AdaptivePatternProviderProfile profile = resolveProviderProfile(stack);
         return profile != null && profile.supports(capability);
     }
@@ -122,8 +121,8 @@ public final class AdaptivePatternProviderResolver {
      * Detects an AE2 pattern-provider attachment without attempting to infer adaptive profile metadata.
      */
     public static boolean isPatternProviderAttachment(
-                                                      @NotNull Level level,
-                                                      @NotNull BlockPos pos,
+                                                      Level level,
+                                                      BlockPos pos,
                                                       @Nullable Direction side) {
         if (level.getBlockEntity(pos) instanceof PatternProviderBlockEntity) {
             return true;
@@ -154,7 +153,7 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Decorates one recognized provider name with the standard block variant label.
      */
-    public static @NotNull Component decorateAdaptiveProviderName(@NotNull Component providerName) {
+    public static Component decorateAdaptiveProviderName(Component providerName) {
         return decorateAdaptiveProviderName(
                 "screen.data_energistics.adaptive_pattern_provider.provider_variant",
                 providerName);
@@ -163,9 +162,9 @@ public final class AdaptivePatternProviderResolver {
     /**
      * Decorates one recognized provider name with the requested terminal variant label.
      */
-    public static @NotNull Component decorateAdaptiveProviderName(
-                                                                  @NotNull String translationKey,
-                                                                  @NotNull Component providerName) {
+    public static Component decorateAdaptiveProviderName(
+                                                         String translationKey,
+                                                         Component providerName) {
         return Component.translatable(translationKey, providerName);
     }
 
@@ -175,7 +174,7 @@ public final class AdaptivePatternProviderResolver {
      * @param stack installed provider stack
      * @return matched profile, or {@code null} when no definition recognizes the stack
      */
-    public static @Nullable AdaptivePatternProviderProfile resolveProviderProfile(@NotNull ItemStack stack) {
+    public static @Nullable AdaptivePatternProviderProfile resolveProviderProfile(ItemStack stack) {
         if (!installed) {
             throw new IllegalStateException("Adaptive pattern provider definitions are not installed");
         }

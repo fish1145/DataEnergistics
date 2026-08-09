@@ -10,7 +10,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -21,30 +20,27 @@ import org.jetbrains.annotations.Nullable;
 @SuppressWarnings("removal")
 public interface UniversalTerminalAdapter extends UniversalTerminalBehavior {
 
-    @NotNull
     String name();
 
-    boolean matches(@NotNull ItemStack stack);
+    boolean matches(ItemStack stack);
 
-    default boolean canInstall(@NotNull ItemStack stack) {
+    default boolean canInstall(ItemStack stack) {
         return this.matches(stack);
     }
 
-    default @NotNull ItemStack createStoredTerminal(@NotNull ItemStack stack) {
+    default ItemStack createStoredTerminal(ItemStack stack) {
         return stack.copyWithCount(1);
     }
 
-    @NotNull
     ItemStack createIcon();
 
-    @NotNull
     MenuType<?> getMenuType();
 
     /**
      * Bridges the historical bean-style menu type accessor to the public runtime contract.
      */
     @Override
-    default @NotNull MenuType<?> menuType() {
+    default MenuType<?> menuType() {
         return this.getMenuType();
     }
 
@@ -52,13 +48,13 @@ public interface UniversalTerminalAdapter extends UniversalTerminalBehavior {
         return false;
     }
 
-    default @Nullable IConfigManager createConfigManager(@NotNull Runnable saveAction) {
+    default @Nullable IConfigManager createConfigManager(Runnable saveAction) {
         return null;
     }
 
-    default <T> @Nullable T resolveMenuHost(@NotNull UniversalTerminalPart part,
-                                            @NotNull Player player,
-                                            @NotNull Class<T> hostInterface) {
+    default <T> @Nullable T resolveMenuHost(UniversalTerminalPart part,
+                                            Player player,
+                                            Class<T> hostInterface) {
         return hostInterface.isInstance(part) ? hostInterface.cast(part) : null;
     }
 
@@ -66,15 +62,15 @@ public interface UniversalTerminalAdapter extends UniversalTerminalBehavior {
      * Routes the public context through the concrete-part compatibility bridge.
      */
     @Override
-    default <T> @Nullable T resolveMenuHost(@NotNull UniversalTerminalContext context,
-                                            @NotNull Class<T> hostInterface) {
+    default <T> @Nullable T resolveMenuHost(UniversalTerminalContext context,
+                                            Class<T> hostInterface) {
         if (!(context instanceof UniversalTerminalContextBridge bridge)) {
             throw new IllegalArgumentException("Legacy universal terminal adapter requires the internal context bridge");
         }
         return this.resolveMenuHost(bridge.part(), context.player(), hostInterface);
     }
 
-    default @NotNull UniversalTerminalConfigProfile configProfile() {
+    default UniversalTerminalConfigProfile configProfile() {
         return UniversalTerminalConfigProfile.STANDARD;
     }
 
@@ -82,7 +78,7 @@ public interface UniversalTerminalAdapter extends UniversalTerminalBehavior {
      * Maps the deprecated configuration enum onto the public API profile.
      */
     @Override
-    default @NotNull UniversalTerminalConfigurationProfile configurationProfile() {
+    default UniversalTerminalConfigurationProfile configurationProfile() {
         return switch (this.configProfile()) {
             case STANDARD -> UniversalTerminalConfigurationProfile.STANDARD;
             case PATTERN_ACCESS -> UniversalTerminalConfigurationProfile.PATTERN_ACCESS;

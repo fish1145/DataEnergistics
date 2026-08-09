@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Optional;
 
 /**
@@ -17,8 +15,8 @@ import java.util.Optional;
  * @param machineIdentity provider-independent physical machine identity, or empty when it cannot be proven
  */
 public record CountedCraftingTarget(boolean providerScoped,
-                                    @NotNull String stableIdentity,
-                                    @NotNull Optional<@NotNull String> machineIdentity) {
+                                    String stableIdentity,
+                                    Optional<String> machineIdentity) {
 
     /**
      * Shared conservative target for adapters that expose no independently routable machine.
@@ -48,7 +46,7 @@ public record CountedCraftingTarget(boolean providerScoped,
      *
      * @return shared provider route
      */
-    public static @NotNull CountedCraftingTarget provider() {
+    public static CountedCraftingTarget provider() {
         return PROVIDER;
     }
 
@@ -58,7 +56,7 @@ public record CountedCraftingTarget(boolean providerScoped,
      * @param stableIdentity provider-local route identity
      * @return immutable route
      */
-    public static @NotNull CountedCraftingTarget route(@NotNull String stableIdentity) {
+    public static CountedCraftingTarget route(String stableIdentity) {
         return new CountedCraftingTarget(false, stableIdentity, Optional.empty());
     }
 
@@ -69,9 +67,9 @@ public record CountedCraftingTarget(boolean providerScoped,
      * @param machineIdentity provider-independent machine identity
      * @return immutable targeted-machine route
      */
-    public static @NotNull CountedCraftingTarget machine(
-                                                         @NotNull String stableIdentity,
-                                                         @NotNull String machineIdentity) {
+    public static CountedCraftingTarget machine(
+                                                String stableIdentity,
+                                                String machineIdentity) {
         return new CountedCraftingTarget(false, stableIdentity, Optional.of(machineIdentity));
     }
 }

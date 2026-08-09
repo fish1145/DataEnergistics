@@ -11,8 +11,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import org.jetbrains.annotations.NotNull;
-
 public record MeVacuumLaunchPayload(boolean offHand) implements CustomPacketPayload {
 
     public static final Type<MeVacuumLaunchPayload> TYPE = new Type<>(Data_Energistics.id("me_vacuum_launch"));
@@ -27,7 +25,7 @@ public record MeVacuumLaunchPayload(boolean offHand) implements CustomPacketPayl
     }
 
     @Override
-    public @NotNull Type<MeVacuumLaunchPayload> type() {
+    public Type<MeVacuumLaunchPayload> type() {
         return TYPE;
     }
 

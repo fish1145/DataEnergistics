@@ -18,7 +18,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -43,7 +42,7 @@ public final class UniversalTerminalData {
 
     private UniversalTerminalData() {}
 
-    public static @NotNull List<@NotNull UniversalTerminalRegistration> getDefinitions() {
+    public static List<UniversalTerminalRegistration> getDefinitions() {
         requireInstalled();
         return terminalDefinitions;
     }
@@ -54,7 +53,7 @@ public final class UniversalTerminalData {
      * @param definitions definitions in deterministic registration order
      */
     public static synchronized void installDefinitions(
-                                                       @NotNull List<@NotNull UniversalTerminalRegistration> definitions) {
+                                                       List<UniversalTerminalRegistration> definitions) {
         if (definitionsInstalled) {
             throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
@@ -231,16 +230,16 @@ public final class UniversalTerminalData {
         return tag.isEmpty() ? UniversalTerminalItemData.EMPTY : UniversalTerminalItemData.fromLegacyTag(tag, registries);
     }
 
-    private static @NotNull Optional<@NotNull UniversalTerminalRegistration> getDefinition(
-                                                                                           @NotNull String terminalName) {
+    private static Optional<UniversalTerminalRegistration> getDefinition(
+                                                                         String terminalName) {
         requireInstalled();
         return terminalDefinitions.stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst();
     }
 
-    public static @NotNull Optional<@NotNull UniversalTerminalRegistration> getRegistration(
-                                                                                            @NotNull ItemStack stack) {
+    public static Optional<UniversalTerminalRegistration> getRegistration(
+                                                                          ItemStack stack) {
         requireInstalled();
         UniversalTerminalRegistration matched = null;
         for (UniversalTerminalRegistration registration : terminalDefinitions) {
@@ -293,8 +292,8 @@ public final class UniversalTerminalData {
      * Isolates an external installation predicate without hiding registration conflicts.
      */
     private static boolean canInstall(
-                                      @NotNull UniversalTerminalRegistration registration,
-                                      @NotNull ItemStack stack) {
+                                      UniversalTerminalRegistration registration,
+                                      ItemStack stack) {
         try {
             return registration.canInstall(stack);
         } catch (RuntimeException exception) {

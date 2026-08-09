@@ -23,7 +23,6 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -46,7 +45,7 @@ public record PatternEncodingPreferencesSyncPayload(
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
                                                     @Nullable PatternEncodingRankingContext rankingContext,
-                                                    @NotNull List<LeafStatistic> statistics)
+                                                    List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
@@ -126,7 +125,7 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     @Override
-    public @NotNull Type<PatternEncodingPreferencesSyncPayload> type() {
+    public Type<PatternEncodingPreferencesSyncPayload> type() {
         return TYPE;
     }
 

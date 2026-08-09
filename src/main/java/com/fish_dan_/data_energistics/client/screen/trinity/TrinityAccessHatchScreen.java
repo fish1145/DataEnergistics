@@ -26,7 +26,6 @@ import appeng.client.gui.me.patternaccess.PatternSlot;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -171,7 +170,6 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
      * @return normalized candidate text for AE2's existing search filter
      */
     public String buildPatternSearchText(ItemStack stack) {
-        Objects.requireNonNull(stack, "encoded pattern stack must not be null");
         AEItemKey definition = Objects.requireNonNull(
                 AEItemKey.of(stack),
                 "encoded pattern definition must not be empty");
@@ -189,7 +187,6 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
      * @return whether one selected input or output name matches all ordered query tokens
      */
     public boolean matchesPatternSearch(ItemStack stack, String query) {
-        Objects.requireNonNull(stack, "encoded pattern stack must not be null");
         PatternAccessTermScreenAccessor accessor = (PatternAccessTermScreenAccessor) this;
         String searchText = accessor.dataEnergistics$getPatternSearchText()
                 .computeIfAbsent(stack, this::buildPatternSearchText);
@@ -203,7 +200,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
      * @return trimmed, locale-stable lower-case text
      */
     public String normalizeSearchQuery(String value) {
-        return Objects.requireNonNull(value, "search query must not be null").trim().toLowerCase(Locale.ROOT);
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -424,12 +421,10 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
                                  Component tooltip,
                                  Runnable action) {
             super(x, y, layout.width(), layout.height(), message);
-            this.action = Objects.requireNonNull(action, "management button action must not be null");
+            this.action = action;
             this.textLeftPadding = layout.textLeftPadding();
             this.textScale = layout.textScale();
-            setTooltip(Tooltip.create(Objects.requireNonNull(
-                    tooltip,
-                    "management button tooltip must not be null")));
+            setTooltip(Tooltip.create(tooltip));
         }
 
         @Override
@@ -438,12 +433,12 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         }
 
         @Override
-        public void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {
+        public void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
             this.defaultButtonNarrationText(narrationElementOutput);
         }
 
         @Override
-        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             boolean pressed = this.active && this.isHovered() && Minecraft.getInstance().mouseHandler.isLeftPressed();
             int fillColor;
             int borderColor;

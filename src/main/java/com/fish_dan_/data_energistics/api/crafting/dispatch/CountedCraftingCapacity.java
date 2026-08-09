@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.OptionalLong;
 
 /**
@@ -17,10 +15,10 @@ import java.util.OptionalLong;
  * @param logicalCrafts      known currently available logical crafts, or empty when unknown
  * @param maximumSingleBatch known upper bound for one physical submission, or empty when unknown
  */
-public record CountedCraftingCapacity(@NotNull CountedCraftingTarget target,
-                                      @NotNull CountedCraftingRoutingMode routingMode,
-                                      @NotNull OptionalLong logicalCrafts,
-                                      @NotNull OptionalLong maximumSingleBatch) {
+public record CountedCraftingCapacity(CountedCraftingTarget target,
+                                      CountedCraftingRoutingMode routingMode,
+                                      OptionalLong logicalCrafts,
+                                      OptionalLong maximumSingleBatch) {
 
     /**
      * Validates every known numeric bound before the capacity reaches proposal planning.
@@ -35,7 +33,7 @@ public record CountedCraftingCapacity(@NotNull CountedCraftingTarget target,
      *
      * @return aggregate provider target with unknown numeric bounds
      */
-    public static @NotNull CountedCraftingCapacity aggregateUnknown() {
+    public static CountedCraftingCapacity aggregateUnknown() {
         return new CountedCraftingCapacity(
                 CountedCraftingTarget.provider(),
                 CountedCraftingRoutingMode.AGGREGATE,
@@ -46,7 +44,7 @@ public record CountedCraftingCapacity(@NotNull CountedCraftingTarget target,
     /**
      * Rejects negative known values without assigning a sentinel meaning to them.
      */
-    private static void requireNonNegative(@NotNull OptionalLong value, @NotNull String role) {
+    private static void requireNonNegative(OptionalLong value, String role) {
         if (value.isPresent() && value.getAsLong() < 0L) {
             throw new IllegalArgumentException("Known " + role + " must not be negative");
         }

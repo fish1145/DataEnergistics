@@ -52,7 +52,6 @@ import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -159,7 +158,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Unique
     @Override
-    public @NotNull SyncedPatternProviderList dataEnergistics$getInheritedSyncedPatternProviders() {
+    public SyncedPatternProviderList dataEnergistics$getInheritedSyncedPatternProviders() {
         return this.dataEnergistics$syncedPatternProviders;
     }
 
@@ -212,7 +211,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
-    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+    public SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
         return this.dataEnergistics$syncedPatternProviders;
     }
 
@@ -225,7 +224,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
-    public @NotNull EncodingMode data_energistics$getEncodingMode() {
+    public EncodingMode data_energistics$getEncodingMode() {
         return this.mode;
     }
 

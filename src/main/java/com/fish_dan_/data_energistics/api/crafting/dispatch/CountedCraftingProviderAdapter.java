@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -34,8 +33,8 @@ public interface CountedCraftingProviderAdapter {
      */
     @Nullable
     CountedCraftingAdmission prepareBatch(
-                                          @NotNull IPatternDetails patternDetails,
-                                          @NotNull KeyCounter @NotNull [] prototype,
+                                          IPatternDetails patternDetails,
+                                          KeyCounter[] prototype,
                                           long requestedCount);
 
     /**
@@ -53,10 +52,10 @@ public interface CountedCraftingProviderAdapter {
      * @param requestedCount positive logical craft count still eligible for dispatch
      * @return immutable capacity observations, or an empty immutable list when no target is currently usable
      */
-    default @NotNull List<@NotNull CountedCraftingCapacity> captureCapacity(
-                                                                            @NotNull IPatternDetails patternDetails,
-                                                                            @NotNull KeyCounter @NotNull [] prototype,
-                                                                            long requestedCount) {
+    default List<CountedCraftingCapacity> captureCapacity(
+                                                          IPatternDetails patternDetails,
+                                                          KeyCounter[] prototype,
+                                                          long requestedCount) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting capacity must be positive");
         }
@@ -79,10 +78,10 @@ public interface CountedCraftingProviderAdapter {
      */
     @Nullable
     default CountedCraftingAdmission prepareBatchForTarget(
-                                                           @NotNull IPatternDetails patternDetails,
-                                                           @NotNull KeyCounter @NotNull [] prototype,
+                                                           IPatternDetails patternDetails,
+                                                           KeyCounter[] prototype,
                                                            long requestedCount,
-                                                           @NotNull CountedCraftingTarget target) {
+                                                           CountedCraftingTarget target) {
         if (!target.providerScoped()) {
             return null;
         }

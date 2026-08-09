@@ -14,7 +14,6 @@ import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import com.mojang.serialization.JsonOps;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -24,12 +23,12 @@ import java.util.regex.Pattern;
  * S2C event emitted after the server confirms that one encoded pattern entered a provider inventory.
  */
 public record PatternUploadSucceededPayload(
-                                            @NotNull PatternUploadSource source,
+                                            PatternUploadSource source,
                                             @Nullable PatternEncodingRankingContext rankingContext,
                                             @Nullable ResourceLocation confirmedWorkstation,
-                                            @NotNull String providerDigest,
+                                            String providerDigest,
                                             long newCount,
-                                            @NotNull Component targetName,
+                                            Component targetName,
                                             @Nullable ResourceLocation dimensionId,
                                             @Nullable BlockPos position,
                                             long epochMillis)
@@ -95,7 +94,7 @@ public record PatternUploadSucceededPayload(
     }
 
     @Override
-    public @NotNull Type<PatternUploadSucceededPayload> type() {
+    public Type<PatternUploadSucceededPayload> type() {
         return TYPE;
     }
 

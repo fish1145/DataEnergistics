@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.client.screen.trinity;
 
-import org.jetbrains.annotations.NotNullByDefault;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -9,7 +7,6 @@ import java.util.Locale;
 /**
  * Builds stable, locale-independent search text from localized pattern names for the Trinity access terminal.
  */
-@NotNullByDefault
 public final class TrinityPatternSearchMatcher {
 
     /**
