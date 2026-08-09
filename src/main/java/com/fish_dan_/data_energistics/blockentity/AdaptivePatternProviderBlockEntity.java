@@ -13,11 +13,11 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -84,7 +84,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private boolean redstoneInputPulsePending;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.upgrades = createUpgradeInventory();
         this.getMainNode().setVisualRepresentation(getProviderBlock().get());
     }
@@ -771,6 +771,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {
-        return ModMenus.ADAPTIVE_PATTERN_PROVIDER;
+        return DEMenus.ADAPTIVE_PATTERN_PROVIDER;
     }
 }

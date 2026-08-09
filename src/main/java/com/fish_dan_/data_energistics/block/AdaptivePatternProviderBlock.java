@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -39,7 +39,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     }
 
     public void bindBlockEntity() {
-        bindBlockEntity((Class<T>) AdaptivePatternProviderBlockEntity.class, (BlockEntityType<T>) ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
+        bindBlockEntity((Class<T>) AdaptivePatternProviderBlockEntity.class, (BlockEntityType<T>) DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
     }
 
     protected void bindBlockEntity(

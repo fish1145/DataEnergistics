@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.block;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -100,7 +100,7 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
         if (!(level instanceof ServerLevel)) {
             return null;
         }
-        if (blockEntityType != ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get()) {
+        if (blockEntityType != DEBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get()) {
             return null;
         }
         return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((TrinityDataCoreBlockEntity) tickerBlockEntity).serverTick();

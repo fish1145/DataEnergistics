@@ -8,10 +8,10 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.mixin.core.ExperienceOrbAccessor;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
@@ -207,7 +207,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private Player cachedFakePlayer;
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(DEBlocks.DATA_EXTRACTOR.get())
                 .setExposedOnSides(getCableExposedSides(blockState))

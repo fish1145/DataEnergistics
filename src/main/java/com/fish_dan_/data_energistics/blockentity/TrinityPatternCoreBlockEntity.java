@@ -18,7 +18,7 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreR
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityRefundDelivery;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -101,7 +101,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @param state P-core block state
      */
     public TrinityPatternCoreBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.TRINITY_PATTERN_CORE_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.TRINITY_PATTERN_CORE_BLOCK_ENTITY.get(), pos, state);
         this.core = new PersistentTrinityPatternCore(
                 patternCapacityFromState(state),
                 this::decodeSupportedPattern,

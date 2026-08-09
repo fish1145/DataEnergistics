@@ -7,8 +7,8 @@ import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionC
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -500,7 +500,7 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || state.getValue(PART) != 0 || blockEntityType != ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || state.getValue(PART) != 0 || blockEntityType != DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get()) {
             return null;
         }
 

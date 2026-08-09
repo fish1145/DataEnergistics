@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
@@ -43,7 +43,7 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
     public int inverterCardCount;
 
     public DataRipperMenu(int id, Inventory playerInventory, DataRipperPart host) {
-        super(ModMenus.DATA_RIPPER.get(), id, playerInventory, host);
+        super(DEMenus.DATA_RIPPER.get(), id, playerInventory, host);
         this.logic = host;
     }
 

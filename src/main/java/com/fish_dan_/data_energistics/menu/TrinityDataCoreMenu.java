@@ -19,7 +19,7 @@ import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
@@ -187,7 +187,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         Consumer<CustomPacketPayload> hostedActionSink,
                         TrinityHostedActionExecutor hostedActionExecutor,
                         @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
-        super(ModMenus.TRINITY_DATA_CORE.get(), id);
+        super(DEMenus.TRINITY_DATA_CORE.get(), id);
         if (playerInventory == null || hostId == null || menuSessionId == null || hostedActionSink == null ||
                 hostedActionExecutor == null) {
             throw new IllegalArgumentException("Trinity menu identities and hosted action collaborators cannot be null");

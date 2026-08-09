@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -78,7 +78,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     public MatterConvergingBoltEntity(Level level, LivingEntity shooter, ItemStack ammo) {
-        super(ModEntities.MATTER_CONVERGING_BOLT.get(), shooter, level);
+        super(DEEntities.MATTER_CONVERGING_BOLT.get(), shooter, level);
         this.setNoGravity(true);
         this.setItem(ammo);
     }

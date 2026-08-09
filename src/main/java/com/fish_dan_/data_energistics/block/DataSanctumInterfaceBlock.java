@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -87,7 +87,7 @@ public class DataSanctumInterfaceBlock extends AEBaseBlock implements EntityBloc
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataSanctumInterfaceBlockEntity blockEntity) {
-            MenuOpener.open(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, MenuLocators.forBlockEntity(blockEntity));
+            MenuOpener.open(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, MenuLocators.forBlockEntity(blockEntity));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -103,7 +103,7 @@ public class DataSanctumInterfaceBlock extends AEBaseBlock implements EntityBloc
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get()) {
             return null;
         }
 

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentKeyNormalizer;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -36,7 +36,7 @@ public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEnti
     private final MachineSource actionSource = new MachineSource(this);
 
     public MeCompositeInputWarehouseBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
     }
 
     public CompartmentInventory markerInventory() {

@@ -8,10 +8,10 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -94,7 +94,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
 
     public DataSanctumInterfaceBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), blockPos, blockState);
         expandUpgradeSlots();
         this.getMainNode()
                 .setVisualRepresentation(DEBlocks.DATA_SANCTUM_INTERFACE.get())
@@ -140,12 +140,12 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override

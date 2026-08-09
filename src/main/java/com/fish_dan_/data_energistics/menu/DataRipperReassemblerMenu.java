@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -78,7 +78,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     public int keyOutputSidesMask = 63;
 
     public DataRipperReassemblerMenu(int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
-        super(ModMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
+        super(DEMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_AUTO_EXPORT, Boolean.class, this::setAutoExportEnabled);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }

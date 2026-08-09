@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -115,7 +115,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         }
 
         if (!level.isClientSide()) {
-            MenuOpener.open(ModMenus.ME_VACUUM.get(), player, MenuLocators.forHand(player, usedHand));
+            MenuOpener.open(DEMenus.ME_VACUUM.get(), player, MenuLocators.forHand(player, usedHand));
         }
 
         return new InteractionResultHolder<>(InteractionResult.sidedSuccess(level.isClientSide()), stack);
@@ -134,7 +134,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         }
 
         if (!context.getLevel().isClientSide()) {
-            MenuOpener.open(ModMenus.ME_VACUUM.get(), player, MenuLocators.forItemUseContext(context));
+            MenuOpener.open(DEMenus.ME_VACUUM.get(), player, MenuLocators.forItemUseContext(context));
         }
 
         return InteractionResult.sidedSuccess(context.getLevel().isClientSide());

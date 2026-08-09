@@ -15,7 +15,7 @@ import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
@@ -142,7 +142,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeTransferHandler(
                 new MultiblockPatternJeiTransferHandler<>(
                         UniversalPatternEncodingTermMenu.class,
-                        ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                        DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                         TrinityMultiblockJeiCategory.RECIPE_TYPE,
                         transferHelper),
                 TrinityMultiblockJeiCategory.RECIPE_TYPE);

@@ -28,7 +28,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModBlockEntities {
+public final class DEBlockEntities {
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Data_Energistics.MODID);
 
@@ -125,7 +125,7 @@ public final class ModBlockEntities {
             "fish_dan_",
             () -> BlockEntityType.Builder.of(DollBlockEntity::new, DEBlocks.FISH_DAN.get()).build(null));
 
-    private ModBlockEntities() {}
+    private DEBlockEntities() {}
 
     public static boolean isCompartmentBlockEntityType(BlockEntityType<?> type) {
         return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||

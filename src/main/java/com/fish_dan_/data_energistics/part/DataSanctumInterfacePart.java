@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityC
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -244,12 +244,12 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override

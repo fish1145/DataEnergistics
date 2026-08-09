@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 
 import net.minecraft.core.BlockPos;
@@ -135,7 +135,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final List<BlockPos> pendingBlackHoleBlocks = new ArrayList<>();
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
         this.lastLinked = blockState.hasProperty(DataSanctumBlock.ACTIVE) && blockState.getValue(DataSanctumBlock.ACTIVE);
         this.lastMode = blockState.hasProperty(DataSanctumBlock.MODE) ? blockState.getValue(DataSanctumBlock.MODE) : 0;
         this.getMainNode()
@@ -333,12 +333,12 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override

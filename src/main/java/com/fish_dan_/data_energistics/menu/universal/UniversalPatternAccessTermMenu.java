@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
@@ -20,7 +20,7 @@ public class UniversalPatternAccessTermMenu extends PatternAccessTermMenu implem
     public int activeTerminalIndex = -1;
 
     public UniversalPatternAccessTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
-        this(ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM.get(), id, playerInventory, host, true);
+        this(DEMenus.UNIVERSAL_PATTERN_ACCESS_TERM.get(), id, playerInventory, host, true);
     }
 
     public UniversalPatternAccessTermMenu(MenuType<?> menuType, int id, Inventory playerInventory,

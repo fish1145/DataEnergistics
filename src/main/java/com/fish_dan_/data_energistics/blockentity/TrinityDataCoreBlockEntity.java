@@ -60,9 +60,9 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutpu
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
@@ -321,7 +321,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                BlockState blockState,
                                TrinityStructureValidation structureValidation,
                                TrinityStructureWorldViewFactory structureWorldViews) {
-        super(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
         this.structureValidation = structureValidation;
         this.structureWorldViews = structureWorldViews;
         this.getMainNode()

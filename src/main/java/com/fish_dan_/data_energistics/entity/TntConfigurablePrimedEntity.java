@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.entity;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.FlatteningTnt;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
@@ -19,7 +19,7 @@ public class TntConfigurablePrimedEntity extends AbstractFlatteningTntPrimedEnti
     }
 
     public TntConfigurablePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner) {
-        super(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), level, origin, owner,
+        super(DEEntities.TNT_CONFIGURABLE_PRIMED.get(), level, origin, owner,
                 DEBlocks.TNT_CONFIGURABLE.get().defaultBlockState());
     }
 

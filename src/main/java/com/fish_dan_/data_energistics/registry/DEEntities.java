@@ -15,7 +15,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModEntities {
+public final class DEEntities {
 
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, Data_Energistics.MODID);
 
@@ -57,7 +57,7 @@ public final class ModEntities {
             .updateInterval(10)
             .build("digital_annihilator_primed"));
 
-    private ModEntities() {}
+    private DEEntities() {}
 
     public static void register(IEventBus modEventBus) {
         ENTITY_TYPES.register(modEventBus);

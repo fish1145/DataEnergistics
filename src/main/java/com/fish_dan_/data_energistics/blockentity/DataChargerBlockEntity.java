@@ -6,8 +6,8 @@ import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.core.BlockPos;
@@ -76,7 +76,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private boolean working;
 
     public DataChargerBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), pos, state);
         var connectableSides = getGridConnectableSides(BlockOrientation.get(state));
         this.getMainNode()
                 .setVisualRepresentation(isExtended() ? DEBlocks.EXTENDED_DATA_CHARGER.get() : DEBlocks.DATA_CHARGER.get())

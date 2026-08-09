@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -37,7 +37,7 @@ public final class OrderPackageItem extends Item implements IMenuItem {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
         ItemStack stack = player.getItemInHand(usedHand);
         if (!level.isClientSide()) {
-            MenuOpener.open(ModMenus.ORDER_PACKAGE.get(), player, MenuLocators.forHand(player, usedHand));
+            MenuOpener.open(DEMenus.ORDER_PACKAGE.get(), player, MenuLocators.forHand(player, usedHand));
         }
         return new InteractionResultHolder<>(InteractionResult.sidedSuccess(level.isClientSide()), stack);
     }
@@ -49,7 +49,7 @@ public final class OrderPackageItem extends Item implements IMenuItem {
             return InteractionResult.PASS;
         }
         if (!context.getLevel().isClientSide()) {
-            MenuOpener.open(ModMenus.ORDER_PACKAGE.get(), player, MenuLocators.forItemUseContext(context));
+            MenuOpener.open(DEMenus.ORDER_PACKAGE.get(), player, MenuLocators.forItemUseContext(context));
         }
         return InteractionResult.sidedSuccess(context.getLevel().isClientSide());
     }

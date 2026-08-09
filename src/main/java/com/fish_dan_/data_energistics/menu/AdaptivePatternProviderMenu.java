@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -94,7 +94,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
     public int redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH.ordinal();
 
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
-        super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
+        super(DEMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
         this.host = host;
         this.logic = host != null ? host.getLogic() : null;
         this.toolbox = new ToolboxMenu(this);

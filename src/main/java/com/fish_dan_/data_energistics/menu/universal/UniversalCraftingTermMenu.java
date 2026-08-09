@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
@@ -20,7 +20,7 @@ public class UniversalCraftingTermMenu extends CraftingTermMenu implements Unive
     public int activeTerminalIndex = -1;
 
     public UniversalCraftingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
-        this(ModMenus.UNIVERSAL_CRAFTING_TERM.get(), id, playerInventory, host, true);
+        this(DEMenus.UNIVERSAL_CRAFTING_TERM.get(), id, playerInventory, host, true);
     }
 
     public UniversalCraftingTermMenu(MenuType<?> menuType, int id, Inventory playerInventory,

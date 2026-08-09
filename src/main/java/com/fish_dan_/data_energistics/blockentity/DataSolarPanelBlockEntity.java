@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -49,7 +49,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     private boolean redstoneControlled;
 
     public DataSolarPanelBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(DEBlocks.DATA_SOLAR_PANEL.get())
                 .setIdlePowerUsage(0.0D);

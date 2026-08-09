@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Inventory;
@@ -56,7 +56,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
     private int lastEnabledCapacitySlots = -1;
 
     public DataMimeticFieldMenu(int id, Inventory playerInventory, DataMimeticFieldBlockEntity host) {
-        super(ModMenus.DATA_MIMETIC_FIELD.get(), id, playerInventory, host);
+        super(DEMenus.DATA_MIMETIC_FIELD.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
         registerClientAction(ACTION_SET_AUTO_PULL_KEY_INPUT, Boolean.class, this::setAutoPullKeyInput);
         registerClientAction(ACTION_SET_DROP_ROUTING_MODE, Integer.class, this::setDropRoutingMode);

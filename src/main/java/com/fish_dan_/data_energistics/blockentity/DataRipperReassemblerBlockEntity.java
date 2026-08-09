@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityC
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
@@ -170,7 +170,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private RecipeMatchCache recipeMatchCache;
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
                 .setIdlePowerUsage(1.0D);

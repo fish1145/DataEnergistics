@@ -12,7 +12,7 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
@@ -80,16 +80,16 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
 
         registry.addRecipeHandler(
-                ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
+                DEMenus.UNIVERSAL_CRAFTING_TERM.get(),
                 new EmiUseCraftingRecipeHandler<>(UniversalCraftingTermMenu.class));
         registry.addRecipeHandler(
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiEncodePatternHandler<>(UniversalPatternEncodingTermMenu.class));
         registry.addRecipeHandler(
                 PatternEncodingTermMenu.TYPE,
                 new EmiMultiblockPatternTransferHandler<>(PatternEncodingTermMenu.class));
         registry.addRecipeHandler(
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiMultiblockPatternTransferHandler<>(UniversalPatternEncodingTermMenu.class));
 
         registry.addCategory(TimeShiftEmiRecipe.CATEGORY);

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -715,7 +715,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             FluidStack fluid = i < fluids.length ? fluids[i] : FluidStack.EMPTY;
             DigitalStorageDepotBlockEntity.writeFluidToTag(registries, blockEntityTag, i, fluid, capacity);
         }
-        BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
+        BlockItem.setBlockEntityData(stack, DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
     }
 
     private static void writeSelectedKeyStack(ItemStack stack, HolderLookup.Provider registries, @Nullable GenericStack keyStack) {
@@ -727,7 +727,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         } else {
             blockEntityTag.put(tagKey, GenericStack.writeTag(registries, keyStack));
         }
-        BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
+        BlockItem.setBlockEntityData(stack, DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
     }
 
     private static int clampSlot(int slot, int maxSlots) {

@@ -60,7 +60,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import appeng.menu.implementations.MenuTypeBuilder;
 
-public final class ModMenus {
+public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
 
@@ -185,7 +185,7 @@ public final class ModMenus {
             .create(UniversalPatternAccessTermMenu::new, UniversalTerminalPart.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "universal_pattern_access_terminal")));
 
-    private ModMenus() {}
+    private DEMenus() {}
 
     public static void register(IEventBus modEventBus) {
         MENUS.register(modEventBus);

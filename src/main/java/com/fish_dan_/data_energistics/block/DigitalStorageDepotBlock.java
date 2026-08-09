@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -109,7 +109,7 @@ public class DigitalStorageDepotBlock extends AEBaseBlock implements EntityBlock
                 player.displayClientMessage(Component.literal(exported ? "已导入 ME 网络" : "没有可导入内容或 ME 网络未接收"), true);
                 return InteractionResult.SUCCESS;
             }
-            MenuOpener.open(ModMenus.DIGITAL_STORAGE_DEPOT.get(), player, MenuLocators.forBlockEntity(depot));
+            MenuOpener.open(DEMenus.DIGITAL_STORAGE_DEPOT.get(), player, MenuLocators.forBlockEntity(depot));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -168,7 +168,7 @@ public class DigitalStorageDepotBlock extends AEBaseBlock implements EntityBlock
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get()) {
             return null;
         }
 

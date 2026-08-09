@@ -34,8 +34,8 @@ import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenuHost;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -129,7 +129,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     private boolean loadingTerminalConfig;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
         this.configManager.registerSetting(
                 Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
                 ShowPatternProviders.VISIBLE);

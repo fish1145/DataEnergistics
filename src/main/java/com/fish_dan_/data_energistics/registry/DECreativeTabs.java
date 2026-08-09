@@ -12,7 +12,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-public final class ModCreativeTabs {
+public final class DECreativeTabs {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.MODID);
     private static final ResourceKey<CreativeModeTab> DATA_ENERGISTICS_TAB_KEY = ResourceKey.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.id(Data_Energistics.MODID));
@@ -145,7 +145,7 @@ public final class ModCreativeTabs {
                     .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
                     .build());
 
-    private ModCreativeTabs() {}
+    private DECreativeTabs() {}
 
     public static void register(IEventBus modEventBus) {
         CREATIVE_MODE_TABS.register(modEventBus);

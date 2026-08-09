@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
@@ -185,7 +185,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final Map<BiologyLootSampleKey, BiologyLootSamples> biologyLootSamples = new HashMap<>();
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(DEBlocks.DATA_MIMETIC_FIELD.get())
                 .setExposedOnSides(getCableExposedSides(blockState))

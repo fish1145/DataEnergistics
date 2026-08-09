@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
@@ -161,7 +161,7 @@ public final class UniversalTerminalData {
 
     public static MenuType<?> getMenuType(String terminalName) {
         Optional<UniversalTerminalRegistration> definition = getDefinition(terminalName);
-        return definition.isPresent() ? definition.get().menuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
+        return definition.isPresent() ? definition.get().menuType() : DEMenus.UNIVERSAL_CRAFTING_TERM.get();
     }
 
     public static @Nullable IConfigManager createConfigManager(String terminalName, Runnable saveAction) {

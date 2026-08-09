@@ -14,7 +14,7 @@ import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsPayload;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsReceiver;
 import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsSnapshot;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -84,7 +84,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     public boolean unlimitedChannels;
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
-        super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
+        super(DEMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
         this.boosterSlot = new RestrictedInputSlot(

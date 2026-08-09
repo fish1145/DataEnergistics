@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
@@ -108,7 +108,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
     private List<Slot> configSlots;
 
     public DataSanctumLargeInterfaceMenu(int id, Inventory playerInventory, DataSanctumLargeInterfaceHost host) {
-        super(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), id, playerInventory, host);
+        super(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), id, playerInventory, host);
         registerClientAction(ACTION_OPEN_SET_AMOUNT, PageSlotTarget.class, this::openSetAmountMenu);
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_ACTIVE_PULL_SIDE, String.class, this::setActivePullSide);

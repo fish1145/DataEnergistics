@@ -43,9 +43,9 @@ import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
@@ -230,7 +230,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private int syncedChunkRadius = 0;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.coverage = new TowerCoverageGeometry(blockPos);
         BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();

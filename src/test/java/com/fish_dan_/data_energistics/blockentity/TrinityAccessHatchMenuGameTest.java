@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionSta
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -63,7 +63,7 @@ public final class TrinityAccessHatchMenuGameTest {
         moveNear(player, hatch.getBlockPos());
 
         boolean opened = MenuOpener.open(
-                ModMenus.TRINITY_ACCESS_HATCH.get(),
+                DEMenus.TRINITY_ACCESS_HATCH.get(),
                 player,
                 MenuLocators.forBlockEntity(hatch));
         helper.assertTrue(opened, "AE2 MenuOpener should resolve the placed Trinity access hatch");

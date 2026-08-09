@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import appeng.blockentity.misc.InterfaceBlockEntity;
 import appeng.parts.misc.InterfacePart;
@@ -14,7 +14,7 @@ public class DataSanctumInterfaceUpgradeItem extends BlockAndPartUpgradeItem {
         addBlock(
                 InterfaceBlockEntity.class,
                 DEBlocks.DATA_SANCTUM_INTERFACE::get,
-                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY::get);
+                DEBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY::get);
         addPart(InterfacePart.class, DEItems.DATA_SANCTUM_INTERFACE_PART::get);
     }
 }

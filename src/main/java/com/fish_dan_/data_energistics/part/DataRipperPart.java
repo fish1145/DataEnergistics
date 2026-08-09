@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
@@ -144,7 +144,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     @Override
     public boolean onUseWithoutItem(Player player, Vec3 pos) {
         if (!this.isClientSide()) {
-            MenuOpener.open(ModMenus.DATA_RIPPER.get(), player, MenuLocators.forPart(this));
+            MenuOpener.open(DEMenus.DATA_RIPPER.get(), player, MenuLocators.forPart(this));
         }
         return true;
     }

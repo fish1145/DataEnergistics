@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -19,7 +19,7 @@ public class MeVacuumMenu extends AEBaseMenu {
     private final MeVacuumMenuHost host;
 
     public MeVacuumMenu(int id, Inventory playerInventory, MeVacuumMenuHost host) {
-        super(ModMenus.ME_VACUUM.get(), id, playerInventory, host);
+        super(DEMenus.ME_VACUUM.get(), id, playerInventory, host);
         this.host = host;
         setupStorageSlots();
         setupUpgradeSlots();

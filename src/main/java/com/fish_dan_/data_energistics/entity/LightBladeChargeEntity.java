@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -48,7 +48,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
     }
 
     public LightBladeChargeEntity(Level level, LivingEntity owner, int color, float damage) {
-        super(ModEntities.LIGHT_BLADE_CHARGE.get(), owner, level);
+        super(DEEntities.LIGHT_BLADE_CHARGE.get(), owner, level);
         this.setNoGravity(true);
         this.setColor(color);
         this.setDamage(damage);

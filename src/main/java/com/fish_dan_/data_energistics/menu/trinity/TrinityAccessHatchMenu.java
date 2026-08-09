@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu.trinity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -63,7 +63,7 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
      * @param host            exact hatch selected by the menu locator
      */
     public TrinityAccessHatchMenu(int id, Inventory playerInventory, TrinityAccessHatchMenuHost host) {
-        this(ModMenus.TRINITY_ACCESS_HATCH.get(), id, playerInventory, host, true);
+        this(DEMenus.TRINITY_ACCESS_HATCH.get(), id, playerInventory, host, true);
     }
 
     /**

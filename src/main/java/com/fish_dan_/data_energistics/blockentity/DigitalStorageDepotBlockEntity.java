@@ -3,10 +3,10 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.settings.DigitalStorageDepotSettings;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -145,7 +145,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
         this.configManager.registerSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, DataExtractorAutoExportMode.OFF);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
@@ -226,7 +226,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DIGITAL_STORAGE_DEPOT.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DIGITAL_STORAGE_DEPOT.get(), player, subMenu.getLocator());
     }
 
     @Override

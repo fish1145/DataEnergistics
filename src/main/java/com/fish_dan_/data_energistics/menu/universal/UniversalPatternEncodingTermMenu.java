@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTr
 import com.fish_dan_.data_energistics.network.PatternUploadSource;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
@@ -101,7 +101,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private long nextSyncedPatternProviderId = 1;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
-        this(ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
+        this(DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
     }
 
     public UniversalPatternEncodingTermMenu(MenuType<?> menuType, int id, Inventory playerInventory,

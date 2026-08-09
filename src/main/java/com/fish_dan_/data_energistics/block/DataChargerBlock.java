@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -158,7 +158,7 @@ public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get()) {
             return null;
         }
 

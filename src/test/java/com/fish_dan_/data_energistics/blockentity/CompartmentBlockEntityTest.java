@@ -36,8 +36,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -1965,7 +1965,7 @@ public final class CompartmentBlockEntityTest {
         var ticker = block.getTicker(
                 helper.getLevel(),
                 state,
-                ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get());
+                DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get());
         ticker.tick(helper.getLevel(), levelPos, state, hatch);
 
         assertActiveState(helper, levelPos, false, "Unbound Trinity access hatch ticker should clear ACTIVE state");
