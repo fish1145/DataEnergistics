@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;

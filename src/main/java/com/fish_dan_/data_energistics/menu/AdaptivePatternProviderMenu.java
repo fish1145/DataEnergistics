@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.chat.Component;

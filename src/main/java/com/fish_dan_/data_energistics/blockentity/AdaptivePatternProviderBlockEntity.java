@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderProfile;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;

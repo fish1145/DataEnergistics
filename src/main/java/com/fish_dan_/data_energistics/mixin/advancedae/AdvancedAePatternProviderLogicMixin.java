@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.mixin.advancedae;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
 import net.minecraft.server.level.ServerLevel;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogic;
