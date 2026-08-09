@@ -91,6 +91,26 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
                 "emitted item"));
     }
 
+    private TrinityCraftingPlan(TrinityCraftingPlan source, TrinityPlanningStatistics statistics) {
+        this.finalOutput = source.finalOutput;
+        this.bytes = source.bytes;
+        this.multiplePaths = source.multiplePaths;
+        this.catalogRevision = source.catalogRevision;
+        this.quantityMode = source.quantityMode;
+        this.initialExpectedInputs = source.initialExpectedInputs;
+        this.patternFirings = source.patternFirings;
+        this.plannedOutputs = source.plannedOutputs;
+        this.stages = source.stages;
+        this.stageOrder = source.stageOrder;
+        this.cycleRepeatBlocks = source.cycleRepeatBlocks;
+        this.minimumSeed = source.minimumSeed;
+        this.targetNetChange = source.targetNetChange;
+        this.diagnostics = source.diagnostics;
+        this.statistics = statistics;
+        this.usedItems = source.usedItems;
+        this.emittedItems = source.emittedItems;
+    }
+
     /**
      * @return empty large-object builder used by graph planners and persistence migration
      */
@@ -482,6 +502,16 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
      */
     public TrinityPlanningStatistics statistics() {
         return this.statistics;
+    }
+
+    /**
+     * Creates a request-local view with fresh metrics while sharing this plan's validated immutable execution data.
+     *
+     * @param value metrics measured for the current planning request
+     * @return independent plan view that leaves a cached plan untouched
+     */
+    public TrinityCraftingPlan withPlanningStatistics(TrinityPlanningStatistics value) {
+        return new TrinityCraftingPlan(this, value);
     }
 
     /**
