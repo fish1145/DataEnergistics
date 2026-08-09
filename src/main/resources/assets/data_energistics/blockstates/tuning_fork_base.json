@@ -1,0 +1,7 @@
+{
+	"variants": {
+		"": {
+			"model": "data_energistics:block/tuning_fork_base"
+		}
+	}
+}
