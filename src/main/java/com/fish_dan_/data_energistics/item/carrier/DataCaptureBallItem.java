@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.carrier;
 
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
-import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -158,7 +158,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
 
     @Override
     public AEKeyType getKeyType() {
-        return DataKeyType.TYPE;
+        return ManifestBinaryKeyType.TYPE;
     }
 
     @Override

@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.item.cell;
 
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellTooltip;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
@@ -30,7 +29,7 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
     private static final int TOTAL_TYPES = 2;
 
     public DataFlowStorageCellItem(Item.Properties properties, double idleDrain, int totalBytes) {
-        super(properties.stacksTo(1), idleDrain, totalBytes, 8, TOTAL_TYPES, DataFlowKeyType.TYPE);
+        super(properties.stacksTo(1), idleDrain, totalBytes, 8, TOTAL_TYPES, DigitalizationKeyType.TYPE);
     }
 
     @Override
@@ -40,7 +39,7 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
 
     @Override
     public ConfigInventory getConfigInventory(ItemStack stack) {
-        return CellConfig.create(Set.of(DataFlowKeyType.TYPE, EchoKeyType.TYPE), stack);
+        return CellConfig.create(Set.of(DigitalizationKeyType.TYPE), stack);
     }
 
     @Override

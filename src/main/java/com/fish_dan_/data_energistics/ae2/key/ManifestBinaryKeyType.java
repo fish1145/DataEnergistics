@@ -4,21 +4,23 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import com.mojang.serialization.MapCodec;
 
-public final class DataKeyType extends AEKeyType {
+/**
+ * AE key type that exposes Data as the independent Manifest Binary visibility group.
+ */
+public final class ManifestBinaryKeyType extends AEKeyType {
 
-    public static final DataKeyType TYPE = new DataKeyType();
+    public static final ManifestBinaryKeyType TYPE = new ManifestBinaryKeyType();
 
-    private DataKeyType() {
+    private ManifestBinaryKeyType() {
         super(
-                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data"),
+                Data_Energistics.id("manifest_binary"),
                 DataKey.class,
-                Component.translatable("key." + Data_Energistics.MODID + ".data"));
+                Component.translatable("key_type." + Data_Energistics.MODID + ".manifest_binary"));
     }
 
     @Override
@@ -34,10 +36,5 @@ public final class DataKeyType extends AEKeyType {
     @Override
     public int getAmountPerByte() {
         return 8;
-    }
-
-    @Override
-    public int getAmountPerOperation() {
-        return super.getAmountPerOperation();
     }
 }
