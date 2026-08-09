@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

@@ -8,9 +8,9 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistenceImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -366,11 +366,11 @@ public final class DataDistributionTowerDiscoveryGameTest {
 
         helper.assertFalse(level.hasChunkAt(unloadedTarget), "Saving the tower must not load a linked target chunk");
         helper.assertValueEqual(
-                savedData.getList(TowerBindingPersistenceImpl.BINDINGS_TAG, Tag.TAG_COMPOUND).size(),
+                savedData.getList(VersionedTowerBindingCodec.BINDINGS_TAG, Tag.TAG_COMPOUND).size(),
                 1,
                 "Saving must retain the unloaded target in the versioned binding list");
         helper.assertFalse(
-                savedData.contains(TowerBindingPersistenceImpl.LEGACY_LINKED_POSITIONS_TAG),
+                savedData.contains(VersionedTowerBindingCodec.LEGACY_LINKED_POSITIONS_TAG),
                 "Saving must remove the migrated legacy linked-position list");
         helper.succeed();
     }

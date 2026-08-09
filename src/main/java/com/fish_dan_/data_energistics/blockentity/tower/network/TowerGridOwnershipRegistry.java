@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandidate;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnership;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipImpl;

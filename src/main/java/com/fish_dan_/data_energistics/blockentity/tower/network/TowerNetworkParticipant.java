@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+
 import net.minecraft.server.level.ServerLevel;
 
 import appeng.api.networking.IGrid;

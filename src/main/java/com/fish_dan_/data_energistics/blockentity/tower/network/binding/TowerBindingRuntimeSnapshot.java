@@ -1,4 +1,7 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
+
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 
 import java.util.List;
 

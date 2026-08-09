@@ -20,11 +20,6 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBinding;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistence;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistenceImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingRuntimeSnapshot;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingSource;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerChannelOverview;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerEnergyLocation;
@@ -33,9 +28,13 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDoma
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomainChange;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkParticipant;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkTowerSnapshot;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
@@ -133,7 +132,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
-    private static final TowerBindingPersistence TOWER_BINDING_PERSISTENCE = new TowerBindingPersistenceImpl();
+    private static final VersionedTowerBindingCodec TOWER_BINDING_PERSISTENCE = new VersionedTowerBindingCodec();
     /**
      * Selects the connector source captured when a player places a potentially compatible target.
      */
@@ -334,7 +333,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        if (this.level == null && !data.contains(TowerBindingPersistenceImpl.VERSION_TAG)) {
+        if (this.level == null && !data.contains(VersionedTowerBindingCodec.VERSION_TAG)) {
             this.pendingLegacyBindingData = data.copy();
         } else {
             readTowerBindings(data);

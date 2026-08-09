@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
+
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -17,9 +19,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * NBT implementation for version-one tower bindings and ordered legacy migration.
+ * Encodes versioned tower bindings and migrates the legacy linked-position list.
  */
-public final class TowerBindingPersistenceImpl implements TowerBindingPersistence {
+public final class VersionedTowerBindingCodec {
 
     /** Current persistent binding schema. */
     public static final int CURRENT_VERSION = 1;
@@ -33,7 +35,14 @@ public final class TowerBindingPersistenceImpl implements TowerBindingPersistenc
     /** Legacy linked-position tag retained solely for migration. */
     public static final String LEGACY_LINKED_POSITIONS_TAG = "linked_positions";
 
-    @Override
+    /**
+     * Reads current bindings or migrates legacy linked positions in list order.
+     *
+     * @param root                 tower block-entity tag
+     * @param towerDimensionId     dimension used by legacy anchors, nullable only for already-versioned data
+     * @param legacyDisabledStates legacy position-level disable state
+     * @return immutable bindings ordered by FIFO sequence
+     */
     public List<TowerBinding> read(CompoundTag root,
                                    @Nullable ResourceLocation towerDimensionId,
                                    Map<BlockPos, Boolean> legacyDisabledStates) {
@@ -50,7 +59,12 @@ public final class TowerBindingPersistenceImpl implements TowerBindingPersistenc
         return migrateLegacy(root, towerDimensionId, legacyDisabledStates);
     }
 
-    @Override
+    /**
+     * Writes the complete current binding representation.
+     *
+     * @param root     tower block-entity tag
+     * @param bindings bindings to persist
+     */
     public void write(CompoundTag root, List<TowerBinding> bindings) {
         ArrayList<TowerBinding> orderedBindings = new ArrayList<>(bindings);
         orderedBindings.sort(Comparator.comparingLong(TowerBinding::fifoSequence));
