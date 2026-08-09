@@ -14,7 +14,6 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.
 import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.ICraftingPlan;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -220,8 +219,8 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
         }
 
         @Override
-        public ICraftingPlan get(long timeout, @NotNull TimeUnit unit)
-                                                                       throws InterruptedException, ExecutionException, TimeoutException {
+        public ICraftingPlan get(long timeout, TimeUnit unit)
+                                                              throws InterruptedException, ExecutionException, TimeoutException {
             if (timeout < 0L) {
                 throw new IllegalArgumentException("Timeout must not be negative");
             }

@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection;
 
 import appeng.api.config.CpuSelectionMode;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -12,15 +11,15 @@ public final class CraftingCpuCandidate {
     /**
      * Stable identity used to recover the server-thread submission handle and determine final order.
      */
-    private final @NotNull String stableIdentity;
+    private final String stableIdentity;
     /**
      * Explicitly supported CPU ownership boundary.
      */
-    private final @NotNull CraftingCpuKind kind;
+    private final CraftingCpuKind kind;
     /**
      * AE2 source-selection rule exposed by this candidate.
      */
-    private final @NotNull CpuSelectionMode selectionMode;
+    private final CpuSelectionMode selectionMode;
     /**
      * Whether the candidate is attached to its current grid and online.
      */
@@ -50,7 +49,7 @@ public final class CraftingCpuCandidate {
      */
     private final long recentOperationLoad;
 
-    private CraftingCpuCandidate(@NotNull Builder builder) {
+    private CraftingCpuCandidate(Builder builder) {
         if (builder.stableIdentity == null) {
             throw new IllegalStateException("Crafting CPU stable identity must be provided");
         }
@@ -81,28 +80,28 @@ public final class CraftingCpuCandidate {
      *
      * @return candidate builder
      */
-    public static @NotNull Builder builder() {
+    public static Builder builder() {
         return new Builder();
     }
 
     /**
      * @return stable deterministic candidate identity
      */
-    public @NotNull String stableIdentity() {
+    public String stableIdentity() {
         return this.stableIdentity;
     }
 
     /**
      * @return explicitly supported CPU kind
      */
-    public @NotNull CraftingCpuKind kind() {
+    public CraftingCpuKind kind() {
         return this.kind;
     }
 
     /**
      * @return AE2 source-selection mode
      */
-    public @NotNull CpuSelectionMode selectionMode() {
+    public CpuSelectionMode selectionMode() {
         return this.selectionMode;
     }
 
@@ -233,7 +232,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the stable deterministic identity.
          */
-        public @NotNull Builder stableIdentity(@NotNull String stableIdentity) {
+        public Builder stableIdentity(String stableIdentity) {
             this.stableIdentity = stableIdentity;
             return this;
         }
@@ -241,7 +240,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the explicitly supported CPU kind.
          */
-        public @NotNull Builder kind(@NotNull CraftingCpuKind kind) {
+        public Builder kind(CraftingCpuKind kind) {
             this.kind = kind;
             return this;
         }
@@ -249,7 +248,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the AE2 source-selection mode.
          */
-        public @NotNull Builder selectionMode(@NotNull CpuSelectionMode selectionMode) {
+        public Builder selectionMode(CpuSelectionMode selectionMode) {
             this.selectionMode = selectionMode;
             return this;
         }
@@ -257,7 +256,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets whether the candidate is online.
          */
-        public @NotNull Builder online(boolean online) {
+        public Builder online(boolean online) {
             this.online = online;
             this.primitiveFieldsSet |= ONLINE_SET;
             return this;
@@ -266,7 +265,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets whether the candidate can accept a new job.
          */
-        public @NotNull Builder acceptsJob(boolean acceptsJob) {
+        public Builder acceptsJob(boolean acceptsJob) {
             this.acceptsJob = acceptsJob;
             this.primitiveFieldsSet |= ACCEPTS_JOB_SET;
             return this;
@@ -275,7 +274,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets whether the candidate represents shared hardware.
          */
-        public @NotNull Builder shared(boolean shared) {
+        public Builder shared(boolean shared) {
             this.shared = shared;
             this.primitiveFieldsSet |= SHARED_SET;
             return this;
@@ -284,7 +283,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the complete storage available to one job.
          */
-        public @NotNull Builder storageBytes(long storageBytes) {
+        public Builder storageBytes(long storageBytes) {
             this.storageBytes = storageBytes;
             this.primitiveFieldsSet |= STORAGE_BYTES_SET;
             return this;
@@ -293,7 +292,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the complete co-processor count.
          */
-        public @NotNull Builder coProcessors(int coProcessors) {
+        public Builder coProcessors(int coProcessors) {
             this.coProcessors = coProcessors;
             this.primitiveFieldsSet |= CO_PROCESSORS_SET;
             return this;
@@ -302,7 +301,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the current occupied job count.
          */
-        public @NotNull Builder activeJobs(int activeJobs) {
+        public Builder activeJobs(int activeJobs) {
             this.activeJobs = activeJobs;
             this.primitiveFieldsSet |= ACTIVE_JOBS_SET;
             return this;
@@ -311,7 +310,7 @@ public final class CraftingCpuCandidate {
         /**
          * Sets the recent physical-operation load.
          */
-        public @NotNull Builder recentOperationLoad(long recentOperationLoad) {
+        public Builder recentOperationLoad(long recentOperationLoad) {
             this.recentOperationLoad = recentOperationLoad;
             this.primitiveFieldsSet |= RECENT_OPERATION_LOAD_SET;
             return this;
@@ -320,7 +319,7 @@ public final class CraftingCpuCandidate {
         /**
          * Builds the validated immutable candidate facts.
          */
-        public @NotNull CraftingCpuCandidate build() {
+        public CraftingCpuCandidate build() {
             return new CraftingCpuCandidate(this);
         }
 

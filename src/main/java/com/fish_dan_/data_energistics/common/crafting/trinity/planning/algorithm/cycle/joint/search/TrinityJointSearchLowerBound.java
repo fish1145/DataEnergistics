@@ -5,8 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.math.BigInteger;
 import java.util.List;
 
@@ -71,7 +69,7 @@ public record TrinityJointSearchLowerBound(
     }
 
     @Override
-    public int compareTo(@NotNull TrinityJointSearchLowerBound other) {
+    public int compareTo(TrinityJointSearchLowerBound other) {
         return asOptimisticObjective().compareTo(other.asOptimisticObjective());
     }
 
