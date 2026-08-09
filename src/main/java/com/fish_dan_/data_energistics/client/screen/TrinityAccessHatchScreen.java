@@ -50,7 +50,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     private static final int UNMATCHED_PATTERN_TINT = 0x90000000;
     private static final String REFUND_PATTERNS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.patterns";
     private static final String REFUND_RETAINED_ITEMS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.retained_items";
-    private static final TrinityPatternSearchMatcher SEARCH_MATCHER = new TrinityPatternSearchMatcherImpl();
+    private static final TrinityPatternSearchMatcher SEARCH_MATCHER = new TrinityPatternSearchMatcher();
     private static final TrinityAccessHatchLayout LAYOUT = TrinityAccessHatchLayout.load();
 
     private final Map<AEItemKey, PatternSearchNames> patternSearchNamesByDefinition = new HashMap<>();
