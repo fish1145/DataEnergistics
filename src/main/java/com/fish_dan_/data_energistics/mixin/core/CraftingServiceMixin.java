@@ -19,8 +19,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.CraftingCpuSelectionRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchCompletion;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchCompletionImpl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipantImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.GridCraftingDispatchCompletion;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.GridCraftingDispatchParticipant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
@@ -386,7 +386,7 @@ public abstract class CraftingServiceMixin
         long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
         List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
         if (runtimes.isEmpty()) {
-            CraftingDispatchCompletion completion = new CraftingDispatchCompletionImpl(
+            CraftingDispatchCompletion completion = new GridCraftingDispatchCompletion(
                     "publicationScope=" + gridGeneration + ", gridIdentity=" + System.identityHashCode(this.grid),
                     () -> dataEnergistics$completeEmptyTrinityDispatchTick(server, gridGeneration, governor),
                     (source, failure) -> governor.recordUnexpectedFailure(
@@ -414,7 +414,7 @@ public abstract class CraftingServiceMixin
             preparedRuntimes = List.of();
         }
         List<TrinityDataCoreCraftingRuntime> dispatchRuntimes = preparedRuntimes;
-        CraftingDispatchParticipantImpl participant = new CraftingDispatchParticipantImpl(
+        GridCraftingDispatchParticipant participant = new GridCraftingDispatchParticipant(
                 "publicationScope=" + gridGeneration + ", gridIdentity=" + System.identityHashCode(this.grid),
                 dispatchRuntimes,
                 this.dataEnergistics$nextTrinityRuntimeTickStart,
@@ -440,7 +440,7 @@ public abstract class CraftingServiceMixin
                                                                     MinecraftServer server,
                                                                     long gridGeneration,
                                                                     CraftingDispatchGovernor governor,
-                                                                    CraftingDispatchParticipantImpl participant) {
+                                                                    GridCraftingDispatchParticipant participant) {
         try {
             TrinityServerTickMetrics.registerDispatchParticipant(server, participant);
         } catch (RuntimeException failure) {

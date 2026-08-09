@@ -20,12 +20,12 @@ import java.util.function.BooleanSupplier;
 /**
  * Fixed fair-lock shard implementation with counted provider-route and exclusive physical-machine reservations.
  */
-final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
+final class StripedProviderShardDispatcher implements ProviderShardDispatcher {
 
     private final ProviderShard[] shards;
-    private final Map<MachineTargetId, ReservationImpl> reservedMachines = new ConcurrentHashMap<>();
+    private final Map<MachineTargetId, ShardReservation> reservedMachines = new ConcurrentHashMap<>();
 
-    ProviderShardDispatcherImpl(int shardCount) {
+    StripedProviderShardDispatcher(int shardCount) {
         if (shardCount <= 0) {
             throw new IllegalArgumentException("Provider shard count must be positive");
         }
@@ -57,7 +57,7 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
             ProviderShard shard = this.shards[shardIndex(target.providerId())];
             shard.lock.lock();
             try {
-                ReservationImpl reservation = reserve(
+                ShardReservation reservation = reserve(
                         shard,
                         ProviderRouteKey.from(target),
                         target,
@@ -77,11 +77,11 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         return NoCapacity.INSTANCE;
     }
 
-    private ReservationImpl reserve(ProviderShard shard,
-                                    ProviderRouteKey routeKey,
-                                    ProviderCapacitySnapshot target,
-                                    long requested,
-                                    int providerQuantum) {
+    private ShardReservation reserve(ProviderShard shard,
+                                     ProviderRouteKey routeKey,
+                                     ProviderCapacitySnapshot target,
+                                     long requested,
+                                     int providerQuantum) {
         int reservedProposals = shard.reservedProposalsByProvider.getOrDefault(target.providerId(), 0);
         if (reservedProposals >= providerQuantum) {
             return null;
@@ -93,7 +93,7 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
             return null;
         }
 
-        ReservationImpl reservation = new ReservationImpl(
+        ShardReservation reservation = new ShardReservation(
                 this,
                 routeKey,
                 target.providerId(),
@@ -109,7 +109,7 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
         return reservation;
     }
 
-    private void release(ReservationImpl reservation) {
+    private void release(ShardReservation reservation) {
         ProviderShard shard = this.shards[shardIndex(reservation.providerId)];
         shard.lock.lock();
         try {
@@ -173,20 +173,20 @@ final class ProviderShardDispatcherImpl implements ProviderShardDispatcher {
     /**
      * Idempotent reservation retained by the proposal ticket until server-thread consumption or cancellation.
      */
-    private static final class ReservationImpl implements Reservation {
+    private static final class ShardReservation implements Reservation {
 
-        private final ProviderShardDispatcherImpl owner;
+        private final StripedProviderShardDispatcher owner;
         private final ProviderRouteKey routeKey;
         private final CraftingProviderId providerId;
         private final Optional<MachineTargetId> machineTarget;
         private final long logicalCrafts;
         private final AtomicBoolean closed = new AtomicBoolean();
 
-        private ReservationImpl(ProviderShardDispatcherImpl owner,
-                                ProviderRouteKey routeKey,
-                                CraftingProviderId providerId,
-                                Optional<MachineTargetId> machineTarget,
-                                long logicalCrafts) {
+        private ShardReservation(StripedProviderShardDispatcher owner,
+                                 ProviderRouteKey routeKey,
+                                 CraftingProviderId providerId,
+                                 Optional<MachineTargetId> machineTarget,
+                                 long logicalCrafts) {
             this.owner = owner;
             this.routeKey = routeKey;
             this.providerId = providerId;

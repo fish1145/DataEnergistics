@@ -14,7 +14,7 @@ import java.util.function.IntConsumer;
 /**
  * Prepared one-tick AE Grid participant that rotates runtimes only after a real provider call.
  */
-public final class CraftingDispatchParticipantImpl implements CraftingDispatchParticipant {
+public final class GridCraftingDispatchParticipant implements CraftingDispatchParticipant {
 
     private final String diagnosticIdentity;
     private final List<TrinityDataCoreCraftingRuntime> runtimes;
@@ -41,7 +41,7 @@ public final class CraftingDispatchParticipantImpl implements CraftingDispatchPa
      * @param tickCompletion      callback that completes Grid metrics exactly once
      * @param failureRecorder     callback that moves only this Grid into SAFE mode
      */
-    public CraftingDispatchParticipantImpl(String diagnosticIdentity,
+    public GridCraftingDispatchParticipant(String diagnosticIdentity,
                                            List<TrinityDataCoreCraftingRuntime> runtimes,
                                            int runtimeCursor,
                                            IEnergyService energyService,

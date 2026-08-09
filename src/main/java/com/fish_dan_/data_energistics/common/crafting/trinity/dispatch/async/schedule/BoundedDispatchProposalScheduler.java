@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 /**
  * Fixed bounded implementation enforcing one proposal per worker and a separate per-grid outstanding limit.
  */
-final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
+final class BoundedDispatchProposalScheduler implements DispatchProposalScheduler {
 
     private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
@@ -40,17 +40,17 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final DispatchProposalCandidatePlanner candidatePlanner;
     private final ProviderShardDispatcher shardDispatcher;
     private final ThreadPoolExecutor executor;
-    private final ConcurrentMap<WorkerKey, TicketImpl> outstandingWorkers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<WorkerKey, ScheduledProposalTicket> outstandingWorkers = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, GridAdmission> admissionsByGrid = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, MutableMetrics> metricsByGrid = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits, Supplier<TrinityComputationCache> computationCache) {
+    BoundedDispatchProposalScheduler(DispatchProposalLimits limits, Supplier<TrinityComputationCache> computationCache) {
         this(limits, DispatchProposalCandidatePlanner.create(computationCache));
     }
 
-    DispatchProposalSchedulerImpl(DispatchProposalLimits limits,
-                                  DispatchProposalCandidatePlanner candidatePlanner) {
+    BoundedDispatchProposalScheduler(DispatchProposalLimits limits,
+                                     DispatchProposalCandidatePlanner candidatePlanner) {
         if (limits == null) {
             throw new IllegalArgumentException("Dispatch proposal limits must not be null");
         }
@@ -88,7 +88,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         synchronized (this.queueAdmissionLock) {
             admission = gridAdmission.admit(request.lease(), workerKey, wakeup, policy);
             if (admission instanceof AdmissionGranted granted) {
-                TicketImpl ticket = granted.ticket();
+                ScheduledProposalTicket ticket = granted.ticket();
                 FutureTask<Void> task = new FutureTask<>(() -> {
                     calculate(ticket, request, policy.providerQuantum(), queuedAtNanos);
                     return null;
@@ -133,7 +133,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         if (cleared.metrics() != null) {
             cleared.metrics().retireAndReset();
         }
-        cleared.tickets().forEach(TicketImpl::close);
+        cleared.tickets().forEach(ScheduledProposalTicket::close);
     }
 
     @Override
@@ -141,16 +141,16 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         if (!this.closed.compareAndSet(false, true)) {
             return;
         }
-        Set<TicketImpl> closing = new HashSet<>();
+        Set<ScheduledProposalTicket> closing = new HashSet<>();
         for (GridAdmission admission : this.admissionsByGrid.values()) {
             closing.addAll(admission.snapshotTickets());
         }
-        closing.forEach(TicketImpl::close);
+        closing.forEach(ScheduledProposalTicket::close);
         this.executor.shutdownNow();
     }
 
     private void calculate(
-                           TicketImpl ticket,
+                           ScheduledProposalTicket ticket,
                            CraftingDispatchProposalRequest request,
                            int providerQuantum,
                            long queuedAtNanos) {
@@ -204,7 +204,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         }
     }
 
-    private void release(TicketImpl ticket) {
+    private void release(ScheduledProposalTicket ticket) {
         ticket.gridAdmission.release(ticket);
     }
 
@@ -260,7 +260,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     private final class GridAdmission {
 
         private final long gridGeneration;
-        private final Set<TicketImpl> tickets = new HashSet<>();
+        private final Set<ScheduledProposalTicket> tickets = new HashSet<>();
 
         private GridAdmission(long gridGeneration) {
             this.gridGeneration = gridGeneration;
@@ -294,14 +294,14 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                 return new AdmissionRejected(RejectionReason.HIGH_WATER, gridMetrics);
             }
 
-            TicketImpl ticket = new TicketImpl(
-                    DispatchProposalSchedulerImpl.this,
+            ScheduledProposalTicket ticket = new ScheduledProposalTicket(
+                    BoundedDispatchProposalScheduler.this,
                     lease,
                     workerKey,
                     wakeup,
                     gridMetrics,
                     this);
-            TicketImpl previous = outstandingWorkers.putIfAbsent(workerKey, ticket);
+            ScheduledProposalTicket previous = outstandingWorkers.putIfAbsent(workerKey, ticket);
             if (previous != null) {
                 return new AdmissionRejected(RejectionReason.WORKER_BUSY, gridMetrics);
             }
@@ -315,7 +315,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         /**
          * Releases one ticket without touching admission state owned by another Grid.
          */
-        private synchronized void release(TicketImpl ticket) {
+        private synchronized void release(ScheduledProposalTicket ticket) {
             if (!this.tickets.remove(ticket)) {
                 throw new IllegalStateException("Dispatch proposal ticket was not owned by its Grid admission");
             }
@@ -334,7 +334,7 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
                     metricsByGrid.remove(this.gridGeneration));
         }
 
-        private synchronized List<TicketImpl> snapshotTickets() {
+        private synchronized List<ScheduledProposalTicket> snapshotTickets() {
             return List.copyOf(this.tickets);
         }
 
@@ -366,11 +366,11 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         MutableMetrics metrics();
     }
 
-    private record AdmissionGranted(TicketImpl ticket, MutableMetrics metrics) implements Admission {}
+    private record AdmissionGranted(ScheduledProposalTicket ticket, MutableMetrics metrics) implements Admission {}
 
     private record AdmissionRejected(RejectionReason reason, MutableMetrics metrics) implements Admission {}
 
-    private record ClearedGrid(List<TicketImpl> tickets, @Nullable MutableMetrics metrics) {}
+    private record ClearedGrid(List<ScheduledProposalTicket> tickets, @Nullable MutableMetrics metrics) {}
 
     /**
      * Per-Grid accumulator that keeps proposal completion paths off the submission queue lock.
@@ -384,7 +384,9 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private int stale;
         private long queueWaitNanos;
         private long calculationNanos;
-        /** Prevents late work owned by a cleared Grid from republishing metrics through a captured bucket. */
+        /**
+         * Prevents late work owned by a cleared Grid from republishing metrics through a captured bucket.
+         */
         private boolean retired;
 
         private synchronized void recordAdmitted() {
@@ -460,9 +462,9 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
     /**
      * Thread-safe ticket whose terminal result remains available until the server thread closes it.
      */
-    private static final class TicketImpl implements DispatchProposalTicket {
+    private static final class ScheduledProposalTicket implements DispatchProposalTicket {
 
-        private final DispatchProposalSchedulerImpl owner;
+        private final BoundedDispatchProposalScheduler owner;
         private final CraftingDispatchLease lease;
         private final WorkerKey workerKey;
         private final Runnable wakeup;
@@ -474,12 +476,12 @@ final class DispatchProposalSchedulerImpl implements DispatchProposalScheduler {
         private final AtomicBoolean wakeupFailed = new AtomicBoolean();
         private volatile FutureTask<Void> task;
 
-        private TicketImpl(DispatchProposalSchedulerImpl owner,
-                           CraftingDispatchLease lease,
-                           WorkerKey workerKey,
-                           Runnable wakeup,
-                           MutableMetrics metrics,
-                           GridAdmission gridAdmission) {
+        private ScheduledProposalTicket(BoundedDispatchProposalScheduler owner,
+                                        CraftingDispatchLease lease,
+                                        WorkerKey workerKey,
+                                        Runnable wakeup,
+                                        MutableMetrics metrics,
+                                        GridAdmission gridAdmission) {
             this.owner = owner;
             this.lease = lease;
             this.workerKey = workerKey;

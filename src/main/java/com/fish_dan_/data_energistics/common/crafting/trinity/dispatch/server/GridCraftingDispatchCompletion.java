@@ -5,7 +5,7 @@ import java.util.function.BiConsumer;
 /**
  * Lightweight server-thread completion boundary for a Grid without physical runtime work.
  */
-public final class CraftingDispatchCompletionImpl implements CraftingDispatchCompletion {
+public final class GridCraftingDispatchCompletion implements CraftingDispatchCompletion {
 
     private final String diagnosticIdentity;
     private final Runnable tickCompletion;
@@ -18,7 +18,7 @@ public final class CraftingDispatchCompletionImpl implements CraftingDispatchCom
      * @param tickCompletion     callback executed exactly once after the server rotation
      * @param failureRecorder    callback that isolates unexpected completion failures
      */
-    public CraftingDispatchCompletionImpl(String diagnosticIdentity,
+    public GridCraftingDispatchCompletion(String diagnosticIdentity,
                                           Runnable tickCompletion,
                                           BiConsumer<String, RuntimeException> failureRecorder) {
         if (diagnosticIdentity == null || diagnosticIdentity.isBlank()) {
