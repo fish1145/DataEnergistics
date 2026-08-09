@@ -8,11 +8,12 @@ import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Map-backed compartment storage.
  */
-public class CompartmentStorageImpl implements CompartmentStorage {
+public class MapBackedCompartmentStorage implements CompartmentStorage {
 
     private static final String KEY_TAG = "key";
     private static final String AMOUNT_TAG = "amount";
@@ -20,7 +21,7 @@ public class CompartmentStorageImpl implements CompartmentStorage {
     private final Object2LongOpenHashMap<AEKey> contents = new Object2LongOpenHashMap<>();
     private final Runnable listener;
 
-    public CompartmentStorageImpl(Runnable listener) {
+    public MapBackedCompartmentStorage(Runnable listener) {
         this.listener = listener;
     }
 
@@ -107,6 +108,7 @@ public class CompartmentStorageImpl implements CompartmentStorage {
         this.contents.clear();
         for (int i = 0; i < tag.size(); i++) {
             CompoundTag entryTag = tag.getCompound(i);
+            @Nullable
             AEKey key = AEKey.fromTagGeneric(registries, entryTag.getCompound(KEY_TAG));
             long amount = entryTag.getLong(AMOUNT_TAG);
             if (key != null && amount > 0) {

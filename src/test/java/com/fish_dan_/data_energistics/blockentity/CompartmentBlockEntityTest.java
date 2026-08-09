@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
@@ -2636,7 +2636,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class SimpleMEStorage implements MEStorage {
 
-        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {

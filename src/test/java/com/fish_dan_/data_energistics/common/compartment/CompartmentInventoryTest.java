@@ -178,7 +178,7 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void storageDisplayInventoryUsesStableSortedWindow(GameTestHelper helper) {
-        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
         storage.insert(DataKey.of(), 200L, false);
         storage.insert(AEItemKey.of(Items.IRON_INGOT), 3L, false);
 
@@ -671,7 +671,7 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void outputStorageKeepsEntriesBeyondDisplayWindow(GameTestHelper helper) {
-        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
         List<AEItemKey> keys = BuiltInRegistries.ITEM.stream()
                 .filter(item -> item != Items.AIR)
                 .limit(37)
@@ -697,7 +697,7 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void outputStorageRequiresBoundMeOutput(GameTestHelper helper) {
         TestCompartmentPart part = new TestCompartmentPart(CompartmentType.ME_OUTPUT);
-        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
         CompartmentOutputStorage outputStorage = new CompartmentOutputStorage(
                 part,
                 storage,
@@ -1596,7 +1596,7 @@ public final class CompartmentInventoryTest {
     private static class TestCompartmentPart implements CompartmentPart {
 
         private final CompartmentType type;
-        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
         private boolean bound;
 
         private TestCompartmentPart(CompartmentType type) {
@@ -1632,7 +1632,7 @@ public final class CompartmentInventoryTest {
     private static final class TestPatternBufferPart extends TestCompartmentPart implements PatternBufferCompartmentPart {
 
         private final CompartmentInventory patternStorage = CompartmentInventory.itemStorage(1, () -> {}, () -> 1);
-        private final CompartmentStorage patternBufferStorage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage patternBufferStorage = new MapBackedCompartmentStorage(() -> {});
         private final CompartmentStorage patternAggregateStorage = new CompartmentStorageGroup(
                 () -> List.of(this.patternBufferStorage));
 
