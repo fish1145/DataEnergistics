@@ -20,6 +20,7 @@ import com.fish_dan_.data_energistics.registry.DECreativeTabs;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEFluids;
+import com.fish_dan_.data_energistics.registry.DEGameEvents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DELegacyRegistryAliases;
 import com.fish_dan_.data_energistics.registry.DEMenus;
@@ -44,6 +45,7 @@ public class CommonProxy {
         TowerGridServices.init();
 
         DEFluids.register(modEventBus);
+        DEGameEvents.register(modEventBus);
         DEDataComponents.register(modEventBus);
         DEBlocks.register(modEventBus);
         DEItems.register(modEventBus);

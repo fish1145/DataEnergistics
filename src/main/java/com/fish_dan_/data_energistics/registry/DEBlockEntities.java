@@ -21,6 +21,8 @@ import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -39,6 +41,18 @@ public final class DEBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalStorageDepotBlockEntity>> DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "digital_storage_depot",
             () -> BlockEntityType.Builder.of(DigitalStorageDepotBlockEntity::new, DEBlocks.DIGITAL_STORAGE_DEPOT.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TuningForkBaseBlockEntity>> TUNING_FORK_BASE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "tuning_fork_base",
+            () -> BlockEntityType.Builder.of(TuningForkBaseBlockEntity::new, DEBlocks.TUNING_FORK_BASE.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TuningForkBlockEntity>> TUNING_FORK_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "tuning_fork",
+            () -> BlockEntityType.Builder.of(
+                    TuningForkBlockEntity::new,
+                    DEBlocks.AMETHYST_TUNING_FORK.get(),
+                    DEBlocks.DATA_TUNING_FORK.get(),
+                    DEBlocks.RESONANCE_TUNING_FORK.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataExtractorBlockEntity>> DATA_EXTRACTOR_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_extractor",
@@ -125,7 +139,8 @@ public final class DEBlockEntities {
             "fish_dan_",
             () -> BlockEntityType.Builder.of(DollBlockEntity::new, DEBlocks.FISH_DAN.get()).build(null));
 
-    private DEBlockEntities() {}
+    private DEBlockEntities() {
+    }
 
     public static boolean isCompartmentBlockEntityType(BlockEntityType<?> type) {
         return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||

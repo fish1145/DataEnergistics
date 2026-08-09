@@ -83,6 +83,17 @@ public final class DECreativeTabs {
                         output.accept(DEItems.ENDER_COHESION_METEORITE_2);
                         output.accept(DEItems.DATA_METEORITE_COMPASS);
                         output.accept(DEItems.DATA_CRYSTAL_BLOCK);
+                        output.accept(DEItems.TUNING_FORK_BASE);
+                        output.accept(DEItems.RESONANCE_DIGITALIZATION_CORE);
+                        output.accept(DEItems.AMETHYST_TUNING_FORK);
+                        output.accept(DEItems.DATA_TUNING_FORK);
+                        output.accept(DEItems.RESONANCE_TUNING_FORK);
+                        output.accept(DEItems.RESONANCE_CRYSTAL_BLOCK);
+                        output.accept(DEItems.SMALL_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.MEDIUM_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.LARGE_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.RESONANCE_CRYSTAL_CLUSTER);
+                        output.accept(DEItems.RESONANCE_CRYSTAL);
                         output.accept(DEItems.DIGITAL_STORAGE_DEPOT);
                         output.accept(DEItems.BUDDING_DATA_CRYSTAL_0);
                         output.accept(DEItems.BUDDING_DATA_CRYSTAL_1);
@@ -145,7 +156,8 @@ public final class DECreativeTabs {
                     .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
                     .build());
 
-    private DECreativeTabs() {}
+    private DECreativeTabs() {
+    }
 
     public static void register(IEventBus modEventBus) {
         CREATIVE_MODE_TABS.register(modEventBus);
