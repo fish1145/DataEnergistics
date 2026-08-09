@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowCellTooltip;
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.registries.BuiltInRegistries;

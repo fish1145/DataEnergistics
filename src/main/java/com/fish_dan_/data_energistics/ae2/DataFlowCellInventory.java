@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 

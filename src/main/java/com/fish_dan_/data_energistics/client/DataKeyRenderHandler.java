@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client;
 
-import com.fish_dan_.data_energistics.ae2.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.world;
 
-import com.fish_dan_.data_energistics.ae2.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 

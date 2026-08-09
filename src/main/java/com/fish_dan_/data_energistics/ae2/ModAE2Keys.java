@@ -1,5 +1,12 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+
 import net.neoforged.neoforge.registries.RegisterEvent;
 
 import appeng.api.stacks.AEKey;

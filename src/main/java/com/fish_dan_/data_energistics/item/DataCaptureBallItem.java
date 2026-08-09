@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.ModItems;

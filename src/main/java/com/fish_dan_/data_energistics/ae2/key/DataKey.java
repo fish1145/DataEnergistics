@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -19,25 +19,22 @@ import com.mojang.serialization.MapCodec;
 
 import java.util.List;
 
-/**
- * Stateless AE resource produced when a Warden sonic boom crosses an online formation plane.
- */
-public final class EchoKey extends AEKey {
+public final class DataKey extends AEKey {
 
-    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "echo");
-    public static final EchoKey INSTANCE = new EchoKey();
-    public static final MapCodec<EchoKey> MAP_CODEC = MapCodec.unit(INSTANCE);
-    public static final Codec<EchoKey> CODEC = MAP_CODEC.codec();
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data");
+    public static final DataKey INSTANCE = new DataKey();
+    public static final MapCodec<DataKey> MAP_CODEC = MapCodec.unit(INSTANCE);
+    public static final Codec<DataKey> CODEC = MAP_CODEC.codec();
 
-    private EchoKey() {}
+    private DataKey() {}
 
-    public static EchoKey of() {
+    public static DataKey of() {
         return INSTANCE;
     }
 
     @Override
     public AEKeyType getType() {
-        return EchoKeyType.TYPE;
+        return DataKeyType.TYPE;
     }
 
     @Override
@@ -65,7 +62,7 @@ public final class EchoKey extends AEKey {
 
     @Override
     protected Component computeDisplayName() {
-        return Component.translatable("key." + Data_Energistics.MODID + ".echo");
+        return Component.translatable("key." + Data_Energistics.MODID + ".data");
     }
 
     @Override
@@ -87,7 +84,7 @@ public final class EchoKey extends AEKey {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof EchoKey;
+        return obj instanceof DataKey;
     }
 
     @Override
@@ -97,6 +94,6 @@ public final class EchoKey extends AEKey {
 
     @Override
     public String toString() {
-        return "EchoKey{}";
+        return "DataKey{}";
     }
 }

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -19,22 +19,22 @@ import com.mojang.serialization.MapCodec;
 
 import java.util.List;
 
-public final class DataKey extends AEKey {
+public final class DataFlowKey extends AEKey {
 
-    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data");
-    public static final DataKey INSTANCE = new DataKey();
-    public static final MapCodec<DataKey> MAP_CODEC = MapCodec.unit(INSTANCE);
-    public static final Codec<DataKey> CODEC = MAP_CODEC.codec();
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_flow");
+    public static final DataFlowKey INSTANCE = new DataFlowKey();
+    public static final MapCodec<DataFlowKey> MAP_CODEC = MapCodec.unit(INSTANCE);
+    public static final Codec<DataFlowKey> CODEC = MAP_CODEC.codec();
 
-    private DataKey() {}
+    private DataFlowKey() {}
 
-    public static DataKey of() {
+    public static DataFlowKey of() {
         return INSTANCE;
     }
 
     @Override
     public AEKeyType getType() {
-        return DataKeyType.TYPE;
+        return DataFlowKeyType.TYPE;
     }
 
     @Override
@@ -62,7 +62,7 @@ public final class DataKey extends AEKey {
 
     @Override
     protected Component computeDisplayName() {
-        return Component.translatable("key." + Data_Energistics.MODID + ".data");
+        return Component.translatable("key." + Data_Energistics.MODID + ".data_flow");
     }
 
     @Override
@@ -84,7 +84,7 @@ public final class DataKey extends AEKey {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof DataKey;
+        return obj instanceof DataFlowKey;
     }
 
     @Override
@@ -94,6 +94,6 @@ public final class DataKey extends AEKey {
 
     @Override
     public String toString() {
-        return "DataKey{}";
+        return "DataFlowKey{}";
     }
 }

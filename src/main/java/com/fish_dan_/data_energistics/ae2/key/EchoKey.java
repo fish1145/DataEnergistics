@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -19,22 +19,25 @@ import com.mojang.serialization.MapCodec;
 
 import java.util.List;
 
-public final class DataFlowKey extends AEKey {
+/**
+ * Stateless AE resource produced when a Warden sonic boom crosses an online formation plane.
+ */
+public final class EchoKey extends AEKey {
 
-    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_flow");
-    public static final DataFlowKey INSTANCE = new DataFlowKey();
-    public static final MapCodec<DataFlowKey> MAP_CODEC = MapCodec.unit(INSTANCE);
-    public static final Codec<DataFlowKey> CODEC = MAP_CODEC.codec();
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "echo");
+    public static final EchoKey INSTANCE = new EchoKey();
+    public static final MapCodec<EchoKey> MAP_CODEC = MapCodec.unit(INSTANCE);
+    public static final Codec<EchoKey> CODEC = MAP_CODEC.codec();
 
-    private DataFlowKey() {}
+    private EchoKey() {}
 
-    public static DataFlowKey of() {
+    public static EchoKey of() {
         return INSTANCE;
     }
 
     @Override
     public AEKeyType getType() {
-        return DataFlowKeyType.TYPE;
+        return EchoKeyType.TYPE;
     }
 
     @Override
@@ -62,7 +65,7 @@ public final class DataFlowKey extends AEKey {
 
     @Override
     protected Component computeDisplayName() {
-        return Component.translatable("key." + Data_Energistics.MODID + ".data_flow");
+        return Component.translatable("key." + Data_Energistics.MODID + ".echo");
     }
 
     @Override
@@ -84,7 +87,7 @@ public final class DataFlowKey extends AEKey {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof DataFlowKey;
+        return obj instanceof EchoKey;
     }
 
     @Override
@@ -94,6 +97,6 @@ public final class DataFlowKey extends AEKey {
 
     @Override
     public String toString() {
-        return "DataFlowKey{}";
+        return "EchoKey{}";
     }
 }

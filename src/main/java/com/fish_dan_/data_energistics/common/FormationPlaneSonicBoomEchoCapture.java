@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
