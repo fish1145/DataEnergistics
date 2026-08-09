@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.trinity.autobuild;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -22,8 +22,8 @@ public final class TrinityAutoBuildDraftGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void retainsIndependentRevisionBoundChoices(GameTestHelper helper) {
-        MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                .require(ModVerticalMultiBlocks.trinityDataCoreId());
+        MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                .require(DEVerticalMultiBlocks.trinityDataCoreId());
         TrinityAutoBuildDraft initial = TrinityAutoBuildDraft.initial(spec);
 
         helper.assertValueEqual(initial.structureKeys().size(), 3,
@@ -37,7 +37,7 @@ public final class TrinityAutoBuildDraftGameTest {
                 "Main structure must not expose a repeat stepper");
 
         TrinityAutoBuildDraft cpu = initial
-                .select(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME)
+                .select(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME)
                 .withBuildRequested(true);
         int cpuRepeatUnit = cpu.activeVariableRepeatUnit().orElseThrow();
         cpu = cpu.withRepeat(cpuRepeatUnit, TrinityAutoBuildOptions.MAX_REPEAT_COUNT).withTier(10);
@@ -47,7 +47,7 @@ public final class TrinityAutoBuildDraftGameTest {
         helper.assertValueEqual(cpu.activeTierValue(), 10, "CPU tier selection must retain its own value");
 
         TrinityAutoBuildDraft crafting = cpu
-                .select(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME)
+                .select(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME)
                 .withTier(3);
         helper.assertFalse(crafting.activeBuildRequested(),
                 "Crafting build choice must retain its independent disabled default");
@@ -55,7 +55,7 @@ public final class TrinityAutoBuildDraftGameTest {
                 "Crafting tier selection must not reuse CPU tier state");
 
         TrinityAutoBuildDraft restoredCpu = crafting.select(
-                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME);
+                DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME);
         helper.assertTrue(restoredCpu.activeBuildRequested(),
                 "Switching structures must retain the CPU build choice");
         helper.assertValueEqual(restoredCpu.activeRepeatCount(), TrinityAutoBuildOptions.MAX_REPEAT_COUNT,
@@ -67,7 +67,7 @@ public final class TrinityAutoBuildDraftGameTest {
         helper.assertValueEqual(submission.projectionFingerprint().definitionRevision(), spec.definitionRevision(),
                 "Auto-build submission must retain the definition revision");
         helper.assertValueEqual(submission.projectionFingerprint().structureKey().structureName(),
-                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
+                DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
                 "Auto-build submission must use the stable CPU structure key");
         helper.assertValueEqual(submission.projectionFingerprint().variantIndex(), 0,
                 "Current Trinity auto-build submission must carry explicit variant zero");

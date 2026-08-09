@@ -26,8 +26,8 @@ import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.registry.DEStructures;
-import com.fish_dan_.data_energistics.registry.ModUpgrades;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEUpgrades;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 
 import net.neoforged.bus.api.EventPriority;
@@ -54,8 +54,8 @@ public class CommonProxy {
         DEMenus.register(modEventBus);
         DERecipes.register(modEventBus);
         DEStructures.register(modEventBus);
-        ModVerticalMultiBlocks.init();
-        ModUpgrades.registerPartModels();
+        DEVerticalMultiBlocks.init();
+        DEUpgrades.registerPartModels();
         modEventBus.addListener(instance::commonSetup);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerDepotContainerItemStrategies);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerGenericKeyWorldExportStrategies);
@@ -75,7 +75,7 @@ public class CommonProxy {
             VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
             PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
             AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
-            ModUpgrades.init();
+            DEUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();
             }

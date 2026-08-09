@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.client.StorageCellModels;
 
-public final class ModStorageCells {
+public final class DEStorageCells {
 
     public static final ResourceLocation DRIVE_1K = model("1k");
     public static final ResourceLocation DRIVE_4K = model("4k");
@@ -20,7 +20,7 @@ public final class ModStorageCells {
     public static final ResourceLocation DRIVE_256M = model("256m");
     public static final ResourceLocation DRIVE_INFINITY = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/drive/cells/data_cell_infinity");
 
-    private ModStorageCells() {}
+    private DEStorageCells() {}
 
     public static void registerClientModels() {
         StorageCellModels.registerModel(DEItems.DATA_FLOW_CELL_1K.get(), DRIVE_1K);

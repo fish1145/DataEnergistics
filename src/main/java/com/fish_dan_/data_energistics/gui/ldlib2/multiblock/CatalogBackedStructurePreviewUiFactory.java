@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -49,7 +49,7 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
             throw new IllegalArgumentException("Structure preview UI factory arguments cannot be null or blank");
         }
         try {
-            MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot().require(controllerId);
+            MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot().require(controllerId);
             PreviewSelection selection = PreviewSelection.initial(spec).select(structureKey);
             return createResolved(spec, selection, List.of(structureKey), idPrefix, logicalClient, presentation);
         } catch (RuntimeException | Error failure) {

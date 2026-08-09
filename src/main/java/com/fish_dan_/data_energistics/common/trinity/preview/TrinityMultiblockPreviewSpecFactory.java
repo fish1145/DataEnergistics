@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Subst
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.Util;
 import net.minecraft.network.chat.Component;
@@ -32,7 +32,7 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
 
     @Override
     public ResourceLocation controllerId() {
-        return ModVerticalMultiBlocks.trinityDataCoreId();
+        return DEVerticalMultiBlocks.trinityDataCoreId();
     }
 
     @Override
@@ -42,13 +42,13 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
         }
         JsonMultiBlockDefinition main = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreMainKey());
+                DEVerticalMultiBlocks.trinityDataCoreMainKey());
         JsonMultiBlockDefinition cpu = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreCpuKey());
+                DEVerticalMultiBlocks.trinityDataCoreCpuKey());
         JsonMultiBlockDefinition crafting = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreCraftingKey());
+                DEVerticalMultiBlocks.trinityDataCoreCraftingKey());
         AEItemKey ownerOutput = AEItemKey.of(DEBlocks.TRINITY_DATA_CORE.get());
         if (ownerOutput == null) {
             throw new IllegalStateException("Trinity data core block does not expose an owner item");

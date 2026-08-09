@@ -63,7 +63,7 @@ import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -148,8 +148,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String ACCESS_LEASE_EPOCH_TAG = "trinity_access_lease_epoch";
     private static final String NO_FAILURE = "";
     private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
-    private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME;
-    private static final String CRAFTING_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
+    private static final String CPU_STRUCTURE_NAME = DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME;
+    private static final String CRAFTING_STRUCTURE_NAME = DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     /** Atomic inventory-and-world transaction shared by every Trinity structure build request. */
@@ -1778,7 +1778,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void observeMultiBlockDefinitionRevision() {
-        long currentRevision = ModVerticalMultiBlocks.JSON_MULTI_BLOCKS.revision();
+        long currentRevision = DEVerticalMultiBlocks.JSON_MULTI_BLOCKS.revision();
         if (this.observedMultiBlockDefinitionRevision != currentRevision) {
             this.observedMultiBlockDefinitionRevision = currentRevision;
             requestStructureRecheck();
@@ -2393,7 +2393,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockDefinition requireJsonDefinition(JsonMultiBlockStructureKey key) {
-        return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
+        return DEVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(key)
                 .orElseThrow(() -> new IllegalStateException("Missing JSON multiblock definition: " + key));
     }
@@ -2403,15 +2403,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return ModVerticalMultiBlocks.trinityDataCoreMainKey();
+        return DEVerticalMultiBlocks.trinityDataCoreMainKey();
     }
 
     private static JsonMultiBlockStructureKey cpuDefinitionKey() {
-        return ModVerticalMultiBlocks.trinityDataCoreCpuKey();
+        return DEVerticalMultiBlocks.trinityDataCoreCpuKey();
     }
 
     private static JsonMultiBlockStructureKey craftingDefinitionKey() {
-        return ModVerticalMultiBlocks.trinityDataCoreCraftingKey();
+        return DEVerticalMultiBlocks.trinityDataCoreCraftingKey();
     }
 
     private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {

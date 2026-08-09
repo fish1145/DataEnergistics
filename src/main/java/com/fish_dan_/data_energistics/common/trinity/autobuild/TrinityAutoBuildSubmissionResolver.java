@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.Multiblo
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import com.modularmc.mdl.api.multiblock.RepeatRange;
 
@@ -27,7 +27,7 @@ public final class TrinityAutoBuildSubmissionResolver {
             throw new IllegalArgumentException("Trinity auto-build resolution arguments cannot be null");
         }
         ProjectionFingerprint fingerprint = submission.projectionFingerprint();
-        if (!ModVerticalMultiBlocks.trinityDataCoreId().equals(spec.controllerId()) ||
+        if (!DEVerticalMultiBlocks.trinityDataCoreId().equals(spec.controllerId()) ||
                 !spec.controllerId().equals(fingerprint.controllerId())) {
             throw new IllegalArgumentException("Trinity auto-build submission belongs to another controller");
         }
@@ -121,10 +121,10 @@ public final class TrinityAutoBuildSubmissionResolver {
         if (JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME.equals(structureName)) {
             return TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX;
         }
-        if (ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME.equals(structureName)) {
+        if (DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME.equals(structureName)) {
             return TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX;
         }
-        if (ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME.equals(structureName)) {
+        if (DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME.equals(structureName)) {
             return TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX;
         }
         throw new IllegalArgumentException("Unknown Trinity auto-build structure: " + structureName);

@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMult
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
@@ -30,8 +30,8 @@ public final class TrinityAutoBuildSubmissionResolverGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void reconstructsAndRejectsUnrepresentedFields(GameTestHelper helper) {
-        MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                .require(ModVerticalMultiBlocks.trinityDataCoreId());
+        MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                .require(DEVerticalMultiBlocks.trinityDataCoreId());
         TrinityAutoBuildSubmissionResolver resolver = new TrinityAutoBuildSubmissionResolver();
 
         TrinityAutoBuildDraft mainDraft = TrinityAutoBuildDraft.initial(spec);
@@ -41,7 +41,7 @@ public final class TrinityAutoBuildSubmissionResolverGameTest {
         assertTrue(main.options().buildRequested());
 
         TrinityAutoBuildDraft cpuDraft = mainDraft
-                .select(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME)
+                .select(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME)
                 .withBuildRequested(false)
                 .withTier(4);
         int variableUnit = cpuDraft.activeVariableRepeatUnit().orElseThrow();

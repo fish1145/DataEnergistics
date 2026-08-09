@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTie
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import com.modularmc.mdl.api.multiblock.RepeatRange;
 
@@ -30,8 +30,8 @@ public final class TrinityAutoBuildDraft {
 
     private static final List<String> STRUCTURE_KEYS = List.of(
             JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME,
-            ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
-            ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME);
+            DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
+            DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME);
 
     private final MultiblockPreviewSpec spec;
     private final PreviewSelection previewSelection;
@@ -64,8 +64,8 @@ public final class TrinityAutoBuildDraft {
         validateTrinitySpec(spec);
         Map<String, Boolean> buildChoices = new LinkedHashMap<>();
         buildChoices.put(JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME, true);
-        buildChoices.put(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME, false);
-        buildChoices.put(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME, false);
+        buildChoices.put(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME, false);
+        buildChoices.put(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME, false);
         return new TrinityAutoBuildDraft(spec, PreviewSelection.initial(spec), buildChoices);
     }
 
@@ -246,10 +246,10 @@ public final class TrinityAutoBuildDraft {
         if (JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME.equals(structureKey)) {
             return TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX;
         }
-        if (ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME.equals(structureKey)) {
+        if (DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME.equals(structureKey)) {
             return TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX;
         }
-        if (ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME.equals(structureKey)) {
+        if (DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME.equals(structureKey)) {
             return TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX;
         }
         throw new IllegalArgumentException("Unknown Trinity auto-build structure: " + structureKey);
@@ -259,7 +259,7 @@ public final class TrinityAutoBuildDraft {
         if (spec == null) {
             throw new IllegalArgumentException("Trinity auto-build draft requires a preview spec");
         }
-        if (!ModVerticalMultiBlocks.trinityDataCoreId().equals(spec.controllerId())) {
+        if (!DEVerticalMultiBlocks.trinityDataCoreId().equals(spec.controllerId())) {
             throw new IllegalArgumentException("Trinity auto-build draft belongs to another controller: " +
                     spec.controllerId());
         }

@@ -12,7 +12,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Proje
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
@@ -56,8 +56,8 @@ public final class PatternEncodingMultiblockTransferGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void reconstructsCurrentRecipeAndRejectsStaleIdentity(GameTestHelper helper) {
-        MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                .require(ModVerticalMultiBlocks.trinityDataCoreId());
+        MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                .require(DEVerticalMultiBlocks.trinityDataCoreId());
         PreviewSelection selection = PreviewSelection.initial(spec);
         StructurePreviewSnapshot snapshot = new MdlibNorthFacingStructurePreviewProjection().project(spec, selection);
         MultiblockRecipeView current = MultiblockRecipeView.from(spec, snapshot);

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 /**
  * Revision-bound automatic-build choice emitted by the Trinity UI before transport validation.
@@ -17,7 +17,7 @@ public record TrinityAutoBuildSubmission(ProjectionFingerprint projectionFingerp
         if (projectionFingerprint == null) {
             throw new IllegalArgumentException("Trinity auto-build submission requires a projection fingerprint");
         }
-        if (!ModVerticalMultiBlocks.trinityDataCoreId().equals(projectionFingerprint.controllerId())) {
+        if (!DEVerticalMultiBlocks.trinityDataCoreId().equals(projectionFingerprint.controllerId())) {
             throw new IllegalArgumentException("Trinity auto-build submission belongs to another controller: " +
                     projectionFingerprint.controllerId());
         }

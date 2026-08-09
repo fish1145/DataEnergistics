@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * Registration entry point for JSON-backed multiblock definitions.
  */
-public final class ModVerticalMultiBlocks {
+public final class DEVerticalMultiBlocks {
 
     public static final String TRINITY_DATA_CORE_ID = Data_Energistics.id("trinity_data_core").toString();
     public static final String TRINITY_DATA_CORE_CPU_STRUCTURE_NAME = "cpu";
@@ -38,18 +38,18 @@ public final class ModVerticalMultiBlocks {
             JSON_MULTI_BLOCKS,
             List.of(new TrinityMultiblockPreviewSpecFactory()));
 
-    private ModVerticalMultiBlocks() {}
+    private DEVerticalMultiBlocks() {}
 
     public static void init() {
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
                 trinityDataCoreMainKey(),
-                ModVerticalMultiBlocks::trinityDataCoreDefinition));
+                DEVerticalMultiBlocks::trinityDataCoreDefinition));
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
                 trinityDataCoreCpuKey(),
-                ModVerticalMultiBlocks::trinityDataCoreCpuDefinition));
+                DEVerticalMultiBlocks::trinityDataCoreCpuDefinition));
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
                 trinityDataCoreCraftingKey(),
-                ModVerticalMultiBlocks::trinityDataCoreCraftingDefinition));
+                DEVerticalMultiBlocks::trinityDataCoreCraftingDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -104,7 +104,7 @@ public final class ModVerticalMultiBlocks {
     }
 
     private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {
-        InputStream stream = ModVerticalMultiBlocks.class.getResourceAsStream(path);
+        InputStream stream = DEVerticalMultiBlocks.class.getResourceAsStream(path);
         if (stream == null) {
             throw new IllegalStateException("Missing bundled JSON multiblock definition: " + path);
         }

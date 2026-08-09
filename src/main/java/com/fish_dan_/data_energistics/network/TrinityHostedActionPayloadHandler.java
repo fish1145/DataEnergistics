@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionRes
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -50,8 +50,8 @@ public final class TrinityHostedActionPayloadHandler {
         }
         TrinityAutoBuildRequest request;
         try {
-            MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                    .require(ModVerticalMultiBlocks.trinityDataCoreId());
+            MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                    .require(DEVerticalMultiBlocks.trinityDataCoreId());
             request = AUTO_BUILD_RESOLVER.resolve(spec, payload.submission());
         } catch (RuntimeException failure) {
             logFailure("auto-build submission was rejected", routed.player(), routed.menu(), payload.ticket(), failure);

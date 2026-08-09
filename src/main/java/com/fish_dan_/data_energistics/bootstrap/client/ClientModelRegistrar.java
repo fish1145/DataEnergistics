@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.MeVacuumBakedModel;
 import com.fish_dan_.data_energistics.client.render.OrderPackageBakedModel;
 import com.fish_dan_.data_energistics.client.render.OrderPackageItemRenderer;
-import com.fish_dan_.data_energistics.registry.ModStorageCells;
+import com.fish_dan_.data_energistics.registry.DEStorageCells;
 
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
@@ -23,12 +23,12 @@ final class ClientModelRegistrar {
         event.register(ModelResourceLocation.standalone(StorageCellModels.getDefaultModel()));
         StorageCellModels.models().values()
                 .forEach(model -> event.register(ModelResourceLocation.standalone(model)));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_1K));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_4K));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_16K));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_64K));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_256K));
-        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_INFINITY));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_1K));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_4K));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_16K));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_64K));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_256K));
+        event.register(ModelResourceLocation.standalone(DEStorageCells.DRIVE_INFINITY));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));

@@ -15,7 +15,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Struc
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import appeng.api.stacks.GenericStack;
 import appeng.parts.encoding.EncodingMode;
@@ -37,7 +37,7 @@ public final class CatalogValidatedPatternEncodingTransfer implements PatternEnc
      * Creates the production transfer bound to the reload-aware global multiblock catalog.
      */
     public CatalogValidatedPatternEncodingTransfer() {
-        this(ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS, new MdlibNorthFacingStructurePreviewProjection());
+        this(DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS, new MdlibNorthFacingStructurePreviewProjection());
     }
 
     /**

@@ -25,13 +25,13 @@ import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.items.parts.PartModelsHelper;
 
-public final class ModUpgrades {
+public final class DEUpgrades {
 
     private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP = "block.data_energistics.adaptive_pattern_provider";
     private static final String DATA_SANCTUM_INTERFACE_UPGRADE_TOOLTIP_GROUP = "block.data_energistics.data_sanctum_interface";
     private static final String DATA_SANCTUM_INTERFACE_PART_UPGRADE_TOOLTIP_GROUP = "item.data_energistics.data_sanctum_interface_part";
 
-    private ModUpgrades() {}
+    private DEUpgrades() {}
 
     public static void init() {
         DataFlowBusStrategies.register();

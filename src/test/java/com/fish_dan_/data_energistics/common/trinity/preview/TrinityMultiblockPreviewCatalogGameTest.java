@@ -17,7 +17,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Struc
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -59,9 +59,9 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void projectsLiveDefinitions(GameTestHelper helper) {
-        JsonMultiBlockDefinitionRegistrySnapshot definitions = ModVerticalMultiBlocks.JSON_MULTI_BLOCKS.snapshot();
-        MultiblockPreviewCatalogSnapshot catalog = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot();
-        MultiblockPreviewSpec spec = catalog.require(ModVerticalMultiBlocks.trinityDataCoreId());
+        JsonMultiBlockDefinitionRegistrySnapshot definitions = DEVerticalMultiBlocks.JSON_MULTI_BLOCKS.snapshot();
+        MultiblockPreviewCatalogSnapshot catalog = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot();
+        MultiblockPreviewSpec spec = catalog.require(DEVerticalMultiBlocks.trinityDataCoreId());
 
         helper.assertValueEqual(
                 catalog.definitionRevision(),

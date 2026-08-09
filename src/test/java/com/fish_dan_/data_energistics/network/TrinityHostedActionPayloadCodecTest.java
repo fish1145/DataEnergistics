@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -155,9 +155,9 @@ public final class TrinityHostedActionPayloadCodecTest {
         buffer.writeUUID(MENU_SESSION_ID);
         buffer.writeVarLong(1L);
         buffer.writeVarLong(1L);
-        buffer.writeUtf(ModVerticalMultiBlocks.trinityDataCoreId().toString(), 256);
+        buffer.writeUtf(DEVerticalMultiBlocks.trinityDataCoreId().toString(), 256);
         buffer.writeVarLong(0L);
-        buffer.writeUtf(ModVerticalMultiBlocks.trinityDataCoreId().toString(), 256);
+        buffer.writeUtf(DEVerticalMultiBlocks.trinityDataCoreId().toString(), 256);
         buffer.writeUtf(JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME, 128);
         buffer.writeVarInt(0);
         return buffer;
@@ -178,9 +178,9 @@ public final class TrinityHostedActionPayloadCodecTest {
                                                          boolean buildRequested) {
         return new TrinityAutoBuildSubmission(
                 new ProjectionFingerprint(
-                        ModVerticalMultiBlocks.trinityDataCoreId(),
+                        DEVerticalMultiBlocks.trinityDataCoreId(),
                         0L,
-                        ModVerticalMultiBlocks.trinityDataCoreMainKey(),
+                        DEVerticalMultiBlocks.trinityDataCoreMainKey(),
                         0,
                         List.of(1),
                         Map.of(TrinityAutoBuildBlockMap.STORAGE_CORE, 1),
