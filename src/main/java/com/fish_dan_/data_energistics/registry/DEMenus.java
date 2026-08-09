@@ -45,6 +45,7 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
+import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
@@ -87,6 +88,7 @@ public final class DEMenus {
         var pos = data.readBlockPos();
         var hostId = data.readUUID();
         var menuSessionId = data.readUUID();
+        var autoBuildPreviewSpec = TrinityAutoBuildDefinitionBundleCodec.read(data).previewSpec();
         BlockEntity blockEntity = playerInventory.player.level().getBlockEntity(pos);
         TrinityDataCoreBlockEntity host = blockEntity instanceof TrinityDataCoreBlockEntity dataCore ? dataCore : null;
         if (host == null) {
@@ -95,7 +97,13 @@ public final class DEMenus {
                     pos,
                     playerInventory.player.level().dimension().location());
         }
-        return new TrinityDataCoreMenu(id, playerInventory, host, hostId, menuSessionId);
+        return new TrinityDataCoreMenu(
+                id,
+                playerInventory,
+                host,
+                hostId,
+                menuSessionId,
+                autoBuildPreviewSpec);
     }));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
