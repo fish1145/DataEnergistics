@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistry;
 
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
+import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistry;
+
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 

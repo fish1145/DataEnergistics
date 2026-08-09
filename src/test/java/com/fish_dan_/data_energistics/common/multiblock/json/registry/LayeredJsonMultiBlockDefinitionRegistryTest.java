@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.json;
+package com.fish_dan_.data_energistics.common.multiblock.json.registry;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
