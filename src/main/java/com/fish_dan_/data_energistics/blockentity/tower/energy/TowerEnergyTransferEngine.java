@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
+import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
@@ -606,6 +607,10 @@ public final class TowerEnergyTransferEngine {
                 level, endpoint.pos(), endpoint.side(), storage)) {
             return transferMekanismEnergy(level, endpoint, amount, simulate, true);
         }
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return transferModernIndustrializationEnergy(
+                    endpoint, modernIndustrializationStorage, amount, simulate, true);
+        }
         long directInserted;
         try {
             directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
@@ -771,6 +776,10 @@ public final class TowerEnergyTransferEngine {
                 level, endpoint.pos(), endpoint.side(), storage)) {
             return transferMekanismEnergy(level, endpoint, amount, simulate, false);
         }
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return transferModernIndustrializationEnergy(
+                    endpoint, modernIndustrializationStorage, amount, simulate, false);
+        }
         long directExtracted;
         try {
             directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
@@ -929,6 +938,39 @@ public final class TowerEnergyTransferEngine {
         }
         if (!simulate && transferred > 0) {
             publishMutation(endpoint, storage, inserting ? "Mekanism receiver mutation" : "Mekanism source mutation");
+        }
+        return new EndpointTransferResult(transferred, transferred == 0);
+    }
+
+    private EndpointTransferResult transferModernIndustrializationEnergy(
+                                                                         TowerEnergyEndpoint endpoint,
+                                                                         ModernIndustrializationEnergyStorage storage,
+                                                                         long amount,
+                                                                         boolean simulate,
+                                                                         boolean inserting) {
+        long transferred;
+        try {
+            transferred = inserting ? storage.insert(amount, simulate) : storage.extract(amount, simulate);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            Data_Energistics.LOGGER.error(
+                    "Modern Industrialization energy {} failed at {} side {} storage {}",
+                    inserting ? "receiver" : "source",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            return EndpointTransferResult.STALLED;
+        }
+        if (transferred < 0 || transferred > amount) {
+            Data_Energistics.LOGGER.error(
+                    "Modern Industrialization energy {} at {} side {} storage {} returned {} for request {}",
+                    inserting ? "receiver" : "source",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), transferred, amount);
+            return EndpointTransferResult.STALLED;
+        }
+        if (!simulate && transferred > 0) {
+            publishMutation(
+                    endpoint,
+                    storage,
+                    inserting ? "Modern Industrialization receiver mutation" : "Modern Industrialization source mutation");
         }
         return new EndpointTransferResult(transferred, transferred == 0);
     }
@@ -1254,6 +1296,9 @@ public final class TowerEnergyTransferEngine {
             return MekanismEnergyAccess.snapshot(
                     level, endpoint.pos(), endpoint.side(), storage);
         }
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return modernIndustrializationStorage.snapshot();
+        }
         return this.unlimitedEnergyAccess.snapshot(storage);
     }
 
@@ -1357,16 +1402,20 @@ public final class TowerEnergyTransferEngine {
             long restored;
             if (TowerEnergyTransferEngine.this.opEnergyAccess.supports(storage)) {
                 restored = TowerEnergyTransferEngine.this.opEnergyAccess.insert(storage, amount, false);
-            } else if (level != null && MekanismEnergyAccess.supports(
-                    level, this.endpoint.pos(), this.endpoint.side(), storage)) {
-                        restored = MekanismEnergyAccess.compensateExtraction(
-                                level,
-                                this.endpoint.pos(),
-                                storage,
-                                amount);
-                    } else {
-                        restored = TowerEnergyTransferEngine.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
-                    }
+            } else {
+                if (level != null && MekanismEnergyAccess.supports(
+                        level, this.endpoint.pos(), this.endpoint.side(), storage)) {
+                    restored = MekanismEnergyAccess.compensateExtraction(
+                            level,
+                            this.endpoint.pos(),
+                            storage,
+                            amount);
+                } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+                    restored = modernIndustrializationStorage.compensateExtraction(amount);
+                } else {
+                    restored = TowerEnergyTransferEngine.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+                }
+            }
             if (restored > 0) {
                 TowerEnergyTransferEngine.this.publishMutation(this.endpoint, storage, "source compensation");
             }
