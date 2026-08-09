@@ -97,41 +97,31 @@ public class TuningForkBaseBlockEntity extends AENetworkedBlockEntity {
             return false;
         }
 
-        try {
-            MEStorage storage = grid.getStorageService().getInventory();
-            long simulated = storage.insert(EchoKey.of(), requestedAmount, Actionable.SIMULATE, this.actionSource);
-            if (simulated < 0 || simulated > requestedAmount) {
-                Data_Energistics.LOGGER.error(
-                        "Tuning fork base at {} received invalid simulated Echo insertion for variant {}: expected at most {}, actual {}",
-                        this.worldPosition,
-                        variant.serializedName(),
-                        requestedAmount,
-                        simulated);
-                return false;
-            }
-            if (simulated == 0) {
-                return false;
-            }
-
-            long inserted = storage.insert(EchoKey.of(), simulated, Actionable.MODULATE, this.actionSource);
-            if (inserted != simulated) {
-                Data_Energistics.LOGGER.error(
-                        "Tuning fork base at {} produced an inconsistent Echo insertion for variant {}: expected {}, actual {}",
-                        this.worldPosition,
-                        variant.serializedName(),
-                        simulated,
-                        inserted);
-            }
-            return inserted > 0;
-        } catch (RuntimeException exception) {
+        MEStorage storage = grid.getStorageService().getInventory();
+        long simulated = storage.insert(EchoKey.of(), requestedAmount, Actionable.SIMULATE, this.actionSource);
+        if (simulated < 0 || simulated > requestedAmount) {
             Data_Energistics.LOGGER.error(
-                    "Failed to insert {} Echo for variant {} through tuning fork base at {}",
-                    requestedAmount,
-                    variant.serializedName(),
+                    "Tuning fork base at {} received invalid simulated Echo insertion for variant {}: expected at most {}, actual {}",
                     this.worldPosition,
-                    exception);
+                    variant.serializedName(),
+                    requestedAmount,
+                    simulated);
             return false;
         }
+        if (simulated == 0) {
+            return false;
+        }
+
+        long inserted = storage.insert(EchoKey.of(), simulated, Actionable.MODULATE, this.actionSource);
+        if (inserted != simulated) {
+            Data_Energistics.LOGGER.error(
+                    "Tuning fork base at {} produced an inconsistent Echo insertion for variant {}: expected {}, actual {}",
+                    this.worldPosition,
+                    variant.serializedName(),
+                    simulated,
+                    inserted);
+        }
+        return inserted > 0;
     }
 
     @Override

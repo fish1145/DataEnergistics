@@ -18,7 +18,8 @@ import net.neoforged.neoforge.common.NeoForge;
 
 final class CommonEventRegistrar {
 
-    private CommonEventRegistrar() {}
+    private CommonEventRegistrar() {
+    }
 
     static void register(HolderFingerprintBridge configurationReload) {
         NeoForge.EVENT_BUS.register(configurationReload);
@@ -33,7 +34,6 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());
         NeoForge.EVENT_BUS.register(new DataMeteoriteCompassTargetInvalidation());
         NeoForge.EVENT_BUS.register(new DataSanctumPortalLogic());
-        NeoForge.EVENT_BUS.register(new FormationPlaneSonicBoomEchoCapture());
         NeoForge.EVENT_BUS.register(new ServerTickDelayQueue());
         NeoForge.EVENT_BUS.register(new TrinityServerTickMetrics());
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, DataMimeticFieldBlockEntity::captureSimulatedSpawnedDrops);
