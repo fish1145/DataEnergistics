@@ -21,19 +21,25 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Main-thread router for the generation-aware Trinity auto-build action. */
+/**
+ * Main-thread router for the generation-aware Trinity auto-build action.
+ */
 public final class TrinityHostedActionPayloadHandler {
 
     private static final TrinityAutoBuildSubmissionResolver AUTO_BUILD_RESOLVER = new TrinityAutoBuildSubmissionResolver();
 
     private TrinityHostedActionPayloadHandler() {}
 
-    /** Validates, claims, reconstructs, and invokes the existing atomic auto-build entry once. */
+    /**
+     * Validates, claims, reconstructs, and invokes the existing atomic auto-build entry once.
+     */
     static void handleAutoBuild(TrinityHostedAutoBuildPayload payload, Player player) {
         handleAutoBuild(payload, player, responseSink(player));
     }
 
-    /** Test seam retaining current-catalog reconstruction and the complete production routing order. */
+    /**
+     * Test seam retaining current-catalog reconstruction and the complete production routing order.
+     */
     public static void handleAutoBuild(TrinityHostedAutoBuildPayload payload,
                                        Player player,
                                        Consumer<TrinityHostedActionResponsePayload> responseSink) {
@@ -52,6 +58,26 @@ public final class TrinityHostedActionPayloadHandler {
         try {
             MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
                     .require(DEVerticalMultiBlocks.trinityDataCoreId());
+            if (payload.submission().projectionFingerprint().definitionRevision() != spec.definitionRevision()) {
+                Data_Energistics.LOGGER.warn(
+                        "Rejected Trinity auto-build after its menu definition changed: player={}, host={}, " +
+                                "submittedRevision={}, currentRevision={}, generation={}, sequence={}",
+                        routed.player().getGameProfile().getName(),
+                        routed.menu().getHost(),
+                        payload.submission().projectionFingerprint().definitionRevision(),
+                        spec.definitionRevision(),
+                        payload.ticket().generation(),
+                        payload.ticket().sequence());
+                respond(
+                        routed.player(),
+                        payload.containerId(),
+                        payload.hostId(),
+                        payload.menuSessionId(),
+                        payload.ticket(),
+                        TrinityHostedActionStatus.STALE_STATE,
+                        responseSink);
+                return;
+            }
             request = AUTO_BUILD_RESOLVER.resolve(spec, payload.submission());
         } catch (RuntimeException failure) {
             logFailure("auto-build submission was rejected", routed.player(), routed.menu(), payload.ticket(), failure);
@@ -88,12 +114,16 @@ public final class TrinityHostedActionPayloadHandler {
         }
     }
 
-    /** Routes the installed-pattern action without requiring a hosted child window. */
+    /**
+     * Routes the installed-pattern action without requiring a hosted child window.
+     */
     static void handleRefundPatterns(TrinityRefundPatternsPayload payload, Player player) {
         handleRefundPatterns(payload, player, responseSink(player));
     }
 
-    /** Test seam for the complete installed-pattern routing and result path. */
+    /**
+     * Test seam for the complete installed-pattern routing and result path.
+     */
     public static void handleRefundPatterns(TrinityRefundPatternsPayload payload,
                                             Player player,
                                             Consumer<TrinityHostedActionResponsePayload> responseSink) {
@@ -119,12 +149,16 @@ public final class TrinityHostedActionPayloadHandler {
                 () -> routed.menu().executeRefundPatterns(routed.player()));
     }
 
-    /** Routes the retained-work action without requiring a hosted child window. */
+    /**
+     * Routes the retained-work action without requiring a hosted child window.
+     */
     static void handleRefundRetainedItems(TrinityRefundRetainedItemsPayload payload, Player player) {
         handleRefundRetainedItems(payload, player, responseSink(player));
     }
 
-    /** Test seam for the complete queued-input and pending-output routing and result path. */
+    /**
+     * Test seam for the complete queued-input and pending-output routing and result path.
+     */
     public static void handleRefundRetainedItems(TrinityRefundRetainedItemsPayload payload,
                                                  Player player,
                                                  Consumer<TrinityHostedActionResponsePayload> responseSink) {
@@ -150,7 +184,9 @@ public final class TrinityHostedActionPayloadHandler {
                 () -> routed.menu().executeRefundRetainedItems(routed.player()));
     }
 
-    /** Sends a terminal business status while translating unexpected execution errors into a distinct status. */
+    /**
+     * Sends a terminal business status while translating unexpected execution errors into a distinct status.
+     */
     private static void executeStaticAction(String failureReason,
                                             RoutedAction routed,
                                             int containerId,
