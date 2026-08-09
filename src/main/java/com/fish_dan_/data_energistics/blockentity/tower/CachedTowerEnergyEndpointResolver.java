@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Default FE endpoint resolver for Data Distribution Towers.
+ * Resolves side-sensitive tower FE endpoints while caching topology until invalidation and directions per game tick.
  */
-public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpointResolver {
+public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpointResolver {
 
     private final TowerEnergyEndpointResolverContext context;
     private final BrandonsCoreEnergyBridge brandonsCoreEnergyBridge;
@@ -50,10 +50,10 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
      * @param oritechEnergyBridge      optional Oritech energy lookup bridge
      * @param unlimitedEnergyAccess    rate-limit-free storage access used for capability checks
      */
-    public TowerEnergyEndpointResolverImpl(TowerEnergyEndpointResolverContext context,
-                                           BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
-                                           OritechEnergyBridge oritechEnergyBridge,
-                                           UnlimitedEnergyAccess unlimitedEnergyAccess) {
+    public CachedTowerEnergyEndpointResolver(TowerEnergyEndpointResolverContext context,
+                                             BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                                             OritechEnergyBridge oritechEnergyBridge,
+                                             UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this.context = context;
         this.brandonsCoreEnergyBridge = brandonsCoreEnergyBridge;
         this.oritechEnergyBridge = oritechEnergyBridge;

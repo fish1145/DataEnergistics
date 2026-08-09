@@ -3,13 +3,13 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.blockentity.tower.CachedTowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributor;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
@@ -236,7 +236,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
-        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(
+        this.energyEndpointResolver = new CachedTowerEnergyEndpointResolver(
                 this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
         this.energyDistributor = new TowerEnergyDistributorImpl(
                 this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);

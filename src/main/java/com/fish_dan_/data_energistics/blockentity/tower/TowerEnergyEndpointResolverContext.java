@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Supplies tower-specific state required by {@link TowerEnergyEndpointResolverImpl}.
+ * Supplies tower-specific state required by {@link CachedTowerEnergyEndpointResolver}.
  *
  * <p>
  * The resolver needs target mode checks and cluster traversal from the owning block entity, while the block entity
@@ -62,8 +62,7 @@ public interface TowerEnergyEndpointResolverContext {
     /**
      * Checks whether the position belongs to a Data Distribution Tower block.
      *
-     * @param tower tower whose level should be used
-     * @param pos   target position
+     * @param pos target position
      * @return true when the target is a tower block
      */
     boolean isTowerBlock(BlockPos pos);
