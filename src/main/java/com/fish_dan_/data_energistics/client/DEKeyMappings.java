@@ -5,7 +5,7 @@ import net.minecraft.client.KeyMapping;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 
-public final class ModKeyMappings {
+public final class DEKeyMappings {
 
     public static final String KEY_CATEGORY = "key.categories.data_energistics";
     public static final KeyMapping OPEN_PATTERN_PROVIDER = new KeyMapping(
@@ -24,5 +24,5 @@ public final class ModKeyMappings {
             GLFW.GLFW_KEY_Z,
             KEY_CATEGORY);
 
-    private ModKeyMappings() {}
+    private DEKeyMappings() {}
 }

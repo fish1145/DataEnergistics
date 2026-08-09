@@ -9,7 +9,7 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 
 import java.util.function.IntSupplier;
 
-public final class ModFluidClientExtensions {
+public final class DEFluidClientExtensions {
 
     private static final ResourceLocation ENDER_STILL = Data_Energistics.id("block/fluid/ender_still");
     private static final ResourceLocation ENDER_FLOW = Data_Energistics.id("block/fluid/ender_flow");
@@ -17,7 +17,7 @@ public final class ModFluidClientExtensions {
     private static final ResourceLocation DATA_CORROSION_LIQUID_FLOW = Data_Energistics.id("block/fluid/data_corrosion_liquid_flow");
     private static final ResourceLocation WATER_OVERLAY = ResourceLocation.withDefaultNamespace("block/water_overlay");
 
-    private ModFluidClientExtensions() {}
+    private DEFluidClientExtensions() {}
 
     public static void register(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new TintedFluidTypeExtensions(

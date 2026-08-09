@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
+import com.fish_dan_.data_energistics.client.DEFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.render.MeVacuumItemRenderer;
 import com.fish_dan_.data_energistics.client.render.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -14,7 +14,7 @@ final class ClientExtensionRegistrar {
     private ClientExtensionRegistrar() {}
 
     static void register(RegisterClientExtensionsEvent event) {
-        ModFluidClientExtensions.register(event);
+        DEFluidClientExtensions.register(event);
         event.registerItem(new IClientItemExtensions() {
 
             private BlockEntityWithoutLevelRenderer renderer;

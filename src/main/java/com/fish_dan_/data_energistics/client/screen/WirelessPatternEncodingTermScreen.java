@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
@@ -284,7 +284,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
+        if (this.previewVisible && DEKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
             var hit = getProviderButtonHit(mouseX, mouseY);
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
@@ -315,7 +315,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+        if (this.previewVisible && DEKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
             var hit = getProviderButtonHit(getMouseGuiX(), getMouseGuiY());
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
@@ -324,7 +324,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+        if (this.previewVisible && DEKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
             var hit = getProviderButtonHit(getMouseGuiX(), getMouseGuiY());
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
@@ -638,13 +638,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     private Component getProviderRenameHint() {
         return Component.translatable(
                 "screen.data_energistics.pattern_writer_preview.provider.rename",
-                ModKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage());
+                DEKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage());
     }
 
     private Component getProviderOpenHint() {
         return Component.translatable(
                 "screen.data_energistics.pattern_writer_preview.provider.open",
-                ModKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage());
+                DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage());
     }
 
     private void initProviderSearchBox() {

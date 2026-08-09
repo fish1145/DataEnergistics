@@ -12,12 +12,12 @@ import net.neoforged.neoforge.client.model.DynamicFluidContainerModel;
 import appeng.items.storage.BasicStorageCell;
 import appeng.items.tools.powered.AbstractPortableCell;
 
-public final class ModItemColors {
+public final class DEItemColors {
 
-    private ModItemColors() {}
+    private DEItemColors() {}
 
     public static void register(RegisterColorHandlersEvent.Item event) {
-        event.register(makeOpaque(ModItemColors::getPortableCellColor),
+        event.register(makeOpaque(DEItemColors::getPortableCellColor),
                 DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(),
                 DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(),
                 DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(),

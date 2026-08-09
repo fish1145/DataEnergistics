@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
@@ -152,6 +152,6 @@ final class ClientInputHandler {
     }
 
     static boolean consumeToggleDepotBucketModeClick() {
-        return ModKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE.consumeClick();
+        return DEKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE.consumeClick();
     }
 }
