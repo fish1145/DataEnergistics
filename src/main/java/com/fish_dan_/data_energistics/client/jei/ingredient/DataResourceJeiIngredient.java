@@ -9,7 +9,6 @@ import appeng.api.stacks.GenericStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import mezz.jei.api.ingredients.IIngredientType;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -17,7 +16,7 @@ import java.util.List;
 /**
  * Native JEI ingredient identity for one Data Energistics custom AE resource and amount.
  */
-public record DataResourceJeiIngredient(@NotNull DataResourceKey key, long amount) {
+public record DataResourceJeiIngredient(DataResourceKey key, long amount) {
 
     /**
      * JEI type identity used by recipe slots and clickable ingredients.
@@ -54,7 +53,7 @@ public record DataResourceJeiIngredient(@NotNull DataResourceKey key, long amoun
      *
      * @return the native ingredient for a Data Energistics key, or {@code null} for other AE keys
      */
-    public static @Nullable DataResourceJeiIngredient from(@NotNull GenericStack stack) {
+    public static @Nullable DataResourceJeiIngredient from(GenericStack stack) {
         DataResourceKey key = DataResourceKey.fromAeKey(stack.what());
         if (key == null) {
             return null;
@@ -76,7 +75,7 @@ public record DataResourceJeiIngredient(@NotNull DataResourceKey key, long amoun
     /**
      * Converts this viewer ingredient back to AE2's generic stack representation.
      */
-    public @NotNull GenericStack asGenericStack() {
+    public GenericStack asGenericStack() {
         return new GenericStack(this.key.aeKey(), this.amount);
     }
 

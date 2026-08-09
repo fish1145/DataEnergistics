@@ -17,7 +17,6 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.world.entity.player.Player;
 
 import com.mojang.serialization.JsonOps;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
@@ -40,7 +39,7 @@ public final class PatternUploadSucceededClientHandler {
     /**
      * Applies one success event idempotently and notifies only for Data Energistics owned uploads.
      */
-    public static void handle(@NotNull PatternUploadSucceededPayload payload, @NotNull Player player) {
+    public static void handle(PatternUploadSucceededPayload payload, Player player) {
         PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
         ResourceLocation confirmedWorkstation = payload.confirmedWorkstation();
         if (confirmedWorkstation != null) {
@@ -74,9 +73,9 @@ public final class PatternUploadSucceededClientHandler {
     }
 
     private static void applyConfirmedWorkstationToCurrentMenu(
-                                                               @NotNull Player player,
-                                                               @NotNull PatternUploadSucceededPayload payload,
-                                                               @NotNull ResourceLocation confirmedWorkstation) {
+                                                               Player player,
+                                                               PatternUploadSucceededPayload payload,
+                                                               ResourceLocation confirmedWorkstation) {
         if (!(player.containerMenu instanceof PatternEncodingPreferenceMenu preferenceMenu) ||
                 !(player.containerMenu instanceof PatternEncodingSourceAware sourceAware)) {
             return;
@@ -98,9 +97,9 @@ public final class PatternUploadSucceededClientHandler {
         DELIVERED_EVENTS.clear();
     }
 
-    private static Component createSuccessMessage(@NotNull PatternUploadSucceededPayload payload,
-                                                  @NotNull ResourceLocation dimensionId,
-                                                  @NotNull BlockPos position) {
+    private static Component createSuccessMessage(PatternUploadSucceededPayload payload,
+                                                  ResourceLocation dimensionId,
+                                                  BlockPos position) {
         String coordinates = "(" + position.getX() + ", " + position.getY() + ", " + position.getZ() + ")";
         String dimension = dimensionId.toString();
         String tpCommand = "/tp @s " + format(position.getX() + 0.5D) + " " + (position.getY() + 1) + " " + format(position.getZ() + 0.5D);
@@ -147,12 +146,12 @@ public final class PatternUploadSucceededClientHandler {
         return String.format(Locale.ROOT, "%.1f", value);
     }
 
-    private record SuccessEventKey(@NotNull PatternUploadSource source,
+    private record SuccessEventKey(PatternUploadSource source,
                                    @Nullable PatternEncodingRankingContext rankingContext,
                                    @Nullable ResourceLocation confirmedWorkstation,
-                                   @NotNull String providerDigest,
+                                   String providerDigest,
                                    long newCount,
-                                   @NotNull String targetEncoding,
+                                   String targetEncoding,
                                    @Nullable ResourceLocation dimensionId,
                                    @Nullable BlockPos position,
                                    long epochMillis) {

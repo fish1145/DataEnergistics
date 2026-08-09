@@ -21,7 +21,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import org.jetbrains.annotations.NotNull;
 
 public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimeticFieldBlockEntity> {
 
@@ -44,8 +43,8 @@ public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimetic
     public DataMimeticFieldRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public void render(@NotNull DataMimeticFieldBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
-                       @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(DataMimeticFieldBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight, int packedOverlay) {
         var level = blockEntity.getLevel();
         if (level == null) {
             return;

@@ -16,7 +16,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -78,8 +77,8 @@ public final class PatternEncodingPreferencesClient {
     /**
      * Persists a successful processing transfer with its exact recipe-type context.
      */
-    public static void captureTransferredProcessingRecipe(@NotNull AbstractContainerMenu menu,
-                                                          @NotNull PatternEncodingRankingContext transferredContext) {
+    public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
+                                                          PatternEncodingRankingContext transferredContext) {
         Interfaces interfaces = Interfaces.require(menu);
         interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(transferredContext);
         sendSnapshot(menu);
@@ -88,7 +87,7 @@ public final class PatternEncodingPreferencesClient {
     /**
      * Removes stale recipe-viewer context after category or workstation lookup fails.
      */
-    public static void clearTransferredRecipeContext(@NotNull PatternEncodingTermMenu menu) {
+    public static void clearTransferredRecipeContext(PatternEncodingTermMenu menu) {
         try {
             Interfaces.require(menu);
             PatternEncodingSourceHelper.clearViewerTransferContext(menu);
@@ -178,7 +177,7 @@ public final class PatternEncodingPreferencesClient {
                               PatternEncodingSourceAware sourceAware,
                               PatternEncodingPreviewLayoutAware layoutAware) {
 
-        private static Interfaces require(@NotNull AbstractContainerMenu menu) {
+        private static Interfaces require(AbstractContainerMenu menu) {
             if (!(menu instanceof PatternEncodingPreferenceMenu preferenceMenu) || !(menu instanceof PatternEncodingPreviewMenu previewMenu) || !(menu instanceof PatternEncodingSourceAware sourceAware) || !(menu instanceof PatternEncodingPreviewLayoutAware layoutAware)) {
                 throw new IllegalArgumentException("Menu does not support pattern encoding preferences: " + menu);
             }
