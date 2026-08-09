@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
 
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

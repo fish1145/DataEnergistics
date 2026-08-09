@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 /**
  * Identifies events that invalidate one tower network domain snapshot.

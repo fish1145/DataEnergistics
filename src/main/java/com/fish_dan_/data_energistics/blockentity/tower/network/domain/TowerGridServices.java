@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import appeng.api.networking.GridServices;
 
@@ -18,7 +18,7 @@ public final class TowerGridServices {
         if (initialized) {
             return;
         }
-        GridServices.register(TowerNetworkDomain.class, TowerNetworkDomainImpl.class);
+        GridServices.register(TowerNetworkDomain.class, AeGridTowerNetworkDomain.class);
         initialized = true;
     }
 }

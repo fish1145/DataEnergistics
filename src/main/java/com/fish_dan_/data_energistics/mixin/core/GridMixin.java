@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeException;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeInternal;
 import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomainChange;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomainChange;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;

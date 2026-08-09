@@ -8,9 +8,9 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;

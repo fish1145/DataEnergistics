@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.discovery;
 
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 
 import appeng.api.networking.IGridNode;
 

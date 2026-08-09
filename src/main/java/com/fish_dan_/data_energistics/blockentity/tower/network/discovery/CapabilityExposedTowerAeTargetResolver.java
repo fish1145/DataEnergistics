@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.blockentity.tower.network.discovery;
 
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

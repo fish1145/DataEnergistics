@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.network;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 /**
  * User-facing state of one resolved or pending virtual device.

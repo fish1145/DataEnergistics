@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.TowerChannelCapacity;
@@ -74,7 +74,7 @@ import java.util.Set;
 /**
  * Grid-local coordinator for target ownership, virtual-channel leases, and service-bridge membership.
  */
-public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridServiceProvider {
+public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGridServiceProvider {
 
     private static final int SAFETY_RESCAN_INTERVAL_TICKS = 100;
     private static final int BRIDGE_FAILURE_LOG_INTERVAL_TICKS = 100;
@@ -120,7 +120,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
      *
      * @param grid owning physical grid
      */
-    public TowerNetworkDomainImpl(IGrid grid) {
+    public AeGridTowerNetworkDomain(IGrid grid) {
         this.grid = grid;
     }
 
