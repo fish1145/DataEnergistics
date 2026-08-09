@@ -7,11 +7,11 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 /**
  * Delegates tower OP operations to the optional BrandonsCore bridge.
  */
-final class TowerOpEnergyAccessImpl implements TowerOpEnergyAccess {
+final class BrandonsCoreTowerOpEnergyAccess implements TowerOpEnergyAccess {
 
     private final BrandonsCoreEnergyBridge bridge;
 
-    TowerOpEnergyAccessImpl(BrandonsCoreEnergyBridge bridge) {
+    BrandonsCoreTowerOpEnergyAccess(BrandonsCoreEnergyBridge bridge) {
         this.bridge = bridge;
     }
 

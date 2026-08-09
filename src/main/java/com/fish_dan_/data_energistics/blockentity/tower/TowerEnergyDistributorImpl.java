@@ -57,7 +57,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                       UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
                 ModFlags.isAppFluxEnergySupportLoaded(),
-                new TowerGridEnergyAccessImpl());
+                new AppFluxTowerGridEnergyAccess());
     }
 
     /**
@@ -73,7 +73,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                       BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
                                       UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this(context, endpointResolver, brandonsCoreEnergyBridge, unlimitedEnergyAccess,
-                ModFlags.isAppFluxEnergySupportLoaded(), new TowerGridEnergyAccessImpl());
+                ModFlags.isAppFluxEnergySupportLoaded(), new AppFluxTowerGridEnergyAccess());
     }
 
     TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
@@ -82,7 +82,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                boolean appFluxEnergySupportLoaded) {
         this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
                 appFluxEnergySupportLoaded,
-                new TowerGridEnergyAccessImpl());
+                new AppFluxTowerGridEnergyAccess());
     }
 
     TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
@@ -100,7 +100,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                UnlimitedEnergyAccess unlimitedEnergyAccess,
                                boolean appFluxEnergySupportLoaded,
                                TowerGridEnergyAccess gridEnergyAccess) {
-        this(context, endpointResolver, new TowerOpEnergyAccessImpl(brandonsCoreEnergyBridge), unlimitedEnergyAccess,
+        this(context, endpointResolver, new BrandonsCoreTowerOpEnergyAccess(brandonsCoreEnergyBridge), unlimitedEnergyAccess,
                 appFluxEnergySupportLoaded, gridEnergyAccess);
     }
 
