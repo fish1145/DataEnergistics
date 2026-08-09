@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.connector;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -16,7 +16,7 @@ public interface DataDistributionConnectorSelector {
      * @return a selector that gives the offhand connector priority over the equipped connector
      */
     static DataDistributionConnectorSelector create() {
-        return new DataDistributionConnectorSelectorImpl();
+        return new HandFirstConnectorSelector();
     }
 
     /**
@@ -32,7 +32,7 @@ public interface DataDistributionConnectorSelector {
 /**
  * Implements deterministic hand-first connector selection without exposing optional equipment APIs to consumers.
  */
-final class DataDistributionConnectorSelectorImpl implements DataDistributionConnectorSelector {
+final class HandFirstConnectorSelector implements DataDistributionConnectorSelector {
 
     /**
      * Preserves source stack identity so subsequent binding mutations update the player's actual connector.
