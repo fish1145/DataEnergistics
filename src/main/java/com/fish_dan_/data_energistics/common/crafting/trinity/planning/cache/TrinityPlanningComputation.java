@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 
 import appeng.api.stacks.AEKey;
 
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 /**
@@ -37,18 +39,23 @@ public final class TrinityPlanningComputation {
     public static TrinityPlanningComputation create(
                                                     TrinityComputationCache cache,
                                                     TrinityGraphPlanningPipeline pipeline) {
-        return new TrinityPlanningComputation(cache, pipeline);
+        return new TrinityPlanningComputation(cache, pipeline, System::nanoTime);
     }
 
     private final TrinityComputationCache cache;
     private final TrinityGraphPlanningPipeline pipeline;
+    private final LongSupplier nanoClock;
 
-    TrinityPlanningComputation(TrinityComputationCache cache, TrinityGraphPlanningPipeline pipeline) {
+    TrinityPlanningComputation(
+                               TrinityComputationCache cache,
+                               TrinityGraphPlanningPipeline pipeline,
+                               LongSupplier nanoClock) {
         if (cache == null || pipeline == null) {
             throw new IllegalArgumentException("A Trinity planning computation requires cache and pipeline");
         }
         this.cache = cache;
         this.pipeline = pipeline;
+        this.nanoClock = nanoClock;
     }
 
     /**
@@ -76,6 +83,7 @@ public final class TrinityPlanningComputation {
     public TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
                                                                                   throws InterruptedException, ExecutionException {
         validateInput(input);
+        long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningControl control = TrinityPlanningControl.unbounded();
         TrinityComputationValue<TrinityCraftingGraphSnapshot> reachable = this.cache.computeInline(
@@ -131,7 +139,31 @@ public final class TrinityPlanningComputation {
                         control)));
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
                 solved.cacheHit() ? PlanningCachePath.EXACT_HIT : PlanningCachePath.STRUCTURE_HIT;
-        return new TrinityPlanningComputationResult(solved.value(), path);
+        return new TrinityPlanningComputationResult(
+                withRequestTiming(solved.value(), solved.cacheHit(), startedNanos),
+                path);
+    }
+
+    private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(
+                                                                          TrinityAlgorithmResult<TrinityCraftingPlan> result,
+                                                                          boolean solvedFromCache,
+                                                                          long startedNanos) {
+        if (!result.successful()) {
+            return result;
+        }
+        TrinityCraftingPlan cachedPlan = result.value();
+        TrinityPlanningStatistics cachedStatistics = cachedPlan.statistics();
+        long mipNanos = solvedFromCache ? 0L : cachedStatistics.mipNanos();
+        long planningNanos = Math.max(
+                mipNanos,
+                Math.max(0L, this.nanoClock.getAsLong() - startedNanos));
+        TrinityPlanningStatistics requestStatistics = new TrinityPlanningStatistics(
+                cachedStatistics.sccCount(),
+                cachedStatistics.variantCount(),
+                planningNanos,
+                mipNanos,
+                cachedStatistics.scheduleStates());
+        return TrinityAlgorithmResult.success(cachedPlan.withPlanningStatistics(requestStatistics));
     }
 
     private static void validateInput(TrinityPlanningInput input) {

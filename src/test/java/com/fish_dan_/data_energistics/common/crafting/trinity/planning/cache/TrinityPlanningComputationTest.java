@@ -37,9 +37,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TrinityPlanningComputationTest {
@@ -101,6 +103,28 @@ final class TrinityPlanningComputationTest {
         assertEquals(PlanningCachePath.STRUCTURE_HIT, quantity.cachePath());
         assertEquals(1, pipeline.compilations.get());
         assertEquals(3, pipeline.solves.get());
+    }
+
+    @Test
+    void exactHitPublishesTimingMeasuredForItsOwnRequest() throws Exception {
+        CountingPipeline pipeline = new CountingPipeline();
+        long[] nanoTimes = { 0L, 1_000_000_000_000L, 2_000_000_000_000L, 2_000_000_000_007L };
+        AtomicInteger clockIndex = new AtomicInteger();
+        TrinityPlanningComputation computation = computation(
+                pipeline,
+                1,
+                () -> nanoTimes[clockIndex.getAndIncrement()]);
+        TrinityPlanningInput input = input(1L, 1L, BigInteger.ONE, Map.of(inputKey, BigInteger.ONE));
+
+        TrinityPlanningComputationResult first = computation.calculate(input);
+        TrinityPlanningComputationResult exact = computation.calculate(input);
+
+        assertEquals(PlanningCachePath.MISS, first.cachePath());
+        assertEquals(1_000_000_000_000L, first.result().value().statistics().planningNanos());
+        assertEquals(PlanningCachePath.EXACT_HIT, exact.cachePath());
+        assertEquals(7L, exact.result().value().statistics().planningNanos());
+        assertEquals(0L, exact.result().value().statistics().mipNanos());
+        assertNotSame(first.result().value(), exact.result().value());
     }
 
     @Test
@@ -202,9 +226,16 @@ final class TrinityPlanningComputationTest {
     }
 
     private TrinityPlanningComputation computation(CountingPipeline pipeline, int threads) {
+        return computation(pipeline, threads, System::nanoTime);
+    }
+
+    private TrinityPlanningComputation computation(
+                                                   CountingPipeline pipeline,
+                                                   int threads,
+                                                   LongSupplier nanoClock) {
         this.executor = Executors.newFixedThreadPool(threads);
         this.cache = TrinityComputationCache.create(this.executor, 32);
-        return TrinityPlanningComputation.create(this.cache, pipeline);
+        return new TrinityPlanningComputation(this.cache, pipeline, nanoClock);
     }
 
     private static TrinityPlanningInput input(
