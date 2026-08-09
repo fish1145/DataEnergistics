@@ -1,5 +1,6 @@
-package com.fish_dan_.data_energistics.client.screen;
+package com.fish_dan_.data_energistics.client.screen.trinity;
 
+import com.fish_dan_.data_energistics.client.screen.Ldlib2AeProtocolScreen;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 
 import net.minecraft.network.chat.Component;

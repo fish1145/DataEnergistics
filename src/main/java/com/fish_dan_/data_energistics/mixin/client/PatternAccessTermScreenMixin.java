@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
-import com.fish_dan_.data_energistics.client.screen.TrinityAccessHatchScreen;
+import com.fish_dan_.data_energistics.client.screen.trinity.TrinityAccessHatchScreen;
 
 import net.minecraft.world.item.ItemStack;
 
