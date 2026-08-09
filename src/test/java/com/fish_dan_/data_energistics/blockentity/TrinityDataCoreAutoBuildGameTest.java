@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildOptions;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;

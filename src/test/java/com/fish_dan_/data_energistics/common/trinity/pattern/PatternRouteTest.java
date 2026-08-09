@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import net.minecraft.nbt.CompoundTag;
 

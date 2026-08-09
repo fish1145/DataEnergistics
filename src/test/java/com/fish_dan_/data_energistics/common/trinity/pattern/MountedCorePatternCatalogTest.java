@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -34,18 +34,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
-public final class TrinityPatternCatalogImplTest {
+public final class MountedCorePatternCatalogTest {
 
-    private TrinityPatternCatalogImplTest() {}
+    private MountedCorePatternCatalogTest() {}
 
     @TestHolder("trinity_pattern_catalog_sorts_and_validates_mounts")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void sortsMountsAndRejectsCapacityOrIdentityConflicts(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl later = core(UUID.randomUUID());
-        TrinityPatternCoreImpl earlier = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore later = core(UUID.randomUUID());
+        PersistentTrinityPatternCore earlier = core(UUID.randomUUID());
         later.trySetPattern(2, new ItemStack(Items.PAPER));
         earlier.trySetPattern(3, new ItemStack(Items.MAP));
 
@@ -88,8 +88,8 @@ public final class TrinityPatternCatalogImplTest {
         assertTrue(capacityFailure.failureReason().contains("capacity mismatch"));
 
         UUID duplicateId = UUID.randomUUID();
-        TrinityPatternCoreImpl firstDuplicate = core(duplicateId);
-        TrinityPatternCoreImpl secondDuplicate = core(duplicateId);
+        PersistentTrinityPatternCore firstDuplicate = core(duplicateId);
+        PersistentTrinityPatternCore secondDuplicate = core(duplicateId);
         TrinityPatternCatalog.RebuildResult duplicateFailure = catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 64, secondDuplicate),
                 new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, firstDuplicate)));
@@ -105,9 +105,9 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void keepsDuplicateDefinitionsAsIndependentRoutes(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
-        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore first = core(UUID.randomUUID());
+        PersistentTrinityPatternCore second = core(UUID.randomUUID());
         first.trySetPattern(4, new ItemStack(Items.PAPER));
         second.trySetPattern(9, new ItemStack(Items.PAPER));
 
@@ -134,10 +134,10 @@ public final class TrinityPatternCatalogImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void refreshesOnlyTheChangedSlotWithinCore(GameTestHelper helper) {
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        TrinityPatternCoreImpl firstDelegate = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
+        PersistentTrinityPatternCore firstDelegate = core(UUID.randomUUID());
         TopologyCapacityCore first = new TopologyCapacityCore(firstDelegate, () -> {});
-        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        PersistentTrinityPatternCore second = core(UUID.randomUUID());
         first.trySetPattern(0, new ItemStack(Items.PAPER));
         first.trySetPattern(1, new ItemStack(Items.MAP));
         second.trySetPattern(0, new ItemStack(Items.MAP));
@@ -235,17 +235,17 @@ public final class TrinityPatternCatalogImplTest {
     public static void reloadAndLiveRestoreUpdateOnlyChangedRuntimeSemantics(GameTestHelper helper) {
         AtomicReference<ItemStack> output = new AtomicReference<>(new ItemStack(Items.DIAMOND));
         ArrayList<TrinityPatternSlot.Change> changes = new ArrayList<>();
-        TrinityPatternCoreImpl changed = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore changed = new PersistentTrinityPatternCore(
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.PAPER) || stack.is(Items.MAP) ? new FillingPattern(stack, output.get()) : null,
                 TrinityPatternTestResolvers.create(),
                 changes::add);
-        TrinityPatternCoreImpl unchanged = core(UUID.randomUUID());
+        PersistentTrinityPatternCore unchanged = core(UUID.randomUUID());
         assertTrue(changed.trySetPattern(0, new ItemStack(Items.PAPER)));
         assertTrue(unchanged.trySetPattern(0, new ItemStack(Items.MAP)));
         changes.clear();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, changed),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, unchanged)));
@@ -295,7 +295,7 @@ public final class TrinityPatternCatalogImplTest {
         assertEquals(AEItemKey.of(Items.DIAMOND), restoredRuntime.get(0).getOutputs().getFirst().what());
         assertEquals(publicationRevision + 2L, catalog.publicationRevision());
 
-        TrinityPatternCoreImpl replacement = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore replacement = new PersistentTrinityPatternCore(
                 64,
                 changed.coreId(),
                 stack -> stack.is(Items.PAPER) || stack.is(Items.MAP) ? new FillingPattern(stack, output.get()) : null,
@@ -323,8 +323,8 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void repeatedDispatchUsesStableSlotBindingWithoutRefreshingCatalog(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl delegate = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore delegate = core(UUID.randomUUID());
         assertTrue(delegate.trySetPattern(3, new ItemStack(Items.PAPER)));
         TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {});
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
@@ -366,7 +366,7 @@ public final class TrinityPatternCatalogImplTest {
     public static void rejectsUnflushedRuntimeBindingAfterReload(GameTestHelper helper) {
         AtomicBoolean paperDecodable = new AtomicBoolean(true);
         ArrayList<TrinityPatternSlot.Change> changes = new ArrayList<>();
-        TrinityPatternCoreImpl delegate = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore delegate = new PersistentTrinityPatternCore(
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.MAP) || (paperDecodable.get() && stack.is(Items.PAPER)) ?
@@ -376,7 +376,7 @@ public final class TrinityPatternCatalogImplTest {
         TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {});
         assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
         assertTrue(core.trySetPattern(1, new ItemStack(Items.MAP)));
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
         changes.clear();
         assertEquals(2, catalog.getAvailablePatterns().size());
@@ -425,9 +425,9 @@ public final class TrinityPatternCatalogImplTest {
     public static void invalidatesChangedCoreIdentityBeforeReadingPatternCaches(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
         UUID originalCoreId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
         ArrayList<TrinityPatternSlot.Change> changes = new ArrayList<>();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
                 originalCoreId,
                 stack -> stack.is(Items.PAPER) || stack.is(Items.MAP) ? new FillingPattern(stack) : null,
@@ -443,7 +443,7 @@ public final class TrinityPatternCatalogImplTest {
                 .getFirst();
 
         UUID restoredCoreId = UUID.randomUUID();
-        TrinityPatternCoreImpl restoredState = core(restoredCoreId);
+        PersistentTrinityPatternCore restoredState = core(restoredCoreId);
         restoredState.trySetPattern(0, new ItemStack(Items.PAPER));
         CompoundTag restoredTag = new CompoundTag();
         restoredState.writeToTag(restoredTag, helper.getLevel().registryAccess());
@@ -484,13 +484,13 @@ public final class TrinityPatternCatalogImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void versionsCapacityChangesAndPreservesLayoutWhenTotalCapacityOverflows(GameTestHelper helper) {
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        TrinityPatternCoreImpl small = core(64, UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
+        PersistentTrinityPatternCore small = core(64, UUID.randomUUID());
         TrinityPatternCatalog.CoreMount smallMount = new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, small);
         catalog.rebuild(List.of(smallMount));
         TrinityPatternCatalog.LayoutSnapshot smallLayout = catalog.layoutSnapshot();
 
-        TrinityPatternCoreImpl extended = core(128, UUID.randomUUID());
+        PersistentTrinityPatternCore extended = core(128, UUID.randomUUID());
         extended.trySetPattern(0, new ItemStack(Items.PAPER));
         TrinityPatternCatalog.CoreMount extendedMount = new TrinityPatternCatalog.CoreMount(
                 BlockPos.ZERO,
@@ -522,10 +522,10 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void versionsContiguousGlobalLayoutAndInvalidatesStaleLookups(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl small = core(64, UUID.randomUUID());
-        TrinityPatternCoreImpl extended = core(128, UUID.randomUUID());
-        TrinityPatternCoreImpl overlimit = core(512, UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore small = core(64, UUID.randomUUID());
+        PersistentTrinityPatternCore extended = core(128, UUID.randomUUID());
+        PersistentTrinityPatternCore overlimit = core(512, UUID.randomUUID());
         TrinityPatternCatalog.CoreMount smallMount = new TrinityPatternCatalog.CoreMount(
                 new BlockPos(1, 0, 0), 64, small);
         TrinityPatternCatalog.CoreMount extendedMount = new TrinityPatternCatalog.CoreMount(
@@ -595,7 +595,7 @@ public final class TrinityPatternCatalogImplTest {
         assertFalse(catalog.isMountCurrent(firstLayout.revision(), movedSmallMount));
         assertTrue(catalog.isMountCurrent(movedLayout.revision(), movedSmallMount));
 
-        TrinityPatternCoreImpl replacement = core(64, small.coreId());
+        PersistentTrinityPatternCore replacement = core(64, small.coreId());
         replacement.trySetPattern(0, new ItemStack(Items.PAPER));
         TrinityPatternCatalog.CoreMount replacementMount = new TrinityPatternCatalog.CoreMount(
                 movedSmallMount.position(), 64, replacement);
@@ -657,8 +657,8 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void pushPatternConsumesInputsOnlyAfterExactRouteWasQueued(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore core = core(UUID.randomUUID());
         core.trySetPattern(7, new ItemStack(Items.PAPER));
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
         RoutedCraftingPatternDetails published = catalog.getAvailablePatterns().stream()
@@ -716,9 +716,9 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundPatternsBlocksOnWorkThenDeliversStableCoreAndSlotOrder(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl lower = core(UUID.randomUUID());
-        TrinityPatternCoreImpl upper = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore lower = core(UUID.randomUUID());
+        PersistentTrinityPatternCore upper = core(UUID.randomUUID());
         ItemStack lowerFirst = new ItemStack(Items.PAPER);
         ItemStack lowerSecond = new ItemStack(Items.MAP);
         ItemStack upperPattern = new ItemStack(Items.PAPER);
@@ -788,9 +788,9 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundAggregateLeavesEveryCoreUntouchedWhenDeliveryPreparationRejects(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
-        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore first = core(UUID.randomUUID());
+        PersistentTrinityPatternCore second = core(UUID.randomUUID());
         ItemStack firstPattern = new ItemStack(Items.PAPER);
         ItemStack secondPattern = new ItemStack(Items.MAP);
         PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
@@ -820,8 +820,8 @@ public final class TrinityPatternCatalogImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void refundAggregateDoesNothingWhenOnlyPatternsAreInstalled(GameTestHelper helper) {
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
+        PersistentTrinityPatternCore core = core(UUID.randomUUID());
         core.trySetPattern(0, new ItemStack(Items.PAPER));
         long patternRevision = core.revision();
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
@@ -843,9 +843,9 @@ public final class TrinityPatternCatalogImplTest {
     public static void refundAggregateDoesNotClearAnotherHostRoutes(GameTestHelper helper) {
         UUID firstHostId = UUID.randomUUID();
         UUID secondHostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl firstCatalog = new TrinityPatternCatalogImpl(firstHostId);
-        TrinityPatternCatalogImpl secondCatalog = new TrinityPatternCatalogImpl(secondHostId);
-        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        MountedCorePatternCatalog firstCatalog = new MountedCorePatternCatalog(firstHostId);
+        MountedCorePatternCatalog secondCatalog = new MountedCorePatternCatalog(secondHostId);
+        PersistentTrinityPatternCore core = core(UUID.randomUUID());
         ItemStack pattern = new ItemStack(Items.PAPER);
         PatternRoute firstRoute = new PatternRoute(firstHostId, core.coreId(), 0);
         PatternRoute secondRoute = new PatternRoute(secondHostId, core.coreId(), 0);
@@ -884,9 +884,9 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundAggregateDeliversOnlyQueuedStateWithoutMutatingPatterns(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
-        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore first = core(UUID.randomUUID());
+        PersistentTrinityPatternCore second = core(UUID.randomUUID());
         ItemStack firstPattern = new ItemStack(Items.PAPER);
         ItemStack secondPattern = new ItemStack(Items.MAP);
         PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
@@ -932,9 +932,9 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundAggregateRestoresEveryCoreWhenDeliveryPreparationThrows(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
-        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore first = core(UUID.randomUUID());
+        PersistentTrinityPatternCore second = core(UUID.randomUUID());
         ItemStack firstPattern = new ItemStack(Items.PAPER);
         ItemStack secondPattern = new ItemStack(Items.MAP);
         PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
@@ -965,8 +965,8 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundAggregateDoesNotDeliverAfterLaterCoreCommitFails(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore first = core(UUID.randomUUID());
         TopologyCapacityCore failingSecond = new TopologyCapacityCore(64, true);
         ItemStack firstPattern = new ItemStack(Items.PAPER);
         first.trySetPattern(0, firstPattern);
@@ -997,8 +997,8 @@ public final class TrinityPatternCatalogImplTest {
     @GameTest(template = "empty_5x5")
     public static void refundAggregateReportsFailureAfterDeliveryThrows(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
-        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
+        PersistentTrinityPatternCore core = core(UUID.randomUUID());
         ItemStack pattern = new ItemStack(Items.PAPER);
         PatternRoute route = new PatternRoute(hostId, core.coreId(), 0);
         core.trySetPattern(0, pattern);
@@ -1088,12 +1088,12 @@ public final class TrinityPatternCatalogImplTest {
         throw new GameTestAssertException("Expected an immutable list snapshot");
     }
 
-    private static TrinityPatternCoreImpl core(UUID coreId) {
+    private static PersistentTrinityPatternCore core(UUID coreId) {
         return core(64, coreId);
     }
 
-    private static TrinityPatternCoreImpl core(int capacity, UUID coreId) {
-        return new TrinityPatternCoreImpl(capacity, coreId, stack -> {
+    private static PersistentTrinityPatternCore core(int capacity, UUID coreId) {
+        return new PersistentTrinityPatternCore(capacity, coreId, stack -> {
             if (stack.is(Items.PAPER) || stack.is(Items.MAP)) {
                 return new FillingPattern(stack);
             }

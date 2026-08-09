@@ -1,9 +1,10 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
@@ -43,12 +44,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
-public final class TrinityPatternCoreImplTest {
+public final class PersistentTrinityPatternCoreTest {
 
     private static final UUID HOST_ID = UUID.fromString("f14921fa-5649-4f5f-98c3-41af0ea28b12");
     private static final ResourceLocation TEST_RESOLVER_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "test_pattern");
 
-    private TrinityPatternCoreImplTest() {}
+    private PersistentTrinityPatternCoreTest() {}
 
     @TestHolder("trinity_pattern_core_supports_physical_capacities")
     @EmptyTemplate("5")
@@ -66,7 +67,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void patternInventoryRejectsUnsupportedItemsAndCopiesAcceptedPattern(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack unsupported = new ItemStack(Items.STICK);
         ItemStack pattern = pattern(Items.PAPER);
 
@@ -122,9 +123,9 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void movingPatternChangesOnlySourceAndTargetDirectoryEntries(GameTestHelper helper) {
         ArrayList<TrinityPatternSlot.Change> catalogChanges = new ArrayList<>();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> {
                     if (change.kind() == TrinityPatternSlot.ChangeKind.CATALOG) {
@@ -150,7 +151,7 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void refreshAllPatternCachesVisitsOnlyOccupiedSlots(GameTestHelper helper) {
         AtomicInteger decodeCalls = new AtomicInteger();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 512,
                 stack -> {
                     decodeCalls.incrementAndGet();
@@ -178,7 +179,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void enqueueIsAtomicAndExecutionStartsOnNextTickInFifoOrder(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         core.trySetPattern(4, pattern);
         long catalogRevision = core.revision();
@@ -228,7 +229,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void executionRetainsWorkingSlotUntilCountedOutputIsConsumed(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 6);
         assertTrue(core.trySetPattern(6, pattern));
@@ -260,9 +261,9 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void enqueueReportsPersistentChangesAndOnlyOneWorkTransition(GameTestHelper helper) {
         List<TrinityPatternSlot.ChangeKind> changes = new ArrayList<>();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> changes.add(change.kind()));
         ItemStack pattern = pattern(Items.PAPER);
@@ -286,7 +287,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void enqueueMergesOnlyExactAdjacentGroups(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 2);
         List<ItemStack> iron = inputs(new ItemStack(Items.IRON_INGOT));
@@ -312,7 +313,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void tenThousandIdenticalDispatchesExecuteAsOneCountedGroup(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 2);
         List<ItemStack> iron = inputs(new ItemStack(Items.IRON_INGOT));
@@ -350,8 +351,8 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void definitionIdentityIncludesCompletePatternAndRecipeId(GameTestHelper helper) {
-        TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
-                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+        TrinityPatternSlot slot = new TrinityPatternSlot(
+                0, PersistentTrinityPatternCoreTest::decode, testResolvers(), change -> {});
         ItemStack firstPattern = pattern(Items.PAPER);
         firstPattern.set(DataComponents.CUSTOM_NAME, Component.literal("first"));
         ItemStack secondPattern = pattern(Items.PAPER);
@@ -377,7 +378,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void hostWorkIndexTracksEverySameSlotEnqueueAndCompletion(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         UUID secondHost = UUID.fromString("42de32c2-b693-4fec-9847-fd2e0f89a21e");
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute firstRoute = route(core, 0);
@@ -405,7 +406,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void workingSlotsUniteQueuedAndPendingRoutesAsSortedImmutableSnapshots(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         UUID otherHost = UUID.fromString("65e2cd06-602f-47d8-86fa-7a3e2b848a99");
         ItemStack pattern = pattern(Items.PAPER);
         assertTrue(core.trySetPattern(9, pattern));
@@ -437,9 +438,9 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void workEventsTrackHostUnionMembershipDespiteForeignSameSlotWork(GameTestHelper helper) {
         List<TrinityPatternSlot.Change> workChanges = new ArrayList<>();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> {
                     if (change.kind() == TrinityPatternSlot.ChangeKind.WORK) {
@@ -483,8 +484,8 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void maxCountTailStartsNewGroupWithoutOverflow(GameTestHelper helper) {
-        TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
-                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+        TrinityPatternSlot slot = new TrinityPatternSlot(
+                0, PersistentTrinityPatternCoreTest::decode, testResolvers(), change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = new PatternRoute(HOST_ID, UUID.randomUUID(), 0);
         List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT));
@@ -507,8 +508,8 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void newOpaquePatternsAreRejectedAndResolverAmbiguityFailsFast(GameTestHelper helper) {
         TrinityPatternRecipeIdResolvers emptyResolvers = new TrinityPatternRecipeIdResolvers(List.of());
-        TrinityPatternCoreImpl opaqueCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, emptyResolvers, change -> {});
+        PersistentTrinityPatternCore opaqueCore = new PersistentTrinityPatternCore(
+                64, PersistentTrinityPatternCoreTest::decode, emptyResolvers, change -> {});
         assertFalse(opaqueCore.trySetPattern(0, pattern(Items.PAPER)));
 
         assertThrows(IllegalArgumentException.class,
@@ -519,15 +520,15 @@ public final class TrinityPatternCoreImplTest {
         TrinityPatternRecipeIdResolvers ambiguousResolvers = new TrinityPatternRecipeIdResolvers(List.of(
                 new TestRecipeIdResolver(),
                 new ConflictingTestRecipeIdResolver()));
-        TrinityPatternCoreImpl ambiguousCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, ambiguousResolvers, change -> {});
+        PersistentTrinityPatternCore ambiguousCore = new PersistentTrinityPatternCore(
+                64, PersistentTrinityPatternCoreTest::decode, ambiguousResolvers, change -> {});
         assertThrows(IllegalStateException.class,
                 () -> ambiguousCore.trySetPattern(0, pattern(Items.PAPER)));
 
         TrinityPatternRecipeIdResolvers nullRecipeResolvers = new TrinityPatternRecipeIdResolvers(
                 List.of(new NullRecipeIdResolver()));
-        TrinityPatternCoreImpl nullRecipeCore = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {});
+        PersistentTrinityPatternCore nullRecipeCore = new PersistentTrinityPatternCore(
+                64, PersistentTrinityPatternCoreTest::decode, nullRecipeResolvers, change -> {});
         assertFalse(nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
         helper.succeed();
     }
@@ -587,7 +588,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void replacingPatternSleepsOldBatchUntilSamePatternReturns(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack original = pattern(Items.PAPER);
         ItemStack replacement = pattern(Items.MAP);
         core.trySetPattern(0, original);
@@ -623,8 +624,8 @@ public final class TrinityPatternCoreImplTest {
         AtomicReference<ResourceLocation> recipeId = new AtomicReference<>(originalRecipe);
         TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers(
                 List.of(new MutableTestRecipeIdResolver(recipeId)));
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
-                64, TrinityPatternCoreImplTest::decode, resolvers, change -> {});
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
+                64, PersistentTrinityPatternCoreTest::decode, resolvers, change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         assertTrue(core.trySetPattern(0, pattern));
         assertTrue(core.enqueueBatch(
@@ -649,7 +650,7 @@ public final class TrinityPatternCoreImplTest {
     public static void invalidatedPatternCachePausesQueueWithoutDeletingRetainedPattern(GameTestHelper helper) {
         AtomicBoolean decodable = new AtomicBoolean(true);
         AtomicInteger runtimeBindingChanges = new AtomicInteger();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.PAPER) && decodable.get() ? new TestSupportedPattern(stack) : null,
@@ -702,7 +703,7 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void cacheRefreshDoesNotMarkPersistentBlockStateChanged(GameTestHelper helper) {
         AtomicInteger persistentChanges = new AtomicInteger();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore core = new PersistentTrinityPatternCore(
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.PAPER) ? new TestSupportedPattern(stack) : null,
@@ -734,10 +735,10 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void nbtRoundTripPreservesUuidPatternsFifoInputsAndPendingOutputs(GameTestHelper helper) {
         UUID coreId = UUID.fromString("c3d48bd4-ef15-4198-b5a9-26fa2489466a");
-        TrinityPatternCoreImpl original = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore original = new PersistentTrinityPatternCore(
                 512,
                 coreId,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> {});
         ItemStack pattern = pattern(Items.PAPER);
@@ -754,7 +755,7 @@ public final class TrinityPatternCoreImplTest {
 
         AtomicInteger hydrationDecodeCalls = new AtomicInteger();
         ArrayList<TrinityPatternSlot.Change> hydrationChanges = new ArrayList<>();
-        TrinityPatternCoreImpl loaded = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore loaded = new PersistentTrinityPatternCore(
                 512,
                 stack -> {
                     hydrationDecodeCalls.incrementAndGet();
@@ -809,8 +810,8 @@ public final class TrinityPatternCoreImplTest {
                 .getList("batches", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .remove("route");
-        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
+        assertThrows(IllegalArgumentException.class, () -> new PersistentTrinityPatternCore(
+                512, PersistentTrinityPatternCoreTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedQueueState, helper.getLevel().registryAccess()));
 
         CompoundTag malformedOutputState = saved.copy();
@@ -819,8 +820,8 @@ public final class TrinityPatternCoreImplTest {
                 .getList("pending_outputs", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .remove("route");
-        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
+        assertThrows(IllegalArgumentException.class, () -> new PersistentTrinityPatternCore(
+                512, PersistentTrinityPatternCoreTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedOutputState, helper.getLevel().registryAccess()));
         helper.succeed();
     }
@@ -830,10 +831,10 @@ public final class TrinityPatternCoreImplTest {
     @GameTest(template = "empty_5x5")
     public static void legacyV2StateMigratesToVersionedCurrentStateWithoutLosingWork(GameTestHelper helper) {
         UUID coreId = UUID.fromString("ac854209-4ac5-4d7a-a244-945abcc45ea8");
-        TrinityPatternCoreImpl source = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore source = new PersistentTrinityPatternCore(
                 64,
                 coreId,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> {});
         ItemStack pattern = pattern(Items.PAPER);
@@ -846,7 +847,7 @@ public final class TrinityPatternCoreImplTest {
         CompoundTag legacyV2State = asLegacyV2State(currentState);
         CompoundTag originalLegacyV2State = legacyV2State.copy();
 
-        TrinityPatternCoreImpl migrated = core(64);
+        PersistentTrinityPatternCore migrated = core(64);
         assertTrue(migrated.hydrateFromTagAndReportMigration(
                 legacyV2State,
                 helper.getLevel().registryAccess()));
@@ -867,7 +868,7 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(rewrittenOutbox.getList("patterns", Tag.TAG_COMPOUND).isEmpty());
         assertTrue(rewrittenOutbox.getList("retained", Tag.TAG_COMPOUND).isEmpty());
 
-        TrinityPatternCoreImpl roundTripped = core(64);
+        PersistentTrinityPatternCore roundTripped = core(64);
         assertFalse(roundTripped.hydrateFromTagAndReportMigration(
                 rewritten,
                 helper.getLevel().registryAccess()));
@@ -877,12 +878,12 @@ public final class TrinityPatternCoreImplTest {
 
         CompoundTag unversionedCurrentState = currentState.copy();
         unversionedCurrentState.remove("version");
-        TrinityPatternCoreImpl unversionedCurrent = core(64);
+        PersistentTrinityPatternCore unversionedCurrent = core(64);
         assertTrue(unversionedCurrent.hydrateFromTagAndReportMigration(
                 unversionedCurrentState,
                 helper.getLevel().registryAccess()));
 
-        TrinityPatternCoreImpl unchanged = core(64);
+        PersistentTrinityPatternCore unchanged = core(64);
         assertTrue(unchanged.trySetPattern(0, pattern(Items.MAP)));
         CompoundTag ambiguousMissingOutbox = legacyV2State.copy();
         ambiguousMissingOutbox.remove("version");
@@ -938,10 +939,10 @@ public final class TrinityPatternCoreImplTest {
     public static void persistedLoadRebuildsMultiHostQueuedAndPendingWorkIndexes(GameTestHelper helper) {
         UUID coreId = UUID.fromString("65ffbb90-79f4-4ce1-b52a-9aeff3bc892f");
         UUID otherHost = UUID.fromString("39dc42a8-e0fb-4645-ae41-5c1e542f6c66");
-        TrinityPatternCoreImpl source = new TrinityPatternCoreImpl(
+        PersistentTrinityPatternCore source = new PersistentTrinityPatternCore(
                 64,
                 coreId,
-                TrinityPatternCoreImplTest::decode,
+                PersistentTrinityPatternCoreTest::decode,
                 testResolvers(),
                 change -> {});
         ItemStack paper = pattern(Items.PAPER);
@@ -967,7 +968,7 @@ public final class TrinityPatternCoreImplTest {
         CompoundTag saved = new CompoundTag();
         source.writeToTag(saved, helper.getLevel().registryAccess());
 
-        TrinityPatternCoreImpl loaded = core(64);
+        PersistentTrinityPatternCore loaded = core(64);
         loaded.readFromTag(saved, helper.getLevel().registryAccess());
 
         assertEquals(List.of(2, 11), loaded.workingSlots(HOST_ID));
@@ -983,7 +984,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void persistedRecipeIdMismatchAndMalformedResolutionAreAtomic(GameTestHelper helper) {
-        TrinityPatternCoreImpl source = core(64);
+        PersistentTrinityPatternCore source = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(source, 0);
         source.trySetPattern(0, pattern);
@@ -1007,7 +1008,7 @@ public final class TrinityPatternCoreImplTest {
                 .getList("definitions", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .remove("recipe_id");
-        TrinityPatternCoreImpl destination = core(64);
+        PersistentTrinityPatternCore destination = core(64);
         destination.trySetPattern(0, pattern(Items.MAP));
         assertThrows(IllegalArgumentException.class,
                 () -> destination.readFromTag(mismatched, helper.getLevel().registryAccess()));
@@ -1032,12 +1033,12 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void mismatchedPersistedCapacityFailsBeforeMutatingFreshCore(GameTestHelper helper) {
-        TrinityPatternCoreImpl source = core(64);
+        PersistentTrinityPatternCore source = core(64);
         source.trySetPattern(0, pattern(Items.PAPER));
         CompoundTag saved = new CompoundTag();
         source.writeToTag(saved, helper.getLevel().registryAccess());
 
-        TrinityPatternCoreImpl destination = core(128);
+        PersistentTrinityPatternCore destination = core(128);
 
         assertThrows(IllegalArgumentException.class, () -> destination.readFromTag(saved, helper.getLevel().registryAccess()));
         assertTrue(destination.pattern(0).isEmpty());
@@ -1048,7 +1049,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void pendingOutputAppendMergesAdjacentKeysAndSegmentsAtLongMaximum(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         PatternRoute route = route(core, 0);
         PatternRoute otherHostRoute = new PatternRoute(UUID.randomUUID(), core.coreId(), 0);
         core.appendPendingOutputs(route, List.of(
@@ -1090,7 +1091,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void refundIsAtomicAndDoesNotMutateInstalledPatternState(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 0);
         core.trySetPattern(0, pattern);
@@ -1130,7 +1131,7 @@ public final class TrinityPatternCoreImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void refundTransactionRejectsMutationAndRestoresBeforeDelivery(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(64);
+        PersistentTrinityPatternCore core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 0);
         core.trySetPattern(0, pattern);
@@ -1169,9 +1170,9 @@ public final class TrinityPatternCoreImplTest {
         return legacyState;
     }
 
-    private static TrinityPatternCoreImpl core(int capacity) {
-        return new TrinityPatternCoreImpl(
-                capacity, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+    private static PersistentTrinityPatternCore core(int capacity) {
+        return new PersistentTrinityPatternCore(
+                capacity, PersistentTrinityPatternCoreTest::decode, testResolvers(), change -> {});
     }
 
     private static TrinityPatternRecipeIdResolvers testResolvers() {

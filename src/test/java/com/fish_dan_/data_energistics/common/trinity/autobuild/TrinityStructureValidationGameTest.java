@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -15,13 +15,13 @@ import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State.DEFERRED;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State.INVALID;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State.PENDING;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State.VALID;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure.CPU;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure.CRAFTING;
-import static com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure.MAIN;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State.DEFERRED;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State.INVALID;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State.PENDING;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State.VALID;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure.CPU;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure.CRAFTING;
+import static com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure.MAIN;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -33,7 +33,7 @@ public final class TrinityStructureValidationGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void validationTracksIndependentDeferredStates(GameTestHelper helper) {
-        TrinityStructureValidation validation = new TrinityStructureValidationImpl();
+        TrinityStructureValidation validation = new InMemoryTrinityStructureValidation();
 
         helper.assertValueEqual(validation.status(MAIN).state(), PENDING,
                 "Main validation must initially be pending");

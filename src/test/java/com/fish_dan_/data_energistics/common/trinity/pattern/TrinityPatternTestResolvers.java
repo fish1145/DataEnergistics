@@ -1,7 +1,8 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;

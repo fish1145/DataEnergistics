@@ -18,24 +18,24 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.InMemoryTrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildOptions;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
@@ -598,7 +598,7 @@ public final class CompartmentBlockEntityTest {
                 })
                 .thenExecute(() -> {
                     TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
-                    TrinityPatternCoreImpl restoredState = new TrinityPatternCoreImpl(
+                    PersistentTrinityPatternCore restoredState = new PersistentTrinityPatternCore(
                             mount.blockCapacity(),
                             UUID.randomUUID(),
                             stack -> null,
@@ -1604,7 +1604,7 @@ public final class CompartmentBlockEntityTest {
                     TrinityDataCoreBlockEntity loadedHost = new TrinityDataCoreBlockEntity(
                             origin,
                             hostState,
-                            new TrinityStructureValidationImpl(),
+                            new InMemoryTrinityStructureValidation(),
                             new OneShotUnloadedWorldViewFactory());
                     loadedHost.loadTag(saved, level.registryAccess());
                     level.setBlockEntity(loadedHost);
@@ -2440,7 +2440,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class CountingStructureValidation implements TrinityStructureValidation {
 
-        private final TrinityStructureValidation delegate = new TrinityStructureValidationImpl();
+        private final TrinityStructureValidation delegate = new InMemoryTrinityStructureValidation();
         private final EnumMap<Structure, Integer> validationCounts = new EnumMap<>(Structure.class);
 
         private CountingStructureValidation() {

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
@@ -32,7 +32,7 @@ public final class TrinityAutoBuildSubmissionResolverGameTest {
     public static void reconstructsAndRejectsUnrepresentedFields(GameTestHelper helper) {
         MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
                 .require(ModVerticalMultiBlocks.trinityDataCoreId());
-        TrinityAutoBuildSubmissionResolver resolver = new TrinityAutoBuildSubmissionResolverImpl();
+        TrinityAutoBuildSubmissionResolver resolver = new TrinityAutoBuildSubmissionResolver();
 
         TrinityAutoBuildDraft mainDraft = TrinityAutoBuildDraft.initial(spec);
         TrinityAutoBuildRequest main = resolver.resolve(spec, mainDraft.submission());

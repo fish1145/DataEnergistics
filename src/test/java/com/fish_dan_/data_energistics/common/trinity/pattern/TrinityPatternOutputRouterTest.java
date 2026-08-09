@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -25,15 +25,15 @@ import java.util.function.Consumer;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
-public final class TrinityPatternOutputRouterImplTest {
+public final class TrinityPatternOutputRouterTest {
 
-    private TrinityPatternOutputRouterImplTest() {}
+    private TrinityPatternOutputRouterTest() {}
 
     @TestHolder("trinity_pattern_output_router_retains_cpu_requests")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void retainsUnacceptedCpuRequestAndStoresOnlyNonRequestedAmount(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong largestStorageOffer = new AtomicLong();
         AtomicLong inserted = new AtomicLong();
@@ -70,7 +70,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void neverLeaksTemporarilyRejectedRequestedItemsIntoStorage(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong storageModulated = new AtomicLong();
 
@@ -96,7 +96,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void reportsCpuOnlyProgressWithoutStorageChange(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 5L));
         AtomicBoolean storageTouched = new AtomicBoolean();
 
@@ -120,7 +120,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void blocksLaterOutputsUntilEarlierCpuRequestIsAccepted(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.BUCKET, 1L), entry(Items.DIAMOND, 1L));
         AtomicLong bucketRequested = new AtomicLong(1L);
         AtomicBoolean acceptBucket = new AtomicBoolean();
@@ -193,7 +193,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void preservesExactRemainderWhenStorageCapacityIsExhausted(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 6L), entry(Items.GOLD_INGOT, 2L));
 
         TrinityPatternOutputRouter.RouteResult result = router.route(
@@ -212,7 +212,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void storageRemainderDoesNotBlockLaterStack(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 1L), entry(Items.GOLD_INGOT, 1L));
         AtomicBoolean goldReachedStorage = new AtomicBoolean();
 
@@ -239,7 +239,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void checkpointsCompletedEntryBeforeLaterSinkFailure(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor firstPending = cursor(entry(Items.DIAMOND, 1L), entry(Items.GOLD_INGOT, 1L));
         AtomicLong insertedDiamonds = new AtomicLong();
 
@@ -275,7 +275,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void checkpointsCpuInsertionBeforeSameEntryStorageFailure(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor firstPending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong requested = new AtomicLong(3L);
         AtomicLong insertedIntoCpu = new AtomicLong();
@@ -319,7 +319,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void checkpointsEveryInsertionBeforeStartingTheNextMutation(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         List<String> events = new ArrayList<>();
         FakePendingOutputCursor pending = cursor(
                 remaining -> events.add("checkpoint-" + totalAmount(remaining)),
@@ -360,7 +360,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void rejectsEveryOutOfRangeSinkResult(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
 
         assertIllegalStateMessage(
                 () -> router.route(
@@ -405,7 +405,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void checkpointsOrderedRemaindersAfterPartialModulation(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         List<Long> checkpointTotals = new ArrayList<>();
         FakePendingOutputCursor pending = cursor(
                 remaining -> checkpointTotals.add(totalAmount(remaining)),
@@ -441,7 +441,7 @@ public final class TrinityPatternOutputRouterImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void routesMultipleLongMaxEntriesWithoutAggregatingTheirAmounts(GameTestHelper helper) {
-        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouter();
         FakePendingOutputCursor pending = cursor(
                 entry(Items.DIAMOND, Long.MAX_VALUE),
                 entry(Items.GOLD_INGOT, Long.MAX_VALUE));

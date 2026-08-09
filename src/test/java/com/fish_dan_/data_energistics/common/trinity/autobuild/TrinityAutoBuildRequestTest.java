@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.autobuild;
+
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 
 import net.minecraft.resources.ResourceLocation;
 

@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Mdlib
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;

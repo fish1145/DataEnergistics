@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.profile;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCpuCoreProfile;
 
 import appeng.api.config.CpuSelectionMode;
 import org.junit.jupiter.api.Test;

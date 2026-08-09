@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -31,20 +31,20 @@ import java.util.UUID;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
-public final class TrinityPatternTerminalPartitionImplTest {
+public final class VirtualNodePatternTerminalPartitionTest {
 
-    private TrinityPatternTerminalPartitionImplTest() {}
+    private VirtualNodePatternTerminalPartitionTest() {}
 
     @TestHolder("trinity_pattern_terminal_partitions_supported_core_tiers")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void partitionsSupportedCoreTiersIntoStableBoundedLiveViews(GameTestHelper helper) {
         UUID hostId = UUID.fromString("b41b5a61-7fa2-40c9-b56d-66c822e8e11d");
-        TrinityPatternCoreImpl small = core(64, UUID.randomUUID());
-        TrinityPatternCoreImpl extended = core(128, UUID.randomUUID());
-        TrinityPatternCoreImpl overlimit = core(512, UUID.randomUUID());
+        PersistentTrinityPatternCore small = core(64, UUID.randomUUID());
+        PersistentTrinityPatternCore extended = core(128, UUID.randomUUID());
+        PersistentTrinityPatternCore overlimit = core(512, UUID.randomUUID());
         PatternContainerGroup group = terminalGroup();
-        TrinityPatternCatalogImpl catalog = formedCatalog(hostId, List.of(
+        MountedCorePatternCatalog catalog = formedCatalog(hostId, List.of(
                 new TrinityPatternCatalog.CoreMount(new BlockPos(3, 0, 0), 512, overlimit),
                 new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, small),
                 new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 128, extended)));
@@ -102,8 +102,8 @@ public final class TrinityPatternTerminalPartitionImplTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void mapsTerminalSlotsDirectlyOntoThePhysicalCoreInventory(GameTestHelper helper) {
-        TrinityPatternCoreImpl core = core(512, UUID.randomUUID());
-        TrinityPatternCatalogImpl catalog = formedCatalog(
+        PersistentTrinityPatternCore core = core(512, UUID.randomUUID());
+        MountedCorePatternCatalog catalog = formedCatalog(
                 UUID.randomUUID(),
                 List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 512, core)));
         List<TrinityPatternTerminalPartition> partitions = TrinityPatternTerminalPartition.createLayout(
@@ -137,16 +137,16 @@ public final class TrinityPatternTerminalPartitionImplTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsLayoutsThatCouldPublishAmbiguousOrInvalidPartitions(GameTestHelper helper) {
         UUID duplicateCoreId = UUID.randomUUID();
-        TrinityPatternCoreImpl first = core(64, duplicateCoreId);
-        TrinityPatternCoreImpl second = core(64, duplicateCoreId);
+        PersistentTrinityPatternCore first = core(64, duplicateCoreId);
+        PersistentTrinityPatternCore second = core(64, duplicateCoreId);
 
-        TrinityPatternCatalogImpl capacityCatalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        MountedCorePatternCatalog capacityCatalog = new MountedCorePatternCatalog(UUID.randomUUID());
         TrinityPatternCatalog.RebuildResult capacityFailure = capacityCatalog.rebuild(
                 List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 128, first)));
         assertFalse(capacityFailure.valid());
         assertTrue(TrinityPatternTerminalPartition.createLayout(capacityCatalog, terminalGroup()).isEmpty());
 
-        TrinityPatternCatalogImpl duplicateCatalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        MountedCorePatternCatalog duplicateCatalog = new MountedCorePatternCatalog(UUID.randomUUID());
         TrinityPatternCatalog.RebuildResult duplicateFailure = duplicateCatalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
@@ -161,9 +161,9 @@ public final class TrinityPatternTerminalPartitionImplTest {
     public static void layoutComparisonDetectsAReplacedCoreOrChangedCoordinateOrder(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
         UUID coreId = UUID.randomUUID();
-        TrinityPatternCoreImpl original = core(64, coreId);
-        TrinityPatternCoreImpl replacement = core(64, coreId);
-        TrinityPatternCatalogImpl catalog = formedCatalog(
+        PersistentTrinityPatternCore original = core(64, coreId);
+        PersistentTrinityPatternCore replacement = core(64, coreId);
+        MountedCorePatternCatalog catalog = formedCatalog(
                 hostId,
                 List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, original)));
         TrinityPatternTerminalPartition first = TrinityPatternTerminalPartition.createLayout(
@@ -191,13 +191,13 @@ public final class TrinityPatternTerminalPartitionImplTest {
     public static void staleInventoryReferenceCannotReadOrMutateReformedLayout(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
         UUID coreId = UUID.randomUUID();
-        TrinityPatternCoreImpl original = core(128, coreId);
-        TrinityPatternCoreImpl companion = core(64, UUID.randomUUID());
+        PersistentTrinityPatternCore original = core(128, coreId);
+        PersistentTrinityPatternCore companion = core(64, UUID.randomUUID());
         TrinityPatternCatalog.CoreMount originalMount = new TrinityPatternCatalog.CoreMount(
                 BlockPos.ZERO, 128, original);
         TrinityPatternCatalog.CoreMount companionMount = new TrinityPatternCatalog.CoreMount(
                 BlockPos.ZERO.above(), 64, companion);
-        TrinityPatternCatalogImpl catalog = formedCatalog(hostId, List.of(originalMount, companionMount));
+        MountedCorePatternCatalog catalog = formedCatalog(hostId, List.of(originalMount, companionMount));
         TrinityPatternTerminalPartition originalPartition = partitionForCore(catalog, coreId);
         InternalInventory staleInventory = originalPartition.getTerminalPatternInventory();
         InternalInventory staleSubInventory = staleInventory.getSubInventory(0, 2);
@@ -241,7 +241,7 @@ public final class TrinityPatternTerminalPartitionImplTest {
         assertTrue(movedInventory.insertItem(2, paper, false).isEmpty());
         assertTrue(original.pattern(2).is(Items.PAPER));
 
-        TrinityPatternCoreImpl replacement = core(128, coreId);
+        PersistentTrinityPatternCore replacement = core(128, coreId);
         TrinityPatternCatalog.CoreMount replacementMount = new TrinityPatternCatalog.CoreMount(
                 movedOriginalMount.position(), 128, replacement);
         catalog.rebuild(List.of(replacementMount, reorderedCompanionMount));
@@ -268,8 +268,8 @@ public final class TrinityPatternTerminalPartitionImplTest {
         helper.succeed();
     }
 
-    private static TrinityPatternCoreImpl core(int capacity, UUID coreId) {
-        return new TrinityPatternCoreImpl(capacity, coreId, stack -> {
+    private static PersistentTrinityPatternCore core(int capacity, UUID coreId) {
+        return new PersistentTrinityPatternCore(capacity, coreId, stack -> {
             if (stack.is(Items.PAPER) || stack.is(Items.MAP)) {
                 return new TestPattern(stack);
             }
@@ -284,9 +284,9 @@ public final class TrinityPatternTerminalPartitionImplTest {
                 List.of());
     }
 
-    private static TrinityPatternCatalogImpl formedCatalog(UUID hostId,
+    private static MountedCorePatternCatalog formedCatalog(UUID hostId,
                                                            List<TrinityPatternCatalog.CoreMount> mounts) {
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(hostId);
         TrinityPatternCatalog.RebuildResult result = catalog.rebuild(mounts);
         if (!result.valid()) {
             throw new GameTestAssertException("Expected valid terminal catalog: " + result.failureReason());

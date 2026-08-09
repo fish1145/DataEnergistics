@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.trinity;
+package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -28,9 +28,9 @@ import java.util.List;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
-public final class TrinityRefundDeliveryImplTest {
+public final class PlayerInventoryRefundDeliveryTest {
 
-    private TrinityRefundDeliveryImplTest() {}
+    private PlayerInventoryRefundDeliveryTest() {}
 
     @TestHolder("trinity_refund_delivery_prefers_available_ae_storage")
     @EmptyTemplate("5")
@@ -39,7 +39,7 @@ public final class TrinityRefundDeliveryImplTest {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         fillInventory(player.getInventory(), new ItemStack(Items.STONE, 64));
         RecordingStorage storage = new RecordingStorage(true);
-        TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
+        PlayerInventoryRefundDelivery delivery = new PlayerInventoryRefundDelivery(player, storage, IActionSource.empty());
         List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
         assertTrue(delivery.prepare(items));
@@ -60,7 +60,7 @@ public final class TrinityRefundDeliveryImplTest {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         clearInventory(player.getInventory());
         RecordingStorage storage = new RecordingStorage(false);
-        TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
+        PlayerInventoryRefundDelivery delivery = new PlayerInventoryRefundDelivery(player, storage, IActionSource.empty());
         List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
         assertTrue(delivery.prepare(items));
@@ -78,7 +78,7 @@ public final class TrinityRefundDeliveryImplTest {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         fillInventory(player.getInventory(), new ItemStack(Items.STONE, 64));
         RecordingStorage storage = new RecordingStorage(false);
-        TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
+        PlayerInventoryRefundDelivery delivery = new PlayerInventoryRefundDelivery(player, storage, IActionSource.empty());
         List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
         assertTrue(delivery.prepare(items));

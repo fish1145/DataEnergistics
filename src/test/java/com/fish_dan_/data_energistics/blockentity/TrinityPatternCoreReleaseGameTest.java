@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseResult;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
