@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
-import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
+import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;

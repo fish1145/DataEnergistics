@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.terminal;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
