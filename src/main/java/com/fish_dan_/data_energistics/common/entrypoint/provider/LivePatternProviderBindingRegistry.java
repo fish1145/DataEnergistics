@@ -15,7 +15,7 @@ import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.HashMap;
@@ -29,7 +29,7 @@ import java.util.Optional;
 /**
  * Identity-preserving runtime registry backed by the immutable common-setup declaration snapshot.
  */
-final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntimeRegistry {
+final class LivePatternProviderBindingRegistry {
 
     private final Map<ProviderIdentityDescriptor, PatternProviderRegistration> registrationsByIdentity;
     private final ProviderIdentityResolver identityResolver;
@@ -37,11 +37,11 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     private final Map<CraftingProviderId, ProviderAdapterState> adaptersByPublication = new HashMap<>();
     private final Map<ICraftingProvider, ProviderAdapterState> adaptersByProvider = new IdentityHashMap<>();
 
-    PatternProviderRuntimeRegistryImpl(List<PatternProviderRegistration> registrations) {
+    LivePatternProviderBindingRegistry(List<PatternProviderRegistration> registrations) {
         this(registrations, ProviderIdentityResolver.create());
     }
 
-    PatternProviderRuntimeRegistryImpl(List<PatternProviderRegistration> registrations,
+    LivePatternProviderBindingRegistry(List<PatternProviderRegistration> registrations,
                                        ProviderIdentityResolver identityResolver) {
         LinkedHashMap<ProviderIdentityDescriptor, PatternProviderRegistration> indexed = new LinkedHashMap<>();
         for (PatternProviderRegistration registration : registrations) {
@@ -55,8 +55,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
         this.identityResolver = identityResolver;
     }
 
-    @Override
-    public void bind(@NotNull CraftingProviderId publicationId, @NotNull ICraftingProvider provider) {
+    public void bind(CraftingProviderId publicationId, ICraftingProvider provider) {
         if (this.publications.containsKey(publicationId)) {
             throw new IllegalStateException("Pattern provider publication is already bound: " + publicationId);
         }
@@ -118,8 +117,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
         }
     }
 
-    @Override
-    public void unbind(@NotNull CraftingProviderId publicationId) {
+    public void unbind(CraftingProviderId publicationId) {
         ICraftingProvider provider = this.publications.get(publicationId);
         if (provider == null) {
             throw new IllegalStateException("Pattern provider publication is not bound: " + publicationId);
@@ -139,12 +137,10 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
         this.publications.remove(publicationId);
     }
 
-    @Override
-    public @NotNull Optional<ResolvedProviderBinding> resolve(@NotNull PatternContainer container) {
+    public Optional<ResolvedProviderBinding> resolve(PatternContainer container) {
         return this.resolveIdentity(null, container);
     }
 
-    @Override
     public void clear() {
         CountedCraftingProviderAdapters.clear();
         this.adaptersByProvider.clear();
@@ -157,7 +153,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
         return container == null ? Optional.empty() : this.resolveIdentity(provider, container);
     }
 
-    private Optional<ResolvedProviderBinding> resolveIdentity(ICraftingProvider provider,
+    private Optional<ResolvedProviderBinding> resolveIdentity(@Nullable ICraftingProvider provider,
                                                               PatternContainer container) {
         ProviderIdentity identity;
         if (provider instanceof PatternProviderIdentitySource source) {
@@ -176,6 +172,7 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
                 Optional.empty() : Optional.of(new ResolvedProviderBinding(registration, container, identity));
     }
 
+    @Nullable
     private PatternContainer resolveContainer(ICraftingProvider provider) {
         if (provider instanceof PatternProviderRuntimeLink link) {
             return link.patternContainer();
@@ -199,8 +196,8 @@ final class PatternProviderRuntimeRegistryImpl implements PatternProviderRuntime
     /**
      * Enforces the public non-null factory contract at the untrusted plugin callback boundary.
      */
-    private static @NotNull CountedCraftingProviderAdapter requireFactoryResult(
-                                                                                @UnknownNullability CountedCraftingProviderAdapter adapter) {
+    private static CountedCraftingProviderAdapter requireFactoryResult(
+                                                                       @UnknownNullability CountedCraftingProviderAdapter adapter) {
         return Objects.requireNonNull(adapter, "Provider adapter factory returned null");
     }
 

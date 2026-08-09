@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,25 +16,26 @@ import java.util.Optional;
  */
 public final class PatternProviderRuntimeBindings {
 
-    private static volatile PatternProviderRuntimeRegistry registry;
+    @Nullable
+    private static volatile LivePatternProviderBindingRegistry registry;
 
     private PatternProviderRuntimeBindings() {}
 
     /**
      * Installs the immutable declaration snapshot exactly once during common setup.
      */
-    public static synchronized void install(@NotNull List<@NotNull PatternProviderRegistration> registrations) {
+    public static synchronized void install(List<PatternProviderRegistration> registrations) {
         if (registry != null) {
             throw new IllegalStateException("Pattern provider runtime bindings are already installed");
         }
-        registry = new PatternProviderRuntimeRegistryImpl(registrations);
+        registry = new LivePatternProviderBindingRegistry(registrations);
     }
 
     /**
      * Binds one publication while isolating plugin factory failures from AE2's mount lifecycle.
      */
-    public static void bind(@NotNull CraftingProviderId publicationId, @NotNull ICraftingProvider provider) {
-        PatternProviderRuntimeRegistry current = requireInstalled();
+    public static void bind(CraftingProviderId publicationId, ICraftingProvider provider) {
+        LivePatternProviderBindingRegistry current = requireInstalled();
         try {
             current.bind(publicationId, provider);
         } catch (RuntimeException exception) {
@@ -49,8 +50,8 @@ public final class PatternProviderRuntimeBindings {
     /**
      * Releases one exact publication while allowing AE2 to finish its unmount lifecycle.
      */
-    public static void unbind(@NotNull CraftingProviderId publicationId) {
-        PatternProviderRuntimeRegistry current = requireInstalled();
+    public static void unbind(CraftingProviderId publicationId) {
+        LivePatternProviderBindingRegistry current = requireInstalled();
         try {
             current.unbind(publicationId);
         } catch (RuntimeException exception) {
@@ -64,7 +65,7 @@ public final class PatternProviderRuntimeBindings {
     /**
      * Resolves the unique plugin declaration selected for one terminal-visible provider.
      */
-    public static @NotNull Optional<@NotNull ResolvedProviderBinding> resolve(@NotNull PatternContainer container) {
+    public static Optional<ResolvedProviderBinding> resolve(PatternContainer container) {
         return requireInstalled().resolve(container);
     }
 
@@ -75,8 +76,8 @@ public final class PatternProviderRuntimeBindings {
         requireInstalled().clear();
     }
 
-    private static @NotNull PatternProviderRuntimeRegistry requireInstalled() {
-        PatternProviderRuntimeRegistry current = registry;
+    private static LivePatternProviderBindingRegistry requireInstalled() {
+        LivePatternProviderBindingRegistry current = registry;
         if (current == null) {
             throw new IllegalStateException("Pattern provider runtime bindings are not installed");
         }
