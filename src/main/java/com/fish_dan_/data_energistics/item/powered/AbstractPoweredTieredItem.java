@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;

@@ -1,7 +1,6 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -22,22 +21,20 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
 
 import java.util.List;
 import java.util.Optional;
 
-public class PoweredHoeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+public class PoweredAxeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
 
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
-    public PoweredHoeItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_HOE));
+    public PoweredAxeItem(Tier tier, Properties properties) {
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_AXE));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
@@ -57,7 +54,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(DEItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -98,6 +95,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
         }
         boolean result = super.mineBlock(stack, level, state, pos, miningEntity);
         if (result && !level.isClientSide && state.getDestroySpeed(level, pos) != 0.0F) {
+            this.tryChainBreakTree(stack, (ServerLevel) level, pos, miningEntity);
             this.consumeActionEnergy(stack);
         }
         return result;
@@ -123,9 +121,8 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
         if (!this.hasSufficientEnergy(context.getItemInHand())) {
             return InteractionResult.FAIL;
         }
-        InteractionResult result = this.tryTill(context);
+        InteractionResult result = this.tryTransformBlock(context);
         if (result.consumesAction() && !context.getLevel().isClientSide) {
-            this.tryMarkPersistentFarmland(context);
             this.consumeActionEnergy(context.getItemInHand());
         }
         return result;
@@ -157,50 +154,61 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
         return result;
     }
 
-    private void tryMarkPersistentFarmland(UseOnContext context) {
-        ItemStack stack = context.getItemInHand();
-        if (!stack.is(DEItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+    private void tryChainBreakTree(ItemStack stack, ServerLevel level, BlockPos origin, LivingEntity breaker) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
-        BlockPos farmlandPos = context.getClickedPos().relative(context.getClickedFace());
-        BlockState farmlandState = serverLevel.getBlockState(farmlandPos);
-        if (!(farmlandState.getBlock() instanceof FarmBlock)) {
-            farmlandPos = context.getClickedPos();
-            farmlandState = serverLevel.getBlockState(farmlandPos);
+        for (BlockPos targetPos : PoweredToolSaberEnergyHelper.collectTree(level, origin, 256)) {
+            if (targetPos.equals(origin)) {
+                continue;
+            }
+            BlockState targetState = level.getBlockState(targetPos);
+            if (targetState.isAir() || targetState.getDestroySpeed(level, targetPos) < 0.0F) {
+                continue;
+            }
+            level.destroyBlock(targetPos, true, breaker);
         }
-
-        if (farmlandState.getBlock() instanceof FarmBlock && farmlandState.hasProperty(FarmBlock.MOISTURE)) {
-            serverLevel.setBlock(farmlandPos, farmlandState.setValue(FarmBlock.MOISTURE, FarmBlock.MAX_MOISTURE), 3);
-            PersistentFarmlandSavedData.get(serverLevel).add(farmlandPos);
-        }
-    }
-
-    @Override
-    public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
-        return ItemAbilities.DEFAULT_HOE_ACTIONS.contains(itemAbility);
-    }
-
-    private InteractionResult tryTill(UseOnContext context) {
-        Level level = context.getLevel();
-        BlockPos pos = context.getClickedPos();
-        BlockState targetState = level.getBlockState(pos).getToolModifiedState(context,
-                ItemAbilities.HOE_TILL, false);
-        if (targetState == null) {
-            return InteractionResult.PASS;
-        }
-
-        level.playSound(context.getPlayer(), pos, SoundEvents.HOE_TILL,
-                SoundSource.BLOCKS, 1.0F, 1.0F);
-        if (!level.isClientSide) {
-            level.setBlock(pos, targetState, 11);
-            level.gameEvent(GameEvent.BLOCK_CHANGE, pos,
-                    Context.of(context.getPlayer(), targetState));
-        }
-        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
     private float getSaberEnergyDestroySpeedBonus(ItemStack stack) {
         return PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) ? SABER_ENERGY_DESTROY_SPEED_BONUS : 0.0F;
+    }
+
+    @Override
+    public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
+        return ItemAbilities.DEFAULT_AXE_ACTIONS.contains(itemAbility);
+    }
+
+    private InteractionResult tryTransformBlock(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        BlockState state = level.getBlockState(pos);
+        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.AXE_STRIP, false);
+        if (transformed != null) {
+            level.playSound(context.getPlayer(), pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
+        } else {
+            transformed = state.getToolModifiedState(context, ItemAbilities.AXE_SCRAPE, false);
+            if (transformed != null) {
+                level.playSound(context.getPlayer(), pos, SoundEvents.AXE_SCRAPE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                level.levelEvent(context.getPlayer(), 3005, pos, 0);
+            } else {
+                transformed = state.getToolModifiedState(context, ItemAbilities.AXE_WAX_OFF, false);
+                if (transformed != null) {
+                    level.playSound(context.getPlayer(), pos, SoundEvents.AXE_WAX_OFF, SoundSource.BLOCKS, 1.0F, 1.0F);
+                    level.levelEvent(context.getPlayer(), 3004, pos, 0);
+                }
+            }
+        }
+
+        if (transformed == null) {
+            return InteractionResult.PASS;
+        }
+
+        if (!level.isClientSide) {
+            level.setBlock(pos, transformed, 11);
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(context.getPlayer(), transformed));
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 }

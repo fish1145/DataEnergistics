@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
-import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
 

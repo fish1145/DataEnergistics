@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.CuttingKnifeTeleportData;

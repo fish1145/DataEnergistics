@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
-import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.energy.IEnergyStorage;

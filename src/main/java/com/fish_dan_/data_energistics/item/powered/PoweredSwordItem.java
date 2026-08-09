@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;

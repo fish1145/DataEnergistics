@@ -1,8 +1,11 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -18,23 +21,26 @@ import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
 
 import java.util.List;
 import java.util.Optional;
 
-public class PoweredAxeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+public class PoweredShovelItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
 
+    private static final String TAG_BREAK_RADIUS = "SaberEnergyBreakRadius";
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
-    public PoweredAxeItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_AXE));
+    public PoweredShovelItem(Tier tier, Properties properties) {
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_SHOVEL));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
@@ -45,6 +51,10 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
         super.appendHoverText(stack, context, lines, tooltipFlag);
         this.appendConditionalCellInformationToTooltip(stack, lines);
+        if (PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
+            int size = this.getBreakSize(stack);
+            lines.add(Component.literal(size + "x" + size));
+        }
     }
 
     @Override
@@ -54,7 +64,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(DEItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -95,7 +105,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
         }
         boolean result = super.mineBlock(stack, level, state, pos, miningEntity);
         if (result && !level.isClientSide && state.getDestroySpeed(level, pos) != 0.0F) {
-            this.tryChainBreakTree(stack, (ServerLevel) level, pos, miningEntity);
+            this.tryAreaMine(stack, (ServerLevel) level, pos, state, miningEntity);
             this.consumeActionEnergy(stack);
         }
         return result;
@@ -118,10 +128,18 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
+        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
+            if (!context.getLevel().isClientSide) {
+                this.toggleBreakSize(context.getItemInHand());
+                int size = this.getBreakSize(context.getItemInHand());
+                context.getPlayer().displayClientMessage(Component.literal(size + "x" + size), true);
+            }
+            return InteractionResult.sidedSuccess(context.getLevel().isClientSide);
+        }
         if (!this.hasSufficientEnergy(context.getItemInHand())) {
             return InteractionResult.FAIL;
         }
-        InteractionResult result = this.tryTransformBlock(context);
+        InteractionResult result = this.tryFlattenOrDouse(context);
         if (result.consumesAction() && !context.getLevel().isClientSide) {
             this.consumeActionEnergy(context.getItemInHand());
         }
@@ -131,6 +149,14 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown() && stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
+            if (!level.isClientSide) {
+                this.toggleBreakSize(stack);
+                int size = this.getBreakSize(stack);
+                player.displayClientMessage(Component.literal(size + "x" + size), true);
+            }
+            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        }
         if (!this.hasSufficientEnergy(stack)) {
             return InteractionResultHolder.fail(stack);
         }
@@ -154,50 +180,64 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
         return result;
     }
 
-    private void tryChainBreakTree(ItemStack stack, ServerLevel level, BlockPos origin, LivingEntity breaker) {
-        if (!stack.is(DEItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+    private void tryAreaMine(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
+        if (!stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
-        for (BlockPos targetPos : PoweredToolSaberEnergyHelper.collectTree(level, origin, 256)) {
-            if (targetPos.equals(origin)) {
+        int radius = this.getBreakRadius(stack);
+        for (BlockPos targetPos : BlockPos.betweenClosed(origin.offset(-radius, 0, -radius), origin.offset(radius, 0, radius))) {
+            BlockPos immutablePos = targetPos.immutable();
+            if (immutablePos.equals(origin)) {
                 continue;
             }
-            BlockState targetState = level.getBlockState(targetPos);
-            if (targetState.isAir() || targetState.getDestroySpeed(level, targetPos) < 0.0F) {
+            BlockState targetState = level.getBlockState(immutablePos);
+            if (targetState.isAir() || targetState.getBlock() != originState.getBlock() || targetState.getDestroySpeed(level, immutablePos) < 0.0F) {
                 continue;
             }
-            level.destroyBlock(targetPos, true, breaker);
+            level.destroyBlock(immutablePos, true, miner);
         }
     }
 
-    private float getSaberEnergyDestroySpeedBonus(ItemStack stack) {
-        return PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) ? SABER_ENERGY_DESTROY_SPEED_BONUS : 0.0F;
+    private void toggleBreakSize(ItemStack stack) {
+        int radius = this.getBreakRadius(stack) == 1 ? 2 : 1;
+        stack.set(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get(), radius);
+    }
+
+    private int getBreakRadius(ItemStack stack) {
+        Integer radius = stack.get(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
+        if (radius == null) {
+            radius = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
+                    .getInt(TAG_BREAK_RADIUS);
+        }
+        return radius == 2 ? 2 : 1;
+    }
+
+    private int getBreakSize(ItemStack stack) {
+        return this.getBreakRadius(stack) * 2 + 1;
     }
 
     @Override
     public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
-        return ItemAbilities.DEFAULT_AXE_ACTIONS.contains(itemAbility);
+        return ItemAbilities.DEFAULT_SHOVEL_ACTIONS.contains(itemAbility);
     }
 
-    private InteractionResult tryTransformBlock(UseOnContext context) {
+    private InteractionResult tryFlattenOrDouse(UseOnContext context) {
+        if (context.getClickedFace() == Direction.DOWN) {
+            return InteractionResult.PASS;
+        }
+
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState state = level.getBlockState(pos);
-        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.AXE_STRIP, false);
-        if (transformed != null) {
-            level.playSound(context.getPlayer(), pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
+        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_FLATTEN, false);
+        if (transformed != null && level.getBlockState(pos.above()).isAir()) {
+            level.playSound(context.getPlayer(), pos, SoundEvents.SHOVEL_FLATTEN,
+                    SoundSource.BLOCKS, 1.0F, 1.0F);
         } else {
-            transformed = state.getToolModifiedState(context, ItemAbilities.AXE_SCRAPE, false);
-            if (transformed != null) {
-                level.playSound(context.getPlayer(), pos, SoundEvents.AXE_SCRAPE, SoundSource.BLOCKS, 1.0F, 1.0F);
-                level.levelEvent(context.getPlayer(), 3005, pos, 0);
-            } else {
-                transformed = state.getToolModifiedState(context, ItemAbilities.AXE_WAX_OFF, false);
-                if (transformed != null) {
-                    level.playSound(context.getPlayer(), pos, SoundEvents.AXE_WAX_OFF, SoundSource.BLOCKS, 1.0F, 1.0F);
-                    level.levelEvent(context.getPlayer(), 3004, pos, 0);
-                }
+            transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_DOUSE, false);
+            if (transformed != null && !level.isClientSide) {
+                level.levelEvent(null, 1009, pos, 0);
             }
         }
 
@@ -207,8 +247,13 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
 
         if (!level.isClientSide) {
             level.setBlock(pos, transformed, 11);
-            level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(context.getPlayer(), transformed));
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos,
+                    Context.of(context.getPlayer(), transformed));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    private float getSaberEnergyDestroySpeedBonus(ItemStack stack) {
+        return PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) ? SABER_ENERGY_DESTROY_SPEED_BONUS : 0.0F;
     }
 }

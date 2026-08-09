@@ -1,11 +1,9 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.powered;
 
-import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -21,10 +19,10 @@ import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.gameevent.GameEvent.Context;
@@ -34,13 +32,12 @@ import net.neoforged.neoforge.common.ItemAbility;
 import java.util.List;
 import java.util.Optional;
 
-public class PoweredShovelItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+public class PoweredHoeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
 
-    private static final String TAG_BREAK_RADIUS = "SaberEnergyBreakRadius";
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
-    public PoweredShovelItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_SHOVEL));
+    public PoweredHoeItem(Tier tier, Properties properties) {
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_HOE));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
@@ -51,10 +48,6 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
         super.appendHoverText(stack, context, lines, tooltipFlag);
         this.appendConditionalCellInformationToTooltip(stack, lines);
-        if (PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
-            int size = this.getBreakSize(stack);
-            lines.add(Component.literal(size + "x" + size));
-        }
     }
 
     @Override
@@ -64,7 +57,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(DEItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -105,7 +98,6 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
         }
         boolean result = super.mineBlock(stack, level, state, pos, miningEntity);
         if (result && !level.isClientSide && state.getDestroySpeed(level, pos) != 0.0F) {
-            this.tryAreaMine(stack, (ServerLevel) level, pos, state, miningEntity);
             this.consumeActionEnergy(stack);
         }
         return result;
@@ -128,19 +120,12 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
-            if (!context.getLevel().isClientSide) {
-                this.toggleBreakSize(context.getItemInHand());
-                int size = this.getBreakSize(context.getItemInHand());
-                context.getPlayer().displayClientMessage(Component.literal(size + "x" + size), true);
-            }
-            return InteractionResult.sidedSuccess(context.getLevel().isClientSide);
-        }
         if (!this.hasSufficientEnergy(context.getItemInHand())) {
             return InteractionResult.FAIL;
         }
-        InteractionResult result = this.tryFlattenOrDouse(context);
+        InteractionResult result = this.tryTill(context);
         if (result.consumesAction() && !context.getLevel().isClientSide) {
+            this.tryMarkPersistentFarmland(context);
             this.consumeActionEnergy(context.getItemInHand());
         }
         return result;
@@ -149,14 +134,6 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown() && stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
-            if (!level.isClientSide) {
-                this.toggleBreakSize(stack);
-                int size = this.getBreakSize(stack);
-                player.displayClientMessage(Component.literal(size + "x" + size), true);
-            }
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
-        }
         if (!this.hasSufficientEnergy(stack)) {
             return InteractionResultHolder.fail(stack);
         }
@@ -180,75 +157,45 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
         return result;
     }
 
-    private void tryAreaMine(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
-        if (!stack.is(DEItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+    private void tryMarkPersistentFarmland(UseOnContext context) {
+        ItemStack stack = context.getItemInHand();
+        if (!stack.is(DEItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
-        int radius = this.getBreakRadius(stack);
-        for (BlockPos targetPos : BlockPos.betweenClosed(origin.offset(-radius, 0, -radius), origin.offset(radius, 0, radius))) {
-            BlockPos immutablePos = targetPos.immutable();
-            if (immutablePos.equals(origin)) {
-                continue;
-            }
-            BlockState targetState = level.getBlockState(immutablePos);
-            if (targetState.isAir() || targetState.getBlock() != originState.getBlock() || targetState.getDestroySpeed(level, immutablePos) < 0.0F) {
-                continue;
-            }
-            level.destroyBlock(immutablePos, true, miner);
+        BlockPos farmlandPos = context.getClickedPos().relative(context.getClickedFace());
+        BlockState farmlandState = serverLevel.getBlockState(farmlandPos);
+        if (!(farmlandState.getBlock() instanceof FarmBlock)) {
+            farmlandPos = context.getClickedPos();
+            farmlandState = serverLevel.getBlockState(farmlandPos);
         }
-    }
 
-    private void toggleBreakSize(ItemStack stack) {
-        int radius = this.getBreakRadius(stack) == 1 ? 2 : 1;
-        stack.set(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get(), radius);
-    }
-
-    private int getBreakRadius(ItemStack stack) {
-        Integer radius = stack.get(DEDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
-        if (radius == null) {
-            radius = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
-                    .getInt(TAG_BREAK_RADIUS);
+        if (farmlandState.getBlock() instanceof FarmBlock && farmlandState.hasProperty(FarmBlock.MOISTURE)) {
+            serverLevel.setBlock(farmlandPos, farmlandState.setValue(FarmBlock.MOISTURE, FarmBlock.MAX_MOISTURE), 3);
+            PersistentFarmlandSavedData.get(serverLevel).add(farmlandPos);
         }
-        return radius == 2 ? 2 : 1;
-    }
-
-    private int getBreakSize(ItemStack stack) {
-        return this.getBreakRadius(stack) * 2 + 1;
     }
 
     @Override
     public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
-        return ItemAbilities.DEFAULT_SHOVEL_ACTIONS.contains(itemAbility);
+        return ItemAbilities.DEFAULT_HOE_ACTIONS.contains(itemAbility);
     }
 
-    private InteractionResult tryFlattenOrDouse(UseOnContext context) {
-        if (context.getClickedFace() == Direction.DOWN) {
-            return InteractionResult.PASS;
-        }
-
+    private InteractionResult tryTill(UseOnContext context) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
-        BlockState state = level.getBlockState(pos);
-        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_FLATTEN, false);
-        if (transformed != null && level.getBlockState(pos.above()).isAir()) {
-            level.playSound(context.getPlayer(), pos, SoundEvents.SHOVEL_FLATTEN,
-                    SoundSource.BLOCKS, 1.0F, 1.0F);
-        } else {
-            transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_DOUSE, false);
-            if (transformed != null && !level.isClientSide) {
-                level.levelEvent(null, 1009, pos, 0);
-            }
-        }
-
-        if (transformed == null) {
+        BlockState targetState = level.getBlockState(pos).getToolModifiedState(context,
+                ItemAbilities.HOE_TILL, false);
+        if (targetState == null) {
             return InteractionResult.PASS;
         }
 
+        level.playSound(context.getPlayer(), pos, SoundEvents.HOE_TILL,
+                SoundSource.BLOCKS, 1.0F, 1.0F);
         if (!level.isClientSide) {
-            level.setBlock(pos, transformed, 11);
+            level.setBlock(pos, targetState, 11);
             level.gameEvent(GameEvent.BLOCK_CHANGE, pos,
-                    Context.of(context.getPlayer(), transformed));
+                    Context.of(context.getPlayer(), targetState));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }

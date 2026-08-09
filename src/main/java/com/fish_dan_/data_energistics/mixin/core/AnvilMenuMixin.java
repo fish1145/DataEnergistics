@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AnvilMenu;

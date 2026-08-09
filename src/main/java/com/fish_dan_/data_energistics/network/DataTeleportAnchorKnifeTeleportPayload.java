@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.network;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredCuttingKnifeItem;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;

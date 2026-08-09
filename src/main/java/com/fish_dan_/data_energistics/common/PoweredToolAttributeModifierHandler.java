@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.PoweredAxeItem;
-import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
-import com.fish_dan_.data_energistics.item.PoweredHoeItem;
-import com.fish_dan_.data_energistics.item.PoweredPickaxeItem;
-import com.fish_dan_.data_energistics.item.PoweredShovelItem;
-import com.fish_dan_.data_energistics.item.PoweredSwordItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredAxeItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredHoeItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredPickaxeItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredShovelItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredSwordItem;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;

@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
-import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
+import com.fish_dan_.data_energistics.item.powered.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
