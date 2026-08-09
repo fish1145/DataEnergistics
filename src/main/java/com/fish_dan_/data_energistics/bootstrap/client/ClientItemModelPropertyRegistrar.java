@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.decor.DollVariant;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.DEItems;

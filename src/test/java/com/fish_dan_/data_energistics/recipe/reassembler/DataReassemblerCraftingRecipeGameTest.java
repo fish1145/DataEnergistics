@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.NonNullList;

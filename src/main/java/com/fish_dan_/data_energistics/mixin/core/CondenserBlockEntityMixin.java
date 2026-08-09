@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;

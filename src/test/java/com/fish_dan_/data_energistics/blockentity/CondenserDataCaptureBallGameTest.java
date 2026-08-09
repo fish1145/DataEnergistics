@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 

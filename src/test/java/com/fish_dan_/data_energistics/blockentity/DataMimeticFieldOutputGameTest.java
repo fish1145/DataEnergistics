@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
-import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;

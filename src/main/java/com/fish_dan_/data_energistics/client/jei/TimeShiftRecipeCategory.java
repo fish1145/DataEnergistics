@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;

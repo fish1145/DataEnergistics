@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItemData;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
-import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
-import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
+import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierItemData;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;

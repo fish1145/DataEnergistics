@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.MobDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 

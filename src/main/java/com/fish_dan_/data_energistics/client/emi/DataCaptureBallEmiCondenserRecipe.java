@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
