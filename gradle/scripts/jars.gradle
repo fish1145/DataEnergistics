@@ -26,17 +26,28 @@ base {
     archivesName = "${project.name}-${libs.versions.minecraft.get()}"
 }
 
+def packagedLegalFiles = rootProject.files(
+        'LICENSE',
+        'LICENSE.RESOURCE',
+        'THIRD_PARTY_NOTICES.md')
+
+tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+    from(packagedLegalFiles) {
+        into 'META-INF'
+    }
+}
+
 afterEvaluate {
     tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
         destinationDirectory = file('build/libs/')
         manifest.attributes([
-                'MixinConfigs': "data_energistics.mixins.json",
-                'Specification-Title': project.name,
-                'Specification-Version': mod_version,
-                'Specification-Vendor': 'FishDan and QiuYe',
-                'Implementation-Title': base.archivesName,
+                'MixinConfigs'          : "data_energistics.mixins.json",
+                'Specification-Title'   : project.name,
+                'Specification-Version' : mod_version,
+                'Specification-Vendor'  : 'FishDan and QiuYe',
+                'Implementation-Title'  : base.archivesName,
                 'Implementation-Version': version,
-                'Implementation-Vendor': 'FishDan and QiuYe',
+                'Implementation-Vendor' : 'FishDan and QiuYe',
         ])
     }
 }
