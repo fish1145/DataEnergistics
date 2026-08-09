@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.common;
 
 import com.fish_dan_.data_energistics.common.CommonProxy;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreSyncAccessors;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreSyncAccessors;
 import com.fish_dan_.data_energistics.configuration.runtime.ConfigurationBootstrap;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 

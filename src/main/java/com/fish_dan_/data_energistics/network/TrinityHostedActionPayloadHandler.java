@@ -2,12 +2,11 @@ package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmissionResolver;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmissionResolverImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionResult;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmissionResolver;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
@@ -25,7 +24,7 @@ import java.util.function.Supplier;
 /** Main-thread router for the generation-aware Trinity auto-build action. */
 public final class TrinityHostedActionPayloadHandler {
 
-    private static final TrinityAutoBuildSubmissionResolver AUTO_BUILD_RESOLVER = new TrinityAutoBuildSubmissionResolverImpl();
+    private static final TrinityAutoBuildSubmissionResolver AUTO_BUILD_RESOLVER = new TrinityAutoBuildSubmissionResolver();
 
     private TrinityHostedActionPayloadHandler() {}
 

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.pattern;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;

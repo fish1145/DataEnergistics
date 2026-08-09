@@ -25,7 +25,7 @@ import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreTier;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;

@@ -2,22 +2,22 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch;
-import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
-import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDelivery;
-import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityCraftingBatch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost.PatternCoreReleaseResult;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityRefundDelivery;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
@@ -70,7 +70,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         REJECTED
     }
 
-    private final TrinityPatternCoreImpl core;
+    private final PersistentTrinityPatternCore core;
     private long observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
     private CoreLoadState coreLoadState = CoreLoadState.NEW;
     @Nullable
@@ -102,7 +102,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      */
     public TrinityPatternCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TRINITY_PATTERN_CORE_BLOCK_ENTITY.get(), pos, state);
-        this.core = new TrinityPatternCoreImpl(
+        this.core = new PersistentTrinityPatternCore(
                 patternCapacityFromState(state),
                 this::decodeSupportedPattern,
                 DataEnergisticsEntrypointLoader.snapshot().trinityPatternRecipes(),
@@ -274,7 +274,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
                         exception);
             }
         }
-        return this.core.tryRefundAll(new TrinityRefundDeliveryImpl(player, null, null));
+        return this.core.tryRefundAll(new PlayerInventoryRefundDelivery(player, null, null));
     }
 
     /**
@@ -737,7 +737,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
     }
 
-    private TrinityPatternCoreImpl readyCore() {
+    private PersistentTrinityPatternCore readyCore() {
         if (!isCoreStateReady()) {
             throw new IllegalStateException(
                     "Trinity pattern core state at " + this.worldPosition + " has not passed validation");

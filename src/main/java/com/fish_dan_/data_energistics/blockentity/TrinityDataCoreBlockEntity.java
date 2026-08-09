@@ -31,34 +31,33 @@ import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonDeclar
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockCompartmentPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPatternMatcher;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCraftingCoreProfile;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRefundDeliveryImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
-import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactoryImpl;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.InMemoryTrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.LevelTrackingStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCpuCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCraftingCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityAccessLease;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.pattern.MountedCorePatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerPatternRefundDelivery;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -168,8 +167,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
      */
     @Getter
-    private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
-    private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
+    private TrinityPatternCatalog patternCatalog = new MountedCorePatternCatalog(this.hostId);
+    private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouter();
     /** Runtime validation gates that keep unloaded chunks distinct from structural damage. */
     private final TrinityStructureValidation structureValidation;
     /** Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks. */
@@ -307,7 +306,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
-        this(blockPos, blockState, new TrinityStructureValidationImpl(), new TrinityStructureWorldViewFactoryImpl());
+        this(blockPos, blockState, new InMemoryTrinityStructureValidation(), new LevelTrackingStructureWorldViewFactory());
     }
 
     /**
@@ -525,7 +524,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return TrinityPatternCatalog.PatternRefundResult.STALE;
         }
         TrinityPatternCatalog.PatternRefundResult result = this.patternCatalog.tryRefundPatterns(
-                new TrinityPatternRefundDeliveryImpl(player));
+                new PlayerPatternRefundDelivery(player));
         if (result.completed()) {
             setChanged();
             notifyTrinityPatternPublicationChanged();
@@ -614,7 +613,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private TrinityRefundDeliveryImpl createRefundDelivery(Player player) {
+    private PlayerInventoryRefundDelivery createRefundDelivery(Player player) {
         MEStorage networkStorage = null;
         IActionSource actionSource = null;
         IGrid grid = accessGrid();
@@ -629,7 +628,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         exception);
             }
         }
-        return new TrinityRefundDeliveryImpl(
+        return new PlayerInventoryRefundDelivery(
                 player,
                 networkStorage,
                 actionSource);
@@ -1595,7 +1594,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.storageId = storageId;
         if (hostChanged) {
             this.hostId = hostId;
-            this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
+            this.patternCatalog = new MountedCorePatternCatalog(hostId);
             this.patternCatalogValid = false;
             this.lastPatternCoreHealthCheckTick = Long.MIN_VALUE;
         }
@@ -1642,7 +1641,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         clearPatternCatalog();
         this.storageId = data.getUUID(STORAGE_ID_TAG);
         this.hostId = data.getUUID(HOST_ID_TAG);
-        this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
+        this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
         this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
         this.matchedPositions = List.of();
@@ -1745,7 +1744,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         clearPatternCatalog();
         this.storageId = UUID.randomUUID();
         this.hostId = UUID.randomUUID();
-        this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
+        this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
         this.patternCatalogValid = false;
         this.formed = false;
         this.matchedPositions = List.of();

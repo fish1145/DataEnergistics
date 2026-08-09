@@ -3,10 +3,10 @@ package com.fish_dan_.data_energistics.network;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmission;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionResult;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;

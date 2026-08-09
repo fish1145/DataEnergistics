@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTie
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierOption;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 

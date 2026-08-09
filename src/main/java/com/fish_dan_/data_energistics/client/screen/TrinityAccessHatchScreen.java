@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
 import com.fish_dan_.data_energistics.mixin.client.PatternAccessTermScreenAccessor;
 

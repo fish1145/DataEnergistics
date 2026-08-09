@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 
 import net.minecraft.network.chat.Component;
 
