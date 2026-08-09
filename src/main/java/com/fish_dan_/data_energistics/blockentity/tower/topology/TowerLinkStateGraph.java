@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import net.minecraft.core.BlockPos;
 
@@ -11,9 +11,71 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default in-memory AE link graph implementation.
+ * Stores deterministic in-memory AE link state for a Data Distribution Tower.
+ *
+ * <p>
+ * The tower uses this graph to distinguish persisted targets, retry candidates, and live AE grid connections without
+ * exposing map/set mutation details to higher-level transfer logic.
+ * </p>
  */
-public final class TowerLinkGraphImpl implements TowerLinkGraph {
+public final class TowerLinkStateGraph {
+
+    /**
+     * Describes the runtime AE connection lifecycle for one persisted target.
+     */
+    public enum TargetLinkState {
+        BOUND,
+        WAITING_TARGET,
+        PENDING,
+        ALLOCATED,
+        WAITING_CHANNEL,
+        DISABLED,
+        CONFLICT,
+        BRIDGE_ERROR,
+        INVALID
+    }
+
+    /**
+     * Records the most recent retryable reason without retaining AE runtime objects.
+     */
+    public enum TargetLinkFailure {
+        NONE,
+        TARGET_UNAVAILABLE,
+        CHANNEL_UNAVAILABLE,
+        CONTROLLER_PRESENT,
+        OWNERSHIP_CONFLICT,
+        BRIDGE_CYCLE,
+        SCOPE_CONFLICT,
+        GRID_SERVICE_REGISTRATION
+    }
+
+    /**
+     * Immutable runtime snapshot for one target's connection state.
+     *
+     * @param state      current lifecycle state
+     * @param failure    most recent retryable failure category
+     * @param retryTicks AE ticks remaining before the next attempt
+     */
+    public record TargetLinkStatus(TargetLinkState state, TargetLinkFailure failure, int retryTicks) {
+
+        public TargetLinkStatus {
+            if (retryTicks < 0) {
+                throw new IllegalArgumentException("Target link retry ticks must be non-negative: " + retryTicks);
+            }
+        }
+
+        /**
+         * Checks whether the status should be reconsidered by a later AE tick.
+         *
+         * @return true when the target requires a later AE reconciliation, including a low-frequency health check
+         */
+        public boolean isRetryable() {
+            return switch (this.state) {
+                case WAITING_TARGET, PENDING, WAITING_CHANNEL, CONFLICT, BRIDGE_ERROR -> true;
+                case BOUND, ALLOCATED, DISABLED, INVALID -> false;
+            };
+        }
+    }
 
     private static final int MAX_RETRY_ATTEMPTS = 30;
     private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
@@ -22,14 +84,20 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
     private static final TargetLinkStatus INVALID_STATUS = new TargetLinkStatus(
             TargetLinkState.INVALID, TargetLinkFailure.NONE, 0);
 
-    @Override
+    /**
+     * Removes all persisted, pending, and live connection state.
+     */
     public void clear() {
         this.targetStatuses.clear();
         this.retryAttempts.clear();
         this.linkedPositions.clear();
     }
 
-    @Override
+    /**
+     * Adds a persisted target position.
+     *
+     * @param targetPos target to remember
+     */
     public void addLinked(BlockPos targetPos) {
         BlockPos normalizedPos = targetPos.immutable();
         if (this.linkedPositions.add(normalizedPos)) {
@@ -38,14 +106,22 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         }
     }
 
-    @Override
+    /**
+     * Adds multiple persisted targets.
+     *
+     * @param positions targets to add
+     */
     public void addLinkedAll(Collection<BlockPos> positions) {
         for (BlockPos pos : positions) {
             addLinked(pos);
         }
     }
 
-    @Override
+    /**
+     * Removes a persisted target position.
+     *
+     * @param targetPos target to remove
+     */
     public void removeLinked(BlockPos targetPos) {
         BlockPos normalizedPos = targetPos.immutable();
         this.linkedPositions.remove(normalizedPos);
@@ -53,17 +129,28 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         this.retryAttempts.remove(normalizedPos);
     }
 
-    @Override
+    /**
+     * Checks whether the target is persisted.
+     *
+     * @param targetPos target position
+     * @return true when the target is linked
+     */
     public boolean containsLinked(BlockPos targetPos) {
         return this.linkedPositions.contains(targetPos);
     }
 
-    @Override
+    /**
+     * Returns persisted target positions in deterministic iteration order.
+     *
+     * @return immutable linked position snapshot
+     */
     public Set<BlockPos> linkedPositions() {
         return new LinkedHashSet<>(this.linkedPositions);
     }
 
-    @Override
+    /**
+     * Clears runtime connection state while preserving persisted target identities.
+     */
     public void resetRuntimeState() {
         this.targetStatuses.clear();
         this.retryAttempts.clear();
@@ -73,7 +160,15 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         }
     }
 
-    @Override
+    /**
+     * Updates one persisted target's runtime state.
+     *
+     * @param targetPos  target position
+     * @param state      next lifecycle state
+     * @param failure    current retryable failure category
+     * @param retryTicks AE ticks before the next attempt
+     * @return true when the runtime state changed
+     */
     public boolean transition(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure, int retryTicks) {
         BlockPos normalizedPos = targetPos.immutable();
         if (!this.linkedPositions.contains(normalizedPos)) {
@@ -85,7 +180,21 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         return !nextStatus.equals(previousStatus);
     }
 
-    @Override
+    /**
+     * Schedules a retryable state using a bounded per-target exponential backoff.
+     *
+     * <p>
+     * A normal {@link #transition(BlockPos, TargetLinkState, TargetLinkFailure, int)} resets the accumulated backoff.
+     * Lifecycle wake-ups can therefore retry immediately, while repeated unchanged failures remain rate-limited.
+     * </p>
+     *
+     * @param targetPos         target position
+     * @param state             retryable lifecycle state
+     * @param failure           current retryable failure category
+     * @param initialDelayTicks delay for the first retry
+     * @param maximumDelayTicks maximum bounded retry delay
+     * @return true when the runtime state changed
+     */
     public boolean scheduleRetry(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure,
                                  int initialDelayTicks, int maximumDelayTicks) {
         if (initialDelayTicks <= 0 || maximumDelayTicks < initialDelayTicks) {
@@ -106,12 +215,22 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         return !nextStatus.equals(previousStatus);
     }
 
-    @Override
+    /**
+     * Returns one target's runtime status.
+     *
+     * @param targetPos target position
+     * @return current status, or {@link TargetLinkState#INVALID} when the target is not persisted
+     */
     public TargetLinkStatus status(BlockPos targetPos) {
         return this.targetStatuses.getOrDefault(targetPos, INVALID_STATUS);
     }
 
-    @Override
+    /**
+     * Advances retry timers using elapsed AE ticks and returns every target now ready for reconciliation.
+     *
+     * @param elapsedTicks elapsed ticks reported by the AE tick manager
+     * @return deterministic snapshot of retry-ready target positions
+     */
     public List<BlockPos> advanceRetryClock(int elapsedTicks) {
         if (elapsedTicks < 0) {
             throw new IllegalArgumentException("Target link elapsed ticks must be non-negative: " + elapsedTicks);
@@ -135,7 +254,11 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         return List.copyOf(readyTargets);
     }
 
-    @Override
+    /**
+     * Checks whether any persisted target is scheduled for a later AE reconciliation attempt.
+     *
+     * @return true when retryable or health-check runtime work remains
+     */
     public boolean hasRetryableTargets() {
         for (TargetLinkStatus status : this.targetStatuses.values()) {
             if (status.isRetryable()) {
@@ -145,7 +268,11 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         return false;
     }
 
-    @Override
+    /**
+     * Returns every persisted target position in deterministic iteration order.
+     *
+     * @return immutable tracked position snapshot
+     */
     public List<BlockPos> trackedPositions() {
         return List.copyOf(this.linkedPositions);
     }

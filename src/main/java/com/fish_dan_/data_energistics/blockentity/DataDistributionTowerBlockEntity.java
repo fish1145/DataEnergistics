@@ -10,11 +10,6 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkFailure;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkStatus;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
@@ -34,6 +29,10 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirt
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerCoverageGeometry;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkFailure;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkState;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkStatus;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
@@ -164,7 +163,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static MinecraftServer boundServer;
 
     private final TowerCoverageGeometry coverage;
-    private final TowerLinkGraph linkGraph = new TowerLinkGraphImpl();
+    private final TowerLinkStateGraph linkGraph = new TowerLinkStateGraph();
     private final Map<BlockPos, TowerBinding> towerBindings = new LinkedHashMap<>();
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
     private final TowerEnergyEndpointResolver energyEndpointResolver;

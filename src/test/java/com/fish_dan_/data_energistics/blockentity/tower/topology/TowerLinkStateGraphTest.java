@@ -1,7 +1,7 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkFailure;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkFailure;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkState;
 
 import net.minecraft.core.BlockPos;
 
@@ -14,14 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class TowerLinkGraphImplTest {
+public final class TowerLinkStateGraphTest {
 
     private static final BlockPos FIRST_TARGET = new BlockPos(4, 7, 9);
     private static final BlockPos SECOND_TARGET = new BlockPos(-2, 5, 13);
 
     @Test
     void bindingsKeepInsertionOrderWithoutRetainingGridConnections() {
-        TowerLinkGraph graph = new TowerLinkGraphImpl();
+        TowerLinkStateGraph graph = new TowerLinkStateGraph();
 
         graph.addLinked(FIRST_TARGET);
         graph.addLinked(SECOND_TARGET);
@@ -40,7 +40,7 @@ public final class TowerLinkGraphImplTest {
 
     @Test
     void retryStateUsesBoundedExponentialBackoffAndCanBeResetByLifecycleEvent() {
-        TowerLinkGraph graph = new TowerLinkGraphImpl();
+        TowerLinkStateGraph graph = new TowerLinkStateGraph();
         graph.addLinked(FIRST_TARGET);
 
         assertTrue(graph.scheduleRetry(
@@ -66,7 +66,7 @@ public final class TowerLinkGraphImplTest {
 
     @Test
     void runtimeResetPreservesBindingsAndRestoresBoundState() {
-        TowerLinkGraph graph = new TowerLinkGraphImpl();
+        TowerLinkStateGraph graph = new TowerLinkStateGraph();
         graph.addLinkedAll(List.of(FIRST_TARGET, SECOND_TARGET));
         graph.transition(FIRST_TARGET, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
         graph.scheduleRetry(
