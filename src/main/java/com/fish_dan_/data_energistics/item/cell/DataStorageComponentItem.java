@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.cell;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;

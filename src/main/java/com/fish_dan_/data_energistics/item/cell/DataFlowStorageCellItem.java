@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.cell;
 
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellTooltip;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;

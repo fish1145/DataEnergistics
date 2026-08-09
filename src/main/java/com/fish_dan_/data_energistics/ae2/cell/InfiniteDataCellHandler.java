@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.cell;
 
-import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
+import com.fish_dan_.data_energistics.item.cell.InfiniteDataCellItem;
 
 import net.minecraft.world.item.ItemStack;
 
