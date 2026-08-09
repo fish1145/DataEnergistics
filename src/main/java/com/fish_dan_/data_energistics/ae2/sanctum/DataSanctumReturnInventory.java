@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.sanctum;
 
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataSanctumInterface;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;

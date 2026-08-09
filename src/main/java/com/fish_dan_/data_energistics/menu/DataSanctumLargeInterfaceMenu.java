@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;

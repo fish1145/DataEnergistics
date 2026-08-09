@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataSanctumFluidPuller;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
-import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
-import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
-import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumFluidPuller;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;

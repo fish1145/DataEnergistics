@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
 import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
 

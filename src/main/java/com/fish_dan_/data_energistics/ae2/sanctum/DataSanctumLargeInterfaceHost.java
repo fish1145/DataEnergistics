@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.sanctum;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
