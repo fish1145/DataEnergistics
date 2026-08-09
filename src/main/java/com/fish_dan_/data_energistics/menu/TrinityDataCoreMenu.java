@@ -32,7 +32,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -210,20 +209,20 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     /** A status-only menu has no machine slots, so shift-click cannot move an item to another side. */
     @Override
-    public @NotNull ItemStack quickMoveStack(@NotNull Player player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         return ItemStack.EMPTY;
     }
 
     /** Keeps the menu bound to the same nearby live controller instance used during construction. */
     @Override
-    public boolean stillValid(@NotNull Player player) {
+    public boolean stillValid(Player player) {
         return player == getPlayer() && this.host instanceof TrinityDataCoreBlockEntity dataCore &&
                 isLiveHost(player, dataCore);
     }
 
     /** Releases the server-side LDLib2 tree when vanilla removes this native menu. */
     @Override
-    public void removed(@NotNull Player player) {
+    public void removed(Player player) {
         Throwable failure = null;
         try {
             super.removed(player);

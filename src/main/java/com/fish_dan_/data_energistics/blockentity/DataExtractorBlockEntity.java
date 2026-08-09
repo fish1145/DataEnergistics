@@ -80,7 +80,6 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
@@ -160,19 +159,16 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         @Override
-        @NotNull
         public ItemStack getStackInSlot(int slot) {
             return this.delegate.getStackInSlot(slot);
         }
 
         @Override
-        @NotNull
-        public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             return this.delegate.insertItem(slot, stack, simulate);
         }
 
         @Override
-        @NotNull
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             return this.delegate.extractItem(slot, amount, simulate);
         }
@@ -183,7 +179,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         @Override
-        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+        public boolean isItemValid(int slot, ItemStack stack) {
             return this.delegate.isItemValid(slot, stack);
         }
     };

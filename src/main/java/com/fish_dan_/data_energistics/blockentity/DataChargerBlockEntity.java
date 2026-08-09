@@ -43,7 +43,6 @@ import appeng.util.Platform;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
@@ -253,7 +252,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     @Override
-    public void saveAdditional(@NotNull CompoundTag data, @NotNull HolderLookup.Provider registries) {
+    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         data.putLong(DATA_FLOW_TAG, getStoredDataFlow());

@@ -7,7 +7,6 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -25,7 +24,6 @@ import java.util.Map;
  * cycle.
  * </p>
  */
-@NotNullByDefault
 public final class MimeticPendingOutputLedger {
 
     /**

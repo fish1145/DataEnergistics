@@ -103,7 +103,6 @@ import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
 import lombok.Getter;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -1235,7 +1234,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boundServer = null;
     }
 
-    public static void onPotentialNodeAdded(@NotNull Level level, @NotNull BlockPos targetPos) {
+    public static void onPotentialNodeAdded(Level level, BlockPos targetPos) {
         IInWorldGridNodeHost targetNodeHost = level.getCapability(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos);
         if (targetNodeHost == null) {
@@ -1271,7 +1270,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    public static void onPotentialNodeRemoved(@NotNull Level level, @NotNull BlockPos targetPos) {
+    public static void onPotentialNodeRemoved(Level level, BlockPos targetPos) {
         Set<BlockPos> towerPositions = TOWER_CHUNK_POSITIONS.get(new ChunkKey(level, new ChunkPos(targetPos)));
         if (towerPositions == null || towerPositions.isEmpty()) {
             return;

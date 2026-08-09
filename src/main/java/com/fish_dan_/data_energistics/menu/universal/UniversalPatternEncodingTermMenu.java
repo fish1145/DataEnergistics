@@ -51,7 +51,6 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -224,7 +223,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+    public SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
         if (!this.syncedPatternProviders.providers().isEmpty() ||
                 this.syncedPatternProviders.rankingContext() != null) {
             return this.syncedPatternProviders;
@@ -242,7 +241,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @NotNull EncodingMode data_energistics$getEncodingMode() {
+    public EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
     }
 
