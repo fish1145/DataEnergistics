@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.ExposedControllerFaceChannelCapacity;
 import com.fish_dan_.data_energistics.ae2.TowerChannelCapacity;
-import com.fish_dan_.data_energistics.ae2.TowerChannelCapacityImpl;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridgeException;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
@@ -99,7 +99,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
     private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
     private final CompensatingTowerEnergyTransaction energyTransaction = new CompensatingTowerEnergyTransaction();
-    private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
+    private final TowerChannelCapacity capacityCalculator = new ExposedControllerFaceChannelCapacity();
     private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
     private TowerEnergyTransactionResult lastEnergyResult = EMPTY_ENERGY_RESULT;
@@ -473,7 +473,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         return List.copyOf(endpoints);
     }
 
-    /** Adds one context-sensitive access route without duplicating its physical backing in the planner. */
+    /**
+     * Adds one context-sensitive access route without duplicating its physical backing in the planner.
+     */
     private static void dataEnergistics$addEnergyRoute(
                                                        IdentityHashMap<Object, ArrayList<TowerEnergyTransferEndpoint>> routesByStorage,
                                                        List<ArrayList<TowerEnergyTransferEndpoint>> orderedRouteGroups,
@@ -518,7 +520,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         return result;
     }
 
-    /** Stores unrecoverable compensation energy in the first stable active tower's existing isolation buffer. */
+    /**
+     * Stores unrecoverable compensation energy in the first stable active tower's existing isolation buffer.
+     */
     private void dataEnergistics$quarantineEnergy(long amount) {
         ArrayList<TowerNetworkParticipant> orderedTowers = new ArrayList<>(this.towers.values());
         orderedTowers.sort(Comparator.comparing(TowerNetworkParticipant::towerKey));
@@ -695,7 +699,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         }
     }
 
-    /** Aggregates side-specific endpoint snapshots for concise per-device protocol records. */
+    /**
+     * Aggregates side-specific endpoint snapshots for concise per-device protocol records.
+     */
     private static Map<EnergyLocationKey, EnergySnapshotSummary> dataEnergistics$aggregateEnergySnapshots(
                                                                                                           List<TowerEnergyEndpointSnapshot> snapshots) {
         Map<EnergyLocationKey, EnergySnapshotSummary> result = new HashMap<>();
@@ -775,7 +781,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         };
     }
 
-    /** Captures the node's intended UI representation before its chunk or target Grid can unload. */
+    /**
+     * Captures the node's intended UI representation before its chunk or target Grid can unload.
+     */
     private static DeviceDisplay dataEnergistics$deviceDisplay(IGridNode node) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(Items.BARRIER);
         String displayName = "";
@@ -871,7 +879,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
 
     private record BindingIdentity(TowerRuntimeKey towerKey, long bindingFifo) {}
 
-    /** Identifies one immutable target resolution within a single network reconciliation pass. */
+    /**
+     * Identifies one immutable target resolution within a single network reconciliation pass.
+     */
     private record TargetResolutionKey(ResourceLocation dimensionId,
                                        BlockPos anchor,
                                        TowerTargetDiscoveryMode mode) {
@@ -881,10 +891,14 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         }
     }
 
-    /** Immutable UI identity captured directly from an AE node. */
+    /**
+     * Immutable UI identity captured directly from an AE node.
+     */
     private record DeviceDisplay(ResourceLocation itemId, String displayName) {}
 
-    /** Saturated FE aggregate used only for protocol and UI display. */
+    /**
+     * Saturated FE aggregate used only for protocol and UI display.
+     */
     private record EnergySnapshotSummary(long stored,
                                          long capacity,
                                          boolean canExtract,
@@ -901,7 +915,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
         }
     }
 
-    /** Stable location key used before mutable capability resolution. */
+    /**
+     * Stable location key used before mutable capability resolution.
+     */
     private record EnergyLocationKey(ResourceLocation dimensionId, BlockPos position)
             implements Comparable<EnergyLocationKey> {
 
@@ -950,7 +966,9 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
 
     private record BindingState(TowerVirtualDeviceState state, String failure) {}
 
-    /** Adds non-negative FE counters without wrapping UI values. */
+    /**
+     * Adds non-negative FE counters without wrapping UI values.
+     */
     private static long dataEnergistics$saturatingAdd(long left, long right) {
         return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }

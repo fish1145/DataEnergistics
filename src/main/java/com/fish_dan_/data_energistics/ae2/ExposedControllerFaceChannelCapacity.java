@@ -18,7 +18,7 @@ import java.util.Set;
  * Counts geometrically exposed controller faces and converts them to the total domain capacity available after native
  * physical pathing runs.
  */
-public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
+public final class ExposedControllerFaceChannelCapacity implements TowerChannelCapacity {
 
     /**
      * Number of base channels supplied by one exposed controller face.
