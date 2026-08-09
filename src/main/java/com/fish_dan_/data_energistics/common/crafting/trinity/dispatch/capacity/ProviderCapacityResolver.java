@@ -22,7 +22,7 @@ public interface ProviderCapacityResolver {
      * @return stateless resolver
      */
     static ProviderCapacityResolver create() {
-        return new ProviderCapacityResolverImpl();
+        return new IdentityProviderCapacityResolver();
     }
 
     /**
@@ -32,7 +32,7 @@ public interface ProviderCapacityResolver {
      * @return caching capture boundary with an uncached {@link #resolveCurrent} path
      */
     static ProviderCapacityResolver create(Supplier<TrinityComputationCache> cache) {
-        return new CachingProviderCapacityResolver(new ProviderCapacityResolverImpl(), cache);
+        return new CachingProviderCapacityResolver(new IdentityProviderCapacityResolver(), cache);
     }
 
     /**

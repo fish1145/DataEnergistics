@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Identity-index implementation that delegates provider-kind resolution to the counted adapter boundary.
  */
-final class ProviderCapacityResolverImpl implements ProviderCapacityResolver {
+final class IdentityProviderCapacityResolver implements ProviderCapacityResolver {
 
     @Override
     public ProviderCapacityCapture capture(

@@ -5,7 +5,7 @@ import java.util.function.LongSupplier;
 /**
  * Monotonic server-thread implementation that subtracts Trinity work before estimating the underlying MSPT.
  */
-final class CraftingServerDispatchBudgetImpl implements CraftingServerDispatchBudget {
+final class MeasuredCraftingServerDispatchBudget implements CraftingServerDispatchBudget {
 
     static final CraftingServerDispatchBudget UNBOUNDED = new CraftingServerDispatchBudget() {
 
@@ -34,10 +34,10 @@ final class CraftingServerDispatchBudgetImpl implements CraftingServerDispatchBu
     private long lastCompletedDispatchNanos;
     private boolean tickActive;
 
-    CraftingServerDispatchBudgetImpl(
-                                     LongSupplier nanoClock,
-                                     long targetTickNanos,
-                                     long overloadedTrickleNanos) {
+    MeasuredCraftingServerDispatchBudget(
+                                         LongSupplier nanoClock,
+                                         long targetTickNanos,
+                                         long overloadedTrickleNanos) {
         if (nanoClock == null) {
             throw new IllegalArgumentException("Server dispatch nano clock is required");
         }

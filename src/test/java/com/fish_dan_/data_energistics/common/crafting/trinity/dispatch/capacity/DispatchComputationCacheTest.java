@@ -38,7 +38,7 @@ final class DispatchComputationCacheTest {
         TrinityComputationCache cache = cache();
         CapacitySlicePlanner delegate = CapacitySlicePlanner.create();
         AtomicInteger calculations = new AtomicInteger();
-        DispatchCapacityPlanner planner = new DispatchCapacityPlannerImpl(
+        DispatchCapacityPlanner planner = new DispatchCapacityPlanner(
                 () -> cache,
                 (snapshots, remainingCrafts, physicalCallLimit, cursor) -> {
                     calculations.incrementAndGet();

@@ -12,8 +12,22 @@ import java.util.List;
 /**
  * Sort-based water-filling implementation of startup-first max-min target allocation.
  */
-final class CapacitySlicePlannerImpl implements CapacitySlicePlanner {
+final class StartupFirstMaxMinCapacitySlicePlanner implements CapacitySlicePlanner {
 
+    /**
+     * Plans at most one physical call per selected snapshot.
+     *
+     * <p>
+     * Known zero capacity is skipped. Unknown capacity, unknown single-batch capacity, and routing modes other than
+     * {@code TARGETED} are limited to one logical craft so snapshot uncertainty never invents counted semantics.
+     * </p>
+     *
+     * @param snapshots         immutable provider target observations in stable provider order
+     * @param remainingCrafts   non-negative logical work still requested
+     * @param physicalCallLimit non-negative maximum number of returned slices
+     * @param cursor            non-negative round-robin cursor into the original snapshot order
+     * @return immutable slices and the next cursor
+     */
     @Override
     public CapacitySlicePlan plan(
                                   List<ProviderCapacitySnapshot> snapshots,

@@ -16,12 +16,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-/** Cache implementation that separates immutable candidate calculation from mutable shard reservation. */
-final class DispatchProposalCandidatePlannerImpl implements DispatchProposalCandidatePlanner {
+/**
+ * Cache implementation that separates immutable candidate calculation from mutable shard reservation.
+ */
+final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCandidatePlanner {
 
     private final Supplier<TrinityComputationCache> cache;
 
-    DispatchProposalCandidatePlannerImpl(Supplier<TrinityComputationCache> cache) {
+    CachedDispatchProposalCandidatePlanner(Supplier<TrinityComputationCache> cache) {
         if (cache == null) {
             throw new IllegalArgumentException("Dispatch proposal candidate planning requires a cache");
         }
@@ -108,7 +110,9 @@ final class DispatchProposalCandidatePlannerImpl implements DispatchProposalCand
         return new IllegalStateException("Dispatch proposal candidate cache calculation failed", failure);
     }
 
-    /** Complete immutable proposal-candidate key retained inside the shared Grid LRU. */
+    /**
+     * Complete immutable proposal-candidate key retained inside the shared Grid LRU.
+     */
     private record CandidateKey(
                                 ProviderCapacityCaptureKey captureKey,
                                 List<ProviderCapacitySnapshot> snapshots,

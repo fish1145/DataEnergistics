@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class CraftingDispatchWindowImplTest {
+public final class CraftingDispatchWindowTest {
 
     @Test
     void limitsOneProviderToItsConfiguredPhysicalAttempts() {
@@ -212,7 +212,7 @@ public final class CraftingDispatchWindowImplTest {
     void activeSubmissionAtTimeBoundaryDoesNotAcquirePhysicalCall() {
         AtomicLong nanoClock = new AtomicLong();
         CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        CraftingDispatchWindow window = new CraftingDispatchWindow(limits, nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
 
@@ -233,7 +233,7 @@ public final class CraftingDispatchWindowImplTest {
     void inFlightPhysicalCallMayCrossTimeBoundaryButLaterWorkStops() {
         AtomicLong nanoClock = new AtomicLong();
         CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        CraftingDispatchWindow window = new CraftingDispatchWindow(limits, nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
 
@@ -255,7 +255,7 @@ public final class CraftingDispatchWindowImplTest {
     void accumulatesOnlyMeasuredScopeDurations() {
         AtomicLong nanoClock = new AtomicLong(10L);
         CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 1_000L);
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        CraftingDispatchWindow window = new CraftingDispatchWindow(limits, nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
 
@@ -280,7 +280,7 @@ public final class CraftingDispatchWindowImplTest {
     void capacityCaptureUsesAnIndependentTimeBudget() {
         AtomicLong nanoClock = new AtomicLong();
         CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 1_000L, 100L);
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        CraftingDispatchWindow window = new CraftingDispatchWindow(limits, nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
 
@@ -329,7 +329,7 @@ public final class CraftingDispatchWindowImplTest {
     @Test
     void rejectsBackwardClockAndReleasesFailedScope() {
         AtomicLong nanoClock = new AtomicLong(100L);
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(
+        CraftingDispatchWindow window = new CraftingDispatchWindow(
                 new CraftingDispatchLimits(4, 4, 100L),
                 nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
@@ -380,10 +380,10 @@ public final class CraftingDispatchWindowImplTest {
         assertIllegalArgument("Crafting dispatch status must not be null", () -> window.resultCount(null));
         assertIllegalArgument(
                 "Crafting dispatch limits must not be null",
-                () -> new CraftingDispatchWindowImpl(null, () -> 0L));
+                () -> new CraftingDispatchWindow(null, () -> 0L));
         assertIllegalArgument(
                 "Crafting dispatch nano clock must not be null",
-                () -> new CraftingDispatchWindowImpl(CraftingDispatchLimits.DEFAULT, null));
+                () -> new CraftingDispatchWindow(CraftingDispatchLimits.DEFAULT, null));
     }
 
     @Test
@@ -403,7 +403,7 @@ public final class CraftingDispatchWindowImplTest {
     }
 
     private static CraftingDispatchWindow fixedWindow(CraftingDispatchLimits limits) {
-        return new CraftingDispatchWindowImpl(limits, () -> 0L);
+        return new CraftingDispatchWindow(limits, () -> 0L);
     }
 
     private static boolean acquire(
@@ -430,7 +430,9 @@ public final class CraftingDispatchWindowImplTest {
         return new CraftingDispatchTarget(identity);
     }
 
-    /** Provider whose equality deliberately collapses instances to verify identity-based accounting. */
+    /**
+     * Provider whose equality deliberately collapses instances to verify identity-based accounting.
+     */
     private static final class EqualCraftingProvider implements ICraftingProvider {
 
         @Override
@@ -459,7 +461,9 @@ public final class CraftingDispatchWindowImplTest {
         }
     }
 
-    /** Distinct pattern identity used only as a dispatch-window cache key. */
+    /**
+     * Distinct pattern identity used only as a dispatch-window cache key.
+     */
     private static final class IdentityPatternDetails implements IPatternDetails {
 
         @Override
@@ -478,7 +482,9 @@ public final class CraftingDispatchWindowImplTest {
         }
     }
 
-    /** Pattern whose equality deliberately collapses instances to verify identity-based cache isolation. */
+    /**
+     * Pattern whose equality deliberately collapses instances to verify identity-based cache isolation.
+     */
     private static final class EqualPatternDetails implements IPatternDetails {
 
         @Override
