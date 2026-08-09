@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.recipe;
+package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeInput;

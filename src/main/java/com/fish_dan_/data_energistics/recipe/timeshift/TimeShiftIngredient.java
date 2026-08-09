@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.recipe;
+package com.fish_dan_.data_energistics.recipe.timeshift;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;

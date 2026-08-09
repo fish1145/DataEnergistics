@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProviderImpl;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.network.chat.Component;

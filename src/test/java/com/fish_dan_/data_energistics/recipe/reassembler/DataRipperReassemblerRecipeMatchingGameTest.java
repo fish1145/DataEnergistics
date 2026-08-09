@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.recipe;
+package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 

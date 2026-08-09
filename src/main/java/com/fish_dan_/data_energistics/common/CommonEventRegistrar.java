@@ -6,8 +6,8 @@ import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBri
 import com.fish_dan_.data_energistics.effect.DataDisorderControlLogic;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
-import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipeLogic;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.world.DataMeteoriteCompassTargetInvalidation;
 import com.fish_dan_.data_energistics.world.DataMeteoritePreloader;

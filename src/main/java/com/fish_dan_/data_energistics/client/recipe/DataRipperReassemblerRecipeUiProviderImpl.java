@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout.SlotPos;
 import com.fish_dan_.data_energistics.client.ui.DataReassemblerProgressElement;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;

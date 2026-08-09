@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.recipe;
+package com.fish_dan_.data_energistics.recipe.captureball;
 
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 

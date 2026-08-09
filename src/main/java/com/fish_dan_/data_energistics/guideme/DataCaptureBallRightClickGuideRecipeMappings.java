@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.guideme;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.world.item.ItemStack;

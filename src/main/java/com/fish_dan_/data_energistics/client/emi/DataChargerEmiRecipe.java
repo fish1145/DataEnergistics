@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.network.chat.Component;

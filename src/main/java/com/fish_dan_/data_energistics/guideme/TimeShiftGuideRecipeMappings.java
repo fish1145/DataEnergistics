@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
-import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
-import com.fish_dan_.data_energistics.recipe.TimeShiftTimeCondition;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTimeCondition;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.world.item.ItemStack;

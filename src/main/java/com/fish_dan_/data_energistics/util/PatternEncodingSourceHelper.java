@@ -8,8 +8,8 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.core.registries.BuiltInRegistries;

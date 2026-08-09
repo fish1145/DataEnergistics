@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayloa
 import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
 import net.minecraft.world.entity.player.Player;
 

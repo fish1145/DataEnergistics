@@ -1,18 +1,18 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallCondenserRecipe;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallCondenserRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.DataReassemblerCraftingRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
-import com.fish_dan_.data_energistics.recipe.TimeShiftRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.UniversalTerminalCombineRecipe;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallCondenserRecipe;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallCondenserRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataReassemblerCraftingRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipeSerializer;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
