@@ -31,6 +31,7 @@ public final class DataEnergisticsTextureEditorResources {
     private static final String AUTO_BUILD_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/autobuild/";
     private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
     private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
+    private static final String MODEL_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/model/";
     private static final String SLOT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/slot/";
     private static final String STORAGE_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/storage/";
 
@@ -132,11 +133,13 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("gui_button", guiSprite("botton.png"));
         provider.addResource("gui_button_disabled", guiSprite("button_disabled.png"));
         provider.addResource("gui_button_highlighted", guiSprite("button_highlighted.png"));
+        provider.addResource("gui_close", guiSprite("close.png"));
         provider.addResource("gui_front", guiSprite("front.png"));
         provider.addResource("gui_inventory_slot", guiSprite("inventory_slot.png"));
         provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
         provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
         provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
+        provider.addResource("model_home", modelSprite("home.png"));
         provider.addResource("slot_button_slot", slotSprite("button_slot.png"));
         provider.addResource("slot_button_slot_1", slotSprite("button_slot_1.png"));
         provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
@@ -190,6 +193,16 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture guiSprite(String fileName) {
         return SpriteTexture.of(GUI_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a model GUI asset.
+     *
+     * @param fileName asset file under the model GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture modelSprite(String fileName) {
+        return SpriteTexture.of(MODEL_TEXTURE_ROOT + fileName);
     }
 
     /**
