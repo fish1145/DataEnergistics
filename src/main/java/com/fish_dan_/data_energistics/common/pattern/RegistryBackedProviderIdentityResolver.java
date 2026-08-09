@@ -18,9 +18,9 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Default resolver that uses only public Minecraft and AE2 APIs to locate providers.
+ * Resolves identities from Minecraft and AE2 registries plus live provider hosts.
  */
-final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
+final class RegistryBackedProviderIdentityResolver implements ProviderIdentityResolver {
 
     /**
      * Extracts a dimension ID from a physical host; injectable for direct resolver tests.
@@ -34,8 +34,8 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
     /**
      * Creates the live resolver used by production callers.
      */
-    ProviderIdentityResolverImpl() {
-        this(ProviderIdentityResolverImpl::resolveDimensionId, ProviderIdentityResolverImpl::resolvePartItemId);
+    RegistryBackedProviderIdentityResolver() {
+        this(RegistryBackedProviderIdentityResolver::resolveDimensionId, RegistryBackedProviderIdentityResolver::resolvePartItemId);
     }
 
     /**
@@ -44,10 +44,10 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
      * @param dimensionIdResolver physical-host dimension lookup
      * @param partItemIdResolver  mounted-part item lookup
      */
-    ProviderIdentityResolverImpl(Function<BlockEntity, ResourceLocation> dimensionIdResolver,
-                                 Function<IPart, ResourceLocation> partItemIdResolver) {
-        this.dimensionIdResolver = Objects.requireNonNull(dimensionIdResolver, "dimensionIdResolver");
-        this.partItemIdResolver = Objects.requireNonNull(partItemIdResolver, "partItemIdResolver");
+    RegistryBackedProviderIdentityResolver(Function<BlockEntity, ResourceLocation> dimensionIdResolver,
+                                           Function<IPart, ResourceLocation> partItemIdResolver) {
+        this.dimensionIdResolver = dimensionIdResolver;
+        this.partItemIdResolver = partItemIdResolver;
     }
 
     /**
@@ -55,7 +55,6 @@ final class ProviderIdentityResolverImpl implements ProviderIdentityResolver {
      */
     @Override
     public ProviderIdentity resolve(PatternContainer provider) {
-        Objects.requireNonNull(provider, "provider");
         if (provider instanceof TrinityPatternTerminalPartition partition) {
             TrinityPatternTerminalPartition.PartitionKey key = partition.key();
             return new ProviderIdentity.Trinity(key.hostId(), key.coreId(), key.partitionIndex());

@@ -8,11 +8,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,9 +34,7 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
      * @param role     diagnostic role of the callback owner
      * @return validated internal identity
      */
-    static @NotNull External fromExternal(
-                                          @Nullable ExternalPatternProviderIdentity identity,
-                                          @NotNull String role) {
+    static External fromExternal(@Nullable ExternalPatternProviderIdentity identity, String role) {
         if (identity == null) {
             throw new IllegalStateException(role + " returned a null external provider identity");
         }
@@ -225,12 +221,10 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
             implements ProviderIdentity {
 
         /**
-         * Validates and defensively freezes the world-location fields.
+         * Defensively freezes the world position.
          */
         public Block {
-            dimensionId = Objects.requireNonNull(dimensionId, "dimensionId");
-            blockPos = Objects.requireNonNull(blockPos, "blockPos").immutable();
-            blockEntityTypeId = Objects.requireNonNull(blockEntityTypeId, "blockEntityTypeId");
+            blockPos = blockPos.immutable();
         }
 
         @Override
@@ -254,13 +248,10 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
             implements ProviderIdentity {
 
         /**
-         * Validates and defensively freezes the host and part fields.
+         * Defensively freezes the host position.
          */
         public Part {
-            dimensionId = Objects.requireNonNull(dimensionId, "dimensionId");
-            blockPos = Objects.requireNonNull(blockPos, "blockPos").immutable();
-            mount = Objects.requireNonNull(mount, "mount");
-            partItemId = Objects.requireNonNull(partItemId, "partItemId");
+            blockPos = blockPos.immutable();
         }
 
         @Override
@@ -279,11 +270,9 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
     record Trinity(UUID hostId, UUID coreId, int partitionIndex) implements ProviderIdentity {
 
         /**
-         * Rejects incomplete or invalid persistent routing keys.
+         * Rejects invalid persistent routing keys.
          */
         public Trinity {
-            hostId = Objects.requireNonNull(hostId, "hostId");
-            coreId = Objects.requireNonNull(coreId, "coreId");
             if (partitionIndex < 0) {
                 throw new IllegalArgumentException("A provider identity partition index must not be negative");
             }
@@ -308,10 +297,9 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
             implements ProviderIdentity {
 
         /**
-         * Validates and freezes the external identity fields.
+         * Validates the schema version and freezes the canonical fields.
          */
         public External {
-            type = Objects.requireNonNull(type, "type");
             if (schemaVersion <= 0) {
                 throw new IllegalArgumentException("External provider identity schema version must be positive");
             }
@@ -340,13 +328,9 @@ public sealed interface ProviderIdentity extends PatternProviderIdentity
             implements ProviderIdentity {
 
         /**
-         * Rejects incomplete display semantics before they become a persistence key.
+         * Rejects blank display semantics before they become a persistence key.
          */
         public Virtual {
-            terminalGroupIconId = Objects.requireNonNull(terminalGroupIconId, "terminalGroupIconId");
-            terminalGroupNameEncoding = Objects.requireNonNull(
-                    terminalGroupNameEncoding,
-                    "terminalGroupNameEncoding");
             if (terminalGroupNameEncoding.isBlank()) {
                 throw new IllegalArgumentException("A virtual provider identity requires a component encoding");
             }
