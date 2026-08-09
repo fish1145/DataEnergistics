@@ -12,14 +12,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * Verified {@link UnlimitedEnergyAccess} implementation for explicit, type-safe energy storage contracts.
+ * Provides verified {@link UnlimitedEnergyAccess} for explicit, type-safe energy storage contracts.
  *
  * <p>
  * Direct mutations are available only through {@link UnlimitedEnergyStorage} or the reference NeoForge storage
  * accessor. Unknown third-party implementations remain on their public {@link IEnergyStorage} API instead of being
  * inspected or mutated through implementation details.
  */
-public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
+public final class VerifiedUnlimitedEnergyAccess implements UnlimitedEnergyAccess {
 
     private static final AmountWriter TYPED_AMOUNT_WRITER = new AmountWriter() {
 
@@ -43,8 +43,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
     };
     private static final StateAccess TYPED_STATE_ACCESS = new StateAccess(
-            UnlimitedEnergyAccessImpl::readTypedStored,
-            UnlimitedEnergyAccessImpl::readTypedCapacity,
+            VerifiedUnlimitedEnergyAccess::readTypedStored,
+            VerifiedUnlimitedEnergyAccess::readTypedCapacity,
             TYPED_AMOUNT_WRITER,
             Long.MAX_VALUE);
     private static final AmountWriter NEOFORGE_AMOUNT_WRITER = new AmountWriter() {
@@ -69,8 +69,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
     };
     private static final StateAccess NEOFORGE_STATE_ACCESS = new StateAccess(
-            UnlimitedEnergyAccessImpl::readNeoForgeStored,
-            UnlimitedEnergyAccessImpl::readNeoForgeCapacity,
+            VerifiedUnlimitedEnergyAccess::readNeoForgeStored,
+            VerifiedUnlimitedEnergyAccess::readNeoForgeCapacity,
             NEOFORGE_AMOUNT_WRITER,
             Integer.MAX_VALUE);
 

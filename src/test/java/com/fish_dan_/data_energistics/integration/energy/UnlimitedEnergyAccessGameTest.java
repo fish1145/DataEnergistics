@@ -23,7 +23,7 @@ public final class UnlimitedEnergyAccessGameTest {
     @GameTest(template = "empty_5x5")
     public static void usesRealNeoForgeAccessor(GameTestHelper helper) {
         EnergyStorage storage = new EnergyStorage(1_000, 1, 1, 400);
-        UnlimitedEnergyAccess access = new UnlimitedEnergyAccessImpl();
+        UnlimitedEnergyAccess access = new VerifiedUnlimitedEnergyAccess();
 
         helper.assertTrue(storage instanceof NeoForgeEnergyStorageAccessor,
                 "NeoForge EnergyStorage must receive the unlimited-energy Mixin accessor");

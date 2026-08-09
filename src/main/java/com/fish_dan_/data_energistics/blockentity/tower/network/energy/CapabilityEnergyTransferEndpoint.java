@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
@@ -33,7 +33,7 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     /**
      * Verified typed direct access for standard and explicitly unlimited storages.
      */
-    private final UnlimitedEnergyAccess unlimitedEnergy = new UnlimitedEnergyAccessImpl();
+    private final UnlimitedEnergyAccess unlimitedEnergy = new VerifiedUnlimitedEnergyAccess();
 
     /**
      * Stable BrandonsCore storage classification for this immutable topology route.

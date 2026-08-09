@@ -40,7 +40,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
@@ -131,7 +131,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                                               TowerTargetDisplayResolverContext, TowerNetworkParticipant, IGridTickable {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
+    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new VerifiedUnlimitedEnergyAccess();
     private static final VersionedTowerBindingCodec TOWER_BINDING_PERSISTENCE = new VersionedTowerBindingCodec();
     /**
      * Selects the connector source captured when a player places a potentially compatible target.

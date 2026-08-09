@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergy
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
@@ -30,7 +30,7 @@ public final class CapabilityTowerDomainEnergyResolver {
 
     private final BrandonsCoreEnergyBridge brandonsCore = new BrandonsCoreEnergyBridge();
     private final OritechEnergyBridge oritech = new OritechEnergyBridge();
-    private final UnlimitedEnergyAccess unlimitedEnergy = new UnlimitedEnergyAccessImpl();
+    private final UnlimitedEnergyAccess unlimitedEnergy = new VerifiedUnlimitedEnergyAccess();
 
     /**
      * Resolves all distinct capability access routes at one loaded location in stable side order. Multiple routes may

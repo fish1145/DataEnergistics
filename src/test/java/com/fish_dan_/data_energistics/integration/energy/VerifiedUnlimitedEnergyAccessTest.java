@@ -12,9 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class UnlimitedEnergyAccessImplTest {
+class VerifiedUnlimitedEnergyAccessTest {
 
-    private final UnlimitedEnergyAccess access = new UnlimitedEnergyAccessImpl();
+    private final UnlimitedEnergyAccess access = new VerifiedUnlimitedEnergyAccess();
 
     @Test
     void leavesUnknownThirdPartyStorageOnItsPublicCapability() {
