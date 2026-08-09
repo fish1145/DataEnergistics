@@ -9,6 +9,7 @@ import net.minecraft.world.item.Items;
 
 import appeng.helpers.patternprovider.PatternContainer;
 import com.mojang.serialization.JsonOps;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -23,7 +24,7 @@ public interface ProviderIdentityResolver {
      * @return production resolver
      */
     static ProviderIdentityResolver create() {
-        return new ProviderIdentityResolverImpl();
+        return new RegistryBackedProviderIdentityResolver();
     }
 
     /**
@@ -38,10 +39,7 @@ public interface ProviderIdentityResolver {
     /**
      * Builds the canonical structured fallback used consistently by live and degraded virtual providers.
      */
-    static ProviderIdentity.Virtual virtualIdentity(ResourceLocation iconItemId, Component name) {
-        if (name == null) {
-            throw new IllegalArgumentException("Virtual provider name must not be null");
-        }
+    static ProviderIdentity.Virtual virtualIdentity(@Nullable ResourceLocation iconItemId, Component name) {
         ResourceLocation airId = BuiltInRegistries.ITEM.getKey(Items.AIR);
         Optional<ResourceLocation> normalizedIcon = Optional.ofNullable(iconItemId)
                 .filter(id -> !id.equals(airId));

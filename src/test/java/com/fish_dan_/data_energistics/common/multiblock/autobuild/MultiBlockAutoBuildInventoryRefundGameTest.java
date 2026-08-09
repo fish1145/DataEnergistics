@@ -35,12 +35,12 @@ public final class MultiBlockAutoBuildInventoryRefundGameTest {
         ItemStack ironBlock = new ItemStack(Blocks.IRON_BLOCK);
         player.getInventory().setItem(0, ironBlock.copyWithCount(2));
 
-        MultiBlockAutoBuildImpl.InventoryTransaction transaction = new MultiBlockAutoBuildImpl.InventoryTransaction(
+        TransactionalMultiBlockAutoBuild.InventoryTransaction transaction = new TransactionalMultiBlockAutoBuild.InventoryTransaction(
                 "refund-test",
                 player.getInventory(),
                 List.of(
-                        new MultiBlockAutoBuildImpl.MaterialReservation(firstPosition, 0, ironBlock),
-                        new MultiBlockAutoBuildImpl.MaterialReservation(firstPosition.east(), 0, ironBlock)),
+                        new TransactionalMultiBlockAutoBuild.MaterialReservation(firstPosition, 0, ironBlock),
+                        new TransactionalMultiBlockAutoBuild.MaterialReservation(firstPosition.east(), 0, ironBlock)),
                 false);
 
         helper.assertTrue(transaction.commit(), "Material reservations should commit against the selected source slot");
@@ -50,7 +50,7 @@ public final class MultiBlockAutoBuildInventoryRefundGameTest {
         player.getInventory().setItem(0, new ItemStack(Items.DIAMOND));
         player.getInventory().setItem(1, new ItemStack(Items.EMERALD));
 
-        MultiBlockAutoBuildImpl.RefundOutcome refundOutcome = transaction.rollback(player);
+        TransactionalMultiBlockAutoBuild.RefundOutcome refundOutcome = transaction.rollback(player);
 
         helper.assertTrue(refundOutcome.completed(), "Every deducted reservation should be returned exactly once");
         helper.assertValueEqual(player.getInventory().getItem(0).getItem(), Items.DIAMOND,
@@ -72,19 +72,19 @@ public final class MultiBlockAutoBuildInventoryRefundGameTest {
         ItemStack goldBlock = new ItemStack(Blocks.GOLD_BLOCK);
         player.getInventory().setItem(2, goldBlock.copyWithCount(2));
 
-        MultiBlockAutoBuildImpl.InventoryTransaction transaction = new MultiBlockAutoBuildImpl.InventoryTransaction(
+        TransactionalMultiBlockAutoBuild.InventoryTransaction transaction = new TransactionalMultiBlockAutoBuild.InventoryTransaction(
                 "refund-drop-test",
                 player.getInventory(),
                 List.of(
-                        new MultiBlockAutoBuildImpl.MaterialReservation(firstPosition.south(), 2, goldBlock),
-                        new MultiBlockAutoBuildImpl.MaterialReservation(firstPosition.south().east(), 2, goldBlock)),
+                        new TransactionalMultiBlockAutoBuild.MaterialReservation(firstPosition.south(), 2, goldBlock),
+                        new TransactionalMultiBlockAutoBuild.MaterialReservation(firstPosition.south().east(), 2, goldBlock)),
                 false);
 
         helper.assertTrue(transaction.commit(), "The full-inventory refund setup should reserve both gold blocks");
         player.getInventory().setItem(2, new ItemStack(Items.DIAMOND));
         player.getInventory().setItem(3, new ItemStack(Items.EMERALD));
 
-        MultiBlockAutoBuildImpl.RefundOutcome refundOutcome = transaction.rollback(player);
+        TransactionalMultiBlockAutoBuild.RefundOutcome refundOutcome = transaction.rollback(player);
 
         helper.assertTrue(refundOutcome.completed(), "The full-inventory refund should complete through a world item entity");
         helper.assertValueEqual(player.getInventory().getItem(2).getItem(), Items.DIAMOND,

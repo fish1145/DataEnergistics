@@ -9,7 +9,6 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -34,7 +33,7 @@ public final class VirtualCraftingOutputAdapters {
      * @param adapters adapters in deterministic plugin and registration order
      */
     public static synchronized void install(
-                                            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
+                                            List<VirtualCraftingOutputAdapter> adapters) {
         if (installed) {
             throw new IllegalStateException("Virtual crafting output adapters have already been installed");
         }
@@ -56,7 +55,7 @@ public final class VirtualCraftingOutputAdapters {
      * @param details live pattern details
      * @return immutable logical and virtual output projection
      */
-    public static @NotNull VirtualCraftingOutputProjection project(@NotNull IPatternDetails details) {
+    public static VirtualCraftingOutputProjection project(IPatternDetails details) {
         requireInstalled();
         if (details instanceof VirtualCraftingPatternOutputs projected) {
             return projected.dataEnergistics$virtualOutputProjection();
@@ -74,15 +73,15 @@ public final class VirtualCraftingOutputAdapters {
      * @param declaredOutputs ordered raw outputs; {@code null} entries are legal sparse-layout holes
      * @return immutable projection preserving first-key order after aggregation
      */
-    public static @NotNull VirtualCraftingOutputProjection project(
-                                                                   @NotNull List<@Nullable GenericStack> declaredOutputs) {
+    public static VirtualCraftingOutputProjection project(
+                                                          List<@Nullable GenericStack> declaredOutputs) {
         requireInstalled();
         return project(declaredOutputs, ADAPTERS);
     }
 
-    private static @NotNull VirtualCraftingOutputProjection project(
-                                                                    @NotNull List<@Nullable GenericStack> declaredOutputs,
-                                                                    @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters) {
+    private static VirtualCraftingOutputProjection project(
+                                                           List<@Nullable GenericStack> declaredOutputs,
+                                                           List<VirtualCraftingOutputAdapter> adapters) {
         LinkedHashMap<AEKey, BigInteger> logical = new LinkedHashMap<>();
         ArrayList<VirtualCraftingCompletion> virtual = new ArrayList<>();
         for (GenericStack output : declaredOutputs) {
@@ -124,16 +123,16 @@ public final class VirtualCraftingOutputAdapters {
      * @param declaredOutput complete declared output identity
      * @return whether completion must not materialize an item
      */
-    public static boolean hasNoOutputCompletion(@NotNull GenericStack declaredOutput) {
+    public static boolean hasNoOutputCompletion(GenericStack declaredOutput) {
         requireInstalled();
         return resolveOutput(ADAPTERS, declaredOutput)
                 .map(value -> value.mode() == VirtualCraftingCompletionMode.COMPLETE_WITHOUT_OUTPUT)
                 .orElse(false);
     }
 
-    private static @NotNull Optional<@NotNull ResolvedOutput> resolveOutput(
-                                                                            @NotNull List<@NotNull VirtualCraftingOutputAdapter> adapters,
-                                                                            @NotNull GenericStack output) {
+    private static Optional<ResolvedOutput> resolveOutput(
+                                                          List<VirtualCraftingOutputAdapter> adapters,
+                                                          GenericStack output) {
         ResolvedOutput resolved = null;
         for (VirtualCraftingOutputAdapter adapter : adapters) {
             Optional<AEKey> candidate;
@@ -193,6 +192,6 @@ public final class VirtualCraftingOutputAdapters {
         }
     }
 
-    private record ResolvedOutput(@NotNull AEKey target,
-                                  @NotNull VirtualCraftingCompletionMode mode) {}
+    private record ResolvedOutput(AEKey target,
+                                  VirtualCraftingCompletionMode mode) {}
 }

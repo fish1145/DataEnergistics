@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -16,7 +16,7 @@ public interface StructurePreviewUiFactory {
      * Creates the production factory backed by the current preview catalog and logical-client bridge.
      */
     static StructurePreviewUiFactory createDefault() {
-        return StructurePreviewUiFactoryImpl.createDefault();
+        return CatalogBackedStructurePreviewUiFactory.createDefault();
     }
 
     /**
@@ -26,7 +26,7 @@ public interface StructurePreviewUiFactory {
      * @return stateless fresh-preview factory
      */
     static StructurePreviewUiFactory create(StructurePreviewSceneBinder sceneBinder) {
-        return StructurePreviewUiFactoryImpl.create(sceneBinder);
+        return CatalogBackedStructurePreviewUiFactory.create(sceneBinder);
     }
 
     /**

@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus.StructureStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.SyncValueDataProvider;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;

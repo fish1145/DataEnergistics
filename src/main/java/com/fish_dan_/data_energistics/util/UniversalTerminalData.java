@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
-import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
+import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
@@ -18,7 +18,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -43,7 +42,7 @@ public final class UniversalTerminalData {
 
     private UniversalTerminalData() {}
 
-    public static @NotNull List<@NotNull UniversalTerminalRegistration> getDefinitions() {
+    public static List<UniversalTerminalRegistration> getDefinitions() {
         requireInstalled();
         return terminalDefinitions;
     }
@@ -54,7 +53,7 @@ public final class UniversalTerminalData {
      * @param definitions definitions in deterministic registration order
      */
     public static synchronized void installDefinitions(
-                                                       @NotNull List<@NotNull UniversalTerminalRegistration> definitions) {
+                                                       List<UniversalTerminalRegistration> definitions) {
         if (definitionsInstalled) {
             throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
@@ -127,11 +126,11 @@ public final class UniversalTerminalData {
 
     public static void setActiveTerminal(ItemStack stack, String terminalName) {
         UniversalTerminalItemData data = getData(stack, null);
-        stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), data.withActiveTerminal(terminalName));
+        stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), data.withActiveTerminal(terminalName));
     }
 
     public static boolean isUniversalTerminal(ItemStack stack) {
-        return stack.is(ModItems.UNIVERSAL_TERMINAL.get());
+        return stack.is(DEItems.UNIVERSAL_TERMINAL.get());
     }
 
     public static boolean isSupportedTerminal(ItemStack stack) {
@@ -161,7 +160,7 @@ public final class UniversalTerminalData {
 
     public static MenuType<?> getMenuType(String terminalName) {
         Optional<UniversalTerminalRegistration> definition = getDefinition(terminalName);
-        return definition.isPresent() ? definition.get().menuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
+        return definition.isPresent() ? definition.get().menuType() : DEMenus.UNIVERSAL_CRAFTING_TERM.get();
     }
 
     public static @Nullable IConfigManager createConfigManager(String terminalName, Runnable saveAction) {
@@ -198,7 +197,7 @@ public final class UniversalTerminalData {
 
     public static void writeEntries(ItemStack stack, HolderLookup.Provider registries, List<TerminalEntry> entries) {
         UniversalTerminalItemData data = getData(stack, registries);
-        stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), data.withTerminals(entries.stream()
+        stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), data.withTerminals(entries.stream()
                 .map(entry -> new UniversalTerminalItemData.TerminalEntryData(entry.name(), entry.stack()))
                 .toList()));
     }
@@ -220,7 +219,7 @@ public final class UniversalTerminalData {
     }
 
     public static UniversalTerminalItemData getData(ItemStack stack, @Nullable HolderLookup.Provider registries) {
-        UniversalTerminalItemData data = stack.get(ModDataComponents.UNIVERSAL_TERMINAL.get());
+        UniversalTerminalItemData data = stack.get(DEDataComponents.UNIVERSAL_TERMINAL.get());
         if (data != null) {
             return data;
         }
@@ -231,16 +230,16 @@ public final class UniversalTerminalData {
         return tag.isEmpty() ? UniversalTerminalItemData.EMPTY : UniversalTerminalItemData.fromLegacyTag(tag, registries);
     }
 
-    private static @NotNull Optional<@NotNull UniversalTerminalRegistration> getDefinition(
-                                                                                           @NotNull String terminalName) {
+    private static Optional<UniversalTerminalRegistration> getDefinition(
+                                                                         String terminalName) {
         requireInstalled();
         return terminalDefinitions.stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst();
     }
 
-    public static @NotNull Optional<@NotNull UniversalTerminalRegistration> getRegistration(
-                                                                                            @NotNull ItemStack stack) {
+    public static Optional<UniversalTerminalRegistration> getRegistration(
+                                                                          ItemStack stack) {
         requireInstalled();
         UniversalTerminalRegistration matched = null;
         for (UniversalTerminalRegistration registration : terminalDefinitions) {
@@ -293,8 +292,8 @@ public final class UniversalTerminalData {
      * Isolates an external installation predicate without hiding registration conflicts.
      */
     private static boolean canInstall(
-                                      @NotNull UniversalTerminalRegistration registration,
-                                      @NotNull ItemStack stack) {
+                                      UniversalTerminalRegistration registration,
+                                      ItemStack stack) {
         try {
             return registration.canInstall(stack);
         } catch (RuntimeException exception) {

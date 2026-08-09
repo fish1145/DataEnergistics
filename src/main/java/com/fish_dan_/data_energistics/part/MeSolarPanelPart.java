@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -68,7 +68,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
     @Override
     public boolean onUseWithoutItem(Player player, Vec3 pos) {
         if (!this.isClientSide()) {
-            MenuOpener.open(ModMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forPart(this));
+            MenuOpener.open(DEMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forPart(this));
         }
         return true;
     }

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -33,7 +33,7 @@ public class DataSanctumInterfaceMenu extends UpgradeableMenu<DataSanctumBlockEn
     private List<Slot> configSlots;
 
     public DataSanctumInterfaceMenu(int id, Inventory playerInventory, DataSanctumBlockEntity host) {
-        super(ModMenus.DATA_SANCTUM_INTERFACE.get(), id, playerInventory, host);
+        super(DEMenus.DATA_SANCTUM_INTERFACE.get(), id, playerInventory, host);
         registerClientAction(ACTION_OPEN_SET_AMOUNT, Integer.class, this::openSetAmountMenu);
     }
 

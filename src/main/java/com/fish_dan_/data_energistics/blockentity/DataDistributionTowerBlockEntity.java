@@ -1,56 +1,51 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
+import com.fish_dan_.data_energistics.ae2.grid.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverage;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverageImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributor;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkFailure;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkStatus;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBinding;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistence;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistenceImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingRuntimeSnapshot;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingSource;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerChannelOverview;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerEnergyLocation;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridOwnershipRegistry;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomainChange;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkParticipant;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkTowerSnapshot;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerRuntimeKey;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceSnapshot;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.CachedTowerEnergyEndpointResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDistributorContext;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpointResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpointResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyTransferEngine;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerChannelOverview;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerGridOwnershipRegistry;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomainChange;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkParticipant;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkTowerSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerCoverageGeometry;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkFailure;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkState;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkStatus;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetDisplayResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetSummaryResolver;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
-import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
-import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItem;
+import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorSelector;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
@@ -108,7 +103,6 @@ import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
 import lombok.Getter;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -132,8 +126,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                                               TowerTargetDisplayResolverContext, TowerNetworkParticipant, IGridTickable {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
-    private static final TowerBindingPersistence TOWER_BINDING_PERSISTENCE = new TowerBindingPersistenceImpl();
+    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new VerifiedUnlimitedEnergyAccess();
+    private static final VersionedTowerBindingCodec TOWER_BINDING_PERSISTENCE = new VersionedTowerBindingCodec();
     /**
      * Selects the connector source captured when a player places a potentially compatible target.
      */
@@ -165,13 +159,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
     private static MinecraftServer boundServer;
 
-    private final TowerCoverage coverage;
-    private final TowerLinkGraph linkGraph = new TowerLinkGraphImpl();
+    private final TowerCoverageGeometry coverage;
+    private final TowerLinkStateGraph linkGraph = new TowerLinkStateGraph();
     private final Map<BlockPos, TowerBinding> towerBindings = new LinkedHashMap<>();
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
     private final TowerEnergyEndpointResolver energyEndpointResolver;
-    private final TowerEnergyDistributor energyDistributor;
-    private final TowerTargetDisplayResolver targetDisplayResolver;
+    private final TowerEnergyTransferEngine energyDistributor;
+    private final TowerTargetSummaryResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
@@ -235,16 +229,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private int syncedChunkRadius = 0;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
-        this.coverage = new TowerCoverageImpl(blockPos);
+        super(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.coverage = new TowerCoverageGeometry(blockPos);
         BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
-        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(
+        this.energyEndpointResolver = new CachedTowerEnergyEndpointResolver(
                 this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
-        this.energyDistributor = new TowerEnergyDistributorImpl(
+        this.energyDistributor = new TowerEnergyTransferEngine(
                 this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
-        this.targetDisplayResolver = new TowerTargetDisplayResolverImpl(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
+        this.targetDisplayResolver = new TowerTargetSummaryResolver(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
@@ -334,7 +328,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        if (this.level == null && !data.contains(TowerBindingPersistenceImpl.VERSION_TAG)) {
+        if (this.level == null && !data.contains(VersionedTowerBindingCodec.VERSION_TAG)) {
             this.pendingLegacyBindingData = data.copy();
         } else {
             readTowerBindings(data);
@@ -414,7 +408,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (this.quarantinedTransferEnergy > 0) {
                     settings.putLong(QUARANTINED_TRANSFER_ENERGY_TAG, this.quarantinedTransferEnergy);
                 }
-                builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+                builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
             }
             return;
         }
@@ -427,13 +421,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         settings.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
         settings.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         settings.put(TARGET_TRANSFER_MODES_TAG, createTargetTransferModesTag());
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (mode == SettingsFrom.DISMANTLE_ITEM) {
             if (settings != null) {
                 setBufferedTransferEnergy(readBufferedTransferEnergy(settings));
@@ -1240,7 +1234,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boundServer = null;
     }
 
-    public static void onPotentialNodeAdded(@NotNull Level level, @NotNull BlockPos targetPos) {
+    public static void onPotentialNodeAdded(Level level, BlockPos targetPos) {
         IInWorldGridNodeHost targetNodeHost = level.getCapability(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos);
         if (targetNodeHost == null) {
@@ -1276,7 +1270,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    public static void onPotentialNodeRemoved(@NotNull Level level, @NotNull BlockPos targetPos) {
+    public static void onPotentialNodeRemoved(Level level, BlockPos targetPos) {
         Set<BlockPos> towerPositions = TOWER_CHUNK_POSITIONS.get(new ChunkKey(level, new ChunkPos(targetPos)));
         if (towerPositions == null || towerPositions.isEmpty()) {
             return;
@@ -1644,7 +1638,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (int part = 0; part <= 2; part++) {
             BlockPos partPos = this.worldPosition.above(part);
             BlockState state = level.getBlockState(partPos);
-            if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) || !state.hasProperty(DataDistributionTowerBlock.ACTIVE) || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
+            if (!state.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get()) || !state.hasProperty(DataDistributionTowerBlock.ACTIVE) || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
                 continue;
             }
 
@@ -2050,7 +2044,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public boolean isTowerBlock(BlockPos pos) {
-        return this.level != null && this.level.getBlockState(pos).is(ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+        return this.level != null && this.level.getBlockState(pos).is(DEBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     @Nullable

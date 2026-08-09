@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
-import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
-import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -60,7 +60,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
         super(
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.time_shift.category"),
-                guiHelper.createDrawableItemLike(ModItems.DATA_CRYSTAL.get()),
+                guiHelper.createDrawableItemLike(DEItems.DATA_CRYSTAL.get()),
                 WIDTH,
                 HEIGHT);
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);

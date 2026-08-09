@@ -1,43 +1,43 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
-import com.fish_dan_.data_energistics.ae2.VirtualGridNode;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
+import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
-import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.InMemoryTrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildOptions;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -147,7 +147,7 @@ public final class CompartmentBlockEntityTest {
     public static void meInputPullsMarkedKeysFromStorage(GameTestHelper helper) {
         MeCompositeInputWarehouseBlockEntity meInput = new MeCompositeInputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         SimpleMEStorage network = new SimpleMEStorage();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey wrappedIron = AEItemKey.of(GenericStack.wrapInItemStack(iron, 5000L));
@@ -258,31 +258,31 @@ public final class CompartmentBlockEntityTest {
         assertServerTickActiveState(
                 helper,
                 new BlockPos(1, 1, 1),
-                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
                 "plain input warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(2, 1, 1),
-                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
                 "plain output warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(3, 1, 1),
-                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MeCompositeInputWarehouseBlockEntity,
                 "ME input warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(1, 1, 2),
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MeCompositeOutputWarehouseBlockEntity,
                 "ME output warehouse");
         assertServerTickActiveState(
                 helper,
                 new BlockPos(2, 1, 2),
-                ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
+                DEBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
                 blockEntity -> blockEntity instanceof MePatternBufferBlockEntity,
                 "ME pattern buffer");
         assertTrinityAccessTickerClearsInactiveState(helper, new BlockPos(3, 1, 2));
@@ -296,7 +296,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
@@ -598,7 +598,7 @@ public final class CompartmentBlockEntityTest {
                 })
                 .thenExecute(() -> {
                     TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
-                    TrinityPatternCoreImpl restoredState = new TrinityPatternCoreImpl(
+                    PersistentTrinityPatternCore restoredState = new PersistentTrinityPatternCore(
                             mount.blockCapacity(),
                             UUID.randomUUID(),
                             stack -> null,
@@ -712,7 +712,7 @@ public final class CompartmentBlockEntityTest {
                     if (owningRoute == null) {
                         throw new GameTestAssertException("Local Trinity CPU route was not resolved");
                     }
-                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    TrinityCraftingRouteResolver routeResolver = new TrinityCraftingRouteResolver();
                     virtualNode.updateVirtualMembership(towerGrid, true);
                     try {
                         helper.assertTrue(
@@ -793,7 +793,7 @@ public final class CompartmentBlockEntityTest {
                     if (activeRoute == null) {
                         throw new GameTestAssertException("Active virtual Trinity CPU route was not resolved");
                     }
-                    TrinityCraftingRouteResolverImpl routeResolver = new TrinityCraftingRouteResolverImpl();
+                    TrinityCraftingRouteResolver routeResolver = new TrinityCraftingRouteResolver();
                     virtualNode.updateVirtualMembership(serviceGrid, false);
                     try {
                         helper.assertTrue(
@@ -905,7 +905,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = validationTestLocalOrigin(helper);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
@@ -986,7 +986,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1009,7 +1009,7 @@ public final class CompartmentBlockEntityTest {
         BlockPos upgradedCorePosition = originalMount.position();
         level.setBlock(
                 upgradedCorePosition,
-                ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState(),
+                DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState(),
                 Block.UPDATE_ALL);
         host.requestStructureRecheck();
         host.serverTick();
@@ -1108,7 +1108,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1287,7 +1287,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1418,7 +1418,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+        helper.setBlock(localOrigin, DEBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
@@ -1604,7 +1604,7 @@ public final class CompartmentBlockEntityTest {
                     TrinityDataCoreBlockEntity loadedHost = new TrinityDataCoreBlockEntity(
                             origin,
                             hostState,
-                            new TrinityStructureValidationImpl(),
+                            new InMemoryTrinityStructureValidation(),
                             new OneShotUnloadedWorldViewFactory());
                     loadedHost.loadTag(saved, level.registryAccess());
                     level.setBlockEntity(loadedHost);
@@ -1950,7 +1950,7 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static void assertTrinityAccessTickerClearsInactiveState(GameTestHelper helper, BlockPos relativePos) {
-        BlockState state = ModBlocks.TRINITY_ACCESS_HATCH.get()
+        BlockState state = DEBlocks.TRINITY_ACCESS_HATCH.get()
                 .defaultBlockState()
                 .setValue(CompartmentBlock.ACTIVE, true);
         helper.setBlock(relativePos, state);
@@ -1965,7 +1965,7 @@ public final class CompartmentBlockEntityTest {
         var ticker = block.getTicker(
                 helper.getLevel(),
                 state,
-                ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get());
+                DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get());
         ticker.tick(helper.getLevel(), levelPos, state, hatch);
 
         assertActiveState(helper, levelPos, false, "Unbound Trinity access hatch ticker should clear ACTIVE state");
@@ -2266,7 +2266,7 @@ public final class CompartmentBlockEntityTest {
         }
 
         for (int part = 2; part >= 0; part--) {
-            BlockState state = ModBlocks.DATA_DISTRIBUTION_TOWER.get()
+            BlockState state = DEBlocks.DATA_DISTRIBUTION_TOWER.get()
                     .defaultBlockState()
                     .setValue(DataDistributionTowerBlock.PART, part)
                     .setValue(DataDistributionTowerBlock.FACING, Direction.NORTH)
@@ -2287,7 +2287,7 @@ public final class CompartmentBlockEntityTest {
                                                                                  BlockPos origin,
                                                                                  TrinityDataCoreBlockEntity host) {
         BlockPos hatchPos = origin.offset(16, 0, 0);
-        level.setBlock(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(hatchPos, DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
         BlockEntity blockEntity = level.getBlockEntity(hatchPos);
         if (!(blockEntity instanceof TrinityAccessHatchBlockEntity hatch)) {
             throw new IllegalStateException("Missing test-only Trinity access hatch at " + hatchPos);
@@ -2440,7 +2440,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class CountingStructureValidation implements TrinityStructureValidation {
 
-        private final TrinityStructureValidation delegate = new TrinityStructureValidationImpl();
+        private final TrinityStructureValidation delegate = new InMemoryTrinityStructureValidation();
         private final EnumMap<Structure, Integer> validationCounts = new EnumMap<>(Structure.class);
 
         private CountingStructureValidation() {
@@ -2636,7 +2636,7 @@ public final class CompartmentBlockEntityTest {
 
     private static final class SimpleMEStorage implements MEStorage {
 
-        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
@@ -2672,13 +2672,13 @@ public final class CompartmentBlockEntityTest {
     private static MeCompositeOutputWarehouseBlockEntity meOutputWarehouse() {
         return new MeCompositeOutputWarehouseBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static UpdateCountingMeOutputWarehouse updateCountingMeOutputWarehouse() {
         return new UpdateCountingMeOutputWarehouse(
                 BlockPos.ZERO,
-                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+                DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
     }
 
     private static final class RecordingStorageMounts implements IStorageMounts {

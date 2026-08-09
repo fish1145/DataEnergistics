@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 
 import net.minecraft.world.item.ItemStack;
 

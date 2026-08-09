@@ -9,7 +9,6 @@ import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
@@ -32,8 +31,8 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
      * @param diagnostic failed Trinity calculation
      */
     public TrinityDiagnosedCraftingPlan(
-                                        @NotNull ICraftingPlan delegate,
-                                        @NotNull TrinityPlanningDiagnostic diagnostic) {
+                                        ICraftingPlan delegate,
+                                        TrinityPlanningDiagnostic diagnostic) {
         this(delegate, diagnostic, true, 0L);
     }
 
@@ -43,15 +42,15 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
      * @param calculationNanos elapsed AE2 calculation time in nanoseconds
      */
     public TrinityDiagnosedCraftingPlan(
-                                        @NotNull ICraftingPlan delegate,
-                                        @NotNull TrinityPlanningDiagnostic diagnostic,
+                                        ICraftingPlan delegate,
+                                        TrinityPlanningDiagnostic diagnostic,
                                         long calculationNanos) {
         this(delegate, diagnostic, true, calculationNanos);
     }
 
     private TrinityDiagnosedCraftingPlan(
-                                         @NotNull ICraftingPlan view,
-                                         @NotNull TrinityPlanningDiagnostic diagnostic,
+                                         ICraftingPlan view,
+                                         TrinityPlanningDiagnostic diagnostic,
                                          boolean ae2FallbackEstimate,
                                          long calculationNanos) {
         if (!view.simulation()) {
@@ -74,8 +73,8 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
      * @return non-executable standalone diagnostic plan
      */
     public static TrinityDiagnosedCraftingPlan forInputShortage(
-                                                                @NotNull GenericStack finalOutput,
-                                                                @NotNull TrinityPlanningDiagnostic diagnostic) {
+                                                                GenericStack finalOutput,
+                                                                TrinityPlanningDiagnostic diagnostic) {
         InputShortage shortage = diagnostic.inputShortage().orElseThrow(() -> new IllegalArgumentException(
                 "A standalone Trinity diagnostic plan requires an exact input shortage"));
         ICraftingPlan view = new InputShortageSimulation(
@@ -155,8 +154,8 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     }
 
     private record InputShortageSimulation(
-                                           @NotNull GenericStack finalOutput,
-                                           @NotNull AEKey shortageKey,
+                                           GenericStack finalOutput,
+                                           AEKey shortageKey,
                                            long availableAmount,
                                            long missingAmount)
             implements ICraftingPlan {

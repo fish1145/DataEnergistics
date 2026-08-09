@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.api.registry.adaptive;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Registration-stage surface for adaptive pattern-provider definitions.
  *
@@ -17,5 +15,5 @@ public interface AdaptivePatternProviderRegistry {
      *
      * @param registration complete provider definition
      */
-    void register(@NotNull AdaptivePatternProviderRegistration registration);
+    void register(AdaptivePatternProviderRegistration registration);
 }

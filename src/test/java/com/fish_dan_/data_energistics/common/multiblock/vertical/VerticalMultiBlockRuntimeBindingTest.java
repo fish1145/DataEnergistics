@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -497,7 +497,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
 
         @Override
         public CompartmentStorage compartmentStorage() {
-            return new CompartmentStorageImpl(() -> {});
+            return new MapBackedCompartmentStorage(() -> {});
         }
 
         @Override

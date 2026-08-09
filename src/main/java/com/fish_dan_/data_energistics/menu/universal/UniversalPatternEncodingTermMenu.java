@@ -2,21 +2,21 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
-import com.fish_dan_.data_energistics.menu.common.LegacyPatternEncodingPreferences;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingInheritedState;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
-import com.fish_dan_.data_energistics.menu.common.PatternUploadRecorder;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
@@ -51,7 +51,6 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -101,7 +100,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private long nextSyncedPatternProviderId = 1;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
-        this(ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
+        this(DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
     }
 
     public UniversalPatternEncodingTermMenu(MenuType<?> menuType, int id, Inventory playerInventory,
@@ -224,7 +223,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @NotNull SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+    public SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
         if (!this.syncedPatternProviders.providers().isEmpty() ||
                 this.syncedPatternProviders.rankingContext() != null) {
             return this.syncedPatternProviders;
@@ -242,7 +241,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @NotNull EncodingMode data_energistics$getEncodingMode() {
+    public EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
     }
 
@@ -534,7 +533,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                                                  @Nullable PatternEncodingRankingContext rankingContext) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
-                data_energistics$getEncodingMode(),
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,

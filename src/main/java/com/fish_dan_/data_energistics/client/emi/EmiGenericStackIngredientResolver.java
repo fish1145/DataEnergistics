@@ -8,7 +8,6 @@ import appeng.api.stacks.GenericStack;
 import appeng.integration.modules.emi.EmiStackHelper;
 import appeng.items.misc.WrappedGenericStack;
 import dev.emi.emi.api.stack.EmiStack;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Resolves AE generic stacks through AE2's EMI converters with one consistent wrapped-key fallback.
@@ -17,7 +16,7 @@ final class EmiGenericStackIngredientResolver {
 
     private EmiGenericStackIngredientResolver() {}
 
-    static @NotNull EmiStack resolve(@NotNull GenericStack stack) {
+    static EmiStack resolve(GenericStack stack) {
         if (stack.amount() < 0L) {
             String message = "Cannot resolve a negative AE2 stack amount for EMI: " + stack.amount();
             Data_Energistics.LOGGER.error(message);

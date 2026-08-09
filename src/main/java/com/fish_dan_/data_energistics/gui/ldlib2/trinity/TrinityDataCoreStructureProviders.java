@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmission;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
@@ -41,8 +41,8 @@ public final class TrinityDataCoreStructureProviders {
             throw new IllegalArgumentException("Automatic-build hosted provider dependencies cannot be null");
         }
         return autoBuildForTesting(
-                () -> ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
-                        .require(ModVerticalMultiBlocks.trinityDataCoreId()),
+                () -> DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                        .require(DEVerticalMultiBlocks.trinityDataCoreId()),
                 PREVIEW_FACTORY,
                 () -> menu.getPlayer().level().isClientSide,
                 hostedAutoBuildAction,

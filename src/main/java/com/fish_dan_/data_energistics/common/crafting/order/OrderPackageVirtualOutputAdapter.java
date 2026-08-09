@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutpu
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsEntrypoint;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsPlugin;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
-import com.fish_dan_.data_energistics.item.OrderPackageTarget;
+import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;

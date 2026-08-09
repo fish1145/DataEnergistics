@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -33,7 +33,7 @@ public final class DataRipperReassemblerOrientationGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 100)
     public static void tracksHorizontalOrientation(GameTestHelper helper) {
-        helper.setBlock(REASSEMBLER_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get()
+        helper.setBlock(REASSEMBLER_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.NORTH));
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper);

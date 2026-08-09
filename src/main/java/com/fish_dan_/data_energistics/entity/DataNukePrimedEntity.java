@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.entity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -67,7 +67,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     public DataNukePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner) {
-        super(ModEntities.DATA_NUKE_PRIMED.get(), level);
+        super(DEEntities.DATA_NUKE_PRIMED.get(), level);
         this.origin = origin.immutable();
         this.owner = owner;
         this.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
@@ -77,7 +77,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.xo = this.getX();
         this.yo = this.getY();
         this.zo = this.getZ();
-        this.setBlockState(ModBlocks.DATA_NUKE.get().defaultBlockState());
+        this.setBlockState(DEBlocks.DATA_NUKE.get().defaultBlockState());
     }
 
     @Override

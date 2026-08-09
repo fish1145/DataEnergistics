@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiIngredient;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
@@ -58,7 +58,7 @@ public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<
     }
 
     private static IDrawable createIcon(IJeiHelpers helpers) {
-        return helpers.getGuiHelper().createDrawableItemLike(ModBlocks.TRINITY_DATA_CORE.get());
+        return helpers.getGuiHelper().createDrawableItemLike(DEBlocks.TRINITY_DATA_CORE.get());
     }
 
     /**
@@ -114,7 +114,7 @@ public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<
 
     @Override
     public Component getTitle() {
-        return ModBlocks.TRINITY_DATA_CORE.get().getName();
+        return DEBlocks.TRINITY_DATA_CORE.get().getName();
     }
 
     @Override

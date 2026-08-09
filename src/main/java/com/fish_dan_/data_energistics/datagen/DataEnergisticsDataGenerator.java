@@ -20,6 +20,6 @@ public final class DataEnergisticsDataGenerator {
 
         generator.addProvider(
                 event.includeServer(),
-                new ModRecipeProvider(packOutput, lookupProvider));
+                new DERecipeProvider(packOutput, lookupProvider));
     }
 }

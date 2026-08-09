@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TeleportAnchorSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -59,9 +59,9 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     private long lastAnchorPruneGameTime = Long.MIN_VALUE;
 
     public DataTeleportAnchorBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_TELEPORT_ANCHOR.get())
+                .setVisualRepresentation(DEBlocks.DATA_TELEPORT_ANCHOR.get())
                 .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);

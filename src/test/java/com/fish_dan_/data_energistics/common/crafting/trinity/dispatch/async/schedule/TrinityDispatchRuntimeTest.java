@@ -105,7 +105,7 @@ public final class TrinityDispatchRuntimeTest {
             }
             return delegate.plan(request, lifecycleActive);
         };
-        DispatchProposalSchedulerImpl scheduler = new DispatchProposalSchedulerImpl(
+        BoundedDispatchProposalScheduler scheduler = new BoundedDispatchProposalScheduler(
                 new DispatchProposalLimits(1, 2, 4, 16),
                 blockingPlanner);
         try {
@@ -427,7 +427,7 @@ public final class TrinityDispatchRuntimeTest {
                 lateLookupFinished.countDown();
             }
         };
-        DispatchProposalScheduler scheduler = new DispatchProposalSchedulerImpl(
+        DispatchProposalScheduler scheduler = new BoundedDispatchProposalScheduler(
                 new DispatchProposalLimits(1, 4, 4, 16),
                 delayedPlanner);
         try {

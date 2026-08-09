@@ -135,7 +135,7 @@ public final class CraftingDispatchGovernorTest {
     @Test
     void serverBudgetSharesHeadroomAndRetainsOneMillisecondWhenAlreadyOverloaded() {
         AtomicLong nanoClock = new AtomicLong();
-        CraftingServerDispatchBudgetImpl budget = new CraftingServerDispatchBudgetImpl(
+        MeasuredCraftingServerDispatchBudget budget = new MeasuredCraftingServerDispatchBudget(
                 nanoClock::get,
                 TimeUnit.MILLISECONDS.toNanos(50L),
                 TimeUnit.MILLISECONDS.toNanos(1L));

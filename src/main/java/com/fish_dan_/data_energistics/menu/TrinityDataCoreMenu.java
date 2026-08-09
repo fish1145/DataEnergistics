@@ -2,24 +2,24 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmission;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionResult;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildRequest;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinatorHolder;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
-import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
-import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
-import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
-import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
-import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
+import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,7 +32,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -187,7 +186,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         Consumer<CustomPacketPayload> hostedActionSink,
                         TrinityHostedActionExecutor hostedActionExecutor,
                         @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
-        super(ModMenus.TRINITY_DATA_CORE.get(), id);
+        super(DEMenus.TRINITY_DATA_CORE.get(), id);
         if (playerInventory == null || hostId == null || menuSessionId == null || hostedActionSink == null ||
                 hostedActionExecutor == null) {
             throw new IllegalArgumentException("Trinity menu identities and hosted action collaborators cannot be null");
@@ -210,20 +209,20 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     /** A status-only menu has no machine slots, so shift-click cannot move an item to another side. */
     @Override
-    public @NotNull ItemStack quickMoveStack(@NotNull Player player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         return ItemStack.EMPTY;
     }
 
     /** Keeps the menu bound to the same nearby live controller instance used during construction. */
     @Override
-    public boolean stillValid(@NotNull Player player) {
+    public boolean stillValid(Player player) {
         return player == getPlayer() && this.host instanceof TrinityDataCoreBlockEntity dataCore &&
                 isLiveHost(player, dataCore);
     }
 
     /** Releases the server-side LDLib2 tree when vanilla removes this native menu. */
     @Override
-    public void removed(@NotNull Player player) {
+    public void removed(Player player) {
         Throwable failure = null;
         try {
             super.removed(player);
@@ -540,7 +539,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         var level = host.getLevel();
         var position = host.getBlockPos();
         return level != null && player.level() == level && level.getBlockEntity(position) == host &&
-                level.getBlockState(position).is(ModBlocks.TRINITY_DATA_CORE.get()) &&
+                level.getBlockState(position).is(DEBlocks.TRINITY_DATA_CORE.get()) &&
                 player.distanceToSqr(
                         position.getX() + 0.5D,
                         position.getY() + 0.5D,

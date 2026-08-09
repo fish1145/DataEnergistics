@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.api.crafting.dispatch;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Immutable bookkeeping token produced after a provider accepts one virtual crafting output.
@@ -9,8 +8,8 @@ import org.jetbrains.annotations.NotNull;
  * @param stack the key and amount whose waiting counter must be completed
  * @param mode  whether the completed counter may materialize an output
  */
-public record VirtualCraftingCompletion(@NotNull GenericStack stack,
-                                        @NotNull VirtualCraftingCompletionMode mode) {
+public record VirtualCraftingCompletion(GenericStack stack,
+                                        VirtualCraftingCompletionMode mode) {
 
     /**
      * Rejects incomplete completion tokens before they can enter a CPU ledger.

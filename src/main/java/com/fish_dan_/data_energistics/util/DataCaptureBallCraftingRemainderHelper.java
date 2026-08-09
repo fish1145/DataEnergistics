@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -38,7 +38,7 @@ public final class DataCaptureBallCraftingRemainderHelper {
     private static int findDataCaptureBallSlot(CraftingInput input) {
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getItem(i);
-            if (stack.is(ModItems.DATA_CAPTURE_BALL.get()) && hasRequiredData(stack)) {
+            if (stack.is(DEItems.DATA_CAPTURE_BALL.get()) && hasRequiredData(stack)) {
                 return i;
             }
         }

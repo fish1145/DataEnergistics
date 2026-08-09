@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildDraft;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmission;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUi;
 

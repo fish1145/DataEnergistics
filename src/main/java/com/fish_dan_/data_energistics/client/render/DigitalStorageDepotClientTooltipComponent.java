@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotTooltipComponent;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotTooltipComponent;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

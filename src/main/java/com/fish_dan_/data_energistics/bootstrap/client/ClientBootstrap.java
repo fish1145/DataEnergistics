@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
-import com.fish_dan_.data_energistics.client.DataEnergisticsClientBridgeImpl;
+import com.fish_dan_.data_energistics.client.ClientRuntimeBridge;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsTextureEditorResources;
 
 import net.neoforged.bus.api.IEventBus;
@@ -22,7 +22,7 @@ public final class ClientBootstrap {
     private ClientBootstrap() {}
 
     public static void init(IEventBus modEventBus) {
-        DataEnergisticsClientBridgeAccess.register(new DataEnergisticsClientBridgeImpl());
+        DataEnergisticsClientBridgeAccess.register(new ClientRuntimeBridge());
         DataEnergisticsTextureEditorResources.register(modEventBus);
         modEventBus.register(ClientModEvents.class);
     }

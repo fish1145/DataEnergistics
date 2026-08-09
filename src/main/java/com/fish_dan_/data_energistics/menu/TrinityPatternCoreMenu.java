@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityPatternCoreUi;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -70,7 +70,7 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
      * @param host            local P-core block entity
      */
     public TrinityPatternCoreMenu(int id, Inventory playerInventory, TrinityPatternCoreBlockEntity host) {
-        super(ModMenus.TRINITY_PATTERN_CORE.get(), id, playerInventory, host);
+        super(DEMenus.TRINITY_PATTERN_CORE.get(), id, playerInventory, host);
         this.host = host;
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_CONFIRM_PAGE, Integer.class, this::confirmPage);

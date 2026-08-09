@@ -1,0 +1,22 @@
+package com.fish_dan_.data_energistics.ae2.settings;
+
+import appeng.api.config.Setting;
+import appeng.api.config.Settings;
+import appeng.api.config.YesNo;
+
+public final class DataRipperSettings {
+
+    public static final Setting<YesNo> ACCELERATE = new Setting<>("accelerate", YesNo.class);
+    public static final Setting<YesNo> REDSTONE_CONTROL = new Setting<>("redstone_control", YesNo.class);
+
+    static {
+        registerAe2PacketSetting(ACCELERATE);
+        registerAe2PacketSetting(REDSTONE_CONTROL);
+    }
+
+    private DataRipperSettings() {}
+
+    private static void registerAe2PacketSetting(Setting<?> setting) {
+        Settings.SETTINGS.putIfAbsent(setting.getName(), setting);
+    }
+}

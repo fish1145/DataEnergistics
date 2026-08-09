@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -47,7 +47,7 @@ public final class MatterConvergingBoltEntityGameTest {
         CompoundTag savedBolt = firstBolt.saveWithoutId(new CompoundTag());
         firstBolt.discard();
 
-        MatterConvergingBoltEntity reloadedBolt = new MatterConvergingBoltEntity(ModEntities.MATTER_CONVERGING_BOLT.get(), level);
+        MatterConvergingBoltEntity reloadedBolt = new MatterConvergingBoltEntity(DEEntities.MATTER_CONVERGING_BOLT.get(), level);
         reloadedBolt.load(savedBolt);
         helper.assertValueEqual(reloadedBolt.getPierceLevel(), 1, "The reloaded bolt must retain its pierce level");
         helper.assertTrue(reloadedBolt.canHitEntity(target), "Reloading must keep target identity transient under the selected contract");
@@ -59,7 +59,7 @@ public final class MatterConvergingBoltEntityGameTest {
     }
 
     private static MatterConvergingBoltEntity createPiercingBolt(ServerLevel level) {
-        MatterConvergingBoltEntity bolt = new MatterConvergingBoltEntity(ModEntities.MATTER_CONVERGING_BOLT.get(), level);
+        MatterConvergingBoltEntity bolt = new MatterConvergingBoltEntity(DEEntities.MATTER_CONVERGING_BOLT.get(), level);
         bolt.setItem(new ItemStack(AEItems.MATTER_BALL.asItem()));
         bolt.setPierceLevel(1);
         bolt.setDeltaMovement(new Vec3(1.0D, 0.0D, 0.0D));

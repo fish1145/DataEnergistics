@@ -6,8 +6,6 @@ import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeId
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Root registration-stage surface passed to a Data Energistics plugin.
  *
@@ -21,30 +19,25 @@ public interface DataEnergisticsRegistry {
     /**
      * @return universal-terminal declaration facet
      */
-    @NotNull
     UniversalTerminalRegistry universalTerminals();
 
     /**
      * @return pattern-provider lifecycle declaration facet
      */
-    @NotNull
     PatternProviderRegistry patternProviders();
 
     /**
      * @return adaptive pattern-provider definition facet
      */
-    @NotNull
     AdaptivePatternProviderRegistry adaptivePatternProviders();
 
     /**
      * @return Trinity pattern recipe-ID resolver facet
      */
-    @NotNull
     TrinityPatternRecipeIdRegistry trinityPatternRecipes();
 
     /**
      * @return virtual crafting output declaration facet
      */
-    @NotNull
     VirtualCraftingRegistry virtualCrafting();
 }

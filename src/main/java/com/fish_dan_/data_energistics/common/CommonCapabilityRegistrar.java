@@ -6,14 +6,14 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
-import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotFluidHandlerItem;
+import com.fish_dan_.data_energistics.item.powered.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -37,132 +37,132 @@ final class CommonCapabilityRegistrar {
     static void register(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
-                ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalKeyInventory());
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.CRAFTING_MACHINE,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalKeyInventory());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
-                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerItem(
                 Capabilities.FluidHandler.ITEM,
                 (stack, context) -> DigitalStorageDepotBlockItem.isBucketMode(stack) && !DigitalStorageDepotBlockItem.isKeySlotMarked(stack) ? new DigitalStorageDepotFluidHandlerItem(stack) : null,
-                ModItems.DIGITAL_STORAGE_DEPOT.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SWORD.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_AXE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_PICKAXE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_HOE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SHOVEL.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_LIGHT_SABER.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_SANCTIFIER.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256M.get());
-        registerPoweredItemEnergyStorage(event, ModItems.ME_VACUUM.get());
-        registerPoweredItemEnergyStorage(event, ModItems.DATA_CAPTURE_BALL.get());
-        registerPoweredItemEnergyStorage(event, ModItems.MATTER_CONVERGING_CROSSBOW.get());
+                DEItems.DIGITAL_STORAGE_DEPOT.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_SWORD.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_AXE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_PICKAXE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_HOE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_SHOVEL.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_LIGHT_SABER.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_SANCTIFIER.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_1K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_4K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_16K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_64K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_256K.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_1M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_4M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_16M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_64M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.ME_VACUUM.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_CAPTURE_BALL.get());
+        registerPoweredItemEnergyStorage(event, DEItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
-                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getInternalInventory().toItemHandler());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalKeyInventory());
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlock(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
@@ -178,53 +178,53 @@ final class CommonCapabilityRegistrar {
                     DataSanctumBlockEntity sanctum = DataSanctumBlock.getMainBlockEntity(level, pos, state);
                     return sanctum != null ? sanctum.createNetworkPortHost() : null;
                 },
-                ModBlocks.DATA_SANCTUM.get());
+                DEBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getReturnInventory());
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
+                DEBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getReturnInventory());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> {
                     var logic = blockEntity.getLogic();
                     return logic != null ? logic.getReturnInv() : null;
                 });
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(),
+                DEBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
+                DEBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(),
+                DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,
-                ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
+                DEBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.outputStorage());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalReturnItemHandler(context));
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context));
         if (ModFlags.isAppMekChemicalSupportLoaded()) {
             AppMekCompat.registerChemicalBlockEntityCapabilities(event);
@@ -281,7 +281,7 @@ final class CommonCapabilityRegistrar {
 
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
-                ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+                DEBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     static void registerPartCapabilities(RegisterPartCapabilitiesEvent event) {

@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.api.registry.recipe;
 import net.minecraft.resources.ResourceLocation;
 
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Resolves the stable recipe identity represented by one supported encoded-pattern implementation.
@@ -18,7 +17,6 @@ public interface TrinityPatternRecipeIdResolver {
     /**
      * @return stable registration identity used to reject duplicate resolvers
      */
-    @NotNull
     ResourceLocation id();
 
     /**
@@ -27,7 +25,7 @@ public interface TrinityPatternRecipeIdResolver {
      * @param pattern decoded molecular-assembler-compatible pattern
      * @return whether {@link #recipeId(IMolecularAssemblerSupportedPattern)} may be called
      */
-    boolean supports(@NotNull IMolecularAssemblerSupportedPattern pattern);
+    boolean supports(IMolecularAssemblerSupportedPattern pattern);
 
     /**
      * Returns the stable recipe selected by a previously accepted pattern.
@@ -35,6 +33,5 @@ public interface TrinityPatternRecipeIdResolver {
      * @param pattern pattern accepted by {@link #supports(IMolecularAssemblerSupportedPattern)}
      * @return non-null stable recipe ID
      */
-    @NotNull
-    ResourceLocation recipeId(@NotNull IMolecularAssemblerSupportedPattern pattern);
+    ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern);
 }

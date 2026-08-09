@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -22,7 +22,7 @@ public class DollBlockEntity extends BlockEntity implements Nameable {
     private Component customName;
 
     public DollBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.FISH_DAN_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.FISH_DAN_BLOCK_ENTITY.get(), pos, state);
     }
 
     @Override

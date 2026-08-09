@@ -5,12 +5,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -164,7 +163,7 @@ public final class TrinityCraftConfirmMenuGameTest {
                 List.of(new TrinityPlanPatternFiring(identity, output, 0, BigInteger.ONE)),
                 Map.of(),
                 Map.of(output, BigInteger.ONE));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(output, 1L))
                 .bytes(1L)
                 .catalogRevision(1L)
@@ -197,7 +196,7 @@ public final class TrinityCraftConfirmMenuGameTest {
         if (!(blockEntity instanceof CableBusBlockEntity cableBus)) {
             throw new GameTestAssertException("Placed AE cable bus has no matching block entity");
         }
-        IPart installedPart = cableBus.addPart(ModItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
+        IPart installedPart = cableBus.addPart(DEItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
         if (installedPart instanceof UniversalTerminalPart terminal) {
             return terminal;
         }

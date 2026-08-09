@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
@@ -27,11 +27,11 @@ final class Ae2JeiTransferRegistration {
         registration.addRecipeTransferHandler(
                 new UseCraftingRecipeTransfer<>(
                         UniversalCraftingTermMenu.class,
-                        ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
+                        DEMenus.UNIVERSAL_CRAFTING_TERM.get(),
                         transferHelper),
                 RecipeTypes.CRAFTING);
         registration.addUniversalRecipeTransferHandler(new EncodePatternTransferHandler<>(
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 UniversalPatternEncodingTermMenu.class,
                 transferHelper,
                 registration.getJeiHelpers().getIngredientVisibility()));

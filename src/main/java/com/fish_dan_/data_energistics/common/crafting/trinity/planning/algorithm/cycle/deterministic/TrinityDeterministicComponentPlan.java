@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
-import org.jetbrains.annotations.NotNull;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -28,14 +27,14 @@ import java.util.Optional;
  * @param suffixOrder   one-time residual firings executed after every complete repeat
  */
 public record TrinityDeterministicComponentPlan(
-                                                @NotNull Map<TrinityPatternVariant, BigInteger> firings,
-                                                @NotNull Map<AEKey, BigInteger> minimumSeed,
-                                                @NotNull Map<AEKey, BigInteger> initialInputs,
-                                                @NotNull Map<AEKey, BigInteger> netChange,
-                                                @NotNull TrinityCompressedSchedule schedule,
-                                                @NotNull List<TrinityVariantFiring> prefixOrder,
-                                                @NotNull Optional<TrinityCycleMacro> macro,
-                                                @NotNull List<TrinityVariantFiring> suffixOrder) {
+                                                Map<TrinityPatternVariant, BigInteger> firings,
+                                                Map<AEKey, BigInteger> minimumSeed,
+                                                Map<AEKey, BigInteger> initialInputs,
+                                                Map<AEKey, BigInteger> netChange,
+                                                TrinityCompressedSchedule schedule,
+                                                List<TrinityVariantFiring> prefixOrder,
+                                                Optional<TrinityCycleMacro> macro,
+                                                List<TrinityVariantFiring> suffixOrder) {
 
     /**
      * Freezes all accounting and rejects a plan whose schedule or conservation equation differs from its vector.

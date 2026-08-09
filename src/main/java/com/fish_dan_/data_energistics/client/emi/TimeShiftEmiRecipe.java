@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
-import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftIngredient;
+import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -34,7 +34,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("world_interaction"),
-            EmiStack.of(ModItems.DATA_CRYSTAL.get())) {
+            EmiStack.of(DEItems.DATA_CRYSTAL.get())) {
 
         @Override
         public Component getName() {

@@ -1,8 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.equalization;
 
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
-
-import org.jetbrains.annotations.NotNull;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 
 /**
  * Frozen scalar state of one tower energy endpoint used by the equalization planner.
@@ -15,13 +13,13 @@ import org.jetbrains.annotations.NotNull;
  * @param direction   transfer permissions captured with the scalar state
  * @param role        participation role used independently of transfer permissions
  */
-public record TowerEnergyEndpointSnapshot(@NotNull TowerEnergyEndpointId endpoint,
+public record TowerEnergyEndpointSnapshot(TowerEnergyEndpointId endpoint,
                                           long stored,
                                           long capacity,
                                           long extractable,
                                           long receivable,
-                                          @NotNull TowerEnergyDirection direction,
-                                          @NotNull TowerEnergyEndpointRole role) {
+                                          TowerEnergyDirection direction,
+                                          TowerEnergyEndpointRole role) {
 
     /**
      * Creates a balanced snapshot with explicit transaction budgets.

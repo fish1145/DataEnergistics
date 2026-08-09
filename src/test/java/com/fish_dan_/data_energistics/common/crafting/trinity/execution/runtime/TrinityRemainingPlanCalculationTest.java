@@ -11,7 +11,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPlanningGraphTestBootstrap;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
@@ -334,7 +333,7 @@ final class TrinityRemainingPlanCalculationTest {
                 List.of(new TrinityPlanPatternFiring(identity, target, 0, BigInteger.ONE)),
                 Map.of(input, BigInteger.ONE),
                 Map.of(input, BigInteger.ONE.negate(), target, BigInteger.ONE));
-        return TrinityCraftingPlanImpl.builder()
+        return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, 1L))
                 .bytes(1L)
                 .catalogRevision(revision)

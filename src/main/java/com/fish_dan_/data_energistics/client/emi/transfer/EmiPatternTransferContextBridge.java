@@ -1,11 +1,10 @@
 package com.fish_dan_.data_energistics.client.emi.transfer;
 
 import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.api.recipe.EmiRecipe;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -22,22 +21,22 @@ public final class EmiPatternTransferContextBridge {
     /**
      * Resolves a canonical context directly from the recipe's EMI category ID.
      */
-    public static @NotNull PatternEncodingRankingContext resolve(@NotNull EmiRecipe recipe) {
+    public static PatternEncodingRankingContext resolve(EmiRecipe recipe) {
         return PatternEncodingViewerContext.fromRecipeType(recipe.getCategory().getId());
     }
 
     /**
      * Starts a transfer frame after the viewer context has been validated.
      */
-    public static void begin(@NotNull PatternEncodingTermMenu menu,
-                             @NotNull PatternEncodingRankingContext context) {
+    public static void begin(PatternEncodingTermMenu menu,
+                             PatternEncodingRankingContext context) {
         FRAMES.get().push(new Frame(menu, context));
     }
 
     /**
      * Returns the context scoped to the successful transfer, rejecting an unbalanced callback.
      */
-    public static @NotNull PatternEncodingRankingContext requireCurrent(@NotNull PatternEncodingTermMenu menu) {
+    public static PatternEncodingRankingContext requireCurrent(PatternEncodingTermMenu menu) {
         Frame frame = FRAMES.get().peek();
         if (frame == null || frame.menu() != menu) {
             throw new IllegalStateException("EMI transfer context is not scoped to the current menu");
@@ -48,7 +47,7 @@ public final class EmiPatternTransferContextBridge {
     /**
      * Removes a frame only when it belongs to the menu whose transfer just returned.
      */
-    public static void end(@NotNull PatternEncodingTermMenu menu) {
+    public static void end(PatternEncodingTermMenu menu) {
         Deque<Frame> frames = FRAMES.get();
         Frame frame = frames.poll();
         if (frame == null) {
@@ -65,6 +64,6 @@ public final class EmiPatternTransferContextBridge {
         }
     }
 
-    private record Frame(@NotNull PatternEncodingTermMenu menu,
-                         @NotNull PatternEncodingRankingContext context) {}
+    private record Frame(PatternEncodingTermMenu menu,
+                         PatternEncodingRankingContext context) {}
 }

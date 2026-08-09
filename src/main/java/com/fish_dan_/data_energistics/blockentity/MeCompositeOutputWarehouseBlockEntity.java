@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.common.compartment.CompartmentOutputStorage;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -24,7 +24,7 @@ public class MeCompositeOutputWarehouseBlockEntity extends AeCompartmentBlockEnt
     private final IStorageProvider storageProvider = new OutputStorageProvider();
 
     public MeCompositeOutputWarehouseBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
         this.getMainNode().addService(IStorageProvider.class, this.storageProvider);
     }
 

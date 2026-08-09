@@ -5,7 +5,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
@@ -20,10 +19,10 @@ import java.util.Set;
  */
 public record AdaptivePatternProviderProfile(
                                              int slotsPerProvider,
-                                             @NotNull ItemStack mainMenuIcon,
-                                             @NotNull AEItemKey terminalIcon,
-                                             @NotNull Component displayName,
-                                             @NotNull Set<@NotNull ResourceLocation> capabilities) {
+                                             ItemStack mainMenuIcon,
+                                             AEItemKey terminalIcon,
+                                             Component displayName,
+                                             Set<ResourceLocation> capabilities) {
 
     /**
      * Validates profile invariants and detaches mutable values at the public boundary.
@@ -44,7 +43,7 @@ public record AdaptivePatternProviderProfile(
      * Returns a defensive icon copy because {@link ItemStack} is mutable.
      */
     @Override
-    public @NotNull ItemStack mainMenuIcon() {
+    public ItemStack mainMenuIcon() {
         return this.mainMenuIcon.copy();
     }
 
@@ -52,7 +51,7 @@ public record AdaptivePatternProviderProfile(
      * Returns a defensive component copy so callers cannot retain mutable text state.
      */
     @Override
-    public @NotNull Component displayName() {
+    public Component displayName() {
         return this.displayName.copy();
     }
 
@@ -62,7 +61,7 @@ public record AdaptivePatternProviderProfile(
      * @param capability stable behavior identifier
      * @return whether the capability was declared
      */
-    public boolean supports(@NotNull ResourceLocation capability) {
+    public boolean supports(ResourceLocation capability) {
         return this.capabilities.contains(capability);
     }
 }

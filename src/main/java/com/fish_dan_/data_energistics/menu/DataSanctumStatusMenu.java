@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -34,7 +34,7 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
     public boolean rangeVisible;
 
     public DataSanctumStatusMenu(int id, Inventory playerInventory, @Nullable DataSanctumBlockEntity host) {
-        super(ModMenus.DATA_SANCTUM_STATUS.get(), id, playerInventory, host);
+        super(DEMenus.DATA_SANCTUM_STATUS.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
         registerClientAction(ACTION_SET_MODE, Integer.class, this::setMode);

@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus.StructureStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;

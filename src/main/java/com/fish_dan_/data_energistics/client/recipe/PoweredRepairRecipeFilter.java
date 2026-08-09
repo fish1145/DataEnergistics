@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -20,14 +20,14 @@ import java.util.Set;
 public final class PoweredRepairRecipeFilter {
 
     private static final Set<Item> HIDDEN_REPAIR_ITEMS = Set.of(
-            ModItems.DATA_CRYSTAL_SWORD.get(),
-            ModItems.DATA_CRYSTAL_AXE.get(),
-            ModItems.DATA_CRYSTAL_PICKAXE.get(),
-            ModItems.DATA_CRYSTAL_HOE.get(),
-            ModItems.DATA_CRYSTAL_SHOVEL.get(),
-            ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(),
-            ModItems.DATA_LIGHT_SABER.get(),
-            ModItems.DATA_SANCTIFIER.get());
+            DEItems.DATA_CRYSTAL_SWORD.get(),
+            DEItems.DATA_CRYSTAL_AXE.get(),
+            DEItems.DATA_CRYSTAL_PICKAXE.get(),
+            DEItems.DATA_CRYSTAL_HOE.get(),
+            DEItems.DATA_CRYSTAL_SHOVEL.get(),
+            DEItems.DATA_CRYSTAL_CUTTING_KNIFE.get(),
+            DEItems.DATA_LIGHT_SABER.get(),
+            DEItems.DATA_SANCTIFIER.get());
 
     private PoweredRepairRecipeFilter() {}
 

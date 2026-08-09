@@ -19,7 +19,7 @@ import java.util.Locale;
  */
 public final class PatternEncodingClientPreferencesAccess {
 
-    private static final PatternEncodingClientPreferences INSTANCE = new PatternEncodingClientPreferencesImpl(
+    private static final PatternEncodingClientPreferences INSTANCE = new JsonPatternEncodingClientPreferences(
             FMLPaths.CONFIGDIR.get().resolve("data_energistics").resolve("client_preferences.json"),
             () -> Minecraft.getInstance().isSameThread(),
             Clock.systemUTC());

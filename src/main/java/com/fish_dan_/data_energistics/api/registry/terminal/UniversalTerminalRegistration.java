@@ -4,7 +4,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -25,18 +24,18 @@ public final class UniversalTerminalRegistration {
     /**
      * Stable persisted terminal name captured at registration construction.
      */
-    private final @NotNull String name;
+    private final String name;
     /**
      * Runtime behavior retained by the frozen snapshot.
      */
-    private final @NotNull UniversalTerminalBehavior adapter;
+    private final UniversalTerminalBehavior adapter;
 
     /**
      * Captures and validates a custom adapter.
      *
      * @param adapter stateless terminal behavior
      */
-    public UniversalTerminalRegistration(@NotNull UniversalTerminalBehavior adapter) {
+    public UniversalTerminalRegistration(UniversalTerminalBehavior adapter) {
         this.adapter = adapter;
         this.name = requireAdapterResult(adapter.name(), "name");
         if (this.name.isBlank()) {
@@ -53,39 +52,39 @@ public final class UniversalTerminalRegistration {
      * @param menuTypeSupplier supplier resolving the registered menu type
      * @return configurable registration builder
      */
-    public static @NotNull Builder builder(
-                                           @NotNull String name,
-                                           @NotNull Predicate<@NotNull ItemStack> matcher,
-                                           @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                                           @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+    public static Builder builder(
+                                  String name,
+                                  Predicate<ItemStack> matcher,
+                                  Supplier<ItemStack> iconSupplier,
+                                  Supplier<MenuType<?>> menuTypeSupplier) {
         return new Builder(name, matcher, iconSupplier, menuTypeSupplier);
     }
 
     /**
      * @return stable persisted terminal name
      */
-    public @NotNull String name() {
+    public String name() {
         return this.name;
     }
 
     /**
      * Delegates candidate matching to the frozen adapter.
      */
-    public boolean matches(@NotNull ItemStack stack) {
+    public boolean matches(ItemStack stack) {
         return this.adapter.matches(stack);
     }
 
     /**
      * Delegates final installation validation to the frozen adapter.
      */
-    public boolean canInstall(@NotNull ItemStack stack) {
+    public boolean canInstall(ItemStack stack) {
         return this.adapter.canInstall(stack);
     }
 
     /**
      * Delegates stored-stack capture to the frozen adapter.
      */
-    public @NotNull ItemStack createStoredTerminal(@NotNull ItemStack stack) {
+    public ItemStack createStoredTerminal(ItemStack stack) {
         ItemStack storedTerminal = requireAdapterResult(
                 this.adapter.createStoredTerminal(stack), "stored terminal stack");
         if (storedTerminal.isEmpty()) {
@@ -97,7 +96,7 @@ public final class UniversalTerminalRegistration {
     /**
      * Creates an independently owned icon for presentation.
      */
-    public @NotNull ItemStack createIcon() {
+    public ItemStack createIcon() {
         ItemStack icon = requireAdapterResult(this.adapter.createIcon(), "icon stack");
         if (icon.isEmpty()) {
             throw new IllegalStateException("Universal terminal adapter returned an empty icon stack");
@@ -108,7 +107,7 @@ public final class UniversalTerminalRegistration {
     /**
      * Resolves the registered menu type.
      */
-    public @NotNull MenuType<?> menuType() {
+    public MenuType<?> menuType() {
         return requireAdapterResult(this.adapter.menuType(), "menu type");
     }
 
@@ -122,31 +121,31 @@ public final class UniversalTerminalRegistration {
     /**
      * Creates optional host-local configuration through the adapter.
      */
-    public @Nullable IConfigManager createConfigManager(@NotNull Runnable saveAction) {
+    public @Nullable IConfigManager createConfigManager(Runnable saveAction) {
         return this.adapter.createConfigManager(saveAction);
     }
 
     /**
      * Resolves the menu host through the implementation-independent context.
      */
-    public <T> @Nullable T resolveMenuHost(@NotNull UniversalTerminalContext context,
-                                           @NotNull Class<T> hostInterface) {
+    public <T> @Nullable T resolveMenuHost(UniversalTerminalContext context,
+                                           Class<T> hostInterface) {
         return this.adapter.resolveMenuHost(context, hostInterface);
     }
 
     /**
      * @return built-in settings layout selected by the adapter
      */
-    public @NotNull UniversalTerminalConfigurationProfile configurationProfile() {
+    public UniversalTerminalConfigurationProfile configurationProfile() {
         return requireAdapterResult(this.adapter.configurationProfile(), "configuration profile");
     }
 
     /**
      * Validates an untrusted adapter callback result without duplicating ordinary parameter checks.
      */
-    private static <T> @NotNull T requireAdapterResult(
-                                                       @UnknownNullability T result,
-                                                       @NotNull String role) {
+    private static <T> T requireAdapterResult(
+                                              @UnknownNullability T result,
+                                              String role) {
         if (result == null) {
             throw new IllegalStateException("Universal terminal adapter returned a null " + role);
         }
@@ -161,28 +160,28 @@ public final class UniversalTerminalRegistration {
         /**
          * Stable persisted terminal name.
          */
-        private final @NotNull String name;
+        private final String name;
         /**
          * Candidate matcher.
          */
-        private final @NotNull Predicate<@NotNull ItemStack> matcher;
+        private final Predicate<ItemStack> matcher;
         /**
          * Menu icon factory.
          */
-        private final @NotNull Supplier<@NotNull ItemStack> iconSupplier;
+        private final Supplier<ItemStack> iconSupplier;
         /**
          * Registered menu type resolver.
          */
-        private final @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier;
+        private final Supplier<MenuType<?>> menuTypeSupplier;
         /**
          * Optional host-local configuration factory.
          */
         @Nullable
-        private Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory;
+        private Function<Runnable, @Nullable IConfigManager> configManagerFactory;
         /**
          * Built-in settings layout.
          */
-        private @NotNull UniversalTerminalConfigurationProfile configurationProfile = UniversalTerminalConfigurationProfile.STANDARD;
+        private UniversalTerminalConfigurationProfile configurationProfile = UniversalTerminalConfigurationProfile.STANDARD;
         /**
          * Whether menu opening needs the terminal-name-aware locator.
          */
@@ -192,10 +191,10 @@ public final class UniversalTerminalRegistration {
          * Captures required declarative fields before optional behavior is selected.
          */
         private Builder(
-                        @NotNull String name,
-                        @NotNull Predicate<@NotNull ItemStack> matcher,
-                        @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                        @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                        String name,
+                        Predicate<ItemStack> matcher,
+                        Supplier<ItemStack> iconSupplier,
+                        Supplier<MenuType<?>> menuTypeSupplier) {
             this.name = name;
             this.matcher = matcher;
             this.iconSupplier = iconSupplier;
@@ -208,7 +207,7 @@ public final class UniversalTerminalRegistration {
          * @param profile required configuration profile
          * @return this builder
          */
-        public @NotNull Builder configurationProfile(@NotNull UniversalTerminalConfigurationProfile profile) {
+        public Builder configurationProfile(UniversalTerminalConfigurationProfile profile) {
             this.configurationProfile = profile;
             return this;
         }
@@ -219,7 +218,7 @@ public final class UniversalTerminalRegistration {
          * @param required whether the custom locator is required
          * @return this builder
          */
-        public @NotNull Builder requiresCustomMenuLocator(boolean required) {
+        public Builder requiresCustomMenuLocator(boolean required) {
             this.requiresCustomMenuLocator = required;
             return this;
         }
@@ -230,8 +229,8 @@ public final class UniversalTerminalRegistration {
          * @param factory configuration factory
          * @return this builder
          */
-        public @NotNull Builder configManagerFactory(
-                                                     @NotNull Function<@NotNull Runnable, @Nullable IConfigManager> factory) {
+        public Builder configManagerFactory(
+                                            Function<Runnable, @Nullable IConfigManager> factory) {
             this.configManagerFactory = factory;
             return this;
         }
@@ -241,7 +240,7 @@ public final class UniversalTerminalRegistration {
          *
          * @return validated universal-terminal registration
          */
-        public @NotNull UniversalTerminalRegistration build() {
+        public UniversalTerminalRegistration build() {
             return new UniversalTerminalRegistration(new StandardAdapter(
                     this.name,
                     this.matcher,
@@ -256,32 +255,32 @@ public final class UniversalTerminalRegistration {
     /**
      * Standard immutable adapter assembled by {@link Builder}.
      */
-    private record StandardAdapter(@NotNull String name,
-                                   @NotNull Predicate<@NotNull ItemStack> matcher,
-                                   @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                                   @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-                                   @NotNull UniversalTerminalConfigurationProfile configurationProfile,
+    private record StandardAdapter(String name,
+                                   Predicate<ItemStack> matcher,
+                                   Supplier<ItemStack> iconSupplier,
+                                   Supplier<MenuType<?>> menuTypeSupplier,
+                                   UniversalTerminalConfigurationProfile configurationProfile,
                                    boolean requiresCustomMenuLocator,
-                                   @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory)
+                                   @Nullable Function<Runnable, @Nullable IConfigManager> configManagerFactory)
             implements UniversalTerminalBehavior {
 
         @Override
-        public boolean matches(@NotNull ItemStack stack) {
+        public boolean matches(ItemStack stack) {
             return this.matcher.test(stack);
         }
 
         @Override
-        public @NotNull ItemStack createIcon() {
+        public ItemStack createIcon() {
             return this.iconSupplier.get();
         }
 
         @Override
-        public @NotNull MenuType<?> menuType() {
+        public MenuType<?> menuType() {
             return this.menuTypeSupplier.get();
         }
 
         @Override
-        public @Nullable IConfigManager createConfigManager(@NotNull Runnable saveAction) {
+        public @Nullable IConfigManager createConfigManager(Runnable saveAction) {
             return this.configManagerFactory == null ? null : this.configManagerFactory.apply(saveAction);
         }
     }

@@ -2,15 +2,17 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
+import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -90,7 +92,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
-                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine {
+                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine,
+                                              DataRipperBatchTickable {
 
     public static final int ITEM_INPUT_START_SLOT = 0;
     public static final int ITEM_INPUT_SLOT_COUNT = 9;
@@ -128,7 +131,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
@@ -170,9 +173,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private RecipeMatchCache recipeMatchCache;
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -207,13 +210,38 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public void serverTick() {
+        advanceServerTicks(1);
+    }
+
+    @Override
+    public void advanceAdditionalTicks(int additionalTicks) {
+        if (additionalTicks <= 0) {
+            throw new IllegalArgumentException("additionalTicks must be positive");
+        }
+        advanceServerTicks(additionalTicks);
+    }
+
+    private void advanceServerTicks(int tickBudget) {
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
         refillEnergyCache();
-        processRecipe();
-        tryAutoExport();
+        int remainingTicks = tickBudget;
+        boolean autoExportStalled = false;
+        while (remainingTicks > 0) {
+            boolean hasOutputBeforeWork = hasAnyOutput();
+            int progressBudget = isAutoExportEnabled() && hasOutputBeforeWork && !autoExportStalled ? 1 : remainingTicks;
+            RecipeAdvance advance = processRecipe(progressBudget);
+            remainingTicks -= advance.elapsedTicks();
+
+            boolean shouldAttemptExport = isAutoExportEnabled() && hasAnyOutput() &&
+                    (!autoExportStalled || advance.completedRecipe());
+            if (shouldAttemptExport) {
+                autoExportStalled = !tryAutoExport();
+            }
+
+        }
         updateOnlineState();
     }
 
@@ -232,8 +260,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public PatternContainerGroup getCraftingMachineInfo() {
-        return new PatternContainerGroup(AEItemKey.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
+        return new PatternContainerGroup(AEItemKey.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
     }
 
     @Override
@@ -303,7 +331,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public int getParallel() {
-        return computeParallel(this.upgrades.getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+        return computeParallel(this.upgrades.getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     public int getItemSlotCapacity() {
@@ -448,7 +476,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         settings.putInt(FLUID_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.fluidOutputSides));
         settings.putInt(KEY_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.keyOutputSides));
         settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -458,7 +486,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -571,23 +599,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private void processRecipe() {
+    private RecipeAdvance processRecipe(int tickBudget) {
         if (!isOnline()) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe();
         if (recipeHolder == null) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
-        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
-        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+        if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         if (!recipeHolder.id().equals(this.activeRecipeId)) {
@@ -598,13 +625,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         this.maxProgress = getEffectiveProcessTicks(recipe);
-        this.progress++;
+        this.progress = Math.max(0, Math.min(this.progress, this.maxProgress - 1));
+        BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
+                this.progress,
+                this.maxProgress,
+                tickBudget);
+        this.progress = segment.progress();
         setChanged();
 
-        if (this.progress < this.maxProgress) {
-            return;
+        if (!segment.reachedBoundary()) {
+            return RecipeAdvance.progressed(segment.elapsedTicks());
         }
 
+        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
+        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+            resetProcessingState();
+            return RecipeAdvance.blocked(segment.elapsedTicks());
+        }
         for (int batch = 0; batch < getParallel(); batch++) {
             List<ItemStack> batchOutputs = batch == 0 ? itemOutputs : recipe.getCraftedItemOutputs();
             if (!canAcceptItemOutputs(recipe, batchOutputs)) {
@@ -621,6 +658,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         resetProcessingState();
         saveChanges();
         markForClientUpdate();
+        return RecipeAdvance.completed(segment.elapsedTicks());
     }
 
     private void resetProcessingState() {
@@ -671,7 +709,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         if (match == null) {
             for (RecipeHolder<DataRipperReassemblerRecipe> holder : currentLevel.getRecipeManager()
-                    .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+                    .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
                 if (holder.value().matches(input, currentLevel)) {
                     match = holder;
                     break;
@@ -1031,9 +1069,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return remaining;
     }
 
-    private void tryAutoExport() {
+    private boolean tryAutoExport() {
         if (!isAutoExportEnabled()) {
-            return;
+            return false;
         }
 
         boolean changed = false;
@@ -1053,6 +1091,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             saveChanges();
             markForClientUpdate();
         }
+        return changed;
     }
 
     private boolean hasItemOutput() {
@@ -1066,6 +1105,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private boolean hasKeyOutput() {
         return this.keyOutputStack != null && this.keyOutputStack.what() != null && this.keyOutputStack.amount() > 0L;
+    }
+
+    private boolean hasAnyOutput() {
+        return hasItemOutput() || !this.fluidOutputTankA.getFluid().isEmpty() ||
+                !this.fluidOutputTankB.getFluid().isEmpty() || hasKeyOutput();
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
@@ -1937,7 +1981,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public Component getDescription() {
-            return ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+            return DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
         }
     }
 
@@ -2106,6 +2150,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 setItemDirect(slot, remainder);
             }
             return result;
+        }
+    }
+
+    private record RecipeAdvance(int elapsedTicks, boolean completedRecipe) {
+
+        private static RecipeAdvance progressed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
+        }
+
+        private static RecipeAdvance completed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, true);
+        }
+
+        private static RecipeAdvance blocked(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
         }
     }
 

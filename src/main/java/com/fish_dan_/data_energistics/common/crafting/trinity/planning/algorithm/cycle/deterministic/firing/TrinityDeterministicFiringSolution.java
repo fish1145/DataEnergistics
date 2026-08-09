@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
-import org.jetbrains.annotations.NotNull;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -33,7 +32,7 @@ public record TrinityDeterministicFiringSolution(
                                                  int balancePasses,
                                                  boolean leastFiringsProven,
                                                  boolean completeComponentProof,
-                                                 @NotNull Optional<TrinityFiringOptimization> globalOptimization) {
+                                                 Optional<TrinityFiringOptimization> globalOptimization) {
 
     public TrinityDeterministicFiringSolution {
         firings = Collections.unmodifiableMap(new LinkedHashMap<>(firings));

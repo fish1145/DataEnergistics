@@ -6,7 +6,6 @@ import appeng.api.stacks.GenericStack;
 import appeng.items.misc.WrappedGenericStack;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Resolves one AE generic stack to the native JEI identity selected by the installed converter registry.
@@ -20,7 +19,7 @@ final class JeiGenericStackIngredientResolver {
     /**
      * Uses AE2 JEI Integration converters first and retains one wrapped-key fallback for installations without it.
      */
-    static @NotNull ResolvedIngredient<?> resolve(@NotNull GenericStack stack) {
+    static ResolvedIngredient<?> resolve(GenericStack stack) {
         if (stack.amount() < 0L) {
             throw invalidAmount(stack.amount());
         }
@@ -44,5 +43,5 @@ final class JeiGenericStackIngredientResolver {
     /**
      * A type-safe JEI ingredient pair passed to each consumer without raw types.
      */
-    record ResolvedIngredient<T>(@NotNull IIngredientType<T> type, @NotNull T ingredient) {}
+    record ResolvedIngredient<T>(IIngredientType<T> type, T ingredient) {}
 }

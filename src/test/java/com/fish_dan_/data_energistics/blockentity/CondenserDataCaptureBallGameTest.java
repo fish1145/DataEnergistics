@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.CondenserOutputMode;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -49,7 +49,7 @@ public final class CondenserDataCaptureBallGameTest {
 
     private static void assertFixedCostAndFullComponentCapacity(GameTestHelper helper) {
         CondenserBlockEntity condenser = placeCondenser(helper, CAPACITY_CONDENSER_POS);
-        condenser.getInternalInventory().setItemDirect(2, ModItems.DATA_STORAGE_COMPONENT_64K.toStack());
+        condenser.getInternalInventory().setItemDirect(2, DEItems.DATA_STORAGE_COMPONENT_64K.toStack());
         setMode(helper, condenser, CondenserOutputMode.DATA_CAPTURE_BALL);
 
         helper.assertValueEqual(condenser.getRequiredPower(), REQUIRED_POWER,
@@ -75,17 +75,17 @@ public final class CondenserDataCaptureBallGameTest {
         helper.assertValueEqual(condenser.getStoredPower(), 17.0D,
                 "A higher component must retain AE remaining after multiple fixed-cost outputs");
 
-        condenser.getInternalInventory().setItemDirect(2, ModItems.DATA_STORAGE_COMPONENT_256M.toStack());
+        condenser.getInternalInventory().setItemDirect(2, DEItems.DATA_STORAGE_COMPONENT_256M.toStack());
         helper.assertValueEqual((long) condenser.getStorage(), 2_147_483_648L,
                 "The 256M component capacity must not overflow an integer multiplication");
-        condenser.getInternalInventory().setItemDirect(2, ModItems.DATA_STORAGE_COMPONENT_4K.toStack());
+        condenser.getInternalInventory().setItemDirect(2, DEItems.DATA_STORAGE_COMPONENT_4K.toStack());
         helper.assertValueEqual(condenser.getStorage(), 0.0D,
                 "A component smaller than 16K must not enable Data Capture Ball output");
     }
 
     private static void assertModeSwitchUsesFinalOutputState(GameTestHelper helper) {
         CondenserBlockEntity condenser = placeCondenser(helper, MODE_SWITCH_CONDENSER_POS);
-        condenser.getInternalInventory().setItemDirect(2, ModItems.DATA_STORAGE_COMPONENT_64K.toStack());
+        condenser.getInternalInventory().setItemDirect(2, DEItems.DATA_STORAGE_COMPONENT_64K.toStack());
         condenser.addPower(256_000.0D);
 
         setMode(helper, condenser, CondenserOutputMode.DATA_CAPTURE_BALL);
@@ -97,28 +97,28 @@ public final class CondenserDataCaptureBallGameTest {
 
     private static void assertLoadedRecipeMatchesRuntime(GameTestHelper helper) {
         var recipes = helper.getLevel().getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get());
+                .getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get());
         helper.assertTrue(!recipes.isEmpty(), "The Data Capture Ball condenser recipe must be loaded");
         var recipe = recipes.getFirst().value();
 
         helper.assertValueEqual(recipe.getRequiredPower(), (int) REQUIRED_POWER,
                 "The displayed recipe must use the runtime AE cost");
         List.of(
-                ModItems.DATA_STORAGE_COMPONENT_16K,
-                ModItems.DATA_STORAGE_COMPONENT_64K,
-                ModItems.DATA_STORAGE_COMPONENT_256K,
-                ModItems.DATA_STORAGE_COMPONENT_1M,
-                ModItems.DATA_STORAGE_COMPONENT_4M,
-                ModItems.DATA_STORAGE_COMPONENT_16M,
-                ModItems.DATA_STORAGE_COMPONENT_64M,
-                ModItems.DATA_STORAGE_COMPONENT_256M)
+                DEItems.DATA_STORAGE_COMPONENT_16K,
+                DEItems.DATA_STORAGE_COMPONENT_64K,
+                DEItems.DATA_STORAGE_COMPONENT_256K,
+                DEItems.DATA_STORAGE_COMPONENT_1M,
+                DEItems.DATA_STORAGE_COMPONENT_4M,
+                DEItems.DATA_STORAGE_COMPONENT_16M,
+                DEItems.DATA_STORAGE_COMPONENT_64M,
+                DEItems.DATA_STORAGE_COMPONENT_256M)
                 .forEach(component -> helper.assertTrue(recipe.getCatalyst().test(component.toStack()),
                         "The displayed recipe must include " + component.getId()));
-        helper.assertTrue(!recipe.getCatalyst().test(ModItems.DATA_STORAGE_COMPONENT_4K.toStack()),
+        helper.assertTrue(!recipe.getCatalyst().test(DEItems.DATA_STORAGE_COMPONENT_4K.toStack()),
                 "The displayed recipe must reject components smaller than 16K");
 
         var result = recipe.getResultItem(helper.getLevel().registryAccess());
-        helper.assertTrue(result.is(ModItems.DATA_CAPTURE_BALL.get()),
+        helper.assertTrue(result.is(DEItems.DATA_CAPTURE_BALL.get()),
                 "The displayed recipe must output a Data Capture Ball");
         helper.assertValueEqual(result.getOrDefault(AEComponents.STORED_ENERGY, 0.0D), INITIAL_BALL_POWER,
                 "The displayed recipe must output the same initially charged ball as the condenser");
@@ -142,7 +142,7 @@ public final class CondenserDataCaptureBallGameTest {
     private static void assertCaptureBallOutput(GameTestHelper helper, CondenserBlockEntity condenser,
                                                 int expectedCount) {
         var output = condenser.getInternalInventory().getStackInSlot(1);
-        helper.assertTrue(output.is(ModItems.DATA_CAPTURE_BALL.get()),
+        helper.assertTrue(output.is(DEItems.DATA_CAPTURE_BALL.get()),
                 "The condenser must output Data Capture Balls, not the mapped vanilla output");
         helper.assertValueEqual(output.getCount(), expectedCount,
                 "The condenser must output one ball for each complete 131072 AE");

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.mixin.core.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.NeoForgeEnergyStorageAccessor;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -23,7 +23,7 @@ public final class UnlimitedEnergyAccessGameTest {
     @GameTest(template = "empty_5x5")
     public static void usesRealNeoForgeAccessor(GameTestHelper helper) {
         EnergyStorage storage = new EnergyStorage(1_000, 1, 1, 400);
-        UnlimitedEnergyAccess access = new UnlimitedEnergyAccessImpl();
+        UnlimitedEnergyAccess access = new VerifiedUnlimitedEnergyAccess();
 
         helper.assertTrue(storage instanceof NeoForgeEnergyStorageAccessor,
                 "NeoForge EnergyStorage must receive the unlimited-energy Mixin accessor");

@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.client;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
-import com.fish_dan_.data_energistics.ae2.EchoKey;
-import com.fish_dan_.data_energistics.ae2.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
 
 import appeng.api.client.AEKeyRenderHandler;
 import appeng.api.client.AEKeyRendering;

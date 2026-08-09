@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 
 /**
  * Client rendering lifetime bound to one independently owned structure preview scene.

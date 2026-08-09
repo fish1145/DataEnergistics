@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -29,7 +29,7 @@ public final class DataRipperReassemblerDropsGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void additionalDropsDoNotDuplicateInternalInventory(GameTestHelper helper) {
-        helper.setBlock(REASSEMBLER_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(REASSEMBLER_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
         BlockEntity blockEntity = helper.getBlockEntity(REASSEMBLER_POS);
         if (!(blockEntity instanceof DataRipperReassemblerBlockEntity reassembler)) {
             throw new GameTestAssertException("Placed Data Reassembler has no matching block entity");

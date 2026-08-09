@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.transfer;
 
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
@@ -8,7 +8,6 @@ import net.minecraft.world.item.crafting.RecipeType;
 
 import appeng.integration.modules.itemlists.EncodingHelper;
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -22,7 +21,7 @@ public final class PatternEncodingViewerContext {
      * Resolves the mode that AE2's viewer transfer will request before the asynchronously synchronized menu field
      * reflects that request.
      */
-    public static @NotNull EncodingMode resolveEncodingMode(@Nullable Recipe<?> recipe, boolean craftingCategory) {
+    public static EncodingMode resolveEncodingMode(@Nullable Recipe<?> recipe, boolean craftingCategory) {
         if (recipe == null || (!craftingCategory && !EncodingHelper.isSupportedCraftingRecipe(recipe))) {
             return EncodingMode.PROCESSING;
         }
@@ -38,8 +37,8 @@ public final class PatternEncodingViewerContext {
     /**
      * Captures a viewer recipe type without trusting viewer workstation or catalyst lists.
      */
-    public static @NotNull PatternEncodingRankingContext fromRecipeType(
-                                                                        @NotNull ResourceLocation recipeTypeId) {
+    public static PatternEncodingRankingContext fromRecipeType(
+                                                               ResourceLocation recipeTypeId) {
         return PatternEncodingRankingContext.of(recipeTypeId);
     }
 }

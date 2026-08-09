@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipeInput;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -43,7 +43,6 @@ import appeng.util.Platform;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
@@ -76,10 +75,10 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private boolean working;
 
     public DataChargerBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), pos, state);
         var connectableSides = getGridConnectableSides(BlockOrientation.get(state));
         this.getMainNode()
-                .setVisualRepresentation(isExtended() ? ModBlocks.EXTENDED_DATA_CHARGER.get() : ModBlocks.DATA_CHARGER.get())
+                .setVisualRepresentation(isExtended() ? DEBlocks.EXTENDED_DATA_CHARGER.get() : DEBlocks.DATA_CHARGER.get())
                 .setExposedOnSides(connectableSides)
                 .setIdlePowerUsage(0.0D);
         this.storage.setFilter(new ChargerItemFilter());
@@ -253,7 +252,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     @Override
-    public void saveAdditional(@NotNull CompoundTag data, @NotNull HolderLookup.Provider registries) {
+    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         data.putLong(DATA_FLOW_TAG, getStoredDataFlow());
@@ -480,7 +479,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static RecipeLookup computeRecipeLookup(Level level, ItemStack stack) {
         ResourceLocation dataChargerRecipeId = null;
         DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
-        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get())) {
+        for (RecipeHolder<DataChargerRecipe> holder : level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get())) {
             if (holder.value().matches(input, level)) {
                 dataChargerRecipeId = holder.id();
                 break;

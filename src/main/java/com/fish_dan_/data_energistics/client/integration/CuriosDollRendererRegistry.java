@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.client.integration;
 
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.decor.DollVariant;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -31,9 +31,9 @@ public final class CuriosDollRendererRegistry {
     private CuriosDollRendererRegistry() {}
 
     public static void register() {
-        CuriosRendererRegistry.register(ModBlocks.FISH_DAN.get().asItem(), DollCurioRenderer::new);
-        CuriosRendererRegistry.register(ModBlocks.QIUYEQAQ2024.get().asItem(), DollCurioRenderer::new);
-        CuriosRendererRegistry.register(ModBlocks.TED_XENON.get().asItem(), DollCurioRenderer::new);
+        CuriosRendererRegistry.register(DEBlocks.FISH_DAN.get().asItem(), DollCurioRenderer::new);
+        CuriosRendererRegistry.register(DEBlocks.QIUYEQAQ2024.get().asItem(), DollCurioRenderer::new);
+        CuriosRendererRegistry.register(DEBlocks.TED_XENON.get().asItem(), DollCurioRenderer::new);
     }
 
     private static final class DollCurioRenderer implements ICurioRenderer {
@@ -102,7 +102,7 @@ public final class CuriosDollRendererRegistry {
                 state = state.setValue(DollBlock.FACING, Direction.NORTH);
             }
             if (state.hasProperty(DollBlock.VARIANT)) {
-                int variant = stack.is(ModItems.FISH_DAN.get()) ? DollVariant.fromStack(stack) : 0;
+                int variant = stack.is(DEItems.FISH_DAN.get()) ? DollVariant.fromStack(stack) : 0;
                 state = state.setValue(DollBlock.VARIANT, variant);
             }
 

@@ -24,14 +24,14 @@ public interface CraftingServerDispatchBudget {
                                                LongSupplier nanoClock,
                                                long targetTickNanos,
                                                long overloadedTrickleNanos) {
-        return new CraftingServerDispatchBudgetImpl(nanoClock, targetTickNanos, overloadedTrickleNanos);
+        return new MeasuredCraftingServerDispatchBudget(nanoClock, targetTickNanos, overloadedTrickleNanos);
     }
 
     /**
      * @return a boundary used before server tick sampling starts
      */
     static CraftingServerDispatchBudget unbounded() {
-        return CraftingServerDispatchBudgetImpl.UNBOUNDED;
+        return MeasuredCraftingServerDispatchBudget.UNBOUNDED;
     }
 
     /**

@@ -37,17 +37,17 @@ public final class UniversalTerminalAdapters implements DataEnergisticsPlugin {
                 UniversalTerminalData.TERMINAL_ITEM,
                 AEParts.TERMINAL::is,
                 () -> new ItemStack(AEParts.TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_ME_STORAGE::get);
+                DEMenus.UNIVERSAL_ME_STORAGE::get);
         terminals.registerTerminal(
                 UniversalTerminalData.TERMINAL_CRAFTING,
                 AEParts.CRAFTING_TERMINAL::is,
                 () -> new ItemStack(AEParts.CRAFTING_TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_CRAFTING_TERM::get);
+                DEMenus.UNIVERSAL_CRAFTING_TERM::get);
         terminals.registerTerminal(
                 UniversalTerminalData.TERMINAL_PATTERN_ACCESS,
                 AEParts.PATTERN_ACCESS_TERMINAL::is,
                 () -> new ItemStack(AEParts.PATTERN_ACCESS_TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM::get,
+                DEMenus.UNIVERSAL_PATTERN_ACCESS_TERM::get,
                 UniversalTerminalConfigurationProfile.PATTERN_ACCESS,
                 false,
                 UniversalTerminalAdapters::createPatternAccessConfigManager);
@@ -55,7 +55,7 @@ public final class UniversalTerminalAdapters implements DataEnergisticsPlugin {
                 UniversalTerminalData.TERMINAL_PATTERN_ENCODING,
                 AEParts.PATTERN_ENCODING_TERMINAL::is,
                 () -> new ItemStack(AEParts.PATTERN_ENCODING_TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM::get);
+                DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM::get);
     }
 
     /**

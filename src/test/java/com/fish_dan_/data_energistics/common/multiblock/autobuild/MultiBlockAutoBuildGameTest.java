@@ -5,10 +5,10 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.StagingPolicy;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPlacementPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate.StatePattern;
+import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -61,7 +61,7 @@ public final class MultiBlockAutoBuildGameTest {
     private static final BlockPos ORIGIN = new BlockPos(4, 2, 4);
     private static final String STRUCTURE_NAME = "atomic_auto_build_test";
     private static final Direction FRONT = Direction.SOUTH;
-    private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
+    private static final MultiBlockAutoBuild AUTO_BUILD = new TransactionalMultiBlockAutoBuild();
     private static final StagingPolicy TEST_STAGING_POLICY = new StagingPolicy() {
 
         @Override

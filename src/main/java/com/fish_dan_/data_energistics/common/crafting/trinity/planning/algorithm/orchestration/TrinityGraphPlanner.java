@@ -35,7 +35,7 @@ public interface TrinityGraphPlanner {
      * @return stateless planner exposing cacheable structural and dynamic stages
      */
     static TrinityGraphPlanningPipeline pipeline() {
-        return new TrinityGraphPlannerImpl(
+        return new ExactTrinityGraphPlanningPipeline(
                 TrinityPatternVariantExpander.create(),
                 TrinityGraphTopologyAnalyzer.create(),
                 TrinityAcyclicDemandPropagator.create(),

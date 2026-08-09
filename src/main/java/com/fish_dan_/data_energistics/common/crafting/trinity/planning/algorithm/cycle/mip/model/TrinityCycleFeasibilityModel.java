@@ -12,7 +12,7 @@ public interface TrinityCycleFeasibilityModel {
      * @return precision-selecting ordinary/radix feasibility model
      */
     static TrinityCycleFeasibilityModel create() {
-        return new TrinityCycleFeasibilityModelImpl();
+        return new PrecisionSelectingTrinityCycleFeasibilityModel();
     }
 
     /**

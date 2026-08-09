@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -108,7 +108,7 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
                 player.displayClientMessage(Component.translatable(
                         showing ? "message.data_energistics.data_extractor.range.enabled" : "message.data_energistics.data_extractor.range.disabled"), true);
             } else {
-                MenuOpener.open(ModMenus.DATA_EXTRACTOR.get(), player, MenuLocators.forBlockEntity(extractor));
+                MenuOpener.open(DEMenus.DATA_EXTRACTOR.get(), player, MenuLocators.forBlockEntity(extractor));
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
@@ -134,7 +134,7 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get()) {
             return null;
         }
 

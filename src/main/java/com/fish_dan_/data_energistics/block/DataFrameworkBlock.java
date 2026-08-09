@@ -10,7 +10,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import appeng.block.AEBaseBlock;
-import org.jetbrains.annotations.NotNull;
 
 public class DataFrameworkBlock extends AEBaseBlock {
 
@@ -19,25 +18,23 @@ public class DataFrameworkBlock extends AEBaseBlock {
     }
 
     @Override
-    public float getShadeBrightness(@NotNull BlockState state, @NotNull BlockGetter blockGetter, @NotNull BlockPos pos) {
+    public float getShadeBrightness(BlockState state, BlockGetter blockGetter, BlockPos pos) {
         return 1.0F;
     }
 
     @Override
-    public boolean propagatesSkylightDown(@NotNull BlockState state, @NotNull BlockGetter blockGetter,
-                                          @NotNull BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter blockGetter, BlockPos pos) {
         return true;
     }
 
     @Override
-    protected @NotNull VoxelShape getVisualShape(@NotNull BlockState state, @NotNull BlockGetter world,
-                                                 @NotNull BlockPos pos, @NotNull CollisionContext context) {
+    protected VoxelShape getVisualShape(BlockState state, BlockGetter world,
+                                        BlockPos pos, CollisionContext context) {
         return Shapes.empty();
     }
 
     @Override
-    protected boolean skipRendering(@NotNull BlockState state, @NotNull BlockState adjacentBlockState,
-                                    @NotNull Direction side) {
+    protected boolean skipRendering(BlockState state, BlockState adjacentBlockState, Direction side) {
         if (adjacentBlockState.is(this) && adjacentBlockState.getRenderShape() == state.getRenderShape()) {
             return true;
         }

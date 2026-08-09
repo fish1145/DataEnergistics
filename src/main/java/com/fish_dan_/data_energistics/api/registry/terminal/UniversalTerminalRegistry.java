@@ -4,7 +4,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
@@ -21,14 +20,14 @@ public interface UniversalTerminalRegistry {
      *
      * @param registration registration to stage
      */
-    void register(@NotNull UniversalTerminalRegistration registration);
+    void register(UniversalTerminalRegistration registration);
 
     /**
      * Captures a custom adapter as one immutable registration token.
      *
      * @param adapter stateless adapter to register
      */
-    default void register(@NotNull UniversalTerminalBehavior adapter) {
+    default void register(UniversalTerminalBehavior adapter) {
         this.register(new UniversalTerminalRegistration(adapter));
     }
 
@@ -41,10 +40,10 @@ public interface UniversalTerminalRegistry {
      * @param menuTypeSupplier supplier for the terminal menu type
      */
     default void registerTerminal(
-                                  @NotNull String name,
-                                  @NotNull Predicate<@NotNull ItemStack> matcher,
-                                  @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                                  @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier) {
+                                  String name,
+                                  Predicate<ItemStack> matcher,
+                                  Supplier<ItemStack> iconSupplier,
+                                  Supplier<MenuType<?>> menuTypeSupplier) {
         this.register(UniversalTerminalRegistration.builder(name, matcher, iconSupplier, menuTypeSupplier).build());
     }
 
@@ -60,13 +59,13 @@ public interface UniversalTerminalRegistry {
      * @param configManagerFactory      optional configuration-manager factory
      */
     default void registerTerminal(
-                                  @NotNull String name,
-                                  @NotNull Predicate<@NotNull ItemStack> matcher,
-                                  @NotNull Supplier<@NotNull ItemStack> iconSupplier,
-                                  @NotNull Supplier<@NotNull MenuType<?>> menuTypeSupplier,
-                                  @NotNull UniversalTerminalConfigurationProfile configProfile,
+                                  String name,
+                                  Predicate<ItemStack> matcher,
+                                  Supplier<ItemStack> iconSupplier,
+                                  Supplier<MenuType<?>> menuTypeSupplier,
+                                  UniversalTerminalConfigurationProfile configProfile,
                                   boolean requiresCustomMenuLocator,
-                                  @Nullable Function<@NotNull Runnable, @Nullable IConfigManager> configManagerFactory) {
+                                  @Nullable Function<Runnable, @Nullable IConfigManager> configManagerFactory) {
         UniversalTerminalRegistration.Builder builder = UniversalTerminalRegistration
                 .builder(name, matcher, iconSupplier, menuTypeSupplier)
                 .configurationProfile(configProfile)

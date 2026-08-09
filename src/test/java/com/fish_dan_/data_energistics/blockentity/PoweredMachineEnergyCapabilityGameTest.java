@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -31,13 +31,13 @@ public final class PoweredMachineEnergyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void poweredMachinesExposeInputEnergyCapability(GameTestHelper helper) {
-        assertInputEnergyCapability(helper, ModBlocks.DATA_EXTRACTOR.get().defaultBlockState(), "Data extractor");
-        assertInputEnergyCapability(helper, ModBlocks.DATA_RIPPER_REASSEMBLER.get().defaultBlockState(), "Data reassembler");
-        assertInputEnergyCapability(helper, ModBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState(), "Data mimetic field");
-        assertInputEnergyCapability(helper, ModBlocks.DATA_TELEPORT_ANCHOR.get().defaultBlockState(), "Data teleport anchor");
-        assertInputEnergyCapability(helper, ModBlocks.DATA_SANCTUM.get().defaultBlockState(), "Data sanctum");
+        assertInputEnergyCapability(helper, DEBlocks.DATA_EXTRACTOR.get().defaultBlockState(), "Data extractor");
+        assertInputEnergyCapability(helper, DEBlocks.DATA_RIPPER_REASSEMBLER.get().defaultBlockState(), "Data reassembler");
+        assertInputEnergyCapability(helper, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState(), "Data mimetic field");
+        assertInputEnergyCapability(helper, DEBlocks.DATA_TELEPORT_ANCHOR.get().defaultBlockState(), "Data teleport anchor");
+        assertInputEnergyCapability(helper, DEBlocks.DATA_SANCTUM.get().defaultBlockState(), "Data sanctum");
 
-        helper.setBlock(MACHINE_POS, ModBlocks.DATA_SOLAR_PANEL.get().defaultBlockState());
+        helper.setBlock(MACHINE_POS, DEBlocks.DATA_SOLAR_PANEL.get().defaultBlockState());
         IEnergyStorage solarEnergy = helper.getLevel().getCapability(
                 Capabilities.EnergyStorage.BLOCK, helper.absolutePos(MACHINE_POS), Direction.NORTH);
         helper.assertTrue(solarEnergy == null, "The ME solar panel must not expose an external FE capability");

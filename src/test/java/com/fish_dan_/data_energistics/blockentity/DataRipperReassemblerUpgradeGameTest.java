@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -43,15 +43,15 @@ public final class DataRipperReassemblerUpgradeGameTest {
         helper.assertValueEqual(reassembler.getUpgrades().size(), 5,
                 "The Data Reassembler must expose five upgrade slots");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(ModItems.CARD_SABER_ENERGY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                Upgrades.getMaxInstallable(DEItems.CARD_SABER_ENERGY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
                 2,
                 "The Data Reassembler must accept two Saber Energy Cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
                 0,
                 "The Data Reassembler must not accept Capacity Cards");
         helper.assertValueEqual(
-                Upgrades.getMaxInstallable(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                Upgrades.getMaxInstallable(AEItems.SPEED_CARD, DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
                 5,
                 "The Data Reassembler must accept five Speed Cards");
 
@@ -61,8 +61,8 @@ public final class DataRipperReassemblerUpgradeGameTest {
                 "One Saber Energy Card must provide eight parallel operations");
         helper.assertValueEqual(DataRipperReassemblerBlockEntity.computeParallel(2), 16,
                 "Two Saber Energy Cards must provide sixteen parallel operations");
-        reassembler.getUpgrades().setItemDirect(0, ModItems.CARD_SABER_ENERGY.toStack());
-        reassembler.getUpgrades().setItemDirect(1, ModItems.CARD_SABER_ENERGY.toStack());
+        reassembler.getUpgrades().setItemDirect(0, DEItems.CARD_SABER_ENERGY.toStack());
+        reassembler.getUpgrades().setItemDirect(1, DEItems.CARD_SABER_ENERGY.toStack());
         reassembler.getUpgrades().setItemDirect(2, AEItems.SPEED_CARD.stack());
         helper.assertValueEqual(reassembler.getParallel(), 16,
                 "Installed Saber Energy Cards must update real machine parallelism");
@@ -121,8 +121,8 @@ public final class DataRipperReassemblerUpgradeGameTest {
     public static void energyCardsApplyRealParallelProcessing(GameTestHelper helper) {
         DataRipperReassemblerBlockEntity reassembler = placeReassembler(helper);
         helper.setBlock(ENERGY_CELL_POS, AEBlocks.CREATIVE_ENERGY_CELL.block());
-        reassembler.getUpgrades().setItemDirect(0, ModItems.CARD_SABER_ENERGY.toStack());
-        reassembler.getUpgrades().setItemDirect(1, ModItems.CARD_SABER_ENERGY.toStack());
+        reassembler.getUpgrades().setItemDirect(0, DEItems.CARD_SABER_ENERGY.toStack());
+        reassembler.getUpgrades().setItemDirect(1, DEItems.CARD_SABER_ENERGY.toStack());
         reassembler.getStorageInventory().setItemDirect(
                 DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT,
                 new ItemStack(Items.ENDER_PEARL, 16));
@@ -144,7 +144,7 @@ public final class DataRipperReassemblerUpgradeGameTest {
     }
 
     private static DataRipperReassemblerBlockEntity placeReassembler(GameTestHelper helper) {
-        helper.setBlock(REASSEMBLER_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        helper.setBlock(REASSEMBLER_POS, DEBlocks.DATA_RIPPER_REASSEMBLER.get());
         BlockEntity blockEntity = helper.getBlockEntity(REASSEMBLER_POS);
         if (blockEntity instanceof DataRipperReassemblerBlockEntity reassembler) {
             return reassembler;

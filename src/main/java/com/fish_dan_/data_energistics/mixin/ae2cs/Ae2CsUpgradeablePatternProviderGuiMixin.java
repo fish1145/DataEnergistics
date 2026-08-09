@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.ae2cs;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.client.screen.AePatternProviderSlotStylePatch;
 import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatch;
-import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatchImpl;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 
 import net.minecraft.network.chat.Component;
@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class Ae2CsUpgradeablePatternProviderGuiMixin extends AEBaseScreen<UpgradeablePatternProviderMenu> {
 
     @Unique
-    private static final ScreenSlotStylePatch DATA_ENERGISTICS_STYLE_PATCH = ScreenSlotStylePatchImpl.inlineSingleUpgrade("ae2cs:upgradeable_pattern_provider");
+    private static final ScreenSlotStylePatch DATA_ENERGISTICS_STYLE_PATCH = AePatternProviderSlotStylePatch.inlineSingleUpgrade("ae2cs:upgradeable_pattern_provider");
 
     @Unique
     private PatternProviderRedstoneTuningButton dataEnergistics$redstoneTuningButton;

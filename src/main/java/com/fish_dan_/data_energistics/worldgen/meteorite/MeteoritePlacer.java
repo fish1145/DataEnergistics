@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModFluids;
-import com.fish_dan_.data_energistics.worldgen.meteorite.MeteoriteMotherRockDistribution.MotherRock;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEFluids;
+import com.fish_dan_.data_energistics.worldgen.meteorite.FixedMeteoriteMotherRockDistribution.MotherRock;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
@@ -40,7 +40,7 @@ public final class MeteoritePlacer {
     private static final int CORE_RADIUS = 1;
     private static final int METEORITE_BODY_RADIUS = 20;
     private static final int METEORITE_FALLOUT_RADIUS = 80;
-    private static final MeteoriteMotherRockDistribution MOTHER_ROCK_DISTRIBUTION = new MeteoriteMotherRockDistributionImpl();
+    private static final FixedMeteoriteMotherRockDistribution MOTHER_ROCK_DISTRIBUTION = new FixedMeteoriteMotherRockDistribution();
     private final BlockState skyStone;
     private final BlockState crackedMeteorite;
     private final BlockState exposedMeteorite;
@@ -88,9 +88,9 @@ public final class MeteoritePlacer {
         double realCrater = this.meteoriteSize * 2.0F + 5.0F;
         this.crater = realCrater * realCrater;
         this.skyStone = ((AEDecorativeBlock) AEBlocks.SKY_STONE_BLOCK.block()).defaultBlockState();
-        this.crackedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
-        this.exposedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
-        this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
+        this.crackedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
+        this.exposedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
+        this.shatteredMeteorite = DEBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
         this.certusMotherRocks = this.getCertusMotherRocks();
         this.dataMotherRocks = this.getDataMotherRocks();
         this.quartzGrowthStages = this.getQuartzGrowthStages();
@@ -109,11 +109,11 @@ public final class MeteoritePlacer {
 
     private List<BlockState> getDataMotherRocks() {
         return Stream.of(
-                ModBlocks.BUDDING_DATA_CRYSTAL_0,
-                ModBlocks.BUDDING_DATA_CRYSTAL_1,
-                ModBlocks.BUDDING_DATA_CRYSTAL_2,
-                ModBlocks.BUDDING_DATA_CRYSTAL_3,
-                ModBlocks.BUDDING_DATA_CRYSTAL_4)
+                DEBlocks.BUDDING_DATA_CRYSTAL_0,
+                DEBlocks.BUDDING_DATA_CRYSTAL_1,
+                DEBlocks.BUDDING_DATA_CRYSTAL_2,
+                DEBlocks.BUDDING_DATA_CRYSTAL_3,
+                DEBlocks.BUDDING_DATA_CRYSTAL_4)
                 .map(def -> def.get().defaultBlockState())
                 .toList();
     }
@@ -285,7 +285,7 @@ public final class MeteoritePlacer {
 
     private MotherRock randomMotherRock() {
         return MOTHER_ROCK_DISTRIBUTION.select(
-                this.random.nextInt(MeteoriteMotherRockDistribution.TOTAL_BASIS_POINTS));
+                this.random.nextInt(FixedMeteoriteMotherRockDistribution.TOTAL_BASIS_POINTS));
     }
 
     private BlockState resolveMotherRock(MotherRock motherRock) {
@@ -442,7 +442,7 @@ public final class MeteoritePlacer {
 
     private void placeImpactCorrosionLiquid() {
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-        BlockState corrosionLiquid = ModFluids.DATA_CORROSION_LIQUID_BLOCK.get().defaultBlockState();
+        BlockState corrosionLiquid = DEFluids.DATA_CORROSION_LIQUID_BLOCK.get().defaultBlockState();
 
         for (int currentX = this.boundingBox.minX(); currentX <= this.boundingBox.maxX(); ++currentX) {
             blockPos.setX(currentX);
@@ -469,7 +469,7 @@ public final class MeteoritePlacer {
                 if (lowestAirY != Integer.MAX_VALUE) {
                     blockPos.setY(lowestAirY);
                     this.putter.put(this.level, blockPos, corrosionLiquid);
-                    this.level.scheduleTick(blockPos, ModFluids.DATA_CORROSION_LIQUID.get(), 0);
+                    this.level.scheduleTick(blockPos, DEFluids.DATA_CORROSION_LIQUID.get(), 0);
                 }
             }
         }

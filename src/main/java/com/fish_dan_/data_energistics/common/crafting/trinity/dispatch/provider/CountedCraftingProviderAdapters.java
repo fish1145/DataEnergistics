@@ -32,7 +32,7 @@ import java.util.OptionalLong;
  */
 public final class CountedCraftingProviderAdapters {
 
-    private static final CountedCraftingProviderAdapterRegistry REGISTRY = new CountedCraftingProviderAdapterRegistryImpl();
+    private static final CountedCraftingProviderAdapterRegistry REGISTRY = new CountedCraftingProviderAdapterRegistry();
 
     private CountedCraftingProviderAdapters() {}
 

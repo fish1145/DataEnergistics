@@ -8,8 +8,8 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentKeyNormalizer;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -46,7 +46,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
     protected static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String STORAGE_TAG = "storage";
 
-    private final CompartmentStorage storage = new CompartmentStorageImpl(this::onStorageChanged);
+    private final CompartmentStorage storage = new MapBackedCompartmentStorage(this::onStorageChanged);
     private final CompartmentStorage structureStorageView = new AvailabilityCheckedCompartmentStorage(
             this::isCompartmentBound,
             () -> this.storage);

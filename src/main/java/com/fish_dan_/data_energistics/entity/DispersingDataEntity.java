@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -234,7 +234,7 @@ public class DispersingDataEntity extends Entity {
     }
 
     public static void spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {
-        DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
+        DispersingDataEntity entity = DEEntities.DISPERSING_DATA.get().create(level);
         if (entity == null) {
             return;
         }

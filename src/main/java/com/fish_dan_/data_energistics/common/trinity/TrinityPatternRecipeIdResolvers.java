@@ -9,7 +9,6 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.ids.AEComponents;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,7 +42,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * @param registeredResolvers resolver map in deterministic plugin and declaration order
      */
     public TrinityPatternRecipeIdResolvers(
-                                           @NotNull Map<@NotNull ResourceLocation, @NotNull TrinityPatternRecipeIdResolver> registeredResolvers) {
+                                           Map<ResourceLocation, TrinityPatternRecipeIdResolver> registeredResolvers) {
         ArrayList<RegisteredResolver> captured = new ArrayList<>(registeredResolvers.size());
         for (Map.Entry<ResourceLocation, TrinityPatternRecipeIdResolver> entry : registeredResolvers.entrySet()) {
             ResourceLocation resolverId = entry.getKey();
@@ -59,7 +58,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      * @param resolvers resolvers to validate in declaration order
      */
     public TrinityPatternRecipeIdResolvers(
-                                           @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
+                                           List<TrinityPatternRecipeIdResolver> resolvers) {
         this(indexResolvers(resolvers));
     }
 
@@ -68,7 +67,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
      *
      * @return immutable built-in resolver runtime
      */
-    public static @NotNull TrinityPatternRecipeIdResolvers createWithBuiltIns() {
+    public static TrinityPatternRecipeIdResolvers createWithBuiltIns() {
         return new TrinityPatternRecipeIdResolvers(builtIns());
     }
 
@@ -80,8 +79,8 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
     }
 
     @Override
-    public @NotNull Optional<@NotNull TrinityPatternRecipeIdResolution> resolve(
-                                                                                @NotNull IMolecularAssemblerSupportedPattern pattern) {
+    public Optional<TrinityPatternRecipeIdResolution> resolve(
+                                                              IMolecularAssemblerSupportedPattern pattern) {
         List<RegisteredResolver> matches = new ArrayList<>();
         for (RegisteredResolver registered : this.resolvers) {
             boolean supported;
@@ -127,15 +126,15 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
     /**
      * Returns the built-ins so the Data Energistics plugin registers them through the same staging lifecycle.
      */
-    static @NotNull List<@NotNull TrinityPatternRecipeIdResolver> builtIns() {
+    static List<TrinityPatternRecipeIdResolver> builtIns() {
         return List.of(BuiltInResolver.CRAFTING, BuiltInResolver.STONECUTTING, BuiltInResolver.SMITHING);
     }
 
     /**
      * Validates resolver IDs before constructing an isolated runtime.
      */
-    private static @NotNull Map<@NotNull ResourceLocation, @NotNull TrinityPatternRecipeIdResolver> indexResolvers(
-                                                                                                                   @NotNull List<@NotNull TrinityPatternRecipeIdResolver> resolvers) {
+    private static Map<ResourceLocation, TrinityPatternRecipeIdResolver> indexResolvers(
+                                                                                        List<TrinityPatternRecipeIdResolver> resolvers) {
         LinkedHashMap<ResourceLocation, TrinityPatternRecipeIdResolver> indexed = new LinkedHashMap<>();
         for (TrinityPatternRecipeIdResolver resolver : resolvers) {
             ResourceLocation resolverId = resolver.id();
@@ -149,8 +148,8 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
     /**
      * Captured stable ID paired with the stateless resolver callback.
      */
-    private record RegisteredResolver(@NotNull ResourceLocation id,
-                                      @NotNull TrinityPatternRecipeIdResolver resolver) {}
+    private record RegisteredResolver(ResourceLocation id,
+                                      TrinityPatternRecipeIdResolver resolver) {}
 
     /**
      * Built-in AE2 component resolvers registered by the built-in Data Energistics plugin.
@@ -177,12 +176,12 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
         }
 
         @Override
-        public @NotNull ResourceLocation id() {
+        public ResourceLocation id() {
             return this.id;
         }
 
         @Override
-        public boolean supports(@NotNull IMolecularAssemblerSupportedPattern pattern) {
+        public boolean supports(IMolecularAssemblerSupportedPattern pattern) {
             return switch (this) {
                 case CRAFTING -> pattern.getDefinition().toStack().has(AEComponents.ENCODED_CRAFTING_PATTERN);
                 case STONECUTTING -> pattern.getDefinition().toStack()
@@ -193,7 +192,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
         }
 
         @Override
-        public @NotNull ResourceLocation recipeId(@NotNull IMolecularAssemblerSupportedPattern pattern) {
+        public ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern) {
             return switch (this) {
                 case CRAFTING -> pattern.getDefinition().get(AEComponents.ENCODED_CRAFTING_PATTERN).recipeId();
                 case STONECUTTING -> pattern.getDefinition().get(AEComponents.ENCODED_STONECUTTING_PATTERN).recipeId();
@@ -205,7 +204,7 @@ public final class TrinityPatternRecipeIdResolvers implements TrinityPatternReci
     /**
      * Creates one Data Energistics-owned built-in resolver ID.
      */
-    private static @NotNull ResourceLocation resolverId(@NotNull String path) {
+    private static ResourceLocation resolverId(String path) {
         return ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, path);
     }
 }

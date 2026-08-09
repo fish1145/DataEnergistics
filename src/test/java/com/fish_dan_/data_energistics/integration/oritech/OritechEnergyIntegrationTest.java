@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.integration.oritech;
 
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class OritechEnergyIntegrationTest {
 
-    private final UnlimitedEnergyAccess access = new UnlimitedEnergyAccessImpl();
+    private final UnlimitedEnergyAccess access = new VerifiedUnlimitedEnergyAccess();
 
     @Test
     void bypassesOritechTransferMethodsThroughItsTypedLongApi() {

@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -45,13 +45,13 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_SOLAR_PANEL.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_SOLAR_PANEL.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
 
     public DataSolarPanelBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_SOLAR_PANEL.get())
+                .setVisualRepresentation(DEBlocks.DATA_SOLAR_PANEL.get())
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(computeMaxPower(this.upgrades));
     }

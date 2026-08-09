@@ -1,17 +1,17 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataSanctumFluidPuller;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
-import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
-import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
-import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumFluidPuller;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
-import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
-import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.mixin.core.accessor.InterfaceLogicTickAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.InterfaceLogicUpgradesAccessor;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -187,7 +187,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
         CompoundTag settings = new CompoundTag();
         settings.putInt(ACTIVE_PULL_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(getActivePullSides()));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -197,7 +197,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -244,12 +244,12 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override

@@ -8,14 +8,16 @@ import java.util.function.Supplier;
 
 /**
  * Selects a proved opportunity, continues a structural miss, or preserves a terminal diagnostic.
+ * <p>
+ * Stateless branch implementation that keeps the general solver lazy.
  */
-public interface TrinityPlanningAttemptSelector {
+public final class TrinityPlanningAttemptSelector {
 
     /**
      * @return stateless selector
      */
-    static TrinityPlanningAttemptSelector create() {
-        return new TrinityPlanningAttemptSelectorImpl();
+    public static TrinityPlanningAttemptSelector create() {
+        return new TrinityPlanningAttemptSelector();
     }
 
     /**
@@ -26,8 +28,17 @@ public interface TrinityPlanningAttemptSelector {
      * @param <R>      selected result type
      * @return proved adaptation, general fallback result or unchanged terminal failure
      */
-    <T, R> TrinityAlgorithmResult<R> select(
-                                            TrinityPlanningAttempt<T> attempt,
-                                            Function<T, R> proved,
-                                            Supplier<TrinityAlgorithmResult<R>> fallback);
+    public <T, R> TrinityAlgorithmResult<R> select(
+                                                   TrinityPlanningAttempt<T> attempt,
+                                                   Function<T, R> proved,
+                                                   Supplier<TrinityAlgorithmResult<R>> fallback) {
+        if (attempt == null || proved == null || fallback == null) {
+            throw new IllegalArgumentException("A Trinity opportunity selection requires all collaborators");
+        }
+        return switch (attempt.kind()) {
+            case PROVED_OPTIMAL -> TrinityAlgorithmResult.success(proved.apply(attempt.value()));
+            case NOT_APPLICABLE -> fallback.get();
+            case TERMINAL -> TrinityAlgorithmResult.failure(attempt.diagnostic());
+        };
+    }
 }

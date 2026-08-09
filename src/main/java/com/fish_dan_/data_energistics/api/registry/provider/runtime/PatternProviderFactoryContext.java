@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternPr
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Runtime context supplied while a declaration creates an adapter for one live provider instance.
@@ -19,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
  * @param identity  resolved stable identity of that provider instance
  * @param metadata  immutable declaration selected for the provider
  */
-public record PatternProviderFactoryContext(@NotNull ICraftingProvider provider,
-                                            @NotNull PatternContainer container,
-                                            @NotNull PatternProviderIdentity identity,
-                                            @NotNull PatternProviderMetadata metadata) {}
+public record PatternProviderFactoryContext(ICraftingProvider provider,
+                                            PatternContainer container,
+                                            PatternProviderIdentity identity,
+                                            PatternProviderMetadata metadata) {}

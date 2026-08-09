@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -80,7 +80,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataSolarPanelBlockEntity solarPanel) {
-            MenuOpener.open(ModMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forBlockEntity(solarPanel));
+            MenuOpener.open(DEMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forBlockEntity(solarPanel));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -98,7 +98,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get()) {
             return null;
         }
 

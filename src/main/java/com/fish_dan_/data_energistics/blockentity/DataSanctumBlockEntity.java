@@ -1,15 +1,15 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
-import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 
 import net.minecraft.core.BlockPos;
@@ -112,7 +112,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final InterfaceLogic interfaceLogic = new InterfaceLogic(
             this.getMainNode(),
             this,
-            ModBlocks.DATA_SANCTUM.get().asItem(),
+            DEBlocks.DATA_SANCTUM.get().asItem(),
             DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE);
     private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(
             DataSanctumInterfaceConstants.RETURN_SLOTS_PER_PAGE,
@@ -120,10 +120,10 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             () -> 0);
     private final MachineSource actionSource = new MachineSource(this);
     private final IUpgradeInventory energyUpgrades = UpgradeInventories.forMachine(
-            ModBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
+            DEBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
     private final IInWorldGridNodeHost networkPortHost = new NetworkPortNodeHost(this);
     private final IManagedGridNode networkPortNode = GridHelper.createManagedNode(this, NETWORK_PORT_NODE_LISTENER)
-            .setVisualRepresentation(ModBlocks.DATA_SANCTUM.get())
+            .setVisualRepresentation(DEBlocks.DATA_SANCTUM.get())
             .setIdlePowerUsage(0.0D)
             .setInWorldNode(true);
     private IGridConnection networkPortConnection;
@@ -135,11 +135,11 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final List<BlockPos> pendingBlackHoleBlocks = new ArrayList<>();
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
         this.lastLinked = blockState.hasProperty(DataSanctumBlock.ACTIVE) && blockState.getValue(DataSanctumBlock.ACTIVE);
         this.lastMode = blockState.hasProperty(DataSanctumBlock.MODE) ? blockState.getValue(DataSanctumBlock.MODE) : 0;
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_SANCTUM.get())
+                .setVisualRepresentation(DEBlocks.DATA_SANCTUM.get())
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(computeMaxPower(this.energyUpgrades));
         this.setInternalPublicPowerStorage(true);
@@ -238,7 +238,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         CompoundTag settings = new CompoundTag();
         settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
         settings.putInt(MODE_TAG, getMode());
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -248,7 +248,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -328,17 +328,17 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     @Override
     public ItemStack getMainMenuIcon() {
-        return ModBlocks.DATA_SANCTUM.toStack();
+        return DEBlocks.DATA_SANCTUM.toStack();
     }
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override
@@ -493,7 +493,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         BlockState mainState = this.level.getBlockState(this.worldPosition);
-        if (!mainState.is(ModBlocks.DATA_SANCTUM.get()) || !isMainPart(mainState)) {
+        if (!mainState.is(DEBlocks.DATA_SANCTUM.get()) || !isMainPart(mainState)) {
             this.lastLinked = linked;
             this.lastMode = mode;
             return;
@@ -505,7 +505,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
                 for (int offsetY = 0; offsetY <= 3; offsetY++) {
                     BlockPos partPos = getPartPos(this.worldPosition, facing, offsetX, offsetZ, offsetY);
                     BlockState state = this.level.getBlockState(partPos);
-                    if (state.is(ModBlocks.DATA_SANCTUM.get())) {
+                    if (state.is(DEBlocks.DATA_SANCTUM.get())) {
                         this.level.setBlock(partPos, state
                                 .setValue(DataSanctumBlock.ACTIVE, linked)
                                 .setValue(DataSanctumBlock.MODE, mode), Block.UPDATE_CLIENTS);
@@ -591,14 +591,14 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return null;
         }
         BlockState mainState = this.level.getBlockState(this.worldPosition);
-        if (!mainState.is(ModBlocks.DATA_SANCTUM.get()) || !isMainPart(mainState)) {
+        if (!mainState.is(DEBlocks.DATA_SANCTUM.get()) || !isMainPart(mainState)) {
             return null;
         }
 
         Direction facing = mainState.getValue(DataSanctumBlock.FACING);
         BlockPos portPos = getPartPos(this.worldPosition, facing, 0, 2, 0);
         BlockState portState = this.level.getBlockState(portPos);
-        if (!portState.is(ModBlocks.DATA_SANCTUM.get()) || !isNetworkPortPart(portState) || !getMainPos(portPos, portState).equals(this.worldPosition)) {
+        if (!portState.is(DEBlocks.DATA_SANCTUM.get()) || !isNetworkPortPart(portState) || !getMainPos(portPos, portState).equals(this.worldPosition)) {
             return null;
         }
         return portPos;
@@ -613,7 +613,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
      */
     public static @Nullable BlockPos findNetworkPortPos(BlockGetter level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (!state.is(ModBlocks.DATA_SANCTUM.get())) {
+        if (!state.is(DEBlocks.DATA_SANCTUM.get())) {
             return null;
         }
 

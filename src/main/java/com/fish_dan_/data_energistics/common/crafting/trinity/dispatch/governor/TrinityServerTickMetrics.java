@@ -23,7 +23,7 @@ public final class TrinityServerTickMetrics {
 
     private static final long TARGET_TICK_NANOS = 50_000_000L;
     private static final long OVERLOADED_TRICKLE_NANOS = 1_000_000L;
-    private static final CraftingServerDispatchBudgetImpl SERVER_DISPATCH_BUDGET = new CraftingServerDispatchBudgetImpl(
+    private static final MeasuredCraftingServerDispatchBudget SERVER_DISPATCH_BUDGET = new MeasuredCraftingServerDispatchBudget(
             System::nanoTime,
             TARGET_TICK_NANOS,
             OVERLOADED_TRICKLE_NANOS);

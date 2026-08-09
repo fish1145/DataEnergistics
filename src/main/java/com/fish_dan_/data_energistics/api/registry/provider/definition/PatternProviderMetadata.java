@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.api.registry.provider.definition;
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -22,10 +20,10 @@ import java.util.List;
  * @param recipeCategoryIds  complete recipe-category ID set understood by the provider
  * @param workstationItemIds complete workstation item-ID set understood by the provider
  */
-public record PatternProviderMetadata(@NotNull ResourceLocation registrationId,
-                                      @NotNull ProviderIdentityDescriptor providerIdentity,
-                                      @NotNull List<@NotNull ResourceLocation> recipeCategoryIds,
-                                      @NotNull List<@NotNull ResourceLocation> workstationItemIds) {
+public record PatternProviderMetadata(ResourceLocation registrationId,
+                                      ProviderIdentityDescriptor providerIdentity,
+                                      List<ResourceLocation> recipeCategoryIds,
+                                      List<ResourceLocation> workstationItemIds) {
 
     /**
      * Validates and freezes provider metadata at the public registration boundary.
@@ -40,7 +38,7 @@ public record PatternProviderMetadata(@NotNull ResourceLocation registrationId,
      *
      * @return canonical recipe-category IDs
      */
-    public @NotNull List<@NotNull ResourceLocation> categoryIds() {
+    public List<ResourceLocation> categoryIds() {
         return this.recipeCategoryIds;
     }
 
@@ -49,12 +47,12 @@ public record PatternProviderMetadata(@NotNull ResourceLocation registrationId,
      *
      * @return canonical workstation item IDs
      */
-    public @NotNull List<@NotNull ResourceLocation> workstationIds() {
+    public List<ResourceLocation> workstationIds() {
         return this.workstationItemIds;
     }
 
-    private static @NotNull List<@NotNull ResourceLocation> canonicalIds(
-                                                                         @NotNull List<@NotNull ResourceLocation> ids) {
+    private static List<ResourceLocation> canonicalIds(
+                                                       List<ResourceLocation> ids) {
         LinkedHashSet<ResourceLocation> unique = new LinkedHashSet<>(ids);
         ArrayList<ResourceLocation> canonical = new ArrayList<>(unique);
         canonical.sort(Comparator.comparing(ResourceLocation::toString));

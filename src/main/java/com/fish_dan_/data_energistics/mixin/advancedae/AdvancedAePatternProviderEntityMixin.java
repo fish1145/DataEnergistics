@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.mixin.advancedae;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningInventoryHelper;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;

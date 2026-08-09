@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.api.registry.adaptive;
 
 import net.minecraft.world.item.ItemStack;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -23,5 +22,5 @@ public interface AdaptivePatternProviderDefinition {
      * @return the complete profile, or {@code null} when this definition does not recognize the stack
      */
     @Nullable
-    AdaptivePatternProviderProfile resolve(@NotNull ItemStack providerStack);
+    AdaptivePatternProviderProfile resolve(ItemStack providerStack);
 }

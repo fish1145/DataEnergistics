@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.transfer;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -27,9 +27,6 @@ public record MultiblockPatternTransferRequest(int containerId,
     public MultiblockPatternTransferRequest {
         if (containerId < 0 || containerId > MAX_CONTAINER_ID) {
             throw new IllegalArgumentException("Invalid multiblock pattern transfer container id: " + containerId);
-        }
-        if (registeredRecipeId == null || projectionFingerprint == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer identities cannot be null");
         }
     }
 }

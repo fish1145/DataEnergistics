@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.common.compartment.AvailabilityCheckedComp
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageGroup;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -53,9 +53,9 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
             () -> new CompartmentStorageGroup(this::unlockedPatternBufferStorageViews));
 
     public MePatternBufferBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), pos, state);
         for (int slot = 0; slot < PATTERN_SLOT_COUNT; slot++) {
-            CompartmentStorage patternBuffer = new CompartmentStorageImpl(this::onContentInventoryChanged);
+            CompartmentStorage patternBuffer = new MapBackedCompartmentStorage(this::onContentInventoryChanged);
             this.patternBufferStorages.add(patternBuffer);
             this.patternBufferStorageViews.add(new AvailabilityCheckedCompartmentStorage(
                     this::isCompartmentBound,

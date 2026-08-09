@@ -1,17 +1,17 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.mixin.core.ExperienceOrbAccessor;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.mixin.core.accessor.ExperienceOrbAccessor;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
@@ -80,7 +80,6 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
@@ -127,7 +126,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final InternalInventory externalInventory = new FilteredInternalInventory(
             this.storage.getSubInventory(CARRIER_SLOT, DISPLAY_COMPONENT_SLOT + 1),
@@ -136,7 +135,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 @Override
                 public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
                     return switch (slot) {
-                        case CARRIER_SLOT -> isCarrierInteractionAllowed() && stack.is(ModItems.DATA_CARRIER.get());
+                        case CARRIER_SLOT -> isCarrierInteractionAllowed() && stack.is(DEItems.DATA_CARRIER.get());
                         case SWORD_SLOT -> stack.is(ItemTags.SWORDS);
                         case ORE_SLOT -> isOreOrRawOre(stack);
                         case CROP_SLOT -> isSupportedCrop(stack);
@@ -160,19 +159,16 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         @Override
-        @NotNull
         public ItemStack getStackInSlot(int slot) {
             return this.delegate.getStackInSlot(slot);
         }
 
         @Override
-        @NotNull
-        public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             return this.delegate.insertItem(slot, stack, simulate);
         }
 
         @Override
-        @NotNull
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             return this.delegate.extractItem(slot, amount, simulate);
         }
@@ -183,7 +179,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         @Override
-        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+        public boolean isItemValid(int slot, ItemStack stack) {
             return this.delegate.isItemValid(slot, stack);
         }
     };
@@ -207,9 +203,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private Player cachedFakePlayer;
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_EXTRACTOR.get())
+                .setVisualRepresentation(DEBlocks.DATA_EXTRACTOR.get())
                 .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0);
         this.setInternalMaxPower(ENERGY_CACHE_CAPACITY);
@@ -219,7 +215,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
             @Override
             public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack) || slot == DISPLAY_COMPONENT_SLOT && isDisplayComponentItem(stack);
+                return slot == CARRIER_SLOT && stack.is(DEItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack) || slot == DISPLAY_COMPONENT_SLOT && isDisplayComponentItem(stack);
             }
         });
     }
@@ -315,7 +311,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
         settings.putInt(AUTO_EXPORT_MODE_TAG, this.autoExportMode.ordinal());
         settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.outputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -325,7 +321,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -863,7 +859,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         ItemStack sword = storedSword.copy();
         boolean useSword = sword.is(ItemTags.SWORDS);
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get()) && !BiologyDataCarrierData.isComplete(carrier) && !OreDataCarrierData.hasRecordedOre(carrier);
+        boolean canCollectBiology = carrier.is(DEItems.DATA_CARRIER.get()) && !BiologyDataCarrierData.isComplete(carrier) && !OreDataCarrierData.hasRecordedOre(carrier);
         ResourceLocation recordedEntityId = canCollectBiology ? BiologyDataCarrierData.getEntityTypeId(carrier) : null;
         float collectedDamage = 0.0F;
         boolean carrierUpdated = false;
@@ -935,7 +931,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void recordOreSample() {
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.isComplete(carrier) || CropDataCarrierData.hasRecordedCrop(carrier)) {
+        if (!carrier.is(DEItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.isComplete(carrier) || CropDataCarrierData.hasRecordedCrop(carrier)) {
             return;
         }
 
@@ -990,7 +986,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void recordCropSample() {
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.hasRecordedOre(carrier) || CropDataCarrierData.isComplete(carrier)) {
+        if (!carrier.is(DEItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.hasRecordedOre(carrier) || CropDataCarrierData.isComplete(carrier)) {
             return;
         }
 
@@ -1200,7 +1196,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         ItemStack input = this.storage.getStackInSlot(CARRIER_SLOT);
-        if (!input.is(ModItems.DATA_CARRIER.get())) {
+        if (!input.is(DEItems.DATA_CARRIER.get())) {
             return;
         }
 
@@ -1568,7 +1564,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return false;
         }
 
-        return stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get()) || stack.is(ModItems.DATA_CARRIER.get()) && (BiologyDataCarrierData.isComplete(stack) || OreDataCarrierData.isComplete(stack) || CropDataCarrierData.isComplete(stack));
+        return stack.is(DEItems.MOB_DATA_CARRIER.get()) || stack.is(DEItems.ORE_DATA_CARRIER.get()) || stack.is(DEItems.CROP_DATA_CARRIER.get()) || stack.is(DEItems.DATA_CARRIER.get()) && (BiologyDataCarrierData.isComplete(stack) || OreDataCarrierData.isComplete(stack) || CropDataCarrierData.isComplete(stack));
     }
 
     private void updateCarrierTypeState() {
@@ -1591,16 +1587,16 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         if (stack.isEmpty()) {
             return Type.NONE;
         }
-        if (stack.is(ModItems.DATA_CARRIER.get())) {
+        if (stack.is(DEItems.DATA_CARRIER.get())) {
             return Type.EMPTY;
         }
-        if (stack.is(ModItems.MOB_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.MOB_DATA_CARRIER.get())) {
             return Type.MOB;
         }
-        if (stack.is(ModItems.CROP_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.CROP_DATA_CARRIER.get())) {
             return Type.CROP;
         }
-        if (stack.is(ModItems.ORE_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.ORE_DATA_CARRIER.get())) {
             return Type.ORE;
         }
         return Type.NONE;

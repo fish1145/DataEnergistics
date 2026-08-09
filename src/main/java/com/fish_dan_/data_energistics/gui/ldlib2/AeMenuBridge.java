@@ -21,7 +21,7 @@ public interface AeMenuBridge {
      * @return a new unmounted bridge
      */
     static AeMenuBridge create(AEBaseMenu menu) {
-        return AeMenuBridgeImpl.create(menu);
+        return LdlibAeMenuBridge.create(menu);
     }
 
     /**

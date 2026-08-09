@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewVisibleLayer;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 
 import net.minecraft.network.chat.Component;
