@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.settings;
 
 import appeng.api.config.Setting;
 import appeng.api.config.Settings;

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.widget;
 
 import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.CondenserOutputMode;
+import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 
 import net.minecraft.client.gui.GuiGraphics;
