@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+
 /**
  * Builds common-layer preview snapshots from revision-bound definitions and session choices.
  */

@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.client.emi;
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.client.Minecraft;

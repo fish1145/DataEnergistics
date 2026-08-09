@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.trinity.preview;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistrySnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
@@ -16,6 +14,8 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreview
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalogSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 

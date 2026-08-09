@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeViewSource;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeViewSource;
 
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import dev.emi.emi.api.recipe.EmiRecipe;

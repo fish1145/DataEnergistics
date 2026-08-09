@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiIngredient;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.MethodsReturnNonnullByDefault;

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.xei.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 
 import net.minecraft.world.item.ItemStack;
 

@@ -8,8 +8,8 @@ import com.fish_dan_.data_energistics.common.multiblock.json.loading.JsonMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.json.loading.MdlibJsonMultiBlockDefinitionLoader;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistry;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.LayeredJsonMultiBlockDefinitionRegistry;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalog;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogImpl;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.DefinitionBackedMultiblockPreviewCatalog;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalog;
 import com.fish_dan_.data_energistics.common.trinity.preview.TrinityMultiblockPreviewSpecFactory;
 
 import net.minecraft.resources.ResourceLocation;
@@ -34,7 +34,7 @@ public final class ModVerticalMultiBlocks {
 
     public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
     /** Common controller preview catalog built from one atomic JSON definition generation per read. */
-    public static final MultiblockPreviewCatalog MULTIBLOCK_PREVIEWS = new MultiblockPreviewCatalogImpl(
+    public static final MultiblockPreviewCatalog MULTIBLOCK_PREVIEWS = new DefinitionBackedMultiblockPreviewCatalog(
             JSON_MULTI_BLOCKS,
             List.of(new TrinityMultiblockPreviewSpecFactory()));
 

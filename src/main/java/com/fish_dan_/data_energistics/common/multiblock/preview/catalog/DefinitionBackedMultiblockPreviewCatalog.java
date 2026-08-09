@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.catalog;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistry;
 import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistrySnapshot;
@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default ordered catalog that invokes registered controller factories against one atomic definition snapshot.
+ * Definition-backed ordered catalog that invokes registered controller factories against one atomic snapshot.
  */
-public final class MultiblockPreviewCatalogImpl implements MultiblockPreviewCatalog {
+public final class DefinitionBackedMultiblockPreviewCatalog implements MultiblockPreviewCatalog {
 
     private final JsonMultiBlockDefinitionRegistry definitionRegistry;
     private final List<MultiblockPreviewSpecFactory> factories;
@@ -26,8 +26,8 @@ public final class MultiblockPreviewCatalogImpl implements MultiblockPreviewCata
      * @param definitionRegistry active JSON definition registry
      * @param factories          ordered controller factories
      */
-    public MultiblockPreviewCatalogImpl(JsonMultiBlockDefinitionRegistry definitionRegistry,
-                                        List<MultiblockPreviewSpecFactory> factories) {
+    public DefinitionBackedMultiblockPreviewCatalog(JsonMultiBlockDefinitionRegistry definitionRegistry,
+                                                    List<MultiblockPreviewSpecFactory> factories) {
         if (definitionRegistry == null || factories == null) {
             throw new IllegalArgumentException("Multiblock preview catalog arguments cannot be null");
         }

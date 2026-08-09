@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.catalog;
 
 /**
  * Supplies controller preview specs without exposing registry locking or reload internals to consumers.

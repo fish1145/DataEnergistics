@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmissionResolver;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmissionResolverImpl;

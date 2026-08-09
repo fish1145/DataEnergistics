@@ -1,10 +1,5 @@
 package com.fish_dan_.data_energistics.client.xei.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalog;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
@@ -13,6 +8,11 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicate
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalog;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalogSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeViewSource;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.PreviewMaterialStrip;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewPresentation;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUi;

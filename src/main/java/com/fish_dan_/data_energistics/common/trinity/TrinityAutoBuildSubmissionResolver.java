@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 
 /** Converts an untrusted revision-bound UI submission into the existing atomic builder request. */
 public interface TrinityAutoBuildSubmissionResolver {

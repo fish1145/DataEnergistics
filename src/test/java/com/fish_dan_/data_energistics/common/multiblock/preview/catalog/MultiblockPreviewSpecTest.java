@@ -1,4 +1,7 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.catalog;
+
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;

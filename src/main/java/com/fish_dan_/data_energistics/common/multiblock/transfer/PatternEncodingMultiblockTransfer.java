@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.transfer;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
 /**
