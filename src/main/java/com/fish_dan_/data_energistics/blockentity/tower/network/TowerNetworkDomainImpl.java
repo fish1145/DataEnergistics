@@ -19,9 +19,11 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerT
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.AppFluxGridEnergyTransferEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CapabilityEnergyTransferEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CapabilityTowerDomainEnergyResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CompensatingTowerEnergyTransaction;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.MultiRouteEnergyTransferEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerDomainEnergyEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransactionResult;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingRequest;
@@ -96,7 +98,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final Map<IGrid, Long> lastBridgeFailureLogTicks = new IdentityHashMap<>();
     private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
     private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
-    private final TowerEnergyTransaction energyTransaction = new TowerEnergyTransactionImpl();
+    private final CompensatingTowerEnergyTransaction energyTransaction = new CompensatingTowerEnergyTransaction();
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
     private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();

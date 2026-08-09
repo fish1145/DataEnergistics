@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyAllocationLimiter;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
@@ -9,8 +9,6 @@ import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergy
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizerImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySinkAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySourceAllocation;
-import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
-import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferException;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import java.math.BigInteger;
@@ -23,9 +21,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default two-phase transaction executor using exact proportional water filling.
+ * Executes one atomic-as-possible, two-phase FE equalization transaction for a primary-grid domain.
  */
-public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction {
+public final class CompensatingTowerEnergyTransaction {
 
     /**
      * Maximum endpoint-level failures retained in one rate-limited grid diagnostic.
@@ -45,7 +43,7 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
     /**
      * Creates the production executor with the default exact planner.
      */
-    public TowerEnergyTransactionImpl() {
+    public CompensatingTowerEnergyTransaction() {
         this(new TowerEnergyEqualizerImpl());
     }
 
@@ -54,11 +52,22 @@ public final class TowerEnergyTransactionImpl implements TowerEnergyTransaction 
      *
      * @param equalizer immutable-snapshot planner
      */
-    public TowerEnergyTransactionImpl(TowerEnergyEqualizer equalizer) {
+    public CompensatingTowerEnergyTransaction(TowerEnergyEqualizer equalizer) {
         this.equalizer = equalizer;
     }
 
-    @Override
+    /**
+     * Freezes, plans, simulates, and then executes one domain transaction.
+     *
+     * <p>
+     * No real mutation occurs when the frozen topology is already balanced or when any preflight simulation cannot
+     * satisfy the complete plan. Runtime short writes are compensated back to sources; unrecoverable FE is returned
+     * as quarantined energy.
+     * </p>
+     *
+     * @param endpoints stable ordered endpoint topology
+     * @return immutable execution result
+     */
     public TowerEnergyTransactionResult execute(List<TowerEnergyTransferEndpoint> endpoints) {
         List<TowerEnergyTransferEndpoint> orderedEndpoints = List.copyOf(endpoints);
         Map<TowerEnergyEndpointId, TowerEnergyTransferEndpoint> endpointsById = indexEndpoints(orderedEndpoints);
