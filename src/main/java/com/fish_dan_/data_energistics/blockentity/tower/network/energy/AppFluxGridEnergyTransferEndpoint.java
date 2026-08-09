@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointRole;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;

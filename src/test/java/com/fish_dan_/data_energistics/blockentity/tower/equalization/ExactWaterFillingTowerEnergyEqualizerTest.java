@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.equalization;
 
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

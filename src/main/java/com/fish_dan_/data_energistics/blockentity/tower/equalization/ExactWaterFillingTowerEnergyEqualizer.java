@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.equalization;
 
-import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

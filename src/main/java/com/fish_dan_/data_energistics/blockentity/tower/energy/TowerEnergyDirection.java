@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 /**
  * Describes the transfer directions permitted by one resolved tower energy endpoint.

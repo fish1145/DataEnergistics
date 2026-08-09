@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 
