@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.network;
 
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
 
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
