@@ -1,16 +1,19 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission;
 
 import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.crafting.CraftingPlan;
 
 /**
  * Single plan-semantics boundary shared by every route that may submit work to a Trinity CPU.
+ * <p>
+ * Conservative allowlist that accepts AE2's native value plan and explicit Trinity-compatible plans only.
  */
-public interface TrinityPlanAdmission {
+public final class TrinityPlanAdmission {
 
     /**
      * Submission route whose unsupported-plan behavior differs between explicit and opportunistic selection.
      */
-    enum Route {
+    public enum Route {
         /**
          * A caller named a Trinity CPU directly; incompatibility is a terminal rejection for that target.
          */
@@ -32,7 +35,7 @@ public interface TrinityPlanAdmission {
     /**
      * Action the caller must take for one route.
      */
-    enum Decision {
+    public enum Decision {
         /**
          * The complete plan semantics are supported and Trinity may attempt submission.
          */
@@ -50,7 +53,7 @@ public interface TrinityPlanAdmission {
     /**
      * CPU implementation family used by both confirmation filtering and final submission routing.
      */
-    enum CpuFamily {
+    public enum CpuFamily {
         /**
          * A Data Energistics Trinity CPU that understands {@link TrinityCpuExecutablePlan}.
          */
@@ -64,8 +67,8 @@ public interface TrinityPlanAdmission {
     /**
      * @return default allowlist-based admission policy
      */
-    static TrinityPlanAdmission create() {
-        return new TrinityPlanAdmissionImpl();
+    public static TrinityPlanAdmission create() {
+        return new TrinityPlanAdmission();
     }
 
     /**
@@ -75,7 +78,15 @@ public interface TrinityPlanAdmission {
      * @param route route attempting Trinity ownership
      * @return required routing action
      */
-    Decision decide(ICraftingPlan plan, Route route);
+    public Decision decide(ICraftingPlan plan, Route route) {
+        if (plan instanceof CraftingPlan || plan instanceof TrinityCpuExecutablePlan) {
+            return Decision.SUBMIT_TO_TRINITY;
+        }
+        return switch (route) {
+            case AUTOMATIC_SELECTION, FALLBACK -> Decision.DEFER_TO_ORIGINAL;
+            case EXPLICIT_TARGET, DIRECT_CPU -> Decision.REJECT_TRINITY;
+        };
+    }
 
     /**
      * Applies the plan ownership boundary to a concrete CPU family.
@@ -89,5 +100,10 @@ public interface TrinityPlanAdmission {
      * @param cpuFamily target CPU implementation family
      * @return whether that CPU family may receive the plan
      */
-    boolean isCompatibleWith(ICraftingPlan plan, CpuFamily cpuFamily);
+    public boolean isCompatibleWith(ICraftingPlan plan, CpuFamily cpuFamily) {
+        return switch (cpuFamily) {
+            case TRINITY -> decide(plan, Route.AUTOMATIC_SELECTION) == Decision.SUBMIT_TO_TRINITY;
+            case NON_TRINITY -> !(plan instanceof TrinityCpuExecutablePlan);
+        };
+    }
 }
