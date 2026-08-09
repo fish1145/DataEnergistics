@@ -16,6 +16,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -59,18 +60,18 @@ public final class PatternEncodingPreferencesClient {
     }
 
     /**
-     * Persists the fixed vanilla context captured by a successful viewer transfer.
+     * Persists the fixed vanilla context using the mode resolved for this exact successful viewer transfer.
      */
-    public static void captureTransferredRecipe(AbstractContainerMenu menu) {
+    public static void captureTransferredRecipe(AbstractContainerMenu menu, EncodingMode transferMode) {
         Interfaces interfaces = Interfaces.require(menu);
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
-                interfaces.previewMenu().data_energistics$getEncodingMode());
+                transferMode);
         if (fixedWorkstation == null) {
             throw new IllegalStateException("Processing transfers require an exact viewer context");
         }
         interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(
                 PatternEncodingSourceHelper.resolveFixedModeRankingContext(
-                        interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
+                        transferMode, fixedWorkstation));
         sendSnapshot(menu);
     }
 
