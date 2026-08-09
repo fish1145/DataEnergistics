@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Version [v3.0.1](https://github.com/fish1145/DataEnergistics/compare/v3.0.0-1.21...v3.0.1-1.21)
+### Changed
+
+- 整理 3.0.x 包结构、公开 API 与集成运行边界 by @QiuYe-123 in [#176](https://github.com/fish1145/DataEnergistics/pull/176)
+
+ 
 ## Version [v3.0.0](https://github.com/fish1145/DataEnergistics/compare/v2.4.3-1.21...v3.0.0-1.21)
 ### Added
 
