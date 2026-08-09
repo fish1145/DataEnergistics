@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -23,7 +23,7 @@ public final class MeVacuumEnergyCapabilityGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void acceptsFeCharging(GameTestHelper helper) {
-        ItemStack stack = ModItems.ME_VACUUM.toStack();
+        ItemStack stack = DEItems.ME_VACUUM.toStack();
         IEnergyStorage energyStorage = stack.getCapability(Capabilities.EnergyStorage.ITEM);
 
         helper.assertTrue(energyStorage != null, "The ME Vacuum must expose an FE energy capability");

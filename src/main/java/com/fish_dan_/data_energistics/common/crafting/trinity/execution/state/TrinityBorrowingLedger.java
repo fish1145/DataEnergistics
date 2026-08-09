@@ -1,21 +1,27 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityBorrowingLedgerNbtCodec;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 
 import appeng.api.stacks.AEKey;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Tracks ownership-preserving dynamic material borrowing independently from execution scheduling.
+ * <p>
+ * Map-backed borrowing ledger whose only legal transitions originate in {@link State#RESERVED}.
  */
-public interface TrinityBorrowingLedger {
+public final class TrinityBorrowingLedger {
 
     /**
      * Lifecycle positions through which borrowed material may move exactly once.
      */
-    enum State {
+    public enum State {
         /**
          * Material still owned by the CPU and eligible for commit or release.
          */
@@ -37,7 +43,7 @@ public interface TrinityBorrowingLedger {
      * @param committed amount transferred to providers
      * @param released  amount returned without being committed
      */
-    record Balances(long reserved, long committed, long released) {
+    public record Balances(long reserved, long committed, long released) {
 
         /**
          * Rejects negative state amounts before they can hide an ownership violation.
@@ -62,8 +68,19 @@ public interface TrinityBorrowingLedger {
     /**
      * @return an empty ownership ledger
      */
-    static TrinityBorrowingLedger create() {
-        return new TrinityBorrowingLedgerImpl();
+    public static TrinityBorrowingLedger create() {
+        return new TrinityBorrowingLedger();
+    }
+
+    private final LinkedHashMap<AEKey, MutableBalances> entries = new LinkedHashMap<>();
+
+    /**
+     * Creates an empty ledger. Prefer {@link TrinityBorrowingLedger#create()} at integration boundaries.
+     */
+    public TrinityBorrowingLedger() {}
+
+    TrinityBorrowingLedger(Map<AEKey, Balances> entries) {
+        entries.forEach((key, balances) -> this.entries.put(key, new MutableBalances(balances)));
     }
 
     /**
@@ -73,8 +90,8 @@ public interface TrinityBorrowingLedger {
      * @param registries server registry lookup used by AE key codecs
      * @return restored ledger
      */
-    static TrinityBorrowingLedger restore(CompoundTag tag, HolderLookup.Provider registries) {
-        return TrinityBorrowingLedgerImpl.restore(tag, registries);
+    public static TrinityBorrowingLedger restore(CompoundTag tag, HolderLookup.Provider registries) {
+        return new TrinityBorrowingLedger(TrinityBorrowingLedgerNbtCodec.decode(tag, registries));
     }
 
     /**
@@ -83,7 +100,14 @@ public interface TrinityBorrowingLedger {
      * @param key    borrowed storage key
      * @param amount positive amount obtained by the CPU
      */
-    void reserve(AEKey key, long amount);
+    public void reserve(AEKey key, long amount) {
+        requireTransfer(key, amount);
+        MutableBalances balances = this.entries.computeIfAbsent(key, ignored -> new MutableBalances());
+        long reserved = Math.addExact(balances.reserved, amount);
+        ensureRepresentableTotal(balances.committed, reserved);
+        ensureRepresentableTotal(balances.released, reserved);
+        balances.reserved = reserved;
+    }
 
     /**
      * Moves CPU-owned material to provider ownership.
@@ -91,7 +115,12 @@ public interface TrinityBorrowingLedger {
      * @param key    borrowed storage key
      * @param amount positive amount accepted by a provider
      */
-    void commit(AEKey key, long amount);
+    public void commit(AEKey key, long amount) {
+        MutableBalances balances = requireReserved(key, amount);
+        long committed = Math.addExact(balances.committed, amount);
+        balances.reserved -= amount;
+        balances.committed = committed;
+    }
 
     /**
      * Moves CPU-owned material to the released history after a real refund.
@@ -99,19 +128,41 @@ public interface TrinityBorrowingLedger {
      * @param key    borrowed storage key
      * @param amount positive amount returned by the CPU
      */
-    void release(AEKey key, long amount);
+    public void release(AEKey key, long amount) {
+        MutableBalances balances = requireReserved(key, amount);
+        long released = Math.addExact(balances.released, amount);
+        balances.reserved -= amount;
+        balances.released = released;
+    }
 
     /**
      * @param key   borrowed storage key
      * @param state ownership state to inspect
      * @return amount currently aggregated in that state
      */
-    long amount(AEKey key, State state);
+    public long amount(AEKey key, State state) {
+        if (key == null || state == null) {
+            throw new IllegalArgumentException("A Trinity borrowing query requires key and state");
+        }
+        MutableBalances balances = this.entries.get(key);
+        if (balances == null) {
+            return 0L;
+        }
+        return switch (state) {
+            case RESERVED -> balances.reserved;
+            case COMMITTED -> balances.committed;
+            case RELEASED -> balances.released;
+        };
+    }
 
     /**
      * @return immutable snapshot of all non-empty key balances
      */
-    Map<AEKey, Balances> entries();
+    public Map<AEKey, Balances> entries() {
+        LinkedHashMap<AEKey, Balances> snapshot = new LinkedHashMap<>();
+        this.entries.forEach((key, balances) -> snapshot.put(key, balances.snapshot()));
+        return Collections.unmodifiableMap(snapshot);
+    }
 
     /**
      * Encodes the complete three-state ownership history.
@@ -119,5 +170,47 @@ public interface TrinityBorrowingLedger {
      * @param registries server registry lookup used by AE key codecs
      * @return strict ledger NBT
      */
-    CompoundTag save(HolderLookup.Provider registries);
+    public CompoundTag save(HolderLookup.Provider registries) {
+        return TrinityBorrowingLedgerNbtCodec.encode(entries(), registries);
+    }
+
+    private static void requireTransfer(AEKey key, long amount) {
+        if (key == null || amount <= 0L) {
+            throw new IllegalArgumentException("A Trinity borrowing transition requires a key and positive amount");
+        }
+    }
+
+    private MutableBalances requireReserved(AEKey key, long amount) {
+        requireTransfer(key, amount);
+        MutableBalances balances = this.entries.get(key);
+        if (balances == null || balances.reserved < amount) {
+            throw new IllegalStateException("A Trinity borrowing transition cannot exceed CPU-owned reservations");
+        }
+        return balances;
+    }
+
+    private static void ensureRepresentableTotal(long settled, long outstanding) {
+        if (settled > Long.MAX_VALUE - outstanding) {
+            throw new ArithmeticException("Trinity borrowing balance exceeds the AE2 long amount boundary");
+        }
+    }
+
+    private static final class MutableBalances {
+
+        private long reserved;
+        private long committed;
+        private long released;
+
+        private MutableBalances() {}
+
+        private MutableBalances(Balances balances) {
+            this.reserved = balances.reserved();
+            this.committed = balances.committed();
+            this.released = balances.released();
+        }
+
+        private Balances snapshot() {
+            return new Balances(this.reserved, this.committed, this.released);
+        }
+    }
 }

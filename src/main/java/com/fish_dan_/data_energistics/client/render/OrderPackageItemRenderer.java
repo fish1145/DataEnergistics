@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.OrderPackageTarget;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
@@ -72,7 +72,7 @@ public final class OrderPackageItemRenderer extends BlockEntityWithoutLevelRende
                                         PoseStack poseStack, MultiBufferSource bufferSource, int combinedLight,
                                         int combinedOverlay) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (target instanceof AEItemKey itemKey && itemKey.is(ModItems.ORDER_PACKAGE.get())) {
+        if (target instanceof AEItemKey itemKey && itemKey.is(DEItems.ORDER_PACKAGE.get())) {
             renderBakedModel(minecraft.getItemRenderer(), packageStack, baseModel, poseStack, bufferSource,
                     combinedLight, combinedOverlay);
             return true;

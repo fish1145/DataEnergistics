@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TeleportAnchorSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -10,12 +10,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -61,9 +59,9 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     private long lastAnchorPruneGameTime = Long.MIN_VALUE;
 
     public DataTeleportAnchorBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_TELEPORT_ANCHOR.get())
+                .setVisualRepresentation(DEBlocks.DATA_TELEPORT_ANCHOR.get())
                 .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
@@ -160,8 +158,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public String getAnchorDisplayName() {
-        Component displayName = this instanceof Nameable nameable ? nameable.getDisplayName() : this.getBlockState().getBlock().getName();
-        String resolvedName = displayName.getString();
+        String resolvedName = this.getDisplayName().getString();
         return resolvedName.isBlank() ? "Data Teleport Anchor" : resolvedName;
     }
 

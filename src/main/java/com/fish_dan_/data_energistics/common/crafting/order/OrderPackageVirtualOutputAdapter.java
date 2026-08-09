@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.order;
 
-import com.fish_dan_.data_energistics.api.crafting.dispatch.CraftingVirtualCompletionDispatch;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputRegistration;
-import com.fish_dan_.data_energistics.item.OrderPackageTarget;
+import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsEntrypoint;
+import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsPlugin;
+import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
+import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -14,21 +15,16 @@ import java.util.Optional;
 /**
  * Isolated order-package adapter for the generic virtual crafting output contract.
  */
-public final class OrderPackageVirtualOutputAdapter implements VirtualCraftingOutputAdapter {
+@DataEnergisticsEntrypoint
+public final class OrderPackageVirtualOutputAdapter implements VirtualCraftingOutputAdapter, DataEnergisticsPlugin {
 
-    private static final OrderPackageVirtualOutputAdapter INSTANCE = new OrderPackageVirtualOutputAdapter();
-    private static VirtualCraftingOutputRegistration registration;
+    /** Public constructor required by the common entrypoint scanner. */
+    public OrderPackageVirtualOutputAdapter() {}
 
-    private OrderPackageVirtualOutputAdapter() {}
-
-    /**
-     * Registers the built-in adapter exactly once during common bootstrap.
-     */
-    public static synchronized void init() {
-        if (registration != null) {
-            throw new IllegalStateException("Order package virtual output adapter was initialized more than once");
-        }
-        registration = CraftingVirtualCompletionDispatch.registerAdapter(INSTANCE);
+    /** Stages this built-in virtual output adapter in the unified plugin registry. */
+    @Override
+    public void register(DataEnergisticsRegistry registry) {
+        registry.virtualCrafting().registerOutputAdapter(this);
     }
 
     @Override

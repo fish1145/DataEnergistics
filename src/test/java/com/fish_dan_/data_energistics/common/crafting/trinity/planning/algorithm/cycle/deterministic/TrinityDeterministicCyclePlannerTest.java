@@ -164,7 +164,7 @@ public final class TrinityDeterministicCyclePlannerTest {
         BigInteger largeRequest = BigInteger.valueOf(1_256_000_000L);
         BigInteger largeRequiredFuel = BigInteger.valueOf(8_792_000_000L);
         BigInteger largeAvailableFuel = BigInteger.valueOf(2_147_483_821L);
-        TrinityDeterministicCyclePlanner shortagePlanner = new TrinityDeterministicCyclePlannerImpl(
+        TrinityDeterministicCyclePlanner shortagePlanner = new TrinityDeterministicCyclePlanner(
                 (oneCycleOrder, repetitions, initialBalances, maxStates, control) -> {
                     throw new AssertionError("An exact input shortage must be resolved before scheduling");
                 });

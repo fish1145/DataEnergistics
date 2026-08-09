@@ -17,15 +17,14 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import org.jetbrains.annotations.NotNull;
 
 public class DataSanctumReturnPortalRenderer implements BlockEntityRenderer<DataSanctumReturnPortalBlockEntity> {
 
     public DataSanctumReturnPortalRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public void render(@NotNull DataSanctumReturnPortalBlockEntity blockEntity, float partialTick,
-                       @NotNull PoseStack poseStack, @NotNull MultiBufferSource buffer, int packedLight,
+    public void render(DataSanctumReturnPortalBlockEntity blockEntity, float partialTick,
+                       PoseStack poseStack, MultiBufferSource buffer, int packedLight,
                        int packedOverlay) {
         BakedModel model = Minecraft.getInstance().getModelManager().getModel(DataSanctumRenderer.PORTAL_MODEL);
         BlockState renderState = Blocks.IRON_BLOCK.defaultBlockState();
@@ -33,7 +32,7 @@ public class DataSanctumReturnPortalRenderer implements BlockEntityRenderer<Data
     }
 
     @Override
-    public @NotNull AABB getRenderBoundingBox(@NotNull DataSanctumReturnPortalBlockEntity blockEntity) {
+    public AABB getRenderBoundingBox(DataSanctumReturnPortalBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).inflate(3.0D, 0.0D, 3.0D).expandTowards(0.0D, 5.0D, 0.0D);
     }
 

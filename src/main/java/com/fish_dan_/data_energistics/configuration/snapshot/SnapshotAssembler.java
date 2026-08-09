@@ -25,7 +25,9 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-/** Converts all mutable schema values into one strictly validated immutable business snapshot. */
+/**
+ * Converts all mutable schema values into one strictly validated immutable business snapshot.
+ */
 public final class SnapshotAssembler {
 
     private static final int MAX_SANCTUM_BASE_CAPACITY = Integer.MAX_VALUE / 8;
@@ -65,6 +67,7 @@ public final class SnapshotAssembler {
         TrinityDispatchSettings dispatch = dispatch(schema, source);
         return new ConfigurationSnapshot(
                 revision,
+                schema.verboseRuntimeLogging,
                 dataRipper,
                 tower,
                 sanctum,

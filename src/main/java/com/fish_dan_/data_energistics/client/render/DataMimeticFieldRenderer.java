@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.render;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
@@ -21,7 +21,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import org.jetbrains.annotations.NotNull;
 
 public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimeticFieldBlockEntity> {
 
@@ -44,8 +43,8 @@ public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimetic
     public DataMimeticFieldRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public void render(@NotNull DataMimeticFieldBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
-                       @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(DataMimeticFieldBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight, int packedOverlay) {
         var level = blockEntity.getLevel();
         if (level == null) {
             return;
@@ -102,13 +101,13 @@ public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimetic
     }
 
     private static BakedModel getCarrierModel(Minecraft minecraft, ItemStack stack) {
-        if (stack.is(ModItems.MOB_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.MOB_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(MOB_CARRIER_MODEL);
         }
-        if (stack.is(ModItems.ORE_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.ORE_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(ORE_CARRIER_MODEL);
         }
-        if (stack.is(ModItems.CROP_DATA_CARRIER.get())) {
+        if (stack.is(DEItems.CROP_DATA_CARRIER.get())) {
             return minecraft.getModelManager().getModel(CROP_CARRIER_MODEL);
         }
         return null;

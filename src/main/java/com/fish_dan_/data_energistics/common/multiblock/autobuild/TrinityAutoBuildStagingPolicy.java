@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.StagingPolicy;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockAutoBuildStaging;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.autobuild.JsonMultiBlockAutoBuildStaging;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

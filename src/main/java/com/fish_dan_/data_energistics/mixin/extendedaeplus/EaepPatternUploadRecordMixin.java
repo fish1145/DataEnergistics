@@ -18,12 +18,12 @@ public abstract class EaepPatternUploadRecordMixin {
     @Inject(method = "recordProviderUpload", at = @At("RETURN"), remap = false, require = 1)
     private static void dataEnergistics$recordProviderUpload(ServerPlayer player, long providerId,
                                                              PatternContainer container, int slot, CallbackInfo ci) {
-        EaepPatternUploadScope.recordProviderUpload(player, container, slot);
+        EaepPatternUploadScope.recordProviderUpload(player, container);
     }
 
     @Inject(method = "recordMatrixUpload", at = @At("RETURN"), remap = false, require = 1)
     private static void dataEnergistics$recordMatrixUpload(ServerPlayer player, BlockPos position, String dimension,
                                                            boolean plus, int slot, CallbackInfo ci) {
-        EaepPatternUploadScope.recordMatrixUpload(player, position, dimension, plus, slot);
+        EaepPatternUploadScope.recordMatrixUpload(player, position, dimension, plus);
     }
 }

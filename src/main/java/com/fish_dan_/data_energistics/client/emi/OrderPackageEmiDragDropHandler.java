@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.client.OrderPackageGhostIngredient;
-import com.fish_dan_.data_energistics.client.screen.OrderPackageScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;

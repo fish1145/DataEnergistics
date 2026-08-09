@@ -5,8 +5,8 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
  *
  * @param sccCount       strongly connected components visited
  * @param variantCount   legal binding variants considered
- * @param planningNanos  complete Trinity planning duration
- * @param mipNanos       time spent inside MIP solves
+ * @param planningNanos  complete duration of the current Trinity planning request
+ * @param mipNanos       time spent inside MIP solves by the current request; zero for an exact cache hit
  * @param scheduleStates compressed scheduler states explored
  */
 public record TrinityPlanningStatistics(

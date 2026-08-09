@@ -3,18 +3,19 @@ package com.fish_dan_.data_energistics.part;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderDisplayHelper;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderExternalHandlers;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderReturnFluidHandler;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderReturnItemHandler;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderState;
+import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderCapabilities;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -23,7 +24,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -172,31 +172,17 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public @Nullable PatternContainerGroup getPrimaryAttachedMachineGroup() {
-        var blockEntity = this.getBlockEntity();
-        var level = blockEntity != null ? blockEntity.getLevel() : null;
-        var side = this.getSide();
-        if (blockEntity == null || level == null || side == null) {
-            return null;
-        }
-
-        BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        PatternContainerGroup specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
-        if (specialGroup != null) {
-            return specialGroup;
-        }
-
         return getAdjacentMachineGroup();
     }
 
     @Override
     public boolean isMeteoriteProviderSelected() {
-        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.METEORITE;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.METEORITE);
     }
 
     @Override
     public boolean isAdvancedAeProviderSelected() {
-        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.ADVANCED_PATTERN);
     }
 
     @Override
@@ -204,20 +190,17 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
-        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_ANDESITE || kind == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_BRASS;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.MECHANICAL_CRAFTING);
     }
 
     @Override
     public boolean isResonatingProviderSelected() {
-        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.RESONATING || kind == AdaptivePatternProviderResolver.ProviderKind.EXTENDED_RESONATING;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.RESONATING);
     }
 
     @Override
     public boolean supportsFilteredImportToggle() {
-        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED;
+        return hasProviderCapability(AdaptivePatternProviderCapabilities.FILTERED_IMPORT);
     }
 
     @Override
@@ -255,12 +238,12 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, MenuLocators.forPart(this));
+        MenuOpener.open(DEMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, MenuLocators.forPart(this));
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, subMenu.getLocator());
     }
 
     @Override
@@ -290,7 +273,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return;
         }
 
-        builder.set(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
+        builder.set(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
     }
 
     @Override
@@ -302,7 +285,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
         boolean patternInventoryChanged = this.getLogic().runWithPatternInventoryCallbacksSuppressed(
                 () -> super.importSettings(mode, input, player));
-        CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
         boolean stateChanged = settings != null && getAdaptiveState().readMemoryCardSettings(settings);
         boolean patternSlotsReconciled = this.getLogic().reconcileConfiguredPatternSlotsAfterSettingsImport();
         boolean patternsUpdated = patternSlotsReconciled;
@@ -384,8 +367,8 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public PatternContainerGroup getTerminalGroup() {
-        if (this instanceof Nameable nameable && nameable.hasCustomName()) {
-            return new PatternContainerGroup(this.getTerminalIcon(), nameable.getCustomName(), List.of());
+        if (this.hasCustomName()) {
+            return new PatternContainerGroup(this.getTerminalIcon(), this.getCustomName(), List.of());
         }
 
         var adjacentGroup = getAdjacentMachineGroup();
@@ -422,7 +405,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {
-        return this.getUpgrades().getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+        return this.getUpgrades().getInstalledUpgrades(DEItems.REDSTONE_TUNING_CARD.get()) > 0;
     }
 
     @Override
@@ -654,7 +637,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
         var level = blockEntity.getLevel();
         var side = this.getSide();
-        if (blockEntity == null || level == null || side == null) {
+        if (level == null || side == null) {
             return null;
         }
 
@@ -691,6 +674,13 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     private String getAdaptiveProviderVariantTranslationKey() {
         return "screen.data_energistics.adaptive_pattern_provider_part.provider_variant";
+    }
+
+    /**
+     * Checks one registered behavior on the currently installed provider.
+     */
+    private boolean hasProviderCapability(ResourceLocation capability) {
+        return AdaptivePatternProviderResolver.hasResolvedCapability(getProviderStack(), capability);
     }
 
     private AdaptivePatternProviderState getAdaptiveState() {

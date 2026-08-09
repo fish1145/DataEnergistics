@@ -90,6 +90,40 @@ public record CraftingDispatchMetrics(
     }
 
     /**
+     * Captures a Grid tick that had no prepared Trinity runtime and therefore created no physical dispatch window.
+     *
+     * @param serverTickNanos completed logical-server tick duration
+     * @param proposals       independently drained proposal scheduler facts
+     * @return immutable zero-work dispatch metrics retaining the proposal facts
+     */
+    public static CraftingDispatchMetrics captureWithoutDispatch(
+                                                                 long serverTickNanos,
+                                                                 DispatchProposalMetrics proposals) {
+        if (proposals == null) {
+            throw new IllegalArgumentException("Dispatch proposal metrics are required");
+        }
+        return new CraftingDispatchMetrics(
+                serverTickNanos,
+                0L,
+                proposals.queueWaitNanos(),
+                proposals.calculationNanos(),
+                0L,
+                proposals.admitted(),
+                proposals.rejected(),
+                proposals.completed(),
+                proposals.failed(),
+                0,
+                0,
+                proposals.stale(),
+                BigInteger.ZERO,
+                0,
+                proposals.queueDepth(),
+                proposals.queueCapacity(),
+                proposals.outstanding(),
+                0.0D);
+    }
+
+    /**
      * @return current global proposal queue utilization
      */
     public double queueRatio() {

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
 public final class DataReassemblerLayout {
 

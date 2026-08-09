@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.integration.appmek;
 
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderReturnChemicalHandler;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
@@ -29,7 +29,7 @@ public final class AppMekCompat {
     public static void registerChemicalBlockEntityCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
                 getChemicalBlockCapability(),
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                DEBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> asChemicalHandler(blockEntity.getExternalReturnChemicalHandler(context)));
     }
 

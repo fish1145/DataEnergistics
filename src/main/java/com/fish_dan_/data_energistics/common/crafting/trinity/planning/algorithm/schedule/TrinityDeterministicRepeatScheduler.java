@@ -18,7 +18,7 @@ public interface TrinityDeterministicRepeatScheduler {
      * @return stateless exact repeat scheduler
      */
     static TrinityDeterministicRepeatScheduler create() {
-        return new TrinityDeterministicRepeatSchedulerImpl();
+        return new AffineTrinityDeterministicRepeatScheduler();
     }
 
     /**

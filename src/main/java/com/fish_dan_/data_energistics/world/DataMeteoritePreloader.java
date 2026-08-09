@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.world;
 
-import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;

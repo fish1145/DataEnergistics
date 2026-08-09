@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
-import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProviderImpl;
+import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProvider;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.network.chat.Component;
 
@@ -24,13 +24,13 @@ public final class DataRipperReassemblerRecipeCategory
             "data_reassembler",
             DataRipperReassemblerRecipeView.class);
 
-    private static final DataRipperReassemblerRecipeUiProviderImpl UI_PROVIDER = new DataRipperReassemblerRecipeUiProviderImpl(new DataReassemblerRecipeIngredientAdapterImpl());
+    private static final DataRipperReassemblerRecipeUiProvider UI_PROVIDER = new DataRipperReassemblerRecipeUiProvider(new JeiDataReassemblerIngredientAdapter());
 
     private final IDrawable icon;
 
     public DataRipperReassemblerRecipeCategory(IGuiHelper guiHelper) {
         super(UI_PROVIDER);
-        this.icon = guiHelper.createDrawableItemLike(ModBlocks.DATA_RIPPER_REASSEMBLER.get());
+        this.icon = guiHelper.createDrawableItemLike(DEBlocks.DATA_RIPPER_REASSEMBLER.get());
     }
 
     @Override

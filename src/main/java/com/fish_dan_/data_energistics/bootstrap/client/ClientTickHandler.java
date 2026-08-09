@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
-import com.fish_dan_.data_energistics.registry.ModParticles;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
+import com.fish_dan_.data_energistics.registry.DEParticles;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -50,7 +50,7 @@ final class ClientTickHandler {
     private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {
         var player = minecraft.player;
         ItemStack stack = player.getItemInHand(hand);
-        if (!stack.is(ModItems.MATTER_CONVERGING_CROSSBOW.get())) {
+        if (!stack.is(DEItems.MATTER_CONVERGING_CROSSBOW.get())) {
             return;
         }
 
@@ -105,7 +105,7 @@ final class ClientTickHandler {
         }
 
         for (Entity entity : minecraft.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(ModMobEffects.DATA_DISORDER) || livingEntity.isInvisible()) {
+            if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(DEMobEffects.DATA_DISORDER) || livingEntity.isInvisible()) {
                 continue;
             }
 
@@ -117,7 +117,7 @@ final class ClientTickHandler {
             double xSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
             double ySpeed = 0.015D + livingEntity.getRandom().nextDouble() * 0.02D;
             double zSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
-            minecraft.level.addParticle(ModParticles.DATA_DISORDER.get(), x, y, z, xSpeed, ySpeed, zSpeed);
+            minecraft.level.addParticle(DEParticles.DATA_DISORDER.get(), x, y, z, xSpeed, ySpeed, zSpeed);
         }
     }
 

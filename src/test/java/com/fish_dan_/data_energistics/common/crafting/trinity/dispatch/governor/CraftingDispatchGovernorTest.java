@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
 
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,47 @@ public final class CraftingDispatchGovernorTest {
         assertEquals(2.0D / 3.0D, snapshot.lastAcceptanceRatio());
         assertEquals(0.75D, snapshot.lastBusiestWorkerShare());
         assertEquals(0, snapshot.lastProposalFailures());
+    }
+
+    @Test
+    void emptyGridMetricsPreserveProposalFactsWithoutPhysicalWindowFacts() {
+        DispatchProposalMetrics proposals = new DispatchProposalMetrics(
+                2,
+                3,
+                4,
+                1,
+                5,
+                6L,
+                7L,
+                8,
+                16,
+                0);
+
+        CraftingDispatchMetrics actual = CraftingDispatchMetrics.captureWithoutDispatch(
+                TimeUnit.MILLISECONDS.toNanos(42L),
+                proposals);
+
+        assertEquals(
+                new CraftingDispatchMetrics(
+                        TimeUnit.MILLISECONDS.toNanos(42L),
+                        0L,
+                        6L,
+                        7L,
+                        0L,
+                        2,
+                        3,
+                        4,
+                        1,
+                        0,
+                        0,
+                        5,
+                        BigInteger.ZERO,
+                        0,
+                        8,
+                        16,
+                        0,
+                        0.0D),
+                actual);
     }
 
     @Test
@@ -93,7 +135,7 @@ public final class CraftingDispatchGovernorTest {
     @Test
     void serverBudgetSharesHeadroomAndRetainsOneMillisecondWhenAlreadyOverloaded() {
         AtomicLong nanoClock = new AtomicLong();
-        CraftingServerDispatchBudgetImpl budget = new CraftingServerDispatchBudgetImpl(
+        MeasuredCraftingServerDispatchBudget budget = new MeasuredCraftingServerDispatchBudget(
                 nanoClock::get,
                 TimeUnit.MILLISECONDS.toNanos(50L),
                 TimeUnit.MILLISECONDS.toNanos(1L));

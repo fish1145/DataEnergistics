@@ -34,30 +34,44 @@ public interface TrinityCraftingRuntimeRegistry {
      */
     boolean data_energistics$withdraw(IGridNode node);
 
-    /** Creates isolated membership state for one crafting service instance. */
+    /**
+     * Creates isolated membership state for one crafting service instance.
+     */
     static Local createLocal() {
-        return new TrinityCraftingRuntimeRegistryImpl();
+        return new LocalTrinityCraftingRuntimeRegistry();
     }
 
-    /** Internal view used by the crafting-service mixin to consume and reconcile its own publications. */
+    /**
+     * Internal view used by the crafting-service mixin to consume and reconcile its own publications.
+     */
     interface Local extends TrinityCraftingRuntimeRegistry {
 
-        /** Returns the immutable snapshot, deduplicated by runtime identity. */
+        /**
+         * Returns the immutable snapshot, deduplicated by runtime identity.
+         */
         List<TrinityDataCoreCraftingRuntime> snapshot();
 
-        /** Atomically replaces node publications from one complete AE2 machine scan. */
+        /**
+         * Atomically replaces node publications from one complete AE2 machine scan.
+         */
         List<TrinityDataCoreCraftingRuntime> reconcile(
                                                        Map<IGridNode, TrinityDataCoreCraftingRuntime> scannedRegistrations);
     }
 }
 
-/** Identity-based runtime membership owned by exactly one crafting service. */
-final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntimeRegistry.Local {
+/**
+ * Identity-based runtime membership owned by exactly one crafting service.
+ */
+final class LocalTrinityCraftingRuntimeRegistry implements TrinityCraftingRuntimeRegistry.Local {
 
-    /** Exact access-node publications; node equality must never merge distinct AE2 nodes. */
+    /**
+     * Exact access-node publications; node equality must never merge distinct AE2 nodes.
+     */
     private final Map<IGridNode, TrinityDataCoreCraftingRuntime> registrations = new IdentityHashMap<>();
 
-    /** Immutable service-visible runtime membership replaced only after a complete mutation succeeds. */
+    /**
+     * Immutable service-visible runtime membership replaced only after a complete mutation succeeds.
+     */
     private volatile List<TrinityDataCoreCraftingRuntime> snapshot = List.of();
 
     @Override
@@ -105,7 +119,9 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
         return commitRegistrations(replacements);
     }
 
-    /** Builds the complete immutable view before changing live identity registrations. */
+    /**
+     * Builds the complete immutable view before changing live identity registrations.
+     */
     private List<TrinityDataCoreCraftingRuntime> commitRegistrations(
                                                                      Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements) {
         List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values(), this.snapshot);

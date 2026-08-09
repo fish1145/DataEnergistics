@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -34,13 +34,13 @@ public class DataCrystalBuddingBlock extends BuddingAmethystBlock {
         Block block = null;
 
         if (canClusterGrowAtState(targetState)) {
-            block = ModBlocks.SMALL_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.SMALL_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
-            block = ModBlocks.MEDIUM_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
-            block = ModBlocks.LARGE_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.LARGE_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
-            block = ModBlocks.DATA_CRYSTAL_CLUSTER.get();
+            block = DEBlocks.SMALL_DATA_CRYSTAL_BUD.get();
+        } else if (targetState.is(DEBlocks.SMALL_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+            block = DEBlocks.MEDIUM_DATA_CRYSTAL_BUD.get();
+        } else if (targetState.is(DEBlocks.MEDIUM_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+            block = DEBlocks.LARGE_DATA_CRYSTAL_BUD.get();
+        } else if (targetState.is(DEBlocks.LARGE_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+            block = DEBlocks.DATA_CRYSTAL_CLUSTER.get();
         }
 
         if (block == null) {
@@ -55,17 +55,17 @@ public class DataCrystalBuddingBlock extends BuddingAmethystBlock {
     }
 
     private void tryDecay(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
-        if (state.is(ModBlocks.BUDDING_DATA_CRYSTAL_4.get()) || random.nextInt(DECAY_CHANCE) != 0) {
+        if (state.is(DEBlocks.BUDDING_DATA_CRYSTAL_4.get()) || random.nextInt(DECAY_CHANCE) != 0) {
             return;
         }
 
         Block nextBlock;
-        if (state.is(ModBlocks.BUDDING_DATA_CRYSTAL_3.get())) {
-            nextBlock = ModBlocks.BUDDING_DATA_CRYSTAL_2.get();
-        } else if (state.is(ModBlocks.BUDDING_DATA_CRYSTAL_2.get())) {
-            nextBlock = ModBlocks.BUDDING_DATA_CRYSTAL_1.get();
-        } else if (state.is(ModBlocks.BUDDING_DATA_CRYSTAL_1.get())) {
-            nextBlock = ModBlocks.BUDDING_DATA_CRYSTAL_0.get();
+        if (state.is(DEBlocks.BUDDING_DATA_CRYSTAL_3.get())) {
+            nextBlock = DEBlocks.BUDDING_DATA_CRYSTAL_2.get();
+        } else if (state.is(DEBlocks.BUDDING_DATA_CRYSTAL_2.get())) {
+            nextBlock = DEBlocks.BUDDING_DATA_CRYSTAL_1.get();
+        } else if (state.is(DEBlocks.BUDDING_DATA_CRYSTAL_1.get())) {
+            nextBlock = DEBlocks.BUDDING_DATA_CRYSTAL_0.get();
         } else {
             throw new IllegalStateException("Unexpected data crystal motherrock: " + state);
         }

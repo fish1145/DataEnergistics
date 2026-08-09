@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
 
 import net.minecraft.world.item.Item;

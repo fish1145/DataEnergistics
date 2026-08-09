@@ -5,6 +5,7 @@ import net.minecraft.nbt.ListTag;
 
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -85,7 +86,7 @@ public final class AvailabilityCheckedCompartmentStorage implements CompartmentS
         storage.deserializeNBT(registries, tag);
     }
 
-    private CompartmentStorage availableStorage() {
+    private @Nullable CompartmentStorage availableStorage() {
         if (!this.available.getAsBoolean()) {
             return null;
         }

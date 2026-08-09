@@ -2,22 +2,23 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
-import com.fish_dan_.data_energistics.menu.common.LegacyPatternEncodingPreferences;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreferenceMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncTracker;
-import com.fish_dan_.data_energistics.menu.common.PatternUploadRecorder;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
@@ -52,7 +53,6 @@ import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.invoke.VarHandle;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -66,18 +66,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
     private static final String ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
-    @Nullable
-    private static final VarHandle FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD = resolveInheritedField("dataEnergistics$networkBlankPatternCount");
-    @Nullable
-    private static final VarHandle FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD = resolveInheritedField("dataEnergistics$syncedPatternProviders");
-    @Nullable
-    private static final VarHandle FALLBACK_PENDING_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$pendingPatternSource");
-    @Nullable
-    private static final VarHandle FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
-    @Nullable
-    private static final VarHandle FALLBACK_PATTERN_SOURCE_ENABLED_FIELD = resolveInheritedField("dataEnergistics$patternSourceEnabled");
-    @Nullable
-    private static final VarHandle FALLBACK_UPLOAD_ENABLED_FIELD = resolveInheritedField("dataEnergistics$uploadEnabled");
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     private static final String ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
     private static final int CRAFTING_GRID_WIDTH = 3;
@@ -112,7 +100,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private long nextSyncedPatternProviderId = 1;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
-        this(ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
+        this(DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
     }
 
     public UniversalPatternEncodingTermMenu(MenuType<?> menuType, int id, Inventory playerInventory,
@@ -136,6 +124,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             this.patternSourceEnabled = legacyPreferences.patternSourceEnabled();
             this.uploadEnabled = legacyPreferences.uploadEnabled();
             this.lastEncodedPatternSource = legacyPreferences.lastWorkstation();
+            data_energistics$getPreferenceSession().initializeConfirmedWorkstation(
+                    this.lastEncodedPatternSource);
             this.previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
             this.previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
         }
@@ -178,6 +168,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         boolean encodedSuccessfully = false;
         try {
+            syncPatternProvidersIfNeeded(true);
+            PatternEncodingSourceHelper.applyPatternSource(this,
+                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+            PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(this);
             ItemStack encodedPattern = encodePatternVirtual();
             if (encodedPattern == null) {
                 clearEncodedPatternSlot();
@@ -194,13 +188,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
-            if (this instanceof PatternEncodingSourceAware sourceAware) {
-                PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
-                        PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
-            }
             encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
-            syncPatternProvidersIfNeeded(true);
         } finally {
             if (handoffStarted) {
                 try {
@@ -230,22 +219,25 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public long data_energistics$getNetworkBlankPatternCount() {
-        if (this.networkBlankPatternCount > 0) {
-            return this.networkBlankPatternCount;
-        }
-
-        Long fallbackCount = readFallbackNetworkBlankPatternCount();
-        return fallbackCount != null ? fallbackCount : this.networkBlankPatternCount;
+        return this.networkBlankPatternCount;
     }
 
     @Override
-    public List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
-        if (!this.syncedPatternProviders.providers().isEmpty()) {
-            return this.syncedPatternProviders.providers();
+    public SyncedPatternProviderList data_energistics$getSyncedPatternProviderState() {
+        if (!this.syncedPatternProviders.providers().isEmpty() ||
+                this.syncedPatternProviders.rankingContext() != null) {
+            return this.syncedPatternProviders;
         }
 
-        SyncedPatternProviderList fallbackProviders = readFallbackSyncedPatternProviders();
-        return fallbackProviders != null ? fallbackProviders.providers() : this.syncedPatternProviders.providers();
+        return readFallbackSyncedPatternProviders();
+    }
+
+    @Override
+    public void data_energistics$refreshSyncedPatternProviders() {
+        if (this.isClientSide()) {
+            throw new IllegalStateException("Pattern provider network refresh must run on the server");
+        }
+        syncPatternProvidersFromNetwork();
     }
 
     @Override
@@ -264,18 +256,29 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
 
+        syncPatternProvidersFromNetwork();
         var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
         if (providers == null || providers.isEmpty()) {
-            syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.target_unavailable"));
+            return;
         }
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
-        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
+        var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
+                this,
+                data_energistics$getPreferenceSession(),
+                providerId);
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                providers,
+                encodedPattern,
+                uploadContext);
+        if (transferResult.rejected()) {
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    transferResult.rejection().messageKeyOrThrow()));
+            return;
+        }
         if (transferResult.duplicateFound()) {
             returnEncodedPatternAsBlankToNetwork();
             this.getPlayer().sendSystemMessage(Component.translatable(
@@ -290,8 +293,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         encodedPatternInv.setItemDirect(0, remainder.isEmpty() ? ItemStack.EMPTY : remainder);
-        if (transferResult.firstCommittedTarget() != null && this.getPlayer() instanceof ServerPlayer serverPlayer) {
-            PatternUploadRecorder.record(serverPlayer, this, transferResult.firstCommittedTarget(),
+        if (this.getPlayer() instanceof ServerPlayer serverPlayer) {
+            PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
                     PatternUploadSource.DATA_ENERGISTICS);
         }
         syncPatternProvidersFromNetwork();
@@ -343,8 +346,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public void data_energistics$setPendingPatternSource(@Nullable ResourceLocation workstationId) {
         ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode);
-        data_energistics$getPreferenceSession().setRankingContext(
-                PatternEncodingSourceHelper.resolveFixedModeRankingContext(this.mode, fixedWorkstation));
+        if (fixedWorkstation != null) {
+            data_energistics$getPreferenceSession().setRankingContext(
+                    PatternEncodingSourceHelper.resolveFixedModeRankingContext(this.mode, fixedWorkstation));
+        }
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     workstationId != null ? workstationId.toString() : PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -352,9 +357,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         } else {
             writeFallbackPendingPatternSource(workstationId);
             PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), workstationId);
-            if (data_energistics$isPatternSourceEnabled()) {
-                data_energistics$setLastEncodedPatternSource(workstationId);
-            }
         }
     }
 
@@ -415,8 +417,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public boolean data_energistics$isPatternSourceEnabled() {
-        Boolean fallback = readFallbackPatternSourceEnabled();
-        return fallback != null ? fallback : this.patternSourceEnabled;
+        return readFallbackPatternSourceEnabled();
     }
 
     @Override
@@ -433,8 +434,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public boolean data_energistics$isUploadEnabled() {
-        Boolean fallback = readFallbackUploadEnabled();
-        return fallback != null ? fallback : this.uploadEnabled;
+        return readFallbackUploadEnabled();
     }
 
     @Override
@@ -523,31 +523,25 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                PatternEncodingSourceHelper.resolvePreferredWorkstationId(this),
-                this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
+                data_energistics$getPreferenceSession().rankingContext());
     }
 
     private void syncPatternProvidersFromNetwork(
                                                  IGrid grid,
                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                  long currentTick,
-                                                 @Nullable ResourceLocation preferredWorkstationId,
-                                                 ItemStack encodedPattern) {
+                                                 @Nullable PatternEncodingRankingContext rankingContext) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern,
+                rankingContext,
                 data_energistics$getPreferenceSession().leafCounts());
         this.patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern);
+                rankingContext);
         this.lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 
@@ -559,16 +553,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
-        ResourceLocation preferredWorkstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(this);
-        ItemStack encodedPattern = this.host.getLogic().getEncodedPatternInv().getStackInSlot(0);
+        PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (!force && preferenceRevision == this.lastPreferenceRevision && !this.patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                this.getMode(),
-                encodedPattern)) {
+                rankingContext)) {
             return;
         }
 
@@ -576,8 +567,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 publication,
                 currentTick,
-                preferredWorkstationId,
-                encodedPattern);
+                rankingContext);
     }
 
     private void clearSyncedPatternProviders() {
@@ -659,87 +649,46 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         syncPatternProvidersFromNetwork();
     }
 
-    @Nullable
-    private static VarHandle resolveInheritedField(String fieldName) {
-        return ReflectionAccess.findField(PatternEncodingTermMenu.class, fieldName).orElse(null);
+    private PatternEncodingInheritedState inheritedState() {
+        return (PatternEncodingInheritedState) this;
     }
 
-    @Nullable
-    private static Object readInheritedField(@Nullable VarHandle field, Object target) {
-        if (field == null) {
-            return null;
-        }
-
-        try {
-            return field.get(target);
-        } catch (RuntimeException | LinkageError exception) {
-            Data_Energistics.LOGGER.error("Failed to read inherited Universal pattern encoding state", exception);
-            return null;
-        }
-    }
-
-    private static void writeInheritedField(@Nullable VarHandle field, Object target, @Nullable Object value) {
-        if (field == null) {
-            return;
-        }
-
-        try {
-            field.set(target, value);
-        } catch (RuntimeException | LinkageError exception) {
-            Data_Energistics.LOGGER.error("Failed to write inherited Universal pattern encoding state", exception);
-        }
-    }
-
-    @Nullable
-    private Long readFallbackNetworkBlankPatternCount() {
-        Object value = readInheritedField(FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD, this);
-        return value instanceof Long count ? count : null;
-    }
-
-    @Nullable
     private SyncedPatternProviderList readFallbackSyncedPatternProviders() {
-        Object value = readInheritedField(FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD, this);
-        return value instanceof SyncedPatternProviderList providers ? providers : null;
+        return inheritedState().dataEnergistics$getInheritedSyncedPatternProviders();
     }
 
     @Nullable
     private ResourceLocation readFallbackPendingPatternSource() {
-        Object value = readInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this);
-        return value instanceof ResourceLocation id ? id : null;
+        return inheritedState().dataEnergistics$getInheritedPendingPatternSource();
     }
 
     private void writeFallbackPendingPatternSource(@Nullable ResourceLocation workstationId) {
-        writeInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this, workstationId);
+        inheritedState().dataEnergistics$setInheritedPendingPatternSource(workstationId);
     }
 
     @Nullable
     private ResourceLocation readFallbackLastEncodedPatternSource() {
-        Object value = readInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this);
-        return value instanceof ResourceLocation id ? id : null;
+        return inheritedState().dataEnergistics$getInheritedLastEncodedPatternSource();
     }
 
     private void writeFallbackLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
-        writeInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this, workstationId);
+        inheritedState().dataEnergistics$setInheritedLastEncodedPatternSource(workstationId);
     }
 
-    @Nullable
-    private Boolean readFallbackPatternSourceEnabled() {
-        Object value = readInheritedField(FALLBACK_PATTERN_SOURCE_ENABLED_FIELD, this);
-        return value instanceof Boolean enabled ? enabled : null;
+    private boolean readFallbackPatternSourceEnabled() {
+        return inheritedState().dataEnergistics$isInheritedPatternSourceEnabled();
     }
 
     private void writeFallbackPatternSourceEnabled(boolean enabled) {
-        writeInheritedField(FALLBACK_PATTERN_SOURCE_ENABLED_FIELD, this, enabled);
+        inheritedState().dataEnergistics$setInheritedPatternSourceEnabled(enabled);
     }
 
-    @Nullable
-    private Boolean readFallbackUploadEnabled() {
-        Object value = readInheritedField(FALLBACK_UPLOAD_ENABLED_FIELD, this);
-        return value instanceof Boolean enabled ? enabled : null;
+    private boolean readFallbackUploadEnabled() {
+        return inheritedState().dataEnergistics$isInheritedUploadEnabled();
     }
 
     private void writeFallbackUploadEnabled(boolean enabled) {
-        writeInheritedField(FALLBACK_UPLOAD_ENABLED_FIELD, this, enabled);
+        inheritedState().dataEnergistics$setInheritedUploadEnabled(enabled);
     }
 
     private void clearEncodedPatternSlot() {
@@ -862,6 +811,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         var output = AEItemKey.of(recipe.value().assemble(input, level.registryAccess()));
+        if (output == null) {
+            return null;
+        }
         return PatternDetailsHelper.encodeSmithingTablePattern(recipe, template, base, addition, output,
                 logic.isSubstitution());
     }
@@ -887,6 +839,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         var output = AEItemKey.of(recipe.value().getResultItem(level.registryAccess()));
+        if (output == null) {
+            return null;
+        }
         return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output,
                 this.host.getLogic().isSubstitution());
     }

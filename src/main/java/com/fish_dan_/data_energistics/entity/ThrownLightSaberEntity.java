@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEEntities;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
@@ -69,7 +69,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     public ThrownLightSaberEntity(Level level, LivingEntity shooter, ItemStack saberStack) {
-        super(ModEntities.THROWN_LIGHT_SABER.get(), shooter, level, saberStack.copyWithCount(1), saberStack.copyWithCount(1));
+        super(DEEntities.THROWN_LIGHT_SABER.get(), shooter, level, saberStack.copyWithCount(1), saberStack.copyWithCount(1));
         this.setSaberStack(saberStack);
         this.pickup = Pickup.ALLOWED;
         this.entityData.set(ID_LOYALTY, this.getLoyaltyFromItem(saberStack));
@@ -77,7 +77,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     public ThrownLightSaberEntity(Level level, double x, double y, double z, ItemStack saberStack) {
-        super(ModEntities.THROWN_LIGHT_SABER.get(), x, y, z, level, saberStack.copyWithCount(1), saberStack.copyWithCount(1));
+        super(DEEntities.THROWN_LIGHT_SABER.get(), x, y, z, level, saberStack.copyWithCount(1), saberStack.copyWithCount(1));
         this.setSaberStack(saberStack);
         this.pickup = Pickup.ALLOWED;
         this.entityData.set(ID_LOYALTY, this.getLoyaltyFromItem(saberStack));
@@ -101,9 +101,12 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         }
 
         if (!this.level().isClientSide && this.isHoming() && !this.dealtDamage && !this.isNoPhysics()) {
-            this.applyHoming();
-            if (this.tryForceHomingHit()) {
-                return;
+            LivingEntity homingTarget = this.findNearestHomingTarget();
+            if (homingTarget != null) {
+                this.applyHoming(homingTarget);
+                if (this.tryForceHomingHit(homingTarget)) {
+                    return;
+                }
             }
         }
 
@@ -405,7 +408,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     private int getSaberEnergyCardCount(ItemStack stack) {
         return stack.isEmpty() ? 0 : Math.max(0, UpgradeInventories.forItem(stack, 6)
-                .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+                .getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     private boolean shouldUseExpandedDimensions() {
@@ -413,7 +416,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private static boolean shouldUseExpandedDimensions(ItemStack stack, int saberEnergyCardCount) {
-        return !stack.isEmpty() && stack.is(ModItems.DATA_SANCTIFIER.get()) && saberEnergyCardCount > 0;
+        return !stack.isEmpty() && stack.is(DEItems.DATA_SANCTIFIER.get()) && saberEnergyCardCount > 0;
     }
 
     private ItemStack getExpansionSourceStack() {
@@ -479,15 +482,10 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         return null;
     }
 
-    private void applyHoming() {
+    private void applyHoming(LivingEntity target) {
         Vec3 velocity = this.getDeltaMovement();
         double speed = velocity.length();
         if (speed < 1.0E-6D) {
-            return;
-        }
-
-        LivingEntity target = this.findNearestHomingTarget();
-        if (target == null) {
             return;
         }
 
@@ -522,12 +520,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
                 .orElse(null);
     }
 
-    private boolean tryForceHomingHit() {
-        LivingEntity target = this.findNearestHomingTarget();
-        if (target == null) {
-            return false;
-        }
-
+    private boolean tryForceHomingHit(LivingEntity target) {
         Vec3 start = this.position();
         Vec3 end = start.add(this.getDeltaMovement());
         AABB searchBox = this.getBoundingBox().expandTowards(this.getDeltaMovement()).inflate(HOMING_HIT_MARGIN);

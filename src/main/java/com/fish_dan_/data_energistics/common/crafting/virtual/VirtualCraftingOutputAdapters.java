@@ -1,14 +1,15 @@
 package com.fish_dan_.data_energistics.common.crafting.virtual;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
-import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputRegistration;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -21,22 +22,30 @@ import java.util.Optional;
  */
 public final class VirtualCraftingOutputAdapters {
 
-    private static final List<VirtualCraftingOutputAdapter> ADAPTERS = new ArrayList<>();
+    private static volatile List<VirtualCraftingOutputAdapter> ADAPTERS = List.of();
+    private static boolean installed;
 
     private VirtualCraftingOutputAdapters() {}
 
     /**
-     * Registers one adapter without permitting identity-duplicate lifecycle registration.
+     * Installs the immutable adapter snapshot assembled by the unified plugin registry.
      *
-     * @param adapter adapter to retain
-     * @return idempotent removal handle
+     * @param adapters adapters in deterministic plugin and registration order
      */
-    public static synchronized VirtualCraftingOutputRegistration register(VirtualCraftingOutputAdapter adapter) {
-        if (ADAPTERS.stream().anyMatch(registered -> registered == adapter)) {
-            throw new IllegalStateException("Virtual crafting output adapter is already registered");
+    public static synchronized void install(
+                                            List<VirtualCraftingOutputAdapter> adapters) {
+        if (installed) {
+            throw new IllegalStateException("Virtual crafting output adapters have already been installed");
         }
-        ADAPTERS.add(adapter);
-        return new Registration(adapter);
+        ArrayList<VirtualCraftingOutputAdapter> validated = new ArrayList<>(adapters.size());
+        for (VirtualCraftingOutputAdapter adapter : adapters) {
+            if (validated.stream().anyMatch(existing -> existing == adapter)) {
+                throw new IllegalStateException("Virtual crafting output adapter is registered more than once");
+            }
+            validated.add(adapter);
+        }
+        ADAPTERS = List.copyOf(validated);
+        installed = true;
     }
 
     /**
@@ -47,6 +56,7 @@ public final class VirtualCraftingOutputAdapters {
      * @return immutable logical and virtual output projection
      */
     public static VirtualCraftingOutputProjection project(IPatternDetails details) {
+        requireInstalled();
         if (details instanceof VirtualCraftingPatternOutputs projected) {
             return projected.dataEnergistics$virtualOutputProjection();
         }
@@ -60,22 +70,27 @@ public final class VirtualCraftingOutputAdapters {
     /**
      * Projects raw declared outputs without recursively resolving targets returned by an adapter.
      *
-     * @param declaredOutputs ordered complete raw outputs
+     * @param declaredOutputs ordered raw outputs; {@code null} entries are legal sparse-layout holes
      * @return immutable projection preserving first-key order after aggregation
      */
-    public static VirtualCraftingOutputProjection project(List<GenericStack> declaredOutputs) {
-        List<VirtualCraftingOutputAdapter> adapters;
-        synchronized (VirtualCraftingOutputAdapters.class) {
-            adapters = List.copyOf(ADAPTERS);
-        }
-        return project(declaredOutputs, adapters);
+    public static VirtualCraftingOutputProjection project(
+                                                          List<@Nullable GenericStack> declaredOutputs) {
+        requireInstalled();
+        return project(declaredOutputs, ADAPTERS);
     }
 
-    private static VirtualCraftingOutputProjection project(List<GenericStack> declaredOutputs,
+    private static VirtualCraftingOutputProjection project(
+                                                           List<@Nullable GenericStack> declaredOutputs,
                                                            List<VirtualCraftingOutputAdapter> adapters) {
         LinkedHashMap<AEKey, BigInteger> logical = new LinkedHashMap<>();
         ArrayList<VirtualCraftingCompletion> virtual = new ArrayList<>();
         for (GenericStack output : declaredOutputs) {
+            // AE2's encoded processing pattern deliberately preserves sparse slot positions with null entries.
+            // A routing/wrapper pattern may expose that same list through either its definition or live outputs.
+            // The hole carries no output semantics and must not be passed to the adapter or amount validation.
+            if (output == null) {
+                continue;
+            }
             if (output.amount() <= 0L) {
                 throw new IllegalArgumentException("A virtual crafting projection requires positive complete outputs");
             }
@@ -109,20 +124,35 @@ public final class VirtualCraftingOutputAdapters {
      * @return whether completion must not materialize an item
      */
     public static boolean hasNoOutputCompletion(GenericStack declaredOutput) {
-        List<VirtualCraftingOutputAdapter> adapters;
-        synchronized (VirtualCraftingOutputAdapters.class) {
-            adapters = List.copyOf(ADAPTERS);
-        }
-        return resolveOutput(adapters, declaredOutput)
+        requireInstalled();
+        return resolveOutput(ADAPTERS, declaredOutput)
                 .map(value -> value.mode() == VirtualCraftingCompletionMode.COMPLETE_WITHOUT_OUTPUT)
                 .orElse(false);
     }
 
-    private static Optional<ResolvedOutput> resolveOutput(List<VirtualCraftingOutputAdapter> adapters,
+    private static Optional<ResolvedOutput> resolveOutput(
+                                                          List<VirtualCraftingOutputAdapter> adapters,
                                                           GenericStack output) {
         ResolvedOutput resolved = null;
         for (VirtualCraftingOutputAdapter adapter : adapters) {
-            Optional<AEKey> candidate = adapter.resolveTarget(output);
+            Optional<AEKey> candidate;
+            try {
+                candidate = adapter.resolveTarget(output);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Virtual crafting output adapter {} failed while resolving {}; isolating that adapter",
+                        adapter,
+                        output,
+                        exception);
+                continue;
+            }
+            if (candidate == null) {
+                Data_Energistics.LOGGER.error(
+                        "Virtual crafting output adapter {} returned a null target result for {}; isolating that adapter",
+                        adapter,
+                        output);
+                continue;
+            }
             if (candidate.isEmpty()) {
                 continue;
             }
@@ -130,32 +160,38 @@ public final class VirtualCraftingOutputAdapters {
                 throw new IllegalStateException("Multiple virtual crafting adapters claimed output " + output.what());
             }
             AEKey target = candidate.get();
-            VirtualCraftingCompletionMode mode = adapter.completionMode(output);
+            VirtualCraftingCompletionMode mode;
+            try {
+                mode = adapter.completionMode(output);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Virtual crafting output adapter {} failed to select completion mode for {}; isolating that adapter",
+                        adapter,
+                        output,
+                        exception);
+                continue;
+            }
+            if (mode == null) {
+                Data_Energistics.LOGGER.error(
+                        "Virtual crafting output adapter {} returned a null completion mode for {}; isolating that adapter",
+                        adapter,
+                        output);
+                continue;
+            }
             resolved = new ResolvedOutput(target, mode);
         }
         return Optional.ofNullable(resolved);
     }
 
-    private record ResolvedOutput(AEKey target, VirtualCraftingCompletionMode mode) {}
-
-    private static final class Registration implements VirtualCraftingOutputRegistration {
-
-        private final VirtualCraftingOutputAdapter adapter;
-        private boolean active = true;
-
-        private Registration(VirtualCraftingOutputAdapter adapter) {
-            this.adapter = adapter;
-        }
-
-        @Override
-        public synchronized void close() {
-            if (!this.active) {
-                return;
-            }
-            synchronized (VirtualCraftingOutputAdapters.class) {
-                ADAPTERS.removeIf(registered -> registered == this.adapter);
-            }
-            this.active = false;
+    /**
+     * Rejects runtime queries before the common-setup snapshot has been installed.
+     */
+    private static void requireInstalled() {
+        if (!installed) {
+            throw new IllegalStateException("Virtual crafting output adapters are not installed");
         }
     }
+
+    private record ResolvedOutput(AEKey target,
+                                  VirtualCraftingCompletionMode mode) {}
 }

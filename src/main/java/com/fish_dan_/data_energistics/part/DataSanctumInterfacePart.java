@@ -1,16 +1,17 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataSanctumFluidPuller;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
-import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
-import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
-import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
-import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
-import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumFluidPuller;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.sanctum.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.mixin.core.accessor.InterfaceLogicTickAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.InterfaceLogicUpgradesAccessor;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -24,7 +25,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -65,6 +65,7 @@ import appeng.parts.PartModel;
 import appeng.util.SettingsFrom;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -115,6 +116,11 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
+    private final EnumMap<Direction, Integer> activePullKeyCursors = new EnumMap<>(Direction.class);
+    private AdjacentBlockCapabilityCache<MEStorage> adjacentMeStorages;
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
     private boolean activePullEnabled;
 
     public DataSanctumInterfacePart(IPartItem<?> partItem) {
@@ -181,7 +187,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
         CompoundTag settings = new CompoundTag();
         settings.putInt(ACTIVE_PULL_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(getActivePullSides()));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -191,7 +197,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -238,12 +244,12 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
+        MenuOpener.open(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), player, subMenu.getLocator());
     }
 
     @Override
@@ -428,6 +434,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
         if (activePullSides.isEmpty() || !(level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
             return false;
         }
+        initializeAdjacentCapabilityCaches(serverLevel);
 
         int keysScanned = 0;
         for (Direction side : activePullSides) {
@@ -436,21 +443,9 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
                 continue;
             }
 
-            BlockState targetState = serverLevel.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            BlockEntity targetBlockEntity = serverLevel.getBlockEntity(targetPos);
-            Direction targetFace = side.getOpposite();
-            MEStorage meStorage = serverLevel.getCapability(
-                    AECapabilities.ME_STORAGE,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            MEStorage meStorage = this.adjacentMeStorages.get(side);
             if (meStorage != null) {
-                PullResult result = pullFromMeStorage(meStorage, keysScanned);
+                PullResult result = pullFromMeStorage(side, meStorage, keysScanned);
                 keysScanned = result.keysScanned();
                 if (result.changed()) {
                     return true;
@@ -460,32 +455,17 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
                 }
             }
 
-            GenericInternalInventory genericInventory = serverLevel.getCapability(
-                    AECapabilities.GENERIC_INTERNAL_INV,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            GenericInternalInventory genericInventory = this.adjacentGenericInventories.get(side);
             if (genericInventory != null && pullFromGenericInventory(genericInventory)) {
                 return true;
             }
 
-            IItemHandler itemHandler = serverLevel.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            IItemHandler itemHandler = this.adjacentItemHandlers.get(side);
             if (itemHandler != null && pullFromItemHandler(itemHandler)) {
                 return true;
             }
 
-            IFluidHandler fluidHandler = serverLevel.getCapability(
-                    Capabilities.FluidHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    targetBlockEntity,
-                    targetFace);
+            IFluidHandler fluidHandler = this.adjacentFluidHandlers.get(side);
             if (fluidHandler != null && pullFromFluidHandler(fluidHandler)) {
                 return true;
             }
@@ -494,15 +474,74 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
         return false;
     }
 
-    private PullResult pullFromMeStorage(MEStorage storage, int keysScanned) {
-        for (var stack : storage.getAvailableStacks()) {
-            if (keysScanned++ >= ACTIVE_PULL_KEYS_PER_TICK) {
-                return new PullResult(false, keysScanned);
+    private void initializeAdjacentCapabilityCaches(ServerLevel level) {
+        if (this.adjacentMeStorages != null) {
+            return;
+        }
+
+        BlockPos origin = getInterfaceBlockPos();
+        AdjacentBlockCapabilityCache<MEStorage> meStorages = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.ME_STORAGE,
+                level,
+                origin,
+                this::isCapabilityCacheValid);
+        AdjacentBlockCapabilityCache<GenericInternalInventory> genericInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                level,
+                origin,
+                this::isCapabilityCacheValid);
+        AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.ItemHandler.BLOCK,
+                level,
+                origin,
+                this::isCapabilityCacheValid);
+        AdjacentBlockCapabilityCache<IFluidHandler> fluidHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.FluidHandler.BLOCK,
+                level,
+                origin,
+                this::isCapabilityCacheValid);
+        this.adjacentMeStorages = meStorages;
+        this.adjacentGenericInventories = genericInventories;
+        this.adjacentItemHandlers = itemHandlers;
+        this.adjacentFluidHandlers = fluidHandlers;
+    }
+
+    private boolean isCapabilityCacheValid() {
+        BlockEntity blockEntity = getBlockEntity();
+        Direction side = getSide();
+        return blockEntity != null && !blockEntity.isRemoved() && side != null && getHost().getPart(side) == this;
+    }
+
+    private PullResult pullFromMeStorage(Direction side, MEStorage storage, int keysScanned) {
+        var availableStacks = storage.getAvailableStacks();
+        int availableKeyCount = availableStacks.size();
+        if (availableKeyCount == 0) {
+            this.activePullKeyCursors.remove(side);
+            return new PullResult(false, keysScanned);
+        }
+
+        int remainingBudget = ACTIVE_PULL_KEYS_PER_TICK - keysScanned;
+        if (remainingBudget <= 0) {
+            return new PullResult(false, keysScanned);
+        }
+
+        int startIndex = Math.floorMod(this.activePullKeyCursors.getOrDefault(side, 0), availableKeyCount);
+        int keysToInspect = Math.min(remainingBudget, availableKeyCount);
+        var iterator = availableStacks.iterator();
+        for (int skipped = 0; skipped < startIndex; skipped++) {
+            iterator.next();
+        }
+        for (int inspected = 0; inspected < keysToInspect; inspected++) {
+            if (!iterator.hasNext()) {
+                iterator = availableStacks.iterator();
             }
+            var stack = iterator.next();
+            keysScanned++;
+            this.activePullKeyCursors.put(side, (startIndex + inspected + 1) % availableKeyCount);
 
             AEKey key = stack.getKey();
             long available = stack.getLongValue();
-            if (key == null || available <= 0) {
+            if (available <= 0) {
                 continue;
             }
 

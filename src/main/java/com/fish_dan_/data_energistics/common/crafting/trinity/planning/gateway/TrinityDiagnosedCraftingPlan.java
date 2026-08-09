@@ -24,28 +24,45 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     private final ICraftingPlan view;
     private final TrinityPlanningDiagnostic diagnostic;
     private final boolean ae2FallbackEstimate;
+    private final long calculationNanos;
 
     /**
      * @param delegate   original AE2 simulation, retained without rewriting missing/used/emitted contents
      * @param diagnostic failed Trinity calculation
      */
-    public TrinityDiagnosedCraftingPlan(ICraftingPlan delegate, TrinityPlanningDiagnostic diagnostic) {
-        this(delegate, diagnostic, true);
+    public TrinityDiagnosedCraftingPlan(
+                                        ICraftingPlan delegate,
+                                        TrinityPlanningDiagnostic diagnostic) {
+        this(delegate, diagnostic, true, 0L);
+    }
+
+    /**
+     * @param delegate         original AE2 simulation, retained without rewriting missing/used/emitted contents
+     * @param diagnostic       failed Trinity calculation
+     * @param calculationNanos elapsed AE2 calculation time in nanoseconds
+     */
+    public TrinityDiagnosedCraftingPlan(
+                                        ICraftingPlan delegate,
+                                        TrinityPlanningDiagnostic diagnostic,
+                                        long calculationNanos) {
+        this(delegate, diagnostic, true, calculationNanos);
     }
 
     private TrinityDiagnosedCraftingPlan(
                                          ICraftingPlan view,
                                          TrinityPlanningDiagnostic diagnostic,
-                                         boolean ae2FallbackEstimate) {
-        if (view == null || !view.simulation()) {
+                                         boolean ae2FallbackEstimate,
+                                         long calculationNanos) {
+        if (!view.simulation()) {
             throw new IllegalArgumentException("A diagnosed crafting plan requires a simulation view");
         }
-        if (diagnostic == null) {
-            throw new IllegalArgumentException("A diagnosed crafting plan requires a Trinity diagnostic");
+        if (calculationNanos < 0L) {
+            throw new IllegalArgumentException("Crafting calculation time must not be negative");
         }
         this.view = view;
         this.diagnostic = diagnostic;
         this.ae2FallbackEstimate = ae2FallbackEstimate;
+        this.calculationNanos = calculationNanos;
     }
 
     /**
@@ -65,7 +82,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
                 shortage.key(),
                 shortage.available().longValueExact(),
                 shortage.missing().longValueExact());
-        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false);
+        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false, 0L);
     }
 
     /**
@@ -87,6 +104,13 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
      */
     public boolean ae2FallbackEstimate() {
         return this.ae2FallbackEstimate;
+    }
+
+    /**
+     * @return elapsed AE2 calculation time in nanoseconds, or zero for a standalone Trinity diagnostic
+     */
+    public long calculationNanos() {
+        return this.calculationNanos;
     }
 
     @Override
@@ -137,8 +161,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
             implements ICraftingPlan {
 
         private InputShortageSimulation {
-            if (finalOutput == null || finalOutput.amount() <= 0L || shortageKey == null ||
-                    availableAmount < 0L || missingAmount <= 0L) {
+            if (finalOutput.amount() <= 0L || availableAmount < 0L || missingAmount <= 0L) {
                 throw new IllegalArgumentException(
                         "A Trinity shortage simulation requires non-negative availability and a positive shortage");
             }

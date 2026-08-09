@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite.fallout;
 
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.worldgen.meteorite.MeteoriteBlockPutter;
 
 import net.minecraft.core.BlockPos;
@@ -26,9 +26,9 @@ public class Fallout {
         this.putter = putter;
         this.skyStone = skyStone;
         this.random = random;
-        this.crackedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
-        this.fracturedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
-        this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
+        this.crackedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
+        this.fracturedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
+        this.shatteredMeteorite = DEBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
     }
 
     public int adjustCrater() {

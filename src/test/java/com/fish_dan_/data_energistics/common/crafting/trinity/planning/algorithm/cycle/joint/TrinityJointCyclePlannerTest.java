@@ -53,7 +53,7 @@ public final class TrinityJointCyclePlannerTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> TrinityJointCyclePlannerImpl.diagnosticStates(diagnostic));
+                () -> TrinityJointCyclePlanner.diagnosticStates(diagnostic));
     }
 
     @Test

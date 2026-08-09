@@ -1,14 +1,18 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
+import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
@@ -21,6 +25,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -87,7 +92,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
-                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine {
+                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine,
+                                              DataRipperBatchTickable {
 
     public static final int ITEM_INPUT_START_SLOT = 0;
     public static final int ITEM_INPUT_SLOT_COUNT = 9;
@@ -125,7 +131,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
@@ -156,16 +162,20 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
     @Getter
     private int progress;
     @Getter
     private int maxProgress = MAX_PROGRESS;
     private ResourceLocation activeRecipeId;
+    private RecipeMatchCache recipeMatchCache;
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -200,13 +210,38 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public void serverTick() {
+        advanceServerTicks(1);
+    }
+
+    @Override
+    public void advanceAdditionalTicks(int additionalTicks) {
+        if (additionalTicks <= 0) {
+            throw new IllegalArgumentException("additionalTicks must be positive");
+        }
+        advanceServerTicks(additionalTicks);
+    }
+
+    private void advanceServerTicks(int tickBudget) {
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
         refillEnergyCache();
-        processRecipe();
-        tryAutoExport();
+        int remainingTicks = tickBudget;
+        boolean autoExportStalled = false;
+        while (remainingTicks > 0) {
+            boolean hasOutputBeforeWork = hasAnyOutput();
+            int progressBudget = isAutoExportEnabled() && hasOutputBeforeWork && !autoExportStalled ? 1 : remainingTicks;
+            RecipeAdvance advance = processRecipe(progressBudget);
+            remainingTicks -= advance.elapsedTicks();
+
+            boolean shouldAttemptExport = isAutoExportEnabled() && hasAnyOutput() &&
+                    (!autoExportStalled || advance.completedRecipe());
+            if (shouldAttemptExport) {
+                autoExportStalled = !tryAutoExport();
+            }
+
+        }
         updateOnlineState();
     }
 
@@ -225,8 +260,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public PatternContainerGroup getCraftingMachineInfo() {
-        return new PatternContainerGroup(AEItemKey.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
+        return new PatternContainerGroup(AEItemKey.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
+                DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
     }
 
     @Override
@@ -296,7 +331,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public int getParallel() {
-        return computeParallel(this.upgrades.getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+        return computeParallel(this.upgrades.getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()));
     }
 
     public int getItemSlotCapacity() {
@@ -441,7 +476,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         settings.putInt(FLUID_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.fluidOutputSides));
         settings.putInt(KEY_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.keyOutputSides));
         settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+        builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
     @Override
@@ -451,7 +486,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        CompoundTag settings = input.get(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -564,23 +599,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private void processRecipe() {
+    private RecipeAdvance processRecipe(int tickBudget) {
         if (!isOnline()) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe();
         if (recipeHolder == null) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
-        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
-        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+        if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
             resetProcessingState();
-            return;
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         if (!recipeHolder.id().equals(this.activeRecipeId)) {
@@ -591,13 +625,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         this.maxProgress = getEffectiveProcessTicks(recipe);
-        this.progress++;
+        this.progress = Math.max(0, Math.min(this.progress, this.maxProgress - 1));
+        BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
+                this.progress,
+                this.maxProgress,
+                tickBudget);
+        this.progress = segment.progress();
         setChanged();
 
-        if (this.progress < this.maxProgress) {
-            return;
+        if (!segment.reachedBoundary()) {
+            return RecipeAdvance.progressed(segment.elapsedTicks());
         }
 
+        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
+        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
+            resetProcessingState();
+            return RecipeAdvance.blocked(segment.elapsedTicks());
+        }
         for (int batch = 0; batch < getParallel(); batch++) {
             List<ItemStack> batchOutputs = batch == 0 ? itemOutputs : recipe.getCraftedItemOutputs();
             if (!canAcceptItemOutputs(recipe, batchOutputs)) {
@@ -614,6 +658,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         resetProcessingState();
         saveChanges();
         markForClientUpdate();
+        return RecipeAdvance.completed(segment.elapsedTicks());
     }
 
     private void resetProcessingState() {
@@ -634,29 +679,96 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe() {
-        if (this.level == null) {
+        Level currentLevel = this.level;
+        if (currentLevel == null) {
             return null;
         }
 
-        DataRipperReassemblerRecipeInput input = createRecipeInput();
-        if (this.activeRecipeId != null) {
-            RecipeHolder<DataRipperReassemblerRecipe> active = this.level.getRecipeManager()
-                    .byKey(this.activeRecipeId)
-                    .filter(holder -> holder.value() instanceof DataRipperReassemblerRecipe)
-                    .map(holder -> (RecipeHolder<DataRipperReassemblerRecipe>) holder)
-                    .orElse(null);
-            if (active != null && active.value().matches(input, this.level)) {
-                return active;
+        RecipeMatchKey cacheKey = createRecipeMatchKey();
+        RecipeMatchCache cached = this.recipeMatchCache;
+        if (cached != null && cached.key().equals(cacheKey)) {
+            ResourceLocation recipeId = cached.recipeId();
+            if (recipeId == null) {
+                return null;
+            }
+
+            RecipeHolder<DataRipperReassemblerRecipe> cachedRecipe = getRecipeById(currentLevel, recipeId);
+            if (cachedRecipe != null) {
+                return cachedRecipe;
             }
         }
 
-        for (RecipeHolder<DataRipperReassemblerRecipe> holder : this.level.getRecipeManager()
-                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
-            if (holder.value().matches(input, this.level)) {
-                return holder;
+        DataRipperReassemblerRecipeInput input = createRecipeInput();
+        RecipeHolder<DataRipperReassemblerRecipe> match = null;
+        if (this.activeRecipeId != null) {
+            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, this.activeRecipeId);
+            if (active != null && active.value().matches(input, currentLevel)) {
+                match = active;
             }
         }
-        return null;
+
+        if (match == null) {
+            for (RecipeHolder<DataRipperReassemblerRecipe> holder : currentLevel.getRecipeManager()
+                    .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+                if (holder.value().matches(input, currentLevel)) {
+                    match = holder;
+                    break;
+                }
+            }
+        }
+
+        this.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
+        return match;
+    }
+
+    private RecipeMatchKey createRecipeMatchKey() {
+        List<RecipeStackIdentity> items = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+            ItemStack stack = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i);
+            items.add(createItemStackIdentity(stack));
+        }
+        List<RecipeStackIdentity> fluids = List.of(
+                createFluidStackIdentity(this.fluidInputTankA.getFluid()),
+                createFluidStackIdentity(this.fluidInputTankB.getFluid()));
+        return new RecipeMatchKey(
+                RecipeReloadEpoch.current(),
+                this.activeRecipeId,
+                List.copyOf(items),
+                fluids,
+                createKeyStackIdentity(this.keyInputStack));
+    }
+
+    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount());
+    }
+
+    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack) {
+        if (stack.isEmpty()) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount());
+    }
+
+    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack) {
+        if (stack == null || stack.amount() <= 0L) {
+            return RecipeStackIdentity.EMPTY;
+        }
+        return new RecipeStackIdentity(stack.what(), stack.amount());
+    }
+
+    private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
+                                                                                     Level level, ResourceLocation recipeId) {
+        RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
+        if (holder == null || !(holder.value() instanceof DataRipperReassemblerRecipe)) {
+            return null;
+        }
+
+        @SuppressWarnings("unchecked")
+        RecipeHolder<DataRipperReassemblerRecipe> typedHolder = (RecipeHolder<DataRipperReassemblerRecipe>) holder;
+        return typedHolder;
     }
 
     private DataRipperReassemblerRecipeInput createRecipeInput() {
@@ -957,24 +1069,47 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return remaining;
     }
 
-    private void tryAutoExport() {
+    private boolean tryAutoExport() {
         if (!isAutoExportEnabled()) {
-            return;
+            return false;
         }
 
-        List<IItemHandler> itemHandlers = getAdjacentItemHandlers(this.itemOutputSides);
-        List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
-        List<GenericInternalInventory> keyInventories = getAdjacentKeyInventories(this.keyOutputSides);
-
-        boolean changed = exportItemOutputs(itemHandlers);
-        changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
-        changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
-        changed |= exportKeyOutput(keyInventories);
+        boolean changed = false;
+        if (hasItemOutput()) {
+            changed = exportItemOutputs(getAdjacentItemHandlers(this.itemOutputSides));
+        }
+        if (!this.fluidOutputTankA.getFluid().isEmpty() || !this.fluidOutputTankB.getFluid().isEmpty()) {
+            List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
+            changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
+            changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
+        }
+        if (hasKeyOutput()) {
+            changed |= exportKeyOutput(getAdjacentKeyInventories(this.keyOutputSides));
+        }
 
         if (changed) {
             saveChanges();
             markForClientUpdate();
         }
+        return changed;
+    }
+
+    private boolean hasItemOutput() {
+        for (int slot = ITEM_OUTPUT_START_SLOT; slot < ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT; slot++) {
+            if (!this.storage.getStackInSlot(slot).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasKeyOutput() {
+        return this.keyOutputStack != null && this.keyOutputStack.what() != null && this.keyOutputStack.amount() > 0L;
+    }
+
+    private boolean hasAnyOutput() {
+        return hasItemOutput() || !this.fluidOutputTankA.getFluid().isEmpty() ||
+                !this.fluidOutputTankB.getFluid().isEmpty() || hasKeyOutput();
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
@@ -1025,10 +1160,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean exportKeyOutput(List<GenericInternalInventory> adjacentInventories) {
-        if (this.keyOutputStack == null || this.keyOutputStack.amount() <= 0 || this.keyOutputStack.what() == null) {
-            return false;
-        }
-
         AEKey what = this.keyOutputStack.what();
         long originalAmount = this.keyOutputStack.amount();
         long remaining = originalAmount;
@@ -1077,81 +1208,53 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers;
+        return this.adjacentItemHandlers.getAll(outputSides);
     }
 
     private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<IFluidHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IFluidHandler handler = this.level.getCapability(
-                    Capabilities.FluidHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers;
+        return this.adjacentFluidHandlers.getAll(outputSides);
     }
 
     private List<GenericInternalInventory> getAdjacentKeyInventories(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
+        return this.adjacentKeyInventories.getAll(outputSides);
+    }
 
-        List<GenericInternalInventory> inventories = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            GenericInternalInventory inventory = this.level.getCapability(
-                    AECapabilities.GENERIC_INTERNAL_INV,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (inventory != null) {
-                inventories.add(inventory);
-            }
+    private boolean initializeAdjacentCapabilityCaches() {
+        if (this.adjacentItemHandlers != null) {
+            return true;
         }
-        return inventories;
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+
+        AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.ItemHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<IFluidHandler> fluidHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.FluidHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<GenericInternalInventory> keyInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        this.adjacentItemHandlers = itemHandlers;
+        this.adjacentFluidHandlers = fluidHandlers;
+        this.adjacentKeyInventories = keyInventories;
+        return true;
     }
 
     private Set<Direction> getOutputSidesInternal(DigitalStorageDepotOutputType outputType) {
@@ -1406,19 +1509,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static boolean matchesFluidKey(FluidStack stack, AEFluidKey key) {
-        if (stack.isEmpty()) {
-            return false;
-        }
-        AEFluidKey existing = AEFluidKey.of(stack);
-        return existing != null && existing.equals(key);
+        return key.equals(AEFluidKey.of(stack));
     }
 
     private static @Nullable GenericStack createFluidGenericStack(FluidStack fluid) {
         if (fluid.isEmpty()) {
             return null;
         }
-        AEFluidKey key = AEFluidKey.of(fluid);
-        return key == null ? null : new GenericStack(key, fluid.getAmount());
+        return new GenericStack(AEFluidKey.of(fluid), fluid.getAmount());
     }
 
     private record SlotFilter(Predicate<ItemStack> insertPredicate, boolean allowExtract) implements IAEItemFilter {
@@ -1548,13 +1646,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void syncMenuFluidFromTank(FluidTank tank, GenericStackInv menuInventory) {
-        FluidStack fluid = tank.getFluid();
-        if (fluid.isEmpty()) {
-            menuInventory.setStack(0, null);
-        } else {
-            AEFluidKey key = AEFluidKey.of(fluid);
-            menuInventory.setStack(0, key == null ? null : new GenericStack(key, fluid.getAmount()));
-        }
+        menuInventory.setStack(0, createFluidGenericStack(tank.getFluid()));
     }
 
     private void syncTankAFromMenuFluid() {
@@ -1608,11 +1700,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean conflictsWithExistingFluid(FluidStack existing, AEFluidKey candidate) {
-        if (existing.isEmpty()) {
-            return false;
-        }
-        AEFluidKey existingKey = AEFluidKey.of(existing);
-        return existingKey != null && existingKey.equals(candidate);
+        return candidate.equals(AEFluidKey.of(existing));
     }
 
     private void syncKeyMenuFromStack() {
@@ -1893,7 +1981,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public Component getDescription() {
-            return ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+            return DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
         }
     }
 
@@ -2065,6 +2153,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
+    private record RecipeAdvance(int elapsedTicks, boolean completedRecipe) {
+
+        private static RecipeAdvance progressed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
+        }
+
+        private static RecipeAdvance completed(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, true);
+        }
+
+        private static RecipeAdvance blocked(int elapsedTicks) {
+            return new RecipeAdvance(elapsedTicks, false);
+        }
+    }
+
     private static final class RecipeProcessingState {
 
         private final ItemStack[] itemSlots;
@@ -2087,6 +2190,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             this.keyOutput = keyOutput;
         }
     }
+
+    private record RecipeStackIdentity(@Nullable AEKey what, long amount) {
+
+        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L);
+    }
+
+    private record RecipeMatchKey(long reloadEpoch, @Nullable ResourceLocation activeRecipeId,
+                                  List<RecipeStackIdentity> itemInputs,
+                                  List<RecipeStackIdentity> fluidInputs,
+                                  RecipeStackIdentity keyInput) {}
+
+    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
 
     private static final class PatternPushState {
 

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.equalization;
 
 /**
- * Plans one immutable, capacity-proportional FE equalization pass for Data Distribution Tower endpoints.
+ * Plans one immutable FE transfer pass that proportionally equalizes balanced endpoints around optional buffers.
  *
  * <p>
  * Implementations operate only on frozen scalar snapshots. Capability simulation and mutation remain the caller's

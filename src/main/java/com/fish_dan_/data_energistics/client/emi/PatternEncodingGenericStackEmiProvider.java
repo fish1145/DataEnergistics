@@ -6,7 +6,6 @@ import net.minecraft.client.gui.screens.Screen;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
-import appeng.integration.modules.emi.EmiStackHelper;
 import dev.emi.emi.api.EmiStackProvider;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.EmiStackInteraction;
@@ -25,11 +24,7 @@ public final class PatternEncodingGenericStackEmiProvider implements EmiStackPro
         }
 
         GenericStack stack = hovered.stack();
-        EmiStack emiStack = EmiStackHelper.toEmiStack(stack);
-        if (emiStack == null) {
-            return EmiStackInteraction.EMPTY;
-        }
-
+        EmiStack emiStack = EmiGenericStackIngredientResolver.resolve(stack);
         return new EmiStackInteraction(emiStack, null, true);
     }
 }

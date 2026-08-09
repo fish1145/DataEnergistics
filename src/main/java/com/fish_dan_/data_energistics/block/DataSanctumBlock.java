@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
@@ -259,7 +259,7 @@ public class DataSanctumBlock extends AEBaseBlock implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || !DataSanctumBlockEntity.isMainPart(state) || blockEntityType != ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || !DataSanctumBlockEntity.isMainPart(state) || blockEntityType != DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get()) {
             return null;
         }
         return (tickLevel, tickPos, tickState, blockEntity) -> {

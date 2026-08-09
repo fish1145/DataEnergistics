@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallCondenserRecipe;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.recipe.captureball.DataCaptureBallCondenserRecipe;
+import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -21,7 +21,7 @@ public final class DataCaptureBallCondenserGuideRecipeMappings implements Recipe
 
     @Override
     public void collect(RecipeTypeMappings mappings) {
-        mappings.add(ModRecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get(),
+        mappings.add(DERecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get(),
                 DataCaptureBallCondenserGuideRecipeMappings::createRecipe);
     }
 

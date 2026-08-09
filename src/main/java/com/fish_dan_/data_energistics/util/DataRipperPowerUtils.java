@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.core.definitions.AEItems;
@@ -18,7 +18,7 @@ public final class DataRipperPowerUtils {
 
     public static int computeProductWithCap(IUpgradeInventory upgrades) {
         int speedCardCount = Math.min(upgrades.getInstalledUpgrades(AEItems.SPEED_CARD), MAX_SPEED_CARD_TIERS);
-        int saberCardCount = Math.min(upgrades.getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()), MAX_SABER_CARD_TIERS);
+        int saberCardCount = Math.min(upgrades.getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()), MAX_SABER_CARD_TIERS);
         int totalTiers = speedCardCount + saberCardCount;
         if (totalTiers <= 0) {
             return 0;

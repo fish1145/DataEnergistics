@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.math.BigInteger;
 
 /**
@@ -29,7 +27,7 @@ public record TrinityLexicographicObjective(
     }
 
     @Override
-    public int compareTo(@NotNull TrinityLexicographicObjective other) {
+    public int compareTo(TrinityLexicographicObjective other) {
         int compared = this.externalInput.compareTo(other.externalInput);
         if (compared != 0) {
             return compared;

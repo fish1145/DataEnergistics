@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchCompletion;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchParticipant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.TrinityServerDispatchScheduler;
 
@@ -22,7 +23,7 @@ public final class TrinityServerTickMetrics {
 
     private static final long TARGET_TICK_NANOS = 50_000_000L;
     private static final long OVERLOADED_TRICKLE_NANOS = 1_000_000L;
-    private static final CraftingServerDispatchBudgetImpl SERVER_DISPATCH_BUDGET = new CraftingServerDispatchBudgetImpl(
+    private static final MeasuredCraftingServerDispatchBudget SERVER_DISPATCH_BUDGET = new MeasuredCraftingServerDispatchBudget(
             System::nanoTime,
             TARGET_TICK_NANOS,
             OVERLOADED_TRICKLE_NANOS);
@@ -89,5 +90,19 @@ public final class TrinityServerTickMetrics {
             throw new IllegalStateException("Trinity dispatch participant belongs to an inactive logical server");
         }
         SERVER_DISPATCH_SCHEDULER.register(participant);
+    }
+
+    /**
+     * Registers one completion-only Grid for the current server-wide rotation without physical dispatch state.
+     *
+     * @param server     logical server that owns the Grid
+     * @param completion prepared completion boundary
+     */
+    public static void registerDispatchCompletion(MinecraftServer server,
+                                                  CraftingDispatchCompletion completion) {
+        if (sampledServer != server) {
+            throw new IllegalStateException("Trinity dispatch completion belongs to an inactive logical server");
+        }
+        SERVER_DISPATCH_SCHEDULER.registerCompletion(completion);
     }
 }

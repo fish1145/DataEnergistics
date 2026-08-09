@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
 
@@ -31,7 +31,7 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
     public boolean redstoneControlled;
 
     public DataSolarPanelMenu(int id, Inventory playerInventory, DataSolarPanelMenuHost host) {
-        super(ModMenus.DATA_SOLAR_PANEL.get(), id, playerInventory, host);
+        super(DEMenus.DATA_SOLAR_PANEL.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
     }
 

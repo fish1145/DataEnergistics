@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;

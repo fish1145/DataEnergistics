@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.preferences;
 
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderClickStatistic;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickStatistic;
 
 import net.minecraft.resources.ResourceLocation;
 

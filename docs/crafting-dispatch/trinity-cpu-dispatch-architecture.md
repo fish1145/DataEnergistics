@@ -420,11 +420,10 @@ CPU 根据能力选择三种模式：
 - 返回 `false` 前不得消费输入；
 - 输入所有权转移后发生异常时按完整 admission 已派发处理。
 
-第三方 provider 无需修改原类或直接实现 DataEnergistics 接口。可通过
-`TrinityCountedCraftingDispatch.registerAdapter(provider, adapter)` 按 provider 实例身份注册可选适配器；CPU
-始终按“DataEnergistics 直接 counted 契约、身份注册 adapter、AE2 普通单次”顺序解析。注册与注销、只读
-preparation 及一次性 commit 都属于服务器线程同步发配边界，公共适配器不暴露 target、窗口、规划或容量
-切片内部类型。
+第三方 provider 通过 `DataEnergisticsPlugin` 的统一 registry 声明稳定 provider 身份与 counted adapter factory。
+服务端在 provider publication 生命周期内完成实例绑定和解绑；CPU 始终按“冻结插件 registry 精确匹配的
+adapter、DataEnergistics 直接 counted 契约、AE2 普通单次”顺序解析。绑定、只读 preparation 及一次性
+commit 都属于服务器线程同步发配边界，公共适配器不暴露 target、窗口、规划或容量切片内部类型。
 
 ### 11.2 CPU 容量切片发配
 
@@ -908,7 +907,7 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/dispatch/commit/CraftingDispatchWindow.java`
 - `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/dispatch/provider/CountedCraftingProvider.java`
 - `src/main/java/com/fish_dan_/data_energistics/api/crafting/dispatch/CountedCraftingAdmission.java`
-- `src/main/java/com/fish_dan_/data_energistics/api/crafting/dispatch/TrinityCountedCraftingDispatch.java`
+- `src/main/java/com/fish_dan_/data_energistics/api/registry/provider/PatternProviderRegistry.java`
 - `src/main/java/com/fish_dan_/data_energistics/ae2/PatternProviderBatching.java`
 - `src/main/java/com/fish_dan_/data_energistics/mixin/core/PatternProviderLogicMixin.java`
 - `docs/crafting-dispatch/trinity-cpu-dispatch-phase-0-baseline.md`

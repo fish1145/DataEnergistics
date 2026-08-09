@@ -19,7 +19,7 @@ import java.util.Locale;
  */
 public final class PatternEncodingClientPreferencesAccess {
 
-    private static final PatternEncodingClientPreferences INSTANCE = new PatternEncodingClientPreferencesImpl(
+    private static final PatternEncodingClientPreferences INSTANCE = new JsonPatternEncodingClientPreferences(
             FMLPaths.CONFIGDIR.get().resolve("data_energistics").resolve("client_preferences.json"),
             () -> Minecraft.getInstance().isSameThread(),
             Clock.systemUTC());
@@ -63,7 +63,7 @@ public final class PatternEncodingClientPreferencesAccess {
             return StableDigest.sha256("singleplayer\0" + worldPath);
         }
         var serverData = minecraft.getCurrentServer();
-        if (serverData == null || serverData.ip == null || serverData.ip.isBlank()) {
+        if (serverData == null || serverData.ip.isBlank()) {
             return null;
         }
         String rawAddress = serverData.ip.trim();

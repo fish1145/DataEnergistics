@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
-import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -85,7 +85,7 @@ public final class DataMeteoriteCompassTargetInvalidation {
     }
 
     private static boolean isCompass(ItemStack stack) {
-        return stack.is(ModItems.DATA_METEORITE_COMPASS.get());
+        return stack.is(DEItems.DATA_METEORITE_COMPASS.get());
     }
 
     private record PendingRefresh(ServerLevel level, BlockPos pos, int retriesRemaining) {

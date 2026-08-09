@@ -1,28 +1,34 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridServices;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
+import com.fish_dan_.data_energistics.ae2.dataflow.GenericKeyItemExportStrategy;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerGridServices;
+import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotKeyContainerItemStrategy;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModFluids;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
-import com.fish_dan_.data_energistics.registry.ModParticles;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.fish_dan_.data_energistics.registry.ModStructures;
-import com.fish_dan_.data_energistics.registry.ModUpgrades;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DECreativeTabs;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEEntities;
+import com.fish_dan_.data_energistics.registry.DEFluids;
+import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DELegacyRegistryAliases;
+import com.fish_dan_.data_energistics.registry.DEMenus;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
+import com.fish_dan_.data_energistics.registry.DEParticles;
+import com.fish_dan_.data_energistics.registry.DERecipes;
+import com.fish_dan_.data_energistics.registry.DEStructures;
+import com.fish_dan_.data_energistics.registry.DEUpgrades;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 
 import net.neoforged.bus.api.EventPriority;
@@ -37,22 +43,21 @@ public class CommonProxy {
 
         TowerGridServices.init();
 
-        ModFluids.register(modEventBus);
-        ModDataComponents.register(modEventBus);
-        ModBlocks.register(modEventBus);
-        ModItems.register(modEventBus);
-        ModMobEffects.register(modEventBus);
-        ModParticles.register(modEventBus);
-        ModEntities.register(modEventBus);
-        ModBlockEntities.register(modEventBus);
-        ModCreativeTabs.register(modEventBus);
-        ModMenus.register(modEventBus);
-        ModRecipes.register(modEventBus);
-        ModStructures.register(modEventBus);
-        ModVerticalMultiBlocks.init();
-        ModUpgrades.registerPartModels();
-        UniversalTerminalAdapters.init();
-
+        DEFluids.register(modEventBus);
+        DEDataComponents.register(modEventBus);
+        DEBlocks.register(modEventBus);
+        DEItems.register(modEventBus);
+        DEMobEffects.register(modEventBus);
+        DEParticles.register(modEventBus);
+        DEEntities.register(modEventBus);
+        DEBlockEntities.register(modEventBus);
+        DELegacyRegistryAliases.register();
+        DECreativeTabs.register(modEventBus);
+        DEMenus.register(modEventBus);
+        DERecipes.register(modEventBus);
+        DEStructures.register(modEventBus);
+        DEVerticalMultiBlocks.init();
+        DEUpgrades.registerPartModels();
         modEventBus.addListener(instance::commonSetup);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerDepotContainerItemStrategies);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerGenericKeyWorldExportStrategies);
@@ -67,7 +72,12 @@ public class CommonProxy {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            ModUpgrades.init();
+            DataEnergisticsRegistrySnapshot snapshot = DataEnergisticsEntrypointLoader.initialize();
+            UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
+            VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
+            PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
+            AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
+            DEUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();
             }
@@ -87,6 +97,6 @@ public class CommonProxy {
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
-        ModAE2Keys.register(event);
+        DEAE2Keys.register(event);
     }
 }

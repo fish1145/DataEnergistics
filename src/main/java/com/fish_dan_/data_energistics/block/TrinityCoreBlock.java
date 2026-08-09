@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreMetadata;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreTier;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreMetadata;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 
 import net.minecraft.world.level.block.Block;
 

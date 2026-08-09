@@ -22,7 +22,6 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 
 public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlockEntity> {
@@ -34,8 +33,8 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
     public DataSanctumRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public void render(@NotNull DataSanctumBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
-                       @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(DataSanctumBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight, int packedOverlay) {
         BlockState state = blockEntity.getBlockState();
         if (!state.hasProperty(DataSanctumBlock.ACTIVE) || !state.hasProperty(DataSanctumBlock.MODE) || !state.hasProperty(DataSanctumBlock.FACING)) {
             return;
@@ -61,7 +60,7 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
     }
 
     @Override
-    public @NotNull AABB getRenderBoundingBox(@NotNull DataSanctumBlockEntity blockEntity) {
+    public AABB getRenderBoundingBox(DataSanctumBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).inflate(3.0D, 0.0D, 3.0D).expandTowards(0.0D, 5.0D, 0.0D);
     }
 

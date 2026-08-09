@@ -16,7 +16,7 @@ public interface DispatchProposalCandidatePlanner {
      * @return independent candidate-planning facade
      */
     static DispatchProposalCandidatePlanner create(Supplier<TrinityComputationCache> cache) {
-        return new DispatchProposalCandidatePlannerImpl(cache);
+        return new CachedDispatchProposalCandidatePlanner(cache);
     }
 
     /**

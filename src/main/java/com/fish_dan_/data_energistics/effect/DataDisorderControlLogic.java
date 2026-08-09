@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.effect;
 
-import com.fish_dan_.data_energistics.registry.ModMobEffects;
+import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -70,6 +70,6 @@ public final class DataDisorderControlLogic {
     }
 
     private static boolean hasDataDisorder(Player player) {
-        return player.hasEffect(ModMobEffects.DATA_DISORDER);
+        return player.hasEffect(DEMobEffects.DATA_DISORDER);
     }
 }

@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ItemRule;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.Slot;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -74,7 +74,7 @@ public final class CropDataCarrierData {
         ResourceLocation sourceBlockId = deriveSourceBlockId(itemId);
         ResourceLocation lootTableId = deriveLootTableId(itemId, sourceBlockId);
 
-        stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), new CropDataCarrierItemData(
+        stack.set(DEDataComponents.CROP_DATA_CARRIER.get(), new CropDataCarrierItemData(
                 itemId,
                 Optional.ofNullable(sourceBlockId),
                 Optional.ofNullable(lootTableId),
@@ -92,7 +92,7 @@ public final class CropDataCarrierData {
         if (data == null) {
             return false;
         }
-        stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.withAddedCollectedAmount(amount));
+        stack.set(DEDataComponents.CROP_DATA_CARRIER.get(), data.withAddedCollectedAmount(amount));
         return true;
     }
 
@@ -118,7 +118,7 @@ public final class CropDataCarrierData {
 
         CropDataCarrierItemData data = getData(stack);
         if (data != null) {
-            stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.withRequiredAmount(requiredAmount));
+            stack.set(DEDataComponents.CROP_DATA_CARRIER.get(), data.withRequiredAmount(requiredAmount));
         }
     }
 
@@ -204,10 +204,10 @@ public final class CropDataCarrierData {
     }
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
-        ItemStack result = new ItemStack(ModItems.CROP_DATA_CARRIER.get());
+        ItemStack result = new ItemStack(DEItems.CROP_DATA_CARRIER.get());
         CropDataCarrierItemData data = getData(source);
         if (data != null) {
-            result.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.asComplete());
+            result.set(DEDataComponents.CROP_DATA_CARRIER.get(), data.asComplete());
         }
         return result;
     }
@@ -218,7 +218,7 @@ public final class CropDataCarrierData {
     }
 
     private static @Nullable CropDataCarrierItemData getData(ItemStack stack) {
-        CropDataCarrierItemData data = stack.get(ModDataComponents.CROP_DATA_CARRIER.get());
+        CropDataCarrierItemData data = stack.get(DEDataComponents.CROP_DATA_CARRIER.get());
         if (data != null) {
             return data;
         }

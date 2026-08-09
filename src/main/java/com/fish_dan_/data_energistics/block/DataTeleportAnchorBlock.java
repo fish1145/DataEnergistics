@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.item.powered.PoweredCuttingKnifeItem;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.util.CuttingKnifeTeleportData;
 
 import net.minecraft.core.BlockPos;
@@ -95,7 +95,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
-            MenuOpener.open(ModMenus.DATA_TELEPORT_ANCHOR.get(), player, MenuLocators.forBlockEntity(anchor));
+            MenuOpener.open(DEMenus.DATA_TELEPORT_ANCHOR.get(), player, MenuLocators.forBlockEntity(anchor));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -176,7 +176,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
 
     private ItemInteractionResult applyColor(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack,
                                              ColorVariant variant, boolean fromApplicator) {
-        if (variant == null || state.getValue(COLOR) == variant) {
+        if (state.getValue(COLOR) == variant) {
             return ItemInteractionResult.CONSUME;
         }
 
@@ -208,7 +208,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get()) {
             return null;
         }
 
@@ -240,9 +240,9 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
         YELLOW("yellow", DyeColor.YELLOW);
 
         private final String name;
-        private final DyeColor dyeColor;
+        private final @Nullable DyeColor dyeColor;
 
-        ColorVariant(String name, DyeColor dyeColor) {
+        ColorVariant(String name, @Nullable DyeColor dyeColor) {
             this.name = name;
             this.dyeColor = dyeColor;
         }

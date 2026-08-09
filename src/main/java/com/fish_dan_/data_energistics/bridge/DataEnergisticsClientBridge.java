@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.bridge;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
-import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
-import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
-import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
-import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
+import com.fish_dan_.data_energistics.network.ui.UniversalTerminalStateSyncPayload;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
 import net.minecraft.world.entity.player.Player;
 

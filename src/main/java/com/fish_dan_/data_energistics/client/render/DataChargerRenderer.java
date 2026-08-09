@@ -13,7 +13,6 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.orientation.BlockOrientation;
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.NotNull;
 import org.joml.Quaternionf;
 
 public class DataChargerRenderer implements BlockEntityRenderer<DataChargerBlockEntity> {
@@ -27,8 +26,8 @@ public class DataChargerRenderer implements BlockEntityRenderer<DataChargerBlock
     }
 
     @Override
-    public void render(@NotNull DataChargerBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
-                       @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(DataChargerBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight, int packedOverlay) {
         BlockOrientation orientation = BlockOrientation.get(blockEntity.getBlockState());
         poseStack.pushPose();
         poseStack.translate(0.5D, 0.5D, 0.5D);

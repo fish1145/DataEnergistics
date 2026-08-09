@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.trinity;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 
 import net.minecraft.world.entity.player.Player;
 

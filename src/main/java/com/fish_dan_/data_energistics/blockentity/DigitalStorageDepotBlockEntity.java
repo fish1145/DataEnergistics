@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.ae2.DigitalStorageDepotSettings;
-import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.ae2.settings.DigitalStorageDepotSettings;
+import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,6 +18,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -71,7 +73,6 @@ import appeng.util.inv.filter.IAEItemFilter;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -101,7 +102,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
 
     private final AppEngInternalInventory storage = new DepotItemInventory();
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     @Getter
     private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
     @Getter
@@ -139,13 +140,16 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
+    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
         this.configManager.registerSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, DataExtractorAutoExportMode.OFF);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
-                .setVisualRepresentation(ModBlocks.DIGITAL_STORAGE_DEPOT.get())
+                .setVisualRepresentation(DEBlocks.DIGITAL_STORAGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
         syncMenuFluidsFromTanks();
     }
@@ -217,12 +221,12 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     @Override
     public ItemStack getMainMenuIcon() {
-        return ModBlocks.DIGITAL_STORAGE_DEPOT.get().asItem().getDefaultInstance();
+        return DEBlocks.DIGITAL_STORAGE_DEPOT.get().asItem().getDefaultInstance();
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.DIGITAL_STORAGE_DEPOT.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(DEMenus.DIGITAL_STORAGE_DEPOT.get(), player, subMenu.getLocator());
     }
 
     @Override
@@ -436,7 +440,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return;
         }
 
-        builder.set(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
+        builder.set(DEDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
                 this.autoExportMode.ordinal(),
                 encodeOutputSides(this.itemOutputSides),
                 encodeOutputSides(this.fluidOutputSides),
@@ -450,7 +454,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return;
         }
 
-        DigitalStorageDepotMemoryCardData outputSettings = input.get(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get());
+        DigitalStorageDepotMemoryCardData outputSettings = input.get(DEDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get());
         if (outputSettings != null) {
             applyOutputSettings(outputSettings);
         }
@@ -583,16 +587,18 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private void exportItemsToAdjacentHandlers() {
-        List<IItemHandler> handlers = getAdjacentItemHandlers(this.itemOutputSides);
-        if (handlers.isEmpty()) {
-            return;
-        }
-
+        List<IItemHandler> handlers = null;
         boolean changed = false;
         for (int slot = 0; slot < this.storage.size(); slot++) {
             ItemStack stack = this.storage.getStackInSlot(slot);
             if (stack.isEmpty()) {
                 continue;
+            }
+            if (handlers == null) {
+                handlers = getAdjacentItemHandlers(this.itemOutputSides);
+                if (handlers.isEmpty()) {
+                    return;
+                }
             }
 
             ItemStack remaining = stack.copy();
@@ -619,16 +625,18 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private void exportFluidsToAdjacentHandlers() {
-        List<IFluidHandler> handlers = getAdjacentFluidHandlers(this.fluidOutputSides);
-        if (handlers.isEmpty()) {
-            return;
-        }
-
+        List<IFluidHandler> handlers = null;
         boolean changed = false;
         for (FluidTank tank : this.fluidTanks) {
             FluidStack current = tank.getFluid();
             if (current.isEmpty()) {
                 continue;
+            }
+            if (handlers == null) {
+                handlers = getAdjacentFluidHandlers(this.fluidOutputSides);
+                if (handlers.isEmpty()) {
+                    return;
+                }
             }
 
             FluidStack remaining = current.copy();
@@ -661,16 +669,18 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private void exportKeysToAdjacentHandlers() {
-        List<GenericInternalInventory> inventories = getAdjacentKeyInventories(this.keyOutputSides);
-        if (inventories.isEmpty()) {
-            return;
-        }
-
+        List<GenericInternalInventory> inventories = null;
         boolean changed = false;
         for (int i = 0; i < KEY_SLOTS; i++) {
             GenericStack stack = this.keyStacks[i];
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 continue;
+            }
+            if (inventories == null) {
+                inventories = getAdjacentKeyInventories(this.keyOutputSides);
+                if (inventories.isEmpty()) {
+                    return;
+                }
             }
 
             long remaining = stack.amount();
@@ -715,81 +725,53 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+        return this.adjacentItemHandlers.getAll(outputSides);
     }
 
     private List<GenericInternalInventory> getAdjacentKeyInventories(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
-
-        List<GenericInternalInventory> inventories = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            GenericInternalInventory inventory = this.level.getCapability(
-                    AECapabilities.GENERIC_INTERNAL_INV,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (inventory != null) {
-                inventories.add(inventory);
-            }
-        }
-        return inventories.isEmpty() ? List.of() : List.copyOf(inventories);
+        return this.adjacentKeyInventories.getAll(outputSides);
     }
 
     private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
-        if (this.level == null) {
+        if (!initializeAdjacentCapabilityCaches()) {
             return List.of();
         }
+        return this.adjacentFluidHandlers.getAll(outputSides);
+    }
 
-        List<IFluidHandler> handlers = new ArrayList<>();
-        for (Direction direction : outputSides) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IFluidHandler handler = this.level.getCapability(
-                    Capabilities.FluidHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite());
-            if (handler != null) {
-                handlers.add(handler);
-            }
+    private boolean initializeAdjacentCapabilityCaches() {
+        if (this.adjacentItemHandlers != null) {
+            return true;
         }
-        return handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+
+        AdjacentBlockCapabilityCache<IItemHandler> itemHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.ItemHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<IFluidHandler> fluidHandlers = new AdjacentBlockCapabilityCache<>(
+                Capabilities.FluidHandler.BLOCK,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        AdjacentBlockCapabilityCache<GenericInternalInventory> keyInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                serverLevel,
+                this.worldPosition,
+                () -> !this.isRemoved());
+        this.adjacentItemHandlers = itemHandlers;
+        this.adjacentFluidHandlers = fluidHandlers;
+        this.adjacentKeyInventories = keyInventories;
+        return true;
     }
 
     private void requestStorageUpdate() {
@@ -967,8 +949,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         if (fluid.isEmpty()) {
             this.fluidMenuInventories[slotIndex].setStack(0, null);
         } else {
-            AEFluidKey key = AEFluidKey.of(fluid);
-            this.fluidMenuInventories[slotIndex].setStack(0, key == null ? null : new GenericStack(key, fluid.getAmount()));
+            this.fluidMenuInventories[slotIndex].setStack(0, new GenericStack(AEFluidKey.of(fluid), fluid.getAmount()));
         }
     }
 
@@ -1537,7 +1518,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
         @Override
         public Component getDescription() {
-            return ModBlocks.DIGITAL_STORAGE_DEPOT.get().getName();
+            return DEBlocks.DIGITAL_STORAGE_DEPOT.get().getName();
         }
 
         private long insertItem(AEItemKey what, long amount, Actionable mode) {

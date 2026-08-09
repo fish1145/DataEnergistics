@@ -1,17 +1,17 @@
 package com.fish_dan_.data_energistics.common.trinity.preview;
 
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistrySnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpecFactory;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpecFactory;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierOption;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.Util;
 import net.minecraft.network.chat.Component;
@@ -32,7 +32,7 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
 
     @Override
     public ResourceLocation controllerId() {
-        return ModVerticalMultiBlocks.trinityDataCoreId();
+        return DEVerticalMultiBlocks.trinityDataCoreId();
     }
 
     @Override
@@ -42,14 +42,14 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
         }
         JsonMultiBlockDefinition main = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreMainKey());
+                DEVerticalMultiBlocks.trinityDataCoreMainKey());
         JsonMultiBlockDefinition cpu = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreCpuKey());
+                DEVerticalMultiBlocks.trinityDataCoreCpuKey());
         JsonMultiBlockDefinition crafting = requireDefinition(
                 definitions,
-                ModVerticalMultiBlocks.trinityDataCoreCraftingKey());
-        AEItemKey ownerOutput = AEItemKey.of(ModBlocks.TRINITY_DATA_CORE.get());
+                DEVerticalMultiBlocks.trinityDataCoreCraftingKey());
+        AEItemKey ownerOutput = AEItemKey.of(DEBlocks.TRINITY_DATA_CORE.get());
         if (ownerOutput == null) {
             throw new IllegalStateException("Trinity data core block does not expose an owner item");
         }

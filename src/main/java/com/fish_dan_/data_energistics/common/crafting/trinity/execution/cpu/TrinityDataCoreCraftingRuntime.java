@@ -74,7 +74,7 @@ public final class TrinityDataCoreCraftingRuntime {
     /**
      * Derived request lookup removes full-worker scans from network output routing.
      */
-    private final TrinityCpuWaitingIndex waitingIndex = new TrinityCpuWaitingIndexImpl();
+    private final TrinityCpuWaitingIndex waitingIndex = new TrinityCpuWaitingIndex();
     /**
      * Background completion callbacks enqueue only worker numbers into this thread-safe handoff.
      */

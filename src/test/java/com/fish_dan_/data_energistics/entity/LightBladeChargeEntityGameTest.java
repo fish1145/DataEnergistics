@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -51,7 +51,7 @@ public final class LightBladeChargeEntityGameTest {
     }
 
     private static LightBladeChargeEntity createProjectile(GameTestHelper helper, ServerLevel level) {
-        LightBladeChargeEntity projectile = new LightBladeChargeEntity(ModEntities.LIGHT_BLADE_CHARGE.get(), level);
+        LightBladeChargeEntity projectile = new LightBladeChargeEntity(DEEntities.LIGHT_BLADE_CHARGE.get(), level);
         projectile.setPos(Vec3.atCenterOf(helper.absolutePos(PROJECTILE_POS)));
         projectile.setDeltaMovement(0.0D, 0.0D, 4.0D);
         return projectile;

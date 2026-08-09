@@ -2,12 +2,12 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
-import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.common.trinity.pattern.MountedCorePatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityItemAmount;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -50,7 +50,7 @@ public final class TrinityDataCoreMenuTest {
         for (int slot = 0; slot < inventory.items.size(); slot++) {
             inventory.items.set(slot, new ItemStack(Items.STONE, 64));
         }
-        assertTrue(aggregate.catalog().tryRefundAll(new TrinityRefundDeliveryImpl(player, null, null)));
+        assertTrue(aggregate.catalog().tryRefundAll(new PlayerInventoryRefundDelivery(player, null, null)));
 
         assertStackMatches(aggregate.pattern(), aggregate.first().pattern(0));
         assertStackMatches(aggregate.pattern(), aggregate.second().pattern(0));
@@ -74,7 +74,7 @@ public final class TrinityDataCoreMenuTest {
         Inventory inventory = player.getInventory();
         inventory.items.set(0, ItemStack.EMPTY);
         inventory.items.set(1, ItemStack.EMPTY);
-        assertTrue(aggregate.catalog().tryRefundAll(new TrinityRefundDeliveryImpl(player, null, null)));
+        assertTrue(aggregate.catalog().tryRefundAll(new PlayerInventoryRefundDelivery(player, null, null)));
 
         assertStackMatches(aggregate.pattern(), aggregate.first().pattern(0));
         assertStackMatches(aggregate.pattern(), aggregate.second().pattern(0));
@@ -88,14 +88,14 @@ public final class TrinityDataCoreMenuTest {
     private static RefundAggregate createAggregate(GameTestHelper helper) {
         BlockPos firstPosition = new BlockPos(1, 1, 1);
         BlockPos secondPosition = new BlockPos(2, 1, 1);
-        helper.setBlock(firstPosition, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
-        helper.setBlock(secondPosition, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(firstPosition, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        helper.setBlock(secondPosition, DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
         TrinityPatternCoreBlockEntity first = helper.getBlockEntity(firstPosition);
         TrinityPatternCoreBlockEntity second = helper.getBlockEntity(secondPosition);
         ItemStack pattern = encodedOakPlanksPattern(helper);
         assertTrue(first.trySetPattern(0, pattern));
         assertTrue(second.trySetPattern(0, pattern));
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        MountedCorePatternCatalog catalog = new MountedCorePatternCatalog(UUID.randomUUID());
         first.appendPendingOutputs(
                 new PatternRoute(catalog.hostId(), first.coreId(), 0),
                 List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));

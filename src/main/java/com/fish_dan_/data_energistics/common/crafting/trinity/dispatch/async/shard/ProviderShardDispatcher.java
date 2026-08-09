@@ -19,7 +19,7 @@ public interface ProviderShardDispatcher {
      * @return independent dispatcher
      */
     static ProviderShardDispatcher create(int shardCount) {
-        return new ProviderShardDispatcherImpl(shardCount);
+        return new StripedProviderShardDispatcher(shardCount);
     }
 
     /**

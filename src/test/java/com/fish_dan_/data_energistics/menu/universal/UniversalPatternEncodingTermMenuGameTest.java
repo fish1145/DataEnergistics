@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 
 import net.minecraft.core.BlockPos;
@@ -35,7 +35,7 @@ public final class UniversalPatternEncodingTermMenuGameTest {
     @GameTest(template = "empty_5x5")
     public static void usesInheritedPreviewActions(GameTestHelper helper) {
         CableBusBlockEntity partHost = placeCableBus(helper);
-        IPart installedPart = partHost.addPart(ModItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
+        IPart installedPart = partHost.addPart(DEItems.UNIVERSAL_TERMINAL.get(), Direction.NORTH, null);
         if (!(installedPart instanceof UniversalTerminalPart terminal)) {
             throw new GameTestAssertException("Failed to install a real universal terminal part");
         }

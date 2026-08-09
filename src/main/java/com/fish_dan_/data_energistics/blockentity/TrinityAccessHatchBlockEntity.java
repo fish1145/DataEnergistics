@@ -25,18 +25,17 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
-import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolverImpl;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
-import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenuHost;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -99,7 +98,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                            implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolverImpl();
+    private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolver();
     /** Stable target identity for the bound Trinity pattern catalog. */
     private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
     private static final String TERMINAL_CONFIG_TAG = "terminal_config";
@@ -130,7 +129,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     private boolean loadingTerminalConfig;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
         this.configManager.registerSetting(
                 Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
                 ShowPatternProviders.VISIBLE);
@@ -138,7 +137,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
                 .setExposedOnSides(EnumSet.allOf(Direction.class))
-                .setVisualRepresentation(ModBlocks.TRINITY_ACCESS_HATCH.get())
+                .setVisualRepresentation(DEBlocks.TRINITY_ACCESS_HATCH.get())
                 .setIdlePowerUsage(0.0D);
     }
 
@@ -220,7 +219,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public ItemStack getMainMenuIcon() {
-        return ModBlocks.TRINITY_DATA_CORE.get().asItem().getDefaultInstance();
+        return DEBlocks.TRINITY_DATA_CORE.get().asItem().getDefaultInstance();
     }
 
     /**
@@ -855,7 +854,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                 !this.isRemoved() &&
                 player.level() == currentLevel &&
                 currentLevel.getBlockEntity(this.worldPosition) == this &&
-                currentLevel.getBlockState(this.worldPosition).is(ModBlocks.TRINITY_ACCESS_HATCH.get()) &&
+                currentLevel.getBlockState(this.worldPosition).is(DEBlocks.TRINITY_ACCESS_HATCH.get()) &&
                 player.distanceToSqr(
                         this.worldPosition.getX() + 0.5D,
                         this.worldPosition.getY() + 0.5D,
@@ -1206,8 +1205,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     private PatternContainerGroup terminalGroup() {
-        AEItemKey icon = AEItemKey.of(ModBlocks.TRINITY_DATA_CORE.get());
-        return new PatternContainerGroup(icon, ModBlocks.TRINITY_DATA_CORE.get().getName(), List.of());
+        AEItemKey icon = AEItemKey.of(DEBlocks.TRINITY_DATA_CORE.get());
+        return new PatternContainerGroup(icon, DEBlocks.TRINITY_DATA_CORE.get().getName(), List.of());
     }
 
     private void detachTerminalPartitions() {
@@ -1464,7 +1463,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
         @Override
         public Component getDescription() {
-            return ModBlocks.TRINITY_ACCESS_HATCH.get().getName();
+            return DEBlocks.TRINITY_ACCESS_HATCH.get().getName();
         }
 
         private boolean canUseStorage(@Nullable TrinityDataCoreBlockEntity host) {

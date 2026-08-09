@@ -8,6 +8,6 @@ public final class ClientThreadHelper {
 
     public static boolean isClientThread() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft != null && minecraft.isSameThread();
+        return minecraft.isSameThread();
     }
 }

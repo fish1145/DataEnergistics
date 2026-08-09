@@ -1,12 +1,11 @@
 package com.fish_dan_.data_energistics.menu.crafting.projection;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.ae2.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 
@@ -58,7 +57,7 @@ final class TrinityCraftingPlanSummaryProjectionTest {
                         Map.of(target, BigInteger.TWO))),
                 Map.of(intermediate, BigInteger.TWO),
                 Map.of(intermediate, BigInteger.TWO.negate(), target, BigInteger.valueOf(4L)));
-        TrinityCraftingPlan plan = TrinityCraftingPlanImpl.builder()
+        TrinityCraftingPlan plan = TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(target, 4L))
                 .bytes(32L)
                 .catalogRevision(1L)

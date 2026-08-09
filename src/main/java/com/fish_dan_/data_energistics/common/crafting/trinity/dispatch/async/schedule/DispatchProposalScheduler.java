@@ -30,7 +30,7 @@ public interface DispatchProposalScheduler extends AutoCloseable {
      */
     static DispatchProposalScheduler create(DispatchProposalLimits limits,
                                             Supplier<TrinityComputationCache> computationCache) {
-        return new DispatchProposalSchedulerImpl(limits, computationCache);
+        return new BoundedDispatchProposalScheduler(limits, computationCache);
     }
 
     /**

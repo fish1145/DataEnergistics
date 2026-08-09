@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -50,7 +50,7 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
     public String availableAnchors = "";
 
     public DataTeleportAnchorMenu(int id, Inventory playerInventory, DataTeleportAnchorBlockEntity host) {
-        super(ModMenus.DATA_TELEPORT_ANCHOR.get(), id, playerInventory, host);
+        super(DEMenus.DATA_TELEPORT_ANCHOR.get(), id, playerInventory, host);
         this.host = host;
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
         registerClientAction(ACTION_RECORD_CURRENT_TARGET, Boolean.class, this::recordCurrentTarget);

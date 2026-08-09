@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 /** ModularUI variant that closes hosted windows before LDLib2 recursively releases the root tree. */
 public final class HostModularUI extends ModularUI {
 
-    private final HostUiExtensionImpl hostUi;
+    private final OverlayHostUiExtension hostUi;
     private boolean removed;
 
     /**
@@ -21,7 +21,7 @@ public final class HostModularUI extends ModularUI {
      * @param player owning player, when this UI is attached to a menu
      * @param hostUi child UI extension created for the supplied UI root
      */
-    HostModularUI(UI ui, @Nullable Player player, HostUiExtensionImpl hostUi) {
+    HostModularUI(UI ui, @Nullable Player player, OverlayHostUiExtension hostUi) {
         super(ui, player);
         this.hostUi = hostUi;
     }

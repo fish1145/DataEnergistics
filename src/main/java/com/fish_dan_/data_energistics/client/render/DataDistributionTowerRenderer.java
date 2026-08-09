@@ -23,7 +23,6 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import org.jetbrains.annotations.NotNull;
 
 public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDistributionTowerBlockEntity> {
 
@@ -41,18 +40,18 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     public DataDistributionTowerRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public boolean shouldRenderOffScreen(@NotNull DataDistributionTowerBlockEntity blockEntity) {
+    public boolean shouldRenderOffScreen(DataDistributionTowerBlockEntity blockEntity) {
         return false;
     }
 
     @Override
-    public void render(@NotNull DataDistributionTowerBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
-                       @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(DataDistributionTowerBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight, int packedOverlay) {
         renderCrystal(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
     }
 
     @Override
-    public @NotNull AABB getRenderBoundingBox(@NotNull DataDistributionTowerBlockEntity blockEntity) {
+    public AABB getRenderBoundingBox(DataDistributionTowerBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).expandTowards(0.0d, RENDER_BOX_HEIGHT, 0.0d);
     }
 

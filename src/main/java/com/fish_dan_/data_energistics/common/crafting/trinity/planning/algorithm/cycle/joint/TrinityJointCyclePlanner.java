@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
@@ -16,14 +17,16 @@ import java.util.Set;
 /**
  * Authoritative planner for a complete cyclic-component demand. It combines exact joint firing selection with an
  * executable compressed schedule; the MIP model remains an internal feasibility backend.
+ * <p>
+ * Thin authoritative entry point; exact box search and compressed scheduling remain behind one dedicated contract.
  */
-public interface TrinityJointCyclePlanner {
+public final class TrinityJointCyclePlanner {
 
     /**
      * @return joint planner using ojAlgo 57.1.0 and exact compressed scheduling
      */
-    static TrinityJointCyclePlanner create() {
-        return new TrinityJointCyclePlannerImpl(TrinityJointCycleSearch.create());
+    public static TrinityJointCyclePlanner create() {
+        return new TrinityJointCyclePlanner(TrinityJointCycleSearch.create());
     }
 
     /**
@@ -36,14 +39,14 @@ public interface TrinityJointCyclePlanner {
      * @param control         cancellation and shared MIP/search deadline
      * @return exact lexicographic plan or stable bounded rejection
      */
-    default TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
-                                                               TrinityStronglyConnectedComponent component,
-                                                               AEKey target,
-                                                               BigInteger requestedAmount,
-                                                               CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
-                                                               int maxSearchStates,
-                                                               TrinityPlanningControl control) {
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              AEKey target,
+                                                              BigInteger requestedAmount,
+                                                              CraftingQuantityMode quantityMode,
+                                                              Map<AEKey, BigInteger> available,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
         return plan(
                 component,
                 target,
@@ -61,15 +64,15 @@ public interface TrinityJointCyclePlanner {
      *
      * @param producibleInputs keys that can be produced by predecessor DAG stages
      */
-    default TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
-                                                               TrinityStronglyConnectedComponent component,
-                                                               AEKey target,
-                                                               BigInteger requestedAmount,
-                                                               CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
-                                                               Set<AEKey> producibleInputs,
-                                                               int maxSearchStates,
-                                                               TrinityPlanningControl control) {
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              AEKey target,
+                                                              BigInteger requestedAmount,
+                                                              CraftingQuantityMode quantityMode,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
         return plan(
                 component,
                 TrinityCycleDemand.forTarget(target, requestedAmount, quantityMode, available),
@@ -89,13 +92,22 @@ public interface TrinityJointCyclePlanner {
      * @param control         cancellation and shared MIP/search deadline
      * @return exact lexicographic plan or stable bounded rejection
      */
-    default TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
-                                                               TrinityStronglyConnectedComponent component,
-                                                               TrinityCycleDemand demand,
-                                                               Map<AEKey, BigInteger> available,
-                                                               int maxSearchStates,
-                                                               TrinityPlanningControl control) {
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
         return plan(component, demand, available, Set.of(), maxSearchStates, control);
+    }
+
+    private final TrinityJointCycleSearch search;
+
+    TrinityJointCyclePlanner(TrinityJointCycleSearch search) {
+        if (search == null) {
+            throw new IllegalArgumentException("A Trinity joint planner requires an exact search");
+        }
+        this.search = search;
     }
 
     /**
@@ -109,11 +121,23 @@ public interface TrinityJointCyclePlanner {
      * @param control          cancellation and shared MIP/search deadline
      * @return exact lexicographic plan or stable bounded rejection
      */
-    TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
-                                                       TrinityStronglyConnectedComponent component,
-                                                       TrinityCycleDemand demand,
-                                                       Map<AEKey, BigInteger> available,
-                                                       Set<AEKey> producibleInputs,
-                                                       int maxSearchStates,
-                                                       TrinityPlanningControl control);
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
+        return this.search.search(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                control);
+    }
+
+    static int diagnosticStates(TrinityPlanningDiagnostic diagnostic) {
+        return TrinityJointCycleSearch.diagnosticStates(diagnostic);
+    }
 }

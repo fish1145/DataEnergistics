@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
-import com.fish_dan_.data_energistics.common.trinity.TrinityCoreMetadata;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreMetadata;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
@@ -58,7 +58,7 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
             if (patternCore.isCoreStateReady()) {
-                MenuOpener.open(ModMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
+                MenuOpener.open(DEMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
@@ -115,7 +115,7 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.TRINITY_PATTERN_CORE_BLOCK_ENTITY.get()) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.TRINITY_PATTERN_CORE_BLOCK_ENTITY.get()) {
             return null;
         }
         return (tickLevel, tickPos, tickState, blockEntity) -> {

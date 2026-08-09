@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
-import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;

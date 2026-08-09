@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
-import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.item.carrier.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -35,19 +35,29 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import appeng.core.definitions.AEBlocks;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Verifies high-volume mimetic output and container backpressure through real block capabilities. */
+/**
+ * Verifies high-volume mimetic output and container backpressure through real block capabilities.
+ */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class DataMimeticFieldOutputGameTest {
 
     private static final BlockPos FIELD_POS = new BlockPos(2, 2, 2);
     private static final BlockPos CHEST_POS = new BlockPos(3, 2, 2);
+    private static final BlockPos SINGLE_BATCH_FIELD_POS = new BlockPos(2, 2, 1);
+    private static final BlockPos SINGLE_BATCH_CHEST_POS = new BlockPos(3, 2, 1);
+    private static final BlockPos SINGLE_BATCH_ENERGY_POS = new BlockPos(1, 2, 1);
+    private static final BlockPos AGGREGATED_BATCH_FIELD_POS = new BlockPos(2, 2, 3);
+    private static final BlockPos AGGREGATED_BATCH_CHEST_POS = new BlockPos(3, 2, 3);
+    private static final BlockPos AGGREGATED_BATCH_ENERGY_POS = new BlockPos(1, 2, 3);
     private static final long INITIAL_DATA_FLOW = 20_000L;
     private static final long FIRST_CYCLE_DATA_FLOW = 3_200L;
+    private static final int COMPARISON_TICKS = 1_024;
     private static final ResourceLocation BHC_YELLOW_HEART_ID = ResourceLocation.fromNamespaceAndPath("bhc", "yellow_heart");
 
     private DataMimeticFieldOutputGameTest() {}
@@ -61,7 +71,7 @@ public final class DataMimeticFieldOutputGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 700)
     public static void streamsLargeNonstackableOutputWithBackpressure(GameTestHelper helper) {
-        helper.setBlock(FIELD_POS, ModBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
         helper.setBlock(CHEST_POS, Blocks.CHEST.defaultBlockState());
         DataMimeticFieldBlockEntity field = requireField(helper);
         Container chest = requireChest(helper);
@@ -129,7 +139,7 @@ public final class DataMimeticFieldOutputGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 800)
     public static void persistsAndOutputsRealBhcHeart(GameTestHelper helper) {
-        helper.setBlock(FIELD_POS, ModBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
         helper.setBlock(CHEST_POS, Blocks.CHEST.defaultBlockState());
         DataMimeticFieldBlockEntity field = requireField(helper);
         Container chest = requireChest(helper);
@@ -209,8 +219,95 @@ public final class DataMimeticFieldOutputGameTest {
                 .thenSucceed();
     }
 
+    /**
+     * Compares the real machine's complete state after 1024 one-tick calls and one aggregated call.
+     */
+    @TestHolder("data_mimetic_field_batch_matches_1024_server_ticks")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 100)
+    public static void batchMatches1024ServerTicks(GameTestHelper helper) {
+        helper.setBlock(SINGLE_BATCH_FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(SINGLE_BATCH_CHEST_POS, Blocks.CHEST.defaultBlockState());
+        helper.setBlock(SINGLE_BATCH_ENERGY_POS, AEBlocks.CREATIVE_ENERGY_CELL.block());
+        helper.setBlock(AGGREGATED_BATCH_FIELD_POS, DEBlocks.DATA_MIMETIC_FIELD.get().defaultBlockState());
+        helper.setBlock(AGGREGATED_BATCH_CHEST_POS, Blocks.CHEST.defaultBlockState());
+        helper.setBlock(AGGREGATED_BATCH_ENERGY_POS, AEBlocks.CREATIVE_ENERGY_CELL.block());
+
+        DataMimeticFieldBlockEntity single = requireField(helper, SINGLE_BATCH_FIELD_POS);
+        Container singleChest = requireChest(helper, SINGLE_BATCH_CHEST_POS);
+        DataMimeticFieldBlockEntity batch = requireField(helper, AGGREGATED_BATCH_FIELD_POS);
+        Container batchChest = requireChest(helper, AGGREGATED_BATCH_CHEST_POS);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(
+                        single.isOnline() && batch.isOnline(),
+                        "Both Data Mimetic Fields must join their powered AE networks"))
+                .thenExecute(() -> {
+                    prepareOreWork(helper, single);
+                    prepareOreWork(helper, batch);
+                    helper.assertValueEqual(
+                            snapshot(helper, single, singleChest),
+                            snapshot(helper, batch, batchChest),
+                            "The single-tick and batch machines must start from identical state");
+
+                    for (int tick = 0; tick < COMPARISON_TICKS; tick++) {
+                        single.serverTick();
+                    }
+                    MimeticBatchSnapshot expected = snapshot(helper, single, singleChest);
+                    batch.advanceAdditionalTicks(COMPARISON_TICKS);
+                    MimeticBatchSnapshot actual = snapshot(helper, batch, batchChest);
+
+                    helper.assertValueEqual(
+                            actual,
+                            expected,
+                            "One 1024-tick batch must match 1024 real serverTick calls across work and output flush boundaries");
+                    helper.assertTrue(expected.chestOutput() > 0L, "The equivalence run must complete real ore work");
+
+                    prepareBlockedOreOutput(single, singleChest);
+                    prepareBlockedOreOutput(batch, batchChest);
+                    helper.assertValueEqual(
+                            snapshot(helper, single, singleChest),
+                            snapshot(helper, batch, batchChest),
+                            "Both machines must enter the blocked-output run from identical state");
+
+                    for (int tick = 0; tick < COMPARISON_TICKS; tick++) {
+                        single.serverTick();
+                    }
+                    MimeticBatchSnapshot blockedExpected = snapshot(helper, single, singleChest);
+                    batch.advanceAdditionalTicks(COMPARISON_TICKS);
+                    MimeticBatchSnapshot blockedActual = snapshot(helper, batch, batchChest);
+
+                    helper.assertValueEqual(
+                            blockedActual,
+                            blockedExpected,
+                            "A permanently blocked output must be skipped mathematically without changing its final state");
+                    helper.assertTrue(
+                            blockedExpected.pendingNonstackableOutput() > 0L,
+                            "The blocked-output run must retain a real pending nonstackable batch");
+
+                    clearChest(singleChest);
+                    clearChest(batchChest);
+                    for (int tick = 0; tick < 5; tick++) {
+                        single.serverTick();
+                        batch.serverTick();
+                        helper.assertValueEqual(
+                                snapshot(helper, batch, batchChest),
+                                snapshot(helper, single, singleChest),
+                                "The skipped batch must retain the exact pending-output retry cooldown");
+                    }
+                    helper.assertTrue(
+                            snapshot(helper, batch, batchChest).pendingNonstackableOutput() < blockedActual.pendingNonstackableOutput(),
+                            "Clearing the destination must let both machines resume output on the same virtual tick");
+                })
+                .thenSucceed();
+    }
+
     private static DataMimeticFieldBlockEntity requireField(GameTestHelper helper) {
-        BlockEntity blockEntity = helper.getBlockEntity(FIELD_POS);
+        return requireField(helper, FIELD_POS);
+    }
+
+    private static DataMimeticFieldBlockEntity requireField(GameTestHelper helper, BlockPos position) {
+        BlockEntity blockEntity = helper.getBlockEntity(position);
         if (blockEntity instanceof DataMimeticFieldBlockEntity field) {
             return field;
         }
@@ -218,7 +315,11 @@ public final class DataMimeticFieldOutputGameTest {
     }
 
     private static Container requireChest(GameTestHelper helper) {
-        BlockEntity blockEntity = helper.getBlockEntity(CHEST_POS);
+        return requireChest(helper, CHEST_POS);
+    }
+
+    private static Container requireChest(GameTestHelper helper, BlockPos position) {
+        BlockEntity blockEntity = helper.getBlockEntity(position);
         if (blockEntity instanceof Container container) {
             return container;
         }
@@ -226,23 +327,63 @@ public final class DataMimeticFieldOutputGameTest {
     }
 
     private static ItemStack completedNetheriteSwordCarrier() {
-        ItemStack carrier = new ItemStack(ModItems.ORE_DATA_CARRIER.get());
+        ItemStack carrier = new ItemStack(DEItems.ORE_DATA_CARRIER.get());
         carrier.set(
-                ModDataComponents.ORE_DATA_CARRIER.get(),
+                DEDataComponents.ORE_DATA_CARRIER.get(),
                 new OreDataCarrierItemData(BuiltInRegistries.ITEM.getKey(Items.NETHERITE_SWORD), 1.0F, 1.0F));
         return carrier;
     }
 
-    private static ItemStack completedWitherCarrier() {
-        ItemStack carrier = new ItemStack(ModItems.MOB_DATA_CARRIER.get());
+    private static ItemStack completedCobblestoneCarrier() {
+        ItemStack carrier = new ItemStack(DEItems.ORE_DATA_CARRIER.get());
         carrier.set(
-                ModDataComponents.MOB_DATA_CARRIER.get(),
+                DEDataComponents.ORE_DATA_CARRIER.get(),
+                new OreDataCarrierItemData(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE), 1.0F, 1.0F));
+        return carrier;
+    }
+
+    private static ItemStack completedWitherCarrier() {
+        ItemStack carrier = new ItemStack(DEItems.MOB_DATA_CARRIER.get());
+        carrier.set(
+                DEDataComponents.MOB_DATA_CARRIER.get(),
                 new MobDataCarrierItemData(BuiltInRegistries.ENTITY_TYPE.getKey(EntityType.WITHER), 1.0F, 1.0F));
         return carrier;
     }
 
     private static long keyAmount(DataMimeticFieldBlockEntity field) {
         return field.getKeyInputStack() == null ? 0L : field.getKeyInputStack().amount();
+    }
+
+    private static void prepareOreWork(GameTestHelper helper, DataMimeticFieldBlockEntity field) {
+        field.setDropRoutingMode(DataExtractorDropRoutingMode.CONTAINER);
+        field.getInternalInventory().setItemDirect(0, completedCobblestoneCarrier());
+        long inserted = field.getExternalKeyInventory().insert(
+                0,
+                DataFlowKey.of(),
+                INITIAL_DATA_FLOW,
+                Actionable.MODULATE);
+        helper.assertValueEqual(inserted, INITIAL_DATA_FLOW, "The batch test must fully load its Data Flow input");
+    }
+
+    private static void prepareBlockedOreOutput(DataMimeticFieldBlockEntity field, Container chest) {
+        field.getInternalInventory().setItemDirect(0, completedNetheriteSwordCarrier());
+        fillChest(chest);
+    }
+
+    private static MimeticBatchSnapshot snapshot(GameTestHelper helper, DataMimeticFieldBlockEntity field,
+                                                 Container chest) {
+        CompoundTag persisted = new CompoundTag();
+        field.saveAdditional(persisted, helper.getLevel().registryAccess());
+        return new MimeticBatchSnapshot(
+                field.getWorkProgress(),
+                field.getWorkMaxProgress(),
+                keyAmount(field),
+                countItem(chest, Items.COBBLESTONE),
+                pendingAmount(persisted, helper.getLevel().registryAccess(), Items.COBBLESTONE),
+                countItem(chest, Items.NETHERITE_SWORD),
+                pendingAmount(persisted, helper.getLevel().registryAccess(), Items.NETHERITE_SWORD),
+                field.getInternalCurrentPower(),
+                field.isOnline());
     }
 
     private static int countNetheriteSwords(Container chest) {
@@ -322,4 +463,8 @@ public final class DataMimeticFieldOutputGameTest {
         chest.setChanged();
         return count;
     }
+
+    private record MimeticBatchSnapshot(int progress, int maxProgress, long keyInputAmount, long chestOutput,
+                                        long pendingOutput, long chestNonstackableOutput,
+                                        long pendingNonstackableOutput, double internalPower, boolean online) {}
 }

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
-import com.fish_dan_.data_energistics.item.OrderPackageMenuHost;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;
 
@@ -26,7 +26,7 @@ public final class OrderPackageMenu extends AEBaseMenu {
 
     /** Creates the server or client menu instance for the located package. */
     public OrderPackageMenu(int id, Inventory playerInventory, OrderPackageMenuHost host) {
-        super(ModMenus.ORDER_PACKAGE.get(), id, playerInventory, host);
+        super(DEMenus.ORDER_PACKAGE.get(), id, playerInventory, host);
         this.host = host;
         addSlot(new FakeSlot(host.getTargetInventory().createMenuWrapper(), 0), TARGET);
         createPlayerInventorySlots(playerInventory);

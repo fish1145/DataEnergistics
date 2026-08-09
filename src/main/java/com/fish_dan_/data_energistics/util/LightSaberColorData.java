@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -38,7 +38,7 @@ public final class LightSaberColorData {
     private LightSaberColorData() {}
 
     public static boolean isColorableLightSaber(ItemStack stack) {
-        return stack.is(ModItems.DATA_LIGHT_SABER.get());
+        return stack.is(DEItems.DATA_LIGHT_SABER.get());
     }
 
     public static float getModelValue(ItemStack stack) {
@@ -47,7 +47,7 @@ public final class LightSaberColorData {
     }
 
     public static @Nullable DyeColor getStoredColor(ItemStack stack) {
-        String storedName = stack.get(ModDataComponents.LIGHT_SABER_COLOR.get());
+        String storedName = stack.get(DEDataComponents.LIGHT_SABER_COLOR.get());
         if (storedName != null && !storedName.isEmpty()) {
             for (DyeColor value : DyeColor.values()) {
                 if (value.getName().equals(storedName)) {
@@ -90,7 +90,7 @@ public final class LightSaberColorData {
 
     public static ItemStack withColor(ItemStack stack, DyeColor color) {
         ItemStack result = stack.copy();
-        result.set(ModDataComponents.LIGHT_SABER_COLOR.get(), color.getName());
+        result.set(DEDataComponents.LIGHT_SABER_COLOR.get(), color.getName());
         return result;
     }
 
@@ -108,7 +108,7 @@ public final class LightSaberColorData {
     }
 
     public static int getBladeColor(ItemStack stack) {
-        if (stack.is(ModItems.DATA_SANCTIFIER.get())) {
+        if (stack.is(DEItems.DATA_SANCTIFIER.get())) {
             return SANCTIFIER_BLADE_COLOR;
         }
 

@@ -12,10 +12,14 @@ import java.util.function.BooleanSupplier;
  */
 public interface TrinityComputationCache extends AutoCloseable {
 
-    /** Revision marker required by semantic namespaces that can cross publication revisions. */
+    /**
+     * Revision marker required by semantic namespaces that can cross publication revisions.
+     */
     long SEMANTIC_REVISION = -1L;
 
-    /** Default maximum number of registered entries across all namespaces for one Grid scope. */
+    /**
+     * Default maximum number of registered entries across all namespaces for one Grid scope.
+     */
     int DEFAULT_GRID_ENTRY_LIMIT = 4096;
 
     /**
@@ -25,7 +29,7 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @return independently owned computation cache
      */
     static TrinityComputationCache create(Executor executor) {
-        return new TrinityComputationCacheImpl(executor, DEFAULT_GRID_ENTRY_LIMIT);
+        return new BoundedTrinityComputationCache(executor, DEFAULT_GRID_ENTRY_LIMIT);
     }
 
     /**
@@ -36,7 +40,7 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @return independently owned computation cache
      */
     static TrinityComputationCache create(Executor executor, int gridEntryLimit) {
-        return new TrinityComputationCacheImpl(executor, gridEntryLimit);
+        return new BoundedTrinityComputationCache(executor, gridEntryLimit);
     }
 
     /**

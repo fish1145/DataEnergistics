@@ -40,12 +40,9 @@ public record DataResourceJeiIngredient(DataResourceKey key, long amount) {
             new DataResourceJeiIngredient(DataResourceKey.ECHO, 1L));
 
     /**
-     * Rejects invalid identities before JEI can cache or serialize them.
+     * Rejects invalid amounts before JEI can cache or serialize them.
      */
     public DataResourceJeiIngredient {
-        if (key == null) {
-            throw invalid("JEI data resource ingredient key cannot be null");
-        }
         if (amount <= 0L) {
             throw invalid("JEI data resource ingredient amount must be positive: " + amount);
         }
@@ -57,11 +54,15 @@ public record DataResourceJeiIngredient(DataResourceKey key, long amount) {
      * @return the native ingredient for a Data Energistics key, or {@code null} for other AE keys
      */
     public static @Nullable DataResourceJeiIngredient from(GenericStack stack) {
-        if (stack == null) {
-            throw invalid("JEI data resource ingredient source stack cannot be null");
-        }
         DataResourceKey key = DataResourceKey.fromAeKey(stack.what());
-        return key == null ? null : new DataResourceJeiIngredient(key, stack.amount());
+        if (key == null) {
+            return null;
+        }
+        if (stack.amount() < 0L) {
+            throw invalid("Cannot convert a negative AE2 stack amount to JEI: " + stack.amount());
+        }
+        long amount = stack.amount() == 0L ? 1L : stack.amount();
+        return new DataResourceJeiIngredient(key, amount);
     }
 
     /**

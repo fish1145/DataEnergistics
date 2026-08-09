@@ -1,23 +1,23 @@
 package com.fish_dan_.data_energistics.common.trinity.preview;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistrySnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalogSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewProjectionImpl;
-import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.common.multiblock.json.registry.JsonMultiBlockDefinitionRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewCatalogSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellRole;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierOption;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.MdlibNorthFacingStructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -59,9 +59,9 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void projectsLiveDefinitions(GameTestHelper helper) {
-        JsonMultiBlockDefinitionRegistrySnapshot definitions = ModVerticalMultiBlocks.JSON_MULTI_BLOCKS.snapshot();
-        MultiblockPreviewCatalogSnapshot catalog = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot();
-        MultiblockPreviewSpec spec = catalog.require(ModVerticalMultiBlocks.trinityDataCoreId());
+        JsonMultiBlockDefinitionRegistrySnapshot definitions = DEVerticalMultiBlocks.JSON_MULTI_BLOCKS.snapshot();
+        MultiblockPreviewCatalogSnapshot catalog = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot();
+        MultiblockPreviewSpec spec = catalog.require(DEVerticalMultiBlocks.trinityDataCoreId());
 
         helper.assertValueEqual(
                 catalog.definitionRevision(),
@@ -95,7 +95,7 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
         assertTierDomain(helper, cpuSpec, TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 10);
         assertTierDomain(helper, craftingSpec, TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 3);
 
-        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        StructurePreviewProjection projection = new MdlibNorthFacingStructurePreviewProjection();
         PreviewSelection initial = PreviewSelection.initial(spec);
         StructurePreviewSnapshot main = projection.project(spec, initial);
         PreviewSelection cpuSelection = initial.select("cpu");

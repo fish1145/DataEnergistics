@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
-import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -231,12 +231,16 @@ final class TrinityDataCoreExecutingCraftingJob {
         return this.remainingAmount <= 0L && this.tasks.isEmpty() && this.waitingFor.list.isEmpty();
     }
 
-    /** @return whether this job owns a compact Trinity execution cursor */
+    /**
+     * @return whether this job owns a compact Trinity execution cursor
+     */
     boolean isTrinityPlan() {
         return this.planExecution != null;
     }
 
-    /** @return compact execution cursor for a Trinity plan */
+    /**
+     * @return compact execution cursor for a Trinity plan
+     */
     TrinityPlanExecution trinityExecution() {
         if (this.planExecution == null) {
             throw new IllegalStateException("A legacy AE2 job has no Trinity execution cursor");
@@ -244,14 +248,18 @@ final class TrinityDataCoreExecutingCraftingJob {
         return this.planExecution;
     }
 
-    /** Returns the indexed amount still scheduled by undispatched tasks. */
+    /**
+     * Returns the indexed amount still scheduled by undispatched tasks.
+     */
     long getPendingOutputs(AEKey key) {
         return this.planExecution == null ?
                 this.scheduledTasks.pendingOutputs(key) :
                 this.planExecution.pendingOutputs().getOrDefault(key, 0L);
     }
 
-    /** Adds every indexed undispatched output to the supplied aggregate. */
+    /**
+     * Adds every indexed undispatched output to the supplied aggregate.
+     */
     void addScheduledOutputsTo(KeyCounter output) {
         if (this.planExecution == null) {
             this.scheduledTasks.addOutputsTo(output);
@@ -260,7 +268,9 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.planExecution.pendingOutputs().forEach(output::add);
     }
 
-    /** Removes the exact counted dispatch from the derived scheduled-output index. */
+    /**
+     * Removes the exact counted dispatch from the derived scheduled-output index.
+     */
     void recordTaskDispatch(IPatternDetails pattern, long craftCount) {
         this.scheduledTasks.recordDispatch(pattern, craftCount);
     }
@@ -347,11 +357,13 @@ final class TrinityDataCoreExecutingCraftingJob {
         long value;
     }
 
-    /** Authoritative remaining tasks paired with their derived scheduled-output index. */
+    /**
+     * Authoritative remaining tasks paired with their derived scheduled-output index.
+     */
     static final class ScheduledTasks {
 
         private final TaskQueue tasks = new TaskQueue();
-        private final TrinityScheduledOutputIndex outputs = new TrinityScheduledOutputIndexImpl();
+        private final TrinityScheduledOutputIndex outputs = new TrinityScheduledOutputIndex();
 
         Map<IPatternDetails, TaskProgress> tasks() {
             return this.tasks;
@@ -379,7 +391,9 @@ final class TrinityDataCoreExecutingCraftingJob {
         }
     }
 
-    /** Insertion-ordered task map whose bounded iterators rotate visited work to the tail. */
+    /**
+     * Insertion-ordered task map whose bounded iterators rotate visited work to the tail.
+     */
     static final class TaskQueue extends AbstractMap<IPatternDetails, TaskProgress> {
 
         private final Map<IPatternDetails, TaskNode> index = new HashMap<>();

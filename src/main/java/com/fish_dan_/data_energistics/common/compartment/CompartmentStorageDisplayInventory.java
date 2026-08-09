@@ -6,7 +6,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
@@ -42,14 +42,14 @@ public final class CompartmentStorageDisplayInventory implements InternalInvento
     }
 
     @Override
-    public void setItemDirect(int slotIndex, @NotNull ItemStack stack) {}
+    public void setItemDirect(int slotIndex, ItemStack stack) {}
 
     @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
         return ItemStack.EMPTY;
     }
 
-    private GenericStack stackAt(int slotIndex) {
+    private @Nullable GenericStack stackAt(int slotIndex) {
         if (slotIndex < 0 || slotIndex >= this.windowSize) {
             return null;
         }

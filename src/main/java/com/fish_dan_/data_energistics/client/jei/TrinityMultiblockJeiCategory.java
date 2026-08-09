@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiIngredient;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
@@ -54,17 +54,11 @@ public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<
 
     TrinityMultiblockJeiCategory(IDrawable icon, RecipeRefresh recipeRefresh) {
         super(recipe -> createModularUI(recipe, recipeRefresh));
-        if (icon == null || recipeRefresh == null) {
-            throw new IllegalArgumentException("Trinity multiblock JEI category arguments cannot be null");
-        }
         this.icon = icon;
     }
 
     private static IDrawable createIcon(IJeiHelpers helpers) {
-        if (helpers == null) {
-            throw new IllegalArgumentException("Trinity multiblock JEI helpers cannot be null");
-        }
-        return helpers.getGuiHelper().createDrawableItemLike(ModBlocks.TRINITY_DATA_CORE.get());
+        return helpers.getGuiHelper().createDrawableItemLike(DEBlocks.TRINITY_DATA_CORE.get());
     }
 
     /**
@@ -87,9 +81,6 @@ public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<
      * Binds the one root-level live ingredient publisher used by JEI layout construction.
      */
     public static void bindRecipeIngredients(MultiblockXeiComposition composition) {
-        if (composition == null) {
-            throw new IllegalArgumentException("JEI multiblock ingredient publisher requires a composition");
-        }
         composition.modularUI().ui.rootElement.addEventListener(
                 JEIUIEvents.RECIPE_INGREDIENT,
                 event -> publishRecipeIngredients(event, composition));
@@ -123,7 +114,7 @@ public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<
 
     @Override
     public Component getTitle() {
-        return ModBlocks.TRINITY_DATA_CORE.get().getName();
+        return DEBlocks.TRINITY_DATA_CORE.get().getName();
     }
 
     @Override

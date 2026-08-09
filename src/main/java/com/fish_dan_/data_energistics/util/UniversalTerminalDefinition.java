@@ -10,6 +10,12 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+/**
+ * @deprecated build a public {@code UniversalTerminalRegistration} or implement its terminal behavior instead. This
+ *             compatibility definition will be removed in 3.1.0.
+ */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public record UniversalTerminalDefinition(
                                           String name,
                                           Predicate<ItemStack> matcher,
@@ -17,7 +23,7 @@ public record UniversalTerminalDefinition(
                                           Supplier<MenuType<?>> menuTypeSupplier,
                                           UniversalTerminalConfigProfile configProfile,
                                           boolean requiresCustomMenuLocator,
-                                          @Nullable Function<Runnable, IConfigManager> configManagerFactory)
+                                          @Nullable Function<Runnable, @Nullable IConfigManager> configManagerFactory)
         implements UniversalTerminalAdapter {
 
     public UniversalTerminalDefinition(
@@ -45,23 +51,6 @@ public record UniversalTerminalDefinition(
                                        UniversalTerminalConfigProfile configProfile,
                                        boolean requiresCustomMenuLocator) {
         this(name, matcher, iconSupplier, menuTypeSupplier, configProfile, requiresCustomMenuLocator, null);
-    }
-
-    public UniversalTerminalDefinition(
-                                       String name,
-                                       Predicate<ItemStack> matcher,
-                                       Supplier<ItemStack> iconSupplier,
-                                       Supplier<MenuType<?>> menuTypeSupplier,
-                                       UniversalTerminalConfigProfile configProfile,
-                                       boolean requiresCustomMenuLocator,
-                                       @Nullable Function<Runnable, IConfigManager> configManagerFactory) {
-        this.name = name;
-        this.matcher = matcher;
-        this.iconSupplier = iconSupplier;
-        this.menuTypeSupplier = menuTypeSupplier;
-        this.configProfile = configProfile;
-        this.requiresCustomMenuLocator = requiresCustomMenuLocator;
-        this.configManagerFactory = configManagerFactory;
     }
 
     @Override

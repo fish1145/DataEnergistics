@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.item.carrier.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,7 +41,7 @@ public final class BiologyDataCarrierData {
             return false;
         }
 
-        stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
+        stack.set(DEDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
                 entityId,
                 DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobRequiredDamage(),
                 0.0F));
@@ -57,7 +57,7 @@ public final class BiologyDataCarrierData {
         if (data == null) {
             return false;
         }
-        stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), data.withAddedCollectedDamage(damage));
+        stack.set(DEDataComponents.MOB_DATA_CARRIER.get(), data.withAddedCollectedDamage(damage));
         return true;
     }
 
@@ -102,10 +102,10 @@ public final class BiologyDataCarrierData {
     }
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
-        ItemStack result = new ItemStack(ModItems.MOB_DATA_CARRIER.get());
+        ItemStack result = new ItemStack(DEItems.MOB_DATA_CARRIER.get());
         MobDataCarrierItemData data = getData(source);
         if (data != null) {
-            result.set(ModDataComponents.MOB_DATA_CARRIER.get(), data.asComplete());
+            result.set(DEDataComponents.MOB_DATA_CARRIER.get(), data.asComplete());
         }
         return result;
     }
@@ -118,7 +118,7 @@ public final class BiologyDataCarrierData {
     }
 
     private static @Nullable MobDataCarrierItemData getData(ItemStack stack) {
-        MobDataCarrierItemData data = stack.get(ModDataComponents.MOB_DATA_CARRIER.get());
+        MobDataCarrierItemData data = stack.get(DEDataComponents.MOB_DATA_CARRIER.get());
         if (data != null) {
             return data;
         }

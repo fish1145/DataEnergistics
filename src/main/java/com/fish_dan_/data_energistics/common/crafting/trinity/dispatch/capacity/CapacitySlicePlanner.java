@@ -21,7 +21,7 @@ public interface CapacitySlicePlanner {
      * @return independent stateless planner
      */
     static CapacitySlicePlanner create() {
-        return new CapacitySlicePlannerImpl();
+        return new StartupFirstMaxMinCapacitySlicePlanner();
     }
 
     /**

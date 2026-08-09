@@ -8,13 +8,13 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsPayload;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsReceiver;
-import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsSnapshot;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
+import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsReceiver;
+import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsSnapshot;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -84,7 +84,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     public boolean unlimitedChannels;
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
-        super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
+        super(DEMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
         this.boosterSlot = new RestrictedInputSlot(
@@ -128,8 +128,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             this.rangeVisible = tower.isRangeDisplayEnabled();
             this.connectionMode = tower.getConnectionMode().ordinal();
             this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
-            this.boundTargetCount = tower.getBoundTargetCount();
-            syncTargetSnapshot(tower.getBoundTargetSummaries(Integer.MAX_VALUE), tower.getTargetDisplayStateRevision());
+            List<BoundTargetSummary> summaries = tower.getBoundTargetSummaries(Integer.MAX_VALUE);
+            this.boundTargetCount = summaries.size();
+            syncTargetSnapshot(summaries, tower.getTargetDisplayStateRevision());
         }
 
         super.broadcastChanges();

@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.NotNull;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -146,7 +145,7 @@ public record TrinityPatternVariant(
     }
 
     @Override
-    public int compareTo(@NotNull TrinityPatternVariant other) {
+    public int compareTo(TrinityPatternVariant other) {
         int patternOrder = this.patternIdentity.compareTo(other.patternIdentity);
         return patternOrder != 0 ? patternOrder : Integer.compare(this.ordinal, other.ordinal);
     }

@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -129,7 +129,7 @@ public final class DataSanctumBlackHoleOutputGameTest {
                                          int offsetY) {
         BlockPos localPartPos = DataSanctumBlockEntity.getPartPos(
                 SANCTUM_MAIN_POS, SANCTUM_FACING, offsetX, offsetZ, offsetY);
-        BlockState state = ModBlocks.DATA_SANCTUM.get()
+        BlockState state = DEBlocks.DATA_SANCTUM.get()
                 .defaultBlockState()
                 .setValue(DataSanctumBlock.FACING, SANCTUM_FACING)
                 .setValue(DataSanctumBlock.OFFSET_X, DataSanctumBlockEntity.encodeOffsetX(offsetX))

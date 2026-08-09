@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,7 +23,6 @@ import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.RestrictedInputSlot;
-import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +74,7 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
     public int keyOutputSidesMask = 63;
 
     public DigitalStorageDepotMenu(int id, Inventory playerInventory, DigitalStorageDepotBlockEntity host) {
-        super(ModMenus.DIGITAL_STORAGE_DEPOT.get(), id, playerInventory, host);
+        super(DEMenus.DIGITAL_STORAGE_DEPOT.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_AUTO_EXPORT, Integer.class, this::setAutoExportMode);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }

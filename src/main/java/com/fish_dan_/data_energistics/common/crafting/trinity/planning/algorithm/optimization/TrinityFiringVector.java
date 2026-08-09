@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,7 +71,7 @@ public final class TrinityFiringVector implements Comparable<TrinityFiringVector
     }
 
     @Override
-    public int compareTo(@NotNull TrinityFiringVector other) {
+    public int compareTo(TrinityFiringVector other) {
         if (!this.variants.equals(other.variants)) {
             throw new IllegalArgumentException("Trinity firing vectors must share the same complete variant domain");
         }

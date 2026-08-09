@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
-import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -8,7 +8,6 @@ import net.minecraft.nbt.ListTag;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Stable, component-aware identity of one published pattern semantic.
@@ -58,7 +57,7 @@ public record TrinityPatternIdentity(String definitionEncoding,
     }
 
     @Override
-    public int compareTo(@NotNull TrinityPatternIdentity other) {
+    public int compareTo(TrinityPatternIdentity other) {
         int definitionOrder = this.definitionEncoding.compareTo(other.definitionEncoding);
         return definitionOrder != 0 ? definitionOrder :
                 this.publicationEncoding.compareTo(other.publicationEncoding);

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
-import com.fish_dan_.data_energistics.network.DataMeteoriteCompassRequestPayload;
-import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
+import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;

@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.ae2.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -57,7 +57,7 @@ public final class SonicBoomEchoCaptureGameTest {
         ServerLevel level = helper.getLevel();
         Warden warden = createWarden(helper, level);
         LivingEntity target = createTarget(helper, level);
-        SonicBoomEchoCaptureImpl capture = new SonicBoomEchoCaptureImpl();
+        FormationPlaneSonicBoomEchoCapture capture = new FormationPlaneSonicBoomEchoCapture();
 
         helper.startSequence()
                 .thenWaitUntil(() -> {
@@ -67,11 +67,11 @@ public final class SonicBoomEchoCaptureGameTest {
                 })
                 .thenExecute(() -> {
                     helper.assertTrue(
-                            SonicBoomEchoCaptureImpl.isDirectWardenSonicBoom(
+                            FormationPlaneSonicBoomEchoCapture.isDirectWardenSonicBoom(
                                     level.damageSources().sonicBoom(warden)),
                             "A real Warden sonic source must be recognized");
                     helper.assertFalse(
-                            SonicBoomEchoCaptureImpl.isDirectWardenSonicBoom(
+                            FormationPlaneSonicBoomEchoCapture.isDirectWardenSonicBoom(
                                     level.damageSources().mobAttack(warden)),
                             "Ordinary Warden damage must not be recognized as a sonic boom");
                     helper.assertValueEqual(
@@ -135,7 +135,7 @@ public final class SonicBoomEchoCaptureGameTest {
         FormationPlanePart firstPlane = installFormationPlane(firstHost);
         FormationPlanePart secondPlane = installFormationPlane(secondHost);
 
-        helper.setBlock(DEPOT_POS, ModBlocks.DIGITAL_STORAGE_DEPOT.get());
+        helper.setBlock(DEPOT_POS, DEBlocks.DIGITAL_STORAGE_DEPOT.get());
         BlockEntity blockEntity = helper.getBlockEntity(DEPOT_POS);
         if (!(blockEntity instanceof DigitalStorageDepotBlockEntity depot)) {
             throw new GameTestAssertException("Placed Echo storage depot has no matching block entity");

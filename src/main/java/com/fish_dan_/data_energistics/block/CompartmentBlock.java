@@ -7,8 +7,8 @@ import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBloc
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -112,7 +112,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || !ModBlockEntities.isCompartmentBlockEntityType(blockEntityType)) {
+        if (level.isClientSide() || !DEBlockEntities.isCompartmentBlockEntityType(blockEntityType)) {
             return null;
         }
         return (tickLevel, tickPos, tickState, blockEntity) -> {
@@ -131,7 +131,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof TrinityAccessHatchBlockEntity hatch) {
                 MenuOpener.open(
-                        ModMenus.TRINITY_ACCESS_HATCH.get(),
+                        DEMenus.TRINITY_ACCESS_HATCH.get(),
                         player,
                         MenuLocators.forBlockEntity(hatch));
             } else if (blockEntity instanceof CompartmentBlockEntity compartment) {
@@ -146,11 +146,11 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
 
     private static DeferredHolder<MenuType<?>, ? extends MenuType<?>> menuTypeFor(CompartmentType type) {
         return switch (type) {
-            case INPUT, OUTPUT -> ModMenus.COMPOSITE_WAREHOUSE;
-            case ME_INPUT -> ModMenus.ME_COMPOSITE_INPUT_WAREHOUSE;
-            case ME_OUTPUT -> ModMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE;
-            case PATTERN_BUFFER -> ModMenus.ME_PATTERN_BUFFER;
-            case TRINITY_ACCESS -> ModMenus.TRINITY_ACCESS_HATCH;
+            case INPUT, OUTPUT -> DEMenus.COMPOSITE_WAREHOUSE;
+            case ME_INPUT -> DEMenus.ME_COMPOSITE_INPUT_WAREHOUSE;
+            case ME_OUTPUT -> DEMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE;
+            case PATTERN_BUFFER -> DEMenus.ME_PATTERN_BUFFER;
+            case TRINITY_ACCESS -> DEMenus.TRINITY_ACCESS_HATCH;
         };
     }
 }

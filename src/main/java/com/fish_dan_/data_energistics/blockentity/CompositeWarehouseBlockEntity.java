@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -55,7 +55,7 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     private final IUpgradeInventory upgrades;
 
     public CompositeWarehouseBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
+        super(DEBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), pos, state);
         requirePlainWarehouse(state);
         this.upgrades = UpgradeInventories.forMachine(state.getBlock(), UPGRADE_SLOT_COUNT, this::onUpgradesChanged);
     }

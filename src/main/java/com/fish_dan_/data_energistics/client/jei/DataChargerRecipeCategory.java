@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -36,7 +36,7 @@ public final class DataChargerRecipeCategory extends AbstractRecipeCategory<Data
         super(
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.data_charger"),
-                guiHelper.createDrawableItemLike(ModBlocks.DATA_CHARGER.get()),
+                guiHelper.createDrawableItemLike(DEBlocks.DATA_CHARGER.get()),
                 WIDTH,
                 HEIGHT);
         this.arrow = guiHelper.createDrawable(TEXTURE, 82, 128, 24, 17);

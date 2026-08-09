@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.mixin.extendedaeplus;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternUploadScope;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -56,13 +56,13 @@ public abstract class EaepPatternEncodingTermMenuMixin implements EaepPatternEnc
             serverPlayer.server.execute(() -> {
                 try (EaepPatternUploadScope.ScopeToken ignored = EaepPatternUploadScope.open(snapshot)) {
                     ExtendedAEPatternUploadUtil.uploadFromEncodingMenuToMatrix(serverPlayer, menu);
-                } catch (RuntimeException | LinkageError exception) {
+                } catch (RuntimeException exception) {
                     this.dataEnergistics$eaepUploadPending = false;
                     Data_Energistics.LOGGER.error(
                             "ExtendedAE-Plus matrix upload failed after pattern encoding", exception);
                 }
             });
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (RuntimeException exception) {
             this.dataEnergistics$eaepUploadPending = false;
             Data_Energistics.LOGGER.error(
                     "Could not schedule ExtendedAE-Plus matrix upload after pattern encoding", exception);
