@@ -34,10 +34,15 @@ import java.util.List;
 import java.util.function.DoubleSupplier;
 
 /**
- * Server implementation that reconstructs the vanilla sonic-boom path and deposits Echo into each intersected
- * formation plane's own ME grid.
+ * Captures the resource created when a real Warden sonic boom crosses eligible formation planes.
+ *
+ * <p>
+ * The capture reconstructs the vanilla sonic-boom path and deposits Echo into each intersected formation plane's own
+ * ME grid. Event recognition remains separate from the world scan and insertion mechanics so deterministic callers can
+ * exercise the production path without synthesizing a damage event.
+ * </p>
  */
-public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
+public final class FormationPlaneSonicBoomEchoCapture {
 
     private static final double SONIC_EXTENSION_BEYOND_TARGET = 7.0D;
     private static final double INTERSECTION_EPSILON = 1.0E-7D;
@@ -60,7 +65,15 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
         capture(level, (Warden) source.getDirectEntity(), event.getEntity());
     }
 
-    @Override
+    /**
+     * Scans formation planes along the Warden-to-target sonic path. Each plane has a seventy-percent chance to insert
+     * ten Echo; the scan stops at the first successful capture.
+     *
+     * @param level  server level containing the already-loaded path chunks
+     * @param warden direct Warden source of the sonic boom
+     * @param target living entity whose eye position defines the original sonic target
+     * @return number of Echo units successfully inserted
+     */
     public int capture(ServerLevel level, Warden warden, LivingEntity target) {
         return capture(level, warden, target, level.getRandom()::nextDouble);
     }

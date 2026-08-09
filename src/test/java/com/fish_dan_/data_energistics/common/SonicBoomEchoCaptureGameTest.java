@@ -57,7 +57,7 @@ public final class SonicBoomEchoCaptureGameTest {
         ServerLevel level = helper.getLevel();
         Warden warden = createWarden(helper, level);
         LivingEntity target = createTarget(helper, level);
-        SonicBoomEchoCaptureImpl capture = new SonicBoomEchoCaptureImpl();
+        FormationPlaneSonicBoomEchoCapture capture = new FormationPlaneSonicBoomEchoCapture();
 
         helper.startSequence()
                 .thenWaitUntil(() -> {
@@ -67,11 +67,11 @@ public final class SonicBoomEchoCaptureGameTest {
                 })
                 .thenExecute(() -> {
                     helper.assertTrue(
-                            SonicBoomEchoCaptureImpl.isDirectWardenSonicBoom(
+                            FormationPlaneSonicBoomEchoCapture.isDirectWardenSonicBoom(
                                     level.damageSources().sonicBoom(warden)),
                             "A real Warden sonic source must be recognized");
                     helper.assertFalse(
-                            SonicBoomEchoCaptureImpl.isDirectWardenSonicBoom(
+                            FormationPlaneSonicBoomEchoCapture.isDirectWardenSonicBoom(
                                     level.damageSources().mobAttack(warden)),
                             "Ordinary Warden damage must not be recognized as a sonic boom");
                     helper.assertValueEqual(

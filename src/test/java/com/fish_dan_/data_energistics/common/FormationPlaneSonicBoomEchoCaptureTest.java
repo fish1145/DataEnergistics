@@ -10,35 +10,35 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SonicBoomEchoCaptureImplTest {
+class FormationPlaneSonicBoomEchoCaptureTest {
 
     @Test
     void capturesTenEchoOnlyForRollsBelowSeventyPercent() {
-        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.0D));
-        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.699999D));
-        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.70D));
-        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.75D));
+        assertTrue(FormationPlaneSonicBoomEchoCapture.shouldCaptureEcho(0.0D));
+        assertTrue(FormationPlaneSonicBoomEchoCapture.shouldCaptureEcho(0.699999D));
+        assertFalse(FormationPlaneSonicBoomEchoCapture.shouldCaptureEcho(0.70D));
+        assertFalse(FormationPlaneSonicBoomEchoCapture.shouldCaptureEcho(0.75D));
     }
 
     @Test
     void extendsSevenBlocksPastTargetAndAcceptsOnlyFrontFaceIntersections() {
         Vec3 start = new Vec3(0.5D, 0.5D, -2.0D);
         Vec3 targetEye = new Vec3(0.5D, 0.5D, 2.0D);
-        Vec3 end = SonicBoomEchoCaptureImpl.extendPastTarget(start, targetEye);
+        Vec3 end = FormationPlaneSonicBoomEchoCapture.extendPastTarget(start, targetEye);
 
         assertEquals(7.0D, end.distanceTo(targetEye), 1.0E-9D);
         assertEquals(new Vec3(0.5D, 0.5D, 9.0D), end);
-        assertTrue(SonicBoomEchoCaptureImpl.intersectsFrontFace(
+        assertTrue(FormationPlaneSonicBoomEchoCapture.intersectsFrontFace(
                 start,
                 end,
                 BlockPos.ZERO,
                 Direction.NORTH));
-        assertFalse(SonicBoomEchoCaptureImpl.intersectsFrontFace(
+        assertFalse(FormationPlaneSonicBoomEchoCapture.intersectsFrontFace(
                 end,
                 start,
                 BlockPos.ZERO,
                 Direction.NORTH));
-        assertFalse(SonicBoomEchoCaptureImpl.intersectsFrontFace(
+        assertFalse(FormationPlaneSonicBoomEchoCapture.intersectsFrontFace(
                 new Vec3(1.5D, 0.5D, -2.0D),
                 new Vec3(1.5D, 0.5D, 9.0D),
                 BlockPos.ZERO,
