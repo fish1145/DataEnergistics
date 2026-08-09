@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Optional typed handler for opening a menu for an entire provider group.
  */
@@ -14,6 +12,5 @@ public interface PatternProviderMenuOpenAdapter {
      * @param context immutable server-side group context
      * @return whether to continue, report success, or stop with an explicit denial
      */
-    @NotNull
-    PatternProviderMenuOpenResult open(@NotNull PatternProviderMenuOpenContext context);
+    PatternProviderMenuOpenResult open(PatternProviderMenuOpenContext context);
 }

@@ -4,7 +4,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -20,38 +19,35 @@ public interface UniversalTerminalBehavior {
     /**
      * @return non-blank stable persisted terminal name
      */
-    @NotNull
     String name();
 
     /**
      * Reports whether this behavior recognizes a candidate terminal stack.
      */
-    boolean matches(@NotNull ItemStack stack);
+    boolean matches(ItemStack stack);
 
     /**
      * Performs final installation validation after {@link #matches(ItemStack)} succeeds.
      */
-    default boolean canInstall(@NotNull ItemStack stack) {
+    default boolean canInstall(ItemStack stack) {
         return this.matches(stack);
     }
 
     /**
      * Captures one independently owned terminal item for combined-terminal storage.
      */
-    default @NotNull ItemStack createStoredTerminal(@NotNull ItemStack stack) {
+    default ItemStack createStoredTerminal(ItemStack stack) {
         return stack.copyWithCount(1);
     }
 
     /**
      * @return independently owned icon stack
      */
-    @NotNull
     ItemStack createIcon();
 
     /**
      * @return registered menu type opened for this terminal
      */
-    @NotNull
     MenuType<?> menuType();
 
     /**
@@ -67,22 +63,22 @@ public interface UniversalTerminalBehavior {
      * @param saveAction callback invoked when configuration changes
      * @return host-local configuration, or {@code null} when none is required
      */
-    default @Nullable IConfigManager createConfigManager(@NotNull Runnable saveAction) {
+    default @Nullable IConfigManager createConfigManager(Runnable saveAction) {
         return null;
     }
 
     /**
      * Resolves the menu host without exposing the concrete universal-terminal part.
      */
-    default <T> @Nullable T resolveMenuHost(@NotNull UniversalTerminalContext context,
-                                            @NotNull Class<T> hostInterface) {
+    default <T> @Nullable T resolveMenuHost(UniversalTerminalContext context,
+                                            Class<T> hostInterface) {
         return context.resolveDefaultMenuHost(hostInterface);
     }
 
     /**
      * @return built-in settings layout selected by this behavior
      */
-    default @NotNull UniversalTerminalConfigurationProfile configurationProfile() {
+    default UniversalTerminalConfigurationProfile configurationProfile() {
         return UniversalTerminalConfigurationProfile.STANDARD;
     }
 }

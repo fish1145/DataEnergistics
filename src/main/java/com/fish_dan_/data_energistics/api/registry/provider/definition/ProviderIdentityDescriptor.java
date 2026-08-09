@@ -4,8 +4,6 @@ import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProvi
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Optional;
 
 /**
@@ -25,14 +23,14 @@ public sealed interface ProviderIdentityDescriptor
      *
      * @param blockEntityTypeId registered block-entity type
      */
-    record Block(@NotNull ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {}
+    record Block(ResourceLocation blockEntityTypeId) implements ProviderIdentityDescriptor {}
 
     /**
      * Describes multipart providers reconstructed from one registered part item.
      *
      * @param partItemId registered item that reconstructs the part
      */
-    record Part(@NotNull ResourceLocation partItemId) implements ProviderIdentityDescriptor {}
+    record Part(ResourceLocation partItemId) implements ProviderIdentityDescriptor {}
 
     /**
      * Describes Data Energistics Trinity provider partitions independently of their live routing keys.
@@ -50,7 +48,7 @@ public sealed interface ProviderIdentityDescriptor
      * @param type          stable provider family identifier
      * @param schemaVersion version of the external canonical identity schema
      */
-    record External(@NotNull ResourceLocation type, int schemaVersion) implements ProviderIdentityDescriptor {
+    record External(ResourceLocation type, int schemaVersion) implements ProviderIdentityDescriptor {
 
         /**
          * Validates the external family schema.
@@ -72,8 +70,8 @@ public sealed interface ProviderIdentityDescriptor
      * @param identity live provider identity
      * @return semantic provider descriptor, or empty for a virtual fallback identity
      */
-    static @NotNull Optional<@NotNull ProviderIdentityDescriptor> from(
-                                                                       @NotNull PatternProviderIdentity identity) {
+    static Optional<ProviderIdentityDescriptor> from(
+                                                     PatternProviderIdentity identity) {
         return identity.descriptor();
     }
 }

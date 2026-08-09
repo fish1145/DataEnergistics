@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.api.registry.terminal;
 
 import net.minecraft.world.entity.player.Player;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -20,7 +19,6 @@ public interface UniversalTerminalContext {
      *
      * @return active menu player
      */
-    @NotNull
     Player player();
 
     /**
@@ -30,5 +28,5 @@ public interface UniversalTerminalContext {
      * @param <T>           requested host type
      * @return compatible host projection, or {@code null} when the terminal cannot provide it
      */
-    <T> @Nullable T resolveDefaultMenuHost(@NotNull Class<T> hostInterface);
+    <T> @Nullable T resolveDefaultMenuHost(Class<T> hostInterface);
 }

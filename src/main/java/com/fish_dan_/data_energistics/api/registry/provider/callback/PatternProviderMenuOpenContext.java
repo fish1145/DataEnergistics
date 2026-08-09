@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.api.registry.provider.callback;
 import net.minecraft.server.level.ServerPlayer;
 
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -13,8 +12,8 @@ import java.util.List;
  * @param player    server-side player requesting the provider menu
  * @param providers complete provider group selected by the terminal
  */
-public record PatternProviderMenuOpenContext(@NotNull ServerPlayer player,
-                                             @NotNull List<@NotNull PatternContainer> providers) {
+public record PatternProviderMenuOpenContext(ServerPlayer player,
+                                             List<PatternContainer> providers) {
 
     /**
      * Copies the group so an adapter cannot mutate the dispatcher-owned list.

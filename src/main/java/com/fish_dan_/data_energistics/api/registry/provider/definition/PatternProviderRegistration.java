@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProv
 import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -20,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
  * @param menuOpenAdapter optional provider-group menu handler
  * @param postCommitHook  optional confirmed-commit observer
  */
-public record PatternProviderRegistration(@NotNull PatternProviderMetadata metadata,
+public record PatternProviderRegistration(PatternProviderMetadata metadata,
                                           @Nullable PatternProviderFactory factory,
                                           @Nullable PatternProviderMenuOpenAdapter menuOpenAdapter,
                                           @Nullable PatternProviderPostCommitHook postCommitHook) {
@@ -41,8 +40,8 @@ public record PatternProviderRegistration(@NotNull PatternProviderMetadata metad
      * @param factory  runtime adapter factory
      * @return provider declaration
      */
-    public static @NotNull PatternProviderRegistration counted(@NotNull PatternProviderMetadata metadata,
-                                                               @NotNull PatternProviderFactory factory) {
+    public static PatternProviderRegistration counted(PatternProviderMetadata metadata,
+                                                      PatternProviderFactory factory) {
         return new PatternProviderRegistration(metadata, factory, null, null);
     }
 }

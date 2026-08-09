@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.api.registry.provider.runtime;
 
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Optional;
 
 /**
@@ -29,7 +27,6 @@ public interface PatternProviderIdentity {
      *
      * @return canonical provider digest
      */
-    @NotNull
     String digest();
 
     /**
@@ -37,6 +34,5 @@ public interface PatternProviderIdentity {
      *
      * @return declaration family, or empty when the provider has only a display-derived fallback identity
      */
-    @NotNull
-    Optional<@NotNull ProviderIdentityDescriptor> descriptor();
+    Optional<ProviderIdentityDescriptor> descriptor();
 }
