@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.ae2;
+package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
 import me.ramidzkh.mekae2.ae2.MekanismKey;
 import mekanism.api.Action;
