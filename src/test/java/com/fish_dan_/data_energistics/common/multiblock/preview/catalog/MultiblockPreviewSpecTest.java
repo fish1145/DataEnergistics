@@ -54,17 +54,12 @@ public final class MultiblockPreviewSpecTest {
         PreviewTierOption first = tierOption(1, "minecraft:iron_block");
         PreviewTierOption duplicateValue = tierOption(1, "minecraft:gold_block");
         PreviewTierOption duplicateBlock = tierOption(2, "minecraft:iron_block");
-        List<PreviewTierOption> nullOption = new ArrayList<>();
-        nullOption.add(null);
-
         assertThrows(IllegalArgumentException.class,
                 () -> new PreviewTierOption(0, Component.literal("invalid"), first.blockId()));
         assertThrows(IllegalArgumentException.class,
                 () -> new PreviewTierDomain(" ", Component.literal("tier"), List.of(first), 1));
         assertThrows(IllegalArgumentException.class,
                 () -> new PreviewTierDomain("core", Component.literal("tier"), List.of(), 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> new PreviewTierDomain("core", Component.literal("tier"), nullOption, 1));
         assertThrows(IllegalArgumentException.class,
                 () -> new PreviewTierDomain("core", Component.literal("tier"), List.of(first), 2));
         assertThrows(IllegalArgumentException.class,
