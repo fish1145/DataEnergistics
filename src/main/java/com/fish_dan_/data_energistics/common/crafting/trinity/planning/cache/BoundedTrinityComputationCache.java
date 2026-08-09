@@ -22,7 +22,7 @@ import java.util.function.BooleanSupplier;
 /**
  * Access-order LRU implementation with pinned in-flight entries and lifecycle-aware bypass tasks.
  */
-final class TrinityComputationCacheImpl implements TrinityComputationCache {
+final class BoundedTrinityComputationCache implements TrinityComputationCache {
 
     private final Object cacheLock = new Object();
     private final Executor executor;
@@ -30,7 +30,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
     private final Map<Long, GridPartition> partitions = new HashMap<>();
     private boolean closed;
 
-    TrinityComputationCacheImpl(Executor executor, int gridEntryLimit) {
+    BoundedTrinityComputationCache(Executor executor, int gridEntryLimit) {
         if (executor == null) {
             throw new IllegalArgumentException("A Trinity computation cache requires an executor");
         }
@@ -435,7 +435,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
                 return;
             }
             if (!computed.cacheable()) {
-                synchronized (TrinityComputationCacheImpl.this.cacheLock) {
+                synchronized (BoundedTrinityComputationCache.this.cacheLock) {
                     removeFromPartition();
                 }
                 this.result.complete(computed.value());
@@ -443,7 +443,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             }
             this.result.complete(computed.value());
             if (!this.registered) {
-                synchronized (TrinityComputationCacheImpl.this.cacheLock) {
+                synchronized (BoundedTrinityComputationCache.this.cacheLock) {
                     removeFromPartition();
                 }
             }
@@ -453,7 +453,7 @@ final class TrinityComputationCacheImpl implements TrinityComputationCache {
             if (!this.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.PUBLISHED)) {
                 return;
             }
-            synchronized (TrinityComputationCacheImpl.this.cacheLock) {
+            synchronized (BoundedTrinityComputationCache.this.cacheLock) {
                 removeFromPartition();
             }
             this.result.completeExceptionally(failure);
