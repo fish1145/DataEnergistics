@@ -15,8 +15,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
 import appeng.api.networking.GridFlags;
+import appeng.api.networking.IGrid;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
@@ -127,9 +127,7 @@ public class TuningForkBaseBlockEntity extends AENetworkedBlockEntity {
     @Override
     public void loadTag(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadTag(tag, registries);
-        this.core = tag.contains(CORE_TAG)
-                ? ItemStack.parseOptional(registries, tag.getCompound(CORE_TAG))
-                : ItemStack.EMPTY;
+        this.core = tag.contains(CORE_TAG) ? ItemStack.parseOptional(registries, tag.getCompound(CORE_TAG)) : ItemStack.EMPTY;
     }
 
     @Override

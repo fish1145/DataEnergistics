@@ -16,8 +16,7 @@ public final class OrderedBlockPath {
 
     private static final double BOUNDARY_EPSILON = 1.0E-12D;
 
-    private OrderedBlockPath() {
-    }
+    private OrderedBlockPath() {}
 
     /**
      * Walks a segment with a three-dimensional DDA. Returning {@code false} from the visitor stops the walk.

@@ -139,8 +139,7 @@ public final class DEBlockEntities {
             "fish_dan_",
             () -> BlockEntityType.Builder.of(DollBlockEntity::new, DEBlocks.FISH_DAN.get()).build(null));
 
-    private DEBlockEntities() {
-    }
+    private DEBlockEntities() {}
 
     public static boolean isCompartmentBlockEntityType(BlockEntityType<?> type) {
         return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||

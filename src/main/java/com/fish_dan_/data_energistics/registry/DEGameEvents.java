@@ -26,8 +26,7 @@ public final class DEGameEvents {
     public static final DeferredHolder<GameEvent, GameEvent> RESONANCE_TUNING_FORK_WAVE = register(
             "resonance_tuning_fork_wave");
 
-    private DEGameEvents() {
-    }
+    private DEGameEvents() {}
 
     private static DeferredHolder<GameEvent, GameEvent> register(String id) {
         return GAME_EVENTS.register(id, () -> new GameEvent(NOTIFICATION_RADIUS));

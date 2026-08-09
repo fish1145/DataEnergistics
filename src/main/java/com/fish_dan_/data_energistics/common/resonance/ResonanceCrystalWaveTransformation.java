@@ -19,8 +19,7 @@ final class ResonanceCrystalWaveTransformation {
     private static final float AMETHYST_RESONANCE_CHANCE = 0.25F;
     private static final float DATA_RESONANCE_CHANCE = 0.50F;
 
-    private ResonanceCrystalWaveTransformation() {
-    }
+    private ResonanceCrystalWaveTransformation() {}
 
     static boolean isWardenChangeable(BlockState state) {
         return state.is(Blocks.AMETHYST_CLUSTER) ||

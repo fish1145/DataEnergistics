@@ -22,8 +22,7 @@ import java.util.function.Predicate;
 @ApiStatus.Internal
 public final class SculkVibrationResonance {
 
-    private SculkVibrationResonance() {
-    }
+    private SculkVibrationResonance() {}
 
     /**
      * Processes only cells between the source and sensor, excluding both endpoint cells.

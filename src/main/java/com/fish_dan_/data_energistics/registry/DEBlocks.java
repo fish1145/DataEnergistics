@@ -19,13 +19,14 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
+import com.fish_dan_.data_energistics.block.ResonanceCrystalBlock;
 import com.fish_dan_.data_energistics.block.ResonanceCrystalClusterBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
-import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
-import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.block.TrinityCoreBlock;
 import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
+import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
+import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
@@ -178,6 +179,7 @@ public final class DEBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_BLOCK)
                     .requiresCorrectToolForDrops());
 
+    // TODO(resonance-assets): Replace the approved vanilla placeholder models and textures with dedicated assets.
     public static final DeferredBlock<TuningForkBaseBlock> TUNING_FORK_BASE = BLOCKS.registerBlock(
             "tuning_fork_base",
             TuningForkBaseBlock::new,
@@ -195,9 +197,9 @@ public final class DEBlocks {
             "resonance_tuning_fork",
             TuningForkVariant.RESONANCE);
 
-    public static final DeferredBlock<Block> RESONANCE_CRYSTAL_BLOCK = BLOCKS.registerBlock(
+    public static final DeferredBlock<ResonanceCrystalBlock> RESONANCE_CRYSTAL_BLOCK = BLOCKS.registerBlock(
             "resonance_crystal_block",
-            Block::new,
+            ResonanceCrystalBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
                     .requiresCorrectToolForDrops());
 
@@ -354,8 +356,7 @@ public final class DEBlocks {
             DollBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
 
-    private DEBlocks() {
-    }
+    private DEBlocks() {}
 
     private static DeferredBlock<CompartmentBlock> registerCompartment(String id, CompartmentType type) {
         return BLOCKS.registerBlock(

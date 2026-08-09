@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.item.DataMeteoriteCompassItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DollBlockItem;
 import com.fish_dan_.data_energistics.item.TuningForkBlockItem;
-import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.cell.DataFlowPortableCellItem;
@@ -44,8 +44,8 @@ import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.SimpleTier;
-import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import appeng.api.stacks.GenericStack;
@@ -318,8 +318,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> QIUYEQAQ2024 = ITEMS.registerSimpleBlockItem(DEBlocks.QIUYEQAQ2024);
     public static final DeferredItem<BlockItem> TED_XENON = ITEMS.registerSimpleBlockItem(DEBlocks.TED_XENON);
 
-    private DEItems() {
-    }
+    private DEItems() {}
 
     public static void register(IEventBus modEventBus) {
         ITEMS.register(modEventBus);
@@ -334,8 +333,8 @@ public final class DEItems {
     }
 
     private static DeferredItem<TuningForkBlockItem> registerTuningFork(
-            String id,
-            DeferredBlock<TuningForkBlock> block) {
+                                                                        String id,
+                                                                        DeferredBlock<TuningForkBlock> block) {
         return ITEMS.register(
                 id,
                 () -> new TuningForkBlockItem(block.get(), new Item.Properties().durability(block.get().getVariant().durability())));

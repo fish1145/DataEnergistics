@@ -18,8 +18,7 @@ import net.neoforged.neoforge.common.NeoForge;
 
 final class CommonEventRegistrar {
 
-    private CommonEventRegistrar() {
-    }
+    private CommonEventRegistrar() {}
 
     static void register(HolderFingerprintBridge configurationReload) {
         NeoForge.EVENT_BUS.register(configurationReload);

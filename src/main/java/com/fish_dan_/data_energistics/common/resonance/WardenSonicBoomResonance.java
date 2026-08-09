@@ -25,8 +25,7 @@ public final class WardenSonicBoomResonance {
 
     private static final double EXTENSION_BEYOND_TARGET = 7.0D;
 
-    private WardenSonicBoomResonance() {
-    }
+    private WardenSonicBoomResonance() {}
 
     /**
      * Reconstructs the vanilla chest-to-eye ray and extends it seven blocks beyond the original target.

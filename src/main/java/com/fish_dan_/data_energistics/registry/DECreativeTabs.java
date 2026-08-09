@@ -156,8 +156,7 @@ public final class DECreativeTabs {
                     .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
                     .build());
 
-    private DECreativeTabs() {
-    }
+    private DECreativeTabs() {}
 
     public static void register(IEventBus modEventBus) {
         CREATIVE_MODE_TABS.register(modEventBus);

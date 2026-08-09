@@ -12,8 +12,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
  */
 final class TuningForkWaveHit {
 
-    private TuningForkWaveHit() {
-    }
+    private TuningForkWaveHit() {}
 
     static boolean process(LevelChunk chunk, BlockPos pos, RandomSource random, boolean wardenWave) {
         BlockEntity blockEntity = chunk.getBlockEntity(pos);
