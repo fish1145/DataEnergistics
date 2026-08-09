@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
 import java.util.ArrayList;
 import java.util.Collections;

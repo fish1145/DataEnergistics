@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 
 import net.minecraft.resources.ResourceLocation;
 

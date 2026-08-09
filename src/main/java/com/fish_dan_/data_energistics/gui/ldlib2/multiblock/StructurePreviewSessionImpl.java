@@ -1,16 +1,16 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewVisibleLayer;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierOption;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewProjection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;

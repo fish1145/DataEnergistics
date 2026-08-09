@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import net.minecraft.core.BlockPos;
 
@@ -19,9 +19,6 @@ public record PreviewCellSnapshot(BlockPos relativePosition,
      * Detaches the position and verifies that predicate identity matches the source coordinate.
      */
     public PreviewCellSnapshot {
-        if (relativePosition == null || source == null || predicate == null) {
-            throw new IllegalArgumentException("Preview cell snapshot arguments cannot be null");
-        }
         relativePosition = relativePosition.immutable();
         PreviewPredicateKey expectedKey = new PreviewPredicateKey(source.sourceLayer(), source.y(), source.x());
         if (!expectedKey.equals(predicate.key())) {

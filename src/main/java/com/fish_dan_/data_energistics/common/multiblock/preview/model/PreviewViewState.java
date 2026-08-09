@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 /**
  * Immutable common view state kept outside structure selection, projection, materials, and recipe identity.

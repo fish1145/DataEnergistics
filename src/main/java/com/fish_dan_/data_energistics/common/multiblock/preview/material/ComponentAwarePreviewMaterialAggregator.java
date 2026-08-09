@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.material;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
 
 import appeng.api.stacks.AEItemKey;
 

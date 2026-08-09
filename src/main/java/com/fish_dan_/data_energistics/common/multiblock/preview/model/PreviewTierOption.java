@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -18,12 +18,6 @@ public record PreviewTierOption(int value, Component label, ResourceLocation blo
     public PreviewTierOption {
         if (value < 1) {
             throw new IllegalArgumentException("Preview tier values must be positive: " + value);
-        }
-        if (label == null) {
-            throw new IllegalArgumentException("Preview tier option requires a label");
-        }
-        if (blockId == null) {
-            throw new IllegalArgumentException("Preview tier option requires a block id");
         }
         label = label.copy();
     }

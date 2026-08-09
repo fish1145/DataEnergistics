@@ -1,18 +1,18 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.projection;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellRole;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.ComponentAwarePreviewMaterialAggregator;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterialAggregator;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellRole;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

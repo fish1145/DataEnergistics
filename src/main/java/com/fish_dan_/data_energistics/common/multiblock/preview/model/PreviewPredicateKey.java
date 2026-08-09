@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 /**
  * Stable unexpanded source coordinate used to retain a predicate candidate choice across repeat changes.

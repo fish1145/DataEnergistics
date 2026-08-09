@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -24,19 +24,11 @@ public record PreviewTierDomain(String id,
      * Copies ordered choices and rejects ambiguous values or block ids.
      */
     public PreviewTierDomain {
-        if (id == null || id.isBlank()) {
+        if (id.isBlank()) {
             throw new IllegalArgumentException("Preview tier domain id cannot be blank");
         }
-        if (label == null) {
-            throw new IllegalArgumentException("Preview tier domain requires a label: " + id);
-        }
-        if (options == null || options.isEmpty()) {
+        if (options.isEmpty()) {
             throw new IllegalArgumentException("Preview tier domain requires at least one option: " + id);
-        }
-        for (PreviewTierOption option : options) {
-            if (option == null) {
-                throw new IllegalArgumentException("Preview tier domain options cannot contain null: " + id);
-            }
         }
         label = label.copy();
         options = List.copyOf(options);

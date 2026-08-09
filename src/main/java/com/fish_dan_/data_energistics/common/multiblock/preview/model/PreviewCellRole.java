@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 /**
  * Business role of one projected cell after its mutable MDLib predicate has been snapshotted.

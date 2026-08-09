@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 

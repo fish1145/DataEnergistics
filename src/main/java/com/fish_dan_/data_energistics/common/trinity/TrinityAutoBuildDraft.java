@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;

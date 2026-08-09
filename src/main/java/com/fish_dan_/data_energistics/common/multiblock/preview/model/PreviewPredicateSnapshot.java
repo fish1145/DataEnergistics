@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,9 +20,6 @@ public record PreviewPredicateSnapshot(PreviewPredicateKey key,
      * Copies candidates and rejects role/index combinations that could produce ambiguous materials.
      */
     public PreviewPredicateSnapshot {
-        if (key == null || role == null || candidates == null) {
-            throw new IllegalArgumentException("Preview predicate snapshot arguments cannot be null");
-        }
         candidates = List.copyOf(candidates);
         if (role == PreviewCellRole.WILDCARD) {
             if (!candidates.isEmpty() || selectedCandidateIndex != -1) {

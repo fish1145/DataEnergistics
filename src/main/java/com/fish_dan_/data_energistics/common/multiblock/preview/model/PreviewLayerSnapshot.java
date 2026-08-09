@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import com.modularmc.mdl.api.multiblock.PatternLayerSource;
 
@@ -19,7 +19,7 @@ public record PreviewLayerSnapshot(int index,
      * Copies cells and verifies that every cell belongs to this source layer.
      */
     public PreviewLayerSnapshot {
-        if (index < 0 || source == null || cells == null || cells.isEmpty()) {
+        if (index < 0 || cells.isEmpty()) {
             throw new IllegalArgumentException("Invalid preview layer snapshot");
         }
         cells = List.copyOf(cells);

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.material;
 
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
 
 import java.util.List;
 

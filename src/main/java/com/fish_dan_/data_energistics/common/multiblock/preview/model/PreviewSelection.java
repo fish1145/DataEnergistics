@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
@@ -47,9 +47,6 @@ public final class PreviewSelection {
      * @return initial immutable session selection
      */
     public static PreviewSelection initial(MultiblockPreviewSpec spec) {
-        if (spec == null) {
-            throw new IllegalArgumentException("Preview selection requires a spec");
-        }
         Map<String, SubstructureSelection> selections = new LinkedHashMap<>();
         for (SubstructurePreviewSpec substructure : spec.substructures()) {
             selections.put(substructure.id(), substructure.defaults());
@@ -212,9 +209,6 @@ public final class PreviewSelection {
      * @param candidateSpec spec that intends to consume this selection
      */
     public void validateAgainst(MultiblockPreviewSpec candidateSpec) {
-        if (candidateSpec == null) {
-            throw new IllegalArgumentException("Preview selection requires a spec");
-        }
         if (!this.controllerId.equals(candidateSpec.controllerId())) {
             throw new IllegalArgumentException("Preview selection controller does not match the supplied spec");
         }
@@ -288,8 +282,8 @@ public final class PreviewSelection {
                                                                           Map<String, SubstructureSelection> selections) {
         Map<String, SubstructureSelection> copy = new LinkedHashMap<>();
         for (Map.Entry<String, SubstructureSelection> entry : selections.entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
-                throw new IllegalArgumentException("Preview substructure selections cannot contain null or blank entries");
+            if (entry.getKey().isBlank()) {
+                throw new IllegalArgumentException("Preview substructure selections cannot contain blank entries");
             }
             copy.put(entry.getKey(), entry.getValue());
         }

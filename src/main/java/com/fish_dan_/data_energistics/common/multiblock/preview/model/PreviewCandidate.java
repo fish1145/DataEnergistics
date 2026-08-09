@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -18,9 +18,6 @@ public record PreviewCandidate(Optional<BlockState> state, Optional<AEItemKey> p
      * Ensures a candidate is either a complete state/item pair or an explicit empty choice.
      */
     public PreviewCandidate {
-        if (state == null || placementKey == null) {
-            throw new IllegalArgumentException("Preview candidate optionals cannot be null");
-        }
         if (state.isPresent() != placementKey.isPresent()) {
             throw new IllegalArgumentException("Preview candidate state and placement item must be present together");
         }
@@ -34,9 +31,6 @@ public record PreviewCandidate(Optional<BlockState> state, Optional<AEItemKey> p
      * @return concrete candidate
      */
     public static PreviewCandidate concrete(BlockState state, AEItemKey placementKey) {
-        if (state == null || placementKey == null) {
-            throw new IllegalArgumentException("Concrete preview candidate arguments cannot be null");
-        }
         return new PreviewCandidate(Optional.of(state), Optional.of(placementKey));
     }
 
