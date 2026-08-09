@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Internal host lifecycle, ordering, drag, viewport, and cleanup implementation. */
-final class HostUiExtensionImpl implements HostUiExtension {
+final class OverlayHostUiExtension implements HostUiExtension {
 
     private static final String FAILURE_PREFIX = "LDLib2 host UI invariant failed: ";
     private static final int ESCAPE_KEY = 256;
@@ -71,7 +71,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
     private boolean disposed;
     private boolean overlayRemoved;
 
-    private HostUiExtensionImpl(UIElement hostRoot) {
+    private OverlayHostUiExtension(UIElement hostRoot) {
         this.hostRoot = hostRoot;
         this.overlayLayer = createOverlayLayer();
         this.overlayLayer.addEventListener(UIEvents.MUI_CHANGED, event -> synchronizeEscapePolicy());
@@ -96,12 +96,12 @@ final class HostUiExtensionImpl implements HostUiExtension {
                 throw violation("host root already owns a host UI extension");
             }
         }
-        return new HostUiExtensionImpl(hostRoot);
+        return new OverlayHostUiExtension(hostRoot);
     }
 
     /** Releases only a factory result that never reached its mounted ModularUI lifetime. */
     static void discardUnmounted(HostUiExtension hostUi) {
-        if (!(hostUi instanceof HostUiExtensionImpl implementation)) {
+        if (!(hostUi instanceof OverlayHostUiExtension implementation)) {
             throw violation("unmounted rollback requires the host extension created by HostUiExtension.create");
         }
         if (implementation.modularUI != null) {
@@ -465,7 +465,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
         if (entry.removalRequestedByHost || this.coordinator == null) {
             return;
         }
-        if (this.coordinator instanceof HostUiCoordinatorImpl coordinatorImpl) {
+        if (this.coordinator instanceof SequencedHostUiCoordinator coordinatorImpl) {
             coordinatorImpl.hostBecameTerminal(
                     "LDLib2 host UI became terminal after external removal of " + entry.key.id(),
                     entry.subUi.root().removalFailure());
@@ -588,7 +588,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
         if (entry.removalRequestedByHost || this.coordinator == null) {
             return;
         }
-        if (this.coordinator instanceof HostUiCoordinatorImpl coordinatorImpl) {
+        if (this.coordinator instanceof SequencedHostUiCoordinator coordinatorImpl) {
             coordinatorImpl.hostBecameTerminal(
                     "LDLib2 host UI became terminal after external removal of " + entry.key.id(),
                     failure);
@@ -990,16 +990,16 @@ final class HostUiExtensionImpl implements HostUiExtension {
         @Override
         public boolean requestFront() {
             ensureAttached();
-            return HostUiExtensionImpl.this.bringToFront(this.key);
+            return OverlayHostUiExtension.this.bringToFront(this.key);
         }
 
         @Override
         public boolean canSendServerAction() {
             return this.attached && !this.released &&
-                    HostUiExtensionImpl.this.isOpen(this.key, this.generation) &&
-                    HostUiExtensionImpl.this.coordinator != null &&
-                    HostUiExtensionImpl.this.coordinator.pendingRequest() == null &&
-                    !HostUiExtensionImpl.this.coordinator.isTerminal();
+                    OverlayHostUiExtension.this.isOpen(this.key, this.generation) &&
+                    OverlayHostUiExtension.this.coordinator != null &&
+                    OverlayHostUiExtension.this.coordinator.pendingRequest() == null &&
+                    !OverlayHostUiExtension.this.coordinator.isTerminal();
         }
 
         /** Marks the point after which callbacks may mutate the attached host entry. */

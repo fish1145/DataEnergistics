@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /** Stateful client or server endpoint for the ordered host UI lifecycle protocol. */
-final class HostUiCoordinatorImpl implements HostUiCoordinator {
+final class SequencedHostUiCoordinator implements HostUiCoordinator {
 
     private static final long INITIAL_SEQUENCE = 1L;
 
     private final Role role;
     private final HostUiExtension hostUi;
-    private final HostUiExtensionImpl membership;
+    private final OverlayHostUiExtension membership;
     private final List<HostUiKey> registeredKeys;
     @Nullable
     private final Consumer<HostUiRequest> requestSink;
@@ -25,11 +25,11 @@ final class HostUiCoordinatorImpl implements HostUiCoordinator {
     private boolean terminal;
     private boolean terminalActionInvoked;
 
-    private HostUiCoordinatorImpl(Role role,
-                                  HostUiExtension hostUi,
-                                  HostUiExtensionImpl membership,
-                                  @Nullable Consumer<HostUiRequest> requestSink,
-                                  Runnable terminalAction) {
+    private SequencedHostUiCoordinator(Role role,
+                                       HostUiExtension hostUi,
+                                       OverlayHostUiExtension membership,
+                                       @Nullable Consumer<HostUiRequest> requestSink,
+                                       Runnable terminalAction) {
         this.role = role;
         this.hostUi = hostUi;
         this.membership = membership;
@@ -42,21 +42,21 @@ final class HostUiCoordinatorImpl implements HostUiCoordinator {
     static HostUiCoordinator createClient(HostUiExtension hostUi,
                                           Consumer<HostUiRequest> requestSink,
                                           Runnable terminalAction) {
-        HostUiExtensionImpl membership = validateHostUi(hostUi);
+        OverlayHostUiExtension membership = validateHostUi(hostUi);
         if (requestSink == null) {
             throw violation("client request sink must not be null");
         }
         validateTerminalAction(terminalAction);
-        HostUiCoordinatorImpl coordinator = new HostUiCoordinatorImpl(Role.CLIENT, hostUi, membership, requestSink, terminalAction);
+        SequencedHostUiCoordinator coordinator = new SequencedHostUiCoordinator(Role.CLIENT, hostUi, membership, requestSink, terminalAction);
         membership.attachCoordinator(coordinator);
         return coordinator;
     }
 
     /** Creates the server role and seals its provider order before any dynamic tree can open. */
     static HostUiCoordinator createServer(HostUiExtension hostUi, Runnable terminalAction) {
-        HostUiExtensionImpl membership = validateHostUi(hostUi);
+        OverlayHostUiExtension membership = validateHostUi(hostUi);
         validateTerminalAction(terminalAction);
-        HostUiCoordinatorImpl coordinator = new HostUiCoordinatorImpl(Role.SERVER, hostUi, membership, null, terminalAction);
+        SequencedHostUiCoordinator coordinator = new SequencedHostUiCoordinator(Role.SERVER, hostUi, membership, null, terminalAction);
         membership.attachCoordinator(coordinator);
         return coordinator;
     }
@@ -368,8 +368,8 @@ final class HostUiCoordinatorImpl implements HostUiCoordinator {
     }
 
     /** Validates and narrows the sole production HostUiExtension implementation. */
-    private static HostUiExtensionImpl validateHostUi(HostUiExtension hostUi) {
-        if (!(hostUi instanceof HostUiExtensionImpl membership)) {
+    private static OverlayHostUiExtension validateHostUi(HostUiExtension hostUi) {
+        if (!(hostUi instanceof OverlayHostUiExtension membership)) {
             throw violation("coordinator requires the host extension created by HostUiExtension.create");
         }
         if (membership.isDisposed()) {

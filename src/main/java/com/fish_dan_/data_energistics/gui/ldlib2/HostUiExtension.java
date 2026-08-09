@@ -37,7 +37,7 @@ public interface HostUiExtension {
      * @return new empty extension
      */
     static HostUiExtension create(UIElement hostRoot) {
-        return HostUiExtensionImpl.create(hostRoot);
+        return OverlayHostUiExtension.create(hostRoot);
     }
 
     /**
@@ -50,7 +50,7 @@ public interface HostUiExtension {
      * @param hostUi unmounted extension whose construction failed
      */
     static void discardUnmounted(HostUiExtension hostUi) {
-        HostUiExtensionImpl.discardUnmounted(hostUi);
+        OverlayHostUiExtension.discardUnmounted(hostUi);
     }
 
     /**

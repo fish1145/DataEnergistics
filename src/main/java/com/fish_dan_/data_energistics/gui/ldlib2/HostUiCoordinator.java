@@ -27,7 +27,7 @@ public interface HostUiCoordinator {
     static HostUiCoordinator createClient(HostUiExtension hostUi,
                                           Consumer<HostUiRequest> requestSink,
                                           Runnable terminalAction) {
-        return HostUiCoordinatorImpl.createClient(hostUi, requestSink, terminalAction);
+        return SequencedHostUiCoordinator.createClient(hostUi, requestSink, terminalAction);
     }
 
     /**
@@ -38,7 +38,7 @@ public interface HostUiCoordinator {
      * @return attached server coordinator
      */
     static HostUiCoordinator createServer(HostUiExtension hostUi, Runnable terminalAction) {
-        return HostUiCoordinatorImpl.createServer(hostUi, terminalAction);
+        return SequencedHostUiCoordinator.createServer(hostUi, terminalAction);
     }
 
     /**

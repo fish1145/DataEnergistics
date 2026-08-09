@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Internal implementation that contains every direct use of LDLib2's existing-slot mapping hook. */
-final class AeMenuBridgeImpl implements AeMenuBridge {
+final class LdlibAeMenuBridge implements AeMenuBridge {
 
     private static final String FAILURE_PREFIX = "AE/LDLib2 menu bridge invariant failed: ";
 
@@ -29,7 +29,7 @@ final class AeMenuBridgeImpl implements AeMenuBridge {
     private final Set<AeItemSlot> wrappers = Collections.newSetFromMap(new IdentityHashMap<>());
     private MountState mountState = MountState.NEW;
 
-    private AeMenuBridgeImpl(AEBaseMenu menu, IModularUIHolderMenu holder) {
+    private LdlibAeMenuBridge(AEBaseMenu menu, IModularUIHolderMenu holder) {
         this.menu = menu;
         this.holder = holder;
     }
@@ -45,7 +45,7 @@ final class AeMenuBridgeImpl implements AeMenuBridge {
         if (holder.getModularUI() != null) {
             throw violation("menu already has a ModularUI: " + menu.getClass().getName());
         }
-        return new AeMenuBridgeImpl(menu, holder);
+        return new LdlibAeMenuBridge(menu, holder);
     }
 
     @Override
