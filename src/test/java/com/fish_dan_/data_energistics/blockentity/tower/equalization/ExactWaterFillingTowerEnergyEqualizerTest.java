@@ -13,14 +13,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-class TowerEnergyEqualizerImplTest {
+class ExactWaterFillingTowerEnergyEqualizerTest {
 
     @Test
     void apportionsLongSafePlanWithStableLargestRemainderAndSourcePriority() {
         TowerEnergyEndpointId source = id(0);
         TowerEnergyEndpointId bidirectional = id(1);
         TowerEnergyEndpointId sink = id(2);
-        TowerEnergyEqualizationPlan plan = new TowerEnergyEqualizerImpl().plan(new TowerEnergyEqualizationSnapshot(List.of(
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(new TowerEnergyEqualizationSnapshot(List.of(
                 endpoint(source, 2, 2, TowerEnergyDirection.SOURCE),
                 endpoint(bidirectional, 5, 10, TowerEnergyDirection.BIDIRECTIONAL),
                 endpoint(sink, 0, 10, TowerEnergyDirection.SINK))));
@@ -37,7 +37,7 @@ class TowerEnergyEqualizerImplTest {
     void preservesLongMaxWidthSourceStateWithoutNarrowingTheTransfer() {
         TowerEnergyEndpointId source = id(3);
         TowerEnergyEndpointId sink = id(4);
-        TowerEnergyEqualizationPlan plan = new TowerEnergyEqualizerImpl().plan(new TowerEnergyEqualizationSnapshot(List.of(
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(new TowerEnergyEqualizationSnapshot(List.of(
                 endpoint(source, Long.MAX_VALUE, Long.MAX_VALUE, TowerEnergyDirection.SOURCE),
                 endpoint(sink, 0, 1, TowerEnergyDirection.SINK))));
 
@@ -50,7 +50,7 @@ class TowerEnergyEqualizerImplTest {
         TowerEnergyEndpointId firstSource = id(5);
         TowerEnergyEndpointId secondSource = id(6);
         TowerEnergyEndpointId sink = id(7);
-        TowerEnergyEqualizationPlan plan = new TowerEnergyEqualizerImpl().plan(new TowerEnergyEqualizationSnapshot(List.of(
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(new TowerEnergyEqualizationSnapshot(List.of(
                 endpoint(firstSource, Long.MAX_VALUE, Long.MAX_VALUE, TowerEnergyDirection.SOURCE),
                 endpoint(secondSource, Long.MAX_VALUE, Long.MAX_VALUE, TowerEnergyDirection.SOURCE),
                 endpoint(sink, 0, 1, TowerEnergyDirection.SINK))));
@@ -65,7 +65,7 @@ class TowerEnergyEqualizerImplTest {
         TowerEnergyEndpointId source = id(8);
         TowerEnergyEndpointId firstSink = id(9);
         TowerEnergyEndpointId secondSink = id(10);
-        TowerEnergyEqualizationPlan plan = new TowerEnergyEqualizerImpl().plan(new TowerEnergyEqualizationSnapshot(List.of(
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(new TowerEnergyEqualizationSnapshot(List.of(
                 endpoint(source, width, width, TowerEnergyDirection.SOURCE),
                 endpoint(firstSink, 0, width, TowerEnergyDirection.SINK),
                 endpoint(secondSink, 0, width, TowerEnergyDirection.SINK))));
@@ -83,7 +83,7 @@ class TowerEnergyEqualizerImplTest {
         TowerEnergyEndpointId source = id(11);
         TowerEnergyEndpointId fixedSink = id(12);
         TowerEnergyEndpointId activeSink = id(13);
-        TowerEnergyEqualizationPlan plan = new TowerEnergyEqualizerImpl().plan(new TowerEnergyEqualizationSnapshot(List.of(
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(new TowerEnergyEqualizationSnapshot(List.of(
                 endpoint(source, externalEnergy, externalEnergy, TowerEnergyDirection.SOURCE),
                 endpoint(fixedSink, lowerBound, lowerBound, TowerEnergyDirection.SINK),
                 endpoint(activeSink, 0, lowerBound, TowerEnergyDirection.SINK))));

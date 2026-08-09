@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.ExactWaterFillingTowerEnergyEqualizer;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyAllocationLimiter;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizationPlan;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizationSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizer;
-import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizerImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySinkAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySourceAllocation;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
@@ -44,7 +44,7 @@ public final class CompensatingTowerEnergyTransaction {
      * Creates the production executor with the default exact planner.
      */
     public CompensatingTowerEnergyTransaction() {
-        this(new TowerEnergyEqualizerImpl());
+        this(new ExactWaterFillingTowerEnergyEqualizer());
     }
 
     /**

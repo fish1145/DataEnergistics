@@ -21,7 +21,7 @@ import java.util.Map;
  * Both paths use largest-remainder apportionment and snapshot-order tie breaking for deterministic FE rounding.
  * </p>
  */
-public final class TowerEnergyEqualizerImpl implements TowerEnergyEqualizer {
+public final class ExactWaterFillingTowerEnergyEqualizer implements TowerEnergyEqualizer {
 
     /**
      * Numeric zero reused by the exact aggregate calculations.
