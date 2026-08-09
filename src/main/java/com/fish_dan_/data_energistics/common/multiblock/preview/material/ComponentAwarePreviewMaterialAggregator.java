@@ -1,4 +1,7 @@
-package com.fish_dan_.data_energistics.common.multiblock.preview;
+package com.fish_dan_.data_energistics.common.multiblock.preview.material;
+
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
 
 import appeng.api.stacks.AEItemKey;
 
@@ -8,9 +11,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Default component-aware material aggregation logic for projected multiblocks.
+ * Component-aware material aggregation logic for projected multiblocks.
  */
-public final class PreviewMaterialAggregatorImpl implements PreviewMaterialAggregator {
+public final class ComponentAwarePreviewMaterialAggregator implements PreviewMaterialAggregator {
 
     @Override
     public List<PreviewMaterial> aggregate(List<PreviewCellSnapshot> cells) {

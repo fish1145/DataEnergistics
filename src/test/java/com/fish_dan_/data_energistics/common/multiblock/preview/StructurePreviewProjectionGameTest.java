@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMult
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.ResolvedJsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;

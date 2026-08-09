@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.multiblock.transfer;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
@@ -10,6 +9,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreview
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;

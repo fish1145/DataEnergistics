@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
 import net.minecraft.core.BlockPos;
 

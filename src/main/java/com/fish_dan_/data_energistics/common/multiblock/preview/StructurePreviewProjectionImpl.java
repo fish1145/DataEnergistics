@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.common.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.ComponentAwarePreviewMaterialAggregator;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterialAggregator;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -40,7 +43,7 @@ public final class StructurePreviewProjectionImpl implements StructurePreviewPro
      * Creates a projector with the standard exact material aggregator.
      */
     public StructurePreviewProjectionImpl() {
-        this(new PreviewMaterialAggregatorImpl());
+        this(new ComponentAwarePreviewMaterialAggregator());
     }
 
     /**
