@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.mixin.core.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.NeoForgeEnergyStorageAccessor;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;

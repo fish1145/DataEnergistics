@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityC
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.mixin.core.ExperienceOrbAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.ExperienceOrbAccessor;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;

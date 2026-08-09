@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.mixin.core.AEBaseBlockEntityNameAccessor;
-import com.fish_dan_.data_energistics.mixin.core.AEBasePartNameAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.AEBaseBlockEntityNameAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.AEBasePartNameAccessor;
 
 import net.minecraft.network.chat.Component;
 

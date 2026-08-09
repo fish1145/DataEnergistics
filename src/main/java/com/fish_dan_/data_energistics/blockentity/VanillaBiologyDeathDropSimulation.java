@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.mixin.core.LivingEntityDropInvoker;
+import com.fish_dan_.data_energistics.mixin.core.accessor.LivingEntityDropInvoker;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
