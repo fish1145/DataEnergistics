@@ -20,8 +20,8 @@ import java.util.List;
 /**
  * Gives the shared recipe UI native JEI item/fluid identities and AE2 wrapped-key lookup semantics.
  */
-public final class DataReassemblerRecipeIngredientAdapterImpl
-                                                              implements DataReassemblerRecipeIngredientAdapter {
+public final class JeiDataReassemblerIngredientAdapter
+                                                       implements DataReassemblerRecipeIngredientAdapter {
 
     @Override
     public void registerItemSlot(ItemSlot element, IngredientIO role, List<ItemStack> candidates) {

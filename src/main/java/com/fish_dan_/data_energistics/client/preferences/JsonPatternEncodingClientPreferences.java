@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 /**
  * JSON-backed client preference repository with bounded, atomic persistence.
  */
-public final class PatternEncodingClientPreferencesImpl implements PatternEncodingClientPreferences {
+public final class JsonPatternEncodingClientPreferences implements PatternEncodingClientPreferences {
 
     public static final int SCHEMA_VERSION = 3;
     public static final int MAX_STATISTICS_PER_PROFILE = 2048;
@@ -78,7 +78,7 @@ public final class PatternEncodingClientPreferencesImpl implements PatternEncodi
     /**
      * Creates a repository whose thread and clock dependencies can be supplied directly by production and tests.
      */
-    public PatternEncodingClientPreferencesImpl(Path file, BooleanSupplier mainThreadCheck, Clock clock) {
+    public JsonPatternEncodingClientPreferences(Path file, BooleanSupplier mainThreadCheck, Clock clock) {
         if (file == null || mainThreadCheck == null || clock == null) {
             throw new IllegalArgumentException("Pattern encoding preferences require a file, thread check, and clock");
         }

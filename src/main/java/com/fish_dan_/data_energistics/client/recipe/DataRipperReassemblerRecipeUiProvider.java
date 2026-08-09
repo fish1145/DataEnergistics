@@ -29,8 +29,8 @@ import java.util.List;
 /**
  * Builds a fresh LDLib2 recipe UI for each viewer cache entry.
  */
-public final class DataRipperReassemblerRecipeUiProviderImpl
-                                                             implements IModularUIProvider<DataRipperReassemblerRecipeView> {
+public final class DataRipperReassemblerRecipeUiProvider
+                                                         implements IModularUIProvider<DataRipperReassemblerRecipeView> {
 
     private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
     private static final int TEXTURE_SIZE = 256;
@@ -41,7 +41,7 @@ public final class DataRipperReassemblerRecipeUiProviderImpl
 
     private final DataReassemblerRecipeIngredientAdapter ingredientAdapter;
 
-    public DataRipperReassemblerRecipeUiProviderImpl(DataReassemblerRecipeIngredientAdapter ingredientAdapter) {
+    public DataRipperReassemblerRecipeUiProvider(DataReassemblerRecipeIngredientAdapter ingredientAdapter) {
         this.ingredientAdapter = ingredientAdapter;
     }
 

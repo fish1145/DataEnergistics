@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
-import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProviderImpl;
+import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProvider;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -30,7 +30,7 @@ public final class DataRipperReassemblerEmiRecipe extends ModularUIEMIRecipe {
         }
     };
 
-    private static final DataRipperReassemblerRecipeUiProviderImpl UI_PROVIDER = new DataRipperReassemblerRecipeUiProviderImpl(new DataReassemblerRecipeIngredientAdapterImpl());
+    private static final DataRipperReassemblerRecipeUiProvider UI_PROVIDER = new DataRipperReassemblerRecipeUiProvider(new EmiDataReassemblerIngredientAdapter());
 
     private final DataRipperReassemblerRecipeView recipe;
 

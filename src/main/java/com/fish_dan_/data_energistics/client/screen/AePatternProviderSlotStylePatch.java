@@ -14,7 +14,7 @@ import org.apache.logging.log4j.Logger;
  * Data Energistics injects a redstone tuning upgrade slot into those menus, while the visual layout should continue to
  * come from AE2 and addon resource packs. This implementation adds only the missing {@code UPGRADE} slot entry.
  */
-public final class ScreenSlotStylePatchImpl implements ScreenSlotStylePatch {
+public final class AePatternProviderSlotStylePatch implements ScreenSlotStylePatch {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String UPGRADE_SLOT = SlotSemantics.UPGRADE.id();
@@ -25,7 +25,7 @@ public final class ScreenSlotStylePatchImpl implements ScreenSlotStylePatch {
     private final String screenName;
     private final SlotPatchLayout layout;
 
-    private ScreenSlotStylePatchImpl(String screenName, SlotPatchLayout layout) {
+    private AePatternProviderSlotStylePatch(String screenName, SlotPatchLayout layout) {
         this.screenName = screenName;
         this.layout = layout;
     }
@@ -37,7 +37,7 @@ public final class ScreenSlotStylePatchImpl implements ScreenSlotStylePatch {
      * @return patch that derives the upgrade slot from the encoded pattern slot
      */
     public static ScreenSlotStylePatch inlineSingleUpgrade(String screenName) {
-        return new ScreenSlotStylePatchImpl(screenName, SlotPatchLayout.INLINE_SINGLE);
+        return new AePatternProviderSlotStylePatch(screenName, SlotPatchLayout.INLINE_SINGLE);
     }
 
     /**
@@ -47,7 +47,7 @@ public final class ScreenSlotStylePatchImpl implements ScreenSlotStylePatch {
      * @return patch that adds a right-side vertical upgrade slot style
      */
     public static ScreenSlotStylePatch rightPanelVerticalUpgrade(String screenName) {
-        return new ScreenSlotStylePatchImpl(screenName, SlotPatchLayout.RIGHT_PANEL_VERTICAL);
+        return new AePatternProviderSlotStylePatch(screenName, SlotPatchLayout.RIGHT_PANEL_VERTICAL);
     }
 
     @Override

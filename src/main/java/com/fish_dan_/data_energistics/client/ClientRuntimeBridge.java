@@ -20,7 +20,7 @@ import net.minecraft.world.entity.player.Player;
 
 import guideme.document.block.LytBlock;
 
-public final class DataEnergisticsClientBridgeImpl implements DataEnergisticsClientBridge {
+public final class ClientRuntimeBridge implements DataEnergisticsClientBridge {
 
     /**
      * Stateless factory retained so every preview consumer enters the same audited client adapter.
