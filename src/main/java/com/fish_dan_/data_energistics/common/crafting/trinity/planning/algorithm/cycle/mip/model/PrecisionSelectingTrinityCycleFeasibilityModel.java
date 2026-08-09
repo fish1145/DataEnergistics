@@ -15,14 +15,14 @@ import java.util.Set;
 /**
  * Selects the ordinary model only while every exact input remains inside its conservative integer window.
  */
-final class TrinityCycleFeasibilityModelImpl implements TrinityCycleFeasibilityModel {
+final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
     private static final BigInteger ORDINARY_EXACT_LIMIT = BigInteger.ONE.shiftLeft(52).subtract(BigInteger.ONE);
 
     private final TrinityCycleFeasibilityModel ordinary;
     private final TrinityCycleFeasibilityModel radix;
 
-    TrinityCycleFeasibilityModelImpl() {
+    PrecisionSelectingTrinityCycleFeasibilityModel() {
         TrinityIntegerResultVerifier integerVerifier = TrinityIntegerResultVerifier.create();
         TrinityExactConservationVerifier conservationVerifier = TrinityExactConservationVerifier.create();
         this.ordinary = new TrinityOrdinaryCycleFeasibilityModel(integerVerifier, conservationVerifier);
@@ -47,15 +47,15 @@ final class TrinityCycleFeasibilityModelImpl implements TrinityCycleFeasibilityM
         }
         if (request.firingBounds().values().stream()
                 .map(TrinityFiringBounds::lowerInclusive)
-                .anyMatch(TrinityCycleFeasibilityModelImpl::exceedsWindow) ||
-                request.fixedExternalTotal().filter(TrinityCycleFeasibilityModelImpl::exceedsWindow).isPresent()) {
+                .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
+                request.fixedExternalTotal().filter(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow).isPresent()) {
             return true;
         }
-        if (request.available().values().stream().anyMatch(TrinityCycleFeasibilityModelImpl::exceedsWindow) ||
+        if (request.available().values().stream().anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
                 request.demand().finalBalanceLowerBounds().values().stream()
-                        .anyMatch(TrinityCycleFeasibilityModelImpl::exceedsWindow) ||
+                        .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
                 request.demand().requiredNetChangeLowerBounds().values().stream()
-                        .anyMatch(TrinityCycleFeasibilityModelImpl::exceedsWindow)) {
+                        .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow)) {
             return true;
         }
         LinkedHashSet<AEKey> touchedKeys = new LinkedHashSet<>();
