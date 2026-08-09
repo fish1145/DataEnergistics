@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core;
+package com.fish_dan_.data_energistics.mixin.core.patternprovider;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core;
+package com.fish_dan_.data_energistics.mixin.core.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
