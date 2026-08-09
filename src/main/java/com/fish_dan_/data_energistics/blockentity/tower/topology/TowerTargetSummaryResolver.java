@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
@@ -39,9 +39,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default target display resolver for Data Distribution Towers.
+ * Resolves compact target summaries for Data Distribution Towers.
+ *
+ * <p>
+ * The tower UI needs compact summaries, CableBus part rows, and AE crafting cluster de-duplication without keeping
+ * display grouping logic inside the block entity lifecycle code.
+ * </p>
  */
-public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayResolver {
+public final class TowerTargetSummaryResolver {
 
     private final TowerTargetDisplayResolverContext context;
     private final NeoEcoAeTowerBridge neoEcoAeBridge;
@@ -54,20 +59,29 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
      * @param neoEcoAeBridge          optional NeoECOAE display grouping bridge
      * @param aeCraftingDisplayBridge optional AE crafting display bridge
      */
-    public TowerTargetDisplayResolverImpl(TowerTargetDisplayResolverContext context,
-                                          NeoEcoAeTowerBridge neoEcoAeBridge,
-                                          AeCraftingDisplayBridge aeCraftingDisplayBridge) {
+    public TowerTargetSummaryResolver(TowerTargetDisplayResolverContext context,
+                                      NeoEcoAeTowerBridge neoEcoAeBridge,
+                                      AeCraftingDisplayBridge aeCraftingDisplayBridge) {
         this.context = context;
         this.neoEcoAeBridge = neoEcoAeBridge;
         this.aeCraftingDisplayBridge = aeCraftingDisplayBridge;
     }
 
-    @Override
+    /**
+     * Counts displayable bound targets.
+     *
+     * @return target count visible to the menu
+     */
     public int boundTargetCount() {
         return boundTargetSummaries(Integer.MAX_VALUE).size();
     }
 
-    @Override
+    /**
+     * Returns structured target summaries for the tower menu.
+     *
+     * @param maxEntries maximum amount of summaries to return
+     * @return immutable target summaries
+     */
     public List<BoundTargetSummary> boundTargetSummaries(int maxEntries) {
         Level level = this.context.level();
         if (level == null || maxEntries <= 0) {
@@ -110,7 +124,13 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return List.copyOf(results);
     }
 
-    @Override
+    /**
+     * Checks whether an AE target should appear in the bound target UI.
+     *
+     * @param pos         canonical target position
+     * @param blockEntity block entity being inspected, or null for block-capability-only targets
+     * @return true when the target should be shown
+     */
     public boolean hasDisplayableAeTarget(BlockPos pos, @Nullable BlockEntity blockEntity) {
         if (this.context.level() == null) {
             return false;
@@ -135,7 +155,12 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return this.aeCraftingDisplayBridge.isClusterBridge(blockEntity);
     }
 
-    @Override
+    /**
+     * Checks whether a target should be hidden from bound target summaries.
+     *
+     * @param blockEntity block entity being inspected
+     * @return true when the target is noise or a non-preferred subsystem component
+     */
     public boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
         if (ModFlags.isNeoEcoAeTowerSupportLoaded() && this.neoEcoAeBridge.isSubsystemComponent(blockEntity)) {
             return !this.neoEcoAeBridge.isPreferredSubsystemHost(blockEntity);

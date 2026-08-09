@@ -10,9 +10,6 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
-import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
@@ -33,6 +30,8 @@ import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateG
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkFailure;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkState;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph.TargetLinkStatus;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetDisplayResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetSummaryResolver;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
@@ -168,7 +167,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
     private final TowerEnergyEndpointResolver energyEndpointResolver;
     private final TowerEnergyDistributor energyDistributor;
-    private final TowerTargetDisplayResolver targetDisplayResolver;
+    private final TowerTargetSummaryResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
@@ -241,7 +240,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
         this.energyDistributor = new TowerEnergyDistributorImpl(
                 this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
-        this.targetDisplayResolver = new TowerTargetDisplayResolverImpl(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
+        this.targetDisplayResolver = new TowerTargetSummaryResolver(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)

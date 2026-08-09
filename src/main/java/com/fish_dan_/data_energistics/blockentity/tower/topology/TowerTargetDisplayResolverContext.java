@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Supplies tower-owned target state required by {@link TowerTargetDisplayResolverImpl}.
+ * Supplies tower-owned target state required by {@link TowerTargetSummaryResolver}.
  *
  * <p>
  * The resolver consumes already-discovered targets and mode checks from the owning block entity while keeping display

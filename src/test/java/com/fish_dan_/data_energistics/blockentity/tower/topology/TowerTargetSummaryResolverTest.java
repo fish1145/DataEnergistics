@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower;
+package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
 import net.minecraft.core.BlockPos;
 
@@ -9,7 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class TowerTargetDisplayResolverImplTest {
+class TowerTargetSummaryResolverTest {
 
     @Test
     void ordersTargetPositionsByXThenYThenZ() {
@@ -20,7 +20,7 @@ class TowerTargetDisplayResolverImplTest {
                 new BlockPos(0, -1, 30),
                 new BlockPos(-2, 99, 99)));
 
-        positions.sort(TowerTargetDisplayResolverImpl::compareBlockPos);
+        positions.sort(TowerTargetSummaryResolver::compareBlockPos);
 
         assertEquals(List.of(
                 new BlockPos(-2, 99, 99),
