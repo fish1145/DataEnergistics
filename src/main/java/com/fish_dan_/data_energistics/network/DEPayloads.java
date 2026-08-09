@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.network;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-public final class ModPayloads {
+public final class DEPayloads {
 
-    private ModPayloads() {}
+    private DEPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("4");

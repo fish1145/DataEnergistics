@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -30,7 +30,7 @@ public abstract class ConfigInventoryWrappedKeyMixin {
         }
 
         AEKey wrappedKey = wrapped.what();
-        if (!ModAE2Keys.isCustomKey(wrappedKey)) {
+        if (!DEAE2Keys.isCustomKey(wrappedKey)) {
             return;
         }
 

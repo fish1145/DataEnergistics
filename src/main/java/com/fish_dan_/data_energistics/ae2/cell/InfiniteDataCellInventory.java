@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.cell;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -37,7 +37,7 @@ public final class InfiniteDataCellInventory implements StorageCell {
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
-        for (AEKey key : ModAE2Keys.keys()) {
+        for (AEKey key : DEAE2Keys.keys()) {
             out.add(key, STORED_AMOUNT);
         }
     }
@@ -71,6 +71,6 @@ public final class InfiniteDataCellInventory implements StorageCell {
     public void persist() {}
 
     private static boolean supports(AEKey key) {
-        return ModAE2Keys.isCustomKey(key);
+        return DEAE2Keys.isCustomKey(key);
     }
 }

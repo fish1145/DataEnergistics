@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import appeng.api.behaviors.StackExportStrategy;
 import appeng.api.behaviors.StackImportStrategy;
@@ -18,7 +18,7 @@ public final class DataFlowBusStrategies {
         }
 
         registered = true;
-        for (var type : ModAE2Keys.types()) {
+        for (var type : DEAE2Keys.types()) {
             StackImportStrategy.register(type, (level, pos, side) -> NoopImportStrategy.INSTANCE);
             StackExportStrategy.register(type, (level, pos, side) -> new GenericKeyItemExportStrategy(type, level, pos, side));
         }

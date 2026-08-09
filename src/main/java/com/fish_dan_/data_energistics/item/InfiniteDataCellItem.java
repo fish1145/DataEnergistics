@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellInventory;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
@@ -43,7 +43,7 @@ public class InfiniteDataCellItem extends Item implements ICellWorkbenchItem {
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
         return Optional.of(new StorageCellTooltipComponent(
                 List.of(),
-                ModAE2Keys.keys().stream()
+                DEAE2Keys.keys().stream()
                         .map(key -> new GenericStack(key, InfiniteDataCellInventory.STORED_AMOUNT))
                         .toList(),
                 false,

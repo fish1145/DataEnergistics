@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.key;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -57,13 +57,13 @@ public final class EchoKeyTest {
     void centralizedCustomKeyCatalogIncludesEcho() {
         assertEquals(
                 List.of(DataFlowKeyType.TYPE, DataKeyType.TYPE, EchoKeyType.TYPE),
-                ModAE2Keys.types());
+                DEAE2Keys.types());
         assertEquals(
                 List.of(DataFlowKey.of(), DataKey.of(), EchoKey.of()),
-                ModAE2Keys.keys());
-        assertTrue(ModAE2Keys.isCustomType(EchoKeyType.TYPE));
-        assertTrue(ModAE2Keys.isCustomKey(EchoKey.of()));
-        assertFalse(ModAE2Keys.isCustomType(null));
-        assertFalse(ModAE2Keys.isCustomKey(null));
+                DEAE2Keys.keys());
+        assertTrue(DEAE2Keys.isCustomType(EchoKeyType.TYPE));
+        assertTrue(DEAE2Keys.isCustomKey(EchoKey.of()));
+        assertFalse(DEAE2Keys.isCustomType(null));
+        assertFalse(DEAE2Keys.isCustomKey(null));
     }
 }

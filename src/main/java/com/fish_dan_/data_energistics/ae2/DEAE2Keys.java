@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Owns the complete catalog of custom AE keys and key types supplied by Data Energistics.
  */
-public final class ModAE2Keys {
+public final class DEAE2Keys {
 
     private static final List<AEKeyType> TYPES = List.of(
             DataFlowKeyType.TYPE,
@@ -28,7 +28,7 @@ public final class ModAE2Keys {
             DataKey.of(),
             EchoKey.of());
 
-    private ModAE2Keys() {}
+    private DEAE2Keys() {}
 
     public static void register(RegisterEvent event) {
         for (AEKeyType type : TYPES) {

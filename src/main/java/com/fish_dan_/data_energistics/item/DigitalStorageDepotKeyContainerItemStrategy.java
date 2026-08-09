@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -32,7 +32,7 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
     }
 
     public static void registerMissingStrategies() {
-        for (AEKeyType type : ModAE2Keys.types()) {
+        for (AEKeyType type : DEAE2Keys.types()) {
             if (type == AEKeyType.items() || type == AEKeyType.fluids()) {
                 continue;
             }

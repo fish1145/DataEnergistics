@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
@@ -103,7 +103,7 @@ public final class PatternEncodingSourceHelper {
             }
 
             GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-            if (wrapped == null || !ModAE2Keys.isCustomKey(wrapped.what())) {
+            if (wrapped == null || !DEAE2Keys.isCustomKey(wrapped.what())) {
                 normalized.add(stack);
                 continue;
             }

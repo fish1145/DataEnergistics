@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.xei.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -28,7 +28,7 @@ public enum DataResourceKey {
     private final AEKey aeKey;
 
     DataResourceKey(ResourceLocation id, AEKey aeKey) {
-        if (!ModAE2Keys.isCustomKey(aeKey) || !id.equals(aeKey.getId())) {
+        if (!DEAE2Keys.isCustomKey(aeKey) || !id.equals(aeKey.getId())) {
             throw invalid("Data resource key is not backed by a matching Data Energistics custom key: " + id);
         }
         this.id = id;
@@ -45,7 +45,7 @@ public enum DataResourceKey {
     }
 
     public static @Nullable DataResourceKey fromAeKey(AEKey aeKey) {
-        if (!ModAE2Keys.isCustomKey(aeKey)) {
+        if (!DEAE2Keys.isCustomKey(aeKey)) {
             return null;
         }
         for (DataResourceKey key : values()) {

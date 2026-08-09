@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.dataflow.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerGridServices;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
@@ -95,6 +95,6 @@ public class CommonProxy {
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
-        ModAE2Keys.register(event);
+        DEAE2Keys.register(event);
     }
 }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
@@ -118,7 +118,7 @@ public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScree
         WrappedGenericStack wrappedGenericStack = AEItems.WRAPPED_GENERIC_STACK.asItem();
         AEKey what = wrappedGenericStack.unwrapWhat(slot.getItem());
         long amount = wrappedGenericStack.unwrapAmount(slot.getItem());
-        if (!ModAE2Keys.isCustomKey(what) || amount <= 0) {
+        if (!DEAE2Keys.isCustomKey(what) || amount <= 0) {
             return null;
         }
         return new GenericStack(what, amount);

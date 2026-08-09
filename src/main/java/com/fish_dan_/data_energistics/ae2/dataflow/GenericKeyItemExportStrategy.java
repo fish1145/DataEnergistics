@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -46,7 +46,7 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
     }
 
     public static void registerMissingStrategies() {
-        for (AEKeyType type : ModAE2Keys.types()) {
+        for (AEKeyType type : DEAE2Keys.types()) {
             if (type == AEKeyType.items() || type == AEKeyType.fluids()) {
                 continue;
             }
