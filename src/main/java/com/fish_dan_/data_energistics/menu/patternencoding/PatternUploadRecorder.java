@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
-import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.resources.ResourceLocation;

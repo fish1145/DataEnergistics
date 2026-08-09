@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.client.preferences;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
-import com.fish_dan_.data_energistics.network.PatternUploadSucceededPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;

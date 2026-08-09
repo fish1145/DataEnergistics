@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.patternencoding;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 

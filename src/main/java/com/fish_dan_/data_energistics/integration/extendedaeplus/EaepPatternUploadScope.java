@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrefer
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;

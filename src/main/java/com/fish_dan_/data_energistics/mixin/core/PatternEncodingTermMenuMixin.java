@@ -18,8 +18,8 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
-import com.fish_dan_.data_energistics.network.MultiblockPatternTransferPayload;
-import com.fish_dan_.data_energistics.network.PatternUploadSource;
+import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 

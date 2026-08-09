@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrefer
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.network.PatternEncodingPreferencesAckPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

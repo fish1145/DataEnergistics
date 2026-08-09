@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
+import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiResponsePayload;

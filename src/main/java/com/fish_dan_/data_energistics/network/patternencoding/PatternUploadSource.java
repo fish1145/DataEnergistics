@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.network;
+package com.fish_dan_.data_energistics.network.patternencoding;
 
 /**
  * Identifies which client or optional integration performed a confirmed pattern upload.
