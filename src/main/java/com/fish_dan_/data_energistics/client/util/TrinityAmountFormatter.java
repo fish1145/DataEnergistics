@@ -6,7 +6,6 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
-import java.util.Objects;
 
 /**
  * Formats Trinity and AE2 amounts with GregTech-MoreMachine's decimal compact-unit convention.
@@ -36,7 +35,6 @@ public final class TrinityAmountFormatter {
      * @return compact display text
      */
     public static String format(String value) {
-        Objects.requireNonNull(value, "amount text must not be null");
         if (value.isBlank()) {
             return "0";
         }
@@ -80,20 +78,19 @@ public final class TrinityAmountFormatter {
      * @return separated numeric text and compact unit
      */
     public static FormattedAmount formatParts(BigInteger value) {
-        BigInteger amount = Objects.requireNonNull(value, "amount must not be null");
-        if (amount.signum() == 0) {
+        if (value.signum() == 0) {
             return new FormattedAmount("0", "");
         }
 
-        BigInteger absoluteAmount = amount.abs();
+        BigInteger absoluteAmount = value.abs();
         if (absoluteAmount.compareTo(SCIENTIFIC_THRESHOLD) >= 0) {
-            return new FormattedAmount(formatScientific(amount), "");
+            return new FormattedAmount(formatScientific(value), "");
         }
 
         int unitIndex = (absoluteAmount.toString().length() - 1) / 3;
         BigDecimal scaledAmount = new BigDecimal(absoluteAmount).movePointLeft(unitIndex * 3);
         String digits = compactFormat().format(scaledAmount);
-        if (amount.signum() < 0) {
+        if (value.signum() < 0) {
             digits = "-" + digits;
         }
         return new FormattedAmount(digits, COMPACT_UNITS[unitIndex]);
