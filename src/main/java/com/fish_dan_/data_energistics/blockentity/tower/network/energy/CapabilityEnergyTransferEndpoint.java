@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
@@ -18,7 +18,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 /**
  * Capability-backed transaction endpoint with long-width typed access and a public-API fallback.
  */
-public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransferEndpoint {
+public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransferEndpoint {
 
     /**
      * Resolved capability and loaded owner location.
@@ -50,7 +50,7 @@ public final class TowerEnergyTransferEndpointImpl implements TowerEnergyTransfe
      *
      * @param endpoint resolved capability endpoint
      */
-    public TowerEnergyTransferEndpointImpl(TowerDomainEnergyEndpoint endpoint) {
+    public CapabilityEnergyTransferEndpoint(TowerDomainEnergyEndpoint endpoint) {
         this.endpoint = endpoint;
         this.brandonsCoreStorage = this.brandonsCore.supports(endpoint.storage());
         this.appFluxStorage = ModFlags.isAppFluxEnergySupportLoaded() && AE2FluxIntegration.isNetworkEnergyStorage(endpoint.storage());

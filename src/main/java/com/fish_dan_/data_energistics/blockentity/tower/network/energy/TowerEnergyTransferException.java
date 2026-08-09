@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 /**
  * Reports a stale endpoint, invalid capability response, or failed FE transaction operation.

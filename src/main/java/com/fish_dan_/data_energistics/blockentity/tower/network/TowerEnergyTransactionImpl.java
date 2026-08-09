@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergy
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizerImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySinkAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySourceAllocation;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferException;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import java.math.BigInteger;

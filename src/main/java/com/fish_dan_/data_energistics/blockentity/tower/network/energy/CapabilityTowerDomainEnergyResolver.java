@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
@@ -24,15 +24,21 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Default capability resolver shared by every active tower in one primary-grid domain.
+ * Resolves loaded FE capabilities for domain-level topology snapshots without forcing chunks.
  */
-public final class TowerDomainEnergyResolverImpl implements TowerDomainEnergyResolver {
+public final class CapabilityTowerDomainEnergyResolver {
 
     private final BrandonsCoreEnergyBridge brandonsCore = new BrandonsCoreEnergyBridge();
     private final OritechEnergyBridge oritech = new OritechEnergyBridge();
     private final UnlimitedEnergyAccess unlimitedEnergy = new UnlimitedEnergyAccessImpl();
 
-    @Override
+    /**
+     * Resolves all distinct capability access routes at one loaded location in stable side order. Multiple routes may
+     * share one physical backing identity when their access context differs.
+     *
+     * @param location candidate location
+     * @return immutable endpoint list, or empty when the chunk is unloaded
+     */
     public List<TowerDomainEnergyEndpoint> resolve(TowerEnergyLocation location) {
         Level level = location.level();
         if (!level.isLoaded(location.position())) {

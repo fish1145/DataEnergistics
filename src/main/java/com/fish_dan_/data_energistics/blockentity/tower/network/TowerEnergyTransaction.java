@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
+
 import java.util.List;
 
 /**

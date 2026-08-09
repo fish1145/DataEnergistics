@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower.network;
 
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 
 import net.minecraft.server.level.ServerLevel;
 

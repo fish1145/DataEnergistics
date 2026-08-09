@@ -16,6 +16,13 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerR
 import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerResolvedGrid;
 import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerTargetDiscoveryMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.discovery.TowerTargetResolution;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.AppFluxGridEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CapabilityEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CapabilityTowerDomainEnergyResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.MultiRouteEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerDomainEnergyEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingAllocation;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingRequest;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualChannelBindingSource;
@@ -88,7 +95,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
     private final Map<IGrid, TowerRuntimeKey> attachedOwners = new IdentityHashMap<>();
     private final Map<IGrid, Long> lastBridgeFailureLogTicks = new IdentityHashMap<>();
     private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
-    private final TowerDomainEnergyResolver energyResolver = new TowerDomainEnergyResolverImpl();
+    private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
     private final TowerEnergyTransaction energyTransaction = new TowerEnergyTransactionImpl();
     private final TowerChannelCapacity capacityCalculator = new TowerChannelCapacityImpl();
     private List<IGridNode> cachedLocalNodes = List.of();
@@ -427,7 +434,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                         routesByStorage,
                         orderedRouteGroups,
                         endpoint.storageIdentity(),
-                        new TowerEnergyTransferEndpointImpl(endpoint));
+                        new CapabilityEnergyTransferEndpoint(endpoint));
             }
         }
 
@@ -447,7 +454,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
                         routesByStorage,
                         orderedRouteGroups,
                         storageIdentity,
-                        new TowerAppFluxEnergyTransferEndpointImpl(
+                        new AppFluxGridEnergyTransferEndpoint(
                                 new TowerEnergyEndpointId(
                                         towerKey.dimensionId(),
                                         towerKey.position(),
@@ -458,7 +465,7 @@ public final class TowerNetworkDomainImpl implements TowerNetworkDomain, IGridSe
         }
         ArrayList<TowerEnergyTransferEndpoint> endpoints = new ArrayList<>(orderedRouteGroups.size());
         for (List<TowerEnergyTransferEndpoint> routes : orderedRouteGroups) {
-            endpoints.add(routes.size() == 1 ? routes.getFirst() : new TowerEnergyTransferRouteGroupImpl(routes));
+            endpoints.add(routes.size() == 1 ? routes.getFirst() : new MultiRouteEnergyTransferEndpoint(routes));
         }
         endpoints.sort(Comparator.comparing(TowerEnergyTransferEndpoint::endpoint, ENERGY_ENDPOINT_ORDER));
         return List.copyOf(endpoints);

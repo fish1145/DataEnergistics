@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
@@ -13,7 +13,7 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 /**
  * Bidirectional virtual endpoint backed by the primary grid's Applied Flux inventory.
  */
-public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergyTransferEndpoint {
+public final class AppFluxGridEnergyTransferEndpoint implements TowerEnergyTransferEndpoint {
 
     /**
      * Stable identity reserved for the grid-level Applied Flux endpoint.
@@ -31,8 +31,8 @@ public final class TowerAppFluxEnergyTransferEndpointImpl implements TowerEnergy
      * @param endpoint stable grid endpoint identity
      * @param host     loaded tower action source
      */
-    public TowerAppFluxEnergyTransferEndpointImpl(
-                                                  TowerEnergyEndpointId endpoint, AENetworkedBlockEntity host) {
+    public AppFluxGridEnergyTransferEndpoint(
+                                             TowerEnergyEndpointId endpoint, AENetworkedBlockEntity host) {
         this.endpoint = endpoint;
         this.host = host;
     }

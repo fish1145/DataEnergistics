@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity.tower.network;
+package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDirection;
@@ -20,7 +20,7 @@ import java.util.Set;
  * transaction. This prevents duplicate planner weight without discarding side-specific input or output access.
  * </p>
  */
-public final class TowerEnergyTransferRouteGroupImpl implements TowerEnergyTransferEndpoint {
+public final class MultiRouteEnergyTransferEndpoint implements TowerEnergyTransferEndpoint {
 
     /**
      * Stable planner identity inherited from the first deterministic route.
@@ -59,7 +59,7 @@ public final class TowerEnergyTransferRouteGroupImpl implements TowerEnergyTrans
      *
      * @param routes non-empty deterministic access-route list
      */
-    public TowerEnergyTransferRouteGroupImpl(List<TowerEnergyTransferEndpoint> routes) {
+    public MultiRouteEnergyTransferEndpoint(List<TowerEnergyTransferEndpoint> routes) {
         this.routes = List.copyOf(routes);
         if (this.routes.isEmpty()) {
             throw new IllegalArgumentException("Energy transfer route group must not be empty");

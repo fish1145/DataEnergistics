@@ -22,7 +22,6 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolv
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerChannelOverview;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
-import com.fish_dan_.data_energistics.blockentity.tower.network.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridOwnershipRegistry;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomainChange;
@@ -35,6 +34,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBin
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingSource;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
