@@ -53,6 +53,14 @@ public final class PatternProviderRecipeTypeNames {
     }
 
     /**
+     * Resolves the first localized viewer title, falling back to the stable recipe type ID.
+     */
+    public static Component resolveDisplayName(ResourceLocation recipeTypeId) {
+        List<String> names = resolve(recipeTypeId);
+        return Component.literal(names.isEmpty() ? recipeTypeId.toString() : names.getFirst());
+    }
+
+    /**
      * Resolves localized category components from one active recipe viewer.
      */
     @FunctionalInterface
