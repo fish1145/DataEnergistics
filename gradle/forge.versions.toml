@@ -34,6 +34,7 @@ guideme = "21.1.17"
 geckolib = "7707149"
 glodium = "5821676"
 ae2ji = "7727898"
+ae2ct = "7182163"
 eae = "8511901"
 aae = "7849217"
 aecs = "8498888"
@@ -92,6 +93,7 @@ bhc                 = { module = "maven.modrinth:baubley-heart-canisters", versi
 geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
 glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
 ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", version.ref = "ae2ji" }
+ae2ct               = { module = "curse.maven:ae2-crafting-tree-1086241", version.ref = "ae2ct" }
 eae                 = { module = "curse.maven:ex-pattern-provider-892005", version.ref = "eae"}
 aae                 = { module = "curse.maven:advancedae-1084104", version.ref = "aae" }
 aecs                = { module = "curse.maven:ae2-crystal-science-1435174", version.ref = "aecs" }

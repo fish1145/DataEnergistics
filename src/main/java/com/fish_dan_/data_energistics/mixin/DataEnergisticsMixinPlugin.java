@@ -21,6 +21,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
 
     static {
         addModCompatMixin("advancedae", "advancedae.");
+        addModCompatMixin("ae2ct", "ae2ct.");
         addModCompatMixin("ae2cs", "ae2cs.");
         addModCompatMixin("appliedcreate", "appliedcreate.");
         addModCompatMixin("extendedae", "extendedae.");
