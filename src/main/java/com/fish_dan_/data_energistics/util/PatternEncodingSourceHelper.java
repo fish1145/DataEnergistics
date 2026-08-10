@@ -165,6 +165,13 @@ public final class PatternEncodingSourceHelper {
             }
 
             PatternEncodingPreferenceSession preferenceSession = menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? preferenceMenu.data_energistics$getPreferenceSession() : null;
+            if (!sourceAware.data_energistics$isPatternSourceEnabled()) {
+                if (preferenceSession != null) {
+                    preferenceSession.setRankingContext(null);
+                }
+                sourceAware.data_energistics$setPendingPatternSource(null);
+                return;
+            }
             if (preferenceSession != null) {
                 preferenceSession.setViewerRecipeScope(
                         recipeScope.rankingContext(), recipeScope.workstationIds());

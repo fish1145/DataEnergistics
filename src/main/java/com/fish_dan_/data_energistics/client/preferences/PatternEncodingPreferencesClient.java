@@ -82,8 +82,13 @@ public final class PatternEncodingPreferencesClient {
     public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
                                                           PatternEncodingViewerRecipeScope transferredScope) {
         Interfaces interfaces = Interfaces.require(menu);
-        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setViewerRecipeScope(
-                transferredScope.rankingContext(), transferredScope.workstationIds());
+        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        if (interfaces.sourceAware().data_energistics$isPatternSourceEnabled()) {
+            session.setViewerRecipeScope(
+                    transferredScope.rankingContext(), transferredScope.workstationIds());
+        } else {
+            session.setRankingContext(null);
+        }
         sendSnapshot(menu);
     }
 
@@ -113,12 +118,16 @@ public final class PatternEncodingPreferencesClient {
     }
 
     /**
-     * Persists and synchronizes the global source-writing preference.
+     * Persists and synchronizes recipe-type recording while retaining the existing preference key.
      */
     public static void setPatternSourceEnabled(AbstractContainerMenu menu, boolean enabled) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingClientPreferencesAccess.get().setPatternSourceEnabled(enabled);
         interfaces.sourceAware().data_energistics$setPatternSourceEnabled(enabled);
+        if (!enabled) {
+            interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(null);
+            interfaces.sourceAware().data_energistics$setPendingPatternSource(null);
+        }
         sendSnapshot(menu);
     }
 
