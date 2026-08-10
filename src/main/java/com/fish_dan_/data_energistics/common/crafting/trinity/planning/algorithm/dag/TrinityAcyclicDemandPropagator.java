@@ -157,12 +157,28 @@ public final class TrinityAcyclicDemandPropagator {
                 }
                 states = Math.addExact(states, Math.max(1, candidates.size()));
                 if (candidates.isEmpty()) {
+                    BigInteger positiveRequired = required.max(BigInteger.ZERO);
+                    if (missing.signum() > 0 && positiveRequired.subtract(availableAmount).equals(missing)) {
+                        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
+                                Map.of(
+                                        "key", key.toString(),
+                                        "required", positiveRequired.toString(),
+                                        "available", availableAmount.toString(),
+                                        "missing", missing.toString()),
+                                new TrinityPlanningDiagnostic.InputShortage(
+                                        key,
+                                        positiveRequired,
+                                        availableAmount,
+                                        missing)));
+                    }
                     return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                             TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                             Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
                             Map.of(
                                     "key", key.toString(),
-                                    "required", required.max(BigInteger.ZERO).toString(),
+                                    "required", positiveRequired.toString(),
                                     "available", availableAmount.toString())));
                 }
                 TrinityPatternVariant selected = candidates.getFirst();
