@@ -37,6 +37,20 @@ public interface TowerEnergyTransferEndpoint {
     long simulateExtraction(long amount);
 
     /**
+     * Returns the smallest complete extraction unit exposed by this route.
+     *
+     * <p>
+     * The default matches ordinary FE storages. Integrations that convert an indivisible native unit must return the
+     * corresponding positive FE quantum so transaction planning can discard only an untransferable aggregate tail.
+     * </p>
+     *
+     * @return positive extraction quantum in FE
+     */
+    default long extractionQuantum() {
+        return 1L;
+    }
+
+    /**
      * Performs the complete planned extraction.
      *
      * @param amount non-negative requested FE
@@ -60,6 +74,15 @@ public interface TowerEnergyTransferEndpoint {
      * @return acceptable FE in {@code [0, amount]}
      */
     long simulateInsertion(long amount);
+
+    /**
+     * Returns the smallest complete insertion unit exposed by this route.
+     *
+     * @return positive insertion quantum in FE
+     */
+    default long insertionQuantum() {
+        return 1L;
+    }
 
     /**
      * Performs the complete planned insertion.

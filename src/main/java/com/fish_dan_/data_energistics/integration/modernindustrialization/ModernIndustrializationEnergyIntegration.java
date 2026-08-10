@@ -75,6 +75,11 @@ public final class ModernIndustrializationEnergyIntegration {
         }
 
         @Override
+        public long transferQuantum() {
+            return currentRatio();
+        }
+
+        @Override
         public long insert(long amount, boolean simulate) {
             validateAmount(amount);
             if (amount == 0 || !canReceive()) {

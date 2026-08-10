@@ -29,6 +29,13 @@ public interface ModernIndustrializationEnergyStorage extends IEnergyStorage {
     EnergySnapshot snapshot();
 
     /**
+     * Returns the current external-energy value of one indivisible MI EU.
+     *
+     * @return positive transfer quantum in external FE units
+     */
+    long transferQuantum();
+
+    /**
      * Inserts external energy through MI's configurable EU conversion.
      *
      * @param amount   non-negative maximum external energy to insert

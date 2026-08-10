@@ -138,6 +138,11 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     }
 
     @Override
+    public long extractionQuantum() {
+        return transferQuantum();
+    }
+
+    @Override
     public long extract(long amount) {
         return transfer(amount, false, false);
     }
@@ -183,6 +188,11 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     @Override
     public long simulateInsertion(long amount) {
         return transfer(amount, true, true);
+    }
+
+    @Override
+    public long insertionQuantum() {
+        return transferQuantum();
     }
 
     @Override
@@ -325,6 +335,20 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                 this.endpoint.location().position(),
                 endpoint().side(),
                 storage);
+    }
+
+    /**
+     * Exposes a native conversion unit only when the integration provides an explicit contract for it.
+     */
+    private long transferQuantum() {
+        IEnergyStorage storage = this.endpoint.storage();
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return modernIndustrializationStorage.transferQuantum();
+        }
+        if (!this.brandonsCoreStorage && mekanismSupported(storage)) {
+            return MekanismEnergyAccess.transferQuantum();
+        }
+        return 1L;
     }
 
     /**
