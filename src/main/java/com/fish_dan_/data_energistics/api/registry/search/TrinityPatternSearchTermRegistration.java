@@ -9,6 +9,5 @@ import net.minecraft.resources.ResourceLocation;
  * @param contributor    contribution invoked for each decoded encoded-pattern stack
  */
 public record TrinityPatternSearchTermRegistration(
-        ResourceLocation registrationId,
-        TrinityPatternSearchTermContributor contributor) {
-}
+                                                   ResourceLocation registrationId,
+                                                   TrinityPatternSearchTermContributor contributor) {}

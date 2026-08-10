@@ -1,11 +1,10 @@
 package com.fish_dan_.data_energistics.api.entrypoint.jei;
 
-import mezz.jei.api.recipe.RecipeType;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
+import mezz.jei.api.recipe.RecipeType;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -31,9 +30,9 @@ public interface DataEnergisticsJeiRegistry {
      * @param <R>            JEI recipe-view type handled by the transfer
      */
     <T extends AbstractContainerMenu, R> void registerRecipeTransferHandler(
-            @NotNull ResourceLocation registrationId,
-            @NotNull Class<T> menuClass,
-            @NotNull MenuType<T> menuType,
-            @NotNull RecipeType<R> recipeType,
-            @NotNull JeiRecipeTransferHandlerFactory<T, R> factory);
+                                                                            @NotNull ResourceLocation registrationId,
+                                                                            @NotNull Class<T> menuClass,
+                                                                            @NotNull MenuType<T> menuType,
+                                                                            @NotNull RecipeType<R> recipeType,
+                                                                            @NotNull JeiRecipeTransferHandlerFactory<T, R> factory);
 }

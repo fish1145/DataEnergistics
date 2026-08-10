@@ -2,12 +2,11 @@ package com.fish_dan_.data_energistics.client.emi.entrypoint;
 
 import com.fish_dan_.data_energistics.api.entrypoint.emi.DataEnergisticsEmiRegistry;
 
-import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
+import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -72,6 +71,7 @@ final class EmiPluginRegistrationAccumulator {
      * Plugin-local staging surface hidden from every other plugin until commit succeeds.
      */
     static final class PluginStaging implements DataEnergisticsEmiRegistry {
+
         private final EmiPluginRegistrationAccumulator owner;
         private final String owningModId;
         private final String pluginClassName;
@@ -89,15 +89,14 @@ final class EmiPluginRegistrationAccumulator {
 
         @Override
         public <T extends AbstractContainerMenu> void registerRecipeHandler(
-                @NotNull ResourceLocation registrationId,
-                @NotNull MenuType<T> menuType,
-                @NotNull EmiRecipeHandler<T> handler) {
+                                                                            @NotNull ResourceLocation registrationId,
+                                                                            @NotNull MenuType<T> menuType,
+                                                                            @NotNull EmiRecipeHandler<T> handler) {
             requireOpen();
             ResourceLocation stagedId = requireStagedValue(registrationId, "EMI recipe-handler registration ID");
             MenuType<T> stagedMenuType = requireStagedValue(menuType, "EMI recipe-handler menu type");
             EmiRecipeHandler<T> stagedHandler = requireStagedValue(handler, "EMI recipe handler");
-            EmiRecipeHandlerRegistration<T> registration =
-                    new EmiRecipeHandlerRegistration<>(stagedId, stagedMenuType, stagedHandler);
+            EmiRecipeHandlerRegistration<T> registration = new EmiRecipeHandlerRegistration<>(stagedId, stagedMenuType, stagedHandler);
             if (recipeHandlers.putIfAbsent(stagedId, registration) != null) {
                 throw new IllegalStateException(
                         "Duplicate EMI recipe-handler registration ID '" + stagedId + "' in " + description());

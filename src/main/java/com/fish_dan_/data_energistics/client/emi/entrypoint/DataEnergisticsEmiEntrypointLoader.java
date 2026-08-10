@@ -4,13 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.entrypoint.emi.DataEnergisticsEmiEntrypoint;
 import com.fish_dan_.data_energistics.api.entrypoint.emi.DataEnergisticsEmiPlugin;
 
-import dev.emi.emi.api.EmiRegistry;
-
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
+import dev.emi.emi.api.EmiRegistry;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
@@ -35,8 +34,7 @@ public final class DataEnergisticsEmiEntrypointLoader {
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
     private static boolean initialized;
 
-    private DataEnergisticsEmiEntrypointLoader() {
-    }
+    private DataEnergisticsEmiEntrypointLoader() {}
 
     /**
      * Loads every eligible annotation entrypoint, freezes their successful registrations, and attaches those
@@ -184,7 +182,7 @@ public final class DataEnergisticsEmiEntrypointLoader {
      * Validates the public entrypoint contract before invoking its no-argument constructor.
      */
     private static DataEnergisticsEmiPlugin instantiate(EntrypointCandidate candidate)
-            throws ReflectiveOperationException {
+                                                                                       throws ReflectiveOperationException {
         Class<?> rawClass = Class.forName(
                 candidate.className(), false, DataEnergisticsEmiEntrypointLoader.class.getClassLoader());
         if (!DataEnergisticsEmiPlugin.class.isAssignableFrom(rawClass)) {
@@ -208,6 +206,5 @@ public final class DataEnergisticsEmiEntrypointLoader {
     /**
      * Stable discovery key used only before class resolution.
      */
-    private record EntrypointCandidate(String owningModId, String className) {
-    }
+    private record EntrypointCandidate(String owningModId, String className) {}
 }

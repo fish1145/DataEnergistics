@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.client.jei.entrypoint;
 
 import com.fish_dan_.data_energistics.api.entrypoint.jei.JeiRecipeTransferHandlerFactory;
 
-import mezz.jei.api.recipe.RecipeType;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
-import mezz.jei.api.registration.IRecipeTransferRegistration;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
+
+import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 
 import java.util.Optional;
 
@@ -24,11 +24,11 @@ import java.util.Optional;
  * @param <R>            JEI recipe-view type handled by the declaration
  */
 record JeiRecipeTransferRegistration<T extends AbstractContainerMenu, R>(
-        ResourceLocation registrationId,
-        Class<T> menuClass,
-        MenuType<T> menuType,
-        RecipeType<R> recipeType,
-        JeiRecipeTransferHandlerFactory<T, R> factory) {
+                                                                         ResourceLocation registrationId,
+                                                                         Class<T> menuClass,
+                                                                         MenuType<T> menuType,
+                                                                         RecipeType<R> recipeType,
+                                                                         JeiRecipeTransferHandlerFactory<T, R> factory) {
 
     /**
      * Creates and validates the external handler before attaching it to JEI's active transfer registry.

@@ -41,7 +41,7 @@ import java.util.Objects;
  * scopes.
  */
 public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAccessHatchMenu>
-        implements Ae2NativeSlotHighlight {
+                                      implements Ae2NativeSlotHighlight {
 
     private static final int PANEL_BACKGROUND = 0xFFE3E3EA;
     private static final int PANEL_BORDER = 0xFF696D88;

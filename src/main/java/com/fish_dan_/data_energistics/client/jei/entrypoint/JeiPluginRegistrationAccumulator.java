@@ -3,12 +3,11 @@ package com.fish_dan_.data_energistics.client.jei.entrypoint;
 import com.fish_dan_.data_energistics.api.entrypoint.jei.DataEnergisticsJeiRegistry;
 import com.fish_dan_.data_energistics.api.entrypoint.jei.JeiRecipeTransferHandlerFactory;
 
-import mezz.jei.api.recipe.RecipeType;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
+import mezz.jei.api.recipe.RecipeType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,8 +20,7 @@ import java.util.Map;
  */
 final class JeiPluginRegistrationAccumulator {
 
-    private final Map<ResourceLocation, JeiRecipeTransferRegistration<?, ?>> recipeTransferHandlers =
-            new LinkedHashMap<>();
+    private final Map<ResourceLocation, JeiRecipeTransferRegistration<?, ?>> recipeTransferHandlers = new LinkedHashMap<>();
     private final Map<RecipeTransferTarget, ResourceLocation> recipeTransferTargets = new LinkedHashMap<>();
     private boolean frozen;
 
@@ -52,8 +50,7 @@ final class JeiPluginRegistrationAccumulator {
             ResourceLocation existingId = this.recipeTransferTargets.get(target);
             if (existingId != null) {
                 throw new IllegalStateException(
-                        "Duplicate JEI recipe-transfer target '" + target + "' from " + staging.description()
-                                + "; already registered as '" + existingId + "'");
+                        "Duplicate JEI recipe-transfer target '" + target + "' from " + staging.description() + "; already registered as '" + existingId + "'");
             }
         }
 
@@ -84,11 +81,11 @@ final class JeiPluginRegistrationAccumulator {
      * Plugin-local staging surface hidden from every other plugin until commit succeeds.
      */
     static final class PluginStaging implements DataEnergisticsJeiRegistry {
+
         private final JeiPluginRegistrationAccumulator owner;
         private final String owningModId;
         private final String pluginClassName;
-        private final Map<ResourceLocation, JeiRecipeTransferRegistration<?, ?>> recipeTransferHandlers =
-                new LinkedHashMap<>();
+        private final Map<ResourceLocation, JeiRecipeTransferRegistration<?, ?>> recipeTransferHandlers = new LinkedHashMap<>();
         private final Map<RecipeTransferTarget, ResourceLocation> recipeTransferTargets = new LinkedHashMap<>();
         private State state = State.OPEN;
 
@@ -103,26 +100,24 @@ final class JeiPluginRegistrationAccumulator {
 
         @Override
         public <T extends AbstractContainerMenu, R> void registerRecipeTransferHandler(
-                @NotNull ResourceLocation registrationId,
-                @NotNull Class<T> menuClass,
-                @NotNull MenuType<T> menuType,
-                @NotNull RecipeType<R> recipeType,
-                @NotNull JeiRecipeTransferHandlerFactory<T, R> factory) {
+                                                                                       @NotNull ResourceLocation registrationId,
+                                                                                       @NotNull Class<T> menuClass,
+                                                                                       @NotNull MenuType<T> menuType,
+                                                                                       @NotNull RecipeType<R> recipeType,
+                                                                                       @NotNull JeiRecipeTransferHandlerFactory<T, R> factory) {
             requireOpen();
             ResourceLocation stagedId = requireStagedValue(registrationId, "JEI recipe-transfer registration ID");
             Class<T> stagedMenuClass = requireStagedValue(menuClass, "JEI recipe-transfer menu class");
             MenuType<T> stagedMenuType = requireStagedValue(menuType, "JEI recipe-transfer menu type");
             RecipeType<R> stagedRecipeType = requireStagedValue(recipeType, "JEI recipe-transfer recipe type");
-            JeiRecipeTransferHandlerFactory<T, R> stagedFactory =
-                    requireStagedValue(factory, "JEI recipe-transfer handler factory");
+            JeiRecipeTransferHandlerFactory<T, R> stagedFactory = requireStagedValue(factory, "JEI recipe-transfer handler factory");
             RecipeTransferTarget target = new RecipeTransferTarget(stagedMenuType, stagedRecipeType);
             if (recipeTransferTargets.containsKey(target)) {
                 throw new IllegalStateException(
                         "Duplicate JEI recipe-transfer target '" + target + "' in " + description());
             }
-            JeiRecipeTransferRegistration<T, R> registration =
-                    new JeiRecipeTransferRegistration<>(
-                            stagedId, stagedMenuClass, stagedMenuType, stagedRecipeType, stagedFactory);
+            JeiRecipeTransferRegistration<T, R> registration = new JeiRecipeTransferRegistration<>(
+                    stagedId, stagedMenuClass, stagedMenuType, stagedRecipeType, stagedFactory);
             if (recipeTransferHandlers.putIfAbsent(stagedId, registration) != null) {
                 throw new IllegalStateException(
                         "Duplicate JEI recipe-transfer registration ID '" + stagedId + "' in " + description());
@@ -198,6 +193,5 @@ final class JeiPluginRegistrationAccumulator {
     /**
      * Exact JEI dispatch key: JEI distinguishes transfer handlers by both the opened menu type and recipe type.
      */
-    private record RecipeTransferTarget(MenuType<?> menuType, RecipeType<?> recipeType) {
-    }
+    private record RecipeTransferTarget(MenuType<?> menuType, RecipeType<?> recipeType) {}
 }

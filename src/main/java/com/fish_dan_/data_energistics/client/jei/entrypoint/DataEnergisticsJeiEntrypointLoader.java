@@ -4,13 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.entrypoint.jei.DataEnergisticsJeiEntrypoint;
 import com.fish_dan_.data_energistics.api.entrypoint.jei.DataEnergisticsJeiPlugin;
 
-import mezz.jei.api.registration.IRecipeTransferRegistration;
-
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
@@ -35,8 +34,7 @@ public final class DataEnergisticsJeiEntrypointLoader {
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
     private static boolean initialized;
 
-    private DataEnergisticsJeiEntrypointLoader() {
-    }
+    private DataEnergisticsJeiEntrypointLoader() {}
 
     /**
      * Loads every eligible annotation entrypoint, freezes their successful registrations, and attaches those
@@ -206,6 +204,5 @@ public final class DataEnergisticsJeiEntrypointLoader {
     /**
      * Stable discovery key used only before class resolution.
      */
-    private record EntrypointCandidate(String owningModId, String className) {
-    }
+    private record EntrypointCandidate(String owningModId, String className) {}
 }

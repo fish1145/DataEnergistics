@@ -1,11 +1,10 @@
 package com.fish_dan_.data_energistics.api.entrypoint.emi;
 
-import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
+import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -27,7 +26,7 @@ public interface DataEnergisticsEmiRegistry {
      * @param <T>            concrete menu type handled by the recipe handler
      */
     <T extends AbstractContainerMenu> void registerRecipeHandler(
-            @NotNull ResourceLocation registrationId,
-            @NotNull MenuType<T> menuType,
-            @NotNull EmiRecipeHandler<T> handler);
+                                                                 @NotNull ResourceLocation registrationId,
+                                                                 @NotNull MenuType<T> menuType,
+                                                                 @NotNull EmiRecipeHandler<T> handler);
 }

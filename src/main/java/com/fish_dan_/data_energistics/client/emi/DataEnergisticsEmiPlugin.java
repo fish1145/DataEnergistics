@@ -166,12 +166,12 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     }
 
     private static <R extends Recipe<?>> void registerRecipeCategory(
-            EmiRegistry registry,
-            EmiRecipeCategory category,
-            EmiStack workstation,
-            EmiStack extendedWorkstation,
-            Function<RecipeHolder<R>, ? extends EmiRecipe> mapper,
-            List<RecipeHolder<R>> recipes) {
+                                                                     EmiRegistry registry,
+                                                                     EmiRecipeCategory category,
+                                                                     EmiStack workstation,
+                                                                     EmiStack extendedWorkstation,
+                                                                     Function<RecipeHolder<R>, ? extends EmiRecipe> mapper,
+                                                                     List<RecipeHolder<R>> recipes) {
         registry.addCategory(category);
         registry.addWorkstation(category, workstation);
         registry.addWorkstation(category, extendedWorkstation);

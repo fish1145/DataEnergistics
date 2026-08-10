@@ -24,5 +24,6 @@ public interface TrinityPatternSearchTermContributor {
      * @param encodedPattern encoded pattern displayed by the Trinity access hatch
      * @return non-null independent candidate names in declaration order
      */
-    @NotNull List<@NotNull String> searchTerms(@NotNull ItemStack encodedPattern);
+    @NotNull
+    List<@NotNull String> searchTerms(@NotNull ItemStack encodedPattern);
 }
