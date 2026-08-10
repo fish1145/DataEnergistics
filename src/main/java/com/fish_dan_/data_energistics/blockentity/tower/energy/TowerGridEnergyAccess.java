@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
+import net.neoforged.neoforge.energy.IEnergyStorage;
+
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
 /**
@@ -29,4 +31,14 @@ interface TowerGridEnergyAccess {
      * @return restored FE in {@code [0, amount]}
      */
     long restore(AENetworkedBlockEntity tower, long amount);
+
+    /**
+     * Returns whether a capability route points at a network inventory that persists its own mutations.
+     *
+     * @param storage capability storage being mutated
+     * @return true when the capability owner must not be dirtied as a surrogate storage owner
+     */
+    default boolean isSelfPersistingNetworkStorage(IEnergyStorage storage) {
+        return false;
+    }
 }

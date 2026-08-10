@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.api.entrypoint;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
+import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
 
@@ -35,6 +36,11 @@ public interface DataEnergisticsRegistry {
      * @return Trinity pattern recipe-ID resolver facet
      */
     TrinityPatternRecipeIdRegistry trinityPatternRecipes();
+
+    /**
+     * @return Trinity pattern search contribution facet
+     */
+    TrinityPatternSearchRegistry trinityPatternSearch();
 
     /**
      * @return virtual crafting output declaration facet

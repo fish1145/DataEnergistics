@@ -6,8 +6,10 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 
 import net.minecraft.core.Direction;
@@ -29,6 +31,7 @@ import java.util.Set;
 public final class CapabilityTowerDomainEnergyResolver {
 
     private final BrandonsCoreEnergyBridge brandonsCore = new BrandonsCoreEnergyBridge();
+    private final ModernIndustrializationEnergyBridge modernIndustrialization = new ModernIndustrializationEnergyBridge();
     private final OritechEnergyBridge oritech = new OritechEnergyBridge();
     private final UnlimitedEnergyAccess unlimitedEnergy = new VerifiedUnlimitedEnergyAccess();
 
@@ -95,6 +98,12 @@ public final class CapabilityTowerDomainEnergyResolver {
         }
         storage = location.level().getCapability(
                 Capabilities.EnergyStorage.BLOCK, location.position(), side);
+        if (storage != null) {
+            return storage;
+        }
+
+        storage = this.modernIndustrialization.findEnergyStorage(
+                location.level(), location.position(), side);
         if (storage != null || !ModFlags.isOritechEnergySupportLoaded()) {
             return storage;
         }
@@ -110,6 +119,9 @@ public final class CapabilityTowerDomainEnergyResolver {
             if (appFluxIdentity != null) {
                 return appFluxIdentity;
             }
+        }
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return modernIndustrializationStorage.backingIdentity();
         }
         Object mekanismIdentity = MekanismEnergyAccess.findBackingIdentity(
                 location.level(), location.position(), side, storage);

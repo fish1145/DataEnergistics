@@ -20,14 +20,34 @@ public final class TrinityPatternSearchMatcher {
      * @throws NullPointerException if a collection, the mode, or any candidate name is {@code null}
      */
     public String createSearchText(List<String> inputs, List<String> outputs, TrinityPatternSearchMode mode) {
+        return createSearchText(inputs, outputs, List.of(), mode);
+    }
+
+    /**
+     * Builds candidate text for the selected input/output scope and appends machine-specific terms as independent
+     * candidates regardless of that scope.
+     *
+     * @param inputs     localized input names in their display order
+     * @param outputs    localized output names in their display order
+     * @param extraTerms localized machine-specific names that must not be merged with another candidate
+     * @param mode       scope that decides which ordinary names are included
+     * @return lower-case candidate names separated by newlines
+     * @throws NullPointerException if a collection, the mode, or any candidate name is {@code null}
+     */
+    public String createSearchText(List<String> inputs,
+                                   List<String> outputs,
+                                   List<String> extraTerms,
+                                   TrinityPatternSearchMode mode) {
         List<String> normalizedInputs = normalize(inputs);
         List<String> normalizedOutputs = normalize(outputs);
+        List<String> normalizedExtraTerms = normalize(extraTerms);
 
-        return switch (mode) {
+        String selectedNames = switch (mode) {
             case INPUT -> String.join("\n", normalizedInputs);
             case OUTPUT -> String.join("\n", normalizedOutputs);
             case INPUT_OUTPUT -> joinInputsAndOutputs(normalizedInputs, normalizedOutputs);
         };
+        return appendExtraTerms(selectedNames, normalizedExtraTerms);
     }
 
     /**
@@ -129,5 +149,23 @@ public final class TrinityPatternSearchMatcher {
         combined.addAll(inputs);
         combined.addAll(outputs);
         return String.join("\n", combined);
+    }
+
+    /**
+     * Keeps every machine-specific term separate from the selected ordinary candidate group.
+     *
+     * @param selectedNames normalized names selected by the current input/output scope
+     * @param extraTerms    normalized machine-specific candidate names
+     * @return every candidate separated by one newline
+     */
+    private static String appendExtraTerms(String selectedNames, List<String> extraTerms) {
+        if (extraTerms.isEmpty()) {
+            return selectedNames;
+        }
+        String joinedExtraTerms = String.join("\n", extraTerms);
+        if (selectedNames.isEmpty()) {
+            return joinedExtraTerms;
+        }
+        return selectedNames + "\n" + joinedExtraTerms;
     }
 }

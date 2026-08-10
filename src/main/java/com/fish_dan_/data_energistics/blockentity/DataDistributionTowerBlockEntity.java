@@ -39,6 +39,7 @@ import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItem;
@@ -232,10 +233,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.coverage = new TowerCoverageGeometry(blockPos);
         BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
+        ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge = new ModernIndustrializationEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
         this.energyEndpointResolver = new CachedTowerEnergyEndpointResolver(
-                this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
+                this,
+                brandonsCoreEnergyBridge,
+                modernIndustrializationEnergyBridge,
+                oritechEnergyBridge,
+                UNLIMITED_ENERGY_ACCESS);
         this.energyDistributor = new TowerEnergyTransferEngine(
                 this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
         this.targetDisplayResolver = new TowerTargetSummaryResolver(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);

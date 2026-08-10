@@ -1,5 +1,21 @@
 # ChangeLog
 
+## Version [v3.0.3](https://github.com/fish1145/DataEnergistics/compare/v3.0.2-1.21...v3.0.3-1.21)
+### Added
+
+- 修复 AppFlux 网络缓存保存并兼容 MI 能量 by @QiuYe-123 in [#188](https://github.com/fish1145/DataEnergistics/pull/188)
+- 移除 UselessMod 旧样板供应器注册 by @QiuYe-123 in [#189](https://github.com/fish1145/DataEnergistics/pull/189)
+
+### Fixed
+
+- 修复 AppFlux 网络缓存保存并兼容 MI 能量 by @QiuYe-123 in [#188](https://github.com/fish1145/DataEnergistics/pull/188)
+- 移除 UselessMod 旧样板供应器注册 by @QiuYe-123 in [#189](https://github.com/fish1145/DataEnergistics/pull/189)
+
+### Changed
+
+- 更新项目首页并迁移至 AGPLv3 by @QiuYe-123 in [#184](https://github.com/fish1145/DataEnergistics/pull/184)
+
+ 
 ## Version [v3.0.2](https://github.com/fish1145/DataEnergistics/compare/v3.0.1-1.21...v3.0.2-1.21)
 ### Added
 

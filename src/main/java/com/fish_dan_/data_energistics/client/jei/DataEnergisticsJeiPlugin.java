@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
+import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
@@ -25,6 +27,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -150,6 +153,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         transferHelper),
                 TrinityMultiblockJeiCategory.RECIPE_TYPE);
 
+        DataEnergisticsJeiEntrypointLoader.initialize(registration);
+
         if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
             Ae2JeiTransferRegistration.register(registration);
         }
@@ -255,6 +260,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         PatternProviderRecipeTypeNames.register(
                 RECIPE_TYPE_NAME_SOURCE_ID,
                 recipeTypeId -> resolveRecipeTypeName(jeiRuntime.getRecipeManager(), recipeTypeId));
+        JeiPatternTransferContextBridge.registerWorkstationSource(
+                recipeTypeId -> resolveRecipeTypeWorkstations(jeiRuntime.getRecipeManager(), recipeTypeId));
         hidePoweredRepairRecipes();
     }
 
@@ -262,6 +269,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     public void onRuntimeUnavailable() {
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
         PatternProviderRecipeTypeNames.unregister(RECIPE_TYPE_NAME_SOURCE_ID);
+        JeiPatternTransferContextBridge.unregisterWorkstationSource();
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();
@@ -277,6 +285,18 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static <T> Component resolveRecipeTypeName(IRecipeManager recipeManager,
                                                        RecipeType<T> recipeType) {
         return recipeManager.getRecipeCategory(recipeType).getTitle();
+    }
+
+    private static List<ResourceLocation> resolveRecipeTypeWorkstations(
+                                                                        IRecipeManager recipeManager,
+                                                                        ResourceLocation recipeTypeId) {
+        return recipeManager.getRecipeType(recipeTypeId)
+                .map(recipeType -> recipeManager.createRecipeCatalystLookup(recipeType)
+                        .getItemStack()
+                        .filter(stack -> !stack.isEmpty())
+                        .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                        .toList())
+                .orElseGet(List::of);
     }
 
     /**
