@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
@@ -33,6 +34,7 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
 
     private final TowerEnergyEndpointResolverContext context;
     private final BrandonsCoreEnergyBridge brandonsCoreEnergyBridge;
+    private final ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge;
     private final OritechEnergyBridge oritechEnergyBridge;
     private final UnlimitedEnergyAccess unlimitedEnergyAccess;
     private final ArrayList<TowerEnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
@@ -45,17 +47,20 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
     /**
      * Creates an endpoint resolver for one tower.
      *
-     * @param context                  tower state and callbacks required for endpoint discovery
-     * @param brandonsCoreEnergyBridge optional BrandonsCore OP capability bridge
-     * @param oritechEnergyBridge      optional Oritech energy lookup bridge
-     * @param unlimitedEnergyAccess    rate-limit-free storage access used for capability checks
+     * @param context                             tower state and callbacks required for endpoint discovery
+     * @param brandonsCoreEnergyBridge            optional BrandonsCore OP capability bridge
+     * @param modernIndustrializationEnergyBridge optional Modern Industrialization EU capability bridge
+     * @param oritechEnergyBridge                 optional Oritech energy lookup bridge
+     * @param unlimitedEnergyAccess               rate-limit-free storage access used for capability checks
      */
     public CachedTowerEnergyEndpointResolver(TowerEnergyEndpointResolverContext context,
                                              BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                                             ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge,
                                              OritechEnergyBridge oritechEnergyBridge,
                                              UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this.context = context;
         this.brandonsCoreEnergyBridge = brandonsCoreEnergyBridge;
+        this.modernIndustrializationEnergyBridge = modernIndustrializationEnergyBridge;
         this.oritechEnergyBridge = oritechEnergyBridge;
         this.unlimitedEnergyAccess = unlimitedEnergyAccess;
     }
@@ -74,6 +79,11 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
         }
 
         storage = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
+        if (storage != null) {
+            return storage;
+        }
+
+        storage = this.modernIndustrializationEnergyBridge.findEnergyStorage(level, pos, side);
         if (storage != null || !ModFlags.isOritechEnergySupportLoaded()) {
             return storage;
         }

@@ -24,6 +24,8 @@ import mekanism.common.tile.interfaces.ISideConfiguration;
 import mekanism.common.util.UnitDisplayUtils.EnergyUnit;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 
 /**
@@ -139,6 +141,14 @@ public final class MekanismEnergyAccess {
     public static long compensateExtraction(Level level, BlockPos pos, IEnergyStorage storage, long amount) {
         requireLoaded();
         return LoadedAccess.compensateExtraction(level, pos, storage, amount);
+    }
+
+    /**
+     * Returns the smallest complete FE amount that survives the configured FE-to-Joule conversion.
+     */
+    public static long transferQuantum() {
+        requireLoaded();
+        return LoadedAccess.transferQuantum();
     }
 
     private static void requireLoaded() {
@@ -277,6 +287,25 @@ public final class MekanismEnergyAccess {
                                                  long amount) {
             List<IEnergyContainer> containers = requireHandler(level, pos, storage).getEnergyContainers(null);
             return transfer(containers, null, storage, amount, false, true, false);
+        }
+
+        private static long transferQuantum() {
+            double conversion = CONVERTER.getConversion();
+            if (!Double.isFinite(conversion) || conversion <= 0) {
+                throw new IllegalStateException("Mekanism FE conversion must be finite and positive");
+            }
+            BigDecimal decimal = BigDecimal.valueOf(conversion).stripTrailingZeros();
+            if (decimal.scale() <= 0) {
+                return 1;
+            }
+            BigInteger numerator = decimal.unscaledValue().abs();
+            BigInteger denominator = BigInteger.TEN.pow(decimal.scale());
+            long quantum = denominator.divide(denominator.gcd(numerator)).longValueExact();
+            if (CONVERTER.convertTo(CONVERTER.convertFrom(quantum)) != quantum) {
+                throw new IllegalStateException(
+                        "Mekanism FE conversion has no exact long-width transfer quantum: " + conversion);
+            }
+            return quantum;
         }
 
         private static long transfer(

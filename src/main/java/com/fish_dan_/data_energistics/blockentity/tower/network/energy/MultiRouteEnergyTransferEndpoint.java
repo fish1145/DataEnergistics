@@ -144,6 +144,11 @@ public final class MultiRouteEnergyTransferEndpoint implements TowerEnergyTransf
     }
 
     @Override
+    public long extractionQuantum() {
+        return selectedExtractionRoute().extractionQuantum();
+    }
+
+    @Override
     public long extract(long amount) {
         TowerEnergyTransferEndpoint route = selectedExtractionRoute();
         long extracted = route.extract(amount);
@@ -162,6 +167,11 @@ public final class MultiRouteEnergyTransferEndpoint implements TowerEnergyTransf
     @Override
     public long simulateInsertion(long amount) {
         return selectedInsertionRoute().simulateInsertion(amount);
+    }
+
+    @Override
+    public long insertionQuantum() {
+        return selectedInsertionRoute().insertionQuantum();
     }
 
     @Override

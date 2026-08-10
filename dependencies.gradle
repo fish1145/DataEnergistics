@@ -41,9 +41,8 @@ dependencies {
 
     // Energy integrations
     compileOnly(forge.brandonscore)
-    testImplementation(forge.brandonscore)
     compileOnly(forge.oritech)
-    testImplementation(forge.oritech)
+    compileOnly(forge.modern.industrialization)
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
@@ -81,6 +80,7 @@ dependencies {
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
     localRuntime(forge.oritech)
+    localRuntime(forge.modern.industrialization)
     localRuntime(forge.brandonscore)
     localRuntime(forge.codechickenlib)
     localRuntime(forge.draconic.evolution)

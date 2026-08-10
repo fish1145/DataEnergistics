@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
 import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
@@ -92,6 +93,12 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                 capacity = saturatingAdd(stored, appFluxFree);
                 canExtract = storage.canExtract();
                 canReceive = storage.canReceive();
+            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+                EnergySnapshot snapshot = modernIndustrializationStorage.snapshot();
+                stored = snapshot.stored();
+                capacity = snapshot.capacity();
+                canExtract = modernIndustrializationStorage.canExtract();
+                canReceive = modernIndustrializationStorage.canReceive();
             } else {
                 EnergySnapshot snapshot = this.unlimitedEnergy.snapshot(storage);
                 stored = snapshot.stored();
@@ -131,6 +138,11 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     }
 
     @Override
+    public long extractionQuantum() {
+        return transferQuantum();
+    }
+
+    @Override
     public long extract(long amount) {
         return transfer(amount, false, false);
     }
@@ -155,6 +167,8 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                         amount);
             } else if (this.appFluxStorage) {
                 restored = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, false);
+            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+                restored = modernIndustrializationStorage.compensateExtraction(amount);
             } else {
                 restored = this.unlimitedEnergy.rollbackExtraction(storage, amount);
                 if (restored == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -177,12 +191,20 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     }
 
     @Override
+    public long insertionQuantum() {
+        return transferQuantum();
+    }
+
+    @Override
     public long insert(long amount) {
         return transfer(amount, false, true);
     }
 
     @Override
     public void publishMutation() {
+        if (this.appFluxStorage) {
+            return;
+        }
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
         if (!this.brandonsCoreStorage) {
@@ -231,6 +253,8 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                                 simulate);
             } else if (this.appFluxStorage) {
                 transferred = inserting ? AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, simulate) : AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, amount, simulate);
+            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+                transferred = inserting ? modernIndustrializationStorage.insert(amount, simulate) : modernIndustrializationStorage.extract(amount, simulate);
             } else {
                 transferred = inserting ? this.unlimitedEnergy.insert(storage, amount, simulate) : this.unlimitedEnergy.extract(storage, amount, simulate);
                 if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -257,6 +281,8 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
         long transferred;
         if (this.brandonsCoreStorage) {
             transferred = inserting ? this.brandonsCore.insert(storage, available, true) : this.brandonsCore.extract(storage, available, true);
+        } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            transferred = inserting ? modernIndustrializationStorage.insert(available, true) : modernIndustrializationStorage.extract(available, true);
         } else {
             transferred = inserting ? this.unlimitedEnergy.insert(storage, available, true) : this.unlimitedEnergy.extract(storage, available, true);
             if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
@@ -309,6 +335,20 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                 this.endpoint.location().position(),
                 endpoint().side(),
                 storage);
+    }
+
+    /**
+     * Exposes a native conversion unit only when the integration provides an explicit contract for it.
+     */
+    private long transferQuantum() {
+        IEnergyStorage storage = this.endpoint.storage();
+        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
+            return modernIndustrializationStorage.transferQuantum();
+        }
+        if (!this.brandonsCoreStorage && mekanismSupported(storage)) {
+            return MekanismEnergyAccess.transferQuantum();
+        }
+        return 1L;
     }
 
     /**

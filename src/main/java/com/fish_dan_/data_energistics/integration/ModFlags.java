@@ -62,6 +62,14 @@ public final class ModFlags {
         return isOritechLoaded();
     }
 
+    public static boolean isModernIndustrializationLoaded() {
+        return isLoaded("modern_industrialization");
+    }
+
+    public static boolean isModernIndustrializationEnergySupportLoaded() {
+        return isModernIndustrializationLoaded();
+    }
+
     public static boolean isBrandonsCoreLoaded() {
         return isLoaded("brandonscore");
     }
