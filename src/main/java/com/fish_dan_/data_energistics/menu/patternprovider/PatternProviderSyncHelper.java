@@ -111,7 +111,7 @@ public final class PatternProviderSyncHelper {
     }
 
     /**
-     * Aggregates rows while ranking each unique provider leaf by its recorded success count.
+     * Aggregates provider leaves and ranks synchronized rows with server-authoritative context and history.
      */
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
@@ -128,9 +128,8 @@ public final class PatternProviderSyncHelper {
                                                                                                         @Nullable PatternEncodingRankingContext rankingContext,
                                                                                                         List<ResourceLocation> viewerWorkstationIds) {
         syncedProviderTargetsById.clear();
-        List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(
-                discoveredProviders, leafClickCounts);
-        aggregatedProviders.sort(createAggregatedProviderComparator(leafClickCounts));
+        List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(discoveredProviders);
+        aggregatedProviders.sort(createAggregatedProviderRankingComparator(leafClickCounts));
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(aggregatedProviders.size());
         for (var provider : aggregatedProviders) {
@@ -846,10 +845,9 @@ public final class PatternProviderSyncHelper {
     }
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
-                                                                                List<PatternProviderAggregationEntry> discoveredProviders,
-                                                                                Map<String, Long> leafClickCounts) {
+                                                                                List<PatternProviderAggregationEntry> discoveredProviders) {
         List<PatternProviderAggregationEntry> sortedProviders = new ArrayList<>(discoveredProviders);
-        sortedProviders.sort(createDiscoveredProviderComparator(leafClickCounts));
+        sortedProviders.sort(createStableDiscoveredProviderComparator());
 
         Map<PatternProviderAggregationKey, AggregatedPatternProvider> aggregatedProvidersByKey = new LinkedHashMap<>();
 
@@ -866,8 +864,8 @@ public final class PatternProviderSyncHelper {
         return new ArrayList<>(aggregatedProvidersByKey.values());
     }
 
-    private static Comparator<AggregatedPatternProvider> createAggregatedProviderComparator(
-                                                                                            Map<String, Long> leafClickCounts) {
+    private static Comparator<AggregatedPatternProvider> createAggregatedProviderRankingComparator(
+                                                                                                   Map<String, Long> leafClickCounts) {
         return Comparator.comparing(AggregatedPatternProvider::exactContextMatch)
                 .reversed()
                 .thenComparing(Comparator.<AggregatedPatternProvider>comparingLong(
@@ -878,14 +876,8 @@ public final class PatternProviderSyncHelper {
                 .thenComparing(provider -> provider.leafDigests().getFirst());
     }
 
-    private static Comparator<PatternProviderAggregationEntry> createDiscoveredProviderComparator(
-                                                                                                  Map<String, Long> leafClickCounts) {
-        return Comparator.comparing(PatternProviderAggregationEntry::exactContextMatch)
-                .reversed()
-                .thenComparing(Comparator.<PatternProviderAggregationEntry>comparingLong(
-                        provider -> leafClickCounts.getOrDefault(provider.providerDigest(), 0L))
-                        .reversed())
-                .thenComparingLong(PatternProviderAggregationEntry::sortOrder)
+    private static Comparator<PatternProviderAggregationEntry> createStableDiscoveredProviderComparator() {
+        return Comparator.comparingLong(PatternProviderAggregationEntry::sortOrder)
                 .thenComparing(provider -> provider.displayName().getString())
                 .thenComparing(PatternProviderAggregationEntry::providerDigest);
     }
