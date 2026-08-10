@@ -44,8 +44,11 @@ import de.mari_023.ae2wtlib.wet.WETMenu;
 import de.mari_023.ae2wtlib.wet.WETScreen;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen {
 
@@ -930,30 +933,17 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     private Rect2i getDefaultPreviewPanelBounds() {
         Rect2i encodeButtonBounds = getEncodeButtonBounds();
         int preferredY = this.topPos + PANEL_Y_OFFSET;
-        int y = Math.max(4, Math.min(preferredY, this.height - PANEL_HEIGHT - 4));
-        Rect2i rightCandidate = clampPreviewPanelBounds(
-                encodeButtonBounds.getX() + encodeButtonBounds.getWidth() + PANEL_X_OFFSET,
-                y,
+        return PatternEncodingPreviewPlacement.findBestBounds(
+                encodeButtonBounds,
                 PANEL_WIDTH,
-                PANEL_HEIGHT);
-        Rect2i leftCandidate = clampPreviewPanelBounds(
-                encodeButtonBounds.getX() - PANEL_WIDTH + PANEL_X_OFFSET,
-                y,
-                PANEL_WIDTH,
-                PANEL_HEIGHT);
-        List<Rect2i> occupiedZones = getOccupiedPreviewAnchorZones();
-        boolean rightOccupied = intersectsAny(rightCandidate, occupiedZones);
-        boolean leftOccupied = intersectsAny(leftCandidate, occupiedZones);
-        if (rightOccupied != leftOccupied) {
-            return rightOccupied ? leftCandidate : rightCandidate;
-        }
-
-        int rightOverlap = computeOverlapArea(rightCandidate, occupiedZones);
-        int leftOverlap = computeOverlapArea(leftCandidate, occupiedZones);
-        if (leftOverlap < rightOverlap) {
-            return leftCandidate;
-        }
-        return rightCandidate;
+                PANEL_HEIGHT,
+                preferredY,
+                PANEL_X_OFFSET,
+                PANEL_X_OFFSET,
+                0,
+                this.width,
+                this.height,
+                getOccupiedPreviewAnchorZones());
     }
 
     private Rect2i getPreviewScrollbarBounds() {
@@ -999,48 +989,29 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     }
 
     private List<Rect2i> getOccupiedPreviewAnchorZones() {
-        List<Rect2i> zones = new ArrayList<>();
+        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+        zones.add(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
+        Set<AbstractWidget> seenWidgets = Collections.newSetFromMap(new IdentityHashMap<>());
         for (GuiEventListener child : this.children()) {
-            if (!(child instanceof AbstractWidget widget) || !widget.visible || shouldIgnorePreviewAnchorWidget(widget)) {
-                continue;
+            if (child instanceof AbstractWidget widget) {
+                addOccupiedPreviewAnchorWidget(zones, seenWidgets, widget);
             }
-            zones.add(new Rect2i(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight()));
+        }
+        for (AbstractWidget widget : this.widgets.widgets.values()) {
+            addOccupiedPreviewAnchorWidget(zones, seenWidgets, widget);
         }
         return zones;
     }
 
+    private void addOccupiedPreviewAnchorWidget(List<Rect2i> zones, Set<AbstractWidget> seenWidgets, AbstractWidget widget) {
+        if (!seenWidgets.add(widget) || !widget.visible || shouldIgnorePreviewAnchorWidget(widget)) {
+            return;
+        }
+        zones.add(new Rect2i(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight()));
+    }
+
     private boolean shouldIgnorePreviewAnchorWidget(AbstractWidget widget) {
         return widget == this.encodePatternWidget || widget == this.providerSearchBox || widget == this.providerRenameBox || widget == this.recipeTypeToggleButton || widget == this.previewDragButton;
-    }
-
-    private boolean intersectsAny(Rect2i candidate, List<Rect2i> zones) {
-        for (Rect2i zone : zones) {
-            if (rectanglesIntersect(candidate, zone)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private int computeOverlapArea(Rect2i candidate, List<Rect2i> zones) {
-        int overlapArea = 0;
-        for (Rect2i zone : zones) {
-            overlapArea += computeOverlapArea(candidate, zone);
-        }
-        return overlapArea;
-    }
-
-    private int computeOverlapArea(Rect2i first, Rect2i second) {
-        int overlapWidth = Math.min(first.getX() + first.getWidth(), second.getX() + second.getWidth()) - Math.max(first.getX(), second.getX());
-        int overlapHeight = Math.min(first.getY() + first.getHeight(), second.getY() + second.getHeight()) - Math.max(first.getY(), second.getY());
-        if (overlapWidth <= 0 || overlapHeight <= 0) {
-            return 0;
-        }
-        return overlapWidth * overlapHeight;
-    }
-
-    private boolean rectanglesIntersect(Rect2i first, Rect2i second) {
-        return computeOverlapArea(first, second) > 0;
     }
 
     private Rect2i getProviderButtonBounds(int visibleRow) {
