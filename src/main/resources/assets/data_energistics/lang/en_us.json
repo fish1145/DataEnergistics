@@ -642,6 +642,7 @@
 	"gui.data_energistics.trinity_planning.diagnostic.search_limit": "Trinity planning exceeded its configured search limit",
 	"gui.data_energistics.trinity_planning.diagnostic.no_executable_order": "No executable ordering exists for the Trinity crafting plan",
 	"gui.data_energistics.trinity_planning.diagnostic.insufficient_input": "The available inventory cannot satisfy a required Trinity input",
+	"gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail": " (Missing: %2$s %1$s, available: %3$s, required: %4$s)",
 	"gui.data_energistics.trinity_planning.diagnostic.inexact_result": "The planning result failed exact Trinity verification",
 	"gui.data_energistics.trinity_planning.diagnostic.no_integer_solution": "No exact integer crafting plan satisfies the requested constraints",
 	"gui.data_energistics.trinity_planning.diagnostic.unsupported_pattern": "This pattern topology is not supported by the selected Trinity planning path",

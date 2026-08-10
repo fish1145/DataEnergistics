@@ -642,6 +642,7 @@
 	"gui.data_energistics.trinity_planning.diagnostic.search_limit": "Trinity 规划超出配置的搜索上限",
 	"gui.data_energistics.trinity_planning.diagnostic.no_executable_order": "Trinity 合成计划不存在可执行顺序",
 	"gui.data_energistics.trinity_planning.diagnostic.insufficient_input": "可用库存无法满足 Trinity 所需输入",
+	"gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail": "（缺少：%2$s %1$s，库存：%3$s，需要：%4$s）",
 	"gui.data_energistics.trinity_planning.diagnostic.inexact_result": "规划结果未通过 Trinity 精确复验",
 	"gui.data_energistics.trinity_planning.diagnostic.no_integer_solution": "不存在满足请求约束的精确整数合成计划",
 	"gui.data_energistics.trinity_planning.diagnostic.unsupported_pattern": "所选 Trinity 规划路径不支持此样板拓扑",

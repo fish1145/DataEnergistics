@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
@@ -15,6 +16,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPl
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -116,14 +118,38 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$planningNanos = plan.statistics().planningNanos();
             if (!plan.diagnostics().isEmpty()) {
                 this.dataEnergistics$hasDiagnostic = true;
-                this.dataEnergistics$diagnostic = plan.diagnostics().getFirst().message();
+                this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(plan.diagnostics().getFirst());
             }
         } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             this.dataEnergistics$hasDiagnostic = true;
-            this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
+            this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(diagnosed.diagnostic());
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
             this.dataEnergistics$planningNanos = diagnosed.calculationNanos();
         }
+    }
+
+    @Unique
+    private static Component dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
+        Component message = diagnostic.message();
+        return diagnostic.inputShortage()
+                .<Component>map(shortage -> message.copy().append(
+                        Component.translatable(
+                                "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
+                                shortage.key().getDisplayName(),
+                                shortage.missing(),
+                                shortage.available(),
+                                shortage.required())
+                                .withStyle(dataEnergistics$diagnosticDetailColor(diagnostic))))
+                .orElse(message);
+    }
+
+    @Unique
+    private static ChatFormatting dataEnergistics$diagnosticDetailColor(TrinityPlanningDiagnostic diagnostic) {
+        return switch (diagnostic.code()) {
+            case INTERNAL_ERROR, ARITHMETIC_OVERFLOW -> ChatFormatting.DARK_RED;
+            case CALCULATION_CANCELLED, MIP_TIMEOUT, PLANNER_QUEUE_FULL, RUNTIME_DEADLOCK, STALE_GRAPH -> ChatFormatting.YELLOW;
+            default -> ChatFormatting.RED;
+        };
     }
 
     @WrapOperation(
