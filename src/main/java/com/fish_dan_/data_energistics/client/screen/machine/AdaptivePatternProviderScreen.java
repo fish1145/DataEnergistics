@@ -6,11 +6,9 @@ import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -32,7 +30,6 @@ import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.ICompositeWidget;
 import appeng.client.gui.Icon;
 import appeng.client.gui.Tooltip;
-import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.client.gui.widgets.ToggleButton;
@@ -46,18 +43,14 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
 
     private static final int HIDDEN_SLOT_COORD = -9999;
-    private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
-    private static final Optional<VarHandle> WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
 
     private final ToggleButton previousPageButton;
     private final ToggleButton nextPageButton;
@@ -238,27 +231,12 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void installOrReplaceCompositeWidget(String id, Object widget) {
-        Map<String, Object> compositeWidgets = (Map<String, Object>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
-        if (compositeWidgets == null) {
-            throw new IllegalStateException("Could not replace AE2 composite widget: " + id);
-        }
-        compositeWidgets.put(id, widget);
+    private void installOrReplaceCompositeWidget(String id, ICompositeWidget widget) {
+        this.widgets.compositeWidgets.put(id, widget);
     }
 
-    @SuppressWarnings("unchecked")
     private boolean hasWidget(String id) {
-        Map<String, AbstractWidget> widgets = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
-        Map<String, ?> compositeWidgets = (Map<String, ?>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
-        if (widgets == null || compositeWidgets == null) {
-            throw new IllegalStateException("Could not inspect AE2 widget container");
-        }
-
-        if (widgets.containsKey(id)) {
-            return true;
-        }
-        return compositeWidgets.containsKey(id);
+        return this.widgets.widgets.containsKey(id) || this.widgets.compositeWidgets.containsKey(id);
     }
 
     private static SlotBuckets splitUniqueSlots(List<Slot> slots) {
@@ -276,14 +254,6 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private static void setSlotPosition(Slot slot, int x, int y) {
         slot.x = x;
         slot.y = y;
-    }
-
-    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
-        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
-        if (field.isEmpty()) {
-            throw new IllegalStateException("Could not resolve field " + owner.getSimpleName() + "." + name);
-        }
-        return field;
     }
 
     private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {}
