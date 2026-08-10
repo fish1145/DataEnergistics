@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.item.cell;
 
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellTooltip;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.key.EchoKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,12 +40,12 @@ import java.util.Set;
 public class DataFlowPortableCellItem extends PortableCellItem {
 
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
-        super(DataFlowKeyType.TYPE, 2, null, tier, properties.stacksTo(1), color);
+        super(DigitalizationKeyType.TYPE, 2, null, tier, properties.stacksTo(1), color);
     }
 
     @Override
     public ConfigInventory getConfigInventory(ItemStack stack) {
-        return CellConfig.create(Set.of(DataFlowKeyType.TYPE, EchoKeyType.TYPE), stack);
+        return CellConfig.create(Set.of(DigitalizationKeyType.TYPE), stack);
     }
 
     @Override

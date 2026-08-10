@@ -130,7 +130,7 @@ final class CommonCapabilityRegistrar {
         registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_64M.get());
         registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get());
         registerPoweredItemEnergyStorage(event, DEItems.ME_VACUUM.get());
-        registerPoweredItemEnergyStorage(event, DEItems.DATA_CAPTURE_BALL.get());
+        registerPoweredItemEnergyStorage(event, DEItems.RADIX_CONTAINMENT_SPHERE.get());
         registerPoweredItemEnergyStorage(event, DEItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,

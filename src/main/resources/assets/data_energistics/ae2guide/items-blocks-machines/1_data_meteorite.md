@@ -92,13 +92,13 @@ All five Data Crystal mother rocks preserve their own tier when mined with Silk 
 | Meteorite | Basic drop | Additional output |
 |---|-|---|
 | <ItemImage id="ae2:sky_stone_block" /> | 100% <ItemImage id="ae2:sky_stone_block" /> | None |
-| <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + luck per level +3% <ItemImage id="ae2:ender_dust" /> | 5% + luck per level +3%: generate 1 Dispersing Data entities |
-| <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + Luck per level +3% <ItemImage id="ae2:ender_dust" /> 10% + Luck per level +3% <ItemImage id="ae2:sky_dust" /> | 10% + Luck +3% per level: Generates 1 Dispersing Data entity |
-| <ItemImage id="data_energistics:data_meteorite_2" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 25% + luck per level +3% <ItemImage id="ae2:ender_dust" /> 15% + luck per level +3% <ItemImage id="ae2:sky_dust" /> | 15% + Luck per level +3%: Generate 1~2 Dispersing Data entities 15%: 6³ random spatial teleport|
+| <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + luck per level +3% <ItemImage id="ae2:ender_dust" /> | 5% + luck per level +3%: generate 1 Dispersing Manifest Binary entities |
+| <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + Luck per level +3% <ItemImage id="ae2:ender_dust" /> 10% + Luck per level +3% <ItemImage id="ae2:sky_dust" /> | 10% + Luck +3% per level: Generates 1 Dispersing Manifest Binary entity |
+| <ItemImage id="data_energistics:data_meteorite_2" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 25% + luck per level +3% <ItemImage id="ae2:ender_dust" /> 15% + luck per level +3% <ItemImage id="ae2:sky_dust" /> | 15% + Luck per level +3%: Generate 1~2 Dispersing Manifest Binary entities 15%: 6³ random spatial teleport|
 
 ---
 
-## Dispersing Data
+## Dispersing Manifest Binary
 
 <GameScene zoom="6" background="transparent">
   <Entity id="data_energistics:dispersing_data" data="{TextureVariant:0}" x="0" y="0" z="0" />
@@ -108,16 +108,16 @@ All five Data Crystal mother rocks preserve their own tier when mined with Silk 
   <IsometricCamera yaw="0" pitch="25" />
 </GameScene>
 
-Dispersing Data are mining digital meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).  
-Nearby Dispersing Data attract and merge automatically. Their names show the contained amount, up to 16 data units per entity. At 16 units, the entity is about 2.52 times its base size.
+Dispersing Manifest Binary are mining digital meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).
+Nearby Dispersing Manifest Binary attract and merge automatically. Their names show the contained amount, up to 16 data units per entity. At 16 units, the entity is about 2.52 times its base size.
 > ⚠ if you leave it alone for a minute, it will fade away  
 > 
 When he appears in the world, you need to use it
 <Row> 
-    <ItemLink id="data_energistics:data_capture_ball" />
-    <ItemImage id="data_energistics:data_capture_ball" />
+    <ItemLink id="data_energistics:radix_containment_sphere" />
+    <ItemImage id="data_energistics:radix_containment_sphere" />
 </Row>  
-    <RecipeFor id="data_energistics:data_capture_ball" />
+    <RecipeFor id="data_energistics:radix_containment_sphere" />
 captures it; when energy is depleted, it is destroyed and the data inside is also destroyed
   
 
@@ -127,7 +127,7 @@ You can also make one
     <ItemImage id="data_energistics:me_vacuum" />
 </Row>  
     <RecipeFor id="data_energistics:me_vacuum" />
-Place Data Capture Ball in it for area capture
+Place Radix Containment Sphere in it for area capture
 
 ---
 

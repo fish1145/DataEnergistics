@@ -15,6 +15,7 @@ architectury = "13.0.8"
 brandonscore = "1.21.1-3.2.1.309"
 codechickenlib = "1.21.1-4.6.1.526"
 draconic-evolution = "1.21.1-3.1.4.632"
+modern-industrialization = "2.5.5"
 
 ## ftb mod ##
 ftblibrary = "2101.1.31"
@@ -33,6 +34,7 @@ guideme = "21.1.17"
 geckolib = "7707149"
 glodium = "5821676"
 ae2ji = "7727898"
+ae2ct = "7182163"
 eae = "8511901"
 aae = "7849217"
 aecs = "8498888"
@@ -77,6 +79,7 @@ architectury        = { module = "dev.architectury:architectury-neoforge", versi
 brandonscore        = { module = "com.brandon3055.brandonscore:BrandonsCore", version.ref = "brandonscore" }
 codechickenlib      = { module = "io.codechicken:CodeChickenLib", version.ref = "codechickenlib" }
 draconic-evolution  = { module = "com.brandon3055.draconicevolution:Draconic-Evolution", version.ref = "draconic-evolution" }
+modern-industrialization = { module = "aztech:Modern-Industrialization", version.ref = "modern-industrialization" }
 
 ftblibrary          = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftblibrary" }
 ftbultimine         = { module = "dev.ftb.mods:ftb-ultimine-neoforge", version.ref = "ftbultimine" }
@@ -90,6 +93,7 @@ bhc                 = { module = "maven.modrinth:baubley-heart-canisters", versi
 geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
 glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
 ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", version.ref = "ae2ji" }
+ae2ct               = { module = "curse.maven:ae2-crafting-tree-1086241", version.ref = "ae2ct" }
 eae                 = { module = "curse.maven:ex-pattern-provider-892005", version.ref = "eae"}
 aae                 = { module = "curse.maven:advancedae-1084104", version.ref = "aae" }
 aecs                = { module = "curse.maven:ae2-crystal-science-1435174", version.ref = "aecs" }

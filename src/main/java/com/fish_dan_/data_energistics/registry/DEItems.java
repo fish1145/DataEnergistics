@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.item.DataMeteoriteCompassItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DollBlockItem;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierItem;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.cell.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.cell.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.cell.DataStorageComponentItem;
@@ -282,9 +282,9 @@ public final class DEItems {
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_16M = registerPortableDataFlowCell("portable_data_flow_cell_16m", DATA_FLOW_SIZE_16M, 0xB0EE78);
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_64M = registerPortableDataFlowCell("portable_data_flow_cell_64m", DATA_FLOW_SIZE_64M, 0xFFAB6C);
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256M = registerPortableDataFlowCell("portable_data_flow_cell_256m", DATA_FLOW_SIZE_256M, 0xFF82D8);
-    public static final DeferredItem<Item> DATA_CAPTURE_BALL = ITEMS.register(
-            "data_capture_ball",
-            () -> new DataCaptureBallItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<RadixContainmentSphereItem> RADIX_CONTAINMENT_SPHERE = ITEMS.register(
+            "radix_containment_sphere",
+            () -> new RadixContainmentSphereItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<MatterConvergingCrossbowItem> MATTER_CONVERGING_CROSSBOW = ITEMS.register(
             "matter_converging_crossbow",
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));

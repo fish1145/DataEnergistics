@@ -31,11 +31,11 @@ final class PatternEncodingRankingContextCodec {
         return new PatternEncodingRankingContext(readResourceLocation(buffer, "recipe type id"));
     }
 
-    private static void writeResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation id) {
+    static void writeResourceLocation(RegistryFriendlyByteBuf buffer, ResourceLocation id) {
         buffer.writeUtf(id.toString(), PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
     }
 
-    private static ResourceLocation readResourceLocation(RegistryFriendlyByteBuf buffer, String label) {
+    static ResourceLocation readResourceLocation(RegistryFriendlyByteBuf buffer, String label) {
         String encoded = buffer.readUtf(PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
         ResourceLocation id = ResourceLocation.tryParse(encoded);
         if (id == null) {

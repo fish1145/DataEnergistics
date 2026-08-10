@@ -335,6 +335,7 @@ public final class TrinityGraphPlanAssembler {
                         variant.primaryOutput(),
                         variant.ordinal(),
                         count,
+                        variant.inputs(),
                         variant.declaredOutputs())),
                 required,
                 multiplySigned(variant.netChange(), count));

@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
+import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
@@ -18,13 +20,14 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
+import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -102,7 +105,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         this::requestMultiblockRefresh));
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
+                new RadixContainmentSphereCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 multiblockCategory);
@@ -110,8 +113,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
-        registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
-        registration.addRecipeCatalyst(DEItems.DATA_CAPTURE_BALL.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(AEBlocks.CONDENSER, RadixContainmentSphereCondenserCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
@@ -150,6 +153,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         transferHelper),
                 TrinityMultiblockJeiCategory.RECIPE_TYPE);
 
+        DataEnergisticsJeiEntrypointLoader.initialize(registration);
+
         if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
             Ae2JeiTransferRegistration.register(registration);
         }
@@ -157,7 +162,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        registration.addRecipes(RadixContainmentSphereCondenserCategory.RECIPE_TYPE, List.of(RadixContainmentSphereCondenserRecipe.INSTANCE));
         registration.addRecipes(TrinityMultiblockJeiCategory.RECIPE_TYPE, List.of(MultiblockXeiRecipe.trinity()));
         registration.addRecipes(RecipeTypes.CRAFTING, buildUniversalTerminalRecipes());
         var level = Minecraft.getInstance().level;
@@ -166,7 +171,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.TimeShiftView::new)
                     .toList());
-            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.RightClickView::new)
                     .toList());
             registration.addRecipes(
@@ -184,20 +189,20 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                     RecipeHolder::value);
         }
         registration.addIngredientInfo(
-                new ItemStack(DEItems.DATA_CAPTURE_BALL.get()),
+                new ItemStack(DEItems.RADIX_CONTAINMENT_SPHERE.get()),
                 VanillaTypes.ITEM_STACK,
-                Component.translatable("jei.data_energistics.data_capture_ball.line1"),
-                Component.translatable("jei.data_energistics.data_capture_ball.line2"),
-                Component.translatable("jei.data_energistics.data_capture_ball.line3"),
+                Component.translatable("jei.data_energistics.radix_containment_sphere.line1"),
+                Component.translatable("jei.data_energistics.radix_containment_sphere.line2"),
+                Component.translatable("jei.data_energistics.radix_containment_sphere.line3"),
                 Component.translatable(
                         "jei.data_energistics.data_reassembler.crafting_requirement",
-                        DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
+                        RadixContainmentSphereCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
         registration.addIngredientInfo(
                 DEItems.DATA_RIPPER_REASSEMBLER.toStack(),
                 VanillaTypes.ITEM_STACK,
                 Component.translatable(
                         "jei.data_energistics.data_reassembler.crafting_requirement",
-                        DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
+                        RadixContainmentSphereCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
         registerMatterConvergingCrossbowAnvilRecipes(registration);
     }
 
@@ -255,6 +260,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         PatternProviderRecipeTypeNames.register(
                 RECIPE_TYPE_NAME_SOURCE_ID,
                 recipeTypeId -> resolveRecipeTypeName(jeiRuntime.getRecipeManager(), recipeTypeId));
+        JeiPatternTransferContextBridge.registerWorkstationSource(
+                recipeTypeId -> resolveRecipeTypeWorkstations(jeiRuntime.getRecipeManager(), recipeTypeId));
         hidePoweredRepairRecipes();
     }
 
@@ -262,6 +269,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     public void onRuntimeUnavailable() {
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
         PatternProviderRecipeTypeNames.unregister(RECIPE_TYPE_NAME_SOURCE_ID);
+        JeiPatternTransferContextBridge.unregisterWorkstationSource();
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();
@@ -277,6 +285,18 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static <T> Component resolveRecipeTypeName(IRecipeManager recipeManager,
                                                        RecipeType<T> recipeType) {
         return recipeManager.getRecipeCategory(recipeType).getTitle();
+    }
+
+    private static List<ResourceLocation> resolveRecipeTypeWorkstations(
+                                                                        IRecipeManager recipeManager,
+                                                                        ResourceLocation recipeTypeId) {
+        return recipeManager.getRecipeType(recipeTypeId)
+                .map(recipeType -> recipeManager.createRecipeCatalystLookup(recipeType)
+                        .getItemStack()
+                        .filter(stack -> !stack.isEmpty())
+                        .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                        .toList())
+                .orElseGet(List::of);
     }
 
     /**

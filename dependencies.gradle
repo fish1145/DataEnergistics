@@ -31,6 +31,8 @@ dependencies {
     compileOnly(forge.aae)
     compileOnly(forge.sut)
     compileOnly(forge.ae2ji)
+    compileOnly(forge.ae2ct)
+    testImplementation(forge.ae2ct)
     compileOnly(forge.amek)
     compileOnly(forge.mek)
     compileOnly(forge.eco)
@@ -41,9 +43,8 @@ dependencies {
 
     // Energy integrations
     compileOnly(forge.brandonscore)
-    testImplementation(forge.brandonscore)
     compileOnly(forge.oritech)
-    testImplementation(forge.oritech)
+    compileOnly(forge.modern.industrialization)
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
@@ -81,6 +82,7 @@ dependencies {
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
     localRuntime(forge.oritech)
+    localRuntime(forge.modern.industrialization)
     localRuntime(forge.brandonscore)
     localRuntime(forge.codechickenlib)
     localRuntime(forge.draconic.evolution)
@@ -89,6 +91,7 @@ dependencies {
 
     // Runtime AE2 addons
     extraLocalRuntime(forge.ae2ji)
+    extraLocalRuntime(forge.ae2ct)
     extraLocalRuntime(forge.actually.additions)
     extraLocalRuntime(forge.ae2wt)
     extraLocalRuntime(forge.eae)

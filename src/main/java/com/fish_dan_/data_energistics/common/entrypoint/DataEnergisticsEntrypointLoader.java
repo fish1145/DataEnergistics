@@ -71,13 +71,14 @@ public final class DataEnergisticsEntrypointLoader {
 
         publishedSnapshot = registry.freeze();
         Data_Energistics.LOGGER.info(
-                "Loaded {} of {} Data Energistics plugins: {} terminals, {} provider declarations, {} adaptive provider definitions, {} Trinity recipe resolvers, {} virtual output adapters",
+                "Loaded {} of {} Data Energistics plugins: {} terminals, {} provider declarations, {} adaptive provider definitions, {} Trinity recipe resolvers, {} Trinity search contributors, {} virtual output adapters",
                 loaded,
                 candidates.size(),
                 publishedSnapshot.universalTerminalRegistrations().size(),
                 publishedSnapshot.patternProviderRegistrations().size(),
                 publishedSnapshot.adaptivePatternProviderRegistrations().size(),
                 publishedSnapshot.trinityPatternRecipeResolverCount(),
+                publishedSnapshot.trinityPatternSearchTermRegistrations().size(),
                 publishedSnapshot.virtualCraftingOutputAdapters().size());
         return publishedSnapshot;
     }

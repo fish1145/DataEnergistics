@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternPr
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
+import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
+import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
@@ -38,6 +40,7 @@ final class PluginRegistrationAccumulator {
     private final Map<ProviderIdentityDescriptor, ResourceLocation> patternProviderIdentities = new LinkedHashMap<>();
     private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
     private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
+    private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
     private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
     private volatile boolean frozen;
 
@@ -85,6 +88,11 @@ final class PluginRegistrationAccumulator {
                 throw new IllegalStateException("Duplicate Trinity pattern recipe resolver ID '" + resolverId + "' from " + staging.description());
             }
         }
+        for (ResourceLocation registrationId : staging.trinityPatternSearchTerms.keySet()) {
+            if (this.trinityPatternSearchTerms.containsKey(registrationId)) {
+                throw new IllegalStateException("Duplicate Trinity pattern search registration ID '" + registrationId + "' from " + staging.description());
+            }
+        }
         for (VirtualCraftingOutputAdapter adapter : staging.virtualCraftingOutputAdapters) {
             if (this.virtualCraftingOutputAdapters.stream().anyMatch(existing -> existing == adapter)) {
                 throw new IllegalStateException("Duplicate virtual crafting output adapter from " + staging.description());
@@ -97,6 +105,7 @@ final class PluginRegistrationAccumulator {
                 registration.metadata().providerIdentity(), registration.metadata().registrationId()));
         this.adaptivePatternProviders.putAll(staging.adaptivePatternProviders);
         this.trinityPatternRecipeIdResolvers.putAll(staging.trinityPatternRecipeIdResolvers);
+        this.trinityPatternSearchTerms.putAll(staging.trinityPatternSearchTerms);
         this.virtualCraftingOutputAdapters.addAll(staging.virtualCraftingOutputAdapters);
         staging.markCommitted();
     }
@@ -111,6 +120,7 @@ final class PluginRegistrationAccumulator {
                 List.copyOf(this.patternProviders.values()),
                 List.copyOf(this.adaptivePatternProviders.values()),
                 this.trinityPatternRecipeIdResolvers,
+                this.trinityPatternSearchTerms,
                 this.virtualCraftingOutputAdapters);
         this.frozen = true;
         return snapshot;
@@ -137,11 +147,13 @@ final class PluginRegistrationAccumulator {
         private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
         private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
         private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
+        private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
         private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
         private final UniversalTerminalRegistry universalTerminalRegistry = new StagedUniversalTerminalRegistry();
         private final PatternProviderRegistry patternProviderRegistry = new StagedPatternProviderRegistry();
         private final AdaptivePatternProviderRegistry adaptivePatternProviderRegistry = new StagedAdaptivePatternProviderRegistry();
         private final TrinityPatternRecipeIdRegistry trinityPatternRecipeIdRegistry = new StagedTrinityPatternRecipeIdRegistry();
+        private final TrinityPatternSearchRegistry trinityPatternSearchRegistry = new StagedTrinityPatternSearchRegistry();
         private final VirtualCraftingRegistry virtualCraftingRegistry = new StagedVirtualCraftingRegistry();
         private State state = State.OPEN;
 
@@ -175,6 +187,11 @@ final class PluginRegistrationAccumulator {
         }
 
         @Override
+        public TrinityPatternSearchRegistry trinityPatternSearch() {
+            return this.trinityPatternSearchRegistry;
+        }
+
+        @Override
         public VirtualCraftingRegistry virtualCrafting() {
             return this.virtualCraftingRegistry;
         }
@@ -191,6 +208,7 @@ final class PluginRegistrationAccumulator {
             this.patternProviders.clear();
             this.adaptivePatternProviders.clear();
             this.trinityPatternRecipeIdResolvers.clear();
+            this.trinityPatternSearchTerms.clear();
             this.virtualCraftingOutputAdapters.clear();
         }
 
@@ -309,6 +327,24 @@ final class PluginRegistrationAccumulator {
                         resolver.id(), "Trinity pattern recipe resolver ID");
                 if (trinityPatternRecipeIdResolvers.putIfAbsent(resolverId, resolver) != null) {
                     throw new IllegalStateException("Duplicate Trinity pattern recipe resolver ID '" + resolverId + "' in " + description());
+                }
+            }
+        }
+
+        /**
+         * Stages client-visible Trinity pattern-search terms by stable public registration ID.
+         */
+        private final class StagedTrinityPatternSearchRegistry implements TrinityPatternSearchRegistry {
+
+            @Override
+            public void register(TrinityPatternSearchTermRegistration registration) {
+                requireOpen();
+                registration = requireStagedValue(registration, "Trinity pattern search registration");
+                ResourceLocation registrationId = requireStagedValue(
+                        registration.registrationId(), "Trinity pattern search registration ID");
+                requireStagedValue(registration.contributor(), "Trinity pattern search contributor");
+                if (trinityPatternSearchTerms.putIfAbsent(registrationId, registration) != null) {
+                    throw new IllegalStateException("Duplicate Trinity pattern search registration ID '" + registrationId + "' in " + description());
                 }
             }
         }

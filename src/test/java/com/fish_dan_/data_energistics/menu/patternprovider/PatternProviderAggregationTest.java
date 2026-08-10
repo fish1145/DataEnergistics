@@ -32,12 +32,11 @@ class PatternProviderAggregationTest {
     private static final ResourceLocation RECIPE_TYPE = ResourceLocation.fromNamespaceAndPath("test", "compressing");
     private static final ResourceLocation OTHER_RECIPE_TYPE = ResourceLocation.fromNamespaceAndPath("test", "mixing");
     private static final ResourceLocation WORKSTATION = ResourceLocation.fromNamespaceAndPath("test", "compressor");
-    private static final PatternProviderSyncHelper.PatternProviderAggregationKey PROVIDER_KEY = new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
-            new ProviderIdentityDescriptor.External(
-                    ResourceLocation.fromNamespaceAndPath("test", "ordinary_provider"), 1));
+    private static final ResourceLocation OTHER_WORKSTATION = ResourceLocation.fromNamespaceAndPath("test", "mixer");
+    private static final PatternProviderSyncHelper.PatternProviderAggregationKey PROVIDER_KEY = providerKey("ordinary_provider");
 
     @Test
-    void mergesProvidersWithSameSemanticIdentity() {
+    void mergesProvidersWithSameNetworkGroup() {
         PatternContainer first = new OrdinaryPatternProvider();
         PatternContainer second = new OrdinaryPatternProvider();
         Map<Long, List<PatternContainer>> targetsById = new HashMap<>();
@@ -95,6 +94,10 @@ class PatternProviderAggregationTest {
         assertFalse(PatternProviderSyncHelper.matchesRecipeType(
                 metadata, PatternEncodingRankingContext.of(OTHER_RECIPE_TYPE)));
         assertFalse(PatternProviderSyncHelper.matchesRecipeType(metadata, null));
+        assertTrue(PatternProviderSyncHelper.matchesViewerRecipe(
+                metadata, PatternEncodingRankingContext.of(RECIPE_TYPE), List.of(WORKSTATION)));
+        assertFalse(PatternProviderSyncHelper.matchesViewerRecipe(
+                metadata, PatternEncodingRankingContext.of(RECIPE_TYPE), List.of(OTHER_WORKSTATION)));
     }
 
     @Test
@@ -111,24 +114,26 @@ class PatternProviderAggregationTest {
     }
 
     @Test
-    void ranksByLearningThenNormalOrderAndCanonicalDigest() {
+    void ranksExactMatchesBeforeLearningAndUsesStableTieBreakers() {
         var learned = entry(new OrdinaryPatternProvider(), 1, 100, "Zeta", CRAFTING_TABLE, true,
                 2, 0, providerKey("learned"), true, "test:zeta");
         var normalFirst = entry(new OrdinaryPatternProvider(), 2, 10, "Alpha", CRAFTING_TABLE, true,
                 2, 0, providerKey("normal_first"), true, "test:zulu");
         var canonicalFirst = entry(new OrdinaryPatternProvider(), 3, 10, "Alpha", CRAFTING_TABLE, true,
                 2, 0, providerKey("canonical_first"), true, "test:alpha");
+        var unmatchedLearned = entry(new OrdinaryPatternProvider(), 4, 0, "First", CRAFTING_TABLE, true,
+                2, 0, providerKey("unmatched"), false, "test:unmatched");
 
         var learnedResult = PatternProviderSyncHelper.aggregateSyncedPatternProviders(
-                List.of(normalFirst, learned, canonicalFirst),
+                List.of(unmatchedLearned, normalFirst, learned, canonicalFirst),
                 new HashMap<>(),
-                Map.of("test:zeta", 3L));
-        assertEquals(List.of(1L, 3L, 2L), learnedResult.providers().stream()
+                Map.of("test:zeta", 3L, "test:unmatched", 99L));
+        assertEquals(List.of(1L, 3L, 2L, 4L), learnedResult.providers().stream()
                 .map(PatternEncodingPreviewMenu.SyncedPatternProvider::id)
                 .toList());
 
-        var fallbackResult = aggregate(List.of(normalFirst, learned, canonicalFirst), new HashMap<>());
-        assertEquals(List.of(3L, 2L, 1L), fallbackResult.providers().stream()
+        var fallbackResult = aggregate(List.of(unmatchedLearned, normalFirst, learned, canonicalFirst), new HashMap<>());
+        assertEquals(List.of(3L, 2L, 1L, 4L), fallbackResult.providers().stream()
                 .map(PatternEncodingPreviewMenu.SyncedPatternProvider::id)
                 .toList());
     }
@@ -259,8 +264,8 @@ class PatternProviderAggregationTest {
     }
 
     private static PatternProviderSyncHelper.PatternProviderAggregationKey providerKey(String path) {
-        return new PatternProviderSyncHelper.PatternProviderAggregationKey.Core(
-                new ProviderIdentityDescriptor.External(ResourceLocation.fromNamespaceAndPath("test", path), 1));
+        return new PatternProviderSyncHelper.PatternProviderAggregationKey.NetworkGroup(
+                null, Component.literal(path), List.of());
     }
 
     private static class OrdinaryPatternProvider implements PatternContainer {

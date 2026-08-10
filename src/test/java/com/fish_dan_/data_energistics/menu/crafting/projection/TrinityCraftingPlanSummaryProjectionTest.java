@@ -8,10 +8,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.integration.ae2ct.TrinityCraftingTreeProjection;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
+import com.neuvillette.ae2ct.api.RecipeHelper;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -29,7 +31,7 @@ final class TrinityCraftingPlanSummaryProjectionTest {
     private static final TrinityPatternIdentity SECOND = new TrinityPatternIdentity("second", "second-publication");
 
     @Test
-    void showsExternalInputsAsStoredAndEveryStageOutputAsCrafting() {
+    void projectsNativeSummaryAndCraftingTreeFromTheSamePlan() {
         AEKey input = DataFlowKey.of();
         AEKey intermediate = EchoKey.of();
         AEKey target = DataKey.of();
@@ -42,6 +44,7 @@ final class TrinityCraftingPlanSummaryProjectionTest {
                         intermediate,
                         0,
                         BigInteger.TWO,
+                        Map.of(input, BigInteger.ONE),
                         Map.of(intermediate, BigInteger.ONE))),
                 Map.of(input, BigInteger.TWO),
                 Map.of(input, BigInteger.TWO.negate(), intermediate, BigInteger.TWO));
@@ -54,6 +57,7 @@ final class TrinityCraftingPlanSummaryProjectionTest {
                         target,
                         0,
                         BigInteger.TWO,
+                        Map.of(intermediate, BigInteger.ONE),
                         Map.of(target, BigInteger.TWO))),
                 Map.of(intermediate, BigInteger.TWO),
                 Map.of(intermediate, BigInteger.TWO.negate(), target, BigInteger.valueOf(4L)));
@@ -81,5 +85,13 @@ final class TrinityCraftingPlanSummaryProjectionTest {
         assertEquals(2L, entries.get(intermediate).getCraftAmount());
         assertEquals(4L, entries.get(target).getCraftAmount());
         assertEquals(0L, entries.get(target).getStoredAmount());
+
+        RecipeHelper tree = TrinityCraftingTreeProjection.create(plan);
+        assertEquals(plan.finalOutput(), tree.output);
+        assertEquals(2, tree.recipes.size());
+        assertEquals(List.of(new GenericStack(input, 1L)), tree.recipes.getFirst().inputs());
+        assertEquals(List.of(new GenericStack(intermediate, 1L)), tree.recipes.get(1).inputs());
+        assertEquals(2L, tree.recipes.getFirst().times());
+        assertEquals(2L, tree.recipes.get(1).times());
     }
 }

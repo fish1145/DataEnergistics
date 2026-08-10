@@ -34,7 +34,7 @@ public final class DataKey extends AEKey {
 
     @Override
     public AEKeyType getType() {
-        return DataKeyType.TYPE;
+        return ManifestBinaryKeyType.TYPE;
     }
 
     @Override

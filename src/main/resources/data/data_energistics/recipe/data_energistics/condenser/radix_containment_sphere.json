@@ -1,0 +1,34 @@
+{
+	"type": "data_energistics:radix_containment_sphere_condenser",
+	"catalyst": [
+		{
+			"item": "data_energistics:data_storage_component_16k"
+		},
+		{
+			"item": "data_energistics:data_storage_component_64k"
+		},
+		{
+			"item": "data_energistics:data_storage_component_256k"
+		},
+		{
+			"item": "data_energistics:data_storage_component_1m"
+		},
+		{
+			"item": "data_energistics:data_storage_component_4m"
+		},
+		{
+			"item": "data_energistics:data_storage_component_16m"
+		},
+		{
+			"item": "data_energistics:data_storage_component_64m"
+		},
+		{
+			"item": "data_energistics:data_storage_component_256m"
+		}
+	],
+	"result": {
+		"id": "data_energistics:radix_containment_sphere",
+		"count": 1
+	},
+	"required_power": 131072
+}

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
@@ -44,7 +44,7 @@ public class PoweredCuttingKnifeItem extends PoweredItem implements IBasicCellIt
 
     @Override
     public AEKeyType getKeyType() {
-        return DataFlowKeyType.TYPE;
+        return DigitalizationKeyType.TYPE;
     }
 
     @Override

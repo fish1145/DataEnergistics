@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
@@ -152,11 +152,11 @@ public class DispersingDataEntity extends Entity {
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
         ItemStack heldStack = player.getItemInHand(hand);
-        if (!(heldStack.getItem() instanceof DataCaptureBallItem captureBallItem)) {
+        if (!(heldStack.getItem() instanceof RadixContainmentSphereItem containmentSphereItem)) {
             return InteractionResult.PASS;
         }
 
-        boolean captured = captureBallItem.hasRangeCapture(heldStack) ? captureBallItem.captureNearbyDispersingData(heldStack, player, this.getBoundingBox().getCenter()) : captureBallItem.captureDispersingData(heldStack, player, this);
+        boolean captured = containmentSphereItem.hasRangeCapture(heldStack) ? containmentSphereItem.captureNearbyDispersingData(heldStack, player, this.getBoundingBox().getCenter()) : containmentSphereItem.captureDispersingData(heldStack, player, this);
         return captured ? InteractionResult.sidedSuccess(this.level().isClientSide()) : InteractionResult.PASS;
     }
 

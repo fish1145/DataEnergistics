@@ -55,9 +55,9 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
             return;
         }
 
-        boolean dataCaptureBallMode = ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$isDataCaptureBallMode();
+        boolean radixContainmentSphereMode = ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$isRadixContainmentSphereMode();
         var output = this.condenser.getConfigManager().getSetting(Settings.CONDENSER_OUTPUT);
-        this.dataEnergistics$condenserOutputMode = CondenserOutputMode.fromState(output, dataCaptureBallMode).ordinal();
+        this.dataEnergistics$condenserOutputMode = CondenserOutputMode.fromState(output, radixContainmentSphereMode).ordinal();
     }
 
     @Override
@@ -78,7 +78,7 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
     @Unique
     private void dataEnergistics$applyCondenserOutputMode(Integer ordinal) {
         var mode = CondenserOutputMode.fromOrdinal(ordinal == null ? 0 : ordinal);
-        ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$setDataCaptureBallMode(mode.isDataCaptureBallMode());
+        ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$setRadixContainmentSphereMode(mode.isRadixContainmentSphereMode());
         this.condenser.getConfigManager().putSetting(Settings.CONDENSER_OUTPUT, mode.toVanillaOutput());
         this.dataEnergistics$condenserOutputMode = mode.ordinal();
     }

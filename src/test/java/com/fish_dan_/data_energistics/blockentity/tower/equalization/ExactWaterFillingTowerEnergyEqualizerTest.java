@@ -92,6 +92,30 @@ class ExactWaterFillingTowerEnergyEqualizerTest {
         assertEquals(List.of(new TowerEnergySinkAllocation(activeSink, externalEnergy)), plan.sinks());
     }
 
+    @Test
+    void excludesNearLongMaxNetworkBufferCapacityFromMachineProportions() {
+        TowerEnergyEndpointId networkBuffer = id(14);
+        TowerEnergyEndpointId smallMachine = id(15);
+        TowerEnergyEndpointId largeMachine = id(16);
+        TowerEnergyEqualizationPlan plan = new ExactWaterFillingTowerEnergyEqualizer().plan(
+                new TowerEnergyEqualizationSnapshot(List.of(
+                        new TowerEnergyEndpointSnapshot(
+                                networkBuffer,
+                                100,
+                                Long.MAX_VALUE,
+                                100,
+                                Long.MAX_VALUE - 100,
+                                TowerEnergyDirection.BIDIRECTIONAL,
+                                TowerEnergyEndpointRole.BUFFER),
+                        endpoint(smallMachine, 0, 100, TowerEnergyDirection.BIDIRECTIONAL),
+                        endpoint(largeMachine, 0, 300, TowerEnergyDirection.BIDIRECTIONAL))));
+
+        assertEquals(List.of(new TowerEnergySourceAllocation(networkBuffer, 100)), plan.sources());
+        assertEquals(List.of(
+                new TowerEnergySinkAllocation(smallMachine, 25),
+                new TowerEnergySinkAllocation(largeMachine, 75)), plan.sinks());
+    }
+
     private static TowerEnergyEndpointSnapshot endpoint(TowerEnergyEndpointId id,
                                                         long stored,
                                                         long capacity,

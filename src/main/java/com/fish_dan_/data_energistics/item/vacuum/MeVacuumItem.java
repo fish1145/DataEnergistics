@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.item.vacuum;
 
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.fish_dan_.data_energistics.item.carrier.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
@@ -105,7 +105,7 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
 
     @Override
     public double getActionEnergyCost(ItemStack stack) {
-        return DataCaptureBallItem.ENERGY_PER_CAPTURE + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
+        return RadixContainmentSphereItem.ENERGY_PER_CAPTURE + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
     }
 
     @Override

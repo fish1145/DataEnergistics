@@ -3,7 +3,7 @@
 	"ingredients": [
 		{
 			"item": {
-				"item": "data_energistics:data_capture_ball",
+				"item": "data_energistics:radix_containment_sphere",
 				"data_cost": 16,
 				"energy_cost": 150000.0
 			}

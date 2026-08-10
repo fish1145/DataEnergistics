@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
+import com.fish_dan_.data_energistics.effect.RadixLossEffectLogic;
 import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -33,7 +33,7 @@ import net.minecraft.world.phys.Vec3;
 public class LightBladeChargeEntity extends ThrowableItemProjectile {
 
     private static final int LIFETIME_TICKS = 120;
-    private static final int DATA_DISORDER_DURATION_TICKS = 30;
+    private static final int RADIX_LOSS_DURATION_TICKS = 30;
     private static final double MAX_TRAVEL_DISTANCE = 128.0D;
     private static final float SIZE_SCALE = 2.0F;
     private static final EntityDataAccessor<Integer> DATA_COLOR = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.INT);
@@ -102,8 +102,8 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         this.resetTargetInvulnerability(target);
         if (target.hurt(damageSource, damage) && this.level() instanceof ServerLevel serverLevel) {
             EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, this.getWeaponStack());
-            if (target instanceof LivingEntity livingTarget && this.canApplyDataDisorder()) {
-                DataDisorderEffectLogic.applyOrBurst(livingTarget, DATA_DISORDER_DURATION_TICKS, owner, damage);
+            if (target instanceof LivingEntity livingTarget && this.canApplyRadixLoss()) {
+                RadixLossEffectLogic.applyOrBurst(livingTarget, RADIX_LOSS_DURATION_TICKS, owner, damage);
             }
         }
         this.discardWithEffects();
@@ -187,7 +187,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         return this.entityData.get(DATA_WEAPON_STACK);
     }
 
-    private boolean canApplyDataDisorder() {
+    private boolean canApplyRadixLoss() {
         ItemStack weaponStack = this.getWeaponStack();
         return weaponStack.is(DEItems.DATA_LIGHT_SABER.get()) && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
     }

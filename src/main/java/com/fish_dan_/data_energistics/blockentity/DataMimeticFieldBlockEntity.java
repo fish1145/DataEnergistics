@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
@@ -1692,13 +1692,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private GenericStackInv createKeyMenuInventory() {
-        var inv = new GenericStackInv(Set.of(DataFlowKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
+        var inv = new GenericStackInv(Set.of(DigitalizationKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
 
             {
                 this.setFilter((slot, what) -> what instanceof DataFlowKey);
             }
         };
-        inv.setCapacity(DataFlowKeyType.TYPE, KEY_INPUT_CAPACITY);
+        inv.setCapacity(DigitalizationKeyType.TYPE, KEY_INPUT_CAPACITY);
         return inv;
     }
 
@@ -1842,7 +1842,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         @Override
         public boolean isSupportedType(AEKeyType type) {
-            return type == DataFlowKeyType.TYPE;
+            return type == DigitalizationKeyType.TYPE;
         }
 
         @Override

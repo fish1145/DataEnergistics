@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackSerializer;
+import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
@@ -15,8 +17,9 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
+import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
@@ -76,6 +79,8 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         }
         PatternProviderRecipeTypeNames.register(RECIPE_TYPE_NAME_SOURCE_ID,
                 DataEnergisticsEmiPlugin::resolveRecipeTypeName);
+        EmiPatternTransferContextBridge.registerWorkstationSource(
+                DataEnergisticsEmiPlugin::resolveRecipeTypeWorkstations);
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
@@ -87,6 +92,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addRecipeHandler(
                 DEMenus.UNIVERSAL_CRAFTING_TERM.get(),
                 new EmiUseCraftingRecipeHandler<>(UniversalCraftingTermMenu.class));
+        DataEnergisticsEmiEntrypointLoader.initialize(registry);
         registry.addRecipeHandler(
                 DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiEncodePatternHandler<>(UniversalPatternEncodingTermMenu.class));
@@ -101,14 +107,14 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(DERecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
-        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()));
+        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()));
         registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
         registry.addRecipe(new TrinityMultiblockEmiRecipe());
         registry.addWorkstation(
                 TrinityMultiblockEmiRecipe.CATEGORY,
                 EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
-        registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
-                .map(DataCaptureBallRightClickEmiRecipe::new)
+        registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
+                .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
@@ -127,17 +133,17 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
                 List.of(
-                        EmiStack.of(DEItems.DATA_CAPTURE_BALL.get()),
+                        EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()),
                         EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get())),
                 List.of(
-                        Component.translatable("jei.data_energistics.data_capture_ball.line1"),
-                        Component.translatable("jei.data_energistics.data_capture_ball.line2"),
-                        Component.translatable("jei.data_energistics.data_capture_ball.line3"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line1"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line2"),
+                        Component.translatable("jei.data_energistics.radix_containment_sphere.line3"),
                         Component.translatable(
                                 "jei.data_energistics.data_reassembler.crafting_requirement",
-                                DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
+                                RadixContainmentSphereCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
                 null));
-        registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
+        registry.addRecipe(new RadixContainmentSphereEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
                 DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
@@ -152,6 +158,18 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .map(category -> List.of(category.getName()))
                 .findFirst()
                 .orElseGet(List::of);
+    }
+
+    private static List<ResourceLocation> resolveRecipeTypeWorkstations(ResourceLocation recipeTypeId) {
+        var recipeManager = EmiApi.getRecipeManager();
+        return recipeManager.getCategories().stream()
+                .filter(category -> category.getId().equals(recipeTypeId))
+                .flatMap(category -> recipeManager.getWorkstations(category).stream())
+                .flatMap(workstation -> workstation.getEmiStacks().stream())
+                .map(EmiStack::getItemStack)
+                .filter(stack -> !stack.isEmpty())
+                .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                .toList();
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
