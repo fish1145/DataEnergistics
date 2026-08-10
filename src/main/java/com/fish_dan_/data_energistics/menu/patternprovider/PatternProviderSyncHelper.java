@@ -949,9 +949,23 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Component resolveProviderDisplayName(PatternContainer container, @Nullable Component customName) {
-        Component baseName = container.getTerminalGroup().name();
-        return customName == null ? baseName :
-                AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(baseName, customName);
+        if (customName == null) {
+            return container.getTerminalGroup().name();
+        }
+        return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(
+                resolveDefaultProviderDisplayName(container),
+                customName);
+    }
+
+    /**
+     * Resolves the terminal icon's unmodified item name because AE2 terminal groups use a block entity's custom name.
+     */
+    private static Component resolveDefaultProviderDisplayName(PatternContainer container) {
+        ItemStack icon = resolveProviderIcon(container);
+        if (icon.isEmpty()) {
+            throw new IllegalStateException("Pattern provider does not expose a terminal icon: " + container);
+        }
+        return icon.getItem().getDefaultInstance().getHoverName();
     }
 
     private static ProviderPresentation resolveProviderPresentation(PatternContainer container) {
