@@ -1069,12 +1069,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
-        var rankingContext = providerState.rankingContext();
-        ResourceLocation currentRecipeTypeId = rankingContext == null ? null : rankingContext.recipeTypeId();
         String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
         this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
                 providerState.providers(),
-                currentRecipeTypeId,
                 query,
                 this::getDefaultProviderName,
                 PatternProviderRecipeTypeNames::resolve,

@@ -5,8 +5,6 @@ import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +24,6 @@ final class PatternProviderDisplayOrder {
      */
     static List<PatternEncodingPreviewMenu.SyncedPatternProvider> order(
                                                                         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
-                                                                        @Nullable ResourceLocation currentRecipeTypeId,
                                                                         String query,
                                                                         Function<ResourceLocation, String> defaultNameResolver,
                                                                         Function<ResourceLocation, List<String>> recipeTypeNameResolver,
@@ -39,7 +36,7 @@ final class PatternProviderDisplayOrder {
         Map<ResourceLocation, List<String>> recipeTypeNames = new HashMap<>();
 
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providers) {
-            if (currentRecipeTypeId != null && provider.supportedRecipeTypeIds().contains(currentRecipeTypeId)) {
+            if (provider.exactViewerMatch()) {
                 currentType.add(provider);
             } else if (!normalizedQuery.isEmpty() && searchMatcher.test(
                     buildSearchSource(provider, defaultNameResolver, recipeTypeNameResolver,

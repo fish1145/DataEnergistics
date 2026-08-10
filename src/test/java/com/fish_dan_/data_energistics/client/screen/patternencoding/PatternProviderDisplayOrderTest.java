@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.util.PinyinUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -69,12 +68,12 @@ class PatternProviderDisplayOrderTest {
 
         var localizedProviders = List.of(
                 provider(6, "Other", List.of(MIXING_RECIPE_TYPE)),
-                provider(7, "Localized", List.of(CURRENT_RECIPE_TYPE)));
+                provider(7, "Localized", List.of(CURRENT_RECIPE_TYPE), false));
         assertEquals(List.of(6L, 7L),
-                orderIds(localizedProviders, null, "compressing", Map.of(),
+                orderIds(localizedProviders, "compressing", Map.of(),
                         Map.of(CURRENT_RECIPE_TYPE, List.of("压缩"))));
         assertEquals(List.of(7L, 6L),
-                orderIds(localizedProviders, null, "compressing", Map.of(),
+                orderIds(localizedProviders, "compressing", Map.of(),
                         Map.of(CURRENT_RECIPE_TYPE, List.of("Compressing"))));
     }
 
@@ -89,18 +88,8 @@ class PatternProviderDisplayOrderTest {
                                        String query,
                                        Map<ResourceLocation, String> defaultNames,
                                        Map<ResourceLocation, List<String>> recipeTypeNames) {
-        return orderIds(providers, CURRENT_RECIPE_TYPE, query, defaultNames, recipeTypeNames);
-    }
-
-    private static List<Long> orderIds(
-                                       List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
-                                       @Nullable ResourceLocation currentRecipeTypeId,
-                                       String query,
-                                       Map<ResourceLocation, String> defaultNames,
-                                       Map<ResourceLocation, List<String>> recipeTypeNames) {
         return PatternProviderDisplayOrder.order(
                 providers,
-                currentRecipeTypeId,
                 query,
                 id -> defaultNames.getOrDefault(id, ""),
                 id -> recipeTypeNames.getOrDefault(id, List.of()),
