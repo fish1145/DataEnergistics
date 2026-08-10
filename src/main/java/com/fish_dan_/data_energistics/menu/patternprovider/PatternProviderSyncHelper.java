@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.menu.patternprovider;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitContext;
@@ -20,12 +19,10 @@ import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
@@ -519,7 +516,7 @@ public final class PatternProviderSyncHelper {
             if (viewerWorkstations.isEmpty()) {
                 return WorkstationResolution.rejected(PatternUploadRejection.PROVIDER_CONTEXT_UNKNOWN);
             }
-            ResourceLocation exposedWorkstation = resolveProviderContextWorkstationId(container);
+            ResourceLocation exposedWorkstation = resolveProviderIconItemId(container);
             return viewerWorkstations.contains(exposedWorkstation) ?
                     WorkstationResolution.accepted(exposedWorkstation) :
                     WorkstationResolution.rejected(PatternUploadRejection.TARGET_UNAVAILABLE);
@@ -753,7 +750,6 @@ public final class PatternProviderSyncHelper {
             ProviderPresentation presentation = resolveProviderPresentation(container);
             displayName = presentation.displayName();
             iconItemId = presentation.iconItemId();
-            ResourceLocation contextWorkstationId = resolveProviderContextWorkstationId(container);
             ProviderResolution provider = resolveProvider(container);
             ProviderIdentity identity = provider.identity();
             if (provider.binding() != null) {
@@ -767,9 +763,9 @@ public final class PatternProviderSyncHelper {
             } else {
                 aggregationKey = PatternProviderAggregationKey.NetworkGroup.from(container.getTerminalGroup());
                 exactContextMatch = matchesNetworkExposedWorkstation(
-                        contextWorkstationId, rankingContext, viewerWorkstationIds);
+                        iconItemId, rankingContext, viewerWorkstationIds);
                 supportedRecipeTypeIds = List.of();
-                matchingWorkstationIds = exactContextMatch ? List.of(contextWorkstationId) : List.of();
+                matchingWorkstationIds = exactContextMatch ? List.of(iconItemId) : List.of();
             }
             aggregationKey = resolveDisplayAggregationKey(
                     aggregationKey,
@@ -952,45 +948,22 @@ public final class PatternProviderSyncHelper {
         return PatternContainer.class.isAssignableFrom(machineClass) ? machineClass.asSubclass(PatternContainer.class) : null;
     }
 
-    private static Component resolveProviderDisplayName(PatternContainer container,
-                                                        @Nullable Component customName,
-                                                        @Nullable PatternContainerGroup attachedMachineGroup) {
-        if (customName == null) {
-            return container.getTerminalGroup().name();
-        }
-        Component baseName = attachedMachineGroup == null ?
-                resolveProviderFallbackDisplayName(container) : attachedMachineGroup.name();
-        return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(baseName, customName);
+    private static Component resolveProviderDisplayName(PatternContainer container, @Nullable Component customName) {
+        Component baseName = container.getTerminalGroup().name();
+        return customName == null ? baseName :
+                AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(baseName, customName);
     }
 
     private static ProviderPresentation resolveProviderPresentation(PatternContainer container) {
         Component customName = PatternProviderNameHelper.getCustomName(container);
-        PatternContainerGroup attachedMachineGroup = customName == null ? null :
-                resolveDefaultAttachedMachineGroup(container);
         return new ProviderPresentation(
-                resolveProviderDisplayName(container, customName, attachedMachineGroup),
-                resolveProviderIconItemId(container, attachedMachineGroup),
+                resolveProviderDisplayName(container, customName),
+                resolveProviderIconItemId(container),
                 customName != null);
     }
 
-    private static Component resolveProviderFallbackDisplayName(PatternContainer container) {
-        ItemStack icon = resolveProviderIcon(container, null);
-        if (icon.isEmpty()) {
-            throw new IllegalStateException("Pattern provider does not expose a fallback display name: " + container);
-        }
-        return icon.getHoverName();
-    }
-
-    /**
-     * Preserves the terminal's original workstation identity while custom-name presentation uses an attached machine.
-     */
-    private static ResourceLocation resolveProviderContextWorkstationId(PatternContainer container) {
-        return resolveProviderIconItemId(container, null);
-    }
-
-    private static ResourceLocation resolveProviderIconItemId(PatternContainer container,
-                                                              @Nullable PatternContainerGroup attachedMachineGroup) {
-        ItemStack icon = resolveProviderIcon(container, attachedMachineGroup);
+    private static ResourceLocation resolveProviderIconItemId(PatternContainer container) {
+        ItemStack icon = resolveProviderIcon(container);
         if (icon.isEmpty()) {
             throw new IllegalStateException("Pattern provider does not expose a terminal icon: " + container);
         }
@@ -998,16 +971,11 @@ public final class PatternProviderSyncHelper {
     }
 
     private static ItemStack resolveTerminalGroupIcon(PatternContainer container) {
-        return resolvePatternContainerGroupIcon(container.getTerminalGroup());
+        var terminalGroup = container.getTerminalGroup();
+        return terminalGroup.icon() == null ? ItemStack.EMPTY : terminalGroup.icon().toStack();
     }
 
-    private static ItemStack resolveProviderIcon(PatternContainer container,
-                                                 @Nullable PatternContainerGroup attachedMachineGroup) {
-        ItemStack attachedMachineIcon = resolvePatternContainerGroupIcon(attachedMachineGroup);
-        if (!attachedMachineIcon.isEmpty()) {
-            return attachedMachineIcon;
-        }
-
+    private static ItemStack resolveProviderIcon(PatternContainer container) {
         ItemStack terminalIcon = resolveTerminalGroupIcon(container);
         if (!terminalIcon.isEmpty()) {
             return terminalIcon;
@@ -1034,52 +1002,6 @@ public final class PatternProviderSyncHelper {
         }
 
         return ItemStack.EMPTY;
-    }
-
-    private static ItemStack resolvePatternContainerGroupIcon(@Nullable PatternContainerGroup group) {
-        return group == null || group.icon() == null ? ItemStack.EMPTY : group.icon().toStack();
-    }
-
-    /**
-     * Recreates AE2's default single-machine terminal group before a custom name is appended as a suffix.
-     */
-    @Nullable
-    private static PatternContainerGroup resolveDefaultAttachedMachineGroup(PatternContainer container) {
-        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
-            return adaptiveHost.getPrimaryAttachedMachineGroup();
-        }
-        if (!(container instanceof PatternProviderLogicHost providerHost) ||
-                !(providerHost.getLogic() instanceof PatternProviderBatchAccess logic)) {
-            return null;
-        }
-
-        var providerBlockEntity = providerHost.getBlockEntity();
-        var level = providerBlockEntity.getLevel();
-        if (level == null) {
-            return null;
-        }
-
-        Set<PatternContainerGroup> activeGroups = resolveAttachedMachineGroups(
-                level,
-                providerBlockEntity.getBlockPos(),
-                logic.dataEnergistics$invokeGetActiveSides());
-        return activeGroups.size() == 1 ? activeGroups.iterator().next() : null;
-    }
-
-    private static Set<PatternContainerGroup> resolveAttachedMachineGroups(Level level,
-                                                                           BlockPos providerPosition,
-                                                                           Set<Direction> sides) {
-        Set<PatternContainerGroup> groups = new LinkedHashSet<>();
-        for (var side : sides) {
-            var group = PatternContainerGroup.fromMachine(
-                    level,
-                    providerPosition.relative(side),
-                    side.getOpposite());
-            if (group != null) {
-                groups.add(group);
-            }
-        }
-        return groups;
     }
 
     private static int countUsedPatternSlots(InternalInventory inventory) {
