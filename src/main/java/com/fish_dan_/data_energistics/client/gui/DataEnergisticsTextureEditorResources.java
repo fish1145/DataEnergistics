@@ -139,7 +139,12 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
         provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
         provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
+        provider.addResource("gui_text_field", guiSprite("text_field.png"));
+        provider.addResource("gui_text_field_checkbox", guiSprite("text_field_checkbox.png"));
         provider.addResource("model_home", modelSprite("home.png"));
+        provider.addResource("model_input", modelSprite("input.png"));
+        provider.addResource("model_input_and_output", modelSprite("input_and_output.png"));
+        provider.addResource("model_output", modelSprite("output.png"));
         provider.addResource("slot_button_slot", slotSprite("button_slot.png"));
         provider.addResource("slot_button_slot_1", slotSprite("button_slot_1.png"));
         provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
