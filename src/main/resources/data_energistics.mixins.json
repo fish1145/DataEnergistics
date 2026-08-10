@@ -10,6 +10,7 @@
 		"advancedae.AdvancedAePatternProviderLogicMixin",
 		"advancedae.AdvancedAePatternProviderMenuMixin",
 		"advancedae.AdvancedAePatternProviderPartMixin",
+		"ae2ct.TrinityCraftingPlanSummaryProjectionMixin",
 		"ae2cs.Ae2CsPatternProviderLogicMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderMenuMixin",
 		"appliedcreate.AppliedCreatePatternProviderBlockEntityMixin",
