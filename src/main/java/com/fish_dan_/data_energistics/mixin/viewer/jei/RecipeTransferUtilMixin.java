@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.jei.transfer.JeiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;
@@ -47,9 +47,9 @@ public abstract class RecipeTransferUtilMixin {
         if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
             return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
         }
-        PatternEncodingRankingContext context;
+        PatternEncodingViewerRecipeScope recipeScope;
         try {
-            context = JeiPatternTransferContextBridge.resolve(recipeLayout);
+            recipeScope = JeiPatternTransferContextBridge.resolve(recipeLayout);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Rejected JEI pattern transfer because its recipe-type context could not be resolved",
@@ -62,9 +62,9 @@ public abstract class RecipeTransferUtilMixin {
             Recipe<?> recipe = recipeLayout.getRecipe() instanceof RecipeHolder<?> holder ? holder.value() :
                     recipeLayout.getRecipe() instanceof Recipe<?> value ? value : null;
             EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(recipe, false);
-            PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, context);
+            PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, recipeScope);
             if (transferMode == EncodingMode.PROCESSING) {
-                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, context);
+                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, recipeScope);
             } else {
                 PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
             }

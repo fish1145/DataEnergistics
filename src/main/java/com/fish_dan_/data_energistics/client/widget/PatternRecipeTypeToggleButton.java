@@ -8,17 +8,17 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 
 import appeng.client.gui.widgets.ITooltip;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
-import java.util.function.Consumer;
 
-public class PatternSourceToggleButton extends Button implements ITooltip {
+public class PatternRecipeTypeToggleButton extends Button implements ITooltip {
 
-    private final Consumer<Boolean> onChange;
+    private final StateChangeHandler onChange;
     private boolean enabledState = true;
     private Component detailLine = Component.empty();
 
-    public PatternSourceToggleButton(Consumer<Boolean> onChange) {
+    public PatternRecipeTypeToggleButton(@NotNull StateChangeHandler onChange) {
         super(0, 0, 8, 8, Component.empty(), btn -> {}, DEFAULT_NARRATION);
         this.onChange = onChange;
     }
@@ -27,8 +27,8 @@ public class PatternSourceToggleButton extends Button implements ITooltip {
         this.enabledState = enabled;
     }
 
-    public void setDetailLine(Component detailLine) {
-        this.detailLine = detailLine == null ? Component.empty() : detailLine;
+    public void setDetailLine(@NotNull Component detailLine) {
+        this.detailLine = detailLine;
     }
 
     @Override
@@ -51,7 +51,7 @@ public class PatternSourceToggleButton extends Button implements ITooltip {
     @Override
     public List<Component> getTooltipMessage() {
         return List.of(
-                Component.translatable(this.enabledState ? "button.data_energistics.pattern_encoding_source_toggle.enabled" : "button.data_energistics.pattern_encoding_source_toggle.disabled"),
+                Component.translatable(this.enabledState ? "button.data_energistics.pattern_encoding_recipe_type_toggle.enabled" : "button.data_energistics.pattern_encoding_recipe_type_toggle.disabled"),
                 this.detailLine);
     }
 
@@ -63,5 +63,17 @@ public class PatternSourceToggleButton extends Button implements ITooltip {
     @Override
     public boolean isTooltipAreaVisible() {
         return this.visible;
+    }
+
+    /**
+     * Receives primitive toggle state without allocating a boxed {@link Boolean}.
+     */
+    @FunctionalInterface
+    public interface StateChangeHandler {
+
+        /**
+         * Applies the newly selected state.
+         */
+        void accept(boolean enabled);
     }
 }

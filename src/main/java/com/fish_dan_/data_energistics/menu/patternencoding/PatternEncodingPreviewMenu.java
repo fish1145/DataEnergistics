@@ -49,17 +49,23 @@ public interface PatternEncodingPreviewMenu {
      */
     record SyncedPatternProviderList(
                                      List<SyncedPatternProvider> providers,
-                                     @Nullable PatternEncodingRankingContext rankingContext)
+                                     @Nullable PatternEncodingRankingContext rankingContext,
+                                     List<ResourceLocation> viewerWorkstationIds)
             implements PacketWritable {
 
-        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null);
+        private static final int MAX_VIEWER_WORKSTATION_IDS = 2048;
+        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null, List.of());
 
         public SyncedPatternProviderList {
             providers = List.copyOf(providers);
+            viewerWorkstationIds = List.copyOf(viewerWorkstationIds);
+            if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
+                throw new IllegalArgumentException("Viewer workstations require a synchronized ranking context");
+            }
         }
 
         public SyncedPatternProviderList(RegistryFriendlyByteBuf data) {
-            this(readProviders(data), readRankingContext(data));
+            this(readProviders(data), readRankingContext(data), readViewerWorkstationIds(data));
         }
 
         @Override
@@ -69,6 +75,10 @@ public interface PatternEncodingPreviewMenu {
                 provider.writeToPacket(data);
             }
             writeRankingContext(data, this.rankingContext);
+            data.writeVarInt(this.viewerWorkstationIds.size());
+            for (ResourceLocation workstationId : this.viewerWorkstationIds) {
+                writeBoundedResourceLocation(data, workstationId);
+            }
         }
 
         private static List<SyncedPatternProvider> readProviders(
@@ -97,6 +107,19 @@ public interface PatternEncodingPreviewMenu {
                 return null;
             }
             return new PatternEncodingRankingContext(readBoundedResourceLocation(data, "recipe type id"));
+        }
+
+        private static List<ResourceLocation> readViewerWorkstationIds(RegistryFriendlyByteBuf data) {
+            int size = data.readVarInt();
+            if (size < 0 || size > MAX_VIEWER_WORKSTATION_IDS) {
+                throw new IllegalArgumentException(
+                        "Pattern viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATION_IDS + "]: " + size);
+            }
+            List<ResourceLocation> workstationIds = new ArrayList<>(size);
+            for (int index = 0; index < size; index++) {
+                workstationIds.add(readBoundedResourceLocation(data, "workstation id"));
+            }
+            return List.copyOf(workstationIds);
         }
 
         private static void writeBoundedResourceLocation(
@@ -131,6 +154,7 @@ public interface PatternEncodingPreviewMenu {
                                  int usedPatternSlotCount,
                                  List<String> leafDigests,
                                  List<ResourceLocation> supportedRecipeTypeIds,
+                                 boolean exactViewerMatch,
                                  @Nullable ResourceLocation preferredWorkstationId) {
 
         public SyncedPatternProvider {
@@ -149,6 +173,7 @@ public interface PatternEncodingPreviewMenu {
                     data.readVarInt(),
                     readLeafDigests(data),
                     readSupportedRecipeTypeIds(data),
+                    data.readBoolean(),
                     readNullableResourceLocation(data));
         }
 
@@ -168,6 +193,7 @@ public interface PatternEncodingPreviewMenu {
             for (ResourceLocation recipeTypeId : this.supportedRecipeTypeIds) {
                 data.writeResourceLocation(recipeTypeId);
             }
+            data.writeBoolean(this.exactViewerMatch);
             data.writeBoolean(this.preferredWorkstationId != null);
             if (this.preferredWorkstationId != null) {
                 data.writeResourceLocation(this.preferredWorkstationId);

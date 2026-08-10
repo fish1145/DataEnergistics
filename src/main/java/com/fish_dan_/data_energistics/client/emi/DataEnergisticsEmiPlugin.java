@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.emi.entrypoint.DataEnergisticsEmiEn
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackSerializer;
+import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
@@ -18,6 +19,7 @@ import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
@@ -77,6 +79,8 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         }
         PatternProviderRecipeTypeNames.register(RECIPE_TYPE_NAME_SOURCE_ID,
                 DataEnergisticsEmiPlugin::resolveRecipeTypeName);
+        EmiPatternTransferContextBridge.registerWorkstationSource(
+                DataEnergisticsEmiPlugin::resolveRecipeTypeWorkstations);
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
@@ -154,6 +158,18 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .map(category -> List.of(category.getName()))
                 .findFirst()
                 .orElseGet(List::of);
+    }
+
+    private static List<ResourceLocation> resolveRecipeTypeWorkstations(ResourceLocation recipeTypeId) {
+        var recipeManager = EmiApi.getRecipeManager();
+        return recipeManager.getCategories().stream()
+                .filter(category -> category.getId().equals(recipeTypeId))
+                .flatMap(category -> recipeManager.getWorkstations(category).stream())
+                .flatMap(workstation -> workstation.getEmiStacks().stream())
+                .map(EmiStack::getItemStack)
+                .filter(stack -> !stack.isEmpty())
+                .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                .toList();
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
