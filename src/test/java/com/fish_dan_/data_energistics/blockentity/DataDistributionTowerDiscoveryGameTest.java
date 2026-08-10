@@ -11,12 +11,15 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.VersionedTowerBindingCodec;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
+import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
@@ -26,11 +29,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -69,6 +75,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos CONNECTED_REGULAR_CHARGER_POS = new BlockPos(16, 4, 25);
     private static final BlockPos CONNECTED_EXTENDED_CHARGER_POS = new BlockPos(18, 4, 25);
+    private static final BlockPos MI_SINK_POS = new BlockPos(18, 4, 22);
     private static final BlockPos SANCTUM_MAIN_POS = new BlockPos(25, 4, 25);
     private static final Direction SANCTUM_FACING = Direction.NORTH;
     private static final long BUFFERED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 4_096L;
@@ -411,6 +418,52 @@ public final class DataDistributionTowerDiscoveryGameTest {
         helper.succeed();
     }
 
+    @TestHolder("data_distribution_tower_transfers_energy_to_modern_industrialization_machine")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 400)
+    public static void transfersEnergyToModernIndustrializationMachine(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        Block electricFurnace = requireRegisteredBlock("modern_industrialization", "electric_furnace");
+        helper.setBlock(MI_SINK_POS, electricFurnace.defaultBlockState());
+
+        ModernIndustrializationEnergyStorage[] sinkInput = new ModernIndustrializationEnergyStorage[1];
+        IEnergyStorage[] towerEnergy = new IEnergyStorage[1];
+        GridPower power = new GridPower(helper);
+        helper.startSequence()
+                .thenIdle(1)
+                .thenExecute(() -> {
+                    sinkInput[0] = requireMiEnergyRoute(helper, MI_SINK_POS, false);
+                    helper.assertValueEqual(
+                            sinkInput[0].snapshot().stored(),
+                            0L,
+                            "The MI electric furnace must start empty");
+                })
+                .thenWaitUntil(() -> assertTowerNodeReady(helper, tower))
+                .thenExecute(() -> {
+                    power.connect(requireNode(tower));
+                    assertFeBindSuccess(helper, tower, helper.absolutePos(MI_SINK_POS), "MI electric furnace");
+                })
+                .thenWaitUntil(() -> {
+                    towerEnergy[0] = helper.getLevel().getCapability(
+                            Capabilities.EnergyStorage.BLOCK,
+                            helper.absolutePos(TOWER_POS),
+                            Direction.NORTH);
+                    helper.assertTrue(towerEnergy[0] != null, "The tower must expose its FE capability");
+                    helper.assertTrue(towerEnergy[0].canReceive(), "The tower must expose the bound MI receiver");
+                })
+                .thenExecute(() -> {
+                    helper.assertValueEqual(
+                            towerEnergy[0].receiveEnergy(32_001, false),
+                            32_000,
+                            "The tower must accept every complete MI EU from the FE request");
+                    helper.assertValueEqual(
+                            sinkInput[0].snapshot().stored(),
+                            32_000L,
+                            "The tower must insert accepted FE into the MI electric furnace");
+                })
+                .thenSucceed();
+    }
+
     private static void assertChargerDiscovery(
                                                GameTestHelper helper, BlockPos localPos, DataChargerBlockEntity charger, String description) {
         IGridNode mainNode = charger.getMainNode().getNode();
@@ -503,6 +556,16 @@ public final class DataDistributionTowerDiscoveryGameTest {
         helper.assertTrue(result.aeSupported(), description + " binding must discover an AE target");
     }
 
+    private static void assertFeBindSuccess(
+                                            GameTestHelper helper,
+                                            DataDistributionTowerBlockEntity tower,
+                                            BlockPos targetPos,
+                                            String description) {
+        ConnectorBindResult result = tower.bindTargetFromConnector(targetPos);
+        helper.assertTrue(result.success(), description + " must bind to the real tower: " + result.failure());
+        helper.assertTrue(result.feSupported(), description + " binding must discover an FE-compatible target");
+    }
+
     private static void assertConnectedTarget(
                                               GameTestHelper helper,
                                               DataDistributionTowerBlockEntity tower,
@@ -584,6 +647,29 @@ public final class DataDistributionTowerDiscoveryGameTest {
         }
         helper.fail("Expected a data distribution tower block entity", localBasePos);
         throw new IllegalStateException("Placed data distribution tower has no matching block entity");
+    }
+
+    private static Block requireRegisteredBlock(String namespace, String path) {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(namespace, path);
+        return BuiltInRegistries.BLOCK
+                .getOptional(id)
+                .orElseThrow(() -> new IllegalStateException("Required GameTest block is not registered: " + id));
+    }
+
+    private static ModernIndustrializationEnergyStorage requireMiEnergyRoute(
+                                                                             GameTestHelper helper,
+                                                                             BlockPos localPos,
+                                                                             boolean extraction) {
+        ModernIndustrializationEnergyBridge bridge = new ModernIndustrializationEnergyBridge();
+        BlockPos absolutePos = helper.absolutePos(localPos);
+        for (Direction side : Direction.values()) {
+            ModernIndustrializationEnergyStorage storage = bridge.findEnergyStorage(helper.getLevel(), absolutePos, side);
+            if (storage != null && (extraction ? storage.canExtract() : storage.canReceive())) {
+                return storage;
+            }
+        }
+        throw new IllegalStateException(
+                "MI storage unit exposes no " + (extraction ? "extraction" : "insertion") + " route at " + absolutePos);
     }
 
     private static DataSanctumBlockEntity placeSanctum(
