@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
 import com.fish_dan_.data_energistics.mixin.client.PatternAccessTermScreenAccessor;
@@ -40,7 +41,7 @@ import java.util.Objects;
  * scopes.
  */
 public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAccessHatchMenu>
-                                      implements Ae2NativeSlotHighlight {
+        implements Ae2NativeSlotHighlight {
 
     private static final int PANEL_BACKGROUND = 0xFFE3E3EA;
     private static final int PANEL_BORDER = 0xFF696D88;
@@ -176,7 +177,8 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         PatternSearchNames names = this.patternSearchNamesByDefinition.computeIfAbsent(
                 definition,
                 ignored -> decodePatternSearchNames(stack));
-        return SEARCH_MATCHER.createSearchText(names.inputs(), names.outputs(), this.searchMode);
+        return SEARCH_MATCHER.createSearchText(
+                names.inputs(), names.outputs(), names.extraTerms(), this.searchMode);
     }
 
     /**
@@ -237,7 +239,9 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         accessor.dataEnergistics$refreshList();
     }
 
-    /** Resolves one XML-declared button's local x-coordinate against the current native screen origin. */
+    /**
+     * Resolves one XML-declared button's local x-coordinate against the current native screen origin.
+     */
     private int managementButtonX(TrinityAccessHatchLayout.Button layout) {
         return this.leftPos + LAYOUT.managementPanel().left() + layout.left();
     }
@@ -314,7 +318,10 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
                     }
                 }
             }
-            return new PatternSearchNames(inputNames, outputNames);
+            List<String> extraTerms = new ArrayList<>();
+            DataEnergisticsEntrypointLoader.snapshot().trinityPatternSearchTermRegistrations().forEach(
+                    registration -> extraTerms.addAll(registration.contributor().searchTerms(stack)));
+            return new PatternSearchNames(inputNames, outputNames, extraTerms);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.warn(
                     "Skipping malformed pattern search data for {}",
@@ -385,13 +392,14 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     /**
      * Immutable localized candidates decoded once per encoded pattern definition.
      */
-    private record PatternSearchNames(List<String> inputs, List<String> outputs) {
+    private record PatternSearchNames(List<String> inputs, List<String> outputs, List<String> extraTerms) {
 
-        private static final PatternSearchNames EMPTY = new PatternSearchNames(List.of(), List.of());
+        private static final PatternSearchNames EMPTY = new PatternSearchNames(List.of(), List.of(), List.of());
 
         private PatternSearchNames {
             inputs = List.copyOf(inputs);
             outputs = List.copyOf(outputs);
+            extraTerms = List.copyOf(extraTerms);
         }
     }
 
