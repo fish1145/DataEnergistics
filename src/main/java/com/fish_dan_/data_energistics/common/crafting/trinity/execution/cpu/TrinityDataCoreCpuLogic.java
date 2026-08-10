@@ -26,6 +26,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
@@ -1022,6 +1023,7 @@ final class TrinityDataCoreCpuLogic {
                 dispatchLease,
                 workIdentity);
         boolean synchronousFallback = false;
+        boolean nativeSingleCraftFallback = false;
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
             // A provider window must not be lost solely because the optimistic background proposal has not completed.
             // Release it and use the synchronous safe path for this already-selected worker pass.
@@ -1067,6 +1069,14 @@ final class TrinityDataCoreCpuLogic {
                         patternIdentity,
                         currentTick);
                 snapshots = capacityCapture.snapshots();
+                if (snapshots.isEmpty()) {
+                    capacityCapture = nativeSingleCraftFallbackCapture(capacityCapture);
+                    snapshots = capacityCapture.snapshots();
+                    nativeSingleCraftFallback = !snapshots.isEmpty();
+                    if (nativeSingleCraftFallback) {
+                        synchronousFallback = true;
+                    }
+                }
             } else {
                 snapshots = List.of(selectedProposal.target());
             }
@@ -1137,7 +1147,8 @@ final class TrinityDataCoreCpuLogic {
             inspectedSnapshots++;
             searchCursor = slice.nextCursor();
             long prototypeOffer = offeredCount(snapshot, slice, maximumCount);
-            ICraftingProvider provider = this.capacityResolver.resolveCurrent(
+            ICraftingProvider provider = resolveCurrentProvider(
+                    nativeSingleCraftFallback,
                     publications,
                     details,
                     prototype.inputHolder(),
@@ -1183,7 +1194,8 @@ final class TrinityDataCoreCpuLogic {
                     }
 
                     long offeredCount = offeredCount(snapshot, slice, currentMaximum);
-                    ICraftingProvider currentProvider = this.capacityResolver.resolveCurrent(
+                    ICraftingProvider currentProvider = resolveCurrentProvider(
+                            nativeSingleCraftFallback,
                             publications,
                             details,
                             inputs.inputHolder(),
@@ -1219,7 +1231,8 @@ final class TrinityDataCoreCpuLogic {
                                 inputs.inputHolder(),
                                 offeredCount,
                                 snapshot,
-                                dispatchWindow);
+                                dispatchWindow,
+                                nativeSingleCraftFallback);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
                                 "Crafting provider {} threw while preparing pattern {} on Trinity CPU {}; isolating the provider for this dispatch window",
@@ -1388,7 +1401,14 @@ final class TrinityDataCoreCpuLogic {
                                                                KeyCounter[] prototype,
                                                                long offeredCount,
                                                                ProviderCapacitySnapshot snapshot,
-                                                               CraftingDispatchWindow dispatchWindow) {
+                                                               CraftingDispatchWindow dispatchWindow,
+                                                               boolean nativeSingleCraftFallback) {
+        if (nativeSingleCraftFallback) {
+            return CountedCraftingProviderAdapters.prepareNativeSingleCraft(
+                    provider,
+                    details,
+                    target -> dispatchWindow.canAttempt(provider, details, target));
+        }
         return CountedCraftingProviderAdapters.prepare(
                 provider,
                 details,
@@ -1396,6 +1416,67 @@ final class TrinityDataCoreCpuLogic {
                 offeredCount,
                 snapshot,
                 target -> dispatchWindow.canAttempt(provider, details, target));
+    }
+
+    /**
+     * Resolves a live provider through either the counted-capacity or direct native fallback boundary.
+     */
+    @Nullable
+    private ICraftingProvider resolveCurrentProvider(boolean nativeSingleCraftFallback,
+                                                     CraftingProviderPublicationIndex publications,
+                                                     IPatternDetails details,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCrafts,
+                                                     String patternIdentity,
+                                                     ProviderCapacitySnapshot snapshot,
+                                                     long currentTick) {
+        if (nativeSingleCraftFallback) {
+            return resolveNativeSingleCraftProvider(publications, details, snapshot);
+        }
+        return this.capacityResolver.resolveCurrent(
+                publications,
+                details,
+                prototype,
+                requestedCrafts,
+                patternIdentity,
+                snapshot,
+                currentTick);
+    }
+
+    /**
+     * Resolves a direct fallback target without asking the provider to recalculate capacity.
+     */
+    @Nullable
+    private static ICraftingProvider resolveNativeSingleCraftProvider(
+                                                                      CraftingProviderPublicationIndex publications,
+                                                                      IPatternDetails details,
+                                                                      ProviderCapacitySnapshot snapshot) {
+        if (publications.publicationRevision() != snapshot.publicationRevision() ||
+                !publications.providerIdsFor(details).contains(snapshot.providerId())) {
+            return null;
+        }
+        return publications.resolveLiveProvider(snapshot.providerId());
+    }
+
+    /**
+     * Represents every current publication as a conservative one-craft direct AE2 target.
+     */
+    private static ProviderCapacityCapture nativeSingleCraftFallbackCapture(ProviderCapacityCapture capacityCapture) {
+        var captureKey = capacityCapture.key();
+        List<ProviderCapacitySnapshot> snapshots = captureKey.providerFingerprint().stream()
+                .map(providerId -> new ProviderCapacitySnapshot(
+                        providerId,
+                        CraftingDispatchTarget.provider(),
+                        Optional.empty(),
+                        captureKey.patternIdentity(),
+                        captureKey.publicationRevision(),
+                        captureKey.capacityRevision(),
+                        captureKey.capacityEpoch(),
+                        ProviderRoutingMode.UNKNOWN,
+                        DispatchCapacity.Unknown.INSTANCE,
+                        new DispatchCapacity.Known(1L)))
+                .toList();
+        return new ProviderCapacityCapture(captureKey, snapshots);
     }
 
     private static long offeredCount(
