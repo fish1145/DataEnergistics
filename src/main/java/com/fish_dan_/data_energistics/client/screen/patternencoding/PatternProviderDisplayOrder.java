@@ -13,14 +13,14 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
- * Builds the client-only provider view without changing the synchronized provider order.
+ * Builds the client-only search view while preserving the server ranking within each display bucket.
  */
 final class PatternProviderDisplayOrder {
 
     private PatternProviderDisplayOrder() {}
 
     /**
-     * Produces three stable groups: current recipe-type supporters, search matches, then every remaining provider.
+     * Moves search matches to the front of their server-defined match group without recalculating provider rank.
      */
     static List<PatternEncodingPreviewMenu.SyncedPatternProvider> order(
                                                                         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
@@ -29,29 +29,34 @@ final class PatternProviderDisplayOrder {
                                                                         Function<ResourceLocation, List<String>> recipeTypeNameResolver,
                                                                         BiPredicate<String, String> searchMatcher) {
         String normalizedQuery = PinyinUtil.normalizeSearch(query);
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> currentType = new ArrayList<>();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> searchMatches = new ArrayList<>();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> remaining = new ArrayList<>();
+        if (normalizedQuery.isEmpty()) {
+            return List.copyOf(providers);
+        }
+
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> exactSearchMatches = new ArrayList<>();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> exactRemaining = new ArrayList<>();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> otherSearchMatches = new ArrayList<>();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> otherRemaining = new ArrayList<>();
         Map<ResourceLocation, String> defaultNames = new HashMap<>();
         Map<ResourceLocation, List<String>> recipeTypeNames = new HashMap<>();
 
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providers) {
-            if (provider.exactViewerMatch()) {
-                currentType.add(provider);
-            } else if (!normalizedQuery.isEmpty() && searchMatcher.test(
+            boolean searchMatches = searchMatcher.test(
                     buildSearchSource(provider, defaultNameResolver, recipeTypeNameResolver,
                             defaultNames, recipeTypeNames),
-                    normalizedQuery)) {
-                        searchMatches.add(provider);
-                    } else {
-                        remaining.add(provider);
-                    }
+                    normalizedQuery);
+            if (provider.exactViewerMatch()) {
+                (searchMatches ? exactSearchMatches : exactRemaining).add(provider);
+            } else {
+                (searchMatches ? otherSearchMatches : otherRemaining).add(provider);
+            }
         }
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> ordered = new ArrayList<>(providers.size());
-        ordered.addAll(currentType);
-        ordered.addAll(searchMatches);
-        ordered.addAll(remaining);
+        ordered.addAll(exactSearchMatches);
+        ordered.addAll(exactRemaining);
+        ordered.addAll(otherSearchMatches);
+        ordered.addAll(otherRemaining);
         return List.copyOf(ordered);
     }
 

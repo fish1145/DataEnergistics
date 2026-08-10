@@ -19,12 +19,12 @@ class PatternProviderDisplayOrderTest {
     private static final ResourceLocation MIXING_RECIPE_TYPE = id("mixing");
 
     @Test
-    void emptyAndUnmatchedQueriesKeepEveryProviderInStableRecipeTypeGroups() {
+    void emptyAndUnmatchedQueriesPreserveServerOrder() {
         var providers = List.of(
-                provider(1, "Other A", List.of()),
                 provider(2, "Current A", List.of(CURRENT_RECIPE_TYPE)),
-                provider(3, "Other B", List.of(MIXING_RECIPE_TYPE)),
-                provider(4, "Current B", List.of(CURRENT_RECIPE_TYPE)));
+                provider(4, "Current B", List.of(CURRENT_RECIPE_TYPE)),
+                provider(1, "Other A", List.of()),
+                provider(3, "Other B", List.of(MIXING_RECIPE_TYPE)));
 
         assertEquals(List.of(2L, 4L, 1L, 3L), orderIds(providers, ""));
         assertEquals(List.of(2L, 4L, 1L, 3L), orderIds(providers, "no provider matches this"));
@@ -33,11 +33,11 @@ class PatternProviderDisplayOrderTest {
     @Test
     void searchMatchesCustomDefaultAndLocalizedRecipeTypeNamesWithoutOverridingCurrentType() {
         var providers = List.of(
+                provider(4, "Double Match", List.of(CURRENT_RECIPE_TYPE)),
+                provider(5, "Current Only", List.of(CURRENT_RECIPE_TYPE)),
                 provider(1, "Player Renamed Provider", List.of()),
                 provider(2, "Generic Provider", List.of()),
                 provider(3, "Recipe Provider", List.of(MIXING_RECIPE_TYPE)),
-                provider(4, "Double Match", List.of(CURRENT_RECIPE_TYPE)),
-                provider(5, "Current Only", List.of(CURRENT_RECIPE_TYPE)),
                 provider(6, "Other", List.of()));
         Map<ResourceLocation, String> defaultNames = Map.of(icon(2), "Default Machine Name");
 
@@ -48,20 +48,20 @@ class PatternProviderDisplayOrderTest {
         assertEquals(List.of(4L, 5L, 3L, 1L, 2L, 6L),
                 orderIds(providers, "本地化混合", defaultNames,
                         Map.of(MIXING_RECIPE_TYPE, List.of("本地化混合"))));
-        assertEquals(List.of(4L, 5L, 1L, 2L, 3L, 6L),
-                orderIds(providers, "double match", defaultNames, Map.of()));
+        assertEquals(List.of(5L, 4L, 1L, 2L, 3L, 6L),
+                orderIds(providers, "current only", defaultNames, Map.of()));
     }
 
     @Test
     void updatedProviderDataAndLanguageNamesAreReadForEachOrderingPass() {
         var initialProviders = List.of(
+                provider(2, "Current", List.of(CURRENT_RECIPE_TYPE)),
                 provider(1, "Other A", List.of()),
-                provider(3, "Other B", List.of()),
-                provider(2, "Current", List.of(CURRENT_RECIPE_TYPE)));
+                provider(3, "Other B", List.of()));
         var updatedProviders = List.of(
+                provider(2, "Current", List.of(CURRENT_RECIPE_TYPE)),
                 provider(1, "Other A", List.of()),
-                provider(3, "Fresh Provider", List.of()),
-                provider(2, "Current", List.of(CURRENT_RECIPE_TYPE)));
+                provider(3, "Fresh Provider", List.of()));
 
         assertEquals(List.of(2L, 1L, 3L), orderIds(initialProviders, "fresh"));
         assertEquals(List.of(2L, 3L, 1L), orderIds(updatedProviders, "fresh"));
