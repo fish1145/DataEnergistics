@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityFiringBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixCodec;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixDigits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixResultDecoder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.model.TrinityRadixBuiltModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.model.TrinityRadixInfeasibleException;
@@ -30,6 +31,7 @@ import org.ojalgo.optimisation.Variable;
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Coordinates sequential base-2^15 objectives, overflow proof, and exact conservation verification.
@@ -37,6 +39,7 @@ import java.util.Map;
 public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
     private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
+    private static final BigInteger SINGLE_DIGIT_LOGICAL_UPPER = BigInteger.valueOf(TrinityRadixDigits.BASE - 1L);
 
     private final TrinityExactConservationVerifier conservationVerifier;
     private final TrinityCycleObjectiveBounds exactBounds;
@@ -68,6 +71,19 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
         if (request == null || control == null) {
             throw new IllegalArgumentException("A Trinity radix solve requires a request and control");
         }
+        TrinityAlgorithmResult<Optional<TrinityCycleFeasibilitySolution>> bounded = solveWithCertifiedSmallDomain(request, control);
+        if (!bounded.successful()) {
+            return TrinityAlgorithmResult.failure(bounded.diagnostic());
+        }
+        if (bounded.value().isPresent()) {
+            return TrinityAlgorithmResult.success(bounded.value().orElseThrow());
+        }
+        return solveFullDomain(request, control);
+    }
+
+    private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveFullDomain(
+                                                                                    TrinityCycleFeasibilityRequest request,
+                                                                                    TrinityPlanningControl control) {
         TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
         TrinityAlgorithmResult<TrinityRadixSolvedModel> external = optimize(
                 request,
@@ -94,91 +110,198 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 return TrinityAlgorithmResult.failure(seed.diagnostic());
             }
             BigInteger optimalSeed = total(seed.value().modelSeed());
-            TrinityRadixModelPass.Firing firingPass = new TrinityRadixModelPass.Firing(
+            TrinityAlgorithmResult<Optional<TrinityCycleFeasibilitySolution>> completed = completeSeedWitness(
+                    request,
                     optimalExternal,
-                    optimalSeed,
-                    firingLower);
-            BigInteger firingObjectiveLower = firingLower.max(
-                    this.exactBounds.conservationFiringLowerBound(request, optimalExternal, optimalSeed));
-            BigInteger seedWitnessFirings = total(seed.value().firings());
-            BigInteger firingDomainUpper = maximum(
-                    seedWitnessFirings,
-                    optimalSeed,
-                    optimalExternal).max(firingObjectiveLower);
-            TrinityAlgorithmResult<TrinityRadixSolvedModel> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
-                    TrinityAlgorithmResult.success(seed.value()) :
-                    optimize(
-                            request,
-                            firingPass,
-                            firingDomainUpper,
-                            false,
-                            control,
-                            metrics);
-            if (!firing.successful()) {
-                if (firing.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                    return TrinityAlgorithmResult.failure(firing.diagnostic());
-                }
-                seedLower = optimalSeed.add(BigInteger.ONE);
-                firingLower = BigInteger.ZERO;
-                continue;
+                    seed.value(),
+                    firingLower,
+                    control,
+                    metrics);
+            if (!completed.successful()) {
+                return TrinityAlgorithmResult.failure(completed.diagnostic());
             }
-            BigInteger optimalFirings = total(firing.value().firings());
-            BigInteger identityDomainUpper = maximum(optimalFirings, optimalSeed, optimalExternal);
-            LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
-            TrinityRadixSolvedModel canonical = firing.value();
-            for (TrinityPatternVariant variant : request.variants()) {
-                TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
-                    BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                    if (!fixedCount.equals(bounds.lowerInclusive())) {
-                        throw new IllegalStateException("An exact Trinity firing solution violated a fixed axis");
-                    }
-                    fixedFirings.put(variant, fixedCount);
-                    continue;
-                }
-                TrinityRadixModelPass.Identity identityPass = new TrinityRadixModelPass.Identity(
-                        optimalExternal,
-                        optimalSeed,
-                        optimalFirings,
-                        fixedFirings,
-                        variant);
-                BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = this.exactBounds.identityObjectiveUpperBound(
+            if (completed.value().isPresent()) {
+                return TrinityAlgorithmResult.success(completed.value().orElseThrow());
+            }
+            seedLower = optimalSeed.add(BigInteger.ONE);
+            firingLower = BigInteger.ZERO;
+        }
+    }
+
+    /**
+     * A finite initial domain is globally safe only when it reaches both mathematical lower bounds. The later firing
+     * witness then bounds every firing axis, so the remaining objectives retain their complete exact domains.
+     */
+    private TrinityAlgorithmResult<Optional<TrinityCycleFeasibilitySolution>> solveWithCertifiedSmallDomain(
+                                                                                                            TrinityCycleFeasibilityRequest request,
+                                                                                                            TrinityPlanningControl control) {
+        BigInteger logicalUpper = smallDomainUpper(request);
+        if (logicalUpper.compareTo(SINGLE_DIGIT_LOGICAL_UPPER) > 0) {
+            return TrinityAlgorithmResult.success(Optional.empty());
+        }
+        TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
+        TrinityAlgorithmResult<TrinityRadixSolvedModel> external = optimize(
+                request,
+                TrinityRadixModelPass.External.INSTANCE,
+                logicalUpper,
+                false,
+                control,
+                metrics);
+        if (!external.successful()) {
+            return external.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
+                    TrinityAlgorithmResult.success(Optional.empty()) :
+                    TrinityAlgorithmResult.failure(external.diagnostic());
+        }
+        BigInteger optimalExternal = total(external.value().externalInputs());
+        BigInteger requiredExternal = request.fixedExternalTotal()
+                .orElse(this.exactBounds.minimumFirstExternalInput(request));
+        if (!optimalExternal.equals(requiredExternal)) {
+            return TrinityAlgorithmResult.success(Optional.empty());
+        }
+        BigInteger seedLower = request.seedLowerBound();
+        TrinityAlgorithmResult<TrinityRadixSolvedModel> seed = optimize(
+                request,
+                new TrinityRadixModelPass.Seed(optimalExternal, seedLower),
+                logicalUpper,
+                false,
+                control,
+                metrics);
+        if (!seed.successful()) {
+            return seed.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
+                    TrinityAlgorithmResult.success(Optional.empty()) :
+                    TrinityAlgorithmResult.failure(seed.diagnostic());
+        }
+        BigInteger requiredSeed = this.exactBounds.minimumFirstInternalInput(request).max(seedLower);
+        if (!total(seed.value().modelSeed()).equals(requiredSeed)) {
+            return TrinityAlgorithmResult.success(Optional.empty());
+        }
+        return completeSeedWitness(
+                request,
+                optimalExternal,
+                seed.value(),
+                request.firingLowerBound(),
+                control,
+                metrics);
+    }
+
+    private TrinityAlgorithmResult<Optional<TrinityCycleFeasibilitySolution>> completeSeedWitness(
+                                                                                                  TrinityCycleFeasibilityRequest request,
+                                                                                                  BigInteger optimalExternal,
+                                                                                                  TrinityRadixSolvedModel seed,
+                                                                                                  BigInteger firingLower,
+                                                                                                  TrinityPlanningControl control,
+                                                                                                  TrinityRadixSolverMetrics metrics) {
+        BigInteger optimalSeed = total(seed.modelSeed());
+        TrinityRadixModelPass.Firing firingPass = new TrinityRadixModelPass.Firing(
+                optimalExternal,
+                optimalSeed,
+                firingLower);
+        BigInteger firingObjectiveLower = firingLower.max(
+                this.exactBounds.conservationFiringLowerBound(request, optimalExternal, optimalSeed));
+        BigInteger seedWitnessFirings = total(seed.firings());
+        BigInteger firingDomainUpper = maximum(
+                seedWitnessFirings,
+                optimalSeed,
+                optimalExternal).max(firingObjectiveLower);
+        TrinityAlgorithmResult<TrinityRadixSolvedModel> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
+                TrinityAlgorithmResult.success(seed) :
+                optimize(
                         request,
-                        optimalExternal,
-                        optimalSeed,
-                        optimalFirings,
-                        fixedFirings,
-                        variant)
-                        .min(bounds.upperInclusive());
-                if (witnessCount.compareTo(identityUpper) > 0) {
-                    throw new IllegalStateException("A Trinity identity witness exceeded its proven upper bound");
-                }
-                if (witnessCount.equals(identityUpper)) {
-                    fixedFirings.put(variant, witnessCount);
-                    continue;
-                }
-                TrinityAlgorithmResult<TrinityRadixSolvedModel> identity = optimize(
-                        request,
-                        identityPass,
-                        identityDomainUpper,
+                        firingPass,
+                        firingDomainUpper,
                         false,
                         control,
                         metrics);
-                if (!identity.successful()) {
-                    return TrinityAlgorithmResult.failure(identity.diagnostic());
-                }
-                canonical = identity.value();
-                fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
-            }
-            return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
-                    canonical.firings(),
-                    canonical.modelSeed(),
-                    canonical.externalInputs(),
-                    metrics.passes(),
-                    metrics.nanos(),
-                    true));
+        if (!firing.successful()) {
+            return firing.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
+                    TrinityAlgorithmResult.success(Optional.empty()) :
+                    TrinityAlgorithmResult.failure(firing.diagnostic());
         }
+        BigInteger optimalFirings = total(firing.value().firings());
+        BigInteger identityDomainUpper = maximum(optimalFirings, optimalSeed, optimalExternal);
+        LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
+        TrinityRadixSolvedModel canonical = firing.value();
+        for (TrinityPatternVariant variant : request.variants()) {
+            TrinityFiringBounds bounds = request.firingBounds().get(variant);
+            if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+                BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
+                if (!fixedCount.equals(bounds.lowerInclusive())) {
+                    throw new IllegalStateException("An exact Trinity firing solution violated a fixed axis");
+                }
+                fixedFirings.put(variant, fixedCount);
+                continue;
+            }
+            TrinityRadixModelPass.Identity identityPass = new TrinityRadixModelPass.Identity(
+                    optimalExternal,
+                    optimalSeed,
+                    optimalFirings,
+                    fixedFirings,
+                    variant);
+            BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
+            BigInteger identityUpper = this.exactBounds.identityObjectiveUpperBound(
+                    request,
+                    optimalExternal,
+                    optimalSeed,
+                    optimalFirings,
+                    fixedFirings,
+                    variant)
+                    .min(bounds.upperInclusive());
+            if (witnessCount.compareTo(identityUpper) > 0) {
+                throw new IllegalStateException("A Trinity identity witness exceeded its proven upper bound");
+            }
+            if (witnessCount.equals(identityUpper)) {
+                fixedFirings.put(variant, witnessCount);
+                continue;
+            }
+            TrinityAlgorithmResult<TrinityRadixSolvedModel> identity = optimize(
+                    request,
+                    identityPass,
+                    identityDomainUpper,
+                    false,
+                    control,
+                    metrics);
+            if (!identity.successful()) {
+                return TrinityAlgorithmResult.failure(identity.diagnostic());
+            }
+            canonical = identity.value();
+            fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
+        }
+        return TrinityAlgorithmResult.success(Optional.of(new TrinityCycleFeasibilitySolution(
+                canonical.firings(),
+                canonical.modelSeed(),
+                canonical.externalInputs(),
+                metrics.passes(),
+                metrics.nanos(),
+                true)));
+    }
+
+    private BigInteger smallDomainUpper(TrinityCycleFeasibilityRequest request) {
+        BigInteger upper = BigInteger.ONE
+                .max(request.seedLowerBound())
+                .max(request.firingLowerBound())
+                .max(this.exactBounds.minimumFirstExternalInput(request))
+                .max(this.exactBounds.minimumFirstInternalInput(request));
+        if (request.fixedExternalTotal().isPresent()) {
+            upper = upper.max(request.fixedExternalTotal().orElseThrow());
+        }
+        for (BigInteger amount : request.demand().finalBalanceLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (BigInteger amount : request.demand().requiredNetChangeLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (TrinityFiringBounds bounds : request.firingBounds().values()) {
+            upper = upper.max(bounds.lowerInclusive());
+        }
+        for (TrinityPatternVariant variant : request.variants()) {
+            for (BigInteger amount : variant.inputs().values()) {
+                upper = upper.max(amount);
+            }
+            for (BigInteger amount : variant.outputs().values()) {
+                upper = upper.max(amount);
+            }
+        }
+        return upper.multiply(BigInteger.valueOf(request.variants().size()));
     }
 
     private TrinityAlgorithmResult<TrinityRadixSolvedModel> optimize(
