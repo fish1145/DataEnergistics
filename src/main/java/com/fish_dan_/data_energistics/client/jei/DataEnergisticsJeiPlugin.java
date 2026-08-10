@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.client.jei.ingredient.DataResourceJeiIngredientRenderer;
@@ -149,6 +150,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         TrinityMultiblockJeiCategory.RECIPE_TYPE,
                         transferHelper),
                 TrinityMultiblockJeiCategory.RECIPE_TYPE);
+
+        DataEnergisticsJeiEntrypointLoader.initialize(registration);
 
         if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
             Ae2JeiTransferRegistration.register(registration);

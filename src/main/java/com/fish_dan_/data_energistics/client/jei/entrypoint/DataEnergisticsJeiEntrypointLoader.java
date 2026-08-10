@@ -1,14 +1,15 @@
-package com.fish_dan_.data_energistics.common.entrypoint;
+package com.fish_dan_.data_energistics.client.jei.entrypoint;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsEntrypoint;
-import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsPlugin;
+import com.fish_dan_.data_energistics.api.entrypoint.jei.DataEnergisticsJeiEntrypoint;
+import com.fish_dan_.data_energistics.api.entrypoint.jei.DataEnergisticsJeiPlugin;
 
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
@@ -21,38 +22,39 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * Discovers and invokes the single public Data Energistics plugin entrypoint during common setup.
+ * Discovers and invokes optional Data Energistics JEI plugins during Data Energistics's own JEI registration cycle.
  *
  * <p>
- * This class is the sole reflection boundary. Runtime provider matching and dispatch consume only the frozen values
- * produced here and never retain plugin classes, constructors, scan records, or mutable staging registries.
+ * This is the sole reflection boundary for JEI entrypoints. The frozen registrations retain only typed transfer
+ * behavior and never retain plugin classes, constructors, or scan data.
  * </p>
  */
-public final class DataEnergisticsEntrypointLoader {
+public final class DataEnergisticsJeiEntrypointLoader {
 
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
-    private static volatile @Nullable DataEnergisticsRegistrySnapshot publishedSnapshot;
+    private static boolean initialized;
 
-    private DataEnergisticsEntrypointLoader() {}
+    private DataEnergisticsJeiEntrypointLoader() {}
 
     /**
-     * Loads plugins in deterministic owning-mod and class order, isolates failures, and publishes one snapshot.
+     * Loads every eligible annotation entrypoint, freezes their successful registrations, and attaches those
+     * registrations to JEI before generic fallback handlers are added.
      *
-     * @return immutable runtime registry snapshot
+     * @param registration active Data Energistics JEI transfer registration phase
      */
-    public static synchronized DataEnergisticsRegistrySnapshot initialize() {
-        if (publishedSnapshot != null) {
-            throw new IllegalStateException("Data Energistics entrypoints have already been initialized");
+    public static synchronized void initialize(IRecipeTransferRegistration registration) {
+        if (initialized) {
+            throw new IllegalStateException("Data Energistics JEI entrypoints have already been initialized");
         }
 
-        PluginRegistrationAccumulator registry = new PluginRegistrationAccumulator();
+        JeiPluginRegistrationAccumulator registry = new JeiPluginRegistrationAccumulator();
         List<EntrypointCandidate> candidates = discoverCandidates();
         int loaded = 0;
         for (EntrypointCandidate candidate : candidates) {
             @Nullable
-            PluginRegistrationAccumulator.PluginStaging staging = null;
+            JeiPluginRegistrationAccumulator.PluginStaging staging = null;
             try {
-                DataEnergisticsPlugin plugin = instantiate(candidate);
+                DataEnergisticsJeiPlugin plugin = instantiate(candidate);
                 staging = registry.createStaging(candidate.owningModId(), candidate.className());
                 plugin.register(staging);
                 registry.commit(staging);
@@ -62,46 +64,33 @@ public final class DataEnergisticsEntrypointLoader {
                     staging.discard();
                 }
                 Data_Energistics.LOGGER.error(
-                        "Failed to register Data Energistics plugin {} owned by mod {}; discarded all of its staged registrations",
+                        "Failed to register Data Energistics JEI plugin {} owned by mod {}; discarded all of its staged registrations",
                         candidate.className(),
                         candidate.owningModId(),
                         exception);
             }
         }
 
-        publishedSnapshot = registry.freeze();
+        List<JeiRecipeTransferRegistration<?, ?>> recipeTransferHandlers = registry.freeze();
+        for (JeiRecipeTransferRegistration<?, ?> recipeTransferHandler : recipeTransferHandlers) {
+            recipeTransferHandler.register(registration);
+        }
+        initialized = true;
         Data_Energistics.LOGGER.info(
-                "Loaded {} of {} Data Energistics plugins: {} terminals, {} provider declarations, {} adaptive provider definitions, {} Trinity recipe resolvers, {} Trinity search contributors, {} virtual output adapters",
+                "Loaded {} of {} Data Energistics JEI plugins: {} recipe-transfer handlers",
                 loaded,
                 candidates.size(),
-                publishedSnapshot.universalTerminalRegistrations().size(),
-                publishedSnapshot.patternProviderRegistrations().size(),
-                publishedSnapshot.adaptivePatternProviderRegistrations().size(),
-                publishedSnapshot.trinityPatternRecipeResolverCount(),
-                publishedSnapshot.trinityPatternSearchTermRegistrations().size(),
-                publishedSnapshot.virtualCraftingOutputAdapters().size());
-        return publishedSnapshot;
+                recipeTransferHandlers.size());
     }
 
     /**
-     * Returns the immutable registry after common setup has completed.
-     */
-    public static DataEnergisticsRegistrySnapshot snapshot() {
-        DataEnergisticsRegistrySnapshot current = publishedSnapshot;
-        if (current == null) {
-            throw new IllegalStateException("Data Energistics entrypoints have not been initialized yet");
-        }
-        return current;
-    }
-
-    /**
-     * Reads only marker annotations and canonical owning mod IDs from NeoForge scan data.
+     * Reads marker metadata and canonical owning IDs without resolving an annotated plugin class.
      */
     private static List<EntrypointCandidate> discoverCandidates() {
         List<EntrypointCandidate> candidates = new ArrayList<>();
         for (ModFileScanData scanData : ModList.get().getAllScanData()) {
             List<ModFileScanData.AnnotationData> annotations = scanData
-                    .getAnnotatedBy(DataEnergisticsEntrypoint.class, ElementType.TYPE)
+                    .getAnnotatedBy(DataEnergisticsJeiEntrypoint.class, ElementType.TYPE)
                     .toList();
             if (annotations.isEmpty()) {
                 continue;
@@ -115,7 +104,7 @@ public final class DataEnergisticsEntrypointLoader {
                                 .toList();
                         if (!missingMods.isEmpty()) {
                             Data_Energistics.LOGGER.debug(
-                                    "Skipping Data Energistics plugin {} owned by mod {}; missing required mods {}",
+                                    "Skipping Data Energistics JEI plugin {} owned by mod {}; missing required mods {}",
                                     annotation.clazz().getClassName(),
                                     owningModId,
                                     missingMods);
@@ -124,7 +113,7 @@ public final class DataEnergisticsEntrypointLoader {
                         candidates.add(new EntrypointCandidate(owningModId, annotation.clazz().getClassName()));
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
-                                "Failed to read required mods for Data Energistics entrypoint {} owned by mod {}; " + "the entrypoint will be ignored",
+                                "Failed to read required mods for Data Energistics JEI entrypoint {} owned by mod {}; the entrypoint will be ignored",
                                 annotation.clazz().getClassName(),
                                 owningModId,
                                 exception);
@@ -132,7 +121,7 @@ public final class DataEnergisticsEntrypointLoader {
                 }
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
-                        "Failed to resolve the owning mod for {} Data Energistics entrypoint annotation(s); " + "those entrypoints will be ignored",
+                        "Failed to resolve the owning mod for {} Data Energistics JEI entrypoint annotation(s); those entrypoints will be ignored",
                         annotations.size(),
                         exception);
             }
@@ -143,22 +132,22 @@ public final class DataEnergisticsEntrypointLoader {
     }
 
     /**
-     * Decodes the marker's string-array member without resolving the annotated plugin class.
+     * Decodes the marker's required-mod array from scan metadata.
      */
-    static List<String> requiredMods(ModFileScanData.AnnotationData annotation) {
+    private static List<String> requiredMods(ModFileScanData.AnnotationData annotation) {
         @Nullable
         Object encoded = annotation.annotationData().get(REQUIRED_MODS_MEMBER);
         if (encoded == null) {
             return List.of();
         }
         if (!(encoded instanceof List<?> values)) {
-            throw new IllegalArgumentException("Data Energistics requiredMods scan value is not an array");
+            throw new IllegalArgumentException("Data Energistics JEI requiredMods scan value is not an array");
         }
 
         LinkedHashSet<String> requiredMods = new LinkedHashSet<>();
         for (Object value : values) {
             if (!(value instanceof String modId) || modId.isBlank()) {
-                throw new IllegalArgumentException("Data Energistics requiredMods contains an invalid mod ID");
+                throw new IllegalArgumentException("Data Energistics JEI requiredMods contains an invalid mod ID");
             }
             requiredMods.add(modId);
         }
@@ -166,12 +155,12 @@ public final class DataEnergisticsEntrypointLoader {
     }
 
     /**
-     * Resolves the only mod descriptor that can unambiguously own entrypoints in one scanned mod file.
+     * Resolves one unambiguous owning mod ID from a scanned mod file.
      */
     private static String resolveOwningModId(ModFileScanData scanData) {
         List<IModFileInfo> fileInfos = scanData.getIModInfoData();
         if (fileInfos.isEmpty()) {
-            throw new IllegalStateException("A mod file containing a Data Energistics entrypoint has no mod metadata");
+            throw new IllegalStateException("A mod file containing a Data Energistics JEI entrypoint has no mod metadata");
         }
         List<String> owningModIds = fileInfos.stream()
                 .flatMap(fileInfo -> fileInfo.getMods().stream())
@@ -180,39 +169,40 @@ public final class DataEnergisticsEntrypointLoader {
                 .sorted()
                 .toList();
         if (owningModIds.isEmpty()) {
-            throw new IllegalStateException("A mod file containing a Data Energistics entrypoint declares no owning mod");
+            throw new IllegalStateException("A mod file containing a Data Energistics JEI entrypoint declares no owning mod");
         }
         if (owningModIds.size() != 1) {
             throw new IllegalStateException(
-                    "A mod file containing a Data Energistics entrypoint has ambiguous owners: " + owningModIds);
+                    "A mod file containing a Data Energistics JEI entrypoint has ambiguous owners: " + owningModIds);
         }
         return owningModIds.getFirst();
     }
 
     /**
-     * Validates the public plugin contract before invoking its no-argument constructor.
+     * Validates the public entrypoint contract before invoking its no-argument constructor.
      */
-    private static DataEnergisticsPlugin instantiate(EntrypointCandidate candidate) throws ReflectiveOperationException {
+    private static DataEnergisticsJeiPlugin instantiate(EntrypointCandidate candidate) throws ReflectiveOperationException {
         Class<?> rawClass = Class.forName(
-                candidate.className(), false, DataEnergisticsEntrypointLoader.class.getClassLoader());
-        if (!DataEnergisticsPlugin.class.isAssignableFrom(rawClass)) {
-            throw new IllegalArgumentException("Entrypoint does not implement DataEnergisticsPlugin: " + candidate.className());
+                candidate.className(), false, DataEnergisticsJeiEntrypointLoader.class.getClassLoader());
+        if (!DataEnergisticsJeiPlugin.class.isAssignableFrom(rawClass)) {
+            throw new IllegalArgumentException(
+                    "JEI entrypoint does not implement DataEnergisticsJeiPlugin: " + candidate.className());
         }
         int modifiers = rawClass.getModifiers();
         if (!Modifier.isPublic(modifiers) || Modifier.isAbstract(modifiers)) {
-            throw new IllegalArgumentException("Entrypoint must be a public concrete class: " + candidate.className());
+            throw new IllegalArgumentException("JEI entrypoint must be a public concrete class: " + candidate.className());
         }
 
-        Class<? extends DataEnergisticsPlugin> pluginClass = rawClass.asSubclass(DataEnergisticsPlugin.class);
-        Constructor<? extends DataEnergisticsPlugin> constructor = pluginClass.getConstructor();
+        Class<? extends DataEnergisticsJeiPlugin> pluginClass = rawClass.asSubclass(DataEnergisticsJeiPlugin.class);
+        Constructor<? extends DataEnergisticsJeiPlugin> constructor = pluginClass.getConstructor();
         if (!Modifier.isPublic(constructor.getModifiers())) {
-            throw new IllegalArgumentException("Entrypoint must expose a public no-argument constructor: " + candidate.className());
+            throw new IllegalArgumentException("JEI entrypoint must expose a public no-argument constructor: " + candidate.className());
         }
         return constructor.newInstance();
     }
 
     /**
-     * Stable discovery key used exclusively before plugin instantiation.
+     * Stable discovery key used only before class resolution.
      */
     private record EntrypointCandidate(String owningModId, String className) {}
 }

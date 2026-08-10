@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.client.emi.ingredient.DataResourceEmiStackSerializer;
@@ -87,6 +88,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addRecipeHandler(
                 DEMenus.UNIVERSAL_CRAFTING_TERM.get(),
                 new EmiUseCraftingRecipeHandler<>(UniversalCraftingTermMenu.class));
+        DataEnergisticsEmiEntrypointLoader.initialize(registry);
         registry.addRecipeHandler(
                 DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiEncodePatternHandler<>(UniversalPatternEncodingTermMenu.class));

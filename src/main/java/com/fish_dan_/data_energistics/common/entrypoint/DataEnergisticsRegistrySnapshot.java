@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProvi
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
+import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 
@@ -28,6 +29,7 @@ public final class DataEnergisticsRegistrySnapshot {
     private final List<PatternProviderRegistration> patternProviderRegistrations;
     private final List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations;
     private final TrinityPatternRecipeIdResolvers trinityPatternRecipes;
+    private final List<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
     private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
 
     /**
@@ -37,11 +39,13 @@ public final class DataEnergisticsRegistrySnapshot {
                                     List<PatternProviderRegistration> patternProviderRegistrations,
                                     List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations,
                                     Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers,
+                                    Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
                                     List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters) {
         this.universalTerminalRegistrations = List.copyOf(universalTerminalRegistrations);
         this.patternProviderRegistrations = List.copyOf(patternProviderRegistrations);
         this.adaptivePatternProviderRegistrations = List.copyOf(adaptivePatternProviderRegistrations);
         this.trinityPatternRecipes = new TrinityPatternRecipeIdResolvers(trinityPatternRecipeIdResolvers);
+        this.trinityPatternSearchTermRegistrations = List.copyOf(trinityPatternSearchTerms.values());
         this.virtualCraftingOutputAdapters = List.copyOf(virtualCraftingOutputAdapters);
     }
 
@@ -78,6 +82,13 @@ public final class DataEnergisticsRegistrySnapshot {
      */
     public int trinityPatternRecipeResolverCount() {
         return this.trinityPatternRecipes.size();
+    }
+
+    /**
+     * @return machine-specific search contributors in deterministic plugin and declaration order
+     */
+    public List<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations() {
+        return this.trinityPatternSearchTermRegistrations;
     }
 
     /**
