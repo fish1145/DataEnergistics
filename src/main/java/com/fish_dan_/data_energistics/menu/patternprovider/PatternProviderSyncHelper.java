@@ -755,7 +755,6 @@ public final class PatternProviderSyncHelper {
             ProviderPresentation presentation = resolveProviderPresentation(container);
             displayName = presentation.displayName();
             iconItemId = presentation.iconItemId();
-            ResourceLocation contextWorkstationId = resolveProviderContextWorkstationId(container);
             ProviderResolution provider = resolveProvider(container);
             ProviderIdentity identity = provider.identity();
             if (provider.binding() != null) {
@@ -768,6 +767,8 @@ public final class PatternProviderSyncHelper {
                         metadata, rankingContext, viewerWorkstationIds);
             } else {
                 aggregationKey = PatternProviderAggregationKey.NetworkGroup.from(container.getTerminalGroup());
+                // A renamed row is isolated for display, but still ranks as the unrenamed terminal group.
+                ResourceLocation contextWorkstationId = presentation.iconItemId();
                 exactContextMatch = matchesNetworkExposedWorkstation(
                         contextWorkstationId, rankingContext, viewerWorkstationIds);
                 supportedRecipeTypeIds = List.of();
@@ -986,7 +987,7 @@ public final class PatternProviderSyncHelper {
     }
 
     /**
-     * Keeps workstation matching independent from the icon selected for a renamed provider's terminal row.
+     * Keeps processing-upload validation on the provider's native context instead of its terminal presentation.
      */
     private static ResourceLocation resolveProviderContextWorkstationId(PatternContainer container) {
         return resolveProviderIconItemId(container, null);
