@@ -12,7 +12,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -30,7 +29,6 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.stacks.AEItemKey;
 import appeng.client.Point;
 import appeng.client.gui.Icon;
-import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.me.common.StackSizeRenderer;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.style.Blitter;
@@ -47,17 +45,13 @@ import appeng.parts.encoding.EncodingMode;
 import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T>
-                                         implements Ae2NativeSlotHighlight {
+                                         implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen {
 
-    private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
     private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
@@ -116,6 +110,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final Component SEARCH_BOX_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint");
 
     private boolean previewVisible;
+    private boolean renderingPreviewTooltip;
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
@@ -406,8 +401,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         if (this.previewVisible) {
             renderPreviewLayer(guiGraphics, mouseX, mouseY, partialTicks);
-            renderProviderTooltips(guiGraphics, mouseX, mouseY);
-            renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
+            renderPreviewLayerTooltips(guiGraphics, mouseX, mouseY);
         }
     }
 
@@ -465,11 +459,31 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return zones;
     }
 
+    @Override
+    public boolean shouldSuppressUnderlyingTooltip(int mouseX, int mouseY) {
+        return this.previewVisible && !this.renderingPreviewTooltip && isOverPreviewLayer(mouseX, mouseY);
+    }
+
+    private boolean isOverPreviewLayer(int mouseX, int mouseY) {
+        if (getPreviewPanelBounds().contains(mouseX, mouseY)) {
+            return true;
+        }
+        return this.previewDragButton != null &&
+                mouseX >= this.previewDragButton.getX() && mouseX < this.previewDragButton.getX() + this.previewDragButton.getWidth() &&
+                mouseY >= this.previewDragButton.getY() && mouseY < this.previewDragButton.getY() + this.previewDragButton.getHeight();
+    }
+
     private List<Rect2i> getPreviewInteractiveBounds() {
         List<Rect2i> zones = new ArrayList<>();
         zones.add(getPreviewPanelBounds());
         zones.add(getProviderListBounds());
         zones.add(this.previewScrollbar.getBounds());
+
+        if (this.previewDragButton != null) {
+            zones.add(new Rect2i(
+                    this.previewDragButton.getX(), this.previewDragButton.getY(),
+                    this.previewDragButton.getWidth(), this.previewDragButton.getHeight()));
+        }
 
         if (this.providerSearchBox != null && this.providerSearchBox.isVisible()) {
             zones.add(new Rect2i(
@@ -529,6 +543,21 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             renderPreviewLayerWidget(this.providerRenameBox, guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerWidget(this.previewDragButton, guiGraphics, mouseX, mouseY, partialTicks);
         } finally {
+            poseStack.popPose();
+        }
+    }
+
+    private void renderPreviewLayerTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        PoseStack poseStack = guiGraphics.pose();
+        boolean wasRenderingPreviewTooltip = this.renderingPreviewTooltip;
+        poseStack.pushPose();
+        try {
+            poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
+            this.renderingPreviewTooltip = true;
+            renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
+        } finally {
+            this.renderingPreviewTooltip = wasRenderingPreviewTooltip;
             poseStack.popPose();
         }
     }
@@ -790,13 +819,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return mouseX >= position.getX() && mouseX < position.getX() + width && mouseY >= position.getY() && mouseY < position.getY() + height;
     }
 
-    @SuppressWarnings("unchecked")
     private AbstractWidget resolveEncodePatternWidget() {
-        Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
-        if (widgetsById == null) {
-            return null;
-        }
-        return widgetsById.get("encodePattern");
+        return this.widgets.widgets.get("encodePattern");
     }
 
     protected void applyEncodeButtonHint() {
@@ -1086,14 +1110,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private String getDefaultProviderName(ResourceLocation iconItemId) {
         return new ItemStack(BuiltInRegistries.ITEM.get(iconItemId)).getHoverName().getString();
-    }
-
-    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
-        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
-        if (field.isEmpty()) {
-            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
-        }
-        return field;
     }
 
     private Rect2i getPreviewPanelBounds() {
