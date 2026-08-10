@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.DERecipes;
@@ -149,7 +150,7 @@ public final class PatternEncodingSourceHelper {
 
     public static void rememberTransferSource(PatternEncodingTermMenu menu,
                                               EncodingMode transferMode,
-                                              PatternEncodingRankingContext transferContext) {
+                                              PatternEncodingViewerRecipeScope recipeScope) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (transferMode != EncodingMode.PROCESSING) {
                 sourceAware.data_energistics$setPendingPatternSource(null);
@@ -165,23 +166,25 @@ public final class PatternEncodingSourceHelper {
 
             PatternEncodingPreferenceSession preferenceSession = menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? preferenceMenu.data_energistics$getPreferenceSession() : null;
             if (preferenceSession != null) {
-                preferenceSession.setRankingContext(transferContext);
+                preferenceSession.setViewerRecipeScope(
+                        recipeScope.rankingContext(), recipeScope.workstationIds());
             }
             PatternEncodingPreviewMenu previewMenu = menu instanceof PatternEncodingPreviewMenu value ? value : null;
             sourceAware.data_energistics$setPendingPatternSource(
-                    resolveTransferredWorkstation(transferContext, previewMenu));
+                    resolveTransferredWorkstation(recipeScope, previewMenu));
         }
     }
 
     @Nullable
     private static ResourceLocation resolveTransferredWorkstation(
-                                                                  PatternEncodingRankingContext context,
+                                                                  PatternEncodingViewerRecipeScope recipeScope,
                                                                   @Nullable PatternEncodingPreviewMenu previewMenu) {
         if (previewMenu == null) {
             return null;
         }
         PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewMenu.data_energistics$getSyncedPatternProviderState();
-        if (!context.equals(providerState.rankingContext())) {
+        if (!recipeScope.rankingContext().equals(providerState.rankingContext()) ||
+                !recipeScope.workstationIds().equals(providerState.viewerWorkstationIds())) {
             return null;
         }
         if (providerState.providers().isEmpty()) {
@@ -508,8 +511,11 @@ public final class PatternEncodingSourceHelper {
         if (sourceAware instanceof PatternEncodingPreviewMenu previewMenu &&
                 sourceAware instanceof PatternEncodingPreferenceMenu preferenceMenu &&
                 previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
-            PatternEncodingRankingContext rankingContext = preferenceMenu.data_energistics$getPreferenceSession().rankingContext();
-            return rankingContext == null ? null : resolveTransferredWorkstation(rankingContext, previewMenu);
+            PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
+            PatternEncodingRankingContext rankingContext = session.rankingContext();
+            return rankingContext == null ? null : resolveTransferredWorkstation(
+                    new PatternEncodingViewerRecipeScope(rankingContext, session.viewerWorkstationIds()),
+                    previewMenu);
         }
 
         ResourceLocation workstationId = sourceAware.data_energistics$getPendingPatternSource();

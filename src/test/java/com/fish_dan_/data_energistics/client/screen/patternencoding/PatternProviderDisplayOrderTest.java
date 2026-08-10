@@ -114,6 +114,15 @@ class PatternProviderDisplayOrderTest {
                                                                              long id,
                                                                              String displayName,
                                                                              List<ResourceLocation> supportedRecipeTypeIds) {
+        return provider(id, displayName, supportedRecipeTypeIds,
+                supportedRecipeTypeIds.contains(CURRENT_RECIPE_TYPE));
+    }
+
+    private static PatternEncodingPreviewMenu.SyncedPatternProvider provider(
+                                                                             long id,
+                                                                             String displayName,
+                                                                             List<ResourceLocation> supportedRecipeTypeIds,
+                                                                             boolean exactViewerMatch) {
         return new PatternEncodingPreviewMenu.SyncedPatternProvider(
                 id,
                 Component.literal(displayName),
@@ -124,6 +133,7 @@ class PatternProviderDisplayOrderTest {
                 0,
                 List.of(),
                 supportedRecipeTypeIds,
+                exactViewerMatch,
                 null);
     }
 

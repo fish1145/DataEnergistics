@@ -45,10 +45,12 @@ public record PatternEncodingPreferencesSyncPayload(
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
                                                     @Nullable PatternEncodingRankingContext rankingContext,
+                                                    List<ResourceLocation> viewerWorkstationIds,
                                                     List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
+    public static final int MAX_VIEWER_WORKSTATIONS = 2048;
     public static final int MAX_DIGEST_LENGTH = 71;
     private static final int KNOWN_PRESENT_MASK = 0x0F;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
@@ -75,6 +77,25 @@ public record PatternEncodingPreferencesSyncPayload(
                     "Pattern preference last workstation is not a registered item: " + lastWorkstation);
         }
         validateOffset(previewPanelOffsetX, previewPanelOffsetY);
+        viewerWorkstationIds = List.copyOf(viewerWorkstationIds);
+        if (viewerWorkstationIds.size() > MAX_VIEWER_WORKSTATIONS) {
+            throw new IllegalArgumentException(
+                    "Pattern preference viewer workstations exceed " + MAX_VIEWER_WORKSTATIONS);
+        }
+        if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
+            throw new IllegalArgumentException("Pattern preference viewer workstations require a ranking context");
+        }
+        Set<ResourceLocation> seenWorkstations = new HashSet<>();
+        for (ResourceLocation workstationId : viewerWorkstationIds) {
+            if (BuiltInRegistries.ITEM.get(workstationId) == Items.AIR) {
+                throw new IllegalArgumentException(
+                        "Pattern preference viewer workstation is not a registered item: " + workstationId);
+            }
+            if (!seenWorkstations.add(workstationId)) {
+                throw new IllegalArgumentException(
+                        "Duplicate pattern preference viewer workstation: " + workstationId);
+            }
+        }
         statistics = List.copyOf(statistics);
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
@@ -103,7 +124,7 @@ public record PatternEncodingPreferencesSyncPayload(
     private PatternEncodingPreferencesSyncPayload(RegistryFriendlyByteBuf buffer) {
         this(buffer.readVarInt(), buffer.readVarLong(), buffer.readUnsignedByte(), buffer.readBoolean(),
                 buffer.readBoolean(), readNullableResourceLocation(buffer), buffer.readInt(), buffer.readInt(),
-                readContext(buffer), readStatistics(buffer));
+                readContext(buffer), readViewerWorkstations(buffer), readStatistics(buffer));
         requireFullyConsumed(buffer);
     }
 
@@ -117,6 +138,10 @@ public record PatternEncodingPreferencesSyncPayload(
         buffer.writeInt(this.previewPanelOffsetX);
         buffer.writeInt(this.previewPanelOffsetY);
         writeContext(buffer, this.rankingContext);
+        buffer.writeVarInt(this.viewerWorkstationIds.size());
+        for (ResourceLocation workstationId : this.viewerWorkstationIds) {
+            PatternEncodingRankingContextCodec.writeResourceLocation(buffer, workstationId);
+        }
         buffer.writeVarInt(this.statistics.size());
         for (LeafStatistic statistic : this.statistics) {
             buffer.writeUtf(statistic.providerDigest(), MAX_DIGEST_LENGTH);
@@ -154,6 +179,13 @@ public record PatternEncodingPreferencesSyncPayload(
                     payload.containerId);
             return;
         }
+        if (previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING &&
+                !payload.viewerWorkstationIds.isEmpty()) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected pattern preference viewer workstations outside processing mode for container {}",
+                    payload.containerId);
+            return;
+        }
 
         if (payload.rankingContext == null && !payload.statistics.isEmpty()) {
             Data_Energistics.LOGGER.warn("Rejected pattern preference statistics without a ranking context for container {}",
@@ -168,7 +200,8 @@ public record PatternEncodingPreferencesSyncPayload(
         }
 
         PatternEncodingRankingContext previousRankingContext = session.rankingContext();
-        session.setRankingContext(payload.rankingContext);
+        List<ResourceLocation> previousViewerWorkstations = session.viewerWorkstationIds();
+        session.setViewerRecipeScope(payload.rankingContext, payload.viewerWorkstationIds);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
 
         Set<String> visibleLeafDigests = new HashSet<>();
@@ -179,7 +212,7 @@ public record PatternEncodingPreferencesSyncPayload(
             if (!visibleLeafDigests.contains(statistic.providerDigest())) {
                 Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
                         statistic.providerDigest());
-                session.setRankingContext(previousRankingContext);
+                session.setViewerRecipeScope(previousRankingContext, previousViewerWorkstations);
                 previewMenu.data_energistics$refreshSyncedPatternProviders();
                 return;
             }
@@ -250,6 +283,21 @@ public record PatternEncodingPreferencesSyncPayload(
 
     private static @Nullable PatternEncodingRankingContext readContext(RegistryFriendlyByteBuf buffer) {
         return PatternEncodingRankingContextCodec.readNullable(buffer);
+    }
+
+    private static List<ResourceLocation> readViewerWorkstations(RegistryFriendlyByteBuf buffer) {
+        int size = buffer.readVarInt();
+        if (size < 0 || size > MAX_VIEWER_WORKSTATIONS) {
+            throw new IllegalArgumentException(
+                    "Pattern preference viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATIONS + "]: " + size);
+        }
+        List<ResourceLocation> workstationIds = new ArrayList<>(size);
+        for (int index = 0; index < size; index++) {
+            workstationIds.add(PatternEncodingRankingContextCodec.readResourceLocation(
+                    buffer,
+                    "viewer workstation id"));
+        }
+        return List.copyOf(workstationIds);
     }
 
     private static List<LeafStatistic> readStatistics(RegistryFriendlyByteBuf buffer) {

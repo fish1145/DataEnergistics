@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -27,6 +28,7 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
+    private List<ResourceLocation> viewerWorkstationIds = List.of();
     @Nullable
     private ResourceLocation confirmedWorkstation;
     private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
@@ -104,10 +106,32 @@ public final class PatternEncodingPreferenceSession {
      * Sets the exact context used by subsequent provider-history snapshots.
      */
     public void setRankingContext(@Nullable PatternEncodingRankingContext context) {
-        if (Objects.equals(this.rankingContext, context)) {
+        setViewerRecipeScope(context, List.of());
+    }
+
+    /**
+     * Returns the ephemeral workstation item IDs advertised for the current viewer transfer.
+     */
+    public List<ResourceLocation> viewerWorkstationIds() {
+        return this.viewerWorkstationIds;
+    }
+
+    /**
+     * Atomically updates the recipe-type learning key and its non-persistent viewer workstation condition.
+     */
+    public void setViewerRecipeScope(@Nullable PatternEncodingRankingContext context,
+                                     List<ResourceLocation> workstationIds) {
+        if (context == null && !workstationIds.isEmpty()) {
+            throw new IllegalArgumentException("Viewer workstations require a pattern ranking context");
+        }
+        List<ResourceLocation> canonicalWorkstations = context == null ? List.of() :
+                new PatternEncodingViewerRecipeScope(context, workstationIds).workstationIds();
+        if (Objects.equals(this.rankingContext, context) &&
+                this.viewerWorkstationIds.equals(canonicalWorkstations)) {
             return;
         }
         this.rankingContext = context;
+        this.viewerWorkstationIds = canonicalWorkstations;
         incrementRevision();
     }
 
@@ -203,6 +227,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
+        this.viewerWorkstationIds = List.of();
         this.confirmedWorkstation = null;
         this.leafCountsByContext.clear();
         this.nextOutgoingSequence = 0L;

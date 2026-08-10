@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.transfer;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
@@ -35,10 +36,12 @@ public final class PatternEncodingViewerContext {
     }
 
     /**
-     * Captures a viewer recipe type without trusting viewer workstation or catalyst lists.
+     * Captures the viewer recipe type used for learning and its current workstation list used for network matching.
      */
-    public static PatternEncodingRankingContext fromRecipeType(
-                                                               ResourceLocation recipeTypeId) {
-        return PatternEncodingRankingContext.of(recipeTypeId);
+    public static PatternEncodingViewerRecipeScope fromRecipeType(ResourceLocation recipeTypeId,
+                                                                  ResourceLocation workstationSourceId) {
+        return new PatternEncodingViewerRecipeScope(
+                PatternEncodingRankingContext.of(recipeTypeId),
+                PatternProviderViewerWorkstations.resolve(workstationSourceId, recipeTypeId));
     }
 }
