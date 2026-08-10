@@ -135,9 +135,15 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                                    IActionSource actionSource,
                                                                    ICraftingPlan job,
                                                                    Operation<CraftingPlanSummary> original) {
-        return job instanceof TrinityCraftingPlan trinityPlan ?
-                TrinityCraftingPlanSummaryProjection.create(trinityPlan) :
-                original.call(grid, actionSource, job);
+        if (job instanceof TrinityCraftingPlan trinityPlan) {
+            return TrinityCraftingPlanSummaryProjection.create(trinityPlan);
+        }
+        if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
+            return diagnosed.ae2FallbackEstimate() ?
+                    original.call(grid, actionSource, diagnosed.delegate()) :
+                    TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+        }
+        return original.call(grid, actionSource, job);
     }
 
     @Inject(method = "planJob", at = @At("HEAD"))
