@@ -4,6 +4,9 @@ import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirect
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointRole;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEqualizationPlan;
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySinkAllocation;
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergySourceAllocation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -99,6 +102,83 @@ final class CompensatingTowerEnergyTransactionTest {
         assertEquals(1, networkBuffer.publicationCount());
     }
 
+    @Test
+    void coarseEnergyRoutesDiscardOnlyTheUntransferableResidual() {
+        StatefulEndpoint coarseSource = new StatefulEndpoint(
+                id(4),
+                32_001,
+                32_001,
+                TowerEnergyDirection.SOURCE,
+                TowerEnergyEndpointRole.BALANCED,
+                2);
+        StatefulEndpoint exactSink = new StatefulEndpoint(
+                id(5),
+                0,
+                1,
+                TowerEnergyDirection.SINK,
+                TowerEnergyEndpointRole.BALANCED);
+        StatefulEndpoint coarseSink = new StatefulEndpoint(
+                id(6),
+                0,
+                32_000,
+                TowerEnergyDirection.SINK,
+                TowerEnergyEndpointRole.BALANCED,
+                10);
+        TowerEnergyEqualizationPlan requestedPlan = new TowerEnergyEqualizationPlan(
+                List.of(new TowerEnergySourceAllocation(coarseSource.endpoint(), 32_001)),
+                List.of(
+                        new TowerEnergySinkAllocation(exactSink.endpoint(), 1),
+                        new TowerEnergySinkAllocation(coarseSink.endpoint(), 32_000)));
+        CompensatingTowerEnergyTransaction transaction = new CompensatingTowerEnergyTransaction(
+                snapshot -> requestedPlan);
+
+        TowerEnergyTransactionResult result = transaction.execute(List.of(coarseSource, exactSink, coarseSink));
+
+        assertTrue(result.mutated());
+        assertEquals(32_000, result.plannedFe());
+        assertEquals(32_000, result.insertedFe());
+        assertEquals(0, result.quarantinedFe());
+        assertEquals("", result.failure());
+        assertEquals(1, coarseSource.stored());
+        assertEquals(0, exactSink.stored());
+        assertEquals(32_000, coarseSink.stored());
+    }
+
+    @Test
+    void alreadyConservedCoarseRoutesRemainExecutable() {
+        StatefulEndpoint firstSource = new StatefulEndpoint(
+                id(7),
+                2,
+                2,
+                TowerEnergyDirection.SOURCE,
+                TowerEnergyEndpointRole.BALANCED,
+                2);
+        StatefulEndpoint secondSource = new StatefulEndpoint(
+                id(8),
+                3,
+                3,
+                TowerEnergyDirection.SOURCE,
+                TowerEnergyEndpointRole.BALANCED,
+                3);
+        StatefulEndpoint sink = new StatefulEndpoint(
+                id(9),
+                0,
+                5,
+                TowerEnergyDirection.SINK,
+                TowerEnergyEndpointRole.BALANCED);
+        CompensatingTowerEnergyTransaction transaction = new CompensatingTowerEnergyTransaction();
+
+        TowerEnergyTransactionResult result = transaction.execute(List.of(firstSource, secondSource, sink));
+
+        assertTrue(result.mutated());
+        assertEquals(5, result.plannedFe());
+        assertEquals(5, result.insertedFe());
+        assertEquals(0, result.quarantinedFe());
+        assertEquals(0, firstSource.stored());
+        assertEquals(0, secondSource.stored());
+        assertEquals(5, sink.stored());
+    }
+
     private static BigInteger totalEnergy(StatefulEndpoint first, StatefulEndpoint second) {
         return BigInteger.valueOf(first.stored()).add(BigInteger.valueOf(second.stored()));
     }
@@ -124,6 +204,9 @@ final class CompensatingTowerEnergyTransactionTest {
         /** Planner participation role retained for every frozen snapshot. */
         private final TowerEnergyEndpointRole role;
 
+        /** Smallest complete transfer amount accepted by this endpoint. */
+        private final long transferQuantum;
+
         /** Current mutable stored FE. */
         private long stored;
 
@@ -138,11 +221,21 @@ final class CompensatingTowerEnergyTransactionTest {
                                  long capacity,
                                  TowerEnergyDirection direction,
                                  TowerEnergyEndpointRole role) {
+            this(endpoint, stored, capacity, direction, role, 1);
+        }
+
+        private StatefulEndpoint(TowerEnergyEndpointId endpoint,
+                                 long stored,
+                                 long capacity,
+                                 TowerEnergyDirection direction,
+                                 TowerEnergyEndpointRole role,
+                                 long transferQuantum) {
             this.endpoint = endpoint;
             this.stored = stored;
             this.capacity = capacity;
             this.direction = direction;
             this.role = role;
+            this.transferQuantum = transferQuantum;
         }
 
         @Override
@@ -164,7 +257,12 @@ final class CompensatingTowerEnergyTransactionTest {
 
         @Override
         public long simulateExtraction(long amount) {
-            return this.direction.allowsExtract() ? Math.min(amount, this.stored) : 0;
+            return this.direction.allowsExtract() ? quantize(Math.min(amount, this.stored)) : 0;
+        }
+
+        @Override
+        public long extractionQuantum() {
+            return this.transferQuantum;
         }
 
         @Override
@@ -184,7 +282,12 @@ final class CompensatingTowerEnergyTransactionTest {
 
         @Override
         public long simulateInsertion(long amount) {
-            return this.direction.allowsReceive() ? Math.min(amount, this.capacity - this.stored) : 0;
+            return this.direction.allowsReceive() ? quantize(Math.min(amount, this.capacity - this.stored)) : 0;
+        }
+
+        @Override
+        public long insertionQuantum() {
+            return this.transferQuantum;
         }
 
         @Override
@@ -217,6 +320,10 @@ final class CompensatingTowerEnergyTransactionTest {
 
         private int publicationCount() {
             return this.publicationCount;
+        }
+
+        private long quantize(long amount) {
+            return amount - amount % this.transferQuantum;
         }
     }
 }
