@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.ae2ct;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.integration.ae2ct.TrinityCraftingTreeProjection;
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
@@ -23,5 +24,13 @@ public abstract class TrinityCraftingPlanSummaryProjectionMixin {
                                                            CallbackInfoReturnable<CraftingPlanSummary> cir) {
         ICraftingPlanSummary summary = (ICraftingPlanSummary) cir.getReturnValue();
         summary.setJob(TrinityCraftingTreeProjection.create(plan));
+    }
+
+    @Inject(method = "createDiagnostic", at = @At("RETURN"))
+    private static void dataEnergistics$attachEmptyDiagnosticTree(
+                                                                  TrinityDiagnosedCraftingPlan plan,
+                                                                  CallbackInfoReturnable<CraftingPlanSummary> cir) {
+        ICraftingPlanSummary summary = (ICraftingPlanSummary) cir.getReturnValue();
+        summary.setJob(TrinityCraftingTreeProjection.createDiagnostic(plan.finalOutput()));
     }
 }
