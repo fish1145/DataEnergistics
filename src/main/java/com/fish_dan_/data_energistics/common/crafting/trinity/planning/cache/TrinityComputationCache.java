@@ -8,7 +8,8 @@ import java.util.concurrent.Future;
 import java.util.function.BooleanSupplier;
 
 /**
- * Shares immutable Trinity calculations within a server lifetime without sharing caller cancellation.
+ * Shares immutable Trinity calculations while they have active subscribers, retains completed values within a server
+ * lifetime, and removes unfinished work when its final request is cancelled.
  */
 public interface TrinityComputationCache extends AutoCloseable {
 
@@ -63,14 +64,15 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                Callable<TrinityCachedComputation<V>> calculation);
 
     /**
-     * Runs the cache-owning calculation on the current cache-managed worker while concurrent callers wait on the
-     * same isolated result. This entry point prevents nested submission to the same bounded executor.
+     * Runs the cache-owning calculation on the current cache-managed worker. Concurrent callers may share one active
+     * inline calculation, and completed results remain reusable. Subscriber tracking cancels the active calculation
+     * once no request still needs it, without nested submission to the same bounded executor.
      *
      * @param gridScope   immutable Grid publication scope
      * @param namespace   computation namespace
      * @param revision    publication revision, or {@link #SEMANTIC_REVISION} for semantic namespaces
      * @param key         complete immutable semantic key
-     * @param calculation bottom-level pure calculation executed only by the cache miss owner
+     * @param calculation bottom-level pure calculation executed only by the active miss owner
      * @param <K>         key type
      * @param <V>         result type
      * @return immutable value and cache-selection metadata
@@ -104,7 +106,7 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @param revision        publication revision, or {@link #SEMANTIC_REVISION} for semantic namespaces
      * @param key             complete immutable semantic key
      * @param lifecycleActive true while the caller may still publish work for this Grid
-     * @param calculation     bottom-level pure calculation executed only by the cache miss owner
+     * @param calculation     bottom-level pure calculation executed only by the active miss owner
      * @param <K>             key type
      * @param <V>             result type
      * @return empty when lifecycle admission is denied, otherwise immutable value and cache-selection metadata
@@ -121,8 +123,10 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                                                                                          throws InterruptedException, ExecutionException;
 
     /**
-     * Submits one lifecycle-tracked orchestration task without registering it in the LRU. The returned wait handle is
-     * isolated, so caller cancellation never interrupts the bottom task or other callers sharing its inner cache work.
+     * Submits one lifecycle-tracked orchestration task without registering it in the LRU. The returned future owns the
+     * orchestration: {@link Future#cancel(boolean)} with interruption enabled interrupts its planner thread once no
+     * other request still needs its active inline work. Unsubscribed work is removed; completed inner results remain
+     * reusable.
      *
      * @param gridScope   immutable Grid publication scope
      * @param revision    publication revision used to cancel obsolete orchestration

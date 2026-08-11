@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
+import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
@@ -15,13 +16,9 @@ import appeng.menu.me.crafting.CraftConfirmMenu;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 /**
  * Places synchronized Trinity ownership and fallback diagnostics in the confirmation dialog's native text slots.
@@ -55,24 +52,23 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                         "gui.data_energistics.trinity_quantity.net_new" :
                         "gui.data_energistics.trinity_quantity.final_total");
         String bytes = TrinityAmountFormatter.format(plan.getUsedBytes());
+        String planningTime = TrinityDurationFormatter.formatNanos(state.data_energistics$planningNanos());
         if (state.data_energistics$isAe2FallbackEstimate()) {
-            String planningMillis = dataEnergistics$formatPlanningMillis(state.data_energistics$planningNanos());
             this.setTextContent(
                     TEXT_ID_DIALOG_TITLE,
                     Component.translatable(
                             "gui.data_energistics.trinity_planning.ae2_fallback_title",
                             quantityMode,
                             bytes,
-                            planningMillis));
+                            planningTime));
             this.setTextContent("cpu_status", state.data_energistics$diagnostic());
         } else if (state.data_energistics$isTrinityOnly()) {
             String titleKey = state.data_energistics$hasDynamicMaterialWarning() ?
                     "gui.data_energistics.trinity_planning.dynamic_title" :
                     "gui.data_energistics.trinity_planning.title";
-            String planningMillis = dataEnergistics$formatPlanningMillis(state.data_energistics$planningNanos());
             this.setTextContent(
                     TEXT_ID_DIALOG_TITLE,
-                    Component.translatable(titleKey, quantityMode, bytes, planningMillis));
+                    Component.translatable(titleKey, quantityMode, bytes, planningTime));
             if (state.data_energistics$hasDiagnostic()) {
                 this.setTextContent("cpu_status", state.data_energistics$diagnostic());
             }
@@ -81,17 +77,9 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                     TEXT_ID_DIALOG_TITLE,
                     Component.translatable(
                             "gui.data_energistics.trinity_planning.diagnostic_title",
-                            quantityMode));
+                            quantityMode,
+                            planningTime));
             this.setTextContent("cpu_status", state.data_energistics$diagnostic());
         }
-    }
-
-    @Unique
-    private static String dataEnergistics$formatPlanningMillis(long planningNanos) {
-        BigDecimal roundedMillis = BigDecimal.valueOf(planningNanos, 6).setScale(1, RoundingMode.HALF_EVEN);
-        if (planningNanos > 0L && roundedMillis.signum() == 0) {
-            return "<0.1";
-        }
-        return roundedMillis.stripTrailingZeros().toPlainString();
     }
 }

@@ -314,6 +314,56 @@ public final class TrinityAcyclicDemandPropagatorTest {
     }
 
     @Test
+    void diagnosesAllExternalLeafShortagesOnTheBestOfMultipleRoutes() {
+        AEKey cobblestone = AEItemKey.of(Items.COBBLESTONE);
+        AEKey coal = AEItemKey.of(Items.COAL);
+        AEKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant stableFirstExpensiveRoute = variant(
+                "a-expensive-route",
+                amounts(cobblestone, BigInteger.valueOf(4L), coal, BigInteger.valueOf(4L)),
+                amounts(target, BigInteger.ONE));
+        TrinityPatternVariant laterCheaperRoute = variant(
+                "b-cheaper-route",
+                amounts(iron, BigInteger.valueOf(3L), gold, BigInteger.TWO),
+                amounts(target, BigInteger.ONE));
+
+        List<TrinityPatternVariant> variants = List.of(stableFirstExpensiveRoute, laterCheaperRoute);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+
+        TrinityAlgorithmResult<TrinityAcyclicPlan> result = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(iron, BigInteger.ONE, gold, BigInteger.ONE),
+                        MAX_SEARCH_STATES,
+                        control());
+
+        assertFalse(result.successful());
+        assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, result.diagnostic().code());
+        var partial = result.diagnostic().partialPlan().orElseThrow();
+        assertEquals(BigInteger.ONE, partial.usedItems().get(iron));
+        assertEquals(BigInteger.ONE, partial.usedItems().get(gold));
+        assertEquals(BigInteger.TWO, partial.missingItems().get(iron));
+        assertEquals(BigInteger.ONE, partial.missingItems().get(gold));
+        assertEquals(BigInteger.valueOf(3L), partial.inputRequirements().get(iron).required());
+        assertEquals(BigInteger.ONE, partial.inputRequirements().get(iron).available());
+        assertEquals(BigInteger.TWO, partial.inputRequirements().get(iron).missing());
+        assertEquals(BigInteger.TWO, partial.inputRequirements().get(gold).required());
+        assertEquals(BigInteger.ONE, partial.inputRequirements().get(gold).available());
+        assertEquals(BigInteger.ONE, partial.inputRequirements().get(gold).missing());
+        assertFalse(partial.missingItems().containsKey(cobblestone));
+        assertFalse(partial.missingItems().containsKey(coal));
+        assertEquals(BigInteger.ONE, partial.emittedItems().get(target));
+    }
+
+    @Test
     void rejectsUncraftableSourceShortageInsteadOfReturningExecutablePlan() {
         AEKey raw = AEItemKey.of(Items.COBBLESTONE);
         AEKey target = AEItemKey.of(Items.DIAMOND);

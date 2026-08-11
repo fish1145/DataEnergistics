@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmTestPatterns.amounts;
@@ -55,6 +56,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         request,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE),
+                        Set.of(),
                         32,
                         unlimitedControl())
                 .value();
@@ -91,6 +93,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         request,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE),
+                        Set.of(),
                         256,
                         unlimitedControl())
                 .value();
@@ -126,6 +129,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE, b, BigInteger.ONE),
+                        Set.of(),
                         16,
                         unlimitedControl());
 
@@ -152,6 +156,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         request,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE, fuel, requiredFuel),
+                        Set.of(),
                         16,
                         unlimitedControl())
                 .value();
@@ -175,6 +180,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         largeRequest,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE, fuel, largeAvailableFuel),
+                        Set.of(),
                         16,
                         unlimitedControl());
 
@@ -185,15 +191,30 @@ public final class TrinityDeterministicCyclePlannerTest {
         assertEquals("2147483821", shortage.diagnostic().metadata().get("available"));
         assertEquals("6644516179", shortage.diagnostic().metadata().get("missing"));
         assertEquals("8792000000", shortage.diagnostic().metadata().get("net_consumed"));
-        assertEquals(fuel, shortage.diagnostic().inputShortage().orElseThrow().key());
-        assertEquals(largeRequiredFuel, shortage.diagnostic().inputShortage().orElseThrow().required());
-        assertEquals(largeAvailableFuel, shortage.diagnostic().inputShortage().orElseThrow().available());
+        var requirement = shortage.diagnostic().partialPlan().orElseThrow().inputRequirements().get(fuel);
+        assertEquals(largeRequiredFuel, requirement.required());
+        assertEquals(largeAvailableFuel, requirement.available());
         assertEquals(
                 BigInteger.valueOf(6_644_516_179L),
-                shortage.diagnostic().inputShortage().orElseThrow().missing());
+                requirement.missing());
         assertEquals(
                 "gui.data_energistics.trinity_planning.missing_external_input",
                 assertInstanceOf(TranslatableContents.class, shortage.diagnostic().message().getContents()).getKey());
+
+        TrinityCyclePlan upstreamSupplied = TrinityDeterministicCyclePlanner.create()
+                .plan(
+                        List.of(new TrinityVariantFiring(fuelled, BigInteger.ONE)),
+                        a,
+                        largeRequest,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(a, BigInteger.ONE),
+                        Set.of(fuel),
+                        16,
+                        unlimitedControl())
+                .value();
+
+        assertEquals(largeRequiredFuel, upstreamSupplied.initialInputs().get(fuel));
+        assertEquals(List.of(new TrinityVariantFiring(fuelled, largeRequest)), upstreamSupplied.schedule().batches());
     }
 
     @Test
@@ -211,6 +232,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         BigInteger.valueOf(5L),
                         CraftingQuantityMode.FINAL_TOTAL,
                         Map.of(a, BigInteger.TEN),
+                        Set.of(),
                         16,
                         unlimitedControl())
                 .value();
@@ -237,6 +259,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         BigInteger.TEN,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(),
+                        Set.of(),
                         16,
                         unlimitedControl());
         TrinityPatternVariant neutral = variant(
@@ -250,6 +273,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         BigInteger.TEN,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE),
+                        Set.of(),
                         16,
                         unlimitedControl());
 
@@ -320,6 +344,7 @@ public final class TrinityDeterministicCyclePlannerTest {
                         BigInteger.TEN,
                         CraftingQuantityMode.NET_NEW,
                         Map.of(a, BigInteger.ONE),
+                        Set.of(),
                         16,
                         unlimitedControl())
                 .value();

@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.accessor.CraftingPlanTiming;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
@@ -14,6 +13,8 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.
 import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -32,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
- * Bounded-executor implementation that waits for a proved Trinity result before adopting the AE2 result.
+ * Bounded-executor implementation that runs Trinity exclusively after the Trinity CPU gate has passed.
  */
 final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
@@ -80,38 +81,35 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                                        boolean qualifiedTrinityCpu,
                                        long gridScope,
                                        long graphRevision,
+                                       GenericStack requestedOutput,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
                                        Supplier<Future<ICraftingPlan>> ae2Calculation) {
-        Future<TrinityPlanningAttempt> trinityFuture = null;
-        if (qualifiedTrinityCpu) {
-            try {
-                trinityFuture = this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
-            } catch (RejectedExecutionException exception) {
-                Data_Energistics.LOGGER.warn("Trinity planner queue rejected a calculation; falling back to AE2",
-                        exception);
-                trinityFuture = CompletableFuture.completedFuture(
-                        TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
-                                TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL,
-                                Component.translatable(
-                                        "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full_ae2"),
-                                Map.of("reason", exception.getClass().getSimpleName()))));
-            }
-        }
-
-        Future<ICraftingPlan> ae2Future;
-        try {
-            ae2Future = ae2Calculation.get();
-            if (ae2Future == null) {
-                throw new IllegalStateException("AE2 planning factory returned no future");
-            }
-        } catch (RuntimeException exception) {
-            ae2Future = CompletableFuture.failedFuture(exception);
-        }
-
         if (!qualifiedTrinityCpu) {
-            return ae2Future;
+            try {
+                Future<ICraftingPlan> ae2Future = ae2Calculation.get();
+                if (ae2Future == null) {
+                    throw new IllegalStateException("AE2 planning factory returned no future");
+                }
+                return ae2Future;
+            } catch (RuntimeException exception) {
+                return CompletableFuture.failedFuture(exception);
+            }
         }
-        return new PreferredPlanningFuture(trinityFuture, ae2Future);
+
+        Future<TrinityPlanningAttempt> trinityFuture;
+        try {
+            trinityFuture = this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
+        } catch (RejectedExecutionException exception) {
+            Data_Energistics.LOGGER.warn("Trinity planner queue rejected a calculation; publishing a terminal diagnostic",
+                    exception);
+            trinityFuture = CompletableFuture.completedFuture(
+                    TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
+                            TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL,
+                            Component.translatable(
+                                    "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full"),
+                            Map.of("reason", exception.getClass().getSimpleName()))));
+        }
+        return new PreferredPlanningFuture(requestedOutput, trinityFuture);
     }
 
     @Override
@@ -159,21 +157,23 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     }
 
     /**
-     * Future implementation that does not occupy an additional worker while the two calculations are running.
+     * Future implementation that waits directly on the selected Trinity calculation without occupying another worker.
      */
     private static final class PreferredPlanningFuture implements Future<ICraftingPlan> {
 
+        private final GenericStack requestedOutput;
         private final Future<TrinityPlanningAttempt> trinity;
-        private final Future<ICraftingPlan> ae2;
+        private final long startedNanos;
 
-        private ICraftingPlan result;
+        private @Nullable ICraftingPlan result;
         private boolean cancelled;
 
         private PreferredPlanningFuture(
-                                        Future<TrinityPlanningAttempt> trinity,
-                                        Future<ICraftingPlan> ae2) {
+                                        GenericStack requestedOutput,
+                                        Future<TrinityPlanningAttempt> trinity) {
+            this.requestedOutput = requestedOutput;
             this.trinity = trinity;
-            this.ae2 = ae2;
+            this.startedNanos = System.nanoTime();
         }
 
         @Override
@@ -182,12 +182,10 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                 return false;
             }
             boolean trinityCancelled = this.trinity.cancel(mayInterruptIfRunning);
-            boolean ae2Cancelled = this.ae2.cancel(mayInterruptIfRunning);
-            boolean cancelledAny = trinityCancelled || ae2Cancelled;
-            if (cancelledAny) {
+            if (trinityCancelled) {
                 this.cancelled = true;
             }
-            return cancelledAny;
+            return trinityCancelled;
         }
 
         @Override
@@ -200,13 +198,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
             if (this.cancelled || this.result != null) {
                 return true;
             }
-            if (!this.trinity.isDone()) {
-                return false;
-            }
-            if (this.trinity.isDone() && hasPreferredTrinityResult(this.trinity)) {
-                return true;
-            }
-            return this.ae2.isDone();
+            return this.trinity.isDone();
         }
 
         @Override
@@ -239,55 +231,37 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
             }
 
             TrinityPlanningDiagnostic diagnostic;
-            Throwable trinityFailure = null;
             try {
                 TrinityPlanningAttempt attempt = awaitTrinity(callerDeadlineNanos);
                 if (attempt.successful()) {
-                    this.ae2.cancel(true);
                     return publish(attempt.plan());
                 }
                 if (attempt.authoritativeSimulation().isPresent()) {
-                    this.ae2.cancel(true);
                     return publish(attempt.authoritativeSimulation().orElseThrow());
                 }
                 diagnostic = attempt.diagnostic();
             } catch (ExecutionException exception) {
-                trinityFailure = exception.getCause();
-                Data_Energistics.LOGGER.error("Trinity planning calculation failed; falling back to AE2",
-                        trinityFailure);
+                Data_Energistics.LOGGER.error("Trinity planning calculation failed; publishing a terminal diagnostic",
+                        exception.getCause());
                 diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "gui.data_energistics.trinity_planning.diagnostic.internal_error_ae2");
+                        "gui.data_energistics.trinity_planning.diagnostic.internal_error");
             } catch (CancellationException exception) {
-                trinityFailure = exception;
                 diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        "gui.data_energistics.trinity_planning.diagnostic.cancelled_ae2");
+                        "gui.data_energistics.trinity_planning.diagnostic.cancelled");
             } catch (RuntimeException exception) {
-                trinityFailure = exception;
-                Data_Energistics.LOGGER.error("Trinity planning returned an invalid result; falling back to AE2",
+                Data_Energistics.LOGGER.error("Trinity planning returned an invalid result; publishing a terminal diagnostic",
                         exception);
                 diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                        "gui.data_energistics.trinity_planning.diagnostic.invalid_result_ae2");
+                        "gui.data_energistics.trinity_planning.diagnostic.internal_error");
             }
 
-            try {
-                ICraftingPlan ae2Plan = awaitAe2(callerDeadlineNanos);
-                if (ae2Plan == null) {
-                    throw new ExecutionException(new IllegalStateException("AE2 planning returned no plan"));
-                }
-                ICraftingPlan selected = ae2Plan.simulation() ?
-                        new TrinityDiagnosedCraftingPlan(
-                                ae2Plan,
-                                diagnostic,
-                                ((CraftingPlanTiming) ae2Plan).dataEnergistics$calculationNanos()) :
-                        ae2Plan;
-                return publish(selected);
-            } catch (ExecutionException exception) {
-                exception.addSuppressed(new TrinityPlanningFallbackException(diagnostic, trinityFailure));
-                throw exception;
-            }
+            return publish(TrinityDiagnosedCraftingPlan.forDiagnostic(
+                    this.requestedOutput,
+                    diagnostic,
+                    Math.max(0L, System.nanoTime() - this.startedNanos)));
         }
 
         private TrinityPlanningAttempt awaitTrinity(long callerDeadlineNanos)
@@ -305,21 +279,6 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
             throw new TimeoutException("Caller timeout elapsed while awaiting Trinity planning");
         }
 
-        private ICraftingPlan awaitAe2(long callerDeadlineNanos)
-                                                                 throws InterruptedException, ExecutionException, TimeoutException {
-            if (callerDeadlineNanos == Long.MAX_VALUE) {
-                return this.ae2.get();
-            }
-            long remaining = callerDeadlineNanos - System.nanoTime();
-            if (remaining <= 0L) {
-                if (this.ae2.isDone()) {
-                    return this.ae2.get();
-                }
-                throw new TimeoutException("Caller timeout elapsed while awaiting AE2 planning");
-            }
-            return this.ae2.get(remaining, TimeUnit.NANOSECONDS);
-        }
-
         private synchronized ICraftingPlan publish(ICraftingPlan selected) {
             if (this.cancelled) {
                 throw new CancellationException("The combined crafting calculation was cancelled");
@@ -330,18 +289,6 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
             return this.result;
         }
 
-        private boolean hasPreferredTrinityResult(Future<TrinityPlanningAttempt> future) {
-            try {
-                TrinityPlanningAttempt attempt = future.get();
-                return attempt.successful() || attempt.authoritativeSimulation().isPresent();
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                return false;
-            } catch (ExecutionException | CancellationException exception) {
-                return false;
-            }
-        }
-
         private static long saturatedAdd(long left, long right) {
             if (right > 0L && left > Long.MAX_VALUE - right) {
                 return Long.MAX_VALUE;
@@ -350,18 +297,6 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                 return Long.MIN_VALUE;
             }
             return left + right;
-        }
-    }
-
-    /**
-     * Adds Trinity context without replacing the original AE2 planning exception.
-     */
-    private static final class TrinityPlanningFallbackException extends Exception {
-
-        private TrinityPlanningFallbackException(
-                                                 TrinityPlanningDiagnostic diagnostic,
-                                                 Throwable cause) {
-            super(diagnostic.code() + ": " + diagnostic.message().getString(), cause);
         }
     }
 }

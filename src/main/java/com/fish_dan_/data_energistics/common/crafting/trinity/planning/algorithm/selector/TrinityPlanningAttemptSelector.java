@@ -7,7 +7,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Selects a proved opportunity, continues a structural miss, or preserves a terminal diagnostic.
+ * Selects an accepted opportunity, continues a structural miss, or preserves a terminal diagnostic.
  * <p>
  * Stateless branch implementation that keeps the general solver lazy.
  */
@@ -36,7 +36,7 @@ public final class TrinityPlanningAttemptSelector {
             throw new IllegalArgumentException("A Trinity opportunity selection requires all collaborators");
         }
         return switch (attempt.kind()) {
-            case PROVED_OPTIMAL -> TrinityAlgorithmResult.success(proved.apply(attempt.value()));
+            case PROVED_OPTIMAL, FEASIBLE -> TrinityAlgorithmResult.success(proved.apply(attempt.value()));
             case NOT_APPLICABLE -> fallback.get();
             case TERMINAL -> TrinityAlgorithmResult.failure(attempt.diagnostic());
         };

@@ -62,7 +62,7 @@ public final class TrinityDeterministicProofAssembler {
     }
 
     /**
-     * Proves inventory bounds, exact minimum seed, compressed executability, and the full objective tuple.
+     * Proves exact conservation and compressed executability, and verifies objective bounds when supplied.
      */
     public TrinityAlgorithmResult<TrinityDeterministicCandidate> assemble(
                                                                           TrinityStronglyConnectedComponent component,
@@ -91,9 +91,6 @@ public final class TrinityDeterministicProofAssembler {
                 firingSolution.globalOptimization().isPresent());
         LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(conservationInputs);
         applyRequiredPrefix(decomposition.prefixOrder(), initialInputs);
-        if (exceedsAvailable(initialInputs, available, producibleInputs)) {
-            return TrinityDeterministicDiagnostics.unsupported();
-        }
         LinkedHashMap<AEKey, BigInteger> cycleStart = simulate(
                 initialInputs,
                 decomposition.prefixOrder());
@@ -115,9 +112,6 @@ public final class TrinityDeterministicProofAssembler {
             return TrinityAlgorithmResult.failure(normalized.diagnostic());
         }
         mergeRequiredCycleStart(initialInputs, cycleStart, normalized.value().initialBalances());
-        if (exceedsAvailable(initialInputs, available, producibleInputs)) {
-            return TrinityDeterministicDiagnostics.unsupported();
-        }
 
         int totalStates = Math.addExact(
                 normalized.value().statesVisited(),
@@ -130,7 +124,7 @@ public final class TrinityDeterministicProofAssembler {
         BigInteger externalTotal = sumExternal(initialInputs, component.keys());
         boolean globalScheduleRepaired = false;
         TrinityAlgorithmResult<TrinityCompressedSchedule> scheduled;
-        if (firingSolution.leastFiringsProven()) {
+        if (firingSolution.leastFiringsProven() || firingSolution.globalOptimization().isEmpty()) {
             int remainingStates = Math.subtractExact(maxStates, totalStates);
             if (remainingStates <= 0) {
                 return TrinityDeterministicDiagnostics.searchLimit(maxStates, totalStates);
@@ -245,7 +239,7 @@ public final class TrinityDeterministicProofAssembler {
                     !externalTotal.equals(minimumExternalReserve(component, demand, totalNet))) {
                 return TrinityDeterministicDiagnostics.unsupported();
             }
-        } else {
+        } else if (firingSolution.globalOptimization().isPresent()) {
             var global = firingSolution.globalOptimization().orElseThrow(() -> new IllegalStateException(
                     "A non-minimal Trinity firing vector requires a global objective proof"));
             boolean validSeed = globalScheduleRepaired ?
@@ -715,6 +709,7 @@ public final class TrinityDeterministicProofAssembler {
                 value = available.getOrDefault(key, TrinityDeterministicFiringMath.ZERO)
                         .add(prefixNet.getOrDefault(key, TrinityDeterministicFiringMath.ZERO));
             }
+            value = value.max(cycleStart.getOrDefault(key, TrinityDeterministicFiringMath.ZERO));
             if (value.signum() < 0) {
                 throw new IllegalStateException("A Trinity prefix exceeds a finite cycle-start balance");
             }
@@ -734,15 +729,6 @@ public final class TrinityDeterministicProofAssembler {
                 initialInputs.merge(key, deficit, BigInteger::add);
             }
         });
-    }
-
-    private static boolean exceedsAvailable(
-                                            Map<AEKey, BigInteger> inputs,
-                                            Map<AEKey, BigInteger> available,
-                                            Set<AEKey> producibleInputs) {
-        return inputs.entrySet().stream().anyMatch(entry -> !producibleInputs.contains(entry.getKey()) &&
-                available.getOrDefault(entry.getKey(), TrinityDeterministicFiringMath.ZERO)
-                        .compareTo(entry.getValue()) < 0);
     }
 
     private static Map<AEKey, BigInteger> minimumSeed(

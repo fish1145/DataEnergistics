@@ -152,13 +152,13 @@ public final class TrinityJointCycleSearch {
         private TrinityAlgorithmResult<TrinityJointCyclePlan> search() {
             TrinityFiringBox rootBox = TrinityFiringBox.full(this.variants);
             if (!this.budget.consume(1)) {
-                return searchLimit(this.budget);
+                return searchLimit();
             }
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> rootSolved = feasibilityModel.solve(
                     request(rootBox),
                     this.control);
             if (!rootSolved.successful()) {
-                return TrinityAlgorithmResult.failure(rootSolved.diagnostic());
+                return failed(rootSolved.diagnostic());
             }
             this.metrics.add(rootSolved.value());
 
@@ -177,13 +177,13 @@ public final class TrinityJointCycleSearch {
                 }
                 TrinityAlgorithmResult<Boolean> leadingCut = applyExternalCut(current, pending);
                 if (!leadingCut.successful()) {
-                    return TrinityAlgorithmResult.failure(leadingCut.diagnostic());
+                    return failed(leadingCut.diagnostic());
                 }
                 if (leadingCut.value()) {
                     continue;
                 }
                 if (this.budget.remaining() <= 0) {
-                    return searchLimit(this.budget);
+                    return searchLimit();
                 }
 
                 TrinityAlgorithmResult<TrinityJointCandidateEvaluation> evaluated = candidateEvaluator.evaluate(
@@ -200,7 +200,7 @@ public final class TrinityJointCycleSearch {
                 if (evaluated.successful()) {
                     TrinityJointCandidateEvaluation candidate = evaluated.value();
                     if (!this.budget.consume(candidate.statesVisited())) {
-                        return searchLimit(this.budget);
+                        return searchLimit();
                     }
                     if (this.incumbentObjective == null ||
                             candidate.objective().compareTo(this.incumbentObjective) < 0) {
@@ -209,7 +209,7 @@ public final class TrinityJointCycleSearch {
                     }
                     TrinityAlgorithmResult<Boolean> candidateCut = applyExternalCut(current, pending);
                     if (!candidateCut.successful()) {
-                        return TrinityAlgorithmResult.failure(candidateCut.diagnostic());
+                        return failed(candidateCut.diagnostic());
                     }
                     if (candidateCut.value()) {
                         continue;
@@ -219,13 +219,13 @@ public final class TrinityJointCycleSearch {
                     }
                 } else if (evaluated.diagnostic().code() == TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER) {
                     if (!this.budget.consume(TrinityJointCycleSearch.diagnosticStates(evaluated.diagnostic()))) {
-                        return searchLimit(this.budget);
+                        return searchLimit();
                     }
                 } else if (evaluated.diagnostic().code() == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT) {
                     this.budget.consume(TrinityJointCycleSearch.diagnosticStates(evaluated.diagnostic()));
-                    return searchLimit(this.budget);
+                    return searchLimit();
                 } else {
-                    return TrinityAlgorithmResult.failure(evaluated.diagnostic());
+                    return failed(evaluated.diagnostic());
                 }
 
                 for (TrinityFiringBox child : current.box().excluding(current.solution().firings())) {
@@ -233,7 +233,7 @@ public final class TrinityJointCycleSearch {
                             child,
                             current.fixedExternalLevel());
                     if (!childSolved.successful()) {
-                        return TrinityAlgorithmResult.failure(childSolved.diagnostic());
+                        return failed(childSolved.diagnostic());
                     }
                     childSolved.value()
                             .filter(next -> next.lowerBound().canImprove(this.incumbentObjective))
@@ -303,7 +303,7 @@ public final class TrinityJointCycleSearch {
                 return TrinityAlgorithmResult.failure(interrupted.diagnostic());
             }
             if (!this.budget.consume(1)) {
-                return TrinityAlgorithmResult.failure(searchLimit(this.budget).diagnostic());
+                return searchLimit();
             }
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = feasibilityModel.solve(
                     request(box, fixedExternalLevel),
@@ -312,7 +312,7 @@ public final class TrinityJointCycleSearch {
                 if (solved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
                     return TrinityAlgorithmResult.success(Optional.empty());
                 }
-                return TrinityAlgorithmResult.failure(solved.diagnostic());
+                return failed(solved.diagnostic());
             }
             this.metrics.add(solved.value());
             return TrinityAlgorithmResult.success(Optional.of(node(box, solved.value(), fixedExternalLevel)));
@@ -351,18 +351,64 @@ public final class TrinityJointCycleSearch {
 
         private TrinityAlgorithmResult<TrinityJointCyclePlan> interruption() {
             if (this.control.cancellationRequested()) {
-                return failure(
+                return failed(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
                         CANCELLED_KEY,
                         Map.of("states", Integer.toString(this.budget.used)));
             }
             if (this.control.deadlineExceeded()) {
-                return failure(
+                return failed(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                         MIP_TIMEOUT_KEY,
                         Map.of("states", Integer.toString(this.budget.used)));
             }
             return null;
+        }
+
+        private <T> TrinityAlgorithmResult<T> searchLimit() {
+            return failed(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    SEARCH_LIMIT_KEY,
+                    Map.of(
+                            "limit", Integer.toString(this.budget.limit),
+                            "states", Integer.toString(this.budget.used)));
+        }
+
+        private <T> TrinityAlgorithmResult<T> failed(
+                                                     TrinityPlanningDiagnosticCode code,
+                                                     String translationKey,
+                                                     Map<String, String> metadata) {
+            return failed(new TrinityPlanningDiagnostic(
+                    code,
+                    Component.translatable(translationKey),
+                    metadata));
+        }
+
+        private <T> TrinityAlgorithmResult<T> failed(TrinityPlanningDiagnostic diagnostic) {
+            if (this.incumbent == null || diagnostic.inputShortage().isPresent()) {
+                return TrinityAlgorithmResult.failure(diagnostic);
+            }
+            return TrinityAlgorithmResult.failure(diagnostic.withDetail(incumbentProgress()));
+        }
+
+        private TrinityPlanningDiagnostic.PartialPlan incumbentProgress() {
+            LinkedHashMap<AEKey, BigInteger> used = new LinkedHashMap<>();
+            LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>();
+            this.incumbent.initialInputs().forEach((key, required) -> {
+                BigInteger stored = required.min(this.available.getOrDefault(key, BigInteger.ZERO));
+                if (stored.signum() > 0) {
+                    used.put(key, stored);
+                }
+                BigInteger shortage = required.subtract(stored);
+                if (shortage.signum() > 0) {
+                    missing.put(key, shortage);
+                }
+            });
+
+            LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+            this.incumbent.firings().forEach((variant, count) -> variant.outputs().forEach(
+                    (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+            return new TrinityPlanningDiagnostic.PartialPlan(used, emitted, missing);
         }
     }
 
@@ -414,15 +460,6 @@ public final class TrinityJointCycleSearch {
                 code,
                 Component.translatable(translationKey),
                 metadata));
-    }
-
-    private static <T> TrinityAlgorithmResult<T> searchLimit(SearchBudget budget) {
-        return failure(
-                TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                SEARCH_LIMIT_KEY,
-                Map.of(
-                        "limit", Integer.toString(budget.limit),
-                        "states", Integer.toString(budget.used)));
     }
 
     private record SearchNode(

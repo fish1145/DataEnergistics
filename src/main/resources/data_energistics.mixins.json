@@ -85,6 +85,7 @@
 		"client.CPUSelectionListMixin",
 		"client.CraftAmountScreenMixin",
 		"client.CraftConfirmScreenMixin",
+		"client.NumberEntryWidgetAccessor",
 		"client.Ldlib2AeProtocolScreenMixin",
 		"client.PatternAccessTermScreenAccessor",
 		"client.PatternAccessTermScreenMixin",

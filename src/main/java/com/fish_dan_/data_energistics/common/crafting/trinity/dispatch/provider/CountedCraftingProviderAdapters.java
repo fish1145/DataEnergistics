@@ -130,6 +130,35 @@ public final class CountedCraftingProviderAdapters {
     }
 
     /**
+     * Creates a direct AE2 single-craft admission after the capacity boundary produced no snapshots.
+     *
+     * <p>
+     * This internal fallback deliberately bypasses registered counted adapters. It preserves AE2's native
+     * {@link ICraftingProvider#pushPattern(IPatternDetails, KeyCounter[])} semantics without inventing a capacity
+     * estimate.
+     * </p>
+     *
+     * @param provider           current live provider publication
+     * @param patternDetails     exact pattern selected by the crafting plan
+     * @param targetAvailability current dispatch-window target filter
+     * @return accepted native single-craft admission or a target-scoped rejection
+     */
+    public static CountedCraftingPreparation prepareNativeSingleCraft(
+                                                                      ICraftingProvider provider,
+                                                                      IPatternDetails patternDetails,
+                                                                      CraftingDispatchTargetAvailability targetAvailability) {
+        if (provider == null || patternDetails == null || targetAvailability == null) {
+            throw new IllegalArgumentException(
+                    "Native crafting preparation requires provider, pattern and target availability");
+        }
+        CraftingDispatchTarget target = CraftingDispatchTarget.provider();
+        if (!targetAvailability.canAttempt(target)) {
+            return unavailableTarget(target);
+        }
+        return CountedCraftingPreparation.accepted(new SingleCraftingAdmission(provider, patternDetails), target);
+    }
+
+    /**
      * Validates the exact count contract used by the CPU before any extraction or commit.
      */
     public static long validatedAdmissionCount(

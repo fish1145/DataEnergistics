@@ -369,7 +369,7 @@ public final class PatternProviderSyncHelper {
     }
 
     /**
-     * Captures the server-owned upload context for the current encoder mode.
+     * Captures the server-owned context used to attribute a successful upload without filtering its target.
      */
     public static PatternUploadContext createPatternUploadContext(
                                                                   PatternEncodingPreviewMenu previewMenu,
@@ -425,14 +425,6 @@ public final class PatternProviderSyncHelper {
             return TransferResult.noTransfer(encodedPattern);
         }
 
-        if (uploadContext.processing() && uploadContext.rankingContext() == null) {
-            LOGGER.warn(
-                    "Rejected processing pattern upload without a viewer recipe-type context: providers={}, resolvedWorkstation={}",
-                    containers.size(),
-                    uploadContext.resolvedWorkstation());
-            return TransferResult.rejected(encodedPattern, PatternUploadRejection.CONTEXT_UNAVAILABLE);
-        }
-
         PreparationResult preparation = preparePatternUploads(containers, uploadContext);
         if (preparation.rejection() != PatternUploadRejection.NONE) {
             return TransferResult.rejected(encodedPattern, preparation.rejection());
@@ -485,15 +477,10 @@ public final class PatternProviderSyncHelper {
         for (PatternContainer container : containers) {
             try {
                 ProviderResolution provider = resolveProvider(container);
-                WorkstationResolution workstation = resolveWorkstation(container, provider, uploadContext);
-                if (workstation.rejection() != PatternUploadRejection.NONE) {
-                    logContextRejection(provider, uploadContext, workstation.rejection());
-                    return new PreparationResult(List.of(), workstation.rejection());
-                }
                 PatternUploadTarget target = createProviderUploadTarget(
                         container,
                         provider.identity(),
-                        workstation.workstationId());
+                        uploadContext.resolvedWorkstation());
                 preparedUploads.add(new PreparedPatternUpload(container, target));
             } catch (RuntimeException exception) {
                 LOGGER.error("Could not resolve a typed upload target for {}; rejecting the group before inventory mutation",
@@ -502,66 +489,6 @@ public final class PatternProviderSyncHelper {
             }
         }
         return new PreparationResult(List.copyOf(preparedUploads), PatternUploadRejection.NONE);
-    }
-
-    private static WorkstationResolution resolveWorkstation(
-                                                            PatternContainer container,
-                                                            ProviderResolution provider,
-                                                            PatternUploadContext uploadContext) {
-        if (!uploadContext.processing()) {
-            return WorkstationResolution.accepted(null);
-        }
-        PatternEncodingRankingContext rankingContext = uploadContext.rankingContext();
-        if (rankingContext == null) {
-            return WorkstationResolution.rejected(PatternUploadRejection.CONTEXT_UNAVAILABLE);
-        }
-        ResolvedProviderBinding binding = provider.binding();
-        if (binding == null) {
-            Set<ResourceLocation> viewerWorkstations = Set.copyOf(uploadContext.viewerWorkstationIds());
-            if (viewerWorkstations.isEmpty()) {
-                return WorkstationResolution.rejected(PatternUploadRejection.PROVIDER_CONTEXT_UNKNOWN);
-            }
-            ResourceLocation exposedWorkstation = resolveProviderContextWorkstationId(container);
-            return viewerWorkstations.contains(exposedWorkstation) ?
-                    WorkstationResolution.accepted(exposedWorkstation) :
-                    WorkstationResolution.rejected(PatternUploadRejection.TARGET_UNAVAILABLE);
-        }
-        PatternProviderMetadata metadata = binding.registration().metadata();
-        if (!metadata.categoryIds().contains(rankingContext.recipeTypeId())) {
-            return WorkstationResolution.rejected(PatternUploadRejection.PROVIDER_CONTEXT_UNKNOWN);
-        }
-        Set<ResourceLocation> viewerWorkstations = Set.copyOf(uploadContext.viewerWorkstationIds());
-        List<ResourceLocation> candidates = resolveMatchingWorkstationIds(
-                metadata, rankingContext, viewerWorkstations);
-        if (!viewerWorkstations.isEmpty() && candidates.isEmpty()) {
-            return WorkstationResolution.rejected(PatternUploadRejection.TARGET_UNAVAILABLE);
-        }
-        if (candidates.isEmpty()) {
-            return WorkstationResolution.accepted(null);
-        }
-        ResourceLocation resolvedWorkstation = uploadContext.resolvedWorkstation();
-        if (resolvedWorkstation != null && candidates.contains(resolvedWorkstation)) {
-            return WorkstationResolution.accepted(resolvedWorkstation);
-        }
-        return WorkstationResolution.accepted(candidates.getFirst());
-    }
-
-    private static void logContextRejection(
-                                            ProviderResolution provider,
-                                            PatternUploadContext uploadContext,
-                                            PatternUploadRejection rejection) {
-        ResolvedProviderBinding binding = provider.binding();
-        PatternProviderMetadata metadata = binding == null ? null : binding.registration().metadata();
-        LOGGER.warn(
-                "Rejected processing pattern upload before inventory mutation: reason={}, providerIdentity={}, registrationId={}, recipeType={}, viewerWorkstations={}, registeredRecipeTypes={}, registeredWorkstations={}, resolvedWorkstation={}",
-                rejection,
-                provider.identity(),
-                metadata == null ? null : metadata.registrationId(),
-                uploadContext.rankingContext() == null ? null : uploadContext.rankingContext().recipeTypeId(),
-                uploadContext.viewerWorkstationIds(),
-                metadata == null ? List.of() : metadata.categoryIds(),
-                metadata == null ? List.of() : metadata.workstationIds(),
-                uploadContext.resolvedWorkstation());
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PreparedPatternUpload> preparedUploads,
@@ -585,18 +512,6 @@ public final class PatternProviderSyncHelper {
 
     private record PreparationResult(List<PreparedPatternUpload> uploads,
                                      PatternUploadRejection rejection) {}
-
-    private record WorkstationResolution(@Nullable ResourceLocation workstationId,
-                                         PatternUploadRejection rejection) {
-
-        private static WorkstationResolution accepted(@Nullable ResourceLocation workstationId) {
-            return new WorkstationResolution(workstationId, PatternUploadRejection.NONE);
-        }
-
-        private static WorkstationResolution rejected(PatternUploadRejection rejection) {
-            return new WorkstationResolution(null, rejection);
-        }
-    }
 
     /**
      * Result of one upload attempt, including the first inventory that actually accepted a pattern.
@@ -644,7 +559,7 @@ public final class PatternProviderSyncHelper {
     }
 
     /**
-     * Server-owned information used to validate one upload before any inventory mutation.
+     * Server-owned context used to attribute one committed upload after inventory mutation.
      */
     public record PatternUploadContext(EncodingMode mode,
                                        @Nullable PatternEncodingRankingContext rankingContext,
@@ -666,8 +581,6 @@ public final class PatternProviderSyncHelper {
     public enum PatternUploadRejection {
 
         NONE(null),
-        CONTEXT_UNAVAILABLE("data_energistics.pattern_transfer.context_unavailable"),
-        PROVIDER_CONTEXT_UNKNOWN("message.data_energistics.pattern_provider.context_unknown"),
         TARGET_UNAVAILABLE("message.data_energistics.pattern_provider.target_unavailable");
 
         @Nullable
@@ -984,13 +897,6 @@ public final class PatternProviderSyncHelper {
                 resolveProviderDisplayName(container, customName, uncustomizedTerminalGroup),
                 resolveProviderIconItemId(container, uncustomizedTerminalGroup),
                 customName != null);
-    }
-
-    /**
-     * Keeps processing-upload validation on the provider's native context instead of its terminal presentation.
-     */
-    private static ResourceLocation resolveProviderContextWorkstationId(PatternContainer container) {
-        return resolveProviderIconItemId(container, null);
     }
 
     private static ResourceLocation resolveProviderIconItemId(

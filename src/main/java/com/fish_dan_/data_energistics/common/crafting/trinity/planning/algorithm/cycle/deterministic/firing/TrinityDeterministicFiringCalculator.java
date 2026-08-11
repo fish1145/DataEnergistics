@@ -7,9 +7,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability.TrinityDeterministicResidualResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.support.TrinityDeterministicDiagnostics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.support.TrinityDeterministicFiringMath;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityFiringOptimization;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityShiftedFiringOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -18,36 +15,26 @@ import appeng.api.stacks.AEKey;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * Calculates the exact lexicographic firing vector for one applicable deterministic cycle basis.
+ * Calculates an exact feasible firing vector for one applicable deterministic cycle basis.
  * <p>
- * Refines exact primitive repetitions against every net lower bound before delegating only tie-safe shifts.
+ * Refines exact primitive repetitions against every net lower bound without requiring a global objective solve.
  */
 public final class TrinityDeterministicFiringCalculator {
 
     /**
-     * Creates the calculator using the shared shifted-firing optimizer.
+     * Creates the exact constructive calculator.
      */
-    public static TrinityDeterministicFiringCalculator create(TrinityShiftedFiringOptimizer firingOptimizer) {
-        return new TrinityDeterministicFiringCalculator(firingOptimizer);
-    }
-
-    private final TrinityShiftedFiringOptimizer firingOptimizer;
-
-    TrinityDeterministicFiringCalculator(TrinityShiftedFiringOptimizer firingOptimizer) {
-        if (firingOptimizer == null) {
-            throw new IllegalArgumentException("A deterministic firing calculator requires an optimizer");
-        }
-        this.firingOptimizer = firingOptimizer;
+    public static TrinityDeterministicFiringCalculator create() {
+        return new TrinityDeterministicFiringCalculator();
     }
 
     /**
-     * Solves repeated primitive firings plus the unique acyclic residual, then applies exact firing optimization.
+     * Solves repeated primitive firings plus the unique acyclic residual into an exact feasible vector.
      */
     public TrinityAlgorithmResult<TrinityDeterministicFiringSolution> calculate(
                                                                                 TrinityStronglyConnectedComponent component,
@@ -74,7 +61,7 @@ public final class TrinityDeterministicFiringCalculator {
                 return TrinityDeterministicDiagnostics.unsupported();
             }
         }
-        Map<AEKey, BigInteger> netLowerBounds = netLowerBounds(
+        Map<AEKey, BigInteger> netLowerBounds = internalNetLowerBounds(
                 component,
                 demand,
                 available,
@@ -124,31 +111,14 @@ public final class TrinityDeterministicFiringCalculator {
         if (baselineFirings.isEmpty()) {
             return TrinityDeterministicDiagnostics.unsupported();
         }
-        boolean completeComponentProof = hasMonotoneBoundary(component);
         boolean leastFiringsProven = isSettledPrimitiveMacro(
                 component,
                 demand,
                 primitiveNet,
                 residual);
-        Map<TrinityPatternVariant, BigInteger> firings;
-        Optional<TrinityFiringOptimization> globalOptimization;
-        if (leastFiringsProven) {
-            firings = Collections.unmodifiableMap(new LinkedHashMap<>(baselineFirings));
-            globalOptimization = Optional.empty();
-        } else {
-            TrinityPlanningAttempt<TrinityFiringOptimization> optimized = this.firingOptimizer.optimize(
-                    component,
-                    demand,
-                    available,
-                    producibleInputs,
-                    baselineFirings,
-                    control);
-            if (optimized.kind() != TrinityPlanningAttempt.Kind.PROVED_OPTIMAL) {
-                return TrinityAlgorithmResult.failure(optimized.diagnostic());
-            }
-            globalOptimization = Optional.of(optimized.value());
-            firings = optimized.value().firings();
-        }
+        boolean completeComponentProof = leastFiringsProven && hasMonotoneBoundary(component);
+        Map<TrinityPatternVariant, BigInteger> firings = Collections.unmodifiableMap(
+                new LinkedHashMap<>(baselineFirings));
         Map<AEKey, BigInteger> totalNet = TrinityDeterministicFiringMath.netChange(firings);
         if (violatesLowerBounds(totalNet, netLowerBounds)) {
             return TrinityDeterministicDiagnostics.unsupported();
@@ -160,20 +130,20 @@ public final class TrinityDeterministicFiringCalculator {
                 balancePasses,
                 leastFiringsProven,
                 completeComponentProof,
-                globalOptimization));
+                Optional.empty()));
     }
 
-    private static Map<AEKey, BigInteger> netLowerBounds(
-                                                         TrinityStronglyConnectedComponent component,
-                                                         TrinityCycleDemand demand,
-                                                         Map<AEKey, BigInteger> available,
-                                                         Set<AEKey> producibleInputs) {
-        LinkedHashMap<AEKey, BigInteger> lower = new LinkedHashMap<>(
-                demand.requiredNetChangeLowerBounds());
-        LinkedHashSet<AEKey> touched = new LinkedHashSet<>(component.keys());
-        component.cycleVariants().forEach(variant -> touched.addAll(variant.netChange().keySet()));
-        touched.addAll(demand.finalBalanceLowerBounds().keySet());
-        for (AEKey key : touched) {
+    /**
+     * Adds only finite internal-balance constraints to the requested exports. External inputs intentionally remain
+     * unbounded here so the graph aggregator can build the complete plan and report their exact shortage afterwards.
+     */
+    private static Map<AEKey, BigInteger> internalNetLowerBounds(
+                                                                 TrinityStronglyConnectedComponent component,
+                                                                 TrinityCycleDemand demand,
+                                                                 Map<AEKey, BigInteger> available,
+                                                                 Set<AEKey> producibleInputs) {
+        LinkedHashMap<AEKey, BigInteger> lower = new LinkedHashMap<>(demand.requiredNetChangeLowerBounds());
+        for (AEKey key : component.keys()) {
             if (producibleInputs.contains(key)) {
                 continue;
             }
@@ -265,7 +235,7 @@ public final class TrinityDeterministicFiringCalculator {
     /**
      * A one-dimensional primitive ray is already the componentwise least solution when every requested export is a
      * positive complete-cycle effect, no residual firing is needed, and no internal seed is depleted. In that case
-     * request size changes only the exact repetition count and shifted MIP cannot improve the result.
+     * request size changes only the exact repetition count, so no alternate feasible vector can improve the result.
      */
     private static boolean isSettledPrimitiveMacro(
                                                    TrinityStronglyConnectedComponent component,

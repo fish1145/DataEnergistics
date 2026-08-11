@@ -22,6 +22,7 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -198,6 +199,81 @@ public final class TrinityAcyclicRouteOptimizer {
     }
 
     /**
+     * Selects one non-executable target route by allowing virtual reserve only for true external source keys.
+     * The returned evidence is diagnostic-only: virtual reserve is separated from every actual inventory reserve and
+     * must never be copied into an executable plan.
+     *
+     * @param variants        complete stable transition set
+     * @param target          requested output
+     * @param requestedAmount positive requested quantity
+     * @param quantityMode    target inventory semantics
+     * @param available       immutable inventory snapshot
+     * @param maxSearchStates maximum sequential optimization passes
+     * @param control         cooperative cancellation and deadline
+     * @return exact shortage evidence, or a stable solver diagnostic
+     */
+    public TrinityAlgorithmResult<ShortageEvidence> diagnoseShortage(
+                                                                     List<TrinityPatternVariant> variants,
+                                                                     AEKey target,
+                                                                     BigInteger requestedAmount,
+                                                                     CraftingQuantityMode quantityMode,
+                                                                     Map<AEKey, BigInteger> available,
+                                                                     int maxSearchStates,
+                                                                     TrinityPlanningControl control) {
+        if (variants == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
+                quantityMode == null || available == null || maxSearchStates <= 0 || control == null) {
+            throw new IllegalArgumentException("A Trinity acyclic shortage diagnosis requires complete inputs");
+        }
+        List<TrinityPatternVariant> reachable = targetReachableVariants(variants, target);
+        if (reachable.isEmpty()) {
+            return insufficient(target, requestedAmount);
+        }
+        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        Set<AEKey> sourceKeys = externalSourceKeys(reachable);
+        if (sourceKeys.isEmpty()) {
+            return insufficient(target, requestedAmount);
+        }
+        BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
+        SearchBudget budget = new SearchBudget(maxSearchStates);
+
+        TrinityAlgorithmResult<DiagnosticSolvedModel> missingResult = solveDiagnostic(
+                new DiagnosticModelRequest(
+                        reachable,
+                        sourceKeys,
+                        target,
+                        requestedAmount,
+                        requiredTargetNet,
+                        quantityMode,
+                        inventory),
+                budget,
+                control);
+        if (!missingResult.successful()) {
+            return TrinityAlgorithmResult.failure(missingResult.diagnostic());
+        }
+        BigInteger optimalMissing = sum(missingResult.value().missing());
+        if (optimalMissing.signum() == 0) {
+            return inexact("diagnostic_missing", "0");
+        }
+        DiagnosticSolvedModel selected = missingResult.value();
+
+        LinkedHashMap<AEKey, InputRequirement> requirements = new LinkedHashMap<>();
+        for (AEKey sourceKey : sourceKeys) {
+            BigInteger allocated = selected.actualReserves().getOrDefault(sourceKey, BigInteger.ZERO);
+            BigInteger missing = selected.missing().getOrDefault(sourceKey, BigInteger.ZERO);
+            BigInteger required = allocated.add(missing);
+            if (required.signum() > 0) {
+                requirements.put(sourceKey, new InputRequirement(required, allocated, missing));
+            }
+        }
+        return TrinityAlgorithmResult.success(new ShortageEvidence(
+                selected.firings(),
+                selected.actualReserves(),
+                Collections.unmodifiableMap(requirements),
+                selected.netChange(),
+                budget.used()));
+    }
+
+    /**
      * Solves the common AE2 substitution shape without starting one MIP per stable binding.
      *
      * <p>
@@ -369,6 +445,130 @@ public final class TrinityAcyclicRouteOptimizer {
                 exact.value()));
     }
 
+    private TrinityAlgorithmResult<DiagnosticSolvedModel> solveDiagnostic(
+                                                                          DiagnosticModelRequest request,
+                                                                          SearchBudget budget,
+                                                                          TrinityPlanningControl control) {
+        if (control.cancellationRequested()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    CANCELLED_KEY,
+                    Map.of("states", Integer.toString(budget.used())));
+        }
+        if (control.deadlineExceeded()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                    TIMEOUT_KEY,
+                    Map.of("states", Integer.toString(budget.used())));
+        }
+        if (!budget.consume()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    SEARCH_LIMIT_KEY,
+                    Map.of("states", Integer.toString(budget.used())));
+        }
+
+        DiagnosticModelData data = createDiagnosticModel(request);
+        configureDeadline(data.model(), control);
+        Optimisation.Result result = data.model().minimise();
+        if (control.cancellationRequested()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    CANCELLED_KEY,
+                    Map.of("states", Integer.toString(budget.used())));
+        }
+        if (!result.getState().isOptimal()) {
+            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                        TIMEOUT_KEY,
+                        Map.of("state", result.getState().name()));
+            }
+            if (result.getState() == Optimisation.State.INFEASIBLE) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                        INSUFFICIENT_INPUT_KEY,
+                        Map.of("state", result.getState().name()));
+            }
+            return failure(
+                    TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT,
+                    INEXACT_RESULT_KEY,
+                    Map.of("state", result.getState().name()));
+        }
+
+        ArrayList<BigDecimal> values = new ArrayList<>(data.variables().size());
+        for (Variable variable : data.variables()) {
+            values.add(result.get(data.model().indexOf(variable)));
+        }
+        TrinityAlgorithmResult<List<BigInteger>> integers = this.integerVerifier.verify(
+                values,
+                data.model().options.integer().getIntegralityTolerance());
+        if (!integers.successful()) {
+            return TrinityAlgorithmResult.failure(integers.diagnostic());
+        }
+        if (integers.value().stream().anyMatch(value -> value.signum() < 0)) {
+            return inexact("variable_lower", "negative");
+        }
+        DiagnosticSolvedModel solved = data.decode(integers.value());
+        return verifyDiagnostic(request, solved);
+    }
+
+    private TrinityAlgorithmResult<DiagnosticSolvedModel> verifyDiagnostic(
+                                                                           DiagnosticModelRequest request,
+                                                                           DiagnosticSolvedModel solved) {
+        BigInteger expectedTargetReserve = targetReserve(
+                request.target(),
+                request.requestedAmount(),
+                request.quantityMode(),
+                request.available());
+        BigInteger actualTargetReserve = solved.actualReserves()
+                .getOrDefault(request.target(), BigInteger.ZERO);
+        if (!actualTargetReserve.equals(expectedTargetReserve)) {
+            return inexact("target_reserve", actualTargetReserve + "!=" + expectedTargetReserve);
+        }
+        for (Map.Entry<AEKey, BigInteger> reserve : solved.actualReserves().entrySet()) {
+            BigInteger upper = request.quantityMode() == CraftingQuantityMode.NET_NEW &&
+                    reserve.getKey().equals(request.target()) ?
+                            BigInteger.ZERO :
+                            request.available().getOrDefault(reserve.getKey(), BigInteger.ZERO);
+            if (reserve.getValue().compareTo(upper) > 0) {
+                return inexact("actual_reserve_upper", reserve.getKey() + ":" + reserve.getValue() + ">" + upper);
+            }
+        }
+        for (Map.Entry<AEKey, BigInteger> missing : solved.missing().entrySet()) {
+            if (!request.sourceKeys().contains(missing.getKey()) || missing.getValue().signum() <= 0) {
+                return inexact("missing_domain", missing.getKey() + ":" + missing.getValue());
+            }
+        }
+
+        LinkedHashMap<AEKey, BigInteger> diagnosticReserves = new LinkedHashMap<>(solved.actualReserves());
+        solved.missing().forEach((key, amount) -> diagnosticReserves.merge(key, amount, BigInteger::add));
+        LinkedHashMap<AEKey, BigInteger> upperBounds = new LinkedHashMap<>();
+        touchedKeys(request.variants(), request.target()).forEach(key -> upperBounds.put(
+                key,
+                request.sourceKeys().contains(key) ?
+                        diagnosticReserves.getOrDefault(key, BigInteger.ZERO) :
+                        request.quantityMode() == CraftingQuantityMode.NET_NEW && key.equals(request.target()) ?
+                                BigInteger.ZERO :
+                                request.available().getOrDefault(key, BigInteger.ZERO)));
+        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
+                request.variants(),
+                solved.firings(),
+                diagnosticReserves,
+                upperBounds,
+                Map.of(request.target(), request.requestedAmount()),
+                request.target(),
+                request.requiredTargetNet());
+        if (!exact.successful()) {
+            return TrinityAlgorithmResult.failure(exact.diagnostic());
+        }
+        return TrinityAlgorithmResult.success(new DiagnosticSolvedModel(
+                solved.firings(),
+                solved.actualReserves(),
+                solved.missing(),
+                exact.value()));
+    }
+
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verify(
                                                                   ModelRequest request,
                                                                   SolvedModel solved) {
@@ -509,6 +709,83 @@ public final class TrinityAcyclicRouteOptimizer {
         return new ModelData(model, List.copyOf(variables), firingVariables, reserveVariables);
     }
 
+    private static DiagnosticModelData createDiagnosticModel(DiagnosticModelRequest request) {
+        ExpressionsBasedModel model = new ExpressionsBasedModel();
+        ArrayList<Variable> variables = new ArrayList<>();
+        LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+        for (int index = 0; index < request.variants().size(); index++) {
+            Variable variable = model.addVariable("firing_" + index)
+                    .integer()
+                    .lower(BigInteger.ZERO);
+            firingVariables.put(request.variants().get(index), variable);
+            variables.add(variable);
+        }
+
+        LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
+        int reserveIndex = 0;
+        for (AEKey key : touchedKeys(request.variants(), request.target())) {
+            Variable variable = model.addVariable("reserve_" + reserveIndex++)
+                    .integer()
+                    .lower(BigInteger.ZERO);
+            if (key.equals(request.target())) {
+                variable.level(targetReserve(
+                        request.target(),
+                        request.requestedAmount(),
+                        request.quantityMode(),
+                        request.available()));
+            } else {
+                variable.upper(request.available().getOrDefault(key, BigInteger.ZERO));
+            }
+            reserveVariables.put(key, variable);
+            variables.add(variable);
+        }
+
+        LinkedHashMap<AEKey, Variable> missingVariables = new LinkedHashMap<>();
+        int missingIndex = 0;
+        for (AEKey sourceKey : request.sourceKeys()) {
+            Variable variable = model.addVariable("missing_" + missingIndex++)
+                    .integer()
+                    .lower(BigInteger.ZERO);
+            missingVariables.put(sourceKey, variable);
+            variables.add(variable);
+        }
+
+        int conservationIndex = 0;
+        for (Map.Entry<AEKey, Variable> reserve : reserveVariables.entrySet()) {
+            AEKey key = reserve.getKey();
+            Expression conservation = model.addExpression("conservation_" + conservationIndex++);
+            firingVariables.forEach((variant, variable) -> {
+                BigInteger coefficient = variant.netChange().getOrDefault(key, BigInteger.ZERO);
+                if (coefficient.signum() != 0) {
+                    conservation.set(variable, coefficient);
+                }
+            });
+            conservation.set(reserve.getValue(), BigInteger.ONE);
+            Variable missing = missingVariables.get(key);
+            if (missing != null) {
+                conservation.set(missing, BigInteger.ONE);
+            }
+            conservation.lower(key.equals(request.target()) ? request.requestedAmount() : BigInteger.ZERO);
+        }
+
+        Expression targetNet = model.addExpression("target_net");
+        firingVariables.forEach((variant, variable) -> {
+            BigInteger coefficient = variant.netChange().getOrDefault(request.target(), BigInteger.ZERO);
+            if (coefficient.signum() != 0) {
+                targetNet.set(variable, coefficient);
+            }
+        });
+        targetNet.lower(request.requiredTargetNet());
+
+        expression(model, "missing_total", missingVariables.values()).weight(BigDecimal.ONE);
+        return new DiagnosticModelData(
+                model,
+                List.copyOf(variables),
+                firingVariables,
+                reserveVariables,
+                missingVariables);
+    }
+
     private static Expression expression(ExpressionsBasedModel model,
                                          String name,
                                          Iterable<Variable> variables) {
@@ -557,6 +834,58 @@ public final class TrinityAcyclicRouteOptimizer {
             keys.addAll(variant.outputs().keySet());
         });
         return Collections.unmodifiableSet(keys);
+    }
+
+    private static List<TrinityPatternVariant> targetReachableVariants(
+                                                                       List<TrinityPatternVariant> variants,
+                                                                       AEKey target) {
+        ArrayList<TrinityPatternVariant> ordered = new ArrayList<>(variants.size());
+        for (TrinityPatternVariant variant : variants) {
+            if (variant == null) {
+                throw new IllegalArgumentException("A Trinity acyclic graph cannot contain a null variant");
+            }
+            ordered.add(variant);
+        }
+        ordered.sort(Comparator.naturalOrder());
+        HashMap<AEKey, ArrayList<TrinityPatternVariant>> producersByOutput = new HashMap<>();
+        for (TrinityPatternVariant variant : ordered) {
+            variant.outputs().keySet().forEach(output -> producersByOutput
+                    .computeIfAbsent(output, ignored -> new ArrayList<>())
+                    .add(variant));
+        }
+
+        ArrayDeque<AEKey> pending = new ArrayDeque<>();
+        LinkedHashSet<AEKey> visitedKeys = new LinkedHashSet<>();
+        LinkedHashSet<TrinityPatternVariant> reachable = new LinkedHashSet<>();
+        pending.add(target);
+        while (!pending.isEmpty()) {
+            AEKey required = pending.removeFirst();
+            if (!visitedKeys.add(required)) {
+                continue;
+            }
+            List<TrinityPatternVariant> producers = producersByOutput.get(required);
+            if (producers == null) {
+                continue;
+            }
+            for (TrinityPatternVariant producer : producers) {
+                if (reachable.add(producer)) {
+                    pending.addAll(producer.inputs().keySet());
+                }
+            }
+        }
+        ArrayList<TrinityPatternVariant> result = new ArrayList<>(reachable);
+        result.sort(Comparator.naturalOrder());
+        return Collections.unmodifiableList(result);
+    }
+
+    private static Set<AEKey> externalSourceKeys(List<TrinityPatternVariant> variants) {
+        LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
+        variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
+        LinkedHashSet<AEKey> sourceKeys = new LinkedHashSet<>();
+        variants.forEach(variant -> variant.inputs().keySet().stream()
+                .filter(key -> !produced.contains(key))
+                .forEach(sourceKeys::add));
+        return Collections.unmodifiableSet(sourceKeys);
     }
 
     private static Map<AEKey, BigInteger> sourceCapacity(
@@ -729,6 +1058,53 @@ public final class TrinityAcyclicRouteOptimizer {
                 metadata));
     }
 
+    /**
+     * One exact external-source requirement selected by the relaxed diagnostic model.
+     *
+     * @param required  total source input required by the selected route
+     * @param allocated actual captured inventory allocated to that requirement
+     * @param missing   diagnostic-only virtual reserve
+     */
+    public record InputRequirement(BigInteger required, BigInteger allocated, BigInteger missing) {
+
+        public InputRequirement {
+            if (required == null || allocated == null || missing == null || required.signum() <= 0 ||
+                    allocated.signum() < 0 || missing.signum() < 0 || !required.equals(allocated.add(missing))) {
+                throw new IllegalArgumentException(
+                        "A Trinity shortage requirement must satisfy required = allocated + missing");
+            }
+        }
+    }
+
+    /**
+     * Exact non-executable route evidence. Missing values are never included in {@link #actualReserves()}.
+     *
+     * @param firings           stable selected aggregate firing vector
+     * @param actualReserves    actual captured inventory reserved by the diagnostic route
+     * @param inputRequirements complete external-source requirements for the selected route
+     * @param netChange         exact firing-only net change
+     * @param statesVisited     sequential optimization passes consumed
+     */
+    public record ShortageEvidence(
+                                   Map<TrinityPatternVariant, BigInteger> firings,
+                                   Map<AEKey, BigInteger> actualReserves,
+                                   Map<AEKey, InputRequirement> inputRequirements,
+                                   Map<AEKey, BigInteger> netChange,
+                                   int statesVisited) {
+
+        public ShortageEvidence {
+            if (firings == null || actualReserves == null || inputRequirements == null || netChange == null ||
+                    firings.isEmpty() || inputRequirements.isEmpty() || statesVisited <= 0 ||
+                    inputRequirements.values().stream().noneMatch(requirement -> requirement.missing().signum() > 0)) {
+                throw new IllegalArgumentException("A Trinity shortage evidence requires one exact missing route");
+            }
+            firings = Collections.unmodifiableMap(new LinkedHashMap<>(firings));
+            actualReserves = Collections.unmodifiableMap(new LinkedHashMap<>(actualReserves));
+            inputRequirements = Collections.unmodifiableMap(new LinkedHashMap<>(inputRequirements));
+            netChange = Collections.unmodifiableMap(new LinkedHashMap<>(netChange));
+        }
+    }
+
     private sealed interface ModelPass permits ExternalPass, FiringPass, IdentityPass {}
 
     private enum ExternalPass implements ModelPass {
@@ -789,6 +1165,63 @@ public final class TrinityAcyclicRouteOptimizer {
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> reserves,
                                Map<AEKey, BigInteger> netChange) {}
+
+    private record DiagnosticModelRequest(
+                                          List<TrinityPatternVariant> variants,
+                                          Set<AEKey> sourceKeys,
+                                          AEKey target,
+                                          BigInteger requestedAmount,
+                                          BigInteger requiredTargetNet,
+                                          CraftingQuantityMode quantityMode,
+                                          Map<AEKey, BigInteger> available) {}
+
+    private record DiagnosticModelData(
+                                       ExpressionsBasedModel model,
+                                       List<Variable> variables,
+                                       Map<TrinityPatternVariant, Variable> firingVariables,
+                                       Map<AEKey, Variable> reserveVariables,
+                                       Map<AEKey, Variable> missingVariables) {
+
+        private DiagnosticSolvedModel decode(List<BigInteger> values) {
+            LinkedHashMap<Variable, BigInteger> byVariable = new LinkedHashMap<>();
+            for (int index = 0; index < this.variables.size(); index++) {
+                byVariable.put(this.variables.get(index), values.get(index));
+            }
+            LinkedHashMap<TrinityPatternVariant, BigInteger> firings = decodePositive(
+                    this.firingVariables,
+                    byVariable);
+            LinkedHashMap<AEKey, BigInteger> actualReserves = decodePositive(
+                    this.reserveVariables,
+                    byVariable);
+            LinkedHashMap<AEKey, BigInteger> missing = decodePositive(
+                    this.missingVariables,
+                    byVariable);
+            return new DiagnosticSolvedModel(
+                    Collections.unmodifiableMap(firings),
+                    Collections.unmodifiableMap(actualReserves),
+                    Collections.unmodifiableMap(missing),
+                    Map.of());
+        }
+
+        private static <K> LinkedHashMap<K, BigInteger> decodePositive(
+                                                                       Map<K, Variable> variables,
+                                                                       Map<Variable, BigInteger> values) {
+            LinkedHashMap<K, BigInteger> decoded = new LinkedHashMap<>();
+            variables.forEach((key, variable) -> {
+                BigInteger amount = values.get(variable);
+                if (amount.signum() > 0) {
+                    decoded.put(key, amount);
+                }
+            });
+            return decoded;
+        }
+    }
+
+    private record DiagnosticSolvedModel(
+                                         Map<TrinityPatternVariant, BigInteger> firings,
+                                         Map<AEKey, BigInteger> actualReserves,
+                                         Map<AEKey, BigInteger> missing,
+                                         Map<AEKey, BigInteger> netChange) {}
 
     private record UniformBindingFamily(
                                         List<TrinityPatternVariant> variants,

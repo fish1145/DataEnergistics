@@ -4,6 +4,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 
 import net.minecraft.network.chat.Component;
 
+import appeng.api.networking.crafting.CalculationStrategy;
+import appeng.api.stacks.AEKey;
+
 /**
  * Synchronized Trinity planning metadata shared by the confirmation menu and its client screen.
  */
@@ -18,6 +21,16 @@ public interface TrinityCraftConfirmMenuState {
      * @param quantityMode player selection transferred from the amount menu
      */
     void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode);
+
+    /**
+     * Starts the same AE2 calculation used by the native confirmation menu without narrowing the request to an int.
+     *
+     * @param what     requested key
+     * @param amount   positive requested amount
+     * @param strategy AE2 missing-item strategy
+     * @return whether a Grid was available and the calculation was started
+     */
+    boolean data_energistics$planJob(AEKey what, long amount, CalculationStrategy strategy);
 
     /**
      * @return whether the displayed plan and the server-side CPU eligibility pass belong to the same result
