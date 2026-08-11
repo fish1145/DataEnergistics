@@ -32,6 +32,7 @@ public final class DataEnergisticsTextureEditorResources {
     private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
     private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
     private static final String MODEL_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/model/";
+    private static final String PRIORITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/priority/";
     private static final String SLOT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/slot/";
     private static final String STORAGE_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/storage/";
 
@@ -136,6 +137,12 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("gui_close", guiSprite("close.png"));
         provider.addResource("gui_front", guiSprite("front.png"));
         provider.addResource("gui_inventory_slot", guiSprite("inventory_slot.png"));
+        provider.addResource("gui_trinity_information_exchange_depot", guiSprite("trinity_information_exchange_depot.png"));
+        provider.addResource("gui_prepare_on", guiSprite("prepare_on.png"));
+        provider.addResource("gui_prepare_off", guiSprite("prepare_off.png"));
+        provider.addResource("gui_on", guiSprite("on.png"));
+        provider.addResource("gui_off", guiSprite("off.png"));
+        provider.addResource("gui_priority", guiSprite("priority.png"));
         provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
         provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
         provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
@@ -145,6 +152,10 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("model_input", modelSprite("input.png"));
         provider.addResource("model_input_and_output", modelSprite("input_and_output.png"));
         provider.addResource("model_output", modelSprite("output.png"));
+        provider.addResource("priority_button", prioritySprite("botton.png"));
+        provider.addResource("priority_button_disabled", prioritySprite("button_disabled.png"));
+        provider.addResource("priority_button_highlighted", prioritySprite("button_highlighted.png"));
+        provider.addResource("priority_home", prioritySprite("home.png"));
         provider.addResource("slot_button_slot", slotSprite("button_slot.png"));
         provider.addResource("slot_button_slot_1", slotSprite("button_slot_1.png"));
         provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
@@ -208,6 +219,16 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture modelSprite(String fileName) {
         return SpriteTexture.of(MODEL_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a priority GUI asset.
+     *
+     * @param fileName asset file under the priority GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture prioritySprite(String fileName) {
+        return SpriteTexture.of(PRIORITY_TEXTURE_ROOT + fileName);
     }
 
     /**
