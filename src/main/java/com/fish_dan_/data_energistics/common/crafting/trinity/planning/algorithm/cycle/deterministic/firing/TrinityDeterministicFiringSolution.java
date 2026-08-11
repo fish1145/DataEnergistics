@@ -13,17 +13,17 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Exact optimized firing vector and net-change proof derived from one applicable primitive basis.
+ * Exact firing vector and net-change proof derived from one applicable primitive basis.
  *
  * @param basis                  structural basis used by proof assembly
- * @param firings                optimized exact firing vector
+ * @param firings                selected exact feasible firing vector
  * @param totalNet               exact aggregate net change
  * @param balancePasses          bounded residual/repetition refinement passes
  * @param leastFiringsProven     whether the unique-producer residual proof establishes this vector as the
  *                               componentwise least feasible vector
  * @param completeComponentProof whether the proof covers the complete non-negative firing cone rather than only
  *                               the selected reservoir coordinate
- * @param globalOptimization     full-domain objective proof when the vector required global optimization
+ * @param globalOptimization     optional full-domain objective proof when one is already available
  */
 public record TrinityDeterministicFiringSolution(
                                                  TrinityDeterministicBasis basis,
