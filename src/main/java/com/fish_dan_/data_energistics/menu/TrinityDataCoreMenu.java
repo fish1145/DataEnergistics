@@ -51,10 +51,16 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     private final Inventory playerInventory;
     @Nullable
     private final TrinityDataCoreMenuHost host;
+    /** Persistent controller identity sent when this exact menu was opened. */
+    @Getter
     private final UUID hostId;
+    /** Unique non-persistent identity for this one open menu lifecycle. */
+    @Getter
     private final UUID menuSessionId;
     private final Consumer<CustomPacketPayload> hostedActionSink;
     private final TrinityHostedActionExecutor hostedActionExecutor;
+    /** Server-issued definition snapshot shared by this menu's client and server hosted windows. */
+    @Getter
     private final MultiblockPreviewSpec autoBuildPreviewSpec;
     private final Map<HostUiKey, ClientHostedActionState> clientHostedActions = new HashMap<>();
     private final Map<HostUiKey, ServerHostedActionState> serverHostedActions = new HashMap<>();
@@ -306,27 +312,6 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     public @Nullable TrinityDataCoreMenuHost getHost() {
         return this.host;
-    }
-
-    /**
-     * Returns the server-issued definition snapshot shared by this menu's client and server hosted windows.
-     */
-    public MultiblockPreviewSpec getAutoBuildPreviewSpec() {
-        return this.autoBuildPreviewSpec;
-    }
-
-    /**
-     * Returns the persistent controller identity sent when this exact menu was opened.
-     */
-    public UUID getHostId() {
-        return this.hostId;
-    }
-
-    /**
-     * Returns the unique non-persistent identity for this one open menu lifecycle.
-     */
-    public UUID getMenuSessionId() {
-        return this.menuSessionId;
     }
 
     /**
