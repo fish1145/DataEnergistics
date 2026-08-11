@@ -85,11 +85,15 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                                     TrinityCycleFeasibilityRequest request,
                                                                                     TrinityPlanningControl control) {
         TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
+        BigInteger representableUpper = request.ordinaryLogicalUpperBound()
+                .map(upper -> upper.min(LONG_MAX))
+                .orElse(LONG_MAX);
+        boolean allowOverflowProof = representableUpper.equals(LONG_MAX);
         TrinityAlgorithmResult<TrinityRadixSolvedModel> external = optimize(
                 request,
                 TrinityRadixModelPass.External.INSTANCE,
-                LONG_MAX,
-                true,
+                representableUpper,
+                allowOverflowProof,
                 control,
                 metrics);
         if (!external.successful()) {
@@ -102,8 +106,8 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             TrinityAlgorithmResult<TrinityRadixSolvedModel> seed = optimize(
                     request,
                     new TrinityRadixModelPass.Seed(optimalExternal, seedLower),
-                    LONG_MAX,
-                    true,
+                    representableUpper,
+                    allowOverflowProof,
                     control,
                     metrics);
             if (!seed.successful()) {
