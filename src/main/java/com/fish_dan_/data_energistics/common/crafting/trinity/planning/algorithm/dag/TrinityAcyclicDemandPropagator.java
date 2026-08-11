@@ -2,10 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer.ShortageEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
@@ -106,7 +108,7 @@ public final class TrinityAcyclicDemandPropagator {
         List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
         Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants);
         if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
-            return this.routeOptimizer.optimize(
+            TrinityAlgorithmResult<TrinityAcyclicPlan> optimized = this.routeOptimizer.optimize(
                     topology,
                     planningVariants,
                     target,
@@ -115,6 +117,39 @@ public final class TrinityAcyclicDemandPropagator {
                     available,
                     maxSearchStates,
                     control);
+            if (optimized.successful()) {
+                return optimized;
+            }
+            if (optimized.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT) {
+                TrinityAlgorithmResult<ShortageEvidence> diagnosed = this.routeOptimizer.diagnoseShortage(
+                        variants,
+                        target,
+                        requestedAmount,
+                        quantityMode,
+                        available,
+                        maxSearchStates,
+                        control);
+                if (diagnosed.successful()) {
+                    return insufficient(diagnosed.value());
+                }
+                if (diagnosed.diagnostic().partialPlan().isPresent()) {
+                    return TrinityAlgorithmResult.failure(diagnosed.diagnostic());
+                }
+                return TrinityAlgorithmResult.failure(diagnosed.diagnostic().withDetail(
+                        new TrinityPlanningDiagnostic.PartialPlan(
+                                Map.of(),
+                                Map.of(),
+                                Map.of(target, requestedAmount))));
+            }
+            if (optimized.diagnostic().inputShortage().isPresent() ||
+                    optimized.diagnostic().partialPlan().isPresent()) {
+                return optimized;
+            }
+            return TrinityAlgorithmResult.failure(optimized.diagnostic().withDetail(
+                    new TrinityPlanningDiagnostic.PartialPlan(
+                            Map.of(),
+                            Map.of(),
+                            Map.of(target, requestedAmount))));
         }
 
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
@@ -122,18 +157,19 @@ public final class TrinityAcyclicDemandPropagator {
         merge(need, target, requestedAmount);
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> reservedInputs = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, InputRequirement> shortages = new LinkedHashMap<>();
         int states = 0;
         List<Integer> componentOrder = topology.topologicalOrder();
         for (int position = componentOrder.size() - 1; position >= 0; position--) {
             StopState state = stopState(control);
             if (state != StopState.RUNNING) {
-                return stopped(state);
+                return stopped(state, reservedInputs, firings, need, shortages);
             }
             TrinityStronglyConnectedComponent component = topology.components().get(componentOrder.get(position));
             for (AEKey key : component.keys()) {
                 state = stopState(control);
                 if (state != StopState.RUNNING) {
-                    return stopped(state);
+                    return stopped(state, reservedInputs, firings, need, shortages);
                 }
                 BigInteger required = need.getOrDefault(key, BigInteger.ZERO);
                 boolean forceFinalTotalProduction = key.equals(target) &&
@@ -158,28 +194,24 @@ public final class TrinityAcyclicDemandPropagator {
                 states = Math.addExact(states, Math.max(1, candidates.size()));
                 if (candidates.isEmpty()) {
                     BigInteger positiveRequired = required.max(BigInteger.ZERO);
-                    if (missing.signum() > 0 && positiveRequired.subtract(availableAmount).equals(missing)) {
-                        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
-                                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
-                                Map.of(
-                                        "key", key.toString(),
-                                        "required", positiveRequired.toString(),
-                                        "available", availableAmount.toString(),
-                                        "missing", missing.toString()),
-                                new TrinityPlanningDiagnostic.InputShortage(
-                                        key,
-                                        positiveRequired,
-                                        availableAmount,
-                                        missing)));
+                    if (missing.signum() > 0) {
+                        mergeRequirement(shortages, key, positiveRequired, reserved, missing);
+                        merge(need, key, missing.negate());
+                        continue;
                     }
-                    return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                             TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                             Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
                             Map.of(
                                     "key", key.toString(),
                                     "required", positiveRequired.toString(),
-                                    "available", availableAmount.toString())));
+                                    "available", availableAmount.toString()));
+                    return TrinityAlgorithmResult.failure(withPartial(
+                            diagnostic,
+                            reservedInputs,
+                            firings,
+                            need,
+                            shortages));
                 }
                 TrinityPatternVariant selected = candidates.getFirst();
                 BigInteger outputPerFiring = selected.outputs().get(key);
@@ -204,7 +236,10 @@ public final class TrinityAcyclicDemandPropagator {
         executionOrder.forEach(firing -> orderedFirings.put(firing.variant(), firing.count()));
         StopState completedState = stopState(control);
         if (completedState != StopState.RUNNING) {
-            return stopped(completedState);
+            return stopped(completedState, reservedInputs, firings, need, shortages);
+        }
+        if (!shortages.isEmpty()) {
+            return insufficient(reservedInputs, firings, shortages);
         }
         return TrinityAlgorithmResult.success(new TrinityAcyclicPlan(
                 executionOrder,
@@ -309,6 +344,111 @@ public final class TrinityAcyclicDemandPropagator {
                 .forEach((key, amount) -> merge(net, key, amount.multiply(count))));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
         return net;
+    }
+
+    private static <T> TrinityAlgorithmResult<T> stopped(
+                                                         StopState state,
+                                                         Map<AEKey, BigInteger> reservedInputs,
+                                                         Map<TrinityPatternVariant, BigInteger> firings,
+                                                         Map<AEKey, BigInteger> need,
+                                                         Map<AEKey, InputRequirement> shortages) {
+        TrinityPlanningDiagnostic diagnostic = stopped(state).diagnostic();
+        return TrinityAlgorithmResult.failure(withPartial(
+                diagnostic,
+                reservedInputs,
+                firings,
+                need,
+                shortages));
+    }
+
+    private static TrinityPlanningDiagnostic withPartial(
+                                                         TrinityPlanningDiagnostic diagnostic,
+                                                         Map<AEKey, BigInteger> reservedInputs,
+                                                         Map<TrinityPatternVariant, BigInteger> firings,
+                                                         Map<AEKey, BigInteger> need,
+                                                         Map<AEKey, InputRequirement> shortages) {
+        if (diagnostic.inputShortage().isPresent() || diagnostic.partialPlan().isPresent()) {
+            return diagnostic;
+        }
+        LinkedHashMap<AEKey, BigInteger> unresolved = missingAmounts(shortages);
+        need.forEach((key, amount) -> {
+            if (amount.signum() > 0) {
+                unresolved.merge(key, amount, BigInteger::add);
+            }
+        });
+        return diagnostic.withDetail(new TrinityPlanningDiagnostic.PartialPlan(
+                reservedInputs,
+                aggregateOutputs(firings),
+                unresolved));
+    }
+
+    private static <T> TrinityAlgorithmResult<T> insufficient(
+                                                              Map<AEKey, BigInteger> reservedInputs,
+                                                              Map<TrinityPatternVariant, BigInteger> firings,
+                                                              Map<AEKey, InputRequirement> shortages) {
+        LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("shortageKinds", Integer.toString(shortages.size()));
+        if (shortages.size() == 1) {
+            Map.Entry<AEKey, InputRequirement> shortage = shortages.entrySet().iterator().next();
+            metadata.put("key", shortage.getKey().toString());
+            metadata.put("required", shortage.getValue().required().toString());
+            metadata.put("available", shortage.getValue().available().toString());
+            metadata.put("missing", shortage.getValue().missing().toString());
+        }
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                Component.translatable("gui.data_energistics.trinity_planning.diagnostic.insufficient_input"),
+                metadata,
+                new TrinityPlanningDiagnostic.PartialPlan(
+                        reservedInputs,
+                        aggregateOutputs(firings),
+                        missingAmounts(shortages),
+                        shortages));
+        return TrinityAlgorithmResult.failure(diagnostic);
+    }
+
+    private static <T> TrinityAlgorithmResult<T> insufficient(ShortageEvidence evidence) {
+        LinkedHashMap<AEKey, InputRequirement> shortages = new LinkedHashMap<>();
+        evidence.inputRequirements().forEach((key, requirement) -> {
+            if (requirement.missing().signum() > 0) {
+                shortages.put(key, new InputRequirement(
+                        requirement.required(),
+                        requirement.allocated(),
+                        requirement.missing()));
+            }
+        });
+        if (shortages.isEmpty()) {
+            throw new IllegalArgumentException("A Trinity shortage diagnosis must contain a positive missing input");
+        }
+        return insufficient(evidence.actualReserves(), evidence.firings(), shortages);
+    }
+
+    private static LinkedHashMap<AEKey, BigInteger> aggregateOutputs(
+                                                                     Map<TrinityPatternVariant, BigInteger> firings) {
+        LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+        firings.forEach((variant, count) -> variant.outputs().forEach(
+                (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+        return emitted;
+    }
+
+    private static LinkedHashMap<AEKey, BigInteger> missingAmounts(
+                                                                   Map<AEKey, InputRequirement> shortages) {
+        LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>();
+        shortages.forEach((key, requirement) -> missing.put(key, requirement.missing()));
+        return missing;
+    }
+
+    private static void mergeRequirement(
+                                         Map<AEKey, InputRequirement> shortages,
+                                         AEKey key,
+                                         BigInteger required,
+                                         BigInteger available,
+                                         BigInteger missing) {
+        InputRequirement added = new InputRequirement(required, available, missing);
+        shortages.merge(key, added, (existing, value) -> new InputRequirement(
+                existing.required().add(value.required()),
+                existing.available().add(value.available()),
+                existing.missing().add(value.missing())));
     }
 
     private static BigInteger ceilDivide(BigInteger numerator, BigInteger denominator) {
