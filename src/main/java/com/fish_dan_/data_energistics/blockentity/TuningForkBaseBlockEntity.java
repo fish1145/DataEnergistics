@@ -2,21 +2,21 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
 import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNodeListener;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
@@ -27,21 +27,31 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Channel-using AE network base that gates Echo insertion behind one digitalization core.
+ * Channel-using AE network base that inserts Echo produced by the fork above it.
  */
 public class TuningForkBaseBlockEntity extends AENetworkedBlockEntity {
 
-    private static final String CORE_TAG = "core";
-
     private final MachineSource actionSource = new MachineSource(this);
-    private ItemStack core = ItemStack.EMPTY;
 
     public TuningForkBaseBlockEntity(BlockPos pos, BlockState state) {
         super(DEBlockEntities.TUNING_FORK_BASE_BLOCK_ENTITY.get(), pos, state);
         this.getMainNode()
-                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setFlags(GridFlags.REQUIRE_CHANNEL, GridFlags.PREFERRED)
+                .setExposedOnSides(EnumSet.allOf(Direction.class))
                 .setVisualRepresentation(DEBlocks.TUNING_FORK_BASE.get())
                 .setIdlePowerUsage(0.0D);
+    }
+
+    @Override
+    public void onReady() {
+        super.onReady();
+        updateOnlineState();
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateOnlineState();
     }
 
     @Override
@@ -54,31 +64,24 @@ public class TuningForkBaseBlockEntity extends AENetworkedBlockEntity {
         return AECableType.COVERED;
     }
 
-    public boolean hasCore() {
-        return !this.core.isEmpty();
+    public boolean isOnline() {
+        return this.getMainNode().isOnline();
     }
 
     public boolean canProduceEcho() {
-        return hasCore() && this.getMainNode().isOnline();
+        return isOnline();
     }
 
-    public boolean installCore(ItemStack heldStack) {
-        if (hasCore() || !heldStack.is(DEItems.RESONANCE_DIGITALIZATION_CORE.get())) {
-            return false;
+    private void updateOnlineState() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return;
         }
-        this.core = heldStack.copyWithCount(1);
-        setChanged();
-        return true;
-    }
 
-    public ItemStack removeCore() {
-        if (!hasCore()) {
-            return ItemStack.EMPTY;
+        BlockState state = this.getBlockState();
+        boolean online = isOnline();
+        if (state.is(DEBlocks.TUNING_FORK_BASE.get()) && state.hasProperty(TuningForkBaseBlock.ONLINE) && state.getValue(TuningForkBaseBlock.ONLINE) != online) {
+            serverLevel.setBlock(this.worldPosition, state.setValue(TuningForkBaseBlock.ONLINE, online), Block.UPDATE_CLIENTS);
         }
-        ItemStack removed = this.core;
-        this.core = ItemStack.EMPTY;
-        setChanged();
-        return removed;
     }
 
     /**
@@ -122,19 +125,5 @@ public class TuningForkBaseBlockEntity extends AENetworkedBlockEntity {
                     inserted);
         }
         return inserted > 0;
-    }
-
-    @Override
-    public void loadTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadTag(tag, registries);
-        this.core = tag.contains(CORE_TAG) ? ItemStack.parseOptional(registries, tag.getCompound(CORE_TAG)) : ItemStack.EMPTY;
-    }
-
-    @Override
-    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        if (hasCore()) {
-            tag.put(CORE_TAG, this.core.saveOptional(registries));
-        }
     }
 }

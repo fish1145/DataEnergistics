@@ -1,3 +1,7 @@
 {
-	"parent": "minecraft:block/amethyst_cluster"
+	"parent": "minecraft:block/cross",
+	"render_type": "cutout",
+	"textures": {
+		"cross": "data_energistics:block/resonance_crystal_cluster"
+	}
 }

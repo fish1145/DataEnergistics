@@ -1,3 +1,6 @@
 {
-	"parent": "minecraft:block/amethyst_block"
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "data_energistics:block/resonance_crystal_block"
+  }
 }

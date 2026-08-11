@@ -1,7 +1,19 @@
 {
 	"variants": {
-		"": {
+		"facing=north": {
 			"model": "data_energistics:block/resonance_tuning_fork"
+		},
+		"facing=east": {
+			"model": "data_energistics:block/resonance_tuning_fork",
+			"y": 90
+		},
+		"facing=south": {
+			"model": "data_energistics:block/resonance_tuning_fork",
+			"y": 180
+		},
+		"facing=west": {
+			"model": "data_energistics:block/resonance_tuning_fork",
+			"y": 270
 		}
 	}
 }

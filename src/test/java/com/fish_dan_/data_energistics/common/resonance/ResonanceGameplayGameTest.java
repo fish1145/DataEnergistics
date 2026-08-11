@@ -90,6 +90,54 @@ public final class ResonanceGameplayGameTest {
         helper.succeed();
     }
 
+    @TestHolder("resonance_crystal_stages_advance_to_maturity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 20)
+    public static void crystalStagesAdvanceToMaturity(GameTestHelper helper) {
+        BlockState state = DEBlocks.SMALL_RESONANCE_CRYSTAL_BUD.get().defaultBlockState()
+                .setValue(AmethystClusterBlock.FACING, Direction.WEST)
+                .setValue(AmethystClusterBlock.WATERLOGGED, true);
+        BlockPos pos = new BlockPos(2, 2, 2);
+        helper.setBlock(pos, state);
+
+        helper.assertTrue(
+                ResonanceCrystalWaveTransformation.tryTransformFromVibration(
+                        helper.getLevel(), helper.absolutePos(pos), helper.getBlockState(pos), helper.getLevel().getRandom()),
+                "Small resonance bud must advance when hit by a vibration");
+        assertCrystalStage(helper, pos, DEBlocks.MEDIUM_RESONANCE_CRYSTAL_BUD.get(), Direction.WEST);
+
+        helper.assertTrue(
+                ResonanceCrystalWaveTransformation.tryTransformFromVibration(
+                        helper.getLevel(), helper.absolutePos(pos), helper.getBlockState(pos), helper.getLevel().getRandom()),
+                "Medium resonance bud must advance when hit by a vibration");
+        assertCrystalStage(helper, pos, DEBlocks.LARGE_RESONANCE_CRYSTAL_BUD.get(), Direction.WEST);
+
+        helper.assertTrue(
+                ResonanceCrystalWaveTransformation.tryTransformFromVibration(
+                        helper.getLevel(), helper.absolutePos(pos), helper.getBlockState(pos), helper.getLevel().getRandom()),
+                "Large resonance bud must advance when hit by a vibration");
+        assertCrystalStage(helper, pos, DEBlocks.RESONANCE_CRYSTAL_CLUSTER.get(), Direction.WEST);
+
+        helper.assertFalse(
+                ResonanceCrystalWaveTransformation.tryTransformFromVibration(
+                        helper.getLevel(), helper.absolutePos(pos), helper.getBlockState(pos), helper.getLevel().getRandom()),
+                "A mature resonance cluster must not advance further");
+        helper.succeed();
+    }
+
+    private static void assertCrystalStage(GameTestHelper helper, BlockPos pos, net.minecraft.world.level.block.Block expected,
+                                           Direction expectedFacing) {
+        BlockState state = helper.getBlockState(pos);
+        helper.assertTrue(state.is(expected), "Unexpected resonance crystal stage: " + state);
+        helper.assertValueEqual(
+                state.getValue(AmethystClusterBlock.FACING),
+                expectedFacing,
+                "Crystal growth must preserve facing");
+        helper.assertTrue(
+                state.getValue(AmethystClusterBlock.WATERLOGGED),
+                "Crystal growth must preserve waterlogging");
+    }
+
     private static TuningForkBlockEntity placeFork(GameTestHelper helper, BlockPos forkPos) {
         helper.setBlock(forkPos.below(), DEBlocks.TUNING_FORK_BASE.get());
         helper.setBlock(forkPos, DEBlocks.AMETHYST_TUNING_FORK.get());

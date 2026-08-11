@@ -1,3 +1,7 @@
 {
-	"parent": "minecraft:block/medium_amethyst_bud"
+  "parent": "minecraft:block/cross",
+  "render_type": "cutout",
+  "textures": {
+    "cross": "data_energistics:block/medium_resonance_crystal_bud"
+  }
 }

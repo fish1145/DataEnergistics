@@ -1,7 +1,10 @@
 {
 	"variants": {
-		"": {
-			"model": "data_energistics:block/tuning_fork_base"
+		"online=false": {
+			"model": "data_energistics:block/tuning_fork_base_off"
+		},
+		"online=true": {
+			"model": "data_energistics:block/tuning_fork_base_on"
 		}
 	}
 }

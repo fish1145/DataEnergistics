@@ -1,3 +1,6 @@
 {
-	"parent": "minecraft:item/large_amethyst_bud"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "data_energistics:block/large_resonance_crystal_bud"
+  }
 }
