@@ -267,6 +267,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     host.serverTick();
                     fixture.refreshPatternPublication();
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), route);
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            SAME_TICK_STORAGE_PATTERN_SLOT,
+                            AEItemKey.of(Items.CRAFTING_TABLE));
                 })
                 .thenExecute(() -> {
                     insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
@@ -708,6 +714,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             fixture.grid(),
                             AEItemKey.of(Items.CRAFTING_TABLE),
                             route);
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            REMOVAL_PATTERN_SLOT,
+                            AEItemKey.of(Items.CRAFTING_TABLE));
                 })
                 .thenExecute(() -> {
                     insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
@@ -801,6 +813,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             fixture.grid(),
                             AEItemKey.of(Items.CRAFTING_TABLE),
                             route);
+                    assertGraphPatternPublished(
+                            helper,
+                            fixture.grid(),
+                            core,
+                            STRUCTURE_PAUSE_PATTERN_SLOT,
+                            AEItemKey.of(Items.CRAFTING_TABLE));
                 })
                 .thenExecute(() -> {
                     insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
