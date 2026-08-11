@@ -32,8 +32,6 @@ public final class TrinityUiXmlLayoutsGameTest {
 
     private static final List<LayoutExpectation> LAYOUTS = List.of(
             new LayoutExpectation("auto_build_panel", "trinity_auto_build_hosted_window_controls"),
-            new LayoutExpectation("data_core_status", "trinity_data_core_status"),
-            new LayoutExpectation("data_core_storage", "trinity_data_core_storage_status"),
             new LayoutExpectation("auto_build_window", "trinity_auto_build_window_template"),
             new LayoutExpectation("pattern_core", "trinity_pattern_core_root"),
             new LayoutExpectation("pattern_core_panel", "trinity_pattern_core_panel"));

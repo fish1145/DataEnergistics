@@ -1,36 +1,44 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.TaffyPosition;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
-/**
- * Creates the separated LDLib2 host-summary surfaces for the Trinity Data Core UI.
- */
+/** Binds one compact status overview into the Data Core's editor-authored home panel. */
 final class TrinityDataCoreStatusPanel {
 
-    static final String ONLINE_ID = "trinity_status_online";
-    static final String MAIN_STRUCTURE_ID = "trinity_status_main_structure";
-    static final String FAILURE_ID = "trinity_status_failure";
-    static final String CPU_PARTITIONS_ID = "trinity_status_cpu_partitions";
-    static final String CRAFTING_ID = "trinity_status_crafting";
+    static final String PANEL_ID = "trinity_data_core_home_panel";
 
-    private static final int LABEL_COLOR = 0x080C1B;
+    private static final String CONTENT_ID = "trinity_data_core_status_overview";
+    private static final int WIDTH = 165;
+    private static final int HEIGHT = 148;
+    private static final int LABEL_LEFT = 6;
+    private static final int LABEL_WIDTH = 60;
+    private static final int VALUE_LEFT = LABEL_LEFT + LABEL_WIDTH;
+    private static final int VALUE_WIDTH = WIDTH - VALUE_LEFT - 6;
+    private static final int LINE_HEIGHT = 8;
+    private static final float LABEL_FONT_SIZE = 6.5F;
+    private static final float HEADING_FONT_SIZE = 7.0F;
+
+    private static final int LABEL_COLOR = 0x413F54;
+    private static final int HEADING_COLOR = 0x2F2E43;
     private static final int VALUE_COLOR = 0x246082;
     private static final int SUCCESS_COLOR = 0x207A35;
     private static final int WARNING_COLOR = 0x9A5A00;
@@ -39,231 +47,266 @@ final class TrinityDataCoreStatusPanel {
 
     private TrinityDataCoreStatusPanel() {}
 
-    /** Builds both status regions from the LDLib2-synchronized host snapshot. */
-    static UIElement create(IDataProvider<TrinityDataCoreHostStatus> statusProvider) {
-        if (statusProvider == null) {
-            throw new IllegalArgumentException("Trinity host status provider is required");
-        }
-        requireStatus(statusProvider.getValue());
+    /** Adds the status content without replacing the NBT-authored panel background or geometry. */
+    static void bindExisting(@NotNull UIElement homePanel,
+                             @NotNull IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider,
+                             @NotNull IDataProvider<TrinityDataCoreStorageStatus> storageStatusProvider,
+                             @NotNull IDataProvider<TrinityCpuListStatus> cpuListStatusProvider) {
+        UIElement content = new UIElement();
+        content.setId(CONTENT_ID);
+        content.setOverflowVisible(false);
+        content.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0)
+                .width(WIDTH)
+                .height(HEIGHT));
 
-        UIElement panel = TrinityUiXmlLayouts.loadRoot("data_core_status");
-        panel.setAllowHitTest(false);
-        bind(TrinityUiXmlLayouts.require(panel, ONLINE_ID, Label.class), statusProvider, TrinityDataCoreStatusPanel::onlineLine);
-        bind(TrinityUiXmlLayouts.require(panel, MAIN_STRUCTURE_ID, Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::mainStructureLine);
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_main_blocks", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::mainBlockLine);
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_structure", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::cpuStructureLine);
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_crafting_structure", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::craftingStructureLine);
-        Label failure = TrinityUiXmlLayouts.require(panel, FAILURE_ID, Label.class);
-        bind(failure, statusProvider, TrinityDataCoreStatusPanel::failureLineText);
-        failure.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-            List<Component> tooltip = failureTooltip(requireStatus(statusProvider.getValue()));
-            if (!tooltip.isEmpty()) {
-                event.hoverTooltips = new HoverTooltips(tooltip, null, null, null);
-            }
-        });
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_busy_cpus", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::busyCpuLine);
-        bind(TrinityUiXmlLayouts.require(panel, CPU_PARTITIONS_ID, Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::cpuPartitionLine);
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_storage", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::cpuStorageLine);
-        bind(TrinityUiXmlLayouts.require(panel, "trinity_status_cpu_coprocessors", Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::cpuCoprocessorLine);
-        bind(TrinityUiXmlLayouts.require(panel, CRAFTING_ID, Label.class), statusProvider,
-                TrinityDataCoreStatusPanel::craftingLine);
-        return panel;
-    }
-
-    /** Binds behavior to a declaratively positioned status label. */
-    private static void bind(Label label,
-                             IDataProvider<TrinityDataCoreHostStatus> statusProvider,
-                             Function<TrinityDataCoreHostStatus, Component> text) {
-        label.bindDataSource(SupplierDataSource
-                .of(() -> requireStatus(statusProvider.getValue()))
-                .map(text));
-    }
-
-    static Component onlineLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
+        row(
+                content,
+                "online",
                 "screen.data_energistics.trinity_data_core.status_label",
+                3,
+                () -> onlineText(hostStatusProvider.getValue()));
+
+        heading(content, "structure", "screen.data_energistics.trinity_data_core.section.structure", 14);
+        row(
+                content,
+                "main_structure",
+                "screen.data_energistics.trinity_data_core.main_structure_label",
+                23,
+                () -> structureText(hostStatusProvider.getValue().mainStructure()));
+        row(
+                content,
+                "cpu_structure",
+                "screen.data_energistics.trinity_data_core.cpu_structure_label",
+                32,
+                () -> structureText(hostStatusProvider.getValue().cpuStructure()));
+        row(
+                content,
+                "crafting_structure",
+                "screen.data_energistics.trinity_data_core.crafting_structure_label",
+                41,
+                () -> structureText(hostStatusProvider.getValue().craftingStructure()));
+        row(
+                content,
+                "diagnostic",
+                "screen.data_energistics.trinity_data_core.diagnostic_label",
+                50,
+                () -> diagnosticText(hostStatusProvider.getValue()));
+
+        heading(content, "crafting", "screen.data_energistics.trinity_data_core.section.crafting", 62);
+        row(
+                content,
+                "crafting_cpus",
+                "screen.data_energistics.trinity_data_core.cpu_label",
+                72,
+                () -> workingCountText(
+                        hostStatusProvider.getValue().busyCraftingCpuCount(),
+                        cpuListStatusProvider.getValue().cpus().size()));
+        row(
+                content,
+                "cpu_storage",
+                "screen.data_energistics.trinity_data_core.cpu_storage_label",
+                81,
+                () -> cpuStorageText(hostStatusProvider.getValue().cpuStorageBytes()));
+        row(
+                content,
+                "cpu_coprocessors",
+                "screen.data_energistics.trinity_data_core.cpu_coprocessors_label",
+                90,
+                () -> cpuCoProcessorsText(hostStatusProvider.getValue().cpuCoProcessors()));
+
+        heading(content, "storage", "screen.data_energistics.trinity_data_core.section.storage", 105);
+        row(
+                content,
+                "storage_types",
+                "screen.data_energistics.trinity_data_core.storage_types_label",
+                114,
+                () -> storageTypesText(storageStatusProvider.getValue()));
+        row(
+                content,
+                "storage_capacity",
+                "screen.data_energistics.trinity_data_core.storage_capacity_label",
+                123,
+                () -> storageCapacityText(storageStatusProvider.getValue()));
+
+        homePanel.addChild(content);
+    }
+
+    private static void heading(UIElement content, String id, String translationKey, int top) {
+        Label heading = new Label();
+        heading.setId(CONTENT_ID + "_" + id + "_heading");
+        heading.setText(Component.translatable(translationKey));
+        heading.setAllowHitTest(false);
+        heading.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .fontSize(HEADING_FONT_SIZE)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.NONE)
+                .textColor(HEADING_COLOR)
+                .textShadow(false));
+        heading.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(LABEL_LEFT)
+                .top(top)
+                .width(WIDTH - LABEL_LEFT * 2)
+                .height(LINE_HEIGHT));
+        content.addChild(heading);
+    }
+
+    private static void row(UIElement content,
+                            String id,
+                            String labelTranslationKey,
+                            int top,
+                            Supplier<Component> valueSupplier) {
+        Label label = new Label();
+        label.setId(CONTENT_ID + "_" + id + "_label");
+        label.setText(Component.translatable(labelTranslationKey));
+        label.setAllowHitTest(false);
+        configureLine(label, LABEL_LEFT, LABEL_WIDTH, top, TextWrap.NONE, LABEL_COLOR);
+
+        Label value = new Label();
+        value.setId(CONTENT_ID + "_" + id + "_value");
+        value.bindDataSource(SupplierDataSource.of(valueSupplier));
+        configureLine(value, VALUE_LEFT, VALUE_WIDTH, top, TextWrap.HOVER_ROLL, VALUE_COLOR);
+
+        content.addChildren(label, value);
+    }
+
+    private static void configureLine(Label label,
+                                      int left,
+                                      int width,
+                                      int top,
+                                      TextWrap textWrap,
+                                      int color) {
+        label.setOverflowVisible(false);
+        label.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .fontSize(LABEL_FONT_SIZE)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(textWrap)
+                .textColor(color)
+                .textShadow(false));
+        label.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(left)
+                .top(top)
+                .width(width)
+                .height(LINE_HEIGHT));
+    }
+
+    private static Component onlineText(TrinityDataCoreHostStatus status) {
+        return colored(
                 Component.translatable(status.online() ?
                         "screen.data_energistics.trinity_data_core.status_online" :
                         "screen.data_energistics.trinity_data_core.status_offline"),
-                statusColor(status.online()));
+                status.online() ? SUCCESS_COLOR : WARNING_COLOR);
     }
 
-    static Component mainStructureLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.main_structure_label",
-                formedText(status.mainStructure().formed()),
-                statusColor(status.mainStructure().formed()));
+    private static Component structureText(StructureStatus structure) {
+        return colored(
+                Component.translatable(structure.formed() ?
+                        "screen.data_energistics.trinity_data_core.formed.yes" :
+                        "screen.data_energistics.trinity_data_core.formed.no"),
+                structure.formed() ? SUCCESS_COLOR : ERROR_COLOR);
     }
 
-    static Component cpuPartitionLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.cpu_partitions_label",
-                Component.literal(formatCpuPartitions(status)),
-                status.busyCpuPartitionCount() > 0 ? BUSY_COLOR : VALUE_COLOR);
-    }
-
-    static Component craftingLine(TrinityDataCoreHostStatus status) {
-        int color = !status.craftingStructure().formed() ?
-                ERROR_COLOR : status.craftingTarget().isPresent() ? BUSY_COLOR : SUCCESS_COLOR;
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.molecular_label",
-                molecularStatus(status),
-                color);
-    }
-
-    static String formatCpuPartitions(TrinityDataCoreHostStatus status) {
-        return status.busyCpuPartitionCount() + "/" + status.cpuPartitionCount();
-    }
-
-    static StructureStatus latestFailure(TrinityDataCoreHostStatus status) {
+    private static Component diagnosticText(TrinityDataCoreHostStatus status) {
         if (status.mainStructure().hasFailure()) {
-            return status.mainStructure();
+            return diagnosticText(
+                    "screen.data_energistics.trinity_data_core.structure.main",
+                    status.mainStructure());
         }
         if (status.cpuStructure().hasFailure()) {
-            return status.cpuStructure();
+            return diagnosticText(
+                    "screen.data_energistics.trinity_data_core.structure.cpu",
+                    status.cpuStructure());
         }
         if (status.craftingStructure().hasFailure()) {
-            return status.craftingStructure();
+            return diagnosticText(
+                    "screen.data_energistics.trinity_data_core.structure.crafting",
+                    status.craftingStructure());
         }
-        return StructureStatus.EMPTY;
+        return colored(
+                Component.translatable("screen.data_energistics.trinity_data_core.no_failure"),
+                SUCCESS_COLOR);
     }
 
-    static String compactNumber(String value) {
+    private static Component diagnosticText(String structureTranslationKey, StructureStatus structure) {
+        Component structureName = Component.translatable(structureTranslationKey);
+        Component reason = MultiBlockFailureText.describeTrinityDataCore(structure.failureReason());
+        Component diagnostic = structure.failurePosition().isBlank() ?
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.diagnostic_failure",
+                        structureName,
+                        reason) :
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.diagnostic_failure_at",
+                        structureName,
+                        reason,
+                        structure.failurePosition());
+        return colored(diagnostic, ERROR_COLOR);
+    }
+
+    private static Component workingCountText(int working, int total) {
+        return colored(
+                Component.translatable(
+                        "screen.data_energistics.trinity_data_core.working_count",
+                        compact(working),
+                        compact(total)),
+                working > 0 ? BUSY_COLOR : VALUE_COLOR);
+    }
+
+    private static Component cpuStorageText(long storageBytes) {
+        return storageBytes == Long.MAX_VALUE ? unlimitedText() : valueText(compact(storageBytes));
+    }
+
+    private static Component cpuCoProcessorsText(int coProcessors) {
+        return coProcessors == Integer.MAX_VALUE ? unlimitedText() : valueText(compact(coProcessors));
+    }
+
+    private static Component storageTypesText(TrinityDataCoreStorageStatus status) {
+        Component capacity = status.unlimited() ?
+                Component.translatable("gui.data_energistics.trinity.unlimited") :
+                Component.literal(compact(status.typeCapacity()));
+        return colored(
+                Component.empty()
+                        .append(compact(status.typeCount()))
+                        .append(" / ")
+                        .append(capacity),
+                VALUE_COLOR);
+    }
+
+    private static Component storageCapacityText(TrinityDataCoreStorageStatus status) {
+        return status.unlimited() ? unlimitedText() : valueText(compact(status.amountCapacity().toString()));
+    }
+
+    private static Component unlimitedText() {
+        return colored(Component.translatable("gui.data_energistics.trinity.unlimited"), VALUE_COLOR);
+    }
+
+    private static Component valueText(String value) {
+        return colored(Component.literal(value), VALUE_COLOR);
+    }
+
+    private static Component colored(Component component, int color) {
+        return component.copy().withStyle(style -> style.withColor(color));
+    }
+
+    private static String compact(int value) {
+        return compact(Integer.toString(value));
+    }
+
+    private static String compact(long value) {
+        return compact(Long.toString(value));
+    }
+
+    private static String compact(String value) {
         return TrinityAmountFormatter.format(value);
-    }
-
-    private static Component mainBlockLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.matched_blocks_label",
-                Component.literal(compactNumber(Integer.toString(status.mainStructure().matchedBlocks()))),
-                VALUE_COLOR);
-    }
-
-    private static Component cpuStructureLine(TrinityDataCoreHostStatus status) {
-        return structureLine(
-                "screen.data_energistics.trinity_data_core.cpu_structure_label",
-                status.cpuStructure());
-    }
-
-    private static Component craftingStructureLine(TrinityDataCoreHostStatus status) {
-        return structureLine(
-                "screen.data_energistics.trinity_data_core.crafting_structure_label",
-                status.craftingStructure());
-    }
-
-    private static Component structureLine(String labelKey, StructureStatus structure) {
-        return keyValue(
-                labelKey,
-                structure.formed() ?
-                        Component.literal(compactNumber(Integer.toString(structure.matchedBlocks()))) : formedText(false),
-                statusColor(structure.formed()));
-    }
-
-    private static Component failureLineText(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.last_failure_label",
-                failureSummary(status),
-                status.hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR);
-    }
-
-    private static Component busyCpuLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.cpu_label",
-                Component.literal(Integer.toString(status.busyCraftingCpuCount())),
-                status.busyCraftingCpuCount() > 0 ? BUSY_COLOR : VALUE_COLOR);
-    }
-
-    private static Component cpuStorageLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.cpu_storage_label",
-                Component.literal(compactNumber(Long.toString(status.cpuStorageBytes()))),
-                VALUE_COLOR);
-    }
-
-    private static Component cpuCoprocessorLine(TrinityDataCoreHostStatus status) {
-        return keyValue(
-                "screen.data_energistics.trinity_data_core.cpu_coprocessors_label",
-                Component.literal(compactNumber(Integer.toString(status.cpuCoProcessors()))),
-                VALUE_COLOR);
-    }
-
-    private static Component molecularStatus(TrinityDataCoreHostStatus status) {
-        if (!status.craftingStructure().formed()) {
-            return Component.translatable("screen.data_energistics.trinity_data_core.molecular_unavailable");
-        }
-        return status.craftingTarget().orElseGet(() -> Component.translatable("screen.data_energistics.trinity_data_core.molecular_idle"));
-    }
-
-    private static Component formedText(boolean formed) {
-        return Component.translatable(formed ?
-                "screen.data_energistics.trinity_data_core.formed.yes" :
-                "screen.data_energistics.trinity_data_core.formed.no");
-    }
-
-    private static Component failureSummary(TrinityDataCoreHostStatus status) {
-        StructureStatus failure = latestFailure(status);
-        return failure.hasFailure() ?
-                MultiBlockFailureText.describeTrinityDataCore(failure.failureReason()) :
-                Component.translatable("screen.data_energistics.trinity_data_core.no_failure");
-    }
-
-    private static List<Component> failureTooltip(TrinityDataCoreHostStatus status) {
-        List<Component> tooltip = new ArrayList<>();
-        addFailure(
-                tooltip,
-                status.mainStructure(),
-                "screen.data_energistics.trinity_data_core.last_failure",
-                "screen.data_energistics.trinity_data_core.failure_position");
-        addFailure(
-                tooltip,
-                status.cpuStructure(),
-                "screen.data_energistics.trinity_data_core.cpu_failure",
-                "screen.data_energistics.trinity_data_core.cpu_failure_position");
-        addFailure(
-                tooltip,
-                status.craftingStructure(),
-                "screen.data_energistics.trinity_data_core.crafting_failure",
-                "screen.data_energistics.trinity_data_core.crafting_failure_position");
-        return tooltip;
-    }
-
-    private static void addFailure(List<Component> tooltip,
-                                   StructureStatus structure,
-                                   String reasonKey,
-                                   String positionKey) {
-        if (!structure.hasFailure()) {
-            return;
-        }
-        tooltip.add(Component.translatable(
-                reasonKey,
-                MultiBlockFailureText.describeTrinityDataCore(structure.failureReason())));
-        if (!structure.failurePosition().isBlank()) {
-            tooltip.add(Component.translatable(positionKey, structure.failurePosition()).withStyle(ChatFormatting.GRAY));
-        }
-    }
-
-    private static Component keyValue(String labelKey, Component value, int valueColor) {
-        return Component.empty()
-                .append(Component.translatable(labelKey).withStyle(style -> style.withColor(LABEL_COLOR)))
-                .append(value.copy().withStyle(style -> style.withColor(valueColor)));
-    }
-
-    private static int statusColor(boolean ok) {
-        return ok ? SUCCESS_COLOR : WARNING_COLOR;
-    }
-
-    private static TrinityDataCoreHostStatus requireStatus(TrinityDataCoreHostStatus status) {
-        if (status == null) {
-            throw new IllegalStateException("Trinity host status provider returned null");
-        }
-        return status;
     }
 }

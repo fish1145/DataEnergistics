@@ -71,8 +71,11 @@ public final class TrinityDataCoreHostUi {
             TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_TITLE_ID, Label.class)
                     .setText(Component.translatable("container.inventory"));
             InventorySlots playerInventorySlots = playerInventorySlots(root);
-            root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
-            root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
+            TrinityDataCoreStatusPanel.bindExisting(
+                    TrinityUiXmlLayouts.require(root, TrinityDataCoreStatusPanel.PANEL_ID, UIElement.class),
+                    sync.hostStatusProvider(),
+                    sync.storageStatusProvider(),
+                    sync.cpuListStatusProvider());
             mountCpuList(
                     root,
                     cpuList(menu, sync.cpuListStatusProvider()));

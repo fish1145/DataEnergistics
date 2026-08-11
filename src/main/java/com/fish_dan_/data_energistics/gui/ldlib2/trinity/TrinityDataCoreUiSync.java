@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Owns the deterministic LDLib2 synchronization channels used by the Trinity host UI. */
+/**
+ * Owns the deterministic synchronization channels used by the Trinity host UI.
+ */
 final class TrinityDataCoreUiSync {
 
     private static final String STORAGE_STATUS_NAME = "trinity_storage_status";
@@ -59,7 +61,9 @@ final class TrinityDataCoreUiSync {
         configureHostStatus(menu);
     }
 
-    /** Creates side-specific channels while retaining identical channel construction order on both sides. */
+    /**
+     * Creates side-specific channels while retaining identical channel construction order on both sides.
+     */
     static TrinityDataCoreUiSync create(TrinityDataCoreMenu menu) {
         if (menu == null) {
             throw new NullPointerException("Trinity menu must not be null");
@@ -67,7 +71,9 @@ final class TrinityDataCoreUiSync {
         return new TrinityDataCoreUiSync(menu);
     }
 
-    /** Registers channels in protocol order before the ModularUI is attached to its native menu. */
+    /**
+     * Registers channels in protocol order before the ModularUI is attached to its native menu.
+     */
     void register(ModularUI modularUI) {
         if (modularUI == null) {
             throw new NullPointerException("Trinity ModularUI must not be null");
@@ -184,7 +190,9 @@ final class TrinityDataCoreUiSync {
                         failurePosition.getX() + ", " + failurePosition.getY() + ", " + failurePosition.getZ());
     }
 
-    /** Retains CPU progress for 20 ticks while allowing membership, configuration, and task changes through. */
+    /**
+     * Retains CPU progress for 20 ticks while allowing membership, configuration, and task changes through.
+     */
     static final class CpuStatusSnapshotProvider {
 
         private TrinityCpuListStatus published = TrinityCpuListStatus.EMPTY;
