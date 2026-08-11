@@ -48,6 +48,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.concurrent.Future;
+
 /**
  * Owns confirmation-page quantity context, diagnostics, and CPU-family filtering.
  */
@@ -60,6 +62,30 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Shadow
     @Nullable
     private ICraftingPlan result;
+
+    @Shadow
+    @Nullable
+    private AEKey whatToCraft;
+
+    @Shadow
+    private int amount;
+
+    @Shadow
+    @Nullable
+    private Future<ICraftingPlan> job;
+
+    @Shadow
+    private IGrid getGrid() {
+        throw new AssertionError();
+    }
+
+    @Shadow
+    private IActionSource getActionSrc() {
+        throw new AssertionError();
+    }
+
+    @Unique
+    private long dataEnergistics$requestedAmount;
 
     @GuiSync(791)
     @Unique
@@ -177,12 +203,25 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                int amount,
                                                CalculationStrategy strategy,
                                                CallbackInfoReturnable<Boolean> cir) {
+        this.dataEnergistics$requestedAmount = amount;
         dataEnergistics$clearPlanReadiness();
     }
 
-    @Inject(method = "replan", at = @At("HEAD"))
+    @Inject(method = "replan", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$beginReplanning(CallbackInfo ci) {
         dataEnergistics$clearPlanReadiness();
+        if (!this.isServerSide()) {
+            return;
+        }
+
+        CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
+        if (this.whatToCraft == null || !data_energistics$planJob(
+                this.whatToCraft,
+                this.dataEnergistics$requestedAmount,
+                CalculationStrategy.CRAFT_LESS)) {
+            self.goBack();
+        }
+        ci.cancel();
     }
 
     @Inject(method = "startJob", at = @At("HEAD"), cancellable = true)
@@ -248,6 +287,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         original.call(player, locator, whatToCraft, initialAmount);
         if (player.containerMenu instanceof TrinityCraftAmountMenuState amountMenu) {
             amountMenu.data_energistics$setQuantityMode(data_energistics$quantityMode());
+            amountMenu.data_energistics$setInitialAmount(this.dataEnergistics$requestedAmount);
         }
     }
 
@@ -284,6 +324,38 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode) {
         this.dataEnergistics$quantityMode = quantityMode.ordinal();
+    }
+
+    @Override
+    public boolean data_energistics$planJob(AEKey what, long amount, CalculationStrategy strategy) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException("A crafting request amount must be positive");
+        }
+        if (this.job != null) {
+            this.job.cancel(true);
+        }
+
+        this.result = null;
+        ((CraftConfirmMenu) (Object) this).clearError();
+        dataEnergistics$clearPlanReadiness();
+        this.whatToCraft = what;
+        this.dataEnergistics$requestedAmount = amount;
+
+        // AE2 retains this private int only for its native go-back/replan path. Both paths are intercepted above and
+        // use requestedAmount, so this mirror is never used to calculate or submit the request.
+        this.amount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
+
+        IGrid grid = getGrid();
+        if (grid == null) {
+            return false;
+        }
+        this.job = grid.getCraftingService().beginCraftingCalculation(
+                this.getPlayer().level(),
+                this::getActionSrc,
+                what,
+                amount,
+                strategy);
+        return true;
     }
 
     @Override
