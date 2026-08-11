@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.crafting.projection;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.crafting.CraftingPlanSummary;
@@ -52,6 +53,10 @@ public final class TrinityCraftingPlanSummaryProjection {
             amounts.computeIfAbsent(used.getKey(), ignored -> new Amounts())
                     .addStored(used.getLongValue());
         }
+        for (var emitted : plan.emittedItems()) {
+            amounts.computeIfAbsent(emitted.getKey(), ignored -> new Amounts())
+                    .addCrafting(emitted.getLongValue());
+        }
         for (var missing : plan.missingItems()) {
             amounts.computeIfAbsent(missing.getKey(), ignored -> new Amounts())
                     .addMissing(missing.getLongValue());
@@ -79,19 +84,23 @@ public final class TrinityCraftingPlanSummaryProjection {
         private long crafting;
 
         private void addMissing(long amount) {
-            this.missing = Math.addExact(this.missing, amount);
+            this.missing = LongAmountMath.saturatingAddNonNegative(this.missing, amount);
         }
 
         private void addStored(BigInteger amount) {
-            addStored(amount.longValueExact());
+            addStored(LongAmountMath.saturatingLongValueNonNegative(amount));
         }
 
         private void addStored(long amount) {
-            this.stored = Math.addExact(this.stored, amount);
+            this.stored = LongAmountMath.saturatingAddNonNegative(this.stored, amount);
         }
 
         private void addCrafting(BigInteger amount) {
-            this.crafting = Math.addExact(this.crafting, amount.longValueExact());
+            addCrafting(LongAmountMath.saturatingLongValueNonNegative(amount));
+        }
+
+        private void addCrafting(long amount) {
+            this.crafting = LongAmountMath.saturatingAddNonNegative(this.crafting, amount);
         }
     }
 }
