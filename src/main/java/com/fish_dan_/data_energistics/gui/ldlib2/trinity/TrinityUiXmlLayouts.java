@@ -31,7 +31,9 @@ final class TrinityUiXmlLayouts {
 
     private TrinityUiXmlLayouts() {}
 
-    /** Loads one complete LDLib2 UI document and rejects malformed or missing resources immediately. */
+    /**
+     * Loads one complete LDLib2 UI document and rejects malformed or missing resources immediately.
+     */
     static UI load(@NotNull String name) {
         if (name.isBlank()) {
             throw new IllegalArgumentException("Trinity XML layout name must not be blank");
@@ -67,26 +69,32 @@ final class TrinityUiXmlLayouts {
         return FMLEnvironment.dist + "/" + Thread.currentThread().getName();
     }
 
-    /** Loads a detached XML root for a child panel that is later composed into a runtime-owned element. */
+    /**
+     * Loads a detached XML root for a child panel that is later composed into a runtime-owned element.
+     */
     static UIElement loadRoot(String name) {
         return load(name).rootElement;
     }
 
-    /** Retrieves exactly one element by its stable layout id and validates its expected LDLib2 type. */
+    /**
+     * Retrieves exactly one element by its stable layout id and validates its expected LDLib2 type.
+     */
     static <T extends UIElement> T require(UIElement root, String id, Class<T> type) {
         if (root == null || id == null || id.isBlank() || type == null) {
             throw new IllegalArgumentException("Trinity XML element lookup arguments must not be null or blank");
         }
         T element = root.selectId(id, type).findFirst().orElse(null);
         if (element == null) {
-            String message = "Trinity XML layout is missing " + type.getSimpleName() + " with id " + id;
+            String message = "Trinity UI layout is missing " + type.getSimpleName() + " with id " + id;
             Data_Energistics.LOGGER.error(message);
             throw new IllegalStateException(message);
         }
         return element;
     }
 
-    /** Moves every XML child into a runtime subclass while preserving the parsed declarative tree. */
+    /**
+     * Moves every XML child into a runtime subclass while preserving the parsed declarative tree.
+     */
     static void moveChildren(UIElement source, UIElement target) {
         if (source == null || target == null) {
             throw new IllegalArgumentException("Trinity XML child transfer requires source and target");

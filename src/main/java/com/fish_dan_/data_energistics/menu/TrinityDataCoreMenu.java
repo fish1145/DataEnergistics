@@ -337,7 +337,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     }
 
     /**
-     * Sends one stable CPU selection with the host identity received through the LDLib2 status channel.
+     * Sends one stable CPU selection with the host identity received with the menu opening data.
      */
     public boolean sendOpenCpuStatus(UUID syncedHostId, int cpuNumber) {
         if (syncedHostId == null) {

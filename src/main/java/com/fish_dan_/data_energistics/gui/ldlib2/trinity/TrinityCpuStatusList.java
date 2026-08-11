@@ -19,16 +19,12 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
-import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.VirtualItemHeightMode;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.VirtualScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -53,21 +49,16 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
 
     public static final int ROW_WIDTH = 67;
     public static final int ROW_HEIGHT = 22;
-    public static final int VISIBLE_ROW_COUNT = 3;
-    public static final int DEFAULT_WIDTH = 84;
-    public static final int DEFAULT_HEIGHT = 76;
-    public static final String SCROLLER_ID = "trinity_cpu_status_scroller";
-    public static final String SCROLLBAR_ID = "trinity_cpu_status_scrollbar";
-    public static final String SCROLL_HEAD_ID = "trinity_cpu_status_scroll_head";
-    public static final String SCROLL_TRACK_ID = "trinity_cpu_status_scroll_track";
-    public static final String SCROLL_THUMB_ID = "trinity_cpu_status_scroll_thumb";
-    public static final String SCROLL_TAIL_ID = "trinity_cpu_status_scroll_tail";
+    public static final int VISIBLE_ROW_COUNT = 10;
+    public static final int DEFAULT_WIDTH = 72;
+    public static final int DEFAULT_HEIGHT = 234;
+    public static final String ELEMENT_ID = "trinity_data_core_cpu_entries";
+    public static final String SCROLLER_ID = "trinity_data_core_cpu_list";
 
     static final int ROW_STRIDE = ROW_HEIGHT + 1;
-    static final int VIEWPORT_HEIGHT = ROW_STRIDE * VISIBLE_ROW_COUNT;
+    static final int VIEWPORT_HEIGHT = ROW_STRIDE * VISIBLE_ROW_COUNT - 1;
     private static final int VIEWPORT_LEFT = 4;
-    private static final int VIEWPORT_TOP = 4;
-    private static final int VIEWPORT_WIDTH = DEFAULT_WIDTH - VIEWPORT_LEFT * 2;
+    private static final int VIEWPORT_TOP = 3;
     private static final int NAME_LEFT = 3;
     private static final int NAME_TOP = 2;
     private static final int NAME_WIDTH = ROW_WIDTH - NAME_LEFT - 2;
@@ -90,15 +81,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final String UNLIMITED_KEY = "gui.data_energistics.trinity.unlimited";
     private static final int TEXT_COLOR = 0xFF413F54;
     private static final int PROGRESS_FILL_COLOR = 0xFFACE9FF;
-    private static final int SCROLL_TRACK_COLOR = 0xFF4D4D67;
-    private static final int SCROLL_THUMB_COLOR = 0xFF9A9FB4;
-    private static final int SCROLL_THUMB_HOVER_COLOR = 0xFFDAFFFF;
-    private static final int SCROLL_THUMB_PRESSED_COLOR = 0xFF9CD3FF;
-    private static final int SCROLL_THUMB_DISABLED_COLOR = 0xFF70758A;
 
-    private static final SpriteTexture PANEL_TEXTURE = SpriteTexture.of(
-            "data_energistics:textures/guis/trinity_data_core/cpu_panel.png")
-            .setSprite(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     private static final SpriteTexture ROW_TEXTURE = rowTexture("cpu_entry.png");
     private static final SpriteTexture ROW_SELECTED_TEXTURE = rowTexture("cpu_entry_selected.png");
     private static final SpriteTexture IDLE_TEXTURE = SpriteTexture.of(
@@ -113,49 +96,53 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final SpriteTexture TERMINAL_ICON_TEXTURE = iconTexture("cpu_icon_terminal.png");
     private static final SpriteTexture MACHINE_ICON_TEXTURE = iconTexture("cpu_icon_machine.png");
 
-    private final TrinityCpuScrollerView scrollerView;
+    private final UIElement rows;
+    @Nullable
+    private Scroller.Vertical scrollbar;
     private TrinityCpuListStatus value = TrinityCpuListStatus.EMPTY;
     private IntConsumer cpuSelection = ignored -> {};
+    private int firstVisibleIndex;
+    private boolean overflowing;
 
-    /** Public no-argument constructor required by the LDLib2 UI element registry. */
+    /**
+     * Public no-argument constructor required by the LDLib2 UI element registry.
+     */
     public TrinityCpuStatusList() {
-        setId("trinity_cpu_status_list");
+        setId(ELEMENT_ID);
         setOverflowVisible(false);
         layout(layout -> layout.width(DEFAULT_WIDTH).height(DEFAULT_HEIGHT));
-        style(style -> style.backgroundTexture(PANEL_TEXTURE));
 
-        this.scrollerView = new TrinityCpuScrollerView();
-        this.scrollerView.setId(SCROLLER_ID);
-        this.scrollerView.setOverflowVisible(false);
-        this.scrollerView.layout(layout -> layout
+        this.rows = new UIElement();
+        this.rows.setId("trinity_data_core_cpu_rows");
+        this.rows.setOverflowVisible(false);
+        this.rows.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(VIEWPORT_LEFT)
                 .top(VIEWPORT_TOP)
-                .width(VIEWPORT_WIDTH)
+                .width(ROW_WIDTH)
                 .height(VIEWPORT_HEIGHT));
-        this.scrollerView.virtualScrollerViewStyle(style -> style
-                .itemHeightMode(VirtualItemHeightMode.FIXED)
-                .estimatedItemHeight(ROW_STRIDE)
-                .overscanPixels(ROW_STRIDE));
-        this.scrollerView.scrollerStyle(style -> style
-                .mode(ScrollerMode.VERTICAL)
-                .horizontalScrollDisplay(ScrollDisplay.NEVER)
-                .verticalScrollDisplay(ScrollDisplay.ALWAYS)
-                .minScrollPixel(ROW_STRIDE)
-                .maxScrollPixel(ROW_STRIDE)
-                .scrollerViewStyle(0));
-        this.scrollerView.verticalScroller(TrinityCpuStatusList::configureVerticalScroller);
-        this.scrollerView.viewPort(viewPort -> {
-            viewPort.layout(layout -> layout.paddingAll(0));
-            viewPort.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        });
-        this.scrollerView.setItemUIProvider(this::createRow);
-        this.scrollerView.setItems(List.of());
-        addChild(this.scrollerView);
+        addChild(this.rows);
+        addEventListener(UIEvents.MOUSE_WHEEL, this::onMouseWheel);
         internalSetup();
     }
 
-    /** Installs the client action boundary used later by the menu's packet sender. */
+    /** Binds the editor-authored scrollbar without replacing its layout or textures. */
+    TrinityCpuStatusList bindScrollbar(Scroller.Vertical scrollbar) {
+        if (this.scrollbar != null) {
+            throw new IllegalStateException("Trinity CPU list already has an editor-authored scrollbar");
+        }
+        this.scrollbar = scrollbar;
+        scrollbar.setRange(0.0F, 1.0F);
+        scrollbar.setOnValueChanged(ignored -> refreshVisibleRowsFromScrollbar());
+        scrollbar.scrollContainer.addEventListener(UIEvents.LAYOUT_CHANGED, ignored -> updateScrollbar());
+        updateScrollbar();
+        rebuildVisibleRows();
+        return this;
+    }
+
+    /**
+     * Installs the client action boundary used later by the menu's packet sender.
+     */
     public TrinityCpuStatusList setOnCpuSelected(IntConsumer cpuSelection) {
         if (cpuSelection == null) {
             throw new IllegalArgumentException("Trinity CPU selection callback is required");
@@ -179,11 +166,6 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         return false;
     }
 
-    /** Exposes the owned virtual scroller for layout integration and focused non-rendering tests. */
-    public VirtualScrollerView<TrinityCpuStatus> getScrollerView() {
-        return this.scrollerView;
-    }
-
     @Override
     public TrinityCpuListStatus getValue() {
         return this.value;
@@ -196,14 +178,81 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
             return this;
         }
         this.value = next;
-        this.scrollerView.setItems(next.cpus());
+        this.firstVisibleIndex = Math.min(this.firstVisibleIndex, maxFirstVisibleIndex());
+        updateScrollbar();
+        rebuildVisibleRows();
         if (notify) {
             notifyListeners();
         }
         return this;
     }
 
-    private UIElement createRow(TrinityCpuStatus cpu) {
+    private void onMouseWheel(UIEvent event) {
+        if (!this.overflowing || this.scrollbar == null || event.deltaY == 0.0F) {
+            return;
+        }
+        this.scrollbar.scrollValue(event.deltaY > 0.0F ?
+                -this.scrollbar.getScrollerStyle().scrollDelta() :
+                this.scrollbar.getScrollerStyle().scrollDelta());
+        event.stopPropagation();
+    }
+
+    private void refreshVisibleRowsFromScrollbar() {
+        if (this.scrollbar == null) {
+            return;
+        }
+        int maxFirstVisibleIndex = maxFirstVisibleIndex();
+        this.firstVisibleIndex = maxFirstVisibleIndex == 0 ?
+                0 : Math.round(this.scrollbar.getNormalizedValue() * maxFirstVisibleIndex);
+        rebuildVisibleRows();
+    }
+
+    private void rebuildVisibleRows() {
+        this.rows.clearAllChildren();
+        List<TrinityCpuStatus> cpus = this.value.cpus();
+        int end = Math.min(cpus.size(), this.firstVisibleIndex + VISIBLE_ROW_COUNT);
+        for (int index = this.firstVisibleIndex; index < end; index++) {
+            Button row = createRow(cpus.get(index));
+            int rowTop = (index - this.firstVisibleIndex) * ROW_STRIDE;
+            row.layout(layout -> layout
+                    .positionType(TaffyPosition.ABSOLUTE)
+                    .left(0)
+                    .top(rowTop));
+            this.rows.addChild(row);
+        }
+    }
+
+    private void updateScrollbar() {
+        if (this.scrollbar == null) {
+            return;
+        }
+        int cpuCount = this.value.cpus().size();
+        int maxFirstVisibleIndex = maxFirstVisibleIndex();
+        this.overflowing = maxFirstVisibleIndex > 0;
+        this.firstVisibleIndex = Math.min(this.firstVisibleIndex, maxFirstVisibleIndex);
+
+        float normalizedValue = maxFirstVisibleIndex == 0 ?
+                0.0F : (float) this.firstVisibleIndex / maxFirstVisibleIndex;
+        float scrollDelta = maxFirstVisibleIndex == 0 ? 1.0F : 1.0F / maxFirstVisibleIndex;
+        float naturalThumbPercent = cpuCount == 0 ?
+                100.0F : Math.min(100.0F, VISIBLE_ROW_COUNT * 100.0F / cpuCount);
+        float thumbPercent = TrinityCpuListGeometry.thumbPercent(
+                naturalThumbPercent,
+                this.scrollbar.scrollContainer.getContentHeight(),
+                this.overflowing);
+
+        this.scrollbar.scrollerStyle(style -> style.scrollDelta(scrollDelta));
+        this.scrollbar.setNormalizedValue(normalizedValue, false);
+        this.scrollbar.setScrollBarSize(thumbPercent);
+        this.scrollbar.selfAndAllChildren()
+                .forEach(element -> element.setAllowHitTest(this.overflowing));
+    }
+
+    private int maxFirstVisibleIndex() {
+        return Math.max(0, this.value.cpus().size() - VISIBLE_ROW_COUNT);
+    }
+
+    private Button createRow(TrinityCpuStatus cpu) {
         Button row = new Button();
         row.setId("trinity_cpu_status_" + cpu.number());
         row.noText();
@@ -440,42 +489,6 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         return Component.translatable("gui.data_energistics.trinity.duration.seconds", remainingSeconds);
     }
 
-    private static void configureVerticalScroller(Scroller scroller) {
-        scroller.setId(SCROLLBAR_ID);
-        scroller.layout(layout -> layout.width(5));
-        scroller.headButton(button -> {
-            button.setId(SCROLL_HEAD_ID);
-            button.setOnClick(event -> scroller.scrollValue(-1.0F));
-        });
-        scroller.scrollContainer(container -> {
-            container.setId(SCROLL_TRACK_ID);
-            container.style(style -> style.backgroundTexture(new ColorRectTexture(SCROLL_TRACK_COLOR)));
-        });
-        scroller.scrollBar(button -> {
-            button.setId(SCROLL_THUMB_ID);
-            setThumbTextures(button, false);
-        });
-        scroller.tailButton(button -> {
-            button.setId(SCROLL_TAIL_ID);
-            button.setOnClick(event -> scroller.scrollValue(1.0F));
-        });
-    }
-
-    private static void setThumbTextures(Button thumb, boolean enabled) {
-        if (enabled) {
-            thumb.buttonStyle(style -> style
-                    .baseTexture(new ColorRectTexture(SCROLL_THUMB_COLOR))
-                    .hoverTexture(new ColorRectTexture(SCROLL_THUMB_HOVER_COLOR))
-                    .pressedTexture(new ColorRectTexture(SCROLL_THUMB_PRESSED_COLOR)));
-        } else {
-            ColorRectTexture disabled = new ColorRectTexture(SCROLL_THUMB_DISABLED_COLOR);
-            thumb.buttonStyle(style -> style
-                    .baseTexture(disabled)
-                    .hoverTexture(disabled)
-                    .pressedTexture(disabled));
-        }
-    }
-
     private static String rowPartId(TrinityCpuStatus cpu, String part) {
         return "trinity_cpu_status_" + cpu.number() + "_" + part;
     }
@@ -490,61 +503,9 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                 .setSprite(0, 0, ICON_SIZE, ICON_SIZE);
     }
 
-    private static final class TrinityCpuScrollerView extends VirtualScrollerView<TrinityCpuStatus> {
-
-        private boolean overflowing;
-
-        @Override
-        public TrinityCpuScrollerView setItems(List<TrinityCpuStatus> items) {
-            int previousItemCount = getItemCount();
-            this.overflowing = items.size() > VISIBLE_ROW_COUNT;
-            super.setItems(items);
-            float normalizedValue = this.overflowing && items.size() >= previousItemCount ?
-                    this.verticalScroller.getNormalizedValue() :
-                    0.0F;
-            this.verticalScroller.setNormalizedValue(normalizedValue, false);
-            refreshVisibleItems(
-                    normalizedValue * Math.max(0.0F, getTotalVirtualHeight() - VIEWPORT_HEIGHT),
-                    VIEWPORT_HEIGHT);
-            setScrollInteractionEnabled(this.overflowing);
-            setThumbTextures(this.verticalScroller.scrollBar, this.overflowing);
-            updateThumbSize();
-            return this;
-        }
-
-        @Override
-        protected void onViewPortLayoutChanged(UIEvent event) {
-            super.onViewPortLayoutChanged(event);
-            updateThumbSize();
-        }
-
-        @Override
-        protected void onContainerLayoutChanged(UIEvent event) {
-            super.onContainerLayoutChanged(event);
-            updateThumbSize();
-        }
-
-        @Override
-        protected void onScrollWheel(UIEvent event) {
-            if (this.overflowing) {
-                super.onScrollWheel(event);
-            }
-        }
-
-        private void updateThumbSize() {
-            float trackHeight = this.verticalScroller.scrollContainer.getContentHeight();
-            float naturalPercent = this.verticalScroller.getScrollerStyle().scrollBarSize();
-            this.verticalScroller.setScrollBarSize(
-                    TrinityCpuListGeometry.thumbPercent(naturalPercent, trackHeight, this.overflowing));
-        }
-
-        private void setScrollInteractionEnabled(boolean enabled) {
-            this.verticalScroller.selfAndAllChildren()
-                    .forEach(element -> element.setAllowHitTest(enabled));
-        }
-    }
-
-    /** Draws one synchronized crafting target through AE2's public key-rendering registry. */
+    /**
+     * Draws one synchronized crafting target through AE2's public key-rendering registry.
+     */
     private static final class CpuTargetIcon extends UIElement {
 
         private final AEKey target;

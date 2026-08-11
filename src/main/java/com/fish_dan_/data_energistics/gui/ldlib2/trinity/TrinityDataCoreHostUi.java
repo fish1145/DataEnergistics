@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
@@ -16,14 +15,15 @@ import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -35,6 +35,8 @@ public final class TrinityDataCoreHostUi {
     static final String TITLE_ID = "trinity_data_core_title";
     static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
     static final String PLAYER_INVENTORY_ID = "trinity_data_core_player_inventory";
+    static final String CPU_PANEL_ID = "trinity_data_core_cpu_panel";
+    static final String CLOSE_ID = "trinity_data_core_close";
 
     private TrinityDataCoreHostUi() {}
 
@@ -58,7 +60,7 @@ public final class TrinityDataCoreHostUi {
 
         IModularUIHolderMenu holder = requireUnmountedMenu(menu);
         TrinityDataCoreUiSync sync = TrinityDataCoreUiSync.create(menu);
-        UI ui = TrinityUiXmlLayouts.load("data_core");
+        UI ui = TrinityUiNbtLayouts.load("data_core");
         UIElement root = ui.rootElement;
         HostUiExtension hostUi = HostUiExtension.create(root);
         HostModularUI modularUI = null;
@@ -68,11 +70,14 @@ public final class TrinityDataCoreHostUi {
                     .setText(Component.translatable("block.data_energistics.trinity_data_core"));
             TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_TITLE_ID, Label.class)
                     .setText(Component.translatable("container.inventory"));
+            InventorySlots playerInventorySlots = playerInventorySlots(root);
             root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
-            InventorySlots playerInventorySlots = playerInventorySlots(root);
-            root.addChild(cpuList(menu, sync.cpuListStatusProvider(), sync.hostStatusProvider()));
-            root.addChild(TrinityDataCoreHostLauncherPanel.create(hostUi));
+            mountCpuList(
+                    root,
+                    cpuList(menu, sync.cpuListStatusProvider()));
+            TrinityDataCoreHostLauncherPanel.bindExisting(root, hostUi);
+            bindClose(root, menu);
             HostUiCoordinator coordinator = coordinatorFactory.apply(hostUi);
             if (coordinator == null || coordinator.hostUi() != hostUi) {
                 throw new IllegalStateException("Trinity Data Core coordinator must own the mounted host extension");
@@ -105,7 +110,44 @@ public final class TrinityDataCoreHostUi {
         return TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_ID, InventorySlots.class);
     }
 
-    /** Validates every invariant that can be checked before LDLib2 mutates the menu. */
+    private static void mountCpuList(UIElement root, TrinityCpuStatusList cpuList) {
+        UIElement panel = TrinityUiXmlLayouts.require(root, CPU_PANEL_ID, UIElement.class);
+        Scroller.Vertical scrollbar = TrinityUiXmlLayouts.require(
+                root,
+                TrinityCpuStatusList.SCROLLER_ID,
+                Scroller.Vertical.class);
+        if (scrollbar.getParent() != panel) {
+            throw mountViolation("editor-authored CPU scrollbar is not attached to the CPU panel");
+        }
+        int scrollbarIndex = panel.getChildren().indexOf(scrollbar);
+        if (scrollbarIndex < 0) {
+            throw mountViolation("editor-authored CPU scrollbar is missing from the CPU panel children");
+        }
+
+        cpuList.bindScrollbar(scrollbar);
+        cpuList.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0)
+                .width(TrinityCpuStatusList.DEFAULT_WIDTH)
+                .height(TrinityCpuStatusList.DEFAULT_HEIGHT));
+        panel.addChildAt(cpuList, scrollbarIndex);
+        if (cpuList.getParent() != panel) {
+            throw mountViolation("CPU list content was not attached to the expected panel");
+        }
+    }
+
+    private static void bindClose(UIElement root, TrinityDataCoreMenu menu) {
+        Button close = TrinityUiXmlLayouts.require(root, CLOSE_ID, Button.class);
+        Component tooltip = Component.translatable("gui.close");
+        close.setOnServerClick(event -> menu.getPlayer().closeContainer());
+        close.text.style(style -> style.tooltips(tooltip));
+        close.style(style -> style.tooltips(tooltip));
+    }
+
+    /**
+     * Validates every invariant that can be checked before LDLib2 mutates the menu.
+     */
     private static IModularUIHolderMenu requireUnmountedMenu(TrinityDataCoreMenu menu) {
         if (!(menu instanceof IModularUIHolderMenu holder)) {
             throw mountViolation("menu is not an IModularUIHolderMenu: " + menu.getClass().getName());
@@ -120,7 +162,9 @@ public final class TrinityDataCoreHostUi {
         return holder;
     }
 
-    /** Mounts once, then proves the native slot order and both sides of LDLib2's slot mapping. */
+    /**
+     * Mounts once, then proves the native slot order and both sides of LDLib2's slot mapping.
+     */
     private static void mountNativePlayerInventory(TrinityDataCoreMenu menu,
                                                    IModularUIHolderMenu holder,
                                                    HostModularUI modularUI,
@@ -147,15 +191,6 @@ public final class TrinityDataCoreHostUi {
         List<InventorySlots> inventories = modularUI.getElementsByType(InventorySlots.class);
         if (inventories.size() != 1 || inventories.getFirst() != inventorySlots) {
             throw mountViolation("Trinity Data Core UI must contain its exact single InventorySlots instance");
-        }
-        List<ItemSlot> mountedSlots = modularUI.getElementsByType(ItemSlot.class);
-        if (mountedSlots.size() != expectedSlots.size()) {
-            throw mountViolation("LDLib2 did not mount the complete native player ItemSlot tree");
-        }
-        for (int index = 0; index < expectedSlots.size(); index++) {
-            if (mountedSlots.get(index) != expectedSlots.get(index)) {
-                throw mountViolation("LDLib2 reordered the native player ItemSlot tree at index " + index);
-            }
         }
         Inventory playerInventory = menu.getPlayer().getInventory();
         for (int menuIndex = 0; menuIndex < expectedSlots.size(); menuIndex++) {
@@ -191,28 +226,11 @@ public final class TrinityDataCoreHostUi {
     }
 
     private static TrinityCpuStatusList cpuList(TrinityDataCoreMenu menu,
-                                                IDataProvider<TrinityCpuListStatus> statusProvider,
-                                                IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider) {
+                                                IDataProvider<TrinityCpuListStatus> statusProvider) {
         TrinityCpuStatusList cpuList = new TrinityCpuStatusList();
-        cpuList.setOnCpuSelected(cpuNumber -> dispatchCpuSelection(
-                hostStatusProvider.getValue(),
-                cpuNumber,
-                menu::sendOpenCpuStatus));
+        cpuList.setOnCpuSelected(cpuNumber -> menu.sendOpenCpuStatus(menu.getHostId(), cpuNumber));
         cpuList.bindDataSource(statusProvider);
         return cpuList;
-    }
-
-    static boolean dispatchCpuSelection(TrinityDataCoreHostStatus hostStatus,
-                                        int cpuNumber,
-                                        BiConsumer<UUID, Integer> selectionSink) {
-        if (hostStatus == null || selectionSink == null) {
-            throw new IllegalArgumentException("Trinity CPU selection requires synchronized host status and a sink");
-        }
-        if (hostStatus.hostId().isEmpty()) {
-            return false;
-        }
-        selectionSink.accept(hostStatus.hostId().orElseThrow(), cpuNumber);
-        return true;
     }
 
     private static void registerProviders(TrinityDataCoreMenu menu, HostUiExtension hostUi) {
