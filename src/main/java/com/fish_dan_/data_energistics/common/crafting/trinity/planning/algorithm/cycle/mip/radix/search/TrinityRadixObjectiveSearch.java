@@ -229,17 +229,9 @@ public final class TrinityRadixObjectiveSearch {
         Variable objectiveDigit = built.objective().digits().get(digit);
         int objectiveIndex = encoder.model().indexOf(objectiveDigit);
         Variable solverDigit = objectiveModel.getVariable(objectiveIndex);
-        int lowerBound;
-        int upperBound;
-        if (built.minimize()) {
-            lowerBound = certifiedMinimumDigit(built, digit, fixedDigits);
-            upperBound = decimalInteger(objectiveDigit.getUpperLimit()).intValueExact();
-            solverDigit.lower(lowerBound);
-        } else {
-            lowerBound = decimalInteger(objectiveDigit.getLowerLimit()).intValueExact();
-            upperBound = certifiedMaximumDigit(built, digit, fixedDigits);
-            solverDigit.upper(upperBound);
-        }
+        int lowerBound = certifiedMinimumDigit(built, digit, fixedDigits);
+        int upperBound = certifiedMaximumDigit(built, digit, fixedDigits);
+        solverDigit.lower(lowerBound).upper(upperBound);
         boolean fixedDigit = lowerBound == upperBound;
         if (fixedDigit) {
             solverDigit.level(lowerBound);
