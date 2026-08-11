@@ -189,7 +189,7 @@ public final class TrinityRadixModelAssembler {
         int index = 0;
         for (AEKey key : keys) {
             BigInteger upper = request.producibleInputs().contains(key) ?
-                    logicalUpper : request.available().getOrDefault(key, BigInteger.ZERO);
+                    logicalUpper : request.available().getOrDefault(key, BigInteger.ZERO).min(logicalUpper);
             variables.put(key, model.addBounded(prefix + index++, upper, !request.producibleInputs().contains(key)));
         }
         return variables;

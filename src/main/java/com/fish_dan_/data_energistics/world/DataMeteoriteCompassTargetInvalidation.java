@@ -63,10 +63,8 @@ public final class DataMeteoriteCompassTargetInvalidation {
             }
 
             ChunkPos requestedPos = new ChunkPos(player.blockPosition());
-            Optional<BlockPos> closest = DataMeteoriteLocator.findOrDiscoverClosest(
-                    level,
-                    requestedPos,
-                    player.blockPosition().getY());
+            Optional<BlockPos> closest = Optional.ofNullable(
+                    DataMeteoriteSavedData.get(level).findClosest(requestedPos));
             PacketDistributor.sendToPlayer(player, new DataMeteoriteCompassResponsePayload(requestedPos, closest));
         }
     }

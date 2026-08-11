@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentS
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.world.DataMeteoriteCompassTargetInvalidation;
-import com.fish_dan_.data_energistics.world.DataMeteoritePreloader;
 import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 
 import net.neoforged.bus.api.EventPriority;
@@ -30,7 +29,6 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new RadixLossControlLogic());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());
         NeoForge.EVENT_BUS.register(new RecipeReloadEventHandler());
-        NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());
         NeoForge.EVENT_BUS.register(new DataMeteoriteCompassTargetInvalidation());
         NeoForge.EVENT_BUS.register(new DataSanctumPortalLogic());
         NeoForge.EVENT_BUS.register(new FormationPlaneSonicBoomEchoCapture());

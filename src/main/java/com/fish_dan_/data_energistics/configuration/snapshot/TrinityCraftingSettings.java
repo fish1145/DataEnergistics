@@ -4,7 +4,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
-/** Immutable planning settings published as one configuration snapshot. */
+/**
+ * Immutable planning settings published as one configuration snapshot.
+ */
 public record TrinityCraftingSettings(
                                       int maxSccKeys,
                                       int maxBindingVariants,

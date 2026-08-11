@@ -64,6 +64,7 @@ import appeng.api.networking.crafting.UnsuitableCpus;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.service.CraftingService;
@@ -230,6 +231,7 @@ public abstract class CraftingServiceMixin
                 true,
                 gridScope,
                 graphRevision,
+                new GenericStack(what, amount),
                 () -> dataEnergistics$calculateInitialTrinityPlan(
                         gridScope,
                         requestId,

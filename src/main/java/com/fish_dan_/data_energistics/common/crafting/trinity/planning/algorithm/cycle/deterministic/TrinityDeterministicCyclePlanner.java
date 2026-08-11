@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
@@ -20,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Solves a stable deterministic cycle by closed-form net effect and maximum prefix deficit.
@@ -47,6 +49,7 @@ public final class TrinityDeterministicCyclePlanner {
      * @param requestedAmount   positive requested delivery
      * @param quantityMode      net-new or final-total semantics
      * @param available         non-negative immutable inventory snapshot
+     * @param producibleInputs  inputs that earlier graph components can supply after this cycle is selected
      * @param maxScheduleStates compressed scheduling state bound
      * @param control           cancellation and deadline boundary
      * @return exact compact cycle or stable rejection
@@ -57,11 +60,12 @@ public final class TrinityDeterministicCyclePlanner {
                                                          BigInteger requestedAmount,
                                                          CraftingQuantityMode quantityMode,
                                                          Map<AEKey, BigInteger> available,
+                                                         Set<AEKey> producibleInputs,
                                                          int maxScheduleStates,
                                                          TrinityPlanningControl control) {
         if (oneCycleOrder == null || oneCycleOrder.isEmpty() || target == null || quantityMode == null ||
-                available == null || control == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                maxScheduleStates <= 0) {
+                available == null || producibleInputs == null || control == null || requestedAmount == null ||
+                requestedAmount.signum() <= 0 || maxScheduleStates <= 0) {
             throw new IllegalArgumentException("A Trinity deterministic cycle request is incomplete");
         }
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
@@ -83,7 +87,6 @@ public final class TrinityDeterministicCyclePlanner {
         }
         Map<AEKey, BigInteger> minimumSeed = repeatedMinimumSeed(oneCycle, repetitions);
         Map<AEKey, BigInteger> netChange = multiply(oneCycle.netChange(), repetitions);
-        boolean authoritativeShortage = isSingleTransitionSelfCycle(oneCycleOrder, target);
         LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(minimumSeed);
         if (quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
             BigInteger targetContribution = requestedAmount
@@ -93,26 +96,37 @@ public final class TrinityDeterministicCyclePlanner {
                 initialInputs.merge(target, targetContribution, BigInteger::max);
             }
         }
-        for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
-            BigInteger availableAmount = inventory.getOrDefault(input.getKey(), BigInteger.ZERO);
-            if (availableAmount.compareTo(input.getValue()) < 0) {
-                return insufficientInput(
-                        input.getKey(),
-                        target,
-                        input.getValue(),
-                        availableAmount,
-                        minimumSeed,
-                        netChange,
-                        authoritativeShortage);
-            }
-        }
-
         LinkedHashMap<TrinityPatternVariant, BigInteger> aggregateFirings = new LinkedHashMap<>();
         for (TrinityVariantFiring firing : oneCycleOrder) {
             aggregateFirings.merge(
                     firing.variant(),
                     firing.count().multiply(repetitions),
                     BigInteger::add);
+        }
+        LinkedHashMap<AEKey, BigInteger> usedInputs = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> missingInputs = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, InputRequirement> shortages = new LinkedHashMap<>();
+        for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
+            BigInteger required = input.getValue();
+            BigInteger allocated = required.min(inventory.getOrDefault(input.getKey(), BigInteger.ZERO));
+            BigInteger missing = required.subtract(allocated);
+            if (allocated.signum() > 0) {
+                usedInputs.put(input.getKey(), allocated);
+            }
+            if (missing.signum() > 0 && !producibleInputs.contains(input.getKey())) {
+                missingInputs.put(input.getKey(), missing);
+                shortages.put(input.getKey(), new InputRequirement(required, allocated, missing));
+            }
+        }
+        if (!shortages.isEmpty()) {
+            return insufficientInputs(
+                    target,
+                    minimumSeed,
+                    netChange,
+                    aggregateFirings,
+                    usedInputs,
+                    missingInputs,
+                    shortages);
         }
         TrinityAlgorithmResult<TrinityCompressedSchedule> schedule = this.scheduler.schedule(
                 oneCycleOrder,
@@ -209,59 +223,57 @@ public final class TrinityDeterministicCyclePlanner {
         return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
     }
 
-    private static boolean isSingleTransitionSelfCycle(
-                                                       List<TrinityVariantFiring> oneCycleOrder,
-                                                       AEKey target) {
-        if (oneCycleOrder.size() != 1) {
-            return false;
-        }
-        TrinityVariantFiring firing = oneCycleOrder.getFirst();
-        return firing.count().equals(BigInteger.ONE) &&
-                firing.variant().inputs().containsKey(target) &&
-                firing.variant().outputs().containsKey(target);
-    }
-
-    private static <T> TrinityAlgorithmResult<T> insufficientInput(
-                                                                   AEKey key,
-                                                                   AEKey target,
-                                                                   BigInteger required,
-                                                                   BigInteger available,
-                                                                   Map<AEKey, BigInteger> minimumSeed,
-                                                                   Map<AEKey, BigInteger> netChange,
-                                                                   boolean authoritativeShortage) {
-        BigInteger missing = required.subtract(available);
-        BigInteger netConsumed = netChange.getOrDefault(key, BigInteger.ZERO).negate().max(BigInteger.ZERO);
-        InputRole role;
-        if (key.equals(target) && available.compareTo(minimumSeed.getOrDefault(key, BigInteger.ZERO)) < 0) {
-            role = InputRole.TARGET_CYCLE_SEED;
-        } else if (netConsumed.signum() > 0) {
-            role = InputRole.NET_CONSUMED_EXTERNAL_INPUT;
-        } else {
-            role = InputRole.CYCLE_WORKING_SEED;
-        }
+    private static <T> TrinityAlgorithmResult<T> insufficientInputs(
+                                                                    AEKey target,
+                                                                    Map<AEKey, BigInteger> minimumSeed,
+                                                                    Map<AEKey, BigInteger> netChange,
+                                                                    Map<TrinityPatternVariant, BigInteger> aggregateFirings,
+                                                                    Map<AEKey, BigInteger> usedInputs,
+                                                                    Map<AEKey, BigInteger> missingInputs,
+                                                                    Map<AEKey, InputRequirement> shortages) {
+        LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("shortageKinds", Integer.toString(shortages.size()));
         Component message = Component.translatable(
-                role.translationKey,
-                key.getDisplayName(),
-                required.toString(),
-                available.toString(),
-                missing.toString());
-        Map<String, String> metadata = Map.of(
-                "key", key.toString(),
-                "input_role", role.metadataValue,
-                "required", required.toString(),
-                "available", available.toString(),
-                "missing", missing.toString(),
-                "net_consumed", netConsumed.toString());
-        TrinityPlanningDiagnostic diagnostic = authoritativeShortage ?
-                new TrinityPlanningDiagnostic(
-                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        message,
-                        metadata,
-                        new TrinityPlanningDiagnostic.InputShortage(key, required, available, missing)) :
-                new TrinityPlanningDiagnostic(
-                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        message,
-                        metadata);
+                "gui.data_energistics.trinity_planning.diagnostic.insufficient_input");
+        if (shortages.size() == 1) {
+            Map.Entry<AEKey, InputRequirement> shortage = shortages.entrySet().iterator().next();
+            AEKey key = shortage.getKey();
+            InputRequirement requirement = shortage.getValue();
+            BigInteger netConsumed = netChange.getOrDefault(key, BigInteger.ZERO).negate().max(BigInteger.ZERO);
+            InputRole role;
+            if (key.equals(target) &&
+                    requirement.available().compareTo(minimumSeed.getOrDefault(key, BigInteger.ZERO)) < 0) {
+                role = InputRole.TARGET_CYCLE_SEED;
+            } else if (netConsumed.signum() > 0) {
+                role = InputRole.NET_CONSUMED_EXTERNAL_INPUT;
+            } else {
+                role = InputRole.CYCLE_WORKING_SEED;
+            }
+            message = Component.translatable(
+                    role.translationKey,
+                    key.getDisplayName(),
+                    requirement.required().toString(),
+                    requirement.available().toString(),
+                    requirement.missing().toString());
+            metadata.put("key", key.toString());
+            metadata.put("input_role", role.metadataValue);
+            metadata.put("required", requirement.required().toString());
+            metadata.put("available", requirement.available().toString());
+            metadata.put("missing", requirement.missing().toString());
+            metadata.put("net_consumed", netConsumed.toString());
+        }
+        LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+        aggregateFirings.forEach((variant, count) -> variant.outputs().forEach(
+                (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                message,
+                metadata,
+                new TrinityPlanningDiagnostic.PartialPlan(
+                        usedInputs,
+                        emitted,
+                        missingInputs,
+                        shortages));
         return TrinityAlgorithmResult.failure(diagnostic);
     }
 

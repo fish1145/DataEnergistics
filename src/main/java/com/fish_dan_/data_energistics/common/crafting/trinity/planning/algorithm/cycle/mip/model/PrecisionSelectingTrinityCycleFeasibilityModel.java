@@ -51,9 +51,8 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 request.fixedExternalTotal().filter(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow).isPresent()) {
             return true;
         }
-        if (request.available().values().stream().anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
-                request.demand().finalBalanceLowerBounds().values().stream()
-                        .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
+        if (request.demand().finalBalanceLowerBounds().values().stream()
+                .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
                 request.demand().requiredNetChangeLowerBounds().values().stream()
                         .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow)) {
             return true;

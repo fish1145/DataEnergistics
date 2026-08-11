@@ -12,8 +12,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.proof.TrinityDeterministicProofAssembler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.support.TrinityDeterministicDiagnostics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityFiringVector;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityShiftedFiringOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
@@ -40,7 +38,7 @@ public final class TrinityDeterministicComponentPlanner {
     public static TrinityDeterministicComponentPlanner create() {
         return new TrinityDeterministicComponentPlanner(
                 TrinityDeterministicApplicability.create(TrinityDeterministicCycleSequence.create()),
-                TrinityDeterministicFiringCalculator.create(TrinityShiftedFiringOptimizer.create()),
+                TrinityDeterministicFiringCalculator.create(),
                 TrinityDeterministicProofAssembler.create(
                         TrinityMinimumSeedScheduler.create(),
                         TrinityDeterministicRepeatScheduler.create()));
@@ -68,7 +66,7 @@ public final class TrinityDeterministicComponentPlanner {
      * @param producibleInputs inputs that predecessor DAG stages may supply
      * @param maxStates        positive graph-bounded planning and scheduling limit
      * @param control          cancellation and shared deadline boundary
-     * @return exact proved plan, structural miss requiring MIP, or terminal shared-budget failure
+     * @return exact feasible plan, structural miss requiring the general solver, or terminal shared-budget failure
      */
     public TrinityPlanningAttempt<TrinityDeterministicComponentPlan> plan(
                                                                           TrinityStronglyConnectedComponent component,
@@ -85,8 +83,6 @@ public final class TrinityDeterministicComponentPlanner {
         Set<AEKey> producible = Set.copyOf(producibleInputs);
         ArrayList<TrinityDeterministicCandidate> completeCandidates = new ArrayList<>();
         ArrayList<TrinityDeterministicCandidate> localCandidates = new ArrayList<>();
-        boolean rejectedReservoir = false;
-        boolean basisLocalCandidate = false;
 
         for (AEKey reservoir : component.keys()) {
             TrinityDeterministicDiagnostics.StopState state = TrinityDeterministicDiagnostics.stopState(control);
@@ -102,7 +98,6 @@ public final class TrinityDeterministicComponentPlanner {
                 continue;
             }
             if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.REJECT_RESERVOIR) {
-                rejectedReservoir = true;
                 continue;
             }
             TrinityAlgorithmResult<TrinityDeterministicFiringSolution> calculated = this.firingCalculator.calculate(
@@ -141,26 +136,17 @@ public final class TrinityDeterministicComponentPlanner {
                 completeCandidates.add(assembled.value());
                 continue;
             }
-            basisLocalCandidate |= calculated.value().leastFiringsProven() &&
-                    !calculated.value().completeComponentProof();
             localCandidates.add(assembled.value());
         }
         if (!completeCandidates.isEmpty()) {
             completeCandidates.sort(TrinityDeterministicCandidate.ORDER);
             return TrinityPlanningAttempt.provedOptimal(completeCandidates.getFirst().plan());
         }
-        if (rejectedReservoir && basisLocalCandidate) {
-            return TrinityDeterministicDiagnostics.notApplicable();
-        }
         if (localCandidates.isEmpty()) {
             return TrinityDeterministicDiagnostics.notApplicable();
         }
-        TrinityFiringVector firstVector = localCandidates.getFirst().objective().identity();
-        if (localCandidates.stream().anyMatch(candidate -> !candidate.objective().identity().equals(firstVector))) {
-            return TrinityDeterministicDiagnostics.notApplicable();
-        }
         localCandidates.sort(TrinityDeterministicCandidate.ORDER);
-        return TrinityPlanningAttempt.provedOptimal(localCandidates.getFirst().plan());
+        return TrinityPlanningAttempt.feasible(localCandidates.getFirst().plan());
     }
 
     private static TrinityPlanningAttempt<TrinityDeterministicComponentPlan> handleFailure(

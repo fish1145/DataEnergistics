@@ -6,6 +6,7 @@ import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -103,9 +104,23 @@ public record TrinityPlanningDiagnostic(
     }
 
     /**
+     * @return the material projection accumulated before planning stopped
+     */
+    public Optional<PartialPlan> partialPlan() {
+        return this.detail instanceof PartialPlan partial ? Optional.of(partial) : Optional.empty();
+    }
+
+    /**
+     * Retains the diagnostic identity and message while attaching typed planner evidence.
+     */
+    public TrinityPlanningDiagnostic withDetail(Detail value) {
+        return new TrinityPlanningDiagnostic(this.code, this.message, this.metadata, value);
+    }
+
+    /**
      * Closed diagnostic-detail family keeps typed planner evidence separate from string log metadata.
      */
-    public sealed interface Detail permits InputShortage, NoDetail {}
+    public sealed interface Detail permits InputShortage, PartialPlan, NoDetail {}
 
     private enum NoDetail implements Detail {
         INSTANCE
@@ -131,6 +146,79 @@ public record TrinityPlanningDiagnostic(
                     required.signum() <= 0 || available.signum() < 0 ||
                     !required.subtract(available).equals(missing) || missing.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity input shortage must be exact and positive");
+            }
+        }
+    }
+
+    /**
+     * Immutable material view accumulated along the selected planning branch before a terminal boundary was reached.
+     *
+     * @param usedItems         network inventory already reserved by the partial branch
+     * @param emittedItems      outputs of recipe firings already selected by the partial branch
+     * @param missingItems      positive demands that remained unresolved when planning stopped
+     * @param inputRequirements exact external-input allocations proven for the retained branch
+     */
+    public record PartialPlan(
+                              Map<AEKey, BigInteger> usedItems,
+                              Map<AEKey, BigInteger> emittedItems,
+                              Map<AEKey, BigInteger> missingItems,
+                              Map<AEKey, InputRequirement> inputRequirements)
+            implements Detail {
+
+        public PartialPlan(
+                           Map<AEKey, BigInteger> usedItems,
+                           Map<AEKey, BigInteger> emittedItems,
+                           Map<AEKey, BigInteger> missingItems) {
+            this(usedItems, emittedItems, missingItems, Map.of());
+        }
+
+        public PartialPlan {
+            usedItems = copyPositiveAmounts(usedItems, "used");
+            emittedItems = copyPositiveAmounts(emittedItems, "emitted");
+            missingItems = copyPositiveAmounts(missingItems, "missing");
+            Map<AEKey, BigInteger> copiedMissingItems = missingItems;
+            LinkedHashMap<AEKey, InputRequirement> copiedRequirements = new LinkedHashMap<>();
+            inputRequirements.forEach((key, requirement) -> {
+                if (!requirement.missing().equals(copiedMissingItems.get(key))) {
+                    throw new IllegalArgumentException(
+                            "A Trinity exact input requirement must match its projected missing amount");
+                }
+                copiedRequirements.put(key, requirement);
+            });
+            inputRequirements = Collections.unmodifiableMap(copiedRequirements);
+        }
+
+        private static Map<AEKey, BigInteger> copyPositiveAmounts(
+                                                                  Map<AEKey, BigInteger> source,
+                                                                  String role) {
+            LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+            source.forEach((key, amount) -> {
+                if (key == null || amount == null || amount.signum() <= 0) {
+                    throw new IllegalArgumentException("Trinity partial " + role + " amounts must be positive");
+                }
+                copied.put(key, amount);
+            });
+            return Collections.unmodifiableMap(copied);
+        }
+    }
+
+    /**
+     * Exact allocation result for one external input after the complete selected route has been propagated.
+     *
+     * @param required  total amount required by the selected route
+     * @param available amount actually allocated from the captured network inventory
+     * @param missing   positive amount still absent from that inventory
+     */
+    public record InputRequirement(
+                                   BigInteger required,
+                                   BigInteger available,
+                                   BigInteger missing) {
+
+        public InputRequirement {
+            if (required.signum() <= 0 || available.signum() < 0 || missing.signum() <= 0 ||
+                    !required.equals(available.add(missing))) {
+                throw new IllegalArgumentException(
+                        "A Trinity input requirement must preserve required = available + missing");
             }
         }
     }

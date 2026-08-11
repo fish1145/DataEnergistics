@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 
 /**
- * Distinguishes an opportunistic proof from a structural miss and a terminal planning failure.
+ * Distinguishes an accepted feasible value from a structural miss and a terminal planning failure.
  *
- * @param <T> immutable proven value type
+ * @param <T> immutable accepted value type
  */
 public final class TrinityPlanningAttempt<T> {
 
@@ -25,6 +25,18 @@ public final class TrinityPlanningAttempt<T> {
             throw new IllegalArgumentException("A proved Trinity planning value is required");
         }
         return new TrinityPlanningAttempt<>(new ProvedOptimal<>(value));
+    }
+
+    /**
+     * @param value exact feasible value selected without requiring a global objective proof
+     * @param <T>   value type
+     * @return accepted feasible result
+     */
+    public static <T> TrinityPlanningAttempt<T> feasible(T value) {
+        if (value == null) {
+            throw new IllegalArgumentException("A feasible Trinity planning value is required");
+        }
+        return new TrinityPlanningAttempt<>(new Feasible<>(value));
     }
 
     /**
@@ -59,8 +71,8 @@ public final class TrinityPlanningAttempt<T> {
     }
 
     /**
-     * @return completely verified optimal value
-     * @throws IllegalStateException when this attempt did not prove a value
+     * @return accepted optimal or feasible value
+     * @throws IllegalStateException when this attempt has no value
      */
     public T value() {
         return this.outcome.value();
@@ -68,7 +80,7 @@ public final class TrinityPlanningAttempt<T> {
 
     /**
      * @return stable non-success diagnostic
-     * @throws IllegalStateException when this attempt proved a value
+     * @throws IllegalStateException when this attempt carries a value
      */
     public TrinityPlanningDiagnostic diagnostic() {
         return this.outcome.diagnostic();
@@ -79,11 +91,12 @@ public final class TrinityPlanningAttempt<T> {
      */
     public enum Kind {
         PROVED_OPTIMAL,
+        FEASIBLE,
         NOT_APPLICABLE,
         TERMINAL
     }
 
-    private sealed interface Outcome<T> permits ProvedOptimal, NotApplicable, Terminal {
+    private sealed interface Outcome<T> permits ProvedOptimal, Feasible, NotApplicable, Terminal {
 
         Kind kind();
 
@@ -102,6 +115,19 @@ public final class TrinityPlanningAttempt<T> {
         @Override
         public TrinityPlanningDiagnostic diagnostic() {
             throw new IllegalStateException("A proved Trinity planning attempt has no diagnostic");
+        }
+    }
+
+    private record Feasible<T>(T value) implements Outcome<T> {
+
+        @Override
+        public Kind kind() {
+            return Kind.FEASIBLE;
+        }
+
+        @Override
+        public TrinityPlanningDiagnostic diagnostic() {
+            throw new IllegalStateException("A feasible Trinity planning attempt has no diagnostic");
         }
     }
 

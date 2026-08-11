@@ -108,6 +108,7 @@ public final class TrinityCyclePlanSelector {
                         request.amount(),
                         request.quantityMode(),
                         inventory,
+                        producible,
                         maxStates,
                         control);
                 if (deterministic.successful()) {

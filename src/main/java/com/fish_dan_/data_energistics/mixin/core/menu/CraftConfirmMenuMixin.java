@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
@@ -15,6 +16,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPl
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -46,6 +48,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.concurrent.Future;
+
 /**
  * Owns confirmation-page quantity context, diagnostics, and CPU-family filtering.
  */
@@ -58,6 +62,30 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Shadow
     @Nullable
     private ICraftingPlan result;
+
+    @Shadow
+    @Nullable
+    private AEKey whatToCraft;
+
+    @Shadow
+    private int amount;
+
+    @Shadow
+    @Nullable
+    private Future<ICraftingPlan> job;
+
+    @Shadow
+    private IGrid getGrid() {
+        throw new AssertionError();
+    }
+
+    @Shadow
+    private IActionSource getActionSrc() {
+        throw new AssertionError();
+    }
+
+    @Unique
+    private long dataEnergistics$requestedAmount;
 
     @GuiSync(791)
     @Unique
@@ -116,14 +144,38 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$planningNanos = plan.statistics().planningNanos();
             if (!plan.diagnostics().isEmpty()) {
                 this.dataEnergistics$hasDiagnostic = true;
-                this.dataEnergistics$diagnostic = plan.diagnostics().getFirst().message();
+                this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(plan.diagnostics().getFirst());
             }
         } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             this.dataEnergistics$hasDiagnostic = true;
-            this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
+            this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(diagnosed.diagnostic());
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
             this.dataEnergistics$planningNanos = diagnosed.calculationNanos();
         }
+    }
+
+    @Unique
+    private static Component dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
+        Component message = diagnostic.message();
+        return diagnostic.inputShortage()
+                .<Component>map(shortage -> message.copy().append(
+                        Component.translatable(
+                                "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
+                                shortage.key().getDisplayName(),
+                                shortage.missing(),
+                                shortage.available(),
+                                shortage.required())
+                                .withStyle(dataEnergistics$diagnosticDetailColor(diagnostic))))
+                .orElse(message);
+    }
+
+    @Unique
+    private static ChatFormatting dataEnergistics$diagnosticDetailColor(TrinityPlanningDiagnostic diagnostic) {
+        return switch (diagnostic.code()) {
+            case INTERNAL_ERROR, ARITHMETIC_OVERFLOW -> ChatFormatting.DARK_RED;
+            case CALCULATION_CANCELLED, MIP_TIMEOUT, PLANNER_QUEUE_FULL, RUNTIME_DEADLOCK, STALE_GRAPH -> ChatFormatting.YELLOW;
+            default -> ChatFormatting.RED;
+        };
     }
 
     @WrapOperation(
@@ -135,9 +187,15 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                                    IActionSource actionSource,
                                                                    ICraftingPlan job,
                                                                    Operation<CraftingPlanSummary> original) {
-        return job instanceof TrinityCraftingPlan trinityPlan ?
-                TrinityCraftingPlanSummaryProjection.create(trinityPlan) :
-                original.call(grid, actionSource, job);
+        if (job instanceof TrinityCraftingPlan trinityPlan) {
+            return TrinityCraftingPlanSummaryProjection.create(trinityPlan);
+        }
+        if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
+            return diagnosed.ae2FallbackEstimate() ?
+                    original.call(grid, actionSource, diagnosed.delegate()) :
+                    TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+        }
+        return original.call(grid, actionSource, job);
     }
 
     @Inject(method = "planJob", at = @At("HEAD"))
@@ -145,12 +203,25 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                int amount,
                                                CalculationStrategy strategy,
                                                CallbackInfoReturnable<Boolean> cir) {
+        this.dataEnergistics$requestedAmount = amount;
         dataEnergistics$clearPlanReadiness();
     }
 
-    @Inject(method = "replan", at = @At("HEAD"))
+    @Inject(method = "replan", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$beginReplanning(CallbackInfo ci) {
         dataEnergistics$clearPlanReadiness();
+        if (!this.isServerSide()) {
+            return;
+        }
+
+        CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
+        if (this.whatToCraft == null || !data_energistics$planJob(
+                this.whatToCraft,
+                this.dataEnergistics$requestedAmount,
+                CalculationStrategy.CRAFT_LESS)) {
+            self.goBack();
+        }
+        ci.cancel();
     }
 
     @Inject(method = "startJob", at = @At("HEAD"), cancellable = true)
@@ -216,6 +287,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         original.call(player, locator, whatToCraft, initialAmount);
         if (player.containerMenu instanceof TrinityCraftAmountMenuState amountMenu) {
             amountMenu.data_energistics$setQuantityMode(data_energistics$quantityMode());
+            amountMenu.data_energistics$setInitialAmount(this.dataEnergistics$requestedAmount);
         }
     }
 
@@ -252,6 +324,38 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode) {
         this.dataEnergistics$quantityMode = quantityMode.ordinal();
+    }
+
+    @Override
+    public boolean data_energistics$planJob(AEKey what, long amount, CalculationStrategy strategy) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException("A crafting request amount must be positive");
+        }
+        if (this.job != null) {
+            this.job.cancel(true);
+        }
+
+        this.result = null;
+        ((CraftConfirmMenu) (Object) this).clearError();
+        dataEnergistics$clearPlanReadiness();
+        this.whatToCraft = what;
+        this.dataEnergistics$requestedAmount = amount;
+
+        // AE2 retains this private int only for its native go-back/replan path. Both paths are intercepted above and
+        // use requestedAmount, so this mirror is never used to calculate or submit the request.
+        this.amount = amount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
+
+        IGrid grid = getGrid();
+        if (grid == null) {
+            return false;
+        }
+        this.job = grid.getCraftingService().beginCraftingCalculation(
+                this.getPlayer().level(),
+                this::getActionSrc,
+                what,
+                amount,
+                strategy);
+        return true;
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.api.stacks.GenericStack;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -13,7 +14,7 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 /**
- * Starts and arbitrates the Trinity and AE2 planning tracks for one crafting request.
+ * Starts the planner selected by the current crafting CPU family for one crafting request.
  */
 public interface TrinityPlanningGateway extends AutoCloseable {
 
@@ -28,19 +29,21 @@ public interface TrinityPlanningGateway extends AutoCloseable {
     }
 
     /**
-     * Starts AE2 and Trinity concurrently when a qualified Trinity CPU is currently available.
+     * Starts Trinity exclusively when a qualified Trinity CPU is currently available; otherwise delegates to AE2.
      *
      * @param qualifiedTrinityCpu whether the current grid has an online, idle CPU eligible for an extended plan
      * @param gridScope           owning Grid publication scope
      * @param graphRevision       immutable graph revision used by the Trinity calculation
+     * @param requestedOutput     requested output retained for a standalone Trinity diagnostic
      * @param trinityCalculation  immutable-snapshot calculation submitted only when the CPU gate passes
-     * @param ae2Calculation      original AE2 calculation, always started
-     * @return one cooperative future that prefers a valid in-budget Trinity result
+     * @param ae2Calculation      original AE2 calculation used only when the Trinity CPU gate does not pass
+     * @return one cooperative future for the selected planner
      */
     Future<ICraftingPlan> begin(
                                 boolean qualifiedTrinityCpu,
                                 long gridScope,
                                 long graphRevision,
+                                GenericStack requestedOutput,
                                 Callable<TrinityPlanningAttempt> trinityCalculation,
                                 Supplier<Future<ICraftingPlan>> ae2Calculation);
 
