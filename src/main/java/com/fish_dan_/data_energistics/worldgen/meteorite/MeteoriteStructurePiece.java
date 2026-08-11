@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -15,6 +17,9 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
 
+import lombok.Getter;
+
+@Getter
 public class MeteoriteStructurePiece extends StructurePiece {
 
     public static final StructurePieceType.ContextlessType TYPE = MeteoriteStructurePiece::new;
@@ -52,10 +57,6 @@ public class MeteoriteStructurePiece extends StructurePiece {
         return this.settings.getCraterType() != null;
     }
 
-    public PlacedMeteoriteSettings getSettings() {
-        return this.settings;
-    }
-
     protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag tag) {
         tag.putFloat("r", this.settings.getMeteoriteRadius());
         tag.putLong("c", this.settings.getPos().asLong());
@@ -67,6 +68,15 @@ public class MeteoriteStructurePiece extends StructurePiece {
 
     public void postProcess(WorldGenLevel level, StructureManager structureManager, ChunkGenerator chunkGenerator, RandomSource rand, BoundingBox bounds, ChunkPos chunkPos, BlockPos blockPos) {
         MeteoritePlacer.place(level, this.settings, bounds, rand);
-        DataMeteoriteSavedData.get(level.getLevel()).add(this.settings.getPos());
+        BlockPos center = this.settings.getPos();
+        if (bounds.isInside(center)) {
+            ServerLevel serverLevel = level.getLevel();
+            MinecraftServer server = serverLevel.getServer();
+            if (server.isSameThread()) {
+                DataMeteoriteSavedData.get(serverLevel).add(center);
+            } else {
+                server.execute(() -> DataMeteoriteSavedData.get(serverLevel).add(center));
+            }
+        }
     }
 }

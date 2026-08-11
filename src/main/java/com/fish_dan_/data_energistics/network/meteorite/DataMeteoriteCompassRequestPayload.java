@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.network.meteorite;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.world.DataMeteoriteLocator;
+import com.fish_dan_.data_energistics.world.DataMeteoriteSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -42,10 +42,8 @@ public record DataMeteoriteCompassRequestPayload(ChunkPos requestedPos) implemen
                 return;
             }
 
-            Optional<BlockPos> closest = DataMeteoriteLocator.findOrDiscoverClosest(
-                    level,
-                    payload.requestedPos(),
-                    context.player().blockPosition().getY());
+            Optional<BlockPos> closest = Optional.ofNullable(
+                    DataMeteoriteSavedData.get(level).findClosest(payload.requestedPos()));
 
             PacketDistributor.sendToPlayer(
                     (ServerPlayer) context.player(),

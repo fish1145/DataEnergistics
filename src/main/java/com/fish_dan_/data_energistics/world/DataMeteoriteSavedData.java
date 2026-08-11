@@ -17,9 +17,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
-import java.util.function.Predicate;
 
 public class DataMeteoriteSavedData extends SavedData {
 
@@ -64,11 +62,6 @@ public class DataMeteoriteSavedData extends SavedData {
 
     @Nullable
     public BlockPos findClosest(ChunkPos originChunkPos) {
-        return this.findClosest(originChunkPos, ignored -> true);
-    }
-
-    @Nullable
-    public BlockPos findClosest(ChunkPos originChunkPos, Predicate<BlockPos> isValid) {
         if (this.meteoritePositions.isEmpty()) {
             return null;
         }
@@ -76,26 +69,13 @@ public class DataMeteoriteSavedData extends SavedData {
         BlockPos origin = originChunkPos.getMiddleBlockPosition(0);
         BlockPos closest = null;
         double closestDistance = Double.MAX_VALUE;
-        boolean removedInvalidPosition = false;
-        Iterator<Long> positions = this.meteoritePositions.iterator();
-        while (positions.hasNext()) {
-            long packedPos = positions.next();
+        for (long packedPos : this.meteoritePositions) {
             BlockPos pos = BlockPos.of(packedPos);
-            if (!isValid.test(pos)) {
-                positions.remove();
-                removedInvalidPosition = true;
-                continue;
-            }
-
             double distance = origin.distSqr(pos.atY(0));
             if (distance < closestDistance) {
                 closest = pos;
                 closestDistance = distance;
             }
-        }
-
-        if (removedInvalidPosition) {
-            this.setDirty();
         }
         return closest;
     }
