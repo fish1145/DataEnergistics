@@ -76,9 +76,24 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     public static TrinityDiagnosedCraftingPlan forInputShortage(
                                                                 GenericStack finalOutput,
                                                                 TrinityPlanningDiagnostic diagnostic) {
+        return forInputShortage(finalOutput, diagnostic, 0L);
+    }
+
+    /**
+     * Builds a timed constant-size simulation for an exact Trinity input shortage.
+     *
+     * @param finalOutput      requested delivery retained for the confirmation menu
+     * @param diagnostic       exact typed shortage produced by the Trinity planner
+     * @param calculationNanos elapsed time for this planning request in nanoseconds
+     * @return non-executable standalone diagnostic plan
+     */
+    public static TrinityDiagnosedCraftingPlan forInputShortage(
+                                                                GenericStack finalOutput,
+                                                                TrinityPlanningDiagnostic diagnostic,
+                                                                long calculationNanos) {
         diagnostic.inputShortage().orElseThrow(() -> new IllegalArgumentException(
                 "A standalone Trinity diagnostic plan requires an exact input shortage"));
-        return forDiagnostic(finalOutput, diagnostic);
+        return forDiagnostic(finalOutput, diagnostic, calculationNanos);
     }
 
     /**
@@ -93,6 +108,21 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     public static TrinityDiagnosedCraftingPlan forDiagnostic(
                                                              GenericStack finalOutput,
                                                              TrinityPlanningDiagnostic diagnostic) {
+        return forDiagnostic(finalOutput, diagnostic, 0L);
+    }
+
+    /**
+     * Builds a timed terminal diagnostic without starting or adopting the native AE2 planner.
+     *
+     * @param finalOutput      requested delivery retained for the confirmation menu
+     * @param diagnostic       terminal Trinity result
+     * @param calculationNanos elapsed time for this planning request in nanoseconds
+     * @return non-executable standalone diagnostic plan
+     */
+    public static TrinityDiagnosedCraftingPlan forDiagnostic(
+                                                             GenericStack finalOutput,
+                                                             TrinityPlanningDiagnostic diagnostic,
+                                                             long calculationNanos) {
         ICraftingPlan view;
         if (diagnostic.inputShortage().isPresent()) {
             TrinityPlanningDiagnostic.InputShortage shortage = diagnostic.inputShortage().orElseThrow();
@@ -111,7 +141,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
         } else {
             view = new DiagnosticSimulation(finalOutput);
         }
-        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false, 0L);
+        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false, calculationNanos);
     }
 
     /**
@@ -136,7 +166,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     }
 
     /**
-     * @return elapsed AE2 calculation time in nanoseconds, or zero for a standalone Trinity diagnostic
+     * @return elapsed calculation time for this request in nanoseconds
      */
     public long calculationNanos() {
         return this.calculationNanos;

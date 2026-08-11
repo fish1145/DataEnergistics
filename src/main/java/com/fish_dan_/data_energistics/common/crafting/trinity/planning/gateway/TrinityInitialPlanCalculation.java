@@ -82,7 +82,10 @@ public final class TrinityInitialPlanCalculation {
         TrinityPlanningComputationResult computation = this.algorithm.calculate(request);
         TrinityAlgorithmResult<TrinityCraftingPlan> result = computation.result();
         if (!result.successful()) {
-            TrinityPlanningAttempt failedAttempt = failedAttempt(request, result.diagnostic());
+            TrinityPlanningAttempt failedAttempt = failedAttempt(
+                    request,
+                    result.diagnostic(),
+                    computation.planningNanos());
             logFailure(request, failedAttempt.diagnostic(), computation.cachePath());
             return failedAttempt;
         }
@@ -122,14 +125,16 @@ public final class TrinityInitialPlanCalculation {
 
     private static TrinityPlanningAttempt failedAttempt(
                                                         TrinityInitialPlanningRequest request,
-                                                        TrinityPlanningDiagnostic diagnostic) {
+                                                        TrinityPlanningDiagnostic diagnostic,
+                                                        long planningNanos) {
         if (diagnostic.inputShortage().isEmpty()) {
             return TrinityPlanningAttempt.failure(diagnostic);
         }
         try {
             return TrinityPlanningAttempt.authoritativeSimulation(TrinityDiagnosedCraftingPlan.forInputShortage(
                     new GenericStack(request.target(), request.requestedAmount().longValueExact()),
-                    diagnostic));
+                    diagnostic,
+                    planningNanos));
         } catch (ArithmeticException exception) {
             return TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,

@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -162,8 +163,9 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
         private final GenericStack requestedOutput;
         private final Future<TrinityPlanningAttempt> trinity;
+        private final long startedNanos;
 
-        private ICraftingPlan result;
+        private @Nullable ICraftingPlan result;
         private boolean cancelled;
 
         private PreferredPlanningFuture(
@@ -171,6 +173,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                                         Future<TrinityPlanningAttempt> trinity) {
             this.requestedOutput = requestedOutput;
             this.trinity = trinity;
+            this.startedNanos = System.nanoTime();
         }
 
         @Override
@@ -255,7 +258,10 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                         "gui.data_energistics.trinity_planning.diagnostic.internal_error");
             }
 
-            return publish(TrinityDiagnosedCraftingPlan.forDiagnostic(this.requestedOutput, diagnostic));
+            return publish(TrinityDiagnosedCraftingPlan.forDiagnostic(
+                    this.requestedOutput,
+                    diagnostic,
+                    Math.max(0L, System.nanoTime() - this.startedNanos)));
         }
 
         private TrinityPlanningAttempt awaitTrinity(long callerDeadlineNanos)
