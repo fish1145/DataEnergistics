@@ -357,6 +357,7 @@ final class TrinityRemainingPlanCalculationTest {
         public Future<ICraftingPlan> begin(boolean qualifiedTrinityCpu,
                                            long gridScope,
                                            long graphRevision,
+                                           GenericStack requestedOutput,
                                            Callable<TrinityPlanningAttempt> trinityCalculation,
                                            Supplier<Future<ICraftingPlan>> ae2Calculation) {
             throw new UnsupportedOperationException("Parallel initial planning is outside this test");

@@ -73,7 +73,7 @@ public final class TrinityInitialPlanCalculation {
      * Calculates an executable plan from one immutable server-thread capture.
      *
      * @param request immutable server-thread capture
-     * @return executable plan or an explicit AE2 fallback diagnostic
+     * @return executable plan or an explicit non-executable Trinity diagnostic
      */
     public TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) throws Exception {
         if (request == null) {
@@ -83,7 +83,7 @@ public final class TrinityInitialPlanCalculation {
         TrinityAlgorithmResult<TrinityCraftingPlan> result = computation.result();
         if (!result.successful()) {
             TrinityPlanningAttempt failedAttempt = failedAttempt(request, result.diagnostic());
-            logFallback(request, failedAttempt.diagnostic(), computation.cachePath());
+            logFailure(request, failedAttempt.diagnostic(), computation.cachePath());
             return failedAttempt;
         }
 
@@ -98,7 +98,7 @@ public final class TrinityInitialPlanCalculation {
                     Map.of(
                             "planBytes", Long.toString(plan.bytes()),
                             "maxTrinityBytes", Long.toString(request.maxTrinityBytes())));
-            logFallback(request, diagnostic, computation.cachePath());
+            logFailure(request, diagnostic, computation.cachePath());
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
@@ -138,15 +138,15 @@ public final class TrinityInitialPlanCalculation {
         }
     }
 
-    private static void logFallback(
-                                    TrinityInitialPlanningRequest request,
-                                    TrinityPlanningDiagnostic diagnostic,
-                                    PlanningCachePath cachePath) {
+    private static void logFailure(
+                                   TrinityInitialPlanningRequest request,
+                                   TrinityPlanningDiagnostic diagnostic,
+                                   PlanningCachePath cachePath) {
         if (!DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
             return;
         }
         Data_Energistics.LOGGER.info(
-                "Trinity planning fallback request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
+                "Trinity planning stopped request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
                 request.requestId(),
                 request.target(),
                 request.quantityMode(),
