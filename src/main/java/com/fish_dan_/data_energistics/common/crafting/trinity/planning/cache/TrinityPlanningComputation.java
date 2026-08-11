@@ -62,7 +62,7 @@ public final class TrinityPlanningComputation {
      * Invalidates obsolete revision-bound entries and submits one caller-isolated orchestration.
      *
      * @param input immutable pure planning input
-     * @return caller-owned future; cancellation does not cancel shared bottom calculations
+     * @return caller-owned future; cancellation with interruption enabled stops this request's planner thread
      */
     public Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input) {
         validateInput(input);

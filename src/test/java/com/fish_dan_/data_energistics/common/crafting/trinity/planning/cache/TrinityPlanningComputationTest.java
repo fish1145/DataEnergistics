@@ -128,7 +128,7 @@ final class TrinityPlanningComputationTest {
     }
 
     @Test
-    void revisionChangeReusesSemanticStructureAndPublishesCurrentRevisionPlan() throws Exception {
+    void revisionChangeCancelsInflightStructureThenCachesTheRevisedResult() throws Exception {
         CountingPipeline pipeline = new CountingPipeline();
         pipeline.compileEntered = new CountDownLatch(1);
         pipeline.releaseCompile = new CountDownLatch(1);
@@ -155,12 +155,12 @@ final class TrinityPlanningComputationTest {
                 BigInteger.ONE,
                 Map.of(inputKey, BigInteger.ONE))));
 
-        assertEquals(PlanningCachePath.STRUCTURE_HIT, revised.cachePath());
+        assertEquals(PlanningCachePath.MISS, revised.cachePath());
         assertEquals(PlanningCachePath.STRUCTURE_HIT, nextRevision.cachePath());
         assertTrue(revised.result().successful());
         assertEquals(11L, revised.result().value().catalogRevision());
         assertEquals(12L, nextRevision.result().value().catalogRevision());
-        assertEquals(1, pipeline.compilations.get());
+        assertEquals(2, pipeline.compilations.get());
         assertEquals(2, pipeline.solves.get());
     }
 

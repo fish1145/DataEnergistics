@@ -16,6 +16,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
@@ -28,6 +30,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     private final Executor executor;
     private final int gridEntryLimit;
     private final Map<Long, GridPartition> partitions = new HashMap<>();
+    private final ThreadLocal<CacheEntry<?>> callerOwnedEntry = new ThreadLocal<>();
     private boolean closed;
 
     BoundedTrinityComputationCache(Executor executor, int gridEntryLimit) {
@@ -51,9 +54,9 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         validateRequest(gridScope, namespace, revision, key, calculation);
 
         GridPartition partition;
-        CacheEntry<V> entry;
-        boolean registered;
-        TrinityComputationLookup<V> existingLookup = null;
+        CacheEntry<V> entry = null;
+        TrinityComputationLookup<V> callerLookup;
+        boolean startExecution = false;
         List<CacheEntry<?>> cancelled = new ArrayList<>();
         synchronized (this.cacheLock) {
             requireOpen();
@@ -67,28 +70,26 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                 existingRegistered = false;
             }
             if (existing != null) {
-                existingLookup = lookup(castEntry(existing), true, existingRegistered);
-                entry = null;
-                registered = existingRegistered;
+                callerLookup = lookup(castEntry(existing), true, existingRegistered);
             } else if (staleRevision) {
                 CompletableFuture<V> stale = new CompletableFuture<>();
                 stale.cancel(false);
-                existingLookup = new TrinityComputationLookup<>(stale, false, false);
-                entry = null;
-                registered = false;
+                callerLookup = new TrinityComputationLookup<>(stale, false, false);
             } else {
-                registered = reserveRegisteredSlot(partition);
-                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true);
+                boolean registered = reserveRegisteredSlot(partition);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true, false);
                 if (registered) {
                     partition.entries.put(scopedKey, entry);
                 } else {
                     partition.bypassEntries.put(scopedKey, entry);
                 }
+                callerLookup = lookup(entry, false, registered);
+                startExecution = true;
             }
         }
         cancelled.forEach(CacheEntry::cancelObsolete);
-        if (existingLookup != null) {
-            return existingLookup;
+        if (!startExecution) {
+            return callerLookup;
         }
 
         try {
@@ -97,7 +98,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             entry.reject(exception);
             throw exception;
         }
-        return lookup(entry, false, registered);
+        return callerLookup;
     }
 
     @Override
@@ -115,6 +116,8 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         }
 
         CacheEntry<V> entry;
+        CacheEntry<?> parentEntry;
+        SubscriberLease<V> lease;
         boolean cacheHit;
         boolean registered;
         boolean staleRevision;
@@ -123,6 +126,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             requireOpen();
             if (!lifecycleActive.getAsBoolean()) {
                 return Optional.empty();
+            }
+            parentEntry = this.callerOwnedEntry.get();
+            if (parentEntry != null) {
+                parentEntry.requireInlineAdmission();
             }
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
@@ -144,11 +151,19 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             } else {
                 cacheHit = false;
                 registered = reserveRegisteredSlot(partition);
-                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true);
+                entry = new CacheEntry<>(partition, scopedKey, calculation, registered, true, false);
                 if (registered) {
                     partition.entries.put(scopedKey, entry);
                 } else {
                     partition.bypassEntries.put(scopedKey, entry);
+                }
+            }
+            if (entry == null) {
+                lease = null;
+            } else {
+                lease = new SubscriberLease<>(entry);
+                if (parentEntry != null) {
+                    parentEntry.attachInline(lease, !cacheHit);
                 }
             }
         }
@@ -158,17 +173,32 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             throw new CancellationException("The Trinity computation revision is obsolete");
         }
 
-        if (!cacheHit) {
-            entry.execution.run();
-        }
+        V value;
         try {
-            return Optional.of(new TrinityComputationValue<>(entry.result.get(), cacheHit, registered));
+            if (!cacheHit) {
+                entry.execution.run();
+            }
+            value = entry.result.get();
+        } catch (InterruptedException exception) {
+            lease.release(true);
+            throw exception;
         } catch (ExecutionException exception) {
             if (exception.getCause() instanceof Error error) {
                 throw error;
             }
             throw exception;
+        } finally {
+            if (parentEntry != null) {
+                synchronized (this.cacheLock) {
+                    parentEntry.clearInline(lease);
+                }
+            }
+            lease.release(false);
         }
+        if (parentEntry != null && parentEntry.state.get() != CacheEntryState.ACTIVE) {
+            throw new CancellationException("The owning Trinity planning request was cancelled");
+        }
+        return Optional.of(new TrinityComputationValue<>(value, cacheHit, registered));
     }
 
     @Override
@@ -177,6 +207,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             throw new IllegalArgumentException("A detached Trinity computation requires scope, revision, and calculation");
         }
         CacheEntry<V> entry;
+        CallerFuture<V> callerFuture;
         List<CacheEntry<?>> cancelled = new ArrayList<>();
         boolean staleRevision;
         synchronized (this.cacheLock) {
@@ -189,6 +220,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                     cancelled);
             if (staleRevision) {
                 entry = null;
+                callerFuture = null;
             } else {
                 ScopedKey scopedKey = new ScopedKey(TrinityComputationNamespace.SOLVED_PLAN, revision, new Object());
                 entry = new CacheEntry<>(
@@ -196,8 +228,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                         scopedKey,
                         () -> TrinityCachedComputation.transientValue(calculation.call()),
                         false,
-                        false);
+                        true,
+                        true);
                 partition.bypassEntries.put(scopedKey, entry);
+                callerFuture = new CallerFuture<>(entry);
             }
         }
         cancelled.forEach(CacheEntry::cancelObsolete);
@@ -212,7 +246,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             entry.reject(exception);
             throw exception;
         }
-        return lookup(entry, false, false).future();
+        return callerFuture;
     }
 
     @Override
@@ -365,21 +399,95 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         }
     }
 
-    private static <V> TrinityComputationLookup<V> lookup(
-                                                          CacheEntry<V> entry,
-                                                          boolean cacheHit,
-                                                          boolean registered) {
-        CompletableFuture<V> callerFuture = new CompletableFuture<>();
-        entry.result.whenComplete((value, failure) -> {
-            if (failure == null) {
-                callerFuture.complete(value);
-            } else if (failure instanceof CancellationException) {
-                callerFuture.cancel(false);
-            } else {
-                callerFuture.completeExceptionally(failure);
+    private <V> TrinityComputationLookup<V> lookup(
+                                                   CacheEntry<V> entry,
+                                                   boolean cacheHit,
+                                                   boolean registered) {
+        return new TrinityComputationLookup<>(new CallerFuture<>(entry), cacheHit, registered);
+    }
+
+    private final class CallerFuture<V> implements Future<V> {
+
+        private final SubscriberLease<V> lease;
+        private final CompletableFuture<V> delegate = new CompletableFuture<>();
+
+        private CallerFuture(CacheEntry<V> entry) {
+            this.lease = new SubscriberLease<>(entry);
+            entry.result.whenComplete((value, failure) -> {
+                if (failure == null) {
+                    this.delegate.complete(value);
+                } else if (failure instanceof CancellationException) {
+                    this.delegate.cancel(false);
+                } else {
+                    this.delegate.completeExceptionally(failure);
+                }
+                this.lease.release(false);
+            });
+        }
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            if (!this.delegate.cancel(false)) {
+                return false;
             }
-        });
-        return new TrinityComputationLookup<>(callerFuture, cacheHit, registered);
+            this.lease.release(mayInterruptIfRunning);
+            return true;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return this.delegate.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return this.delegate.isDone();
+        }
+
+        @Override
+        public V get() throws InterruptedException, ExecutionException {
+            return this.delegate.get();
+        }
+
+        @Override
+        public V get(long timeout, TimeUnit unit)
+                                                  throws InterruptedException, ExecutionException, TimeoutException {
+            return this.delegate.get(timeout, unit);
+        }
+    }
+
+    private final class SubscriberLease<V> {
+
+        private final CacheEntry<V> entry;
+        private boolean released;
+
+        private SubscriberLease(CacheEntry<V> entry) {
+            this.entry = entry;
+            this.entry.subscribers++;
+        }
+
+        private boolean release(boolean interrupt) {
+            CancellationAction action = null;
+            synchronized (BoundedTrinityComputationCache.this.cacheLock) {
+                if (this.released) {
+                    return false;
+                }
+                this.released = true;
+                this.entry.subscribers--;
+                if (this.entry.subscribers < 0) {
+                    throw new IllegalStateException("A Trinity computation subscriber was released more than once");
+                }
+                if (this.entry.subscribers == 0 && this.entry.state.compareAndSet(CacheEntryState.ACTIVE, CacheEntryState.CANCELLED)) {
+                    this.entry.removeFromPartition();
+                    action = this.entry.cancellationAction(interrupt);
+                }
+            }
+            if (action != null) {
+                action.execute();
+                return true;
+            }
+            return false;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -394,27 +502,41 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         private final Callable<TrinityCachedComputation<V>> calculation;
         private final boolean registered;
         private final boolean revisionCancellationInterrupts;
+        private final boolean callerOwned;
         private final AtomicReference<CacheEntryState> state = new AtomicReference<>(CacheEntryState.ACTIVE);
         private final CompletableFuture<V> result = new CompletableFuture<>();
         private final FutureTask<Void> execution = new FutureTask<>(this::execute);
+        private int subscribers;
+        private SubscriberLease<?> inlineLease;
+        private boolean inlineOwner;
 
         private CacheEntry(GridPartition partition,
                            ScopedKey key,
                            Callable<TrinityCachedComputation<V>> calculation,
                            boolean registered,
-                           boolean revisionCancellationInterrupts) {
+                           boolean revisionCancellationInterrupts,
+                           boolean callerOwned) {
             this.partition = partition;
             this.key = key;
             this.calculation = calculation;
             this.registered = registered;
             this.revisionCancellationInterrupts = revisionCancellationInterrupts;
+            this.callerOwned = callerOwned;
         }
 
         private Void execute() {
+            CacheEntry<?> previousCallerOwnedEntry = null;
+            if (this.callerOwned) {
+                previousCallerOwnedEntry = BoundedTrinityComputationCache.this.callerOwnedEntry.get();
+                BoundedTrinityComputationCache.this.callerOwnedEntry.set(this);
+            }
             try {
                 TrinityCachedComputation<V> computed = this.calculation.call();
                 if (computed == null) {
                     throw new IllegalStateException("A Trinity computation returned no publication result");
+                }
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("The owning Trinity planning request was cancelled");
                 }
                 publish(computed);
                 return null;
@@ -427,6 +549,14 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                 }
                 fail(exception);
                 return null;
+            } finally {
+                if (this.callerOwned) {
+                    if (previousCallerOwnedEntry == null) {
+                        BoundedTrinityComputationCache.this.callerOwnedEntry.remove();
+                    } else {
+                        BoundedTrinityComputationCache.this.callerOwnedEntry.set(previousCallerOwnedEntry);
+                    }
+                }
             }
         }
 
@@ -466,6 +596,27 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             removeEmptyPartition(this.partition.gridScope, this.partition);
         }
 
+        private void requireInlineAdmission() {
+            if (this.state.get() != CacheEntryState.ACTIVE) {
+                throw new CancellationException("The owning Trinity planning request was cancelled");
+            }
+            if (this.inlineLease != null) {
+                throw new IllegalStateException("A Trinity planning request cannot execute two inline cache layers at once");
+            }
+        }
+
+        private void attachInline(SubscriberLease<?> lease, boolean owner) {
+            this.inlineLease = lease;
+            this.inlineOwner = owner;
+        }
+
+        private void clearInline(SubscriberLease<?> lease) {
+            if (this.inlineLease == lease) {
+                this.inlineLease = null;
+                this.inlineOwner = false;
+            }
+        }
+
         private void cancelUnderlying() {
             finishCancellation(true);
         }
@@ -479,11 +630,61 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         }
 
         private void finishCancellation(boolean interrupt) {
-            markCancellation();
-            if (this.state.get() == CacheEntryState.CANCELLED) {
-                this.result.cancel(false);
+            CancellationAction action;
+            synchronized (BoundedTrinityComputationCache.this.cacheLock) {
+                markCancellation();
+                action = cancellationAction(interrupt);
             }
-            this.execution.cancel(interrupt);
+            action.execute();
+        }
+
+        private CancellationAction cancellationAction(boolean interrupt) {
+            SubscriberLease<?> childLease = this.inlineLease;
+            boolean childOwner = this.inlineOwner;
+            this.inlineLease = null;
+            this.inlineOwner = false;
+            return new CancellationAction(
+                    this,
+                    childLease,
+                    childOwner,
+                    interrupt,
+                    this.state.get() == CacheEntryState.CANCELLED);
+        }
+    }
+
+    private final class CancellationAction {
+
+        private final CacheEntry<?> entry;
+        private final SubscriberLease<?> childLease;
+        private final boolean childOwner;
+        private final boolean interrupt;
+        private final boolean cancelResult;
+
+        private CancellationAction(
+                                   CacheEntry<?> entry,
+                                   SubscriberLease<?> childLease,
+                                   boolean childOwner,
+                                   boolean interrupt,
+                                   boolean cancelResult) {
+            this.entry = entry;
+            this.childLease = childLease;
+            this.childOwner = childOwner;
+            this.interrupt = interrupt;
+            this.cancelResult = cancelResult;
+        }
+
+        private void execute() {
+            if (this.cancelResult) {
+                this.entry.result.cancel(false);
+            }
+            boolean childCancelled = this.childLease != null && this.childLease.release(this.interrupt);
+            if (!this.interrupt) {
+                this.entry.execution.cancel(false);
+                return;
+            }
+            if (this.childLease == null || !this.childOwner || childCancelled || this.childLease.entry.state.get() != CacheEntryState.ACTIVE) {
+                this.entry.execution.cancel(true);
+            }
         }
     }
 

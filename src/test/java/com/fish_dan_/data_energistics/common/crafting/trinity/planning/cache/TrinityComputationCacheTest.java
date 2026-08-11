@@ -358,38 +358,36 @@ final class TrinityComputationCacheTest {
     }
 
     @Test
-    void cancellingOneDetachedCallerDoesNotInterruptSharedInlineCalculation() throws Exception {
-        ExecutorService executor = executor(2);
+    void cancellingDetachedCallerInterruptsItsOwnedInlineCalculation() throws Exception {
+        ExecutorService executor = executor(1);
         TrinityComputationCache cache = cache(executor, 8);
         CountDownLatch entered = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        AtomicInteger calculations = new AtomicInteger();
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean();
 
-        Future<String> first = cache.submit(1L, 1L, () -> cache.computeInline(
+        Future<String> submitted = cache.submit(1L, 1L, () -> cache.computeInline(
                 1L,
                 TrinityComputationNamespace.COMPILED_GRAPH,
                 TrinityComputationCache.SEMANTIC_REVISION,
-                "shared",
+                "owned",
                 () -> {
-                    calculations.incrementAndGet();
                     entered.countDown();
-                    assertTrue(release.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
-                    return TrinityCachedComputation.cacheable("compiled");
+                    try {
+                        new CountDownLatch(1).await();
+                        return TrinityCachedComputation.cacheable("unexpected");
+                    } catch (InterruptedException exception) {
+                        interrupted.set(true);
+                        throw exception;
+                    } finally {
+                        finished.countDown();
+                    }
                 }).value());
         assertTrue(entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
-        Future<String> second = cache.submit(1L, 1L, () -> cache.computeInline(
-                1L,
-                TrinityComputationNamespace.COMPILED_GRAPH,
-                TrinityComputationCache.SEMANTIC_REVISION,
-                "shared",
-                () -> TrinityCachedComputation.cacheable("unexpected")).value());
 
-        assertTrue(first.cancel(true));
-        release.countDown();
-
-        assertThrows(CancellationException.class, first::get);
-        assertEquals("compiled", get(second));
-        assertEquals(1, calculations.get());
+        assertTrue(submitted.cancel(true));
+        assertThrows(CancellationException.class, submitted::get);
+        assertTrue(finished.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        assertTrue(interrupted.get());
     }
 
     private TrinityComputationCache cache(ExecutorService executor, int entryLimit) {
