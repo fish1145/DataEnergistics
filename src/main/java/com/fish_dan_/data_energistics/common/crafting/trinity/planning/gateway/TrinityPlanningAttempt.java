@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import java.util.Optional;
 
 /**
- * Immutable planner outcome containing an executable plan, terminal Trinity simulation, or explicit AE2 fallback.
+ * Immutable planner outcome containing an executable plan, terminal Trinity simulation, or unresolved diagnostic.
  */
 public final class TrinityPlanningAttempt {
 
@@ -28,7 +28,7 @@ public final class TrinityPlanningAttempt {
     }
 
     /**
-     * @param diagnostic explicit fallback reason
+     * @param diagnostic explicit reason classified by the initial-request arbiter
      * @return failed attempt
      */
     public static TrinityPlanningAttempt failure(TrinityPlanningDiagnostic diagnostic) {
@@ -58,7 +58,7 @@ public final class TrinityPlanningAttempt {
     }
 
     /**
-     * @return explicit fallback diagnostic
+     * @return explicit planning diagnostic
      * @throws IllegalStateException when this attempt is successful
      */
     public TrinityPlanningDiagnostic diagnostic() {

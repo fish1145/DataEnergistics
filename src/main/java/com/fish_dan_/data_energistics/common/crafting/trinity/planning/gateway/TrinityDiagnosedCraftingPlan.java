@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputShortage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingPlan;
@@ -10,10 +10,11 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 
+import java.math.BigInteger;
 import java.util.Map;
 
 /**
- * UI-only plan that either preserves an AE2 simulation or projects one exact Trinity shortage in constant space.
+ * UI-only plan that projects a terminal Trinity diagnostic without exposing it as executable work.
  *
  * <p>
  * This type is deliberately distinct from {@link TrinityCraftingPlan}; every submission path must reject it.
@@ -75,14 +76,72 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     public static TrinityDiagnosedCraftingPlan forInputShortage(
                                                                 GenericStack finalOutput,
                                                                 TrinityPlanningDiagnostic diagnostic) {
-        InputShortage shortage = diagnostic.inputShortage().orElseThrow(() -> new IllegalArgumentException(
+        return forInputShortage(finalOutput, diagnostic, 0L);
+    }
+
+    /**
+     * Builds a timed constant-size simulation for an exact Trinity input shortage.
+     *
+     * @param finalOutput      requested delivery retained for the confirmation menu
+     * @param diagnostic       exact typed shortage produced by the Trinity planner
+     * @param calculationNanos elapsed time for this planning request in nanoseconds
+     * @return non-executable standalone diagnostic plan
+     */
+    public static TrinityDiagnosedCraftingPlan forInputShortage(
+                                                                GenericStack finalOutput,
+                                                                TrinityPlanningDiagnostic diagnostic,
+                                                                long calculationNanos) {
+        diagnostic.inputShortage().orElseThrow(() -> new IllegalArgumentException(
                 "A standalone Trinity diagnostic plan requires an exact input shortage"));
-        ICraftingPlan view = new InputShortageSimulation(
-                finalOutput,
-                shortage.key(),
-                shortage.available().longValueExact(),
-                shortage.missing().longValueExact());
-        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false, 0L);
+        return forDiagnostic(finalOutput, diagnostic, calculationNanos);
+    }
+
+    /**
+     * Builds a terminal result without starting or adopting the native AE2 planner. Exact shortages and verified
+     * partial progress retain their material counters; diagnostics without material evidence expose the requested
+     * output as unresolved.
+     *
+     * @param finalOutput requested delivery retained for the confirmation menu
+     * @param diagnostic  terminal Trinity result
+     * @return non-executable standalone diagnostic plan
+     */
+    public static TrinityDiagnosedCraftingPlan forDiagnostic(
+                                                             GenericStack finalOutput,
+                                                             TrinityPlanningDiagnostic diagnostic) {
+        return forDiagnostic(finalOutput, diagnostic, 0L);
+    }
+
+    /**
+     * Builds a timed terminal diagnostic without starting or adopting the native AE2 planner.
+     *
+     * @param finalOutput      requested delivery retained for the confirmation menu
+     * @param diagnostic       terminal Trinity result
+     * @param calculationNanos elapsed time for this planning request in nanoseconds
+     * @return non-executable standalone diagnostic plan
+     */
+    public static TrinityDiagnosedCraftingPlan forDiagnostic(
+                                                             GenericStack finalOutput,
+                                                             TrinityPlanningDiagnostic diagnostic,
+                                                             long calculationNanos) {
+        ICraftingPlan view;
+        if (diagnostic.inputShortage().isPresent()) {
+            TrinityPlanningDiagnostic.InputShortage shortage = diagnostic.inputShortage().orElseThrow();
+            view = new InputShortageSimulation(
+                    finalOutput,
+                    shortage.key(),
+                    LongAmountMath.saturatingLongValueNonNegative(shortage.available()),
+                    LongAmountMath.saturatingLongValueNonNegative(shortage.missing()));
+        } else if (diagnostic.partialPlan().isPresent()) {
+            TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
+            view = new PartialSimulation(
+                    finalOutput,
+                    partial.usedItems(),
+                    partial.emittedItems(),
+                    partial.missingItems());
+        } else {
+            view = new DiagnosticSimulation(finalOutput);
+        }
+        return new TrinityDiagnosedCraftingPlan(view, diagnostic, false, calculationNanos);
     }
 
     /**
@@ -107,7 +166,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
     }
 
     /**
-     * @return elapsed AE2 calculation time in nanoseconds, or zero for a standalone Trinity diagnostic
+     * @return elapsed calculation time for this request in nanoseconds
      */
     public long calculationNanos() {
         return this.calculationNanos;
@@ -206,6 +265,112 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
         @Override
         public Map<IPatternDetails, Long> patternTimes() {
             return Map.of();
+        }
+    }
+
+    private record DiagnosticSimulation(GenericStack finalOutput) implements ICraftingPlan {
+
+        private DiagnosticSimulation {
+            if (finalOutput.amount() <= 0L) {
+                throw new IllegalArgumentException("A Trinity diagnostic simulation requires a positive request");
+            }
+        }
+
+        @Override
+        public long bytes() {
+            return 0L;
+        }
+
+        @Override
+        public boolean simulation() {
+            return true;
+        }
+
+        @Override
+        public boolean multiplePaths() {
+            return false;
+        }
+
+        @Override
+        public KeyCounter usedItems() {
+            return new KeyCounter();
+        }
+
+        @Override
+        public KeyCounter emittedItems() {
+            return new KeyCounter();
+        }
+
+        @Override
+        public KeyCounter missingItems() {
+            KeyCounter missing = new KeyCounter();
+            missing.add(this.finalOutput.what(), this.finalOutput.amount());
+            return missing;
+        }
+
+        @Override
+        public Map<IPatternDetails, Long> patternTimes() {
+            return Map.of();
+        }
+    }
+
+    private record PartialSimulation(
+                                     GenericStack finalOutput,
+                                     Map<AEKey, BigInteger> used,
+                                     Map<AEKey, BigInteger> emitted,
+                                     Map<AEKey, BigInteger> missing)
+            implements ICraftingPlan {
+
+        private PartialSimulation {
+            if (finalOutput.amount() <= 0L) {
+                throw new IllegalArgumentException("A Trinity partial simulation requires a positive request");
+            }
+            used = Map.copyOf(used);
+            emitted = Map.copyOf(emitted);
+            missing = Map.copyOf(missing);
+        }
+
+        @Override
+        public long bytes() {
+            return 0L;
+        }
+
+        @Override
+        public boolean simulation() {
+            return true;
+        }
+
+        @Override
+        public boolean multiplePaths() {
+            return false;
+        }
+
+        @Override
+        public KeyCounter usedItems() {
+            return toCounter(this.used);
+        }
+
+        @Override
+        public KeyCounter emittedItems() {
+            return toCounter(this.emitted);
+        }
+
+        @Override
+        public KeyCounter missingItems() {
+            return toCounter(this.missing);
+        }
+
+        @Override
+        public Map<IPatternDetails, Long> patternTimes() {
+            return Map.of();
+        }
+
+        private static KeyCounter toCounter(Map<AEKey, BigInteger> amounts) {
+            KeyCounter counter = new KeyCounter();
+            amounts.forEach((key, amount) -> counter.add(
+                    key,
+                    LongAmountMath.saturatingLongValueNonNegative(amount)));
+            return counter;
         }
     }
 }

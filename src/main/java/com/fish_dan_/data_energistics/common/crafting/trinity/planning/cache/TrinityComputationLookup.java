@@ -6,7 +6,7 @@ import java.util.concurrent.Future;
 /**
  * Gives one caller an isolated wait handle and records how its underlying calculation was selected.
  *
- * @param future     caller-owned wait handle whose cancellation never cancels shared work
+ * @param future     caller-owned wait handle; cancellation stops active work after its final subscriber leaves
  * @param cacheHit   whether an existing completed or in-flight entry supplied the calculation
  * @param registered whether the shared calculation occupies a Grid LRU entry instead of an in-flight bypass slot
  * @param <V>        result type

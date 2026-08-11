@@ -62,7 +62,7 @@ public final class TrinityPlanningComputation {
      * Invalidates obsolete revision-bound entries and submits one caller-isolated orchestration.
      *
      * @param input immutable pure planning input
-     * @return caller-owned future; cancellation does not cancel shared bottom calculations
+     * @return caller-owned future; cancellation with interruption enabled stops this request's planner thread
      */
     public Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input) {
         validateInput(input);
@@ -109,9 +109,11 @@ public final class TrinityPlanningComputation {
                         input.settings().maxSccKeys(),
                         control)));
         if (!compiled.value().successful()) {
+            long planningNanos = elapsedSince(startedNanos);
             return new TrinityPlanningComputationResult(
                     TrinityAlgorithmResult.failure(compiled.value().diagnostic()),
-                    compiled.cacheHit() ? PlanningCachePath.STRUCTURE_HIT : PlanningCachePath.MISS);
+                    compiled.cacheHit() ? PlanningCachePath.STRUCTURE_HIT : PlanningCachePath.MISS,
+                    planningNanos);
         }
 
         TrinityCompiledGraph structure = compiled.value().value();
@@ -139,24 +141,23 @@ public final class TrinityPlanningComputation {
                         control)));
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
                 solved.cacheHit() ? PlanningCachePath.EXACT_HIT : PlanningCachePath.STRUCTURE_HIT;
+        long planningNanos = requestPlanningNanos(solved.value(), solved.cacheHit(), startedNanos);
         return new TrinityPlanningComputationResult(
-                withRequestTiming(solved.value(), solved.cacheHit(), startedNanos),
-                path);
+                withRequestTiming(solved.value(), solved.cacheHit(), planningNanos),
+                path,
+                planningNanos);
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(
                                                                           TrinityAlgorithmResult<TrinityCraftingPlan> result,
                                                                           boolean solvedFromCache,
-                                                                          long startedNanos) {
+                                                                          long planningNanos) {
         if (!result.successful()) {
             return result;
         }
         TrinityCraftingPlan cachedPlan = result.value();
         TrinityPlanningStatistics cachedStatistics = cachedPlan.statistics();
         long mipNanos = solvedFromCache ? 0L : cachedStatistics.mipNanos();
-        long planningNanos = Math.max(
-                mipNanos,
-                Math.max(0L, this.nanoClock.getAsLong() - startedNanos));
         TrinityPlanningStatistics requestStatistics = new TrinityPlanningStatistics(
                 cachedStatistics.sccCount(),
                 cachedStatistics.variantCount(),
@@ -164,6 +165,21 @@ public final class TrinityPlanningComputation {
                 mipNanos,
                 cachedStatistics.scheduleStates());
         return TrinityAlgorithmResult.success(cachedPlan.withPlanningStatistics(requestStatistics));
+    }
+
+    private long requestPlanningNanos(
+                                      TrinityAlgorithmResult<TrinityCraftingPlan> result,
+                                      boolean solvedFromCache,
+                                      long startedNanos) {
+        long elapsedNanos = elapsedSince(startedNanos);
+        if (!result.successful() || solvedFromCache) {
+            return elapsedNanos;
+        }
+        return Math.max(elapsedNanos, result.value().statistics().mipNanos());
+    }
+
+    private long elapsedSince(long startedNanos) {
+        return Math.max(0L, this.nanoClock.getAsLong() - startedNanos);
     }
 
     private static void validateInput(TrinityPlanningInput input) {

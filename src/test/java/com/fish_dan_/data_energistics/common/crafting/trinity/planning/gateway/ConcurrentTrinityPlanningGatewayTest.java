@@ -61,26 +61,25 @@ public final class ConcurrentTrinityPlanningGatewayTest {
     }
 
     @Test
-    void startsBothTracksAndPrefersValidTrinityPlan() throws Exception {
+    void startsOnlyTrinityWhenCpuIsQualified() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         TrinityCraftingPlan trinityPlan = trinityPlan();
-        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
         AtomicBoolean ae2Started = new AtomicBoolean();
 
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> TrinityPlanningAttempt.success(trinityPlan),
                 () -> {
                     ae2Started.set(true);
-                    return ae2;
+                    return CompletableFuture.completedFuture(ae2Plan(false));
                 });
 
-        assertTrue(ae2Started.get());
         assertSame(trinityPlan, selected.get(1L, TimeUnit.SECONDS));
-        assertTrue(ae2.isCancelled());
+        assertFalse(ae2Started.get());
     }
 
     @Test
@@ -94,6 +93,7 @@ public final class ConcurrentTrinityPlanningGatewayTest {
                 false,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> {
                     trinityStarted.set(true);
                     return TrinityPlanningAttempt.success(trinityPlan());
@@ -105,10 +105,10 @@ public final class ConcurrentTrinityPlanningGatewayTest {
     }
 
     @Test
-    void retainsAe2SimulationAndAddsTrinityDiagnostic() throws Exception {
+    void publishesTerminalDiagnosticWithoutAdoptingAe2Simulation() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
-        ICraftingPlan simulation = ae2Plan(true);
+        AtomicBoolean ae2Started = new AtomicBoolean();
         TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
                 TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
                 "No productive cycle reaches the target");
@@ -117,13 +117,16 @@ public final class ConcurrentTrinityPlanningGatewayTest {
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> TrinityPlanningAttempt.failure(diagnostic),
-                () -> CompletableFuture.completedFuture(simulation)).get();
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                }).get();
 
         TrinityDiagnosedCraftingPlan diagnosed = assertInstanceOf(TrinityDiagnosedCraftingPlan.class, selected);
-        assertSame(simulation, diagnosed.delegate());
-        assertSame(simulation.missingItems(), diagnosed.missingItems());
-        assertEquals(AE2_CALCULATION_NANOS, diagnosed.calculationNanos());
+        assertFalse(diagnosed.ae2FallbackEstimate());
+        assertFalse(ae2Started.get());
         assertEquals(TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE, diagnosed.diagnostic().code());
     }
 
@@ -144,77 +147,94 @@ public final class ConcurrentTrinityPlanningGatewayTest {
         TrinityDiagnosedCraftingPlan trinitySimulation = TrinityDiagnosedCraftingPlan.forInputShortage(
                 new GenericStack(TARGET, 1_256_000_000L),
                 diagnostic);
-        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
+        AtomicBoolean ae2Started = new AtomicBoolean();
 
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1_256_000_000L),
                 () -> TrinityPlanningAttempt.authoritativeSimulation(trinitySimulation),
-                () -> ae2);
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                });
         manualExecutor.runNext();
 
         assertTrue(selected.isDone());
         assertSame(trinitySimulation, selected.get());
-        assertTrue(ae2.isCancelled());
+        assertFalse(ae2Started.get());
     }
 
     @Test
-    void unsupportedTrinityResultStillWaitsForAe2() throws Exception {
+    void timeoutPublishesProgressDiagnosticWithoutStartingAe2() throws Exception {
         ManualExecutor manualExecutor = new ManualExecutor();
         this.executor = manualExecutor;
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(manualExecutor, false);
         TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.ofLiteral(
-                TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
-                "unsupported by Trinity");
-        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
+                TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                "Trinity planning timed out");
+        AtomicBoolean ae2Started = new AtomicBoolean();
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> TrinityPlanningAttempt.failure(diagnostic),
-                () -> ae2);
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                });
         manualExecutor.runNext();
 
-        assertFalse(selected.isDone());
-        assertFalse(ae2.isCancelled());
-        ICraftingPlan ae2Plan = ae2Plan(false);
-        ae2.complete(ae2Plan);
-        assertSame(ae2Plan, selected.get());
+        TrinityDiagnosedCraftingPlan diagnosed = assertInstanceOf(
+                TrinityDiagnosedCraftingPlan.class,
+                selected.get());
+        assertEquals(TrinityPlanningDiagnosticCode.MIP_TIMEOUT, diagnosed.diagnostic().code());
+        assertEquals(1L, diagnosed.missingItems().get(TARGET));
+        assertFalse(ae2Started.get());
     }
 
     @Test
-    void callerTimeoutDoesNotPrematurelyAdoptAe2Result() {
+    void callerTimeoutDoesNotStartAe2() {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         CountDownLatch release = new CountDownLatch(1);
+        AtomicBoolean ae2Started = new AtomicBoolean();
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> {
                     release.await();
                     return TrinityPlanningAttempt.success(trinityPlan());
                 },
-                () -> CompletableFuture.completedFuture(ae2Plan(false)));
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                });
 
         assertThrows(TimeoutException.class, () -> selected.get(5L, TimeUnit.MILLISECONDS));
+        assertFalse(ae2Started.get());
         assertTrue(selected.cancel(true));
+        release.countDown();
     }
 
     @Test
-    void cancellationCancelsAe2CallerWithoutInterruptingSharedTrinityWork() throws Exception {
+    void cancellationInterruptsCurrentTrinityThreadWithoutStartingAe2() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch finished = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
-        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
+        AtomicBoolean ae2Started = new AtomicBoolean();
         Future<ICraftingPlan> selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> {
                     entered.countDown();
                     try {
@@ -227,30 +247,39 @@ public final class ConcurrentTrinityPlanningGatewayTest {
                         finished.countDown();
                     }
                 },
-                () -> ae2);
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                });
 
         assertTrue(entered.await(1L, TimeUnit.SECONDS));
         assertTrue(selected.cancel(true));
         assertTrue(selected.isCancelled());
-        assertTrue(ae2.isCancelled());
-        release.countDown();
+        assertFalse(ae2Started.get());
         assertTrue(finished.await(1L, TimeUnit.SECONDS));
-        assertFalse(interrupted.get());
+        assertTrue(interrupted.get());
     }
 
     @Test
-    void queueRejectionProducesSimulationDiagnosticInsteadOfDroppingAe2() throws Exception {
+    void queueRejectionPublishesTerminalDiagnostic() throws Exception {
         ExecutorService rejecting = new RejectingExecutor();
         TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(rejecting, false);
+        AtomicBoolean ae2Started = new AtomicBoolean();
 
         ICraftingPlan selected = gateway.begin(
                 true,
                 1L,
                 1L,
+                new GenericStack(TARGET, 1L),
                 () -> TrinityPlanningAttempt.success(trinityPlan()),
-                () -> CompletableFuture.completedFuture(ae2Plan(true))).get();
+                () -> {
+                    ae2Started.set(true);
+                    return CompletableFuture.completedFuture(ae2Plan(false));
+                }).get();
 
         TrinityDiagnosedCraftingPlan diagnosed = assertInstanceOf(TrinityDiagnosedCraftingPlan.class, selected);
+        assertFalse(diagnosed.ae2FallbackEstimate());
+        assertFalse(ae2Started.get());
         assertEquals(TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL, diagnosed.diagnostic().code());
     }
 

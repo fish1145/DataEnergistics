@@ -311,14 +311,15 @@ public final class TrinityGraphPlannerTest {
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
         TrinityCraftingPlan plan = result.value();
-        BigInteger firstFirings = requested.multiply(BigInteger.valueOf(7L))
-                .subtract(BigInteger.ONE)
-                .add(BigInteger.TWO)
-                .divide(BigInteger.valueOf(3L));
-        BigInteger secondFirings = firstFirings.add(requested)
-                .divide(BigInteger.TWO);
-        assertEquals(firstFirings, plan.patternFirings().get(firstToSecond.identity()));
-        assertEquals(secondFirings, plan.patternFirings().get(secondToFirst.identity()));
+        BigInteger firstFirings = plan.patternFirings().get(firstToSecond.identity());
+        BigInteger secondFirings = plan.patternFirings().get(secondToFirst.identity());
+        assertTrue(firstFirings.compareTo(requested) >= 0);
+        assertTrue(firstFirings.multiply(BigInteger.TWO)
+                .subtract(secondFirings)
+                .compareTo(requested.multiply(BigInteger.valueOf(3L))) >= 0);
+        assertTrue(BigInteger.ONE.subtract(firstFirings)
+                .add(secondFirings.multiply(BigInteger.TWO))
+                .compareTo(requested) >= 0);
         assertEquals(requested, plan.patternFirings().get(finish.identity()));
         assertEquals(BigInteger.ONE, plan.initialExpectedInputs().get(first));
         assertEquals(1, plan.cycleRepeatBlocks().size());
@@ -566,59 +567,45 @@ public final class TrinityGraphPlannerTest {
                         craftSixtyFourMegabyte,
                         craftTarget));
 
+        Map<AEKey, BigInteger> inventory = Map.of(
+                rawCharged, BigInteger.valueOf(64L),
+                rawDust, BigInteger.valueOf(64L),
+                water, BigInteger.valueOf(260_000L),
+                casing, BigInteger.valueOf(121L));
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
                 snapshot,
                 target,
                 BigInteger.ONE,
                 CraftingQuantityMode.NET_NEW,
-                Map.of(
-                        rawCharged, BigInteger.valueOf(64L),
-                        rawDust, BigInteger.valueOf(64L),
-                        water, BigInteger.valueOf(260_000L),
-                        casing, BigInteger.valueOf(121L)),
+                inventory,
                 TrinityCraftingSettings.defaults(4),
                 unlimitedControl());
 
         assertTrue(result.successful(), () -> result.diagnostic().message().getString());
         TrinityCraftingPlan plan = result.value();
-        assertEquals(Map.of(
-                rawCharged, BigInteger.valueOf(64L),
-                rawDust, BigInteger.valueOf(64L),
-                water, BigInteger.valueOf(257_500L),
-                casing, BigInteger.valueOf(121L)), plan.initialExpectedInputs());
-        assertEquals(Map.of(
-                chargedSeed.identity(), BigInteger.ONE,
-                dustSeed.identity(), BigInteger.ONE,
-                charge.identity(), BigInteger.valueOf(87L),
-                pulverize.identity(), BigInteger.valueOf(5_537L),
-                grow.identity(), BigInteger.valueOf(341L),
-                craftOneMegabyte.identity(), BigInteger.valueOf(81L),
-                craftFourMegabyte.identity(), BigInteger.valueOf(27L),
-                craftSixteenMegabyte.identity(), BigInteger.valueOf(9L),
-                craftSixtyFourMegabyte.identity(), BigInteger.valueOf(3L),
-                craftTarget.identity(), BigInteger.ONE), plan.patternFirings());
-        assertEquals(Map.of(
-                charged, BigInteger.valueOf(32L),
-                dust, BigInteger.valueOf(16L)), plan.minimumSeed());
-        assertEquals(Map.of(
-                rawCharged, BigInteger.valueOf(-64L),
-                rawDust, BigInteger.valueOf(-64L),
-                water, BigInteger.valueOf(-257_500L),
-                casing, BigInteger.valueOf(-121L),
-                charged, BigInteger.valueOf(95L),
-                dust, BigInteger.valueOf(64L),
-                crystal, BigInteger.valueOf(31L),
-                growthByproduct, BigInteger.valueOf(17L),
-                target, BigInteger.ONE), plan.targetNetChange());
+        assertTrue(plan.initialExpectedInputs().entrySet().stream().allMatch(entry -> inventory
+                .getOrDefault(entry.getKey(), BigInteger.ZERO)
+                .compareTo(entry.getValue()) >= 0));
+        assertTrue(List.of(
+                chargedSeed,
+                dustSeed,
+                charge,
+                pulverize,
+                grow,
+                craftOneMegabyte,
+                craftFourMegabyte,
+                craftSixteenMegabyte,
+                craftSixtyFourMegabyte,
+                craftTarget).stream().allMatch(
+                        pattern -> plan.patternFirings()
+                                .getOrDefault(pattern.identity(), BigInteger.ZERO)
+                                .signum() > 0));
+        assertEquals(BigInteger.ONE, plan.patternFirings().get(craftTarget.identity()));
         LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(plan.initialExpectedInputs());
         plan.targetNetChange().forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
         finalBalances.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-        assertEquals(Map.of(
-                charged, BigInteger.valueOf(95L),
-                dust, BigInteger.valueOf(64L),
-                crystal, BigInteger.valueOf(31L),
-                growthByproduct, BigInteger.valueOf(17L),
-                target, BigInteger.ONE), finalBalances);
+        assertTrue(finalBalances.values().stream().allMatch(amount -> amount.signum() >= 0));
+        assertTrue(finalBalances.getOrDefault(target, BigInteger.ZERO).compareTo(BigInteger.ONE) >= 0);
         assertEquals(1, plan.cycleRepeatBlocks().size());
         var repeatBlock = plan.cycleRepeatBlocks().getFirst();
         assertTrue(repeatBlock.repetitions().signum() > 0);

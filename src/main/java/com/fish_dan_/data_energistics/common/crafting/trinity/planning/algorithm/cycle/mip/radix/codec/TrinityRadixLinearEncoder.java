@@ -113,7 +113,9 @@ public final class TrinityRadixLinearEncoder {
         addGreaterOrEqual(name, Map.of(value, BigInteger.ONE), lowerBound);
     }
 
-    /** Adds an exact signed logical relation before it is split into bounded radix carry columns. */
+    /**
+     * Adds an exact signed logical relation before it is split into bounded radix carry columns.
+     */
     public void addExact(
                          String name,
                          Map<TrinityRadixVariable, BigInteger> terms,
@@ -189,6 +191,16 @@ public final class TrinityRadixLinearEncoder {
         LinkedHashMap<TrinityRadixVariable, BigInteger> terms = normalizedTerms(sourceTerms);
         if (rightHandSide == null || rightHandSide.signum() < 0) {
             throw new IllegalArgumentException("A Trinity radix equality RHS cannot be negative");
+        }
+        BigInteger commonDivisor = terms.values().stream()
+                .map(BigInteger::abs)
+                .reduce(BigInteger.ZERO, BigInteger::gcd);
+        if (commonDivisor.compareTo(BigInteger.ONE) > 0) {
+            if (rightHandSide.mod(commonDivisor).signum() != 0) {
+                throw new TrinityRadixInfeasibleException(name);
+            }
+            terms.replaceAll((variable, coefficient) -> coefficient.divide(commonDivisor));
+            rightHandSide = rightHandSide.divide(commonDivisor);
         }
         if (includeInProof) {
             this.proofEquations.add(new TrinityRadixLogicalEquation(
