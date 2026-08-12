@@ -11,6 +11,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 
 import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.UITemplate;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,6 +33,17 @@ final class TrinityUiNbtLayouts {
      * Loads one uncompressed editor-generated UI template and preserves its decoding failure.
      */
     static UI load(@NotNull String name) {
+        return loadTemplate(name).createUI();
+    }
+
+    /**
+     * Applies one editor-generated template to a lifecycle-owned root supplied by the hosted UI framework.
+     */
+    static void init(@NotNull String name, @NotNull UIElement root) {
+        loadTemplate(name).initUI(root);
+    }
+
+    private static UITemplate loadTemplate(String name) {
         if (name.isBlank()) {
             throw new IllegalArgumentException("Trinity NBT layout name must not be blank");
         }
@@ -59,7 +71,7 @@ final class TrinityUiNbtLayouts {
             if (!template.getStylesheets().contains(TRINITY_STYLESHEET)) {
                 template.getStylesheets().add(TRINITY_STYLESHEET);
             }
-            return template.createUI();
+            return template;
         } catch (Exception failure) {
             String message = "Unable to load Trinity NBT layout '" + name + "' from " + location +
                     " (classpath " + classpathLocation + ", runtime " + runtimeSide() + ")";

@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiProvider;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiProvider;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import java.util.function.BiConsumer;

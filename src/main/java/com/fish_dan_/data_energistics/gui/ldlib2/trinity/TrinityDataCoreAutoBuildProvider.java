@@ -3,22 +3,26 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUi;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiContext;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiProvider;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiRoot;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUi;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUi;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiContext;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiProvider;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiRoot;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
 
-import net.minecraft.network.chat.Component;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongPredicate;
 import java.util.function.Supplier;
 
-/** Creates a fresh automatic-build draft, preview, and draggable window for every accepted hosted OPEN generation. */
+/**
+ * Creates a fresh automatic-build draft, preview, and draggable window for every accepted hosted OPEN generation.
+ */
 final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
 
     private final Supplier<MultiblockPreviewSpec> previewSpec;
@@ -27,15 +31,11 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
     private final BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction;
     private final LongPredicate hostedAutoBuildPending;
 
-    TrinityDataCoreAutoBuildProvider(Supplier<MultiblockPreviewSpec> previewSpec,
-                                     StructurePreviewUiFactory previewFactory,
-                                     BooleanSupplier logicalClient,
-                                     BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
-                                     LongPredicate hostedAutoBuildPending) {
-        if (previewSpec == null || previewFactory == null || logicalClient == null ||
-                hostedAutoBuildAction == null || hostedAutoBuildPending == null) {
-            throw new IllegalArgumentException("Trinity automatic-build provider arguments cannot be null");
-        }
+    TrinityDataCoreAutoBuildProvider(@NotNull Supplier<MultiblockPreviewSpec> previewSpec,
+                                     @NotNull StructurePreviewUiFactory previewFactory,
+                                     @NotNull BooleanSupplier logicalClient,
+                                     @NotNull BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
+                                     @NotNull LongPredicate hostedAutoBuildPending) {
         this.previewSpec = previewSpec;
         this.previewFactory = previewFactory;
         this.logicalClient = logicalClient;
@@ -49,19 +49,34 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
     }
 
     @Override
-    public HostSubUi create(HostSubUiContext context) {
-        if (context == null || !key().equals(context.key())) {
+    public HostSubUi create(@NotNull HostSubUiContext context) {
+        if (!key().equals(context.key())) {
             throw new IllegalArgumentException("Trinity automatic-build provider received the wrong host context");
         }
         HostSubUiRoot root = context.createRoot();
         String windowId = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID;
-        root.setId(windowId);
-        TrinityHostedWindowChrome.configureRoot(root, key());
-        TrinityHostedWindowChrome.Chrome chrome = TrinityHostedWindowChrome.create(
-                windowId,
-                Component.translatable("screen.data_energistics.trinity_data_core.auto_build.title"),
-                context);
-        root.addChildren(chrome.dragHandle(), chrome.closeButton());
+        TrinityUiNbtLayouts.init("auto_build", root);
+        TrinityHostedWindowChrome.bindExisting(root, context);
+
+        UIElement previewMount = TrinityUiXmlLayouts.require(
+                root,
+                windowId + "_preview_mount",
+                UIElement.class);
+        Scroller.Horizontal layerScroller = TrinityUiXmlLayouts.require(
+                previewMount,
+                windowId + "_layer_scroller",
+                Scroller.Horizontal.class);
+        requireInsertionPoint(previewMount, layerScroller, "structure preview");
+        UIElement materialsMount = TrinityUiXmlLayouts.require(
+                root,
+                windowId + "_materials",
+                UIElement.class);
+        Scroller.Vertical materialScroller = TrinityUiXmlLayouts.require(
+                materialsMount,
+                windowId + "_materials_scroller",
+                Scroller.Vertical.class);
+        requireInsertionPoint(materialsMount, materialScroller, "material grid");
+        TrinityDataCoreAutoBuildPanel.Layout controls = TrinityDataCoreAutoBuildPanel.requireLayout(root);
 
         MultiblockPreviewSpec spec = this.previewSpec.get();
         if (spec == null) {
@@ -74,17 +89,41 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 draft.structureKeys(),
                 windowId + "_preview",
                 this.logicalClient.getAsBoolean());
-        TrinityHostedWindowChrome.layoutPreview(preview.panel());
-        root.addChild(preview.panel());
+        addBefore(previewMount, preview.panel(), layerScroller, "structure preview");
+        preview.panel().useAutoBuildComposition();
 
-        TrinityDataCoreAutoBuildPanel controls = new TrinityDataCoreAutoBuildPanel(
+        TrinityAutoBuildMaterialGrid materialGrid = new TrinityAutoBuildMaterialGrid(windowId + "_material_grid");
+        materialGrid.bindScrollbar(materialScroller);
+        addBefore(materialsMount, materialGrid, materialScroller, "material grid");
+
+        new TrinityDataCoreAutoBuildPanel(
+                controls,
                 preview,
                 draft,
                 context,
                 this.hostedAutoBuildAction,
-                this.hostedAutoBuildPending);
-        TrinityHostedWindowChrome.layoutSidePanel(controls);
-        root.addChild(controls);
-        return new HostSubUi(root, chrome.dragHandle());
+                this.hostedAutoBuildPending,
+                materialGrid,
+                layerScroller);
+        return new HostSubUi(root, root);
+    }
+
+    private static void addBefore(UIElement parent,
+                                  UIElement element,
+                                  UIElement followingSibling,
+                                  String description) {
+        requireInsertionPoint(parent, followingSibling, description);
+        int index = parent.getChildren().indexOf(followingSibling);
+        parent.addChildAt(element, index);
+    }
+
+    private static void requireInsertionPoint(UIElement parent, UIElement followingSibling, String description) {
+        if (followingSibling.getParent() != parent) {
+            throw new IllegalStateException("Editor-authored " + description + " scrollbar belongs to another panel");
+        }
+        int index = parent.getChildren().indexOf(followingSibling);
+        if (index < 0) {
+            throw new IllegalStateException("Editor-authored " + description + " scrollbar is missing");
+        }
     }
 }

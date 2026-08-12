@@ -857,6 +857,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .flipped(orientation.flipped())
                 .repeatCount(request.options().repeatCount())
                 .selectedTierBlocks(selectedTierBlocks)
+                .candidateSelections(request.options().candidateSelections())
                 .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
                 .stagingPolicy(new TrinityAutoBuildStagingPolicy(definition))

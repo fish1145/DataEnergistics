@@ -98,136 +98,45 @@
     height: 18px;
 }
 
-.trinity-hosted-window {
-    position: absolute;
-    left: -8px;
-    top: 0px;
-    width: 292px;
-    height: 210px;
-}
-
-.trinity-auto-build-drag-handle {
-    position: absolute;
-    left: 2px;
-    top: 2px;
-    width: 272px;
-    height: 16px;
-}
-
-.trinity-auto-build-window-title {
-    position: absolute;
-    left: 5px;
-    top: 0px;
-    width: 262px;
-    height: 16px;
-    adaptive-width: false;
-    adaptive-height: false;
-    font-size: 8.5;
-    text-color: #FFFFFFFF;
-    vertical-align: center;
-    text-wrap: hover_roll;
-    text-shadow: false;
-    overflow: hidden;
-}
-
-.trinity-auto-build-window-close {
-    position: absolute;
-    left: 274px;
-    top: 2px;
-    width: 16px;
-    height: 16px;
-}
-
-.trinity-hosted-preview {
-    position: absolute;
-    left: 4px;
-    top: 22px;
-    width: 196px;
-    height: 184px;
-}
-
-.trinity-hosted-side-panel {
-    position: absolute;
-    left: 204px;
-    top: 22px;
-    width: 84px;
-    height: 184px;
-}
-
-.trinity-auto-build-panel {
-    width: 65px;
-    height: 22px;
-    background: sprite(data_energistics:textures/guis/autobuild/structure_switch.png);
-}
-
-.trinity-auto-build-structure-selector {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    width: 84px;
-    height: 38px;
-    background: rect(#FF303040);
-}
-
-.trinity-auto-build-structure-previous,
-.trinity-auto-build-structure-next {
-    position: absolute;
-    top: 10px;
-    width: 18px;
-    height: 18px;
-}
-
-.trinity-auto-build-structure-previous { left: 0px; }
-.trinity-auto-build-structure-next { left: 66px; }
-
 .trinity-auto-build-structure-title {
-    position: absolute;
-    left: 20px;
-    top: 0px;
-    width: 44px;
-    height: 38px;
     adaptive-width: false;
     adaptive-height: false;
-    font-size: 7.5;
+    font-size: 5.5;
     horizontal-align: center;
     vertical-align: center;
-    text-wrap: wrap;
+    text-wrap: hover_roll;
     text-shadow: false;
     overflow: hidden;
 }
 
-.trinity-auto-build-requested {
-    position: absolute;
-    left: 0px;
-    top: 44px;
-    width: 84px;
-    height: 20px;
-}
-
-.trinity-auto-build-toggle-label {
-    flex: 0;
-    width: 62px;
+.trinity-auto-build-adjustment-title,
+.trinity-auto-build-adjustment-value {
     adaptive-width: false;
     adaptive-height: false;
+    horizontal-align: center;
+    vertical-align: center;
     text-wrap: hover_roll;
+    text-shadow: false;
     overflow: hidden;
 }
 
-.trinity-auto-build-confirm {
-    position: absolute;
-    left: 0px;
-    top: 166px;
-    width: 84px;
-    height: 18px;
-    overflow: hidden;
+.trinity-auto-build-adjustment-title {
+    font-size: 5;
+    text-color: #FF555568;
 }
 
-.trinity-auto-build-confirm .__button_text__ {
-    flex: 0;
-    width: 62px;
+.trinity-auto-build-adjustment-value {
+    font-size: 5.5;
+    text-color: #FF404052;
+}
+
+.trinity-auto-build-material-amount {
     adaptive-width: false;
     adaptive-height: false;
-    horizontal-align: left;
-    text-wrap: hover_roll;
+    font-size: 5;
+    text-color: #FFFFFFFF;
+    horizontal-align: right;
+    vertical-align: bottom;
+    text-shadow: true;
     overflow: hidden;
 }
