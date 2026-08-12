@@ -194,3 +194,38 @@
     overflow: hidden;
     text-shadow: false;
 }
+
+.priority-control-title {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 9;
+    vertical-align: center;
+    text-shadow: false;
+    overflow: hidden;
+}
+
+.priority-control-step-text {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 9;
+    horizontal-align: center;
+    vertical-align: center;
+    text-shadow: false;
+    overflow: hidden;
+}
+
+.priority-control-value {
+    font-size: 9;
+    text-shadow: false;
+}
+
+.priority-control-hint {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 6;
+    horizontal-align: center;
+    vertical-align: center;
+    text-wrap: hover_roll;
+    text-shadow: false;
+    overflow: hidden;
+}
