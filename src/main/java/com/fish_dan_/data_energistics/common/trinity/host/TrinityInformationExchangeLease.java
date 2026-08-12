@@ -6,9 +6,10 @@ import appeng.api.networking.IGrid;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Defines the persistent access-hatch identity and ephemeral AE grid binding that exclusively expose a Trinity host.
+ * Defines the persistent information-exchange-depot identity and ephemeral AE grid binding that exclusively expose a
+ * Trinity host.
  */
-public final class TrinityAccessLease {
+public final class TrinityInformationExchangeLease {
 
     /** Persistent world position used to recover the elected hatch after host reconstruction. */
     private final BlockPos hatchPosition;
@@ -21,15 +22,15 @@ public final class TrinityAccessLease {
     /**
      * Captures one lease generation.
      *
-     * @param hatchPosition persistent elected hatch position
+     * @param depotPosition persistent elected depot position
      * @param grid          ephemeral runtime grid, or {@code null} after deserialization or unload
      * @param epoch         non-negative election generation
      */
-    private TrinityAccessLease(BlockPos hatchPosition, @Nullable IGrid grid, long epoch) {
+    private TrinityInformationExchangeLease(BlockPos depotPosition, @Nullable IGrid grid, long epoch) {
         if (epoch < 0L) {
             throw new IllegalArgumentException("Trinity access lease epoch must not be negative");
         }
-        this.hatchPosition = hatchPosition.immutable();
+        this.hatchPosition = depotPosition.immutable();
         this.grid = grid;
         this.epoch = epoch;
     }
@@ -37,24 +38,24 @@ public final class TrinityAccessLease {
     /**
      * Creates a newly elected lease that is already bound to its hatch's current runtime grid.
      *
-     * @param hatchPosition persistent world position of the elected hatch
+     * @param depotPosition persistent world position of the elected depot
      * @param grid          current AE grid reached through that hatch
      * @param epoch         monotonically increasing election generation
      * @return immutable elected lease
      */
-    public static TrinityAccessLease elect(BlockPos hatchPosition, IGrid grid, long epoch) {
-        return new TrinityAccessLease(hatchPosition, grid, epoch);
+    public static TrinityInformationExchangeLease elect(BlockPos depotPosition, IGrid grid, long epoch) {
+        return new TrinityInformationExchangeLease(depotPosition, grid, epoch);
     }
 
     /**
      * Restores a persisted lease identity without guessing an AE grid instance.
      *
-     * @param hatchPosition persisted world position of the elected hatch
+     * @param depotPosition persisted world position of the elected depot
      * @param epoch         persisted election generation
      * @return immutable lease awaiting a runtime grid binding
      */
-    public static TrinityAccessLease restore(BlockPos hatchPosition, long epoch) {
-        return new TrinityAccessLease(hatchPosition, null, epoch);
+    public static TrinityInformationExchangeLease restore(BlockPos depotPosition, long epoch) {
+        return new TrinityInformationExchangeLease(depotPosition, null, epoch);
     }
 
     /** @return immutable position that identifies the elected hatch across host reloads */
@@ -98,8 +99,8 @@ public final class TrinityAccessLease {
      * @param grid current grid reached through the elected hatch
      * @return this lease when already bound, otherwise a new immutable binding
      */
-    public TrinityAccessLease bind(IGrid grid) {
-        return this.grid == grid ? this : new TrinityAccessLease(this.hatchPosition, grid, this.epoch);
+    public TrinityInformationExchangeLease bind(IGrid grid) {
+        return this.grid == grid ? this : new TrinityInformationExchangeLease(this.hatchPosition, grid, this.epoch);
     }
 
     /**
@@ -107,7 +108,7 @@ public final class TrinityAccessLease {
      *
      * @return this lease when already unbound, otherwise a new immutable unbound lease
      */
-    public TrinityAccessLease unbind() {
-        return this.grid == null ? this : new TrinityAccessLease(this.hatchPosition, null, this.epoch);
+    public TrinityInformationExchangeLease unbind() {
+        return this.grid == null ? this : new TrinityInformationExchangeLease(this.hatchPosition, null, this.epoch);
     }
 }

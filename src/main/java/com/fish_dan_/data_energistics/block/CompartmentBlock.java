@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
@@ -104,7 +104,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             case ME_INPUT -> new MeCompositeInputWarehouseBlockEntity(pos, state);
             case ME_OUTPUT -> new MeCompositeOutputWarehouseBlockEntity(pos, state);
             case PATTERN_BUFFER -> new MePatternBufferBlockEntity(pos, state);
-            case TRINITY_ACCESS -> new TrinityAccessHatchBlockEntity(pos, state);
+            case TRINITY_INFORMATION_EXCHANGE -> new TrinityInformationExchangeDepotBlockEntity(pos, state);
         };
     }
 
@@ -118,7 +118,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
         return (tickLevel, tickPos, tickState, blockEntity) -> {
             if (blockEntity instanceof CompartmentBlockEntity compartment) {
                 compartment.serverTick();
-            } else if (blockEntity instanceof TrinityAccessHatchBlockEntity hatch) {
+            } else if (blockEntity instanceof TrinityInformationExchangeDepotBlockEntity hatch) {
                 hatch.serverTick();
             }
         };
@@ -129,9 +129,9 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
                                                BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof TrinityAccessHatchBlockEntity hatch) {
+            if (blockEntity instanceof TrinityInformationExchangeDepotBlockEntity hatch) {
                 MenuOpener.open(
-                        DEMenus.TRINITY_ACCESS_HATCH.get(),
+                        DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(),
                         player,
                         MenuLocators.forBlockEntity(hatch));
             } else if (blockEntity instanceof CompartmentBlockEntity compartment) {
@@ -150,7 +150,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             case ME_INPUT -> DEMenus.ME_COMPOSITE_INPUT_WAREHOUSE;
             case ME_OUTPUT -> DEMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE;
             case PATTERN_BUFFER -> DEMenus.ME_PATTERN_BUFFER;
-            case TRINITY_ACCESS -> DEMenus.TRINITY_ACCESS_HATCH;
+            case TRINITY_INFORMATION_EXCHANGE -> DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT;
         };
     }
 }

@@ -212,12 +212,12 @@ Trinity 为避免大数量展开而将 `patternTimes()` 保持为空，确认页
 ### C-017：VirtualGrid 发布网格与执行网格身份不一致
 
 VirtualGrid 主网格能够把 incoming virtual member 的 Trinity CPU 发布到 crafting service，但显式目标、自动选择和
-fallback 提交都把主服务网格传入 CPU；CPU、runtime 和 worker 仍以 Access Hatch 的物理从网格进行严格判等，因此可见的
+fallback 提交都把主服务网格传入 CPU；CPU、runtime 和 worker 仍以三位一体信息交换仓的物理从网格进行严格判等，因此可见的
 CPU 会在提交时返回 `CPU_OFFLINE`。
 
 修复：建立单一 typed execution route，分别携带 owning grid、service grid、access lease epoch 和 membership
 generation。CPU 发布、显式/自动/fallback 提交、runtime 在线判定、状态菜单与输出路由使用同一个 service grid；物理
-lease、Access Hatch 选举和 `accessGrid()` 继续使用 owning grid。active member 还必须存在于 primary grid 的 incoming
+lease、信息交换仓选举和 `accessGrid()` 继续使用 owning grid。active member 还必须存在于 primary grid 的 incoming
 publication；inactive、未注册或 route token 变化时不返回可执行路由。
 
 当前状态：已完成，P0。现有 VirtualGrid GameTest 直接覆盖未注册 active、inactive subordinate、同 primary 重连失效、
@@ -247,7 +247,7 @@ provider registration、counted capability 和 pattern identity 的联合重验�
 修复：`CraftingService` 维护独立 publication index；CPU 从库存副本生成只读 prototype，只对 ready work 捕获容量。每个候选在准备前
 按 publication revision、capability revision、pattern identity 和 route 重验 live provider；稳定 cursor 逐个请求有界 slice，失败后
 继续同 tick 后续候选。真实输入、能源和 waiting 只在准备阶段进入事务，最终统一由 `CraftingDispatchCommitter` 按所有权结果结算。
-AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线使用 `TARGETED`；公共 counted API 使用 `AGGREGATE`；其余无法证明
+AE2 精确原版 provider、三位一体信息交换仓和 Adaptive 普通路线使用 `TARGETED`；公共 counted API 使用 `AGGREGATE`；其余无法证明
 等价的路线使用 `UNKNOWN` 单次。只读 prototype 与 provider 模拟由独立每网格 4 ms 采集窗口计量，不占用或掩盖 commit 预算。
 
 ### C-020：worker 全扫描与异步 proposal 缺少 generation 租约

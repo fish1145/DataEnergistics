@@ -138,7 +138,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenWaitUntil(fixture::awaitOnline)
                 .thenExecute(() -> {
                     TrinityDataCoreBlockEntity host = fixture.host();
-                    TrinityAccessHatchBlockEntity initialHatch = fixture.accessHatches().stream()
+                    TrinityInformationExchangeDepotBlockEntity initialHatch = fixture.accessHatches().stream()
                             .filter(host::isLeaseOwner)
                             .findFirst()
                             .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning hatch"));
@@ -198,7 +198,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), route);
                 })
                 .thenExecute(() -> {
-                    TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().stream()
+                    TrinityInformationExchangeDepotBlockEntity hatch = fixture.accessHatches().stream()
                             .filter(host::isLeaseOwner)
                             .findFirst()
                             .orElseThrow(() -> new GameTestAssertException(

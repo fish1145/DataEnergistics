@@ -22,8 +22,8 @@ import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntit
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;
@@ -60,7 +60,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(MULTI_BLOCK_PROVIDER, TrinityDataCoreBlockEntity.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlockEntity.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlockEntity.class);
-        registration.registerBlockDataProvider(NetworkStatusJadeProvider.ME_ACCESS_HATCH, TrinityAccessHatchBlockEntity.class);
+        registration.registerBlockDataProvider(NetworkStatusJadeProvider.TRINITY_INFORMATION_EXCHANGE_DEPOT, TrinityInformationExchangeDepotBlockEntity.class);
     }
 
     @Override
@@ -78,7 +78,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(MULTI_BLOCK_PROVIDER, TrinityDataCoreBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlock.class);
-        registration.registerBlockComponent(NetworkStatusJadeProvider.ME_ACCESS_HATCH, CompartmentBlock.class);
+        registration.registerBlockComponent(NetworkStatusJadeProvider.TRINITY_INFORMATION_EXCHANGE_DEPOT, CompartmentBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
         registration.addConfig(DataSanctumJadeProvider.PART_ID, false);
         registration.addConfig(MultiBlockJadeProvider.BLOCKS_ID, false);

@@ -4,10 +4,10 @@
 	"parent": "minecraft:block/cube_all",
 	"render_type": "cutout",
 	"textures": {
-		"1": "data_energistics:block/trinity_core/access_hatch/me_interface",
-		"4": "data_energistics:block/trinity_core/access_hatch/front",
-		"6": "data_energistics:block/trinity_core/access_hatch/top",
-		"particle": "data_energistics:block/trinity_core/access_hatch/front"
+		"1": "data_energistics:block/trinity_core/information_exchange_depot/me_interface",
+		"4": "data_energistics:block/trinity_core/information_exchange_depot/front",
+		"6": "data_energistics:block/trinity_core/information_exchange_depot/top",
+		"particle": "data_energistics:block/trinity_core/information_exchange_depot/front"
 	},
 	"elements": [
 		{

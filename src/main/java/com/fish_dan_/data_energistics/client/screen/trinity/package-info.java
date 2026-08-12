@@ -1,5 +1,5 @@
 /**
- * Trinity core and access-hatch screens, layouts, and pattern search behavior.
+ * Trinity core and information-exchange-depot screens, layouts, and pattern search behavior.
  */
 @NotNullByDefault
 package com.fish_dan_.data_energistics.client.screen.trinity;

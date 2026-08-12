@@ -8,14 +8,14 @@ import appeng.api.storage.IPatternAccessTermMenuHost;
 import appeng.helpers.patternprovider.PatternContainer;
 
 /**
- * Defines the server-authoritative management boundary exposed by one Trinity ME access hatch.
+ * Defines the server-authoritative management boundary exposed by one Trinity information exchange depot.
  *
  * <p>
  * The menu depends on this interface so pattern visibility and refund execution remain tied to the exact hatch that
  * opened it instead of to every pattern provider on the shared AE grid.
  * </p>
  */
-public interface TrinityAccessHatchMenuHost extends IPatternAccessTermMenuHost {
+public interface TrinityInformationExchangeDepotMenuHost extends IPatternAccessTermMenuHost {
 
     /**
      * Verifies that the hatch block entity still occupies its original block and remains within interaction distance.
@@ -23,7 +23,7 @@ public interface TrinityAccessHatchMenuHost extends IPatternAccessTermMenuHost {
      * @param player player whose open menu is being validated
      * @return whether the physical menu route is still current
      */
-    boolean isAccessHatchMenuValid(Player player);
+    boolean isInformationExchangeDepotMenuValid(Player player);
 
     /**
      * Verifies the full server-side management route, including the active grid node, current host lease and storage.
@@ -31,10 +31,10 @@ public interface TrinityAccessHatchMenuHost extends IPatternAccessTermMenuHost {
      * @param player server player attempting a management action
      * @return whether a refund action may execute now
      */
-    boolean isAccessHatchManagementAvailable(Player player);
+    boolean isInformationExchangeManagementAvailable(Player player);
 
     /**
-     * Restricts AE2's grid-wide pattern scan to a partition currently mounted by this exact access hatch.
+     * Restricts AE2's grid-wide pattern scan to a partition mounted by this exact information exchange depot.
      *
      * @param container candidate grid pattern container
      * @return whether this hatch currently owns the candidate by identity

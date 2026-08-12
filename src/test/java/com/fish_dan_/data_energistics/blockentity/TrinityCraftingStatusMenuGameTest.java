@@ -77,7 +77,7 @@ public final class TrinityCraftingStatusMenuGameTest {
                 grid.getCraftingService().getCpus().contains(worker),
                 "AE2 should publish the busy worker before opening its status menu");
 
-        TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().stream()
+        TrinityInformationExchangeDepotBlockEntity hatch = fixture.accessHatches().stream()
                 .filter(host::isLeaseOwner)
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning access hatch"));
@@ -157,7 +157,7 @@ public final class TrinityCraftingStatusMenuGameTest {
     }
 
     private static CraftingStatusMenu openSelectedMenu(TrackingServerPlayer player,
-                                                       TrinityAccessHatchBlockEntity hatch,
+                                                       TrinityInformationExchangeDepotBlockEntity hatch,
                                                        Target target) {
         CraftingStatusMenu[] openedMenu = new CraftingStatusMenu[1];
         boolean opened = TrinityCraftingStatusSelection.open(player, hatch, target, () -> {

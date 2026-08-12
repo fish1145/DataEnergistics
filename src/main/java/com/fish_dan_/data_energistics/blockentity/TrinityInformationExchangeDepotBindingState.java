@@ -8,7 +8,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Atomic identity and lifecycle state for one Trinity access hatch compartment binding.
+ * Atomic identity and lifecycle state for one Trinity information exchange depot compartment binding.
  *
  * <p>
  * The hatch keeps this object as its only local binding source so a host and structure name cannot be cleared or
@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
  * </p>
  */
 @ApiStatus.Internal
-final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
+final class TrinityInformationExchangeDepotBindingState implements CompartmentBindingHandle {
 
     private static final long NO_VERTICAL_BINDING_EPOCH = -1L;
 
@@ -66,24 +66,26 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
      * Full replacement identity queued by a re-entrant bind while this identity releases.
      */
     @Nullable
-    private TrinityAccessHatchBindingState pendingReplacement;
+    private TrinityInformationExchangeDepotBindingState pendingReplacement;
 
-    private TrinityAccessHatchBindingState(CompartmentHost host,
-                                           String structureName,
-                                           Phase phase,
-                                           @Nullable VerticalMultiBlockController verticalController,
-                                           long verticalBindingEpoch) {
+    private TrinityInformationExchangeDepotBindingState(CompartmentHost host,
+                                                        String structureName,
+                                                        Phase phase,
+                                                        @Nullable VerticalMultiBlockController verticalController,
+                                                        long verticalBindingEpoch) {
         if (host == null) {
-            throw new IllegalArgumentException("Trinity access hatch binding host must not be null");
+            throw new IllegalArgumentException("Trinity information exchange depot binding host must not be null");
         }
         if (structureName == null || structureName.isBlank()) {
-            throw new IllegalArgumentException("Trinity access hatch binding structure name must not be blank");
+            throw new IllegalArgumentException("Trinity information exchange depot binding structure name must not be blank");
         }
         if (verticalController == null && verticalBindingEpoch != NO_VERTICAL_BINDING_EPOCH) {
-            throw new IllegalArgumentException("Non-vertical Trinity access hatch binding cannot carry a callback epoch");
+            throw new IllegalArgumentException(
+                    "Non-vertical Trinity information exchange depot binding cannot carry a callback epoch");
         }
         if (verticalController != null && verticalBindingEpoch < 0L) {
-            throw new IllegalArgumentException("Vertical Trinity access hatch binding epoch must not be negative");
+            throw new IllegalArgumentException(
+                    "Vertical Trinity information exchange depot binding epoch must not be negative");
         }
         this.host = host;
         this.structureName = structureName;
@@ -95,8 +97,8 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
     /**
      * Creates a complete active non-vertical binding identity before external host registration begins.
      */
-    static TrinityAccessHatchBindingState active(String structureName, CompartmentHost host) {
-        return new TrinityAccessHatchBindingState(
+    static TrinityInformationExchangeDepotBindingState active(String structureName, CompartmentHost host) {
+        return new TrinityInformationExchangeDepotBindingState(
                 host,
                 structureName,
                 Phase.ACTIVE,
@@ -107,11 +109,11 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
     /**
      * Creates a complete active identity for one specific vertical multiblock formation callback set.
      */
-    static TrinityAccessHatchBindingState active(String structureName,
-                                                 CompartmentHost host,
-                                                 VerticalMultiBlockController verticalController,
-                                                 long verticalBindingEpoch) {
-        return new TrinityAccessHatchBindingState(
+    static TrinityInformationExchangeDepotBindingState active(String structureName,
+                                                              CompartmentHost host,
+                                                              VerticalMultiBlockController verticalController,
+                                                              long verticalBindingEpoch) {
+        return new TrinityInformationExchangeDepotBindingState(
                 host,
                 structureName,
                 Phase.ACTIVE,
@@ -122,7 +124,7 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
     /**
      * Marks this exact identity as releasing while retaining the handle captured by lifecycle owners.
      */
-    TrinityAccessHatchBindingState releasing() {
+    TrinityInformationExchangeDepotBindingState releasing() {
         this.phase = Phase.RELEASING;
         return this;
     }
@@ -158,9 +160,10 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
     /**
      * Queues one complete replacement while the old identity releases.
      */
-    void queueReplacement(TrinityAccessHatchBindingState replacement) {
+    void queueReplacement(TrinityInformationExchangeDepotBindingState replacement) {
         if (!isReleasing()) {
-            throw new IllegalStateException("Only a releasing Trinity access hatch binding can queue a replacement");
+            throw new IllegalStateException(
+                    "Only a releasing Trinity information exchange depot binding can queue a replacement");
         }
         if (this.pendingReplacement == null) {
             this.pendingReplacement = replacement;
@@ -169,14 +172,15 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
         if (this.pendingReplacement.sameIdentity(replacement)) {
             return;
         }
-        throw new IllegalStateException("Trinity access hatch binding received conflicting replacements");
+        throw new IllegalStateException(
+                "Trinity information exchange depot binding received conflicting replacements");
     }
 
     /**
      * Returns the complete replacement identity queued during release, if any.
      */
     @Nullable
-    TrinityAccessHatchBindingState pendingReplacement() {
+    TrinityInformationExchangeDepotBindingState pendingReplacement() {
         return this.pendingReplacement;
     }
 
@@ -192,7 +196,8 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
      */
     void beginReleaseAttempt() {
         if (this.releaseInProgress) {
-            throw new IllegalStateException("Trinity access hatch binding release is already in progress");
+            throw new IllegalStateException(
+                    "Trinity information exchange depot binding release is already in progress");
         }
         this.releaseInProgress = true;
     }
@@ -209,7 +214,8 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
      */
     void markReleaseCompleted() {
         if (!isReleasing()) {
-            throw new IllegalStateException("Only a releasing Trinity access hatch binding can complete release");
+            throw new IllegalStateException(
+                    "Only a releasing Trinity information exchange depot binding can complete release");
         }
         this.releaseCompleted = true;
     }
@@ -219,7 +225,8 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
      */
     void beginReleaseCompletion() {
         if (this.releaseCompletionInProgress) {
-            throw new IllegalStateException("Trinity access hatch binding release completion is already in progress");
+            throw new IllegalStateException(
+                    "Trinity information exchange depot binding release completion is already in progress");
         }
         this.releaseCompletionInProgress = true;
     }
@@ -253,7 +260,7 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
     }
 
     /**
-     * Returns whether this state can publish normal access-hatch services.
+     * Returns whether this state can publish normal information-exchange services.
      */
     boolean isActive() {
         return this.phase == Phase.ACTIVE;
@@ -287,7 +294,7 @@ final class TrinityAccessHatchBindingState implements CompartmentBindingHandle {
         return this.releaseCompletionInProgress;
     }
 
-    private boolean sameIdentity(TrinityAccessHatchBindingState other) {
+    private boolean sameIdentity(TrinityInformationExchangeDepotBindingState other) {
         return this.host == other.host && this.structureName.equals(other.structureName) &&
                 this.verticalController == other.verticalController &&
                 this.verticalBindingEpoch == other.verticalBindingEpoch;

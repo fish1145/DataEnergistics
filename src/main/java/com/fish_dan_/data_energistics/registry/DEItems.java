@@ -154,7 +154,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> ME_COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE);
     public static final DeferredItem<BlockItem> ME_COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE);
     public static final DeferredItem<BlockItem> ME_PATTERN_BUFFER = ITEMS.registerSimpleBlockItem(DEBlocks.ME_PATTERN_BUFFER);
-    public static final DeferredItem<BlockItem> TRINITY_ACCESS_HATCH = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_ACCESS_HATCH);
+    public static final DeferredItem<BlockItem> TRINITY_INFORMATION_EXCHANGE_DEPOT = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_0);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_1);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(DEBlocks.BUDDING_DATA_CRYSTAL_2);

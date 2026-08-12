@@ -33,7 +33,7 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTermi
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenuHost;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
@@ -94,8 +94,8 @@ import java.util.UUID;
 /**
  * AE network hatch that exposes the bound Trinity Data Core UUID storage instead of storing contents locally.
  */
-public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
-                                           implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
+public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlockEntity
+                                                        implements CompartmentPart, ITerminalHost, TrinityInformationExchangeDepotMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolver();
@@ -109,7 +109,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     private final ConfigManager configManager = new ConfigManager(this::onTerminalConfigChanged);
     private final Set<PatternContainer> managedTerminalPartitions = Collections.newSetFromMap(new IdentityHashMap<>());
     @Nullable
-    private TrinityAccessHatchBindingState compartmentBindingState;
+    private TrinityInformationExchangeDepotBindingState compartmentBindingState;
     @Nullable
     private String lastUnavailableReason;
     private List<TrinityPatternTerminalPartition> terminalPartitions = List.of();
@@ -128,8 +128,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     private PatternPublication patternPublication;
     private boolean loadingTerminalConfig;
 
-    public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
+    public TrinityInformationExchangeDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
+        super(DEBlockEntities.TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
         this.configManager.registerSetting(
                 Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
                 ShowPatternProviders.VISIBLE);
@@ -137,7 +137,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
                 .setExposedOnSides(EnumSet.allOf(Direction.class))
-                .setVisualRepresentation(DEBlocks.TRINITY_ACCESS_HATCH.get())
+                .setVisualRepresentation(DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
     }
 
@@ -181,7 +181,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     /**
-     * Crafting status does not expose upgrades for the Trinity access hatch.
+     * Crafting status does not expose upgrades for the Trinity information exchange depot.
      */
     @Override
     public IUpgradeInventory getUpgrades() {
@@ -223,7 +223,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     /**
-     * Resolves the live bound controller instead of returning to the access hatch itself.
+     * Resolves the live bound controller instead of returning to the information exchange depot itself.
      */
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
@@ -251,7 +251,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                     host.getHostId(), host.getBlockPos());
             player.closeContainer();
         } catch (RuntimeException exception) {
-            LOGGER.error("Failed to resolve the Trinity host menu at {} from access hatch {}",
+            LOGGER.error("Failed to resolve the Trinity host menu at {} from information exchange depot {}",
                     host.getBlockPos(), this.worldPosition, exception);
             player.closeContainer();
         }
@@ -449,7 +449,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public CompartmentType compartmentType() {
-        return CompartmentType.TRINITY_ACCESS;
+        return CompartmentType.TRINITY_INFORMATION_EXCHANGE;
     }
 
     @Override
@@ -460,20 +460,20 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     @Nullable
     @Override
     public CompartmentHost compartmentHost() {
-        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState binding = this.compartmentBindingState;
         return binding == null ? null : binding.host();
     }
 
     @Nullable
     @Override
     public String compartmentStructureName() {
-        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState binding = this.compartmentBindingState;
         return binding == null ? null : binding.structureName();
     }
 
     @Override
     public boolean isCompartmentBound() {
-        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState binding = this.compartmentBindingState;
         return binding != null && binding.isActive();
     }
 
@@ -491,12 +491,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                             CompartmentHost host,
                             @Nullable VerticalMultiBlockController verticalController,
                             long verticalBindingEpoch) {
-        TrinityAccessHatchBindingState requestedBinding = createBindingState(
+        TrinityInformationExchangeDepotBindingState requestedBinding = createBindingState(
                 structureName,
                 host,
                 verticalController,
                 verticalBindingEpoch);
-        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState currentBinding = this.compartmentBindingState;
         if (currentBinding == null) {
             activateBinding(requestedBinding);
             return;
@@ -511,10 +511,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         }
         if (currentBinding.isReleasing()) {
             currentBinding.queueReplacement(requestedBinding);
-            releaseBinding(currentBinding, "retrying or completing a Trinity access hatch replacement");
+            releaseBinding(currentBinding, "retrying or completing a Trinity information exchange depot replacement");
             return;
         }
-        releaseBinding(currentBinding, requestedBinding, "replacing an existing Trinity access hatch binding");
+        releaseBinding(
+                currentBinding,
+                requestedBinding,
+                "replacing an existing Trinity information exchange depot binding");
     }
 
     @Override
@@ -522,16 +525,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         try {
             requireUnbindArguments(structureName, host);
         } catch (RuntimeException exception) {
-            LOGGER.error("Rejecting invalid Trinity access hatch unbind at {}: host={}, structure={}",
+            LOGGER.error("Rejecting invalid Trinity information exchange depot unbind at {}: host={}, structure={}",
                     this.worldPosition, host, structureName, exception);
             throw exception;
         }
-        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState currentBinding = this.compartmentBindingState;
         if (currentBinding == null || !currentBinding.matches(host, structureName)) {
             unregisterHost(structureName, host);
             return;
         }
-        LOGGER.debug("Ignoring untagged Trinity access hatch unbind at {} for host={}, structure={}; " +
+        LOGGER.debug("Ignoring untagged Trinity information exchange depot unbind at {} for host={}, structure={}; " +
                 "lifecycle owners must return the captured binding handle",
                 this.worldPosition,
                 host,
@@ -546,33 +549,33 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public boolean compartment$requiresBindingRetry(String structureName, CompartmentHost host) {
-        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState binding = this.compartmentBindingState;
         return binding != null && binding.requiresBindingRetry(host, structureName);
     }
 
     @Override
     public void compartment$unbindFromHost(CompartmentBindingHandle bindingHandle) {
-        if (!(bindingHandle instanceof TrinityAccessHatchBindingState expectedBinding)) {
-            LOGGER.warn("Ignoring foreign Trinity access hatch binding handle at {}: {}",
+        if (!(bindingHandle instanceof TrinityInformationExchangeDepotBindingState expectedBinding)) {
+            LOGGER.warn("Ignoring foreign Trinity information exchange depot binding handle at {}: {}",
                     this.worldPosition,
                     bindingHandle);
             return;
         }
         if (this.compartmentBindingState != expectedBinding) {
-            LOGGER.debug("Ignoring stale Trinity access hatch binding handle at {} for host={}, structure={}",
+            LOGGER.debug("Ignoring stale Trinity information exchange depot binding handle at {} for host={}, structure={}",
                     this.worldPosition,
                     expectedBinding.host(),
                     expectedBinding.structureName());
             return;
         }
-        releaseBinding(expectedBinding, "identity-aware Trinity access hatch unbind");
+        releaseBinding(expectedBinding, "identity-aware Trinity information exchange depot unbind");
     }
 
     @Override
     public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                      String structureName,
                                                      VerticalMultiBlockContext<?> context) {
-        LOGGER.debug("Ignoring untagged Trinity access hatch vertical bind at {} for controller={}, structure={}; " +
+        LOGGER.debug("Ignoring untagged Trinity information exchange depot vertical bind at {} for controller={}, structure={}; " +
                 "the vertical runtime must supply its binding epoch",
                 this.worldPosition,
                 controller,
@@ -585,7 +588,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                                      VerticalMultiBlockContext<?> context,
                                                      long bindingEpoch) {
         if (!(controller instanceof CompartmentHost host)) {
-            LOGGER.warn("Ignoring Trinity access hatch bind from non-compartment controller at {}: {}",
+            LOGGER.warn("Ignoring Trinity information exchange depot bind from non-compartment controller at {}: {}",
                     this.worldPosition,
                     controller);
             return;
@@ -595,7 +598,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
-        LOGGER.debug("Ignoring untagged Trinity access hatch vertical removal at {} for controller={}, structure={}; " +
+        LOGGER.debug("Ignoring untagged Trinity information exchange depot vertical removal at {} for controller={}, structure={}; " +
                 "the vertical runtime must return its captured binding epoch",
                 this.worldPosition,
                 controller,
@@ -607,16 +610,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                                                          String structureName,
                                                          long bindingEpoch) {
         if (!(controller instanceof CompartmentHost host)) {
-            LOGGER.warn("Ignoring Trinity access hatch removal from non-compartment controller at {}: {}",
+            LOGGER.warn("Ignoring Trinity information exchange depot removal from non-compartment controller at {}: {}",
                     this.worldPosition, controller);
             return;
         }
-        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState currentBinding = this.compartmentBindingState;
         if (currentBinding == null) {
             return;
         }
         if (!currentBinding.matchesVerticalRemoval(controller, structureName, bindingEpoch)) {
-            LOGGER.debug("Ignoring stale Trinity access hatch vertical removal at {} for host={}, structure={}, epoch={}",
+            LOGGER.debug("Ignoring stale Trinity information exchange depot vertical removal at {} for host={}, structure={}, epoch={}",
                     this.worldPosition,
                     host,
                     structureName,
@@ -628,41 +631,41 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
-        LOGGER.debug("Ignoring untagged Trinity access hatch legacy vertical removal at {} for controller={}; " +
+        LOGGER.debug("Ignoring untagged Trinity information exchange depot legacy vertical removal at {} for controller={}; " +
                 "the vertical runtime must return its captured binding epoch",
                 this.worldPosition,
                 controller);
     }
 
-    private TrinityAccessHatchBindingState createBindingState(String structureName,
-                                                              CompartmentHost host,
-                                                              @Nullable VerticalMultiBlockController verticalController,
-                                                              long verticalBindingEpoch) {
+    private TrinityInformationExchangeDepotBindingState createBindingState(String structureName,
+                                                                           CompartmentHost host,
+                                                                           @Nullable VerticalMultiBlockController verticalController,
+                                                                           long verticalBindingEpoch) {
         try {
-            return verticalController == null ? TrinityAccessHatchBindingState.active(structureName, host) :
-                    TrinityAccessHatchBindingState.active(
+            return verticalController == null ? TrinityInformationExchangeDepotBindingState.active(structureName, host) :
+                    TrinityInformationExchangeDepotBindingState.active(
                             structureName,
                             host,
                             verticalController,
                             verticalBindingEpoch);
         } catch (RuntimeException exception) {
-            LOGGER.error("Rejecting invalid Trinity access hatch binding at {}: host={}, structure={}",
+            LOGGER.error("Rejecting invalid Trinity information exchange depot binding at {}: host={}, structure={}",
                     this.worldPosition, host, structureName, exception);
             throw exception;
         }
     }
 
-    private void registerHost(TrinityAccessHatchBindingState binding) {
+    private void registerHost(TrinityInformationExchangeDepotBindingState binding) {
         try {
             CompartmentPart.super.compartment$bindToHost(binding.structureName(), binding.host());
         } catch (RuntimeException exception) {
-            LOGGER.error("Failed to register Trinity access hatch at {} with host={}, structure={}",
+            LOGGER.error("Failed to register Trinity information exchange depot at {} with host={}, structure={}",
                     this.worldPosition, binding.host(), binding.structureName(), exception);
             throw exception;
         }
     }
 
-    private void ensureHostRegistration(TrinityAccessHatchBindingState binding) {
+    private void ensureHostRegistration(TrinityInformationExchangeDepotBindingState binding) {
         if (binding.host().compartmentHost$getCompartments(binding.structureName()).contains(this)) {
             return;
         }
@@ -674,30 +677,30 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         try {
             CompartmentPart.super.compartment$unbindFromHost(structureName, host);
         } catch (RuntimeException exception) {
-            LOGGER.error("Failed to remove stale Trinity access hatch registration at {} from host={}, structure={}",
+            LOGGER.error("Failed to remove stale Trinity information exchange depot registration at {} from host={}, structure={}",
                     this.worldPosition, host, structureName, exception);
             throw exception;
         }
     }
 
-    private void activateBinding(TrinityAccessHatchBindingState binding) {
+    private void activateBinding(TrinityInformationExchangeDepotBindingState binding) {
         registerHost(binding);
         this.compartmentBindingState = binding;
         this.lastUnavailableReason = null;
         requestLeaseReevaluation(binding.host());
     }
 
-    private void releaseBinding(TrinityAccessHatchBindingState expectedBinding, String reason) {
+    private void releaseBinding(TrinityInformationExchangeDepotBindingState expectedBinding, String reason) {
         releaseBinding(expectedBinding, null, reason);
     }
 
-    private void releaseBinding(TrinityAccessHatchBindingState expectedBinding,
-                                @Nullable TrinityAccessHatchBindingState replacementBinding,
+    private void releaseBinding(TrinityInformationExchangeDepotBindingState expectedBinding,
+                                @Nullable TrinityInformationExchangeDepotBindingState replacementBinding,
                                 String reason) {
         if (this.compartmentBindingState != expectedBinding) {
             return;
         }
-        TrinityAccessHatchBindingState releasingBinding = expectedBinding.isReleasing() ? expectedBinding : expectedBinding.releasing();
+        TrinityInformationExchangeDepotBindingState releasingBinding = expectedBinding.isReleasing() ? expectedBinding : expectedBinding.releasing();
         this.compartmentBindingState = releasingBinding;
         if (replacementBinding != null) {
             releasingBinding.queueReplacement(replacementBinding);
@@ -711,7 +714,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                 unregisterHost(releasingBinding.structureName(), releasingBinding.host());
                 releasingBinding.markReleaseCompleted();
             } catch (RuntimeException exception) {
-                LOGGER.error("Failed to release Trinity access hatch binding at {} ({})", this.worldPosition, reason, exception);
+                LOGGER.error(
+                        "Failed to release Trinity information exchange depot binding at {} ({})",
+                        this.worldPosition,
+                        reason,
+                        exception);
                 throw exception;
             } finally {
                 releasingBinding.finishReleaseAttempt();
@@ -720,7 +727,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         completeReleasedBinding(releasingBinding, reason);
     }
 
-    private void completeReleasedBinding(TrinityAccessHatchBindingState releasingBinding, String reason) {
+    private void completeReleasedBinding(TrinityInformationExchangeDepotBindingState releasingBinding, String reason) {
         if (this.compartmentBindingState != releasingBinding || releasingBinding.isReleaseCompletionInProgress()) {
             return;
         }
@@ -731,7 +738,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             if (this.compartmentBindingState != releasingBinding) {
                 return;
             }
-            TrinityAccessHatchBindingState replacementBinding = releasingBinding.pendingReplacement();
+            TrinityInformationExchangeDepotBindingState replacementBinding = releasingBinding.pendingReplacement();
             if (replacementBinding == null) {
                 this.compartmentBindingState = null;
                 this.lastUnavailableReason = null;
@@ -747,7 +754,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             this.lastUnavailableReason = null;
             requestLeaseReevaluation(replacementBinding.host());
         } catch (RuntimeException exception) {
-            LOGGER.error("Failed to register queued Trinity access hatch replacement at {} ({})",
+            LOGGER.error("Failed to register queued Trinity information exchange depot replacement at {} ({})",
                     this.worldPosition,
                     reason,
                     exception);
@@ -759,10 +766,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     private static void requireUnbindArguments(String structureName, CompartmentHost host) {
         if (host == null) {
-            throw new IllegalArgumentException("Trinity access hatch unbind host must not be null");
+            throw new IllegalArgumentException("Trinity information exchange depot unbind host must not be null");
         }
         if (structureName == null || structureName.isBlank()) {
-            throw new IllegalArgumentException("Trinity access hatch unbind structure name must not be blank");
+            throw new IllegalArgumentException(
+                    "Trinity information exchange depot unbind structure name must not be blank");
         }
     }
 
@@ -865,16 +873,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
      * Validates the physical block-entity route and normal eight-block menu interaction range.
      */
     @Override
-    public boolean isAccessHatchMenuValid(Player player) {
+    public boolean isInformationExchangeDepotMenuValid(Player player) {
         if (player == null) {
-            throw new IllegalArgumentException("Trinity access hatch menu player cannot be null");
+            throw new IllegalArgumentException(
+                    "Trinity information exchange depot menu player cannot be null");
         }
         Level currentLevel = this.level;
         return currentLevel != null &&
                 !this.isRemoved() &&
                 player.level() == currentLevel &&
                 currentLevel.getBlockEntity(this.worldPosition) == this &&
-                currentLevel.getBlockState(this.worldPosition).is(DEBlocks.TRINITY_ACCESS_HATCH.get()) &&
+                currentLevel.getBlockState(this.worldPosition).is(DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get()) &&
                 player.distanceToSqr(
                         this.worldPosition.getX() + 0.5D,
                         this.worldPosition.getY() + 0.5D,
@@ -885,10 +894,10 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
      * Validates the complete server route before a data-core management operation is allowed.
      */
     @Override
-    public boolean isAccessHatchManagementAvailable(Player player) {
+    public boolean isInformationExchangeManagementAvailable(Player player) {
         Level currentLevel = this.level;
         return player instanceof ServerPlayer &&
-                isAccessHatchMenuValid(player) &&
+                isInformationExchangeDepotMenuValid(player) &&
                 currentLevel != null &&
                 !currentLevel.isClientSide() &&
                 isAccessOnline();
@@ -959,7 +968,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Nullable
     private TrinityDataCoreBlockEntity refundHost(Player player) {
-        if (!isAccessHatchManagementAvailable(player)) {
+        if (!isInformationExchangeManagementAvailable(player)) {
             return null;
         }
         TrinityDataCoreBlockEntity host = boundHost(false);
@@ -973,7 +982,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
     @Nullable
     private TrinityDataCoreBlockEntity boundHost(boolean logUnavailable) {
-        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        TrinityInformationExchangeDepotBindingState binding = this.compartmentBindingState;
         if (binding == null || !binding.isActive()) {
             logUnavailable(logUnavailable, "not bound to a trinity structure");
             return null;
@@ -1008,7 +1017,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return;
         }
         this.lastUnavailableReason = reason;
-        LOGGER.warn("Trinity access hatch at {} exposes empty storage: {}", this.worldPosition, reason);
+        LOGGER.warn("Trinity information exchange depot at {} exposes empty storage: {}", this.worldPosition, reason);
     }
 
     private void requestStorageUpdate() {
@@ -1246,7 +1255,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         @Override
         public void mountInventories(IStorageMounts storageMounts) {
             TrinityDataCoreBlockEntity host = boundHost(false);
-            if (host != null && host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
+            if (host != null && host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this) &&
                     host.isStorageAvailable()) {
                 storageMounts.mount(networkStorage, host.getStoragePriority());
             }
@@ -1345,7 +1354,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
                         CraftingDispatchRejection.scoped(CraftingDispatchStatus.OFFLINE));
             }
             CraftingAdmissionToken token = host.issueCraftingAdmission(
-                    TrinityAccessHatchBlockEntity.this,
+                    TrinityInformationExchangeDepotBlockEntity.this,
                     patternDetails,
                     level.getGameTime(),
                     requestedCount);
@@ -1489,12 +1498,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
 
         @Override
         public Component getDescription() {
-            return DEBlocks.TRINITY_ACCESS_HATCH.get().getName();
+            return DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get().getName();
         }
 
         private boolean canUseStorage(@Nullable TrinityDataCoreBlockEntity host) {
             return host != null && isCandidateOnline() &&
-                    host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
+                    host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this) &&
                     host.isStorageAvailable();
         }
     }

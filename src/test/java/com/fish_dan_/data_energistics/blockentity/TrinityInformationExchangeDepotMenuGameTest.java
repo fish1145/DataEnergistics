@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
@@ -37,11 +37,11 @@ import java.util.UUID;
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class TrinityAccessHatchMenuGameTest {
+public final class TrinityInformationExchangeDepotMenuGameTest {
 
-    private TrinityAccessHatchMenuGameTest() {}
+    private TrinityInformationExchangeDepotMenuGameTest() {}
 
-    @TestHolder("trinity_access_hatch_menu_opens_with_identity_scoped_partitions")
+    @TestHolder("trinity_information_exchange_depot_menu_opens_with_identity_scoped_partitions")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
     public static void opensWithIdentityScopedPartitions(GameTestHelper helper) {
@@ -54,7 +54,7 @@ public final class TrinityAccessHatchMenuGameTest {
     }
 
     private static void verifyMenuRoute(GameTestHelper helper, TrinityDataCoreGameTestFixture fixture) {
-        TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().stream()
+        TrinityInformationExchangeDepotBlockEntity hatch = fixture.accessHatches().stream()
                 .filter(fixture.host()::isLeaseOwner)
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning access hatch"));
@@ -63,11 +63,11 @@ public final class TrinityAccessHatchMenuGameTest {
         moveNear(player, hatch.getBlockPos());
 
         boolean opened = MenuOpener.open(
-                DEMenus.TRINITY_ACCESS_HATCH.get(),
+                DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(),
                 player,
                 MenuLocators.forBlockEntity(hatch));
         helper.assertTrue(opened, "AE2 MenuOpener should resolve the placed Trinity access hatch");
-        if (!(player.containerMenu instanceof TrinityAccessHatchMenu menu)) {
+        if (!(player.containerMenu instanceof TrinityInformationExchangeDepotMenu menu)) {
             throw new GameTestAssertException("Trinity access hatch did not open its registered menu");
         }
         helper.assertTrue(menu.stillValid(player), "A nearby player should retain the access-hatch menu route");
@@ -114,7 +114,7 @@ public final class TrinityAccessHatchMenuGameTest {
         player.closeContainer();
     }
 
-    private static void verifyRefundSequences(GameTestHelper helper, TrinityAccessHatchMenu menu) {
+    private static void verifyRefundSequences(GameTestHelper helper, TrinityInformationExchangeDepotMenu menu) {
         long patternsRevision = menu.refundPatternsRevision;
         menu.receiveClientAction("dataEnergistics$refundPatterns", "1");
         helper.assertValueEqual(

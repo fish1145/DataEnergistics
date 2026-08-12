@@ -31,7 +31,8 @@ public final class VirtualNodePatternTerminalPartition implements TrinityPattern
     private static final long SORT_HOST_MASK = 0xFFFF_FFFF_0000_0000L;
 
     /**
-     * Ephemeral nodes deliberately have no NBT of their own; the access hatch reconstructs them from the catalog.
+     * Ephemeral nodes deliberately have no NBT of their own; the information exchange depot reconstructs them from the
+     * catalog.
      */
     private static final IGridNodeListener<VirtualNodePatternTerminalPartition> NODE_LISTENER = (owner, node) -> {
         // The physical core and host persist all authoritative state.

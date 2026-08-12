@@ -18,7 +18,7 @@ import java.util.UUID;
  * <p>
  * AE2 limits one pattern-access update to 128 changed entries, so every physical core is represented by one or more
  * independently mounted partitions. Implementations expose a revision-guarded inventory proxy and own a virtual
- * grid-node lifecycle that the lease-holding access hatch can attach or detach explicitly.
+ * grid-node lifecycle that the lease-holding information exchange depot can attach or detach explicitly.
  */
 public interface TrinityPatternTerminalPartition extends PatternContainer {
 
@@ -32,7 +32,8 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
     int MAX_PATTERN_SLOTS = 128;
 
     /**
-     * Stable identity used by an access hatch to reconcile virtual terminal nodes without merging different routes.
+     * Stable identity used by an information exchange depot to reconcile virtual terminal nodes without merging
+     * different routes.
      *
      * @param hostId         persistent Trinity host identity
      * @param coreId         persistent physical pattern-core identity
@@ -92,7 +93,7 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
      * {@link #detach()} before moving the partition to a different access node.
      *
      * @param level      server level shared by both nodes
-     * @param accessNode active access-hatch grid node that owns the network lease
+     * @param accessNode active information-exchange-depot grid node that owns the network lease
      */
     void attach(ServerLevel level, IGridNode accessNode);
 
@@ -127,7 +128,7 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
     InternalInventory getTerminalPatternInventory();
 
     /**
-     * Creates the immutable terminal partition layout used by a lease-holding access hatch.
+     * Creates the immutable terminal partition layout used by a lease-holding information exchange depot.
      *
      * @param catalog authoritative live catalog that invalidates stale partition inventory proxies
      * @param group   common terminal group used by every generated partition

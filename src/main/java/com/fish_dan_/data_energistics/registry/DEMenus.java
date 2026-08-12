@@ -39,8 +39,8 @@ import com.fish_dan_.data_energistics.menu.MeVacuumMenu;
 import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenuHost;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
@@ -172,10 +172,10 @@ public final class DEMenus {
             .withMenuTitle(host -> host.getBlockState().getBlock().getName())
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_pattern_core")));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<TrinityAccessHatchMenu>> TRINITY_ACCESS_HATCH = MENUS.register("trinity_access_hatch", () -> MenuTypeBuilder
-            .create(TrinityAccessHatchMenu::new, TrinityAccessHatchMenuHost.class)
-            .withMenuTitle(host -> DEBlocks.TRINITY_ACCESS_HATCH.get().getName())
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_access_hatch")));
+    public static final DeferredHolder<MenuType<?>, MenuType<TrinityInformationExchangeDepotMenu>> TRINITY_INFORMATION_EXCHANGE_DEPOT = MENUS.register("trinity_information_exchange_depot", () -> MenuTypeBuilder
+            .create(TrinityInformationExchangeDepotMenu::new, TrinityInformationExchangeDepotMenuHost.class)
+            .withMenuTitle(host -> DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get().getName())
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_information_exchange_depot")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<UniversalMEStorageMenu>> UNIVERSAL_ME_STORAGE = MENUS.register("universal_me_storage", () -> MenuTypeBuilder
             .create(UniversalMEStorageMenu::new, UniversalTerminalPart.class)

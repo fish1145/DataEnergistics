@@ -12,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
  * again merely because the same grid objects are later reattached.
  * </p>
  *
- * @param owningGrid           physical grid that owns the access-hatch node
+ * @param owningGrid           physical grid that owns the information-exchange-depot node
  * @param serviceGrid          effective grid providing crafting services
  * @param leaseEpoch           host lease epoch captured for this route
  * @param membershipGeneration node virtual-membership generation captured for this route

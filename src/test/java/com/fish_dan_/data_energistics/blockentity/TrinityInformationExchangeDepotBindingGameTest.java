@@ -23,17 +23,17 @@ import java.util.List;
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class TrinityAccessHatchBindingGameTest {
+public final class TrinityInformationExchangeDepotBindingGameTest {
 
-    private TrinityAccessHatchBindingGameTest() {}
+    private TrinityInformationExchangeDepotBindingGameTest() {}
 
-    @TestHolder("trinity_access_hatch_old_release_cannot_clear_new_binding")
+    @TestHolder("trinity_information_exchange_depot_old_release_cannot_clear_new_binding")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void oldReleaseCannotClearNewBinding(GameTestHelper helper) {
-        TrinityAccessHatchBlockEntity hatch = new TrinityAccessHatchBlockEntity(
+        TrinityInformationExchangeDepotBlockEntity hatch = new TrinityInformationExchangeDepotBlockEntity(
                 BlockPos.ZERO,
-                DEBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
+                DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get().defaultBlockState());
         TestHost previousHost = new TestHost();
         TestHost replacementHost = new TestHost();
 

@@ -11,7 +11,7 @@
 			"entries": [
 				{
 					"type": "minecraft:item",
-					"name": "data_energistics:me_access_hatch"
+					"name": "data_energistics:trinity_information_exchange_depot"
 				}
 			],
 			"rolls": 1.0

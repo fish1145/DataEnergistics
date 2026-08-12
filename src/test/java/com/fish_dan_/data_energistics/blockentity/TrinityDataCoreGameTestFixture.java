@@ -39,12 +39,12 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
 
     private final GameTestHelper helper;
     private final TrinityDataCoreBlockEntity host;
-    private final List<TrinityAccessHatchBlockEntity> hatches;
+    private final List<TrinityInformationExchangeDepotBlockEntity> hatches;
     private GridPower gridPower;
 
     private TrinityDataCoreGameTestFixture(GameTestHelper helper,
                                            TrinityDataCoreBlockEntity host,
-                                           List<TrinityAccessHatchBlockEntity> hatches) {
+                                           List<TrinityInformationExchangeDepotBlockEntity> hatches) {
         this.helper = helper;
         this.host = host;
         this.hatches = List.copyOf(hatches);
@@ -88,7 +88,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
                 !host.getPatternCatalog().mountedCores().isEmpty(),
                 "Formed Trinity crafting structure should expose P cores");
 
-        List<TrinityAccessHatchBlockEntity> hatches = boundHatches(host);
+        List<TrinityInformationExchangeDepotBlockEntity> hatches = boundHatches(host);
         helper.assertValueEqual(hatches.size(), 1, "Trinity main structure should bind its sole lower access hatch");
         TrinityDataCoreGameTestFixture fixture = new TrinityDataCoreGameTestFixture(helper, host, hatches);
         fixture.registerCleanup();
@@ -99,7 +99,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
         return this.host;
     }
 
-    List<TrinityAccessHatchBlockEntity> accessHatches() {
+    List<TrinityInformationExchangeDepotBlockEntity> accessHatches() {
         return this.hatches;
     }
 
@@ -118,7 +118,9 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
 
         IGrid grid = this.host.accessGrid();
         await(grid != null, "Trinity host is waiting for its access grid");
-        await(this.host.hasActiveAccessHatch(), "Trinity host is waiting for an active access lease");
+        await(
+                this.host.hasActiveInformationExchangeDepot(),
+                "Trinity host is waiting for an active information exchange depot");
         await(this.host.isPatternProviderAvailable(), "Trinity pattern provider is not available yet");
         await(this.host.isCpuProviderAvailable(), "Trinity CPU provider is not available yet");
         await(this.hatches.stream().filter(this.host::isLeaseOwner).count() == 1L,
@@ -131,7 +133,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
     }
 
     void refreshPatternPublication() {
-        for (TrinityAccessHatchBlockEntity hatch : this.hatches) {
+        for (TrinityInformationExchangeDepotBlockEntity hatch : this.hatches) {
             hatch.refreshTrinityPatternPublication();
         }
     }
@@ -177,7 +179,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
         }
 
         List<IGridNode> accessNodes = new ArrayList<>(this.hatches.size());
-        for (TrinityAccessHatchBlockEntity hatch : this.hatches) {
+        for (TrinityInformationExchangeDepotBlockEntity hatch : this.hatches) {
             IGridNode node = hatch.getMainNode().getNode();
             if (node == null) {
                 throw new GameTestAssertException("Trinity access node is still initializing");
@@ -228,12 +230,12 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
         helper.assertTrue(result.placed() > 0, "Trinity " + structureName + " auto-build should place blocks");
     }
 
-    private static List<TrinityAccessHatchBlockEntity> boundHatches(TrinityDataCoreBlockEntity host) {
-        List<TrinityAccessHatchBlockEntity> hatches = new ArrayList<>();
+    private static List<TrinityInformationExchangeDepotBlockEntity> boundHatches(TrinityDataCoreBlockEntity host) {
+        List<TrinityInformationExchangeDepotBlockEntity> hatches = new ArrayList<>();
         String mainStructure = TrinityDataCoreBlockEntity.autoBuildStructureName(
                 TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX);
         for (CompartmentPart part : host.compartmentHost$getCompartments(mainStructure)) {
-            if (part instanceof TrinityAccessHatchBlockEntity hatch) {
+            if (part instanceof TrinityInformationExchangeDepotBlockEntity hatch) {
                 hatches.add(hatch);
             }
         }

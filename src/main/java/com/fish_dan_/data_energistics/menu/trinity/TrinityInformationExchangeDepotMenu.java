@@ -19,19 +19,19 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Pattern-access terminal menu scoped to one lease-holding Trinity ME access hatch.
+ * Pattern-access terminal menu scoped to one lease-holding Trinity information exchange depot.
  *
  * <p>
  * AE2 continues to provide its bounded pattern inventory protocol while this menu adds two independently acknowledged
  * refund actions for the data core currently managed by the hatch.
  * </p>
  */
-public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
+public class TrinityInformationExchangeDepotMenu extends PatternAccessTermMenu {
 
     private static final String ACTION_REFUND_PATTERNS = "dataEnergistics$refundPatterns";
     private static final String ACTION_REFUND_RETAINED_ITEMS = "dataEnergistics$refundRetainedItems";
 
-    private final TrinityAccessHatchMenuHost host;
+    private final TrinityInformationExchangeDepotMenuHost host;
 
     @GuiSync(801)
     public long refundPatternsRevision;
@@ -56,18 +56,18 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
     private TrinityHostedActionStatus refundRetainedItemsResult;
 
     /**
-     * Creates the registered access-hatch menu with the standard AE2 player inventory binding.
+     * Creates the registered information-exchange-depot menu with the standard AE2 player inventory binding.
      *
      * @param id              active container identifier
      * @param playerInventory inventory of the player opening the hatch
      * @param host            exact hatch selected by the menu locator
      */
-    public TrinityAccessHatchMenu(int id, Inventory playerInventory, TrinityAccessHatchMenuHost host) {
-        this(DEMenus.TRINITY_ACCESS_HATCH.get(), id, playerInventory, host, true);
+    public TrinityInformationExchangeDepotMenu(int id, Inventory playerInventory, TrinityInformationExchangeDepotMenuHost host) {
+        this(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), id, playerInventory, host, true);
     }
 
     /**
-     * Creates an access-hatch menu for registered variants that need to control player inventory binding.
+     * Creates an information-exchange-depot menu for registered variants that control player inventory binding.
      *
      * @param menuType        registered menu type
      * @param id              active container identifier
@@ -75,11 +75,11 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
      * @param host            exact hatch selected by the menu locator
      * @param bindInventory   whether AE2 should create the player's inventory slots
      */
-    public TrinityAccessHatchMenu(MenuType<?> menuType,
-                                  int id,
-                                  Inventory playerInventory,
-                                  TrinityAccessHatchMenuHost host,
-                                  boolean bindInventory) {
+    public TrinityInformationExchangeDepotMenu(MenuType<?> menuType,
+                                               int id,
+                                               Inventory playerInventory,
+                                               TrinityInformationExchangeDepotMenuHost host,
+                                               boolean bindInventory) {
         super(menuType, id, playerInventory, requireHost(host), bindInventory);
         this.host = host;
         this.registerClientAction(
@@ -97,14 +97,14 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
      */
     @Override
     public boolean stillValid(Player player) {
-        return super.stillValid(player) && this.host.isAccessHatchMenuValid(player);
+        return super.stillValid(player) && this.host.isInformationExchangeDepotMenuValid(player);
     }
 
     /**
      * Called by the AE2 visibility mixin to reject every grid pattern container not owned by this menu's hatch.
      *
      * @param container candidate discovered by AE2's grid-wide scan
-     * @return whether the exact candidate belongs to this access hatch
+     * @return whether the exact candidate belongs to this information exchange depot
      */
     public boolean isManagedPatternContainer(PatternContainer container) {
         return this.host.isManagedPatternContainer(container);
@@ -212,9 +212,9 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
         return result;
     }
 
-    private static TrinityAccessHatchMenuHost requireHost(@Nullable TrinityAccessHatchMenuHost host) {
+    private static TrinityInformationExchangeDepotMenuHost requireHost(@Nullable TrinityInformationExchangeDepotMenuHost host) {
         if (host == null) {
-            throw new IllegalArgumentException("Trinity access hatch menu requires a host");
+            throw new IllegalArgumentException("Trinity information exchange depot menu requires a host");
         }
         return host;
     }
@@ -226,7 +226,7 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
     private boolean canManagePatterns(ServerPlayer player) {
         return player.containerMenu == this &&
                 this.stillValid(player) &&
-                this.host.isAccessHatchManagementAvailable(player);
+                this.host.isInformationExchangeManagementAvailable(player);
     }
 
     private boolean sendRefundRequest(String actionName, RefundTarget target, long sequence) {
@@ -236,7 +236,7 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
         } catch (RuntimeException exception) {
             setClientTransportFailure(target);
             Data_Energistics.LOGGER.error(
-                    "Failed to send Trinity access hatch refund request for player {}, menu {}, target {}",
+                    "Failed to send Trinity information exchange depot refund request for player {}, menu {}, target {}",
                     this.getPlayer().getName().getString(),
                     this.containerId,
                     target,
@@ -265,7 +265,7 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
             if (!(player instanceof ServerPlayer) ||
                     player.containerMenu != this ||
                     !this.stillValid(player) ||
-                    !this.host.isAccessHatchManagementAvailable(player)) {
+                    !this.host.isInformationExchangeManagementAvailable(player)) {
                 status = TrinityHostedActionStatus.REJECTED;
             } else {
                 status = switch (target) {
@@ -273,13 +273,13 @@ public class TrinityAccessHatchMenu extends PatternAccessTermMenu {
                     case RETAINED_ITEMS -> this.host.refundRetainedItems(player);
                 };
                 if (status == null) {
-                    throw new IllegalStateException("Trinity access hatch refund returned no action status");
+                    throw new IllegalStateException("Trinity information exchange depot refund returned no action status");
                 }
             }
         } catch (RuntimeException exception) {
             status = TrinityHostedActionStatus.INTERNAL_ERROR;
             Data_Energistics.LOGGER.error(
-                    "Failed to execute Trinity access hatch refund for player {}, menu {}, host {}, target {}",
+                    "Failed to execute Trinity information exchange depot refund for player {}, menu {}, host {}, target {}",
                     player.getName().getString(),
                     this.containerId,
                     this.host,

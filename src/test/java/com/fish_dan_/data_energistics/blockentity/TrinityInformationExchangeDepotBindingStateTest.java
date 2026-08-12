@@ -17,19 +17,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Verifies that a Trinity access hatch binding identity changes phase without splitting its host and structure name.
  */
-public final class TrinityAccessHatchBindingStateTest {
+public final class TrinityInformationExchangeDepotBindingStateTest {
 
     @Test
     void releasePhaseRetainsTheCompleteBindingIdentity() {
         CompartmentHost host = emptyHost();
-        TrinityAccessHatchBindingState active = TrinityAccessHatchBindingState.active("main", host);
+        TrinityInformationExchangeDepotBindingState active = TrinityInformationExchangeDepotBindingState.active("main", host);
 
-        TrinityAccessHatchBindingState releasing = active.releasing();
+        TrinityInformationExchangeDepotBindingState releasing = active.releasing();
 
         assertSame(active, releasing);
         assertSame(host, releasing.host());
         assertTrue(releasing.matches(host, "main"));
-        assertEquals(TrinityAccessHatchBindingState.Phase.RELEASING, releasing.phase());
+        assertEquals(TrinityInformationExchangeDepotBindingState.Phase.RELEASING, releasing.phase());
         assertTrue(releasing.isReleasing());
         assertFalse(releasing.isActive());
 
@@ -44,9 +44,9 @@ public final class TrinityAccessHatchBindingStateTest {
     void blankStructureNameFailsBeforeItCanBeCreated() {
         CompartmentHost host = emptyHost();
 
-        assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active("", host));
-        assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active(null, host));
-        assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active("main", null));
+        assertThrows(IllegalArgumentException.class, () -> TrinityInformationExchangeDepotBindingState.active("", host));
+        assertThrows(IllegalArgumentException.class, () -> TrinityInformationExchangeDepotBindingState.active(null, host));
+        assertThrows(IllegalArgumentException.class, () -> TrinityInformationExchangeDepotBindingState.active("main", null));
     }
 
     private static CompartmentHost emptyHost() {

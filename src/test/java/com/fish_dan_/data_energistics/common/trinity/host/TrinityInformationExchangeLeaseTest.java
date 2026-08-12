@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class TrinityAccessLeaseTest {
+public final class TrinityInformationExchangeLeaseTest {
 
     @Test
     void electCapturesTheExactSingleCandidateIdentity() {
@@ -28,7 +28,7 @@ public final class TrinityAccessLeaseTest {
         BlockPos capturedPosition = candidatePosition.immutable();
         IGrid candidateGrid = new StubGrid();
 
-        TrinityAccessLease lease = TrinityAccessLease.elect(candidatePosition, candidateGrid, 7L);
+        TrinityInformationExchangeLease lease = TrinityInformationExchangeLease.elect(candidatePosition, candidateGrid, 7L);
         candidatePosition.set(40, 50, 60);
 
         assertEquals(capturedPosition, lease.hatchPosition());
@@ -41,14 +41,14 @@ public final class TrinityAccessLeaseTest {
         assertFalse(lease.matches(candidatePosition, candidateGrid));
         assertSame(lease, lease.bind(candidateGrid));
         assertThrows(IllegalArgumentException.class,
-                () -> TrinityAccessLease.elect(BlockPos.ZERO, candidateGrid, -1L));
+                () -> TrinityInformationExchangeLease.elect(BlockPos.ZERO, candidateGrid, -1L));
     }
 
     @Test
     void restoreAndRebindKeepTheStickyLeaseIdentity() {
         BlockPos.MutableBlockPos persistedPosition = new BlockPos.MutableBlockPos(-3, 9, 14);
         BlockPos capturedPosition = persistedPosition.immutable();
-        TrinityAccessLease restored = TrinityAccessLease.restore(persistedPosition, 19L);
+        TrinityInformationExchangeLease restored = TrinityInformationExchangeLease.restore(persistedPosition, 19L);
         persistedPosition.move(1, 2, 3);
 
         assertEquals(capturedPosition, restored.hatchPosition());
@@ -59,14 +59,14 @@ public final class TrinityAccessLeaseTest {
         assertSame(restored, restored.unbind());
 
         IGrid recoveredGrid = new StubGrid();
-        TrinityAccessLease rebound = restored.bind(recoveredGrid);
+        TrinityInformationExchangeLease rebound = restored.bind(recoveredGrid);
         assertNotSame(restored, rebound);
         assertEquals(capturedPosition, rebound.hatchPosition());
         assertEquals(restored.epoch(), rebound.epoch());
         assertTrue(rebound.matches(capturedPosition, recoveredGrid));
         assertSame(rebound, rebound.bind(recoveredGrid));
 
-        TrinityAccessLease offline = rebound.unbind();
+        TrinityInformationExchangeLease offline = rebound.unbind();
         assertNotSame(rebound, offline);
         assertEquals(capturedPosition, offline.hatchPosition());
         assertEquals(rebound.epoch(), offline.epoch());
@@ -74,7 +74,7 @@ public final class TrinityAccessLeaseTest {
         assertNull(offline.grid());
         assertSame(offline, offline.unbind());
         assertThrows(IllegalArgumentException.class,
-                () -> TrinityAccessLease.restore(BlockPos.ZERO, -1L));
+                () -> TrinityInformationExchangeLease.restore(BlockPos.ZERO, -1L));
     }
 
     private static final class StubGrid implements IGrid {

@@ -9,17 +9,17 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * Loads the declarative native-screen geometry for the Trinity access hatch.
+ * Loads the declarative native-screen geometry for the Trinity information exchange depot.
  *
  * <p>
  * The host screen is an AE2 native screen rather than an LDLib2 UI tree, so its widget bounds are supplied by this
  * XML model while the LDLib2 Trinity surfaces use LSS directly.
  * </p>
  */
-final class TrinityAccessHatchLayout {
+final class TrinityInformationExchangeDepotLayout {
 
-    private static final String RESOURCE_PATH = "ui/trinity/access_hatch.xml";
-    private static final String ROOT_NAME = "trinity-access-hatch";
+    private static final String RESOURCE_PATH = "ui/trinity/information_exchange_depot.xml";
+    private static final String ROOT_NAME = "trinity-information-exchange-depot";
 
     private final int screenWidth;
     private final ManagementPanel managementPanel;
@@ -28,12 +28,12 @@ final class TrinityAccessHatchLayout {
     private final Button refundPatternsButton;
     private final Button refundRetainedItemsButton;
 
-    private TrinityAccessHatchLayout(int screenWidth,
-                                     ManagementPanel managementPanel,
-                                     Title title,
-                                     Button searchModeButton,
-                                     Button refundPatternsButton,
-                                     Button refundRetainedItemsButton) {
+    private TrinityInformationExchangeDepotLayout(int screenWidth,
+                                                  ManagementPanel managementPanel,
+                                                  Title title,
+                                                  Button searchModeButton,
+                                                  Button refundPatternsButton,
+                                                  Button refundRetainedItemsButton) {
         this.screenWidth = screenWidth;
         this.managementPanel = managementPanel;
         this.title = title;
@@ -42,8 +42,8 @@ final class TrinityAccessHatchLayout {
         this.refundRetainedItemsButton = refundRetainedItemsButton;
     }
 
-    /** Loads one complete, validated access-hatch geometry model from the client resource pack. */
-    static TrinityAccessHatchLayout load() {
+    /** Loads one complete, validated information-exchange-depot geometry model from the client resource pack. */
+    static TrinityInformationExchangeDepotLayout load() {
         Document document = XmlUtils.loadXml(Data_Energistics.id(RESOURCE_PATH));
         if (document == null) {
             throw invalid("Unable to load " + RESOURCE_PATH);
@@ -66,7 +66,7 @@ final class TrinityAccessHatchLayout {
         Button searchModeButton = readButton(panelElement, "search-mode");
         Button refundPatternsButton = readButton(panelElement, "refund-patterns");
         Button refundRetainedItemsButton = readButton(panelElement, "refund-retained-items");
-        return new TrinityAccessHatchLayout(
+        return new TrinityInformationExchangeDepotLayout(
                 screenWidth,
                 panel,
                 title,
@@ -178,12 +178,12 @@ final class TrinityAccessHatchLayout {
     }
 
     private static IllegalStateException invalid(String message) {
-        Data_Energistics.LOGGER.error("Trinity access hatch XML layout is invalid: {}", message);
+        Data_Energistics.LOGGER.error("Trinity information exchange depot XML layout is invalid: {}", message);
         return new IllegalStateException(message);
     }
 
     private static IllegalStateException invalid(String message, Exception cause) {
-        Data_Energistics.LOGGER.error("Trinity access hatch XML layout is invalid: {}", message, cause);
+        Data_Energistics.LOGGER.error("Trinity information exchange depot XML layout is invalid: {}", message, cause);
         return new IllegalStateException(message, cause);
     }
 

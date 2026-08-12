@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
-import com.fish_dan_.data_energistics.client.screen.trinity.TrinityAccessHatchScreen;
+import com.fish_dan_.data_energistics.client.screen.trinity.TrinityInformationExchangeDepotScreen;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Substitutes EAE-style input/output search text only for the Trinity access-hatch screen.
+ * Substitutes EAE-style input/output search text only for the Trinity information-exchange-depot screen.
  */
 @Mixin(PatternAccessTermScreen.class)
 public abstract class PatternAccessTermScreenMixin {
@@ -26,13 +26,14 @@ public abstract class PatternAccessTermScreenMixin {
     private void dataEnergistics$useTrinitySearchScope(
                                                        ItemStack itemStack,
                                                        CallbackInfoReturnable<String> callback) {
-        if ((Object) this instanceof TrinityAccessHatchScreen screen) {
+        if ((Object) this instanceof TrinityInformationExchangeDepotScreen screen) {
             callback.setReturnValue(screen.buildPatternSearchText(itemStack));
         }
     }
 
     /**
-     * Replaces AE2's contiguous substring check with EAE's ordered token matching only for the access-hatch screen.
+     * Replaces AE2's contiguous substring check with EAE's ordered token matching only for the
+     * information-exchange-depot screen.
      */
     @Inject(
             method = "itemStackMatchesSearchTerm(Lnet/minecraft/world/item/ItemStack;Ljava/lang/String;)Z",
@@ -42,7 +43,7 @@ public abstract class PatternAccessTermScreenMixin {
                                                            ItemStack itemStack,
                                                            String searchTerm,
                                                            CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof TrinityAccessHatchScreen screen) {
+        if ((Object) this instanceof TrinityInformationExchangeDepotScreen screen) {
             callback.setReturnValue(screen.matchesPatternSearch(itemStack, searchTerm));
         }
     }

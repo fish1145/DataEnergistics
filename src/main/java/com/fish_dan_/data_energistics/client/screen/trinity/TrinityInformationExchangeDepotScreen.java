@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 import com.fish_dan_.data_energistics.mixin.client.PatternAccessTermScreenAccessor;
 
 import net.minecraft.client.Minecraft;
@@ -37,11 +37,12 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Pattern-access terminal for the Trinity ME access hatch, with structure management actions and EAE-style search
+ * Pattern-access terminal for the Trinity information exchange depot, with structure management actions and EAE-style
+ * search
  * scopes.
  */
-public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAccessHatchMenu>
-                                      implements Ae2NativeSlotHighlight {
+public class TrinityInformationExchangeDepotScreen extends PatternAccessTermScreen<TrinityInformationExchangeDepotMenu>
+                                                   implements Ae2NativeSlotHighlight {
 
     private static final int PANEL_BACKGROUND = 0xFFE3E3EA;
     private static final int PANEL_BORDER = 0xFF696D88;
@@ -52,7 +53,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     private static final String REFUND_PATTERNS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.patterns";
     private static final String REFUND_RETAINED_ITEMS_SUBJECT_KEY = "message.data_energistics.trinity_data_core.refund.subject.retained_items";
     private static final TrinityPatternSearchMatcher SEARCH_MATCHER = new TrinityPatternSearchMatcher();
-    private static final TrinityAccessHatchLayout LAYOUT = TrinityAccessHatchLayout.load();
+    private static final TrinityInformationExchangeDepotLayout LAYOUT = TrinityInformationExchangeDepotLayout.load();
 
     private final Map<AEItemKey, PatternSearchNames> patternSearchNamesByDefinition = new HashMap<>();
     private TrinityPatternSearchMode searchMode = TrinityPatternSearchMode.INPUT_OUTPUT;
@@ -67,10 +68,10 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     /**
      * Creates a standard AE2 pattern-access screen and reserves a right-hand management column.
      */
-    public TrinityAccessHatchScreen(TrinityAccessHatchMenu menu,
-                                    Inventory playerInventory,
-                                    Component title,
-                                    ScreenStyle style) {
+    public TrinityInformationExchangeDepotScreen(TrinityInformationExchangeDepotMenu menu,
+                                                 Inventory playerInventory,
+                                                 Component title,
+                                                 ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.imageWidth = LAYOUT.screenWidth();
     }
@@ -81,15 +82,15 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     @Override
     public void init() {
         super.init();
-        TrinityAccessHatchLayout.Button searchModeLayout = LAYOUT.searchModeButton();
+        TrinityInformationExchangeDepotLayout.Button searchModeLayout = LAYOUT.searchModeButton();
         this.searchModeButton = addRenderableWidget(new ManagementButton(
                 managementButtonX(searchModeLayout),
                 this.topPos + searchModeLayout.top(),
                 searchModeLayout,
                 searchModeMessage(),
-                Component.translatable("button.data_energistics.trinity_access_hatch.search_mode.hint"),
+                Component.translatable("button.data_energistics.trinity_information_exchange_depot.search_mode.hint"),
                 this::cycleSearchMode));
-        TrinityAccessHatchLayout.Button refundPatternsLayout = LAYOUT.refundPatternsButton();
+        TrinityInformationExchangeDepotLayout.Button refundPatternsLayout = LAYOUT.refundPatternsButton();
         this.refundPatternsButton = addRenderableWidget(new ManagementButton(
                 managementButtonX(refundPatternsLayout),
                 this.topPos + refundPatternsLayout.top(),
@@ -97,7 +98,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
                 Component.translatable("button.data_energistics.trinity_data_core.refund_patterns"),
                 Component.translatable("button.data_energistics.trinity_data_core.refund_patterns"),
                 this.menu::requestRefundPatterns));
-        TrinityAccessHatchLayout.Button refundRetainedItemsLayout = LAYOUT.refundRetainedItemsButton();
+        TrinityInformationExchangeDepotLayout.Button refundRetainedItemsLayout = LAYOUT.refundRetainedItemsButton();
         this.refundRetainedItemsButton = addRenderableWidget(new ManagementButton(
                 managementButtonX(refundRetainedItemsLayout),
                 this.topPos + refundRetainedItemsLayout.top(),
@@ -135,7 +136,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
         drawPatternSearchFeedback(guiGraphics);
         guiGraphics.drawString(
                 this.font,
-                Component.translatable("screen.data_energistics.trinity_access_hatch.management"),
+                Component.translatable("screen.data_energistics.trinity_information_exchange_depot.management"),
                 LAYOUT.title().left(),
                 LAYOUT.title().top(),
                 PANEL_TEXT,
@@ -242,7 +243,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
     /**
      * Resolves one XML-declared button's local x-coordinate against the current native screen origin.
      */
-    private int managementButtonX(TrinityAccessHatchLayout.Button layout) {
+    private int managementButtonX(TrinityInformationExchangeDepotLayout.Button layout) {
         return this.leftPos + LAYOUT.managementPanel().left() + layout.left();
     }
 
@@ -354,9 +355,9 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
 
     private Component searchModeMessage() {
         String key = switch (this.searchMode) {
-            case INPUT -> "button.data_energistics.trinity_access_hatch.search_mode.input";
-            case OUTPUT -> "button.data_energistics.trinity_access_hatch.search_mode.output";
-            case INPUT_OUTPUT -> "button.data_energistics.trinity_access_hatch.search_mode.input_output";
+            case INPUT -> "button.data_energistics.trinity_information_exchange_depot.search_mode.input";
+            case OUTPUT -> "button.data_energistics.trinity_information_exchange_depot.search_mode.output";
+            case INPUT_OUTPUT -> "button.data_energistics.trinity_information_exchange_depot.search_mode.input_output";
         };
         return Component.translatable(key);
     }
@@ -424,7 +425,7 @@ public class TrinityAccessHatchScreen extends PatternAccessTermScreen<TrinityAcc
 
         private ManagementButton(int x,
                                  int y,
-                                 TrinityAccessHatchLayout.Button layout,
+                                 TrinityInformationExchangeDepotLayout.Button layout,
                                  Component message,
                                  Component tooltip,
                                  Runnable action) {

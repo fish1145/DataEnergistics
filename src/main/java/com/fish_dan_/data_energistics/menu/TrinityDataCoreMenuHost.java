@@ -33,7 +33,7 @@ public interface TrinityDataCoreMenuHost {
     UUID getHostId();
 
     /**
-     * Reports whether the host has an active Trinity access hatch.
+     * Reports whether the host has an active Trinity information exchange depot.
      */
     boolean isOnline();
 

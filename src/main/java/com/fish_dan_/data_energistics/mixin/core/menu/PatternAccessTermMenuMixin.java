@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core.menu;
 
-import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.menu.implementations.PatternAccessTermMenu;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Narrows AE2's grid-wide pattern-provider scan only for the Trinity access-hatch menu subtype.
+ * Narrows AE2's grid-wide pattern-provider scan only for the Trinity information-exchange-depot menu subtype.
  */
 @Mixin(PatternAccessTermMenu.class)
 public class PatternAccessTermMenuMixin {
@@ -19,11 +19,11 @@ public class PatternAccessTermMenuMixin {
             method = "isVisible(Lappeng/helpers/patternprovider/PatternContainer;)Z",
             at = @At("HEAD"),
             cancellable = true)
-    private void dataEnergistics$limitTrinityAccessHatchContainers(
-                                                                   PatternContainer container,
-                                                                   CallbackInfoReturnable<Boolean> callback) {
+    private void dataEnergistics$limitTrinityInformationExchangeDepotContainers(
+                                                                                PatternContainer container,
+                                                                                CallbackInfoReturnable<Boolean> callback) {
         PatternAccessTermMenu patternMenu = (PatternAccessTermMenu) (Object) this;
-        if (patternMenu instanceof TrinityAccessHatchMenu menu &&
+        if (patternMenu instanceof TrinityInformationExchangeDepotMenu menu &&
                 !menu.isManagedPatternContainer(container)) {
             callback.setReturnValue(false);
         }

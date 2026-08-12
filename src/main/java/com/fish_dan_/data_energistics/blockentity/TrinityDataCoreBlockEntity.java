@@ -44,10 +44,10 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCpuCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCraftingCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeLease;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
@@ -189,7 +189,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private PendingPatternCoreRelease pendingPatternCoreRelease;
     /**
-     * Retries access-hatch and terminal invalidation after a post-lock notification failure.
+     * Retries information-exchange-depot and terminal invalidation after a post-lock notification failure.
      */
     private boolean patternLayoutRefreshRequested;
     private boolean loaded;
@@ -229,12 +229,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
     private final TrinityDataCoreCraftingRuntime craftingRuntime = new TrinityDataCoreCraftingRuntime(this);
     @Nullable
-    private TrinityAccessLease accessLease;
+    private TrinityInformationExchangeLease accessLease;
     private long accessLeaseEpoch;
     private boolean accessLeasePublicationRefreshRequested;
     private boolean missingBusyLeaseReported;
     /**
-     * Runtime-only authorization records for one-tick access-hatch crafting dispatches.
+     * Runtime-only authorization records for one-tick information-exchange-depot crafting dispatches.
      */
     private final Map<CraftingAdmissionToken, CraftingAdmissionState> craftingAdmissions = new IdentityHashMap<>();
     /**
@@ -254,7 +254,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                              RuntimeException initialFailure) {}
 
     /**
-     * Opaque, non-persistent authority to commit one exact access-hatch crafting dispatch.
+     * Opaque, non-persistent authority to commit one exact information-exchange-depot crafting dispatch.
      */
     static final class CraftingAdmissionToken {
 
@@ -281,7 +281,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final class CraftingAdmissionState {
 
         private final UUID hostId;
-        private final TrinityAccessHatchBlockEntity hatch;
+        private final TrinityInformationExchangeDepotBlockEntity hatch;
         private final BlockPos hatchPosition;
         private final IGrid grid;
         private final long leaseEpoch;
@@ -295,7 +295,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         private boolean committing;
 
         private CraftingAdmissionState(UUID hostId,
-                                       TrinityAccessHatchBlockEntity hatch,
+                                       TrinityInformationExchangeDepotBlockEntity hatch,
                                        BlockPos hatchPosition,
                                        IGrid grid,
                                        long leaseEpoch,
@@ -438,7 +438,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public boolean isOnline() {
-        return hasActiveAccessHatch();
+        return hasActiveInformationExchangeDepot();
     }
 
     @Override
@@ -1319,7 +1319,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return stack != null && stack.amount() > 0;
     }
 
-    public boolean hasActiveAccessHatch() {
+    public boolean hasActiveInformationExchangeDepot() {
         reevaluateAccessLease();
         return isStorageAvailable() && activeLeaseHatch() != null;
     }
@@ -1327,7 +1327,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /**
      * Returns the exact live lease owner used as the AE crafting-status terminal host.
      */
-    public @Nullable TrinityAccessHatchBlockEntity getActiveAccessHatch() {
+    public @Nullable TrinityInformationExchangeDepotBlockEntity getActiveInformationExchangeDepot() {
         reevaluateAccessLease();
         if (!isStorageAvailable() || !isCpuProviderAvailable()) {
             return null;
@@ -1340,7 +1340,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (!isStorageAvailable()) {
             return null;
         }
-        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
+        TrinityInformationExchangeDepotBlockEntity hatch = activeLeaseHatch();
         return hatch == null ? null : hatch.connectedGrid();
     }
 
@@ -1351,11 +1351,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      */
     public @Nullable TrinityCraftingExecutionRoute craftingExecutionRoute() {
         reevaluateAccessLease();
-        TrinityAccessLease lease = this.accessLease;
+        TrinityInformationExchangeLease lease = this.accessLease;
         if (!isCpuProviderAvailable() || lease == null || lease.grid() == null) {
             return null;
         }
-        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
+        TrinityInformationExchangeDepotBlockEntity hatch = activeLeaseHatch();
         return hatch == null ? null : hatch.resolveCraftingExecutionRoute(lease.epoch());
     }
 
@@ -1365,11 +1365,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             throw new IllegalStateException("Trinity Data Core storage is not available");
         }
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof TrinityAccessHatchBlockEntity hatch && isLeaseOwner(hatch)) {
+            if (part instanceof TrinityInformationExchangeDepotBlockEntity hatch && isLeaseOwner(hatch)) {
                 return hatch.actionSource();
             }
         }
-        throw new IllegalStateException("Trinity Data Core has no active Trinity access hatch");
+        throw new IllegalStateException("Trinity Data Core has no active Trinity information exchange depot");
     }
 
     @Override
@@ -1424,12 +1424,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return result;
     }
 
-    public boolean isLeaseOwner(TrinityAccessHatchBlockEntity hatch) {
+    public boolean isLeaseOwner(TrinityInformationExchangeDepotBlockEntity hatch) {
         return this.accessLease != null && this.accessLease.matches(hatch.getBlockPos(), hatch.connectedGrid());
     }
 
     /**
-     * Issues one non-persistent authorization for the exact access hatch that currently owns the crafting lease.
+     * Issues one non-persistent authorization for the exact information exchange depot that owns the crafting lease.
      *
      * <p>
      * The token never transfers input ownership. It only proves that a later same-tick commit still belongs to the
@@ -1439,7 +1439,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * @return opaque admission token, or {@code null} when the current publication cannot authorize the dispatch
      */
     @Nullable
-    CraftingAdmissionToken issueCraftingAdmission(TrinityAccessHatchBlockEntity hatch,
+    CraftingAdmissionToken issueCraftingAdmission(TrinityInformationExchangeDepotBlockEntity hatch,
                                                   IPatternDetails patternDetails,
                                                   long queuedTick,
                                                   long count) {
@@ -1457,7 +1457,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (!this.loaded || !this.hostId.equals(routedDetails.route().hostId()) || !isPatternProviderAvailable()) {
             return null;
         }
-        TrinityAccessLease lease = this.accessLease;
+        TrinityInformationExchangeLease lease = this.accessLease;
         IGrid grid = hatch.connectedGrid();
         BlockPos hatchPosition = hatch.getBlockPos().immutable();
         if (lease == null || grid == null || activeLeaseHatch() != hatch ||
@@ -1488,7 +1488,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     /**
-     * Validates and consumes one exact access-hatch admission before the catalog can accept its inputs.
+     * Validates and consumes one exact information-exchange-depot admission before the catalog can accept its inputs.
      *
      * <p>
      * A token enters its terminal state before calling into the catalog. Reentrant, duplicate, stale, and expired
@@ -1534,7 +1534,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 !isPatternProviderAvailable()) {
             return false;
         }
-        TrinityAccessLease lease = this.accessLease;
+        TrinityInformationExchangeLease lease = this.accessLease;
         if (lease == null || lease.epoch() != admission.leaseEpoch ||
                 !lease.matches(admission.hatchPosition, admission.grid) ||
                 !admission.hatch.getBlockPos().equals(admission.hatchPosition) ||
@@ -1590,15 +1590,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
         boolean leaseLocked = hasPendingTrinityWork() || hasUnresolvedStructureValidation();
-        List<TrinityAccessHatchBlockEntity> candidates = isStorageAvailable() ? compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
-                .filter(TrinityAccessHatchBlockEntity.class::isInstance)
-                .map(TrinityAccessHatchBlockEntity.class::cast)
-                .filter(TrinityAccessHatchBlockEntity::isCandidateOnline)
+        List<TrinityInformationExchangeDepotBlockEntity> candidates = isStorageAvailable() ? compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
+                .filter(TrinityInformationExchangeDepotBlockEntity.class::isInstance)
+                .map(TrinityInformationExchangeDepotBlockEntity.class::cast)
+                .filter(TrinityInformationExchangeDepotBlockEntity::isCandidateOnline)
                 .sorted((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
                 .toList() : List.of();
 
         if (this.accessLease != null) {
-            TrinityAccessHatchBlockEntity electedHatch = candidates.stream()
+            TrinityInformationExchangeDepotBlockEntity electedHatch = candidates.stream()
                     .filter(candidate -> this.accessLease.identifies(candidate.getBlockPos()))
                     .findFirst()
                     .orElse(null);
@@ -1632,7 +1632,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
 
-        TrinityAccessLease electedLease = candidates.isEmpty() ? null : TrinityAccessLease.elect(
+        TrinityInformationExchangeLease electedLease = candidates.isEmpty() ? null : TrinityInformationExchangeLease.elect(
                 candidates.getFirst().getBlockPos(),
                 candidates.getFirst().connectedGrid(),
                 this.accessLeaseEpoch = Math.incrementExact(this.accessLeaseEpoch));
@@ -1660,8 +1660,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 isValidationUnknown(Structure.CRAFTING);
     }
 
-    private void transitionAccessLease(@Nullable TrinityAccessLease nextLease) {
-        TrinityAccessLease previousLease = this.accessLease;
+    private void transitionAccessLease(@Nullable TrinityInformationExchangeLease nextLease) {
+        TrinityInformationExchangeLease previousLease = this.accessLease;
         if (sameRuntimeLease(previousLease, nextLease) && !accessLeaseIdentityChanged(previousLease, nextLease)) {
             this.accessLease = nextLease;
             this.craftingRuntime.setPaused(nextLease == null || nextLease.grid() == null || !isCpuProviderAvailable());
@@ -1670,8 +1670,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
 
         invalidateCraftingAdmissions();
-        TrinityAccessHatchBlockEntity previousOwner = findAccessHatch(previousLease);
-        TrinityAccessHatchBlockEntity nextOwner = nextLease == null || nextLease.grid() == null ? null : findAccessHatch(nextLease);
+        TrinityInformationExchangeDepotBlockEntity previousOwner = findInformationExchangeDepot(previousLease);
+        TrinityInformationExchangeDepotBlockEntity nextOwner = nextLease == null || nextLease.grid() == null ? null : findInformationExchangeDepot(nextLease);
         boolean persistentIdentityChanged = accessLeaseIdentityChanged(previousLease, nextLease);
 
         this.accessLease = nextLease;
@@ -1686,7 +1686,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (nextLease != null && nextLease.grid() != null) {
             if (nextOwner == null) {
                 LOGGER.error(
-                        "Trinity host {} cannot publish lease {} because its access hatch is no longer bound",
+                        "Trinity host {} cannot publish lease {} because its information exchange depot is no longer bound",
                         this.worldPosition,
                         nextLease.hatchPosition());
             } else {
@@ -1704,14 +1704,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
         this.accessLeasePublicationRefreshRequested = false;
-        TrinityAccessHatchBlockEntity owner = activeLeaseHatch();
+        TrinityInformationExchangeDepotBlockEntity owner = activeLeaseHatch();
         if (owner != null) {
             owner.publishTrinityLeasePublications();
         }
     }
 
-    private static boolean sameRuntimeLease(@Nullable TrinityAccessLease first,
-                                            @Nullable TrinityAccessLease second) {
+    private static boolean sameRuntimeLease(@Nullable TrinityInformationExchangeLease first,
+                                            @Nullable TrinityInformationExchangeLease second) {
         if (first == second) {
             return true;
         }
@@ -1720,8 +1720,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 first.grid() == second.grid();
     }
 
-    private static boolean accessLeaseIdentityChanged(@Nullable TrinityAccessLease previous,
-                                                      @Nullable TrinityAccessLease next) {
+    private static boolean accessLeaseIdentityChanged(@Nullable TrinityInformationExchangeLease previous,
+                                                      @Nullable TrinityInformationExchangeLease next) {
         if (previous == next) {
             return false;
         }
@@ -1731,12 +1731,13 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Nullable
-    private TrinityAccessHatchBlockEntity findAccessHatch(@Nullable TrinityAccessLease lease) {
+    private TrinityInformationExchangeDepotBlockEntity findInformationExchangeDepot(
+                                                                                    @Nullable TrinityInformationExchangeLease lease) {
         if (lease == null) {
             return null;
         }
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof TrinityAccessHatchBlockEntity hatch && lease.identifies(hatch.getBlockPos())) {
+            if (part instanceof TrinityInformationExchangeDepotBlockEntity hatch && lease.identifies(hatch.getBlockPos())) {
                 return hatch;
             }
         }
@@ -1748,12 +1749,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Nullable
-    private TrinityAccessHatchBlockEntity activeLeaseHatch() {
+    private TrinityInformationExchangeDepotBlockEntity activeLeaseHatch() {
         if (this.accessLease == null) {
             return null;
         }
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof TrinityAccessHatchBlockEntity hatch && hatch.isCandidateOnline() && isLeaseOwner(hatch)) {
+            if (part instanceof TrinityInformationExchangeDepotBlockEntity hatch && hatch.isCandidateOnline() && isLeaseOwner(hatch)) {
                 return hatch;
             }
         }
@@ -1982,7 +1983,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         this.accessLeaseEpoch = persistedEpoch;
         if (data.contains(ACCESS_LEASE_HATCH_POSITION_TAG, Tag.TAG_LONG)) {
-            this.accessLease = TrinityAccessLease.restore(
+            this.accessLease = TrinityInformationExchangeLease.restore(
                     BlockPos.of(data.getLong(ACCESS_LEASE_HATCH_POSITION_TAG)),
                     persistedEpoch);
         } else {
@@ -2585,7 +2586,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);
-        TrinityAccessLease retainedLease = this.accessLease != null &&
+        TrinityInformationExchangeLease retainedLease = this.accessLease != null &&
                 (hasPendingTrinityWork() || hasUnresolvedStructureValidation()) ? this.accessLease.unbind() : null;
         transitionAccessLease(retainedLease);
         clearCompartmentBindings(structureName);
@@ -2686,28 +2687,28 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void notifyTrinityStorageChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStorageContent);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityStorageContent);
     }
 
     private void notifyTrinityStoragePriorityChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStoragePriority);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityStoragePriority);
     }
 
     private void notifyTrinityCpuChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuTopology);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityCpuTopology);
     }
 
     private void notifyTrinityPatternPublicationChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternPublication);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityPatternPublication);
     }
 
     private void notifyTrinityPatternPriorityChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternPriority);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityPatternPriority);
     }
 
     private void notifyTrinityPatternLayoutChanged() {
         notifyTrinityPatternPublicationChanged();
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityTerminalLayout);
+        refreshTrinityInformationExchangeDepots(TrinityInformationExchangeDepotBlockEntity::refreshTrinityTerminalLayout);
     }
 
     /**
@@ -2730,15 +2731,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.patternLayoutRefreshRequested = false;
         } catch (RuntimeException exception) {
             LOGGER.error(
-                    "Trinity host {} retained locked pattern layout while access-hatch refresh is retried",
+                    "Trinity host {} retained locked pattern layout while information-exchange-depot refresh is retried",
                     this.worldPosition,
                     exception);
         }
     }
 
-    private void refreshTrinityAccessHatches(Consumer<TrinityAccessHatchBlockEntity> refresh) {
+    private void refreshTrinityInformationExchangeDepots(Consumer<TrinityInformationExchangeDepotBlockEntity> refresh) {
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof TrinityAccessHatchBlockEntity hatch) {
+            if (part instanceof TrinityInformationExchangeDepotBlockEntity hatch) {
                 refresh.accept(hatch);
             }
         }

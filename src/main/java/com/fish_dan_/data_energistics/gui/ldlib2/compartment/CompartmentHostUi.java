@@ -250,7 +250,7 @@ public final class CompartmentHostUi {
                     "screen.data_energistics.compartment.read_only"));
             case PATTERN_BUFFER -> label.setText(Component.translatable(
                     "screen.data_energistics.compartment.aggregation_read_only"));
-            case TRINITY_ACCESS -> throw invalid("Trinity access does not use the compartment host UI");
+            case TRINITY_INFORMATION_EXCHANGE -> throw invalid("Trinity information exchange does not use the compartment host UI");
         }
         return label;
     }
@@ -262,7 +262,7 @@ public final class CompartmentHostUi {
             case ME_INPUT -> "screen.data_energistics.compartment.title.me_input";
             case ME_OUTPUT -> "screen.data_energistics.compartment.title.me_output";
             case PATTERN_BUFFER -> "screen.data_energistics.compartment.title.pattern_buffer";
-            case TRINITY_ACCESS -> throw invalid("Trinity access does not use the compartment host UI");
+            case TRINITY_INFORMATION_EXCHANGE -> throw invalid("Trinity information exchange does not use the compartment host UI");
         };
         return Component.translatable(titleKey);
     }
@@ -275,7 +275,7 @@ public final class CompartmentHostUi {
             case INPUT, OUTPUT, ME_OUTPUT -> new HeaderGeometry(112, 56);
             case ME_INPUT -> new HeaderGeometry(104, 96);
             case PATTERN_BUFFER -> new HeaderGeometry(177, 71);
-            case TRINITY_ACCESS -> throw invalid("Trinity access does not use the compartment host UI");
+            case TRINITY_INFORMATION_EXCHANGE -> throw invalid("Trinity information exchange does not use the compartment host UI");
         };
     }
 
