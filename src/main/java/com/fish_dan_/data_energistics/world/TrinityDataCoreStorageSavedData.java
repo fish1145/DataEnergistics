@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.world;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -21,10 +22,14 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.logging.log4j.Logger;
 
 import java.math.BigInteger;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** World-level storage contents for Trinity Data Core hosts, keyed by the storage UUID carried by the host item. */
+/**
+ * World-level storage contents for Trinity Data Core hosts, keyed by the storage UUID carried by the host item.
+ */
 public class TrinityDataCoreStorageSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
@@ -164,6 +169,20 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                 profile.unlimited());
     }
 
+    /**
+     * Captures the authoritative capacity and exact contents in one immutable UI synchronization frame.
+     */
+    public TrinityDataCoreStorageView storageView(UUID hostId,
+                                                  TrinityDataCoreStorageProfile profile,
+                                                  int firstEntry) {
+        TrinityDataCoreStorageStatus status = storageStatus(hostId, profile);
+        HostState hostState = this.hosts.get(hostId);
+        if (hostState == null) {
+            return new TrinityDataCoreStorageView(status, 0, List.of());
+        }
+        return hostState.storageView(status, firstEntry);
+    }
+
     private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, TrinityDataCoreStorageProfile profile) {
         if (profile.unlimited()) {
             return amount;
@@ -266,10 +285,17 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
 
     private static final class HostState {
 
+        private static final Comparator<TrinityDataCoreStorageView.Entry> ENTRY_ORDER = Comparator
+                .comparing(TrinityDataCoreStorageView.Entry::amount)
+                .reversed()
+                .thenComparing(entry -> entry.key().getType().getId().toString())
+                .thenComparing(entry -> entry.key().toString());
+
         private final Object2ObjectOpenHashMap<AEKey, BigInteger> entries = new Object2ObjectOpenHashMap<>();
         private BigInteger itemAmount = BigInteger.ZERO;
         private BigInteger fluidAmount = BigInteger.ZERO;
         private BigInteger otherKeyAmount = BigInteger.ZERO;
+        private List<TrinityDataCoreStorageView.Entry> cachedOrderedEntries;
 
         private void insert(AEKey key, long amount) {
             BigInteger insertedAmount = BigInteger.valueOf(amount);
@@ -277,6 +303,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                     key,
                     this.entries.getOrDefault(key, BigInteger.ZERO).add(insertedAmount));
             addCategoryAmount(key, insertedAmount);
+            invalidateView();
         }
 
         private void extract(AEKey key, BigInteger currentAmount, BigInteger extractedAmount) {
@@ -287,6 +314,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                 this.entries.put(key, remaining);
             }
             subtractCategoryAmount(key, extractedAmount);
+            invalidateView();
         }
 
         private void putLoaded(AEKey key, BigInteger amount) {
@@ -295,6 +323,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                 subtractCategoryAmount(key, previous);
             }
             addCategoryAmount(key, amount);
+            invalidateView();
         }
 
         private BigInteger amount(AEKey key) {
@@ -307,6 +336,35 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                     this.itemAmount,
                     this.fluidAmount,
                     this.otherKeyAmount);
+        }
+
+        private TrinityDataCoreStorageView storageView(TrinityDataCoreStorageStatus status,
+                                                       int requestedFirstEntry) {
+            List<TrinityDataCoreStorageView.Entry> orderedEntries = orderedEntries();
+            int firstEntry = TrinityDataCoreStorageView.normalizeFirstEntry(
+                    requestedFirstEntry,
+                    orderedEntries.size());
+            int lastEntry = Math.min(orderedEntries.size(), firstEntry + TrinityDataCoreStorageView.PAGE_SIZE);
+            return new TrinityDataCoreStorageView(
+                    status,
+                    firstEntry,
+                    orderedEntries.subList(firstEntry, lastEntry));
+        }
+
+        private List<TrinityDataCoreStorageView.Entry> orderedEntries() {
+            if (this.cachedOrderedEntries != null) {
+                return this.cachedOrderedEntries;
+            }
+            List<TrinityDataCoreStorageView.Entry> snapshot = this.entries.object2ObjectEntrySet().stream()
+                    .map(entry -> new TrinityDataCoreStorageView.Entry(entry.getKey(), entry.getValue()))
+                    .sorted(ENTRY_ORDER)
+                    .toList();
+            this.cachedOrderedEntries = snapshot;
+            return snapshot;
+        }
+
+        private void invalidateView() {
+            this.cachedOrderedEntries = null;
         }
 
         private boolean isEmpty() {

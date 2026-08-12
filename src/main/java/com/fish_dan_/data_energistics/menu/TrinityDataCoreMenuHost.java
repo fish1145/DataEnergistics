@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
 
 import net.minecraft.core.BlockPos;
@@ -16,7 +17,9 @@ import java.util.UUID;
  */
 public interface TrinityDataCoreMenuHost {
 
-    /** Sentinel displayed when the formed main storage core structure has no finite capacity limit. */
+    /**
+     * Sentinel displayed when the formed main storage core structure has no finite capacity limit.
+     */
     String UNLIMITED_STORAGE_CAPACITY = "MAX";
 
     /**
@@ -132,6 +135,11 @@ public interface TrinityDataCoreMenuHost {
      * Returns the authoritative storage contents and capacity profile as one immutable state.
      */
     TrinityDataCoreStorageStatus getStorageStatus();
+
+    /**
+     * Returns one atomic storage snapshot containing the current capacity and every exact stored AE key.
+     */
+    TrinityDataCoreStorageView getStorageView(int firstEntry);
 
     /**
      * Returns the exact ordered CPUs currently published by this structure to AE2.

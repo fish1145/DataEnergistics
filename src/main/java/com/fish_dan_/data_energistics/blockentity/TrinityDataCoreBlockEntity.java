@@ -46,6 +46,7 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreCraftin
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.pattern.MountedCorePatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
@@ -152,32 +153,34 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_STRUCTURE_NAME = DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    /** Atomic inventory-and-world transaction shared by every Trinity structure build request. */
+    /**
+     * Atomic inventory-and-world transaction shared by every Trinity structure build request.
+     */
     private static final MultiBlockAutoBuild AUTO_BUILD = new TransactionalMultiBlockAutoBuild();
 
     private UUID storageId = UUID.randomUUID();
-    /**
-     * -- GETTER --
-     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
-     */
     @Getter
     private UUID hostId = UUID.randomUUID();
-    /**
-     * -- GETTER --
-     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
-     */
     @Getter
     private TrinityPatternCatalog patternCatalog = new MountedCorePatternCatalog(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouter();
-    /** Runtime validation gates that keep unloaded chunks distinct from structural damage. */
+    /**
+     * Runtime validation gates that keep unloaded chunks distinct from structural damage.
+     */
     private final TrinityStructureValidation structureValidation;
-    /** Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks. */
+    /**
+     * Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks.
+     */
     private final TrinityStructureWorldViewFactory structureWorldViews;
     private boolean patternCatalogValid;
-    /** Retains a locked old layout until a failed core-release cleanup can finish without reopening publication. */
+    /**
+     * Retains a locked old layout until a failed core-release cleanup can finish without reopening publication.
+     */
     @Nullable
     private PendingPatternCoreRelease pendingPatternCoreRelease;
-    /** Retries access-hatch and terminal invalidation after a post-lock notification failure. */
+    /**
+     * Retries access-hatch and terminal invalidation after a post-lock notification failure.
+     */
     private boolean patternLayoutRefreshRequested;
     private boolean loaded;
     private boolean formed;
@@ -233,7 +236,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      */
     private long nextCraftingAdmissionTokenId;
 
-    /** Captures a failed release without reconstructing the old catalog or persisting transient ownership. */
+    /**
+     * Captures a failed release without reconstructing the old catalog or persisting transient ownership.
+     */
     private record PendingPatternCoreRelease(PatternCoreReleaseRequest request,
                                              TrinityPatternCatalog.LayoutSnapshot layout,
                                              RuntimeException initialFailure) {}
@@ -694,22 +699,30 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         requestCraftingStructureRecheck();
     }
 
-    /** Queues a main-structure validation without withdrawing the last confirmed valid publication. */
+    /**
+     * Queues a main-structure validation without withdrawing the last confirmed valid publication.
+     */
     public void requestMainStructureRecheck() {
         this.recheckRequested = true;
     }
 
-    /** Queues an independent CPU-child validation without affecting storage or crafting publication. */
+    /**
+     * Queues an independent CPU-child validation without affecting storage or crafting publication.
+     */
     public void requestCpuStructureRecheck() {
         this.cpuStructureRecheckRequested = true;
     }
 
-    /** Queues an independent crafting-child validation without affecting storage or CPU publication. */
+    /**
+     * Queues an independent crafting-child validation without affecting storage or CPU publication.
+     */
     public void requestCraftingStructureRecheck() {
         this.craftingStructureRecheckRequested = true;
     }
 
-    /** Queues only the structure selected by an auto-build request. */
+    /**
+     * Queues only the structure selected by an auto-build request.
+     */
     private void requestStructureRecheck(int structureIndex) {
         switch (structureIndex) {
             case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> requestMainStructureRecheck();
@@ -1000,7 +1013,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return true;
     }
 
-    /** Saves the storage and crafting identities as one typed-component pair on a moved host item. */
+    /**
+     * Saves the storage and crafting identities as one typed-component pair on a moved host item.
+     */
     public void saveIdentityToItem(ItemStack stack) {
         stack.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
         stack.set(DEDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
@@ -1013,6 +1028,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                 .storageStatus(this.storageId, this.storageProfile);
+    }
+
+    @Override
+    public TrinityDataCoreStorageView getStorageView(int firstEntry) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return TrinityDataCoreStorageView.EMPTY;
+        }
+        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
+                .storageView(this.storageId, this.storageProfile, firstEntry);
     }
 
     @Override
@@ -1392,13 +1416,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         transitionAccessLease(electedLease);
     }
 
-    /** Returns whether one child structure has not produced a complete success or mismatch result. */
+    /**
+     * Returns whether one child structure has not produced a complete success or mismatch result.
+     */
     private boolean isValidationUnknown(Structure structure) {
         State state = this.structureValidation.status(structure).state();
         return state == State.PENDING || state == State.DEFERRED;
     }
 
-    /** Keeps the elected network stable while any structure still lacks a complete current result. */
+    /**
+     * Keeps the elected network stable while any structure still lacks a complete current result.
+     */
     private boolean hasUnresolvedStructureValidation() {
         return this.recheckRequested ||
                 this.cpuStructureRecheckRequested ||
@@ -1844,7 +1872,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    /** Polls at most one stored unloaded coordinate per structure and requests one retry when it is ready. */
+    /**
+     * Polls at most one stored unloaded coordinate per structure and requests one retry when it is ready.
+     */
     private void resumeDeferredStructureChecks() {
         if (this.structureValidation.resumeIfLoaded(Structure.MAIN, this.level::isLoaded)) {
             this.recheckRequested = true;
@@ -2092,7 +2122,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    /** Suspends only the affected capability domain when matching stopped at an unloaded position. */
+    /**
+     * Suspends only the affected capability domain when matching stopped at an unloaded position.
+     */
     private boolean deferStructureValidation(Structure structure,
                                              @Nullable PatternDiagnostic diagnostic,
                                              @Nullable BlockPos observedUnloadedPosition) {
@@ -2440,13 +2472,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityTerminalLayout);
     }
 
-    /** Requests and immediately attempts the retryable post-lock refresh of every public pattern surface. */
+    /**
+     * Requests and immediately attempts the retryable post-lock refresh of every public pattern surface.
+     */
     private void requestPatternLayoutRefresh() {
         this.patternLayoutRefreshRequested = true;
         flushRequestedPatternLayoutRefresh();
     }
 
-    /** Leaves the catalog locked when a downstream refresh fails and retries from the next server tick. */
+    /**
+     * Leaves the catalog locked when a downstream refresh fails and retries from the next server tick.
+     */
     private void flushRequestedPatternLayoutRefresh() {
         if (!this.patternLayoutRefreshRequested) {
             return;
@@ -2470,7 +2506,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    /** Withdraws every public pattern route while retaining queued work for the current network lease. */
+    /**
+     * Withdraws every public pattern route while retaining queued work for the current network lease.
+     */
     private boolean withdrawPatternCatalog() {
         PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
         if (pending != null) {
@@ -2480,7 +2518,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return withdrawPatternCatalog(this.patternCatalog.layoutSnapshot(), null);
     }
 
-    /** Locks publication before local unbinding, retaining one releasing core until it receives the host result. */
+    /**
+     * Locks publication before local unbinding, retaining one releasing core until it receives the host result.
+     */
     private boolean withdrawPatternCatalog(TrinityPatternCatalog.LayoutSnapshot layout,
                                            @Nullable PatternCoreBinding retainedBinding) {
         invalidateCraftingAdmissions();
@@ -2515,7 +2555,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return null;
     }
 
-    /** Releases only the bindings represented by one captured layout, never a newer rebind of the same core. */
+    /**
+     * Releases only the bindings represented by one captured layout, never a newer rebind of the same core.
+     */
     private void releasePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot layout,
                                             @Nullable PatternCoreBinding retainedBinding) {
         for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
@@ -2530,7 +2572,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    /** Clears only physical cores omitted from the latest scan, while preserving current bindings of retained cores. */
+    /**
+     * Clears only physical cores omitted from the latest scan, while preserving current bindings of retained cores.
+     */
     private void releaseStalePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot previousLayout,
                                                  TrinityPatternCatalog.LayoutSnapshot currentLayout) {
         for (TrinityPatternCatalog.CoreRange previousRange : previousLayout.ranges()) {
@@ -2551,7 +2595,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    /** Builds the immutable token shared by a core and the exact catalog generation that owns it. */
+    /**
+     * Builds the immutable token shared by a core and the exact catalog generation that owns it.
+     */
     private PatternCoreBinding patternCoreBinding(TrinityPatternCatalog.LayoutSnapshot layout,
                                                   TrinityPatternCatalog.CoreRange range) {
         TrinityPatternCatalog.CoreMount mount = range.mount();
@@ -2563,7 +2609,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 mount.blockCapacity());
     }
 
-    /** Completes a previously locked release without permitting a new structure scan to republish the old layout. */
+    /**
+     * Completes a previously locked release without permitting a new structure scan to republish the old layout.
+     */
     private boolean retryPendingPatternCoreRelease(PendingPatternCoreRelease pending) {
         try {
             invalidateCraftingAdmissions();
@@ -2622,7 +2670,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 ServerLifecycleEventHandler.isStopping(serverLevel.getServer());
     }
 
-    /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */
+    /**
+     * Cancels active CPU jobs only when the host block is being permanently removed from the world.
+     */
     public void onPermanentRemoval() {
         invalidateCraftingAdmissions();
         this.craftingRuntime.cancelAllJobs();
@@ -2755,17 +2805,29 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      */
     private static final class AutoBuildPartResolver implements PartSideResolver {
 
-        /** World view used to evaluate direction suppliers against the current pattern position. */
+        /**
+         * World view used to evaluate direction suppliers against the current pattern position.
+         */
         private final StructureWorldView world;
-        /** Controller origin supplied to MDLib direction callbacks. */
+        /**
+         * Controller origin supplied to MDLib direction callbacks.
+         */
         private final BlockPos origin;
-        /** Stable name supplied to MDLib diagnostics and direction callbacks. */
+        /**
+         * Stable name supplied to MDLib diagnostics and direction callbacks.
+         */
         private final String structureName;
-        /** Actual main-structure front selected for this build. */
+        /**
+         * Actual main-structure front selected for this build.
+         */
         private final Direction front;
-        /** Actual mirror state selected for this build. */
+        /**
+         * Actual mirror state selected for this build.
+         */
         private final boolean flipped;
-        /** Exact expanded pattern predicate at every buildable world position. */
+        /**
+         * Exact expanded pattern predicate at every buildable world position.
+         */
         private final Map<BlockPos, TraceabilityPredicate> predicates;
 
         private AutoBuildPartResolver(StructureWorldView world,
