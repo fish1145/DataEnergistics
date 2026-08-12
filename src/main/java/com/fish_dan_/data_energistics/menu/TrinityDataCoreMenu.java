@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinatorHolder;
@@ -18,6 +20,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHos
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternSlotPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
@@ -398,6 +401,27 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         operation));
     }
 
+    /** Sends one revision-bound click from the exact aggregate-pattern window generation. */
+    public boolean sendHostedPatternSlot(long generation,
+                                         long layoutRevision,
+                                         long catalogRevision,
+                                         int globalSlot,
+                                         TrinityPatternSlotAction action) {
+        return sendHostedAction(
+                TrinityDataCoreHostUiKeys.PATTERN,
+                generation,
+                ticket -> new TrinityHostedPatternSlotPayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        ticket.generation(),
+                        ticket.sequence(),
+                        layoutRevision,
+                        catalogRevision,
+                        globalSlot,
+                        action));
+    }
+
     /**
      * Sends the static action that returns only installed patterns from the active catalog.
      */
@@ -518,6 +542,27 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     }
 
     /**
+     * Applies one authoritative aggregate pattern slot click and updates the carried stack atomically with its result.
+     */
+    public TrinityHostedActionStatus executeHostedPatternSlot(Player player,
+                                                              long layoutRevision,
+                                                              long catalogRevision,
+                                                              int globalSlot,
+                                                              TrinityPatternSlotAction action) {
+        TrinityPatternSlotResult result = this.hostedActionExecutor.patternSlot(
+                player,
+                layoutRevision,
+                catalogRevision,
+                globalSlot,
+                getCarried(),
+                action);
+        if (result.status() == TrinityHostedActionStatus.COMPLETED) {
+            setCarried(result.carried());
+        }
+        return result.status();
+    }
+
+    /**
      * Executes the server-authoritative installed-pattern refund after the request ticket was claimed.
      */
     public TrinityHostedActionStatus executeRefundPatterns(Player player) {
@@ -599,6 +644,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     private static void requireActionKey(HostUiKey key) {
         if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN.equals(key) &&
                 !TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
                 !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key) &&
                 !TrinityDataCoreHostUiKeys.REFUND_PATTERNS.equals(key) &&
@@ -610,6 +656,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     private static void requireHostedWindowActionKey(HostUiKey key) {
         requireActionKey(key);
         if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN.equals(key) &&
                 !TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
                 !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key)) {
             throw new IllegalArgumentException("Trinity action does not own a hosted child window: " + key);
@@ -698,6 +745,14 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         /** Applies a constrained priority operation to the matching authoritative host field. */
         TrinityHostedActionStatus priority(HostUiKey key, PriorityControl.Operation operation);
 
+        /** Applies one click to an exact revision-bound aggregate pattern slot. */
+        TrinityPatternSlotResult patternSlot(Player player,
+                                             long layoutRevision,
+                                             long catalogRevision,
+                                             int globalSlot,
+                                             ItemStack carried,
+                                             TrinityPatternSlotAction action);
+
         /**
          * Invokes one complete installed-pattern refund attempt.
          */
@@ -737,6 +792,25 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 throw new IllegalArgumentException("Unsupported Trinity priority host UI key: " + key);
             }
             return changed ? TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.NO_OP;
+        }
+
+        @Override
+        public TrinityPatternSlotResult patternSlot(Player player,
+                                                    long layoutRevision,
+                                                    long catalogRevision,
+                                                    int globalSlot,
+                                                    ItemStack carried,
+                                                    TrinityPatternSlotAction action) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity aggregate pattern action requires a data core host");
+            }
+            return this.host.applyPatternSlotAction(
+                    player,
+                    layoutRevision,
+                    catalogRevision,
+                    globalSlot,
+                    carried,
+                    action);
         }
 
         @Override

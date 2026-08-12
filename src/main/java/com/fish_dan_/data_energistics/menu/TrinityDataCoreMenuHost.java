@@ -3,10 +3,14 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -140,6 +144,21 @@ public interface TrinityDataCoreMenuHost {
      * Returns one atomic storage snapshot containing the current capacity and every exact stored AE key.
      */
     TrinityDataCoreStorageView getStorageView(int firstEntry);
+
+    /**
+     * Returns one bounded aggregate pattern page with the exact layout and content revisions that identify it.
+     */
+    TrinityPatternCatalogView getPatternCatalogView(int firstGlobalSlot);
+
+    /**
+     * Applies one revision-bound aggregate slot click after resolving its current physical core and slot.
+     */
+    TrinityPatternSlotResult applyPatternSlotAction(Player player,
+                                                    long layoutRevision,
+                                                    long catalogRevision,
+                                                    int globalSlot,
+                                                    ItemStack carried,
+                                                    TrinityPatternSlotAction action);
 
     /**
      * Returns the priority used when the Trinity storage is mounted into AE2.

@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucce
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedActionResponsePayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternSlotPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
@@ -96,6 +97,10 @@ public final class DEPayloads {
                 TrinityHostedPriorityPayload.TYPE,
                 TrinityHostedPriorityPayload.STREAM_CODEC,
                 TrinityHostedPriorityPayload::handle);
+        registrar.playToServer(
+                TrinityHostedPatternSlotPayload.TYPE,
+                TrinityHostedPatternSlotPayload.STREAM_CODEC,
+                TrinityHostedPatternSlotPayload::handle);
         registrar.playToServer(
                 TrinityRefundPatternsPayload.TYPE,
                 TrinityRefundPatternsPayload.STREAM_CODEC,

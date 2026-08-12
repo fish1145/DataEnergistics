@@ -29,6 +29,10 @@ public final class TrinityDataCoreSyncAccessors {
                 .codec(TrinityDataCoreStorageView.CODEC)
                 .streamCodec(TrinityDataCoreStorageView.STREAM_CODEC)
                 .build(), 100);
+        AccessorRegistries.registerAccessor(CustomDirectAccessor.builder(TrinityPatternCatalogView.class)
+                .codec(TrinityPatternCatalogView.CODEC)
+                .streamCodec(TrinityPatternCatalogView.STREAM_CODEC)
+                .build(), 100);
         AccessorRegistries.registerAccessor(CustomDirectAccessor.builder(TrinityCpuListStatus.class)
                 .codec(TrinityCpuListStatus.CODEC)
                 .streamCodec(TrinityCpuListStatus.STREAM_CODEC)

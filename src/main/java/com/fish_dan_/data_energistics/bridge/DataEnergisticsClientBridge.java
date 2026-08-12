@@ -34,6 +34,13 @@ public interface DataEnergisticsClientBridge {
     int priorityModifierMask();
 
     /**
+     * Returns whether either Shift key is held for one client-side inventory click.
+     *
+     * @return {@code true} while the client is requesting a quick-move action
+     */
+    boolean isShiftDown();
+
+    /**
      * Returns the client adapter that installs an independent LDLib2 world renderer on a common scene shell.
      *
      * @return stateless binder whose every bind call creates a fresh rendering lifetime

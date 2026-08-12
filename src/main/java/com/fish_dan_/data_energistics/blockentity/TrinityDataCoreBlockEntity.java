@@ -47,6 +47,10 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorage
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
 import com.fish_dan_.data_energistics.common.trinity.pattern.MountedCorePatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PlayerInventoryRefundDelivery;
@@ -1053,6 +1057,124 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                 .storageView(this.storageId, this.storageProfile, firstEntry);
+    }
+
+    @Override
+    public TrinityPatternCatalogView getPatternCatalogView(int firstGlobalSlot) {
+        if (!this.patternCatalogValid) {
+            return TrinityPatternCatalogView.EMPTY;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        int first = TrinityPatternCatalogView.normalizeFirstGlobalSlot(firstGlobalSlot, layout.slotCount());
+        int count = Math.min(TrinityPatternCatalogView.PAGE_SIZE, layout.slotCount() - first);
+        List<ItemStack> patterns = new ArrayList<>(count);
+        for (int offset = 0; offset < count; offset++) {
+            TrinityPatternCatalog.GlobalSlot slot = this.patternCatalog.resolveGlobalSlot(
+                    layout.revision(),
+                    first + offset);
+            if (slot == null) {
+                return TrinityPatternCatalogView.EMPTY;
+            }
+            patterns.add(slot.core().pattern(slot.coreSlot()));
+        }
+        return new TrinityPatternCatalogView(
+                layout.revision(),
+                this.patternCatalog.publicationRevision(),
+                layout.slotCount(),
+                first,
+                patterns);
+    }
+
+    @Override
+    public TrinityPatternSlotResult applyPatternSlotAction(Player player,
+                                                           long layoutRevision,
+                                                           long catalogRevision,
+                                                           int globalSlot,
+                                                           ItemStack carried,
+                                                           TrinityPatternSlotAction action) {
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        if (!this.patternCatalogValid || layout.revision() != layoutRevision ||
+                this.patternCatalog.publicationRevision() != catalogRevision) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.STALE_STATE, carried);
+        }
+        TrinityPatternCatalog.GlobalSlot resolved = this.patternCatalog.resolveGlobalSlot(layoutRevision, globalSlot);
+        if (resolved == null) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.STALE_STATE, carried);
+        }
+        TrinityPatternCore core = resolved.core();
+        ItemStack installed = core.pattern(resolved.coreSlot());
+        return switch (action) {
+            case PRIMARY -> primaryPatternClick(core, resolved.coreSlot(), installed, carried);
+            case SECONDARY -> secondaryPatternClick(core, resolved.coreSlot(), installed, carried);
+            case QUICK_MOVE -> quickMovePattern(player, core, resolved.coreSlot(), installed, carried);
+        };
+    }
+
+    private static TrinityPatternSlotResult primaryPatternClick(TrinityPatternCore core,
+                                                                int coreSlot,
+                                                                ItemStack installed,
+                                                                ItemStack carried) {
+        if (carried.isEmpty()) {
+            if (installed.isEmpty() || !core.trySetPattern(coreSlot, ItemStack.EMPTY)) {
+                return new TrinityPatternSlotResult(TrinityHostedActionStatus.NO_OP, carried);
+            }
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.COMPLETED, installed);
+        }
+        if (!installed.isEmpty() && carried.getCount() != 1) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.REJECTED, carried);
+        }
+        ItemStack placed = carried.copyWithCount(1);
+        if (!core.trySetPattern(coreSlot, placed)) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.REJECTED, carried);
+        }
+        ItemStack remaining = carried.copy();
+        remaining.shrink(1);
+        if (installed.isEmpty()) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.COMPLETED, remaining);
+        }
+        return new TrinityPatternSlotResult(TrinityHostedActionStatus.COMPLETED, installed);
+    }
+
+    private static TrinityPatternSlotResult secondaryPatternClick(TrinityPatternCore core,
+                                                                  int coreSlot,
+                                                                  ItemStack installed,
+                                                                  ItemStack carried) {
+        if (carried.isEmpty()) {
+            return primaryPatternClick(core, coreSlot, installed, carried);
+        }
+        if (!installed.isEmpty()) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.NO_OP, carried);
+        }
+        ItemStack placed = carried.copyWithCount(1);
+        if (!core.trySetPattern(coreSlot, placed)) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.REJECTED, carried);
+        }
+        ItemStack remaining = carried.copy();
+        remaining.shrink(1);
+        return new TrinityPatternSlotResult(TrinityHostedActionStatus.COMPLETED, remaining);
+    }
+
+    private static TrinityPatternSlotResult quickMovePattern(Player player,
+                                                             TrinityPatternCore core,
+                                                             int coreSlot,
+                                                             ItemStack installed,
+                                                             ItemStack carried) {
+        if (installed.isEmpty() || !carried.isEmpty()) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.NO_OP, carried);
+        }
+        if (!core.trySetPattern(coreSlot, ItemStack.EMPTY)) {
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.STALE_STATE, carried);
+        }
+        if (!player.getInventory().add(installed.copy())) {
+            if (!core.trySetPattern(coreSlot, installed)) {
+                LOGGER.error("Failed to restore Trinity pattern core {} slot {} after inventory delivery rejection",
+                        core.coreId(),
+                        coreSlot);
+                return new TrinityPatternSlotResult(TrinityHostedActionStatus.INTERNAL_ERROR, carried);
+            }
+            return new TrinityPatternSlotResult(TrinityHostedActionStatus.DELIVERY_FAILED, carried);
+        }
+        return new TrinityPatternSlotResult(TrinityHostedActionStatus.COMPLETED, carried);
     }
 
     @Override

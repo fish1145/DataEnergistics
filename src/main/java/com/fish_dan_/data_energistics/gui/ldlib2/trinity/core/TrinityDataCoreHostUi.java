@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild.TrinityDataCo
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.cpu.TrinityCpuStatusList;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate.TrinityAggregatePatternProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.priority.TrinityPriorityProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage.TrinityDataCoreStorageProvider;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
@@ -76,6 +77,7 @@ public final class TrinityDataCoreHostUi {
         try {
             registerProviders(menu, hostUi, sync);
             sync.setStorageWindowOpen(() -> hostUi.isOpen(TrinityDataCoreHostUiKeys.STORAGE));
+            sync.setPatternWindowOpen(() -> hostUi.isOpen(TrinityDataCoreHostUiKeys.PATTERN));
             TrinityUiXmlLayouts.require(root, TITLE_ID, Label.class)
                     .setText(Component.translatable("block.data_energistics.trinity_data_core"));
             TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_TITLE_ID, Label.class)
@@ -259,6 +261,14 @@ public final class TrinityDataCoreHostUi {
                 sync.storageViewProvider(),
                 sync::requestStoragePage,
                 () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.STORAGE_PRIORITY)));
+        hostUi.register(new TrinityAggregatePatternProvider(
+                sync.patternViewProvider(),
+                sync::requestPatternPage,
+                menu.getPlayer().level(),
+                menu::sendHostedPatternSlot,
+                () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.PATTERN_PRIORITY),
+                menu::sendRefundPatterns,
+                menu::sendRefundRetainedItems));
         hostUi.register(priorityProvider(
                 menu,
                 TrinityDataCoreHostUiKeys.STORAGE_PRIORITY,

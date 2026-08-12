@@ -23,6 +23,12 @@ public final class TrinityDataCoreHostUiKeys {
             Data_Energistics.id("trinity_data_core/storage"));
 
     /**
+     * Aggregate installed-pattern catalog and pattern-maintenance window.
+     */
+    public static final HostUiKey PATTERN = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/pattern"));
+
+    /**
      * Server-authoritative editor for the Data Core storage mount priority.
      */
     public static final HostUiKey STORAGE_PRIORITY = new HostUiKey(
@@ -49,6 +55,7 @@ public final class TrinityDataCoreHostUiKeys {
     private static final List<HostUiKey> REGISTRATION_ORDER = List.of(
             AUTO_BUILD,
             STORAGE,
+            PATTERN,
             STORAGE_PRIORITY,
             PATTERN_PRIORITY);
 

@@ -28,9 +28,6 @@ final class TrinityDataCoreHostLauncherPanel {
      * @param hostUi sealed lifecycle endpoint that validates and transports toggle requests
      */
     static void bindExisting(UIElement root, HostUiExtension hostUi) {
-        if (hostUi == null) {
-            throw new IllegalArgumentException("Trinity host launcher panel requires a host UI extension");
-        }
         TrinityUiXmlLayouts.require(root, PANEL_ID, UIElement.class);
         launcher(
                 TrinityUiXmlLayouts.require(root, AUTO_BUILD_ID, Button.class),
@@ -42,9 +39,11 @@ final class TrinityDataCoreHostLauncherPanel {
                 hostUi,
                 TrinityDataCoreHostUiKeys.STORAGE,
                 "button.data_energistics.trinity_data_core.storage");
-        Button patternCore = TrinityUiXmlLayouts.require(root, PATTERN_CORE_ID, Button.class);
-        patternCore.setActive(false);
-        patternCore.setAllowHitTest(false);
+        launcher(
+                TrinityUiXmlLayouts.require(root, PATTERN_CORE_ID, Button.class),
+                hostUi,
+                TrinityDataCoreHostUiKeys.PATTERN,
+                "button.data_energistics.trinity_data_core.pattern");
     }
 
     private static void launcher(Button button,

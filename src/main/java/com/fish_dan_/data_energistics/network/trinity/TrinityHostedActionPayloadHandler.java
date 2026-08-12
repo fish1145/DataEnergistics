@@ -154,6 +154,51 @@ public final class TrinityHostedActionPayloadHandler {
                 responseSink);
     }
 
+    /** Routes one revision-bound aggregate pattern click through the shared generation and replay guards. */
+    static void handlePatternSlot(TrinityHostedPatternSlotPayload payload, Player player) {
+        handlePatternSlot(payload, player, responseSink(player));
+    }
+
+    /** Test seam retaining the complete hosted routing and terminal response path. */
+    public static void handlePatternSlot(TrinityHostedPatternSlotPayload payload,
+                                         Player player,
+                                         Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
+        if (routed == null) {
+            return;
+        }
+        TrinityHostedActionStatus status;
+        try {
+            status = routed.menu().executeHostedPatternSlot(
+                    routed.player(),
+                    payload.layoutRevision(),
+                    payload.catalogRevision(),
+                    payload.globalSlot(),
+                    payload.action());
+        } catch (IllegalArgumentException failure) {
+            logFailure("aggregate pattern slot action was rejected", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.REJECTED;
+        } catch (RuntimeException failure) {
+            logFailure("aggregate pattern slot business entry failed", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                status,
+                responseSink);
+    }
+
     /**
      * Routes the installed-pattern action without requiring a hosted child window.
      */

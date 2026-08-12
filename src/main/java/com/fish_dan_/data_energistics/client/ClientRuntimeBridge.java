@@ -46,6 +46,11 @@ public final class ClientRuntimeBridge implements DataEnergisticsClientBridge {
     }
 
     @Override
+    public boolean isShiftDown() {
+        return Screen.hasShiftDown();
+    }
+
+    @Override
     public StructurePreviewSceneBinder structurePreviewSceneBinder() {
         return this.structurePreviewSceneBinder;
     }

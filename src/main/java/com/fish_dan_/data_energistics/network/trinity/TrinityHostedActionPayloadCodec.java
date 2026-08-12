@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.priority.PriorityControl;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
@@ -139,6 +140,23 @@ final class TrinityHostedActionPayloadCodec {
                 buffer.writeInt(setValue.value());
             }
         }
+    }
+
+    /** Reads one of the three server-authoritative aggregate pattern slot click variants. */
+    static TrinityPatternSlotAction readPatternSlotAction(RegistryFriendlyByteBuf buffer) {
+        return TrinityPatternSlotAction.values()[readBoundedInt(
+                buffer,
+                "pattern slot action",
+                0,
+                TrinityPatternSlotAction.values().length - 1)];
+    }
+
+    /** Writes one previously validated aggregate pattern slot click variant. */
+    static void writePatternSlotAction(RegistryFriendlyByteBuf buffer, TrinityPatternSlotAction action) {
+        if (action == null) {
+            throw new IllegalArgumentException("Trinity pattern slot action cannot be null");
+        }
+        buffer.writeVarInt(action.ordinal());
     }
 
     /** Validates operation members before any arithmetic or transport occurs. */

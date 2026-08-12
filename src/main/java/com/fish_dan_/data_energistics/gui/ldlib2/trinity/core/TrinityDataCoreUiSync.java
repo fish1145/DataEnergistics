@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostSta
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
@@ -35,6 +36,8 @@ final class TrinityDataCoreUiSync {
     private static final String STORAGE_VIEW_NAME = "trinity_storage_view";
     private static final String STORAGE_PRIORITY_NAME = "trinity_storage_priority";
     private static final String PATTERN_PRIORITY_NAME = "trinity_pattern_priority";
+    private static final String PATTERN_PAGE_NAME = "trinity_pattern_page";
+    private static final String PATTERN_VIEW_NAME = "trinity_pattern_view";
     private static final String CPU_LIST_STATUS_NAME = "trinity_cpu_list_status";
     private static final String HOST_STATUS_NAME = "trinity_host_status";
     private static final long CPU_PROGRESS_SYNC_INTERVAL_TICKS = 20L;
@@ -48,12 +51,16 @@ final class TrinityDataCoreUiSync {
     private final IDataProvider<Integer> storagePriorityProvider;
     private final SyncValue<Integer> patternPriority;
     private final IDataProvider<Integer> patternPriorityProvider;
+    private final SyncValue<Integer> patternPage;
+    private final SyncValue<TrinityPatternCatalogView> patternView;
+    private final IDataProvider<TrinityPatternCatalogView> patternViewProvider;
     private final SyncValue<TrinityCpuListStatus> cpuListStatus;
     private final IDataProvider<TrinityCpuListStatus> cpuListStatusProvider;
     private final SyncValue<TrinityDataCoreHostStatus> hostStatus;
     private final IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider;
     private final CpuStatusSnapshotProvider cpuStatusSnapshots = new CpuStatusSnapshotProvider();
     private BooleanSupplier storageWindowOpen = () -> false;
+    private BooleanSupplier patternWindowOpen = () -> false;
 
     private TrinityDataCoreUiSync(TrinityDataCoreMenu menu) {
         this.storageStatus = new SyncValue<>(
@@ -71,6 +78,12 @@ final class TrinityDataCoreUiSync {
         this.storagePriorityProvider = new SyncValueDataProvider<>(this.storagePriority);
         this.patternPriority = new SyncValue<>(PATTERN_PRIORITY_NAME, Integer.class, 0);
         this.patternPriorityProvider = new SyncValueDataProvider<>(this.patternPriority);
+        this.patternPage = new SyncValue<>(PATTERN_PAGE_NAME, Integer.class, 0);
+        this.patternView = new SyncValue<>(
+                PATTERN_VIEW_NAME,
+                TrinityPatternCatalogView.class,
+                TrinityPatternCatalogView.EMPTY);
+        this.patternViewProvider = new SyncValueDataProvider<>(this.patternView);
         this.cpuListStatus = new SyncValue<>(
                 CPU_LIST_STATUS_NAME,
                 TrinityCpuListStatus.class,
@@ -85,6 +98,8 @@ final class TrinityDataCoreUiSync {
         configureStoragePage(menu);
         configureStorageView(menu);
         configurePriorities(menu);
+        configurePatternPage(menu);
+        configurePatternView(menu);
         configureCpuListStatus(menu);
         configureHostStatus(menu);
     }
@@ -105,6 +120,8 @@ final class TrinityDataCoreUiSync {
         modularUI.syncManager.registerSyncValue(this.storageView);
         modularUI.syncManager.registerSyncValue(this.storagePriority);
         modularUI.syncManager.registerSyncValue(this.patternPriority);
+        modularUI.syncManager.registerSyncValue(this.patternPage);
+        modularUI.syncManager.registerSyncValue(this.patternView);
         modularUI.syncManager.registerSyncValue(this.cpuListStatus);
         modularUI.syncManager.registerSyncValue(this.hostStatus);
     }
@@ -125,8 +142,27 @@ final class TrinityDataCoreUiSync {
         return this.patternPriorityProvider;
     }
 
+    IDataProvider<TrinityPatternCatalogView> patternViewProvider() {
+        return this.patternViewProvider;
+    }
+
     void setStorageWindowOpen(BooleanSupplier storageWindowOpen) {
         this.storageWindowOpen = storageWindowOpen;
+    }
+
+    void setPatternWindowOpen(BooleanSupplier patternWindowOpen) {
+        this.patternWindowOpen = patternWindowOpen;
+    }
+
+    void requestPatternPage(int firstGlobalSlot) {
+        if (firstGlobalSlot < 0) {
+            throw new IllegalArgumentException("Trinity pattern page request must not be negative");
+        }
+        if (this.patternPage.getValue() == firstGlobalSlot) {
+            return;
+        }
+        this.patternPage.setValue(firstGlobalSlot);
+        this.patternPage.markAsChanged();
     }
 
     void requestStoragePage(int firstEntry) {
@@ -208,6 +244,22 @@ final class TrinityDataCoreUiSync {
         }
     }
 
+    private void configurePatternPage(TrinityDataCoreMenu menu) {
+        boolean clientSide = menu.getPlayer().level().isClientSide();
+        this.patternPage.setToSync(clientSide);
+        this.patternPage.setAcceptSync(true);
+    }
+
+    private void configurePatternView(TrinityDataCoreMenu menu) {
+        boolean clientSide = menu.getPlayer().level().isClientSide();
+        this.patternView.setToSync(!clientSide);
+        this.patternView.setAcceptSync(clientSide);
+        if (!clientSide) {
+            this.patternView.setValueProvider(() -> this.patternWindowOpen.getAsBoolean() ?
+                    patternView(menu.getHost(), this.patternPage.getValue()) : TrinityPatternCatalogView.EMPTY);
+        }
+    }
+
     private void configureHostStatus(TrinityDataCoreMenu menu) {
         boolean clientSide = menu.getPlayer().level().isClientSide();
         this.hostStatus.setToSync(!clientSide);
@@ -231,6 +283,10 @@ final class TrinityDataCoreUiSync {
 
     private static int patternPriority(TrinityDataCoreMenuHost host) {
         return host == null ? 0 : host.getPatternPriority();
+    }
+
+    private static TrinityPatternCatalogView patternView(TrinityDataCoreMenuHost host, int firstGlobalSlot) {
+        return host == null ? TrinityPatternCatalogView.EMPTY : host.getPatternCatalogView(firstGlobalSlot);
     }
 
     private static TrinityCpuListStatus cpuListStatus(TrinityDataCoreMenuHost host) {

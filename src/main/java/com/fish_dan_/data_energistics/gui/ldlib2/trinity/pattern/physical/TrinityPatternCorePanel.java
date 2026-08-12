@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
