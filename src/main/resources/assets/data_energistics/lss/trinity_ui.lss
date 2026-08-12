@@ -140,3 +140,45 @@
     text-shadow: true;
     overflow: hidden;
 }
+#trinity_data_core_root {
+    padding-all: 5px;
+    gap-all: 4px;
+}
+
+#trinity_storage_hosted_window {
+    padding-all: 5px;
+    gap-all: 4px;
+}
+
+.trinity-storage-entry-name,
+.trinity-storage-entry-amount {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 6;
+    vertical-align: center;
+    overflow: hidden;
+}
+
+.trinity-storage-entry-name {
+    text-color: #FF404052;
+    horizontal-align: left;
+    text-wrap: hover_roll;
+    text-shadow: false;
+}
+
+.trinity-storage-entry-amount {
+    text-color: #FFFFFFFF;
+    horizontal-align: left;
+    text-shadow: true;
+}
+
+.trinity-storage-type-capacity {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 6;
+    horizontal-align: center;
+    vertical-align: center;
+    text-wrap: hover_roll;
+    overflow: hidden;
+    text-shadow: false;
+}

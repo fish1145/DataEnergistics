@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostModularUI;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinator;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiExtension;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
@@ -65,7 +65,8 @@ public final class TrinityDataCoreHostUi {
         HostUiExtension hostUi = HostUiExtension.create(root);
         HostModularUI modularUI = null;
         try {
-            registerProviders(menu, hostUi);
+            registerProviders(menu, hostUi, sync);
+            sync.setStorageWindowOpen(() -> hostUi.isOpen(TrinityDataCoreHostUiKeys.STORAGE));
             TrinityUiXmlLayouts.require(root, TITLE_ID, Label.class)
                     .setText(Component.translatable("block.data_energistics.trinity_data_core"));
             TrinityUiXmlLayouts.require(root, PLAYER_INVENTORY_TITLE_ID, Label.class)
@@ -236,11 +237,16 @@ public final class TrinityDataCoreHostUi {
         return cpuList;
     }
 
-    private static void registerProviders(TrinityDataCoreMenu menu, HostUiExtension hostUi) {
+    private static void registerProviders(TrinityDataCoreMenu menu,
+                                          HostUiExtension hostUi,
+                                          TrinityDataCoreUiSync sync) {
         hostUi.register(TrinityDataCoreStructureProviders.autoBuild(
                 menu,
                 menu::sendHostedAutoBuild,
                 generation -> menu.isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, generation)));
+        hostUi.register(new TrinityDataCoreStorageProvider(
+                sync.storageViewProvider(),
+                sync::requestStoragePage));
         if (!hostUi.registeredKeys().equals(TrinityDataCoreHostUiKeys.registrationOrder())) {
             throw new IllegalStateException("Trinity Data Core hosted providers were registered out of order");
         }

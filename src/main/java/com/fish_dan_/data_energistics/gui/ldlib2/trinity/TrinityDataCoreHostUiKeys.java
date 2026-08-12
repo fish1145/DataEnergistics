@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
 
 import java.util.List;
 
@@ -17,6 +17,12 @@ public final class TrinityDataCoreHostUiKeys {
             Data_Energistics.id("trinity_data_core/auto_build"));
 
     /**
+     * Exact-key contents and internal-capacity window for the Trinity data store.
+     */
+    public static final HostUiKey STORAGE = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/storage"));
+
+    /**
      * Static menu action that returns only installed patterns from the current Trinity catalog.
      */
     public static final HostUiKey REFUND_PATTERNS = new HostUiKey(
@@ -28,14 +34,14 @@ public final class TrinityDataCoreHostUiKeys {
     public static final HostUiKey REFUND_RETAINED_ITEMS = new HostUiKey(
             Data_Energistics.id("trinity_data_core/refund_retained_items"));
 
-    private static final List<HostUiKey> REGISTRATION_ORDER = List.of(AUTO_BUILD);
+    private static final List<HostUiKey> REGISTRATION_ORDER = List.of(AUTO_BUILD, STORAGE);
 
     private TrinityDataCoreHostUiKeys() {}
 
     /**
      * Returns the immutable client/server provider registration order sealed by the host coordinator.
      *
-     * @return the sole automatic-build identity
+     * @return stable hosted-window identities in client/server protocol order
      */
     public static List<HostUiKey> registrationOrder() {
         return REGISTRATION_ORDER;
