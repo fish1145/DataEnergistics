@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Internal implementation that contains every direct use of LDLib2's existing-slot mapping hook. */
+/**
+ * Internal implementation that contains every direct use of LDLib2's existing-slot mapping hook.
+ */
 final class LdlibAeMenuBridge implements AeMenuBridge {
 
     private static final String FAILURE_PREFIX = "AE/LDLib2 menu bridge invariant failed: ";
@@ -34,7 +36,9 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         this.holder = holder;
     }
 
-    /** Creates the implementation only after proving that LDLib2 enhanced the target menu. */
+    /**
+     * Creates the implementation only after proving that LDLib2 enhanced the target menu.
+     */
     static AeMenuBridge create(AEBaseMenu menu) {
         if (menu == null) {
             throw violation("menu must not be null");
@@ -105,14 +109,18 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         }
     }
 
-    /** Rejects operations that would replace or mutate an already mounted UI. */
+    /**
+     * Rejects operations that would replace or mutate an already mounted UI.
+     */
     private void ensureNotMounted() {
         if (this.mountState != MountState.NEW || this.holder.getModularUI() != null) {
             throw violation("menu bridge is not reusable in state " + this.mountState);
         }
     }
 
-    /** Validates the bidirectional ownership prerequisites before LDLib2 mutates either object. */
+    /**
+     * Validates the bidirectional ownership prerequisites before LDLib2 mutates either object.
+     */
     private void validateMountTarget(ModularUI modularUI) {
         if (modularUI == null) {
             throw violation("ModularUI must not be null");
@@ -150,7 +158,9 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         return ordered;
     }
 
-    /** Recursively rejects duplicate elements and ordinary ItemSlots that would append a new menu slot during mount. */
+    /**
+     * Recursively rejects duplicate elements and ordinary ItemSlots that would append a new menu slot during mount.
+     */
     private void inspectElement(UIElement element, Set<UIElement> visited, Set<AeItemSlot> discoveredWrappers) {
         if (!visited.add(element)) {
             throw violation("the mounted UI tree contains the same element more than once");
@@ -167,7 +177,9 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         }
     }
 
-    /** Ensures the slot has one exact-identity position and that its index still names that position. */
+    /**
+     * Ensures the slot has one exact-identity position and that its index still names that position.
+     */
     private int validateExactMenuMembership(Slot slot) {
         if (slot == null) {
             throw violation("slot must not be null");
@@ -189,14 +201,18 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         return foundIndex;
     }
 
-    /** Confirms that LDLib2 established the intended two-way menu relationship. */
+    /**
+     * Confirms that LDLib2 established the intended two-way menu relationship.
+     */
     private void validateMountedReferences(ModularUI modularUI) {
         if (this.holder.getModularUI() != modularUI || modularUI.getMenu() != this.menu) {
             throw violation("LDLib2 did not establish the expected menu/UI references");
         }
     }
 
-    /** Confirms that mounting did not append, reorder, or replace any AE2 slot. */
+    /**
+     * Confirms that mounting did not append, reorder, or replace any AE2 slot.
+     */
     private void validateSlotListUnchanged(List<Slot> originalSlots) {
         if (this.menu.slots.size() != originalSlots.size()) {
             throw violation("mount changed menu slot count from " + originalSlots.size() + " to " +
@@ -209,13 +225,17 @@ final class LdlibAeMenuBridge implements AeMenuBridge {
         }
     }
 
-    /** Logs each rejected invariant before returning its fail-fast exception. */
+    /**
+     * Logs each rejected invariant before returning its fail-fast exception.
+     */
     private static IllegalStateException violation(String message) {
         Data_Energistics.LOGGER.error("{}{}", FAILURE_PREFIX, message);
         return new IllegalStateException(message);
     }
 
-    /** Lifecycle states make a failed, partly attached LDLib2 tree explicitly terminal. */
+    /**
+     * Lifecycle states make a failed, partly attached LDLib2 tree explicitly terminal.
+     */
     private enum MountState {
         NEW,
         MOUNTING,

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 
 import appeng.menu.SlotSemantic;

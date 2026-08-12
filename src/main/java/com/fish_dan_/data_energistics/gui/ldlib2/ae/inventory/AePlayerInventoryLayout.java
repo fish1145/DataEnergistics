@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.ae.inventory;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 

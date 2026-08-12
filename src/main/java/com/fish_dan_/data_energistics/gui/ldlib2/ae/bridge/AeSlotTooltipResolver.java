@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
@@ -17,7 +17,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** Maps AE2 slot-tooltip precedence and content onto one LDLib2 hover-tooltip value. */
+/**
+ * Maps AE2 slot-tooltip precedence and content onto one LDLib2 hover-tooltip value.
+ */
 final class AeSlotTooltipResolver {
 
     private AeSlotTooltipResolver() {}
@@ -67,7 +69,9 @@ final class AeSlotTooltipResolver {
         return ordinaryTooltipAllowed ? Selection.ordinary() : Selection.none();
     }
 
-    /** Reproduces AEBaseScreen's eligibility check before exposing an empty-container action. */
+    /**
+     * Reproduces AEBaseScreen's eligibility check before exposing an empty-container action.
+     */
     @Nullable
     private static List<Component> emptyingTooltip(Slot slot, ItemStack carried) {
         if (!(slot instanceof AppEngSlot appEngSlot) || carried.isEmpty()) {
@@ -87,18 +91,24 @@ final class AeSlotTooltipResolver {
         return Tooltips.getEmptyingTooltip(ButtonToolTips.SetAction, carried, emptyingAction);
     }
 
-    /** Returns an AppEng slot's replacement tooltip, preserving empty-list suppression semantics. */
+    /**
+     * Returns an AppEng slot's replacement tooltip, preserving empty-list suppression semantics.
+     */
     @Nullable
     private static List<Component> customTooltip(Slot slot, ItemStack carried) {
         return slot instanceof AppEngSlot appEngSlot ? appEngSlot.getCustomTooltip(carried) : null;
     }
 
-    /** Converts AE2 text-only tooltips without attaching an unrelated item image or tooltip component. */
+    /**
+     * Converts AE2 text-only tooltips without attaching an unrelated item image or tooltip component.
+     */
     private static HoverTooltips textOnly(List<Component> tooltip) {
         return new HoverTooltips(List.copyOf(tooltip), null, null, ItemStack.EMPTY);
     }
 
-    /** Identifies which AE2-compatible tooltip branch must supply the LDLib2 hover content. */
+    /**
+     * Identifies which AE2-compatible tooltip branch must supply the LDLib2 hover content.
+     */
     enum Kind {
         EMPTYING,
         CUSTOM,
@@ -106,7 +116,9 @@ final class AeSlotTooltipResolver {
         NONE
     }
 
-    /** Immutable selection result that keeps precedence independently testable from the client tooltip renderer. */
+    /**
+     * Immutable selection result that keeps precedence independently testable from the client tooltip renderer.
+     */
     record Selection(Kind kind, List<Component> texts) {
 
         private static Selection text(Kind kind, List<Component> texts) {

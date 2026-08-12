@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -29,14 +29,18 @@ public final class AeItemSlot extends ItemSlot {
 
     private boolean initialized;
 
-    /** Creates one immutable wrapper for an existing menu slot. */
+    /**
+     * Creates one immutable wrapper for an existing menu slot.
+     */
     AeItemSlot(Slot slot) {
         super(slot);
         refreshSlotPresentation();
         this.initialized = true;
     }
 
-    /** Uses AE2's presentation stack so wrapped keys and hidden quantities render exactly as the original slot. */
+    /**
+     * Uses AE2's presentation stack so wrapped keys and hidden quantities render exactly as the original slot.
+     */
     @Override
     public ItemStack getValue() {
         if (getSlot() instanceof AppEngSlot appEngSlot) {
@@ -45,7 +49,9 @@ public final class AeItemSlot extends ItemSlot {
         return super.getValue();
     }
 
-    /** Prevents local writes to fake slots, whose mutation must remain an AEBaseScreen inventory-action packet. */
+    /**
+     * Prevents local writes to fake slots, whose mutation must remain an AEBaseScreen inventory-action packet.
+     */
     @Override
     public AeItemSlot setValue(@Nullable ItemStack value, boolean notify) {
         if (getSlot() instanceof FakeSlot) {
@@ -57,7 +63,9 @@ public final class AeItemSlot extends ItemSlot {
         return this;
     }
 
-    /** Keeps the wrapper bound to the identity validated by its bridge. */
+    /**
+     * Keeps the wrapper bound to the identity validated by its bridge.
+     */
     @Override
     public AeItemSlot bind(Slot slot) {
         if (this.initialized) {
@@ -67,7 +75,9 @@ public final class AeItemSlot extends ItemSlot {
         return this;
     }
 
-    /** Prevents replacing the existing AE2 slot with a newly allocated item-handler slot. */
+    /**
+     * Prevents replacing the existing AE2 slot with a newly allocated item-handler slot.
+     */
     @Override
     public AeItemSlot bind(IItemHandlerModifiable itemHandlerModifiable, int index) {
         if (this.initialized) {
@@ -77,7 +87,9 @@ public final class AeItemSlot extends ItemSlot {
         return this;
     }
 
-    /** Prevents XEI ghost handlers from writing an AE2 menu slot outside AEBaseScreen's packet protocol. */
+    /**
+     * Prevents XEI ghost handlers from writing an AE2 menu slot outside AEBaseScreen's packet protocol.
+     */
     @Override
     public AeItemSlot xeiPhantom() {
         String message = "AeItemSlot cannot use LDLib2 phantom mutation";
@@ -85,7 +97,9 @@ public final class AeItemSlot extends ItemSlot {
         throw new IllegalStateException(message);
     }
 
-    /** Routes ordinary, custom, and emptying tooltips through LDLib2 while retaining AE2's precedence. */
+    /**
+     * Routes ordinary, custom, and emptying tooltips through LDLib2 while retaining AE2's precedence.
+     */
     @Override
     protected void onHoverTooltips(UIEvent event) {
         ModularUI modularUI = getModularUI();
@@ -97,13 +111,17 @@ public final class AeItemSlot extends ItemSlot {
         event.hoverTooltips = createTooltip(modularUI.getMenu().getCarried());
     }
 
-    /** Creates one LDLib2 tooltip from the wrapped slot and an explicit carried stack. */
+    /**
+     * Creates one LDLib2 tooltip from the wrapped slot and an explicit carried stack.
+     */
     @Nullable
     public HoverTooltips createTooltip(ItemStack carried) {
         return AeSlotTooltipResolver.resolve(getSlot(), carried, this::createOrdinaryTooltip);
     }
 
-    /** Builds LDLib2's normal ItemStack tooltip only after AE2 supplies no higher-priority tooltip. */
+    /**
+     * Builds LDLib2's normal ItemStack tooltip only after AE2 supplies no higher-priority tooltip.
+     */
     @Nullable
     private HoverTooltips createOrdinaryTooltip() {
         ItemStack tooltipStack = getSlot().getItem();
@@ -117,7 +135,9 @@ public final class AeItemSlot extends ItemSlot {
                 tooltipStack);
     }
 
-    /** Refreshes active, optional-background, opacity, and hit-test state from the authoritative AE2 slot. */
+    /**
+     * Refreshes active, optional-background, opacity, and hit-test state from the authoritative AE2 slot.
+     */
     void refreshSlotPresentation() {
         Slot slot = getSlot();
         boolean interactionEnabled = slot.isActive();
@@ -130,20 +150,26 @@ public final class AeItemSlot extends ItemSlot {
         Style.importantPipeline(getStyle(), style -> style.opacity(opacity));
     }
 
-    /** Keeps dynamically enabled, paged, and optional slots synchronized with each client screen tick. */
+    /**
+     * Keeps dynamically enabled, paged, and optional slots synchronized with each client screen tick.
+     */
     @Override
     public void screenTick() {
         refreshSlotPresentation();
         super.screenTick();
     }
 
-    /** Prevents a stale hit-test result during the tick in which an AE2 slot becomes inactive. */
+    /**
+     * Prevents a stale hit-test result during the tick in which an AE2 slot becomes inactive.
+     */
     @Override
     public boolean isIntersectWithPoint(double localX, double localY) {
         return getSlot().isActive() && super.isIntersectWithPoint(localX, localY);
     }
 
-    /** Draws AE2's empty icon and invalid-state overlay beneath LDLib2's item rendering. */
+    /**
+     * Draws AE2's empty icon and invalid-state overlay beneath LDLib2's item rendering.
+     */
     @Override
     protected void drawSlotOverlay(GUIContext guiContext) {
         super.drawSlotOverlay(guiContext);
@@ -164,7 +190,9 @@ public final class AeItemSlot extends ItemSlot {
         }
     }
 
-    /** Logs and creates the fail-fast exception shared by both public rebinding paths. */
+    /**
+     * Logs and creates the fail-fast exception shared by both public rebinding paths.
+     */
     private static IllegalStateException immutableBindingViolation() {
         String message = "AeItemSlot cannot be rebound after construction";
         Data_Energistics.LOGGER.error(message);

@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryLayout;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.inventory.AePlayerInventoryLayout;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.inventory.AePlayerInventoryPanel;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;

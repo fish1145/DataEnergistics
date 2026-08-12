@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeItemSlot;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 
 import net.minecraft.world.inventory.Slot;
 
