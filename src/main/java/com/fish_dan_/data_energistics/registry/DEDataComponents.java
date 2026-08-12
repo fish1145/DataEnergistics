@@ -139,6 +139,22 @@ public final class DEDataComponents {
                     .cacheEncoding()
                     .build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> TRINITY_DATA_CORE_STORAGE_PRIORITY = DATA_COMPONENT_TYPES.register(
+            "trinity_data_core_storage_priority",
+            () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> TRINITY_DATA_CORE_PATTERN_PRIORITY = DATA_COMPONENT_TYPES.register(
+            "trinity_data_core_pattern_priority",
+            () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .cacheEncoding()
+                    .build());
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> MATTER_CONVERGING_CROSSBOW_STORED_DATA = DATA_COMPONENT_TYPES.register(
             "matter_converging_crossbow_stored_data",
             () -> DataComponentType.<Long>builder()

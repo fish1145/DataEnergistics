@@ -27,6 +27,13 @@ public interface DataEnergisticsClientBridge {
     boolean isClientThread();
 
     /**
+     * Captures the current Shift/Ctrl combination for a priority-button click.
+     *
+     * @return bit zero for Shift and bit one for Ctrl
+     */
+    int priorityModifierMask();
+
+    /**
      * Returns the client adapter that installs an independent LDLib2 world renderer on a common scene shell.
      *
      * @return stateless binder whose every bind call creates a fresh rendering lifetime

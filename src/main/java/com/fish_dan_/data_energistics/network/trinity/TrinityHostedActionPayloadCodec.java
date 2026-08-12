@@ -8,6 +8,8 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionRes
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.priority.PriorityControl;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -83,6 +85,85 @@ final class TrinityHostedActionPayloadCodec {
         requireRange("sequence", sequence, 1L, TrinityHostedActionTicket.MAX_SEQUENCE);
         buffer.writeVarLong(generation);
         buffer.writeVarLong(sequence);
+    }
+
+    /** Reads and validates one of the two independently hosted priority window identities. */
+    static HostUiKey readPriorityKey(RegistryFriendlyByteBuf buffer) {
+        HostUiKey key = new HostUiKey(readResourceLocation(buffer, "priority host UI key"));
+        requirePriorityKey(key);
+        return key;
+    }
+
+    /** Writes one previously validated priority window identity. */
+    static void writePriorityKey(RegistryFriendlyByteBuf buffer, HostUiKey key) {
+        requirePriorityKey(key);
+        writeResourceLocation(buffer, key.id(), "priority host UI key");
+    }
+
+    /** Rejects every hosted window except the storage and aggregate-pattern priority editors. */
+    static void requirePriorityKey(HostUiKey key) {
+        if (!TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key)) {
+            throw new IllegalArgumentException("Unsupported Trinity priority host UI key: " + key);
+        }
+    }
+
+    /** Reads a constrained priority operation without accepting a client-computed arbitrary delta. */
+    static PriorityControl.Operation readPriorityOperation(RegistryFriendlyByteBuf buffer) {
+        return switch (readBoundedInt(buffer, "priority operation", 0, 1)) {
+            case 0 -> new PriorityControl.Adjust(
+                    readPriorityDirection(buffer),
+                    PriorityControl.Step.fromIndex(readBoundedInt(buffer, "priority step", 0, 3)),
+                    PriorityControl.ModifierState.fromMask(
+                            readBoundedInt(buffer, "priority modifier", 0, 3)));
+            case 1 -> new PriorityControl.SetValue(buffer.readInt());
+            default -> throw new IllegalStateException("Unreachable Trinity priority operation discriminator");
+        };
+    }
+
+    /** Writes the explicit operation discriminator and only its bounded authored operands. */
+    static void writePriorityOperation(RegistryFriendlyByteBuf buffer, PriorityControl.Operation operation) {
+        requirePriorityOperation(operation);
+        switch (operation) {
+            case PriorityControl.Adjust adjust -> {
+                buffer.writeVarInt(0);
+                buffer.writeVarInt(switch (adjust.direction()) {
+                    case INCREASE -> 0;
+                    case DECREASE -> 1;
+                });
+                buffer.writeVarInt(adjust.step().index());
+                buffer.writeVarInt(adjust.modifier().mask());
+            }
+            case PriorityControl.SetValue setValue -> {
+                buffer.writeVarInt(1);
+                buffer.writeInt(setValue.value());
+            }
+        }
+    }
+
+    /** Validates operation members before any arithmetic or transport occurs. */
+    static void requirePriorityOperation(PriorityControl.Operation operation) {
+        switch (operation) {
+            case PriorityControl.Adjust adjust -> {
+                if (adjust.direction() == null || adjust.step() == null || adjust.modifier() == null) {
+                    throw new IllegalArgumentException("Trinity priority adjustment members cannot be null");
+                }
+                PriorityControl.Step.fromIndex(adjust.step().index());
+                PriorityControl.ModifierState.fromMask(adjust.modifier().mask());
+            }
+            case PriorityControl.SetValue ignored -> {
+                // Every signed int is a valid authoritative replacement.
+            }
+            case null -> throw new IllegalArgumentException("Trinity priority operation cannot be null");
+        }
+    }
+
+    private static PriorityControl.Direction readPriorityDirection(RegistryFriendlyByteBuf buffer) {
+        return switch (readBoundedInt(buffer, "priority direction", 0, 1)) {
+            case 0 -> PriorityControl.Direction.INCREASE;
+            case 1 -> PriorityControl.Direction.DECREASE;
+            default -> throw new IllegalStateException("Unreachable Trinity priority direction discriminator");
+        };
     }
 
     /** Reads the complete revision-bound auto-build selection without accepting duplicate map keys. */

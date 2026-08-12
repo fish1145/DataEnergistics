@@ -142,6 +142,30 @@ public interface TrinityDataCoreMenuHost {
     TrinityDataCoreStorageView getStorageView(int firstEntry);
 
     /**
+     * Returns the priority used when the Trinity storage is mounted into AE2.
+     */
+    int getStoragePriority();
+
+    /**
+     * Changes the priority used when the Trinity storage is mounted into AE2.
+     *
+     * @return whether the authoritative value changed
+     */
+    boolean setStoragePriority(int priority);
+
+    /**
+     * Returns the priority published for every pattern in the Trinity aggregate provider.
+     */
+    int getPatternPriority();
+
+    /**
+     * Changes the priority published for every pattern in the Trinity aggregate provider.
+     *
+     * @return whether the authoritative value changed
+     */
+    boolean setPatternPriority(int priority);
+
+    /**
      * Returns the exact ordered CPUs currently published by this structure to AE2.
      */
     TrinityCpuListStatus getCpuListStatus();

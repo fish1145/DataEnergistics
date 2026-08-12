@@ -277,6 +277,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
     }
 
     /**
+     * Remounts Trinity storage after its AE2 priority changes.
+     */
+    public void refreshTrinityStoragePriority() {
+        if (!canRefreshGridServices()) {
+            return;
+        }
+        requestStorageUpdate();
+    }
+
+    /**
      * Synchronizes virtual CPU membership before posting AE2's CPU-cache notification.
      */
     public void refreshTrinityCpuTopology() {
@@ -298,6 +308,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return false;
         }
         return synchronizeCraftingPatternPublication();
+    }
+
+    /**
+     * Rebuilds AE2's crafting-provider index after the aggregate pattern priority changes.
+     */
+    public void refreshTrinityPatternPriority() {
+        if (!canRefreshGridServices()) {
+            return;
+        }
+        requestCraftingProviderUpdate();
     }
 
     /**
@@ -1228,7 +1248,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             TrinityDataCoreBlockEntity host = boundHost(false);
             if (host != null && host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
                     host.isStorageAvailable()) {
-                storageMounts.mount(networkStorage, 0);
+                storageMounts.mount(networkStorage, host.getStoragePriority());
             }
         }
     }
@@ -1270,6 +1290,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
         public List<IPatternDetails> getAvailablePatterns() {
             TrinityDataCoreBlockEntity host = patternProviderHost();
             return host == null ? List.of() : host.getPatternCatalog().getAvailablePatterns();
+        }
+
+        @Override
+        public int getPatternPriority() {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            return host == null ? 0 : host.getPatternPriority();
         }
 
         @Override

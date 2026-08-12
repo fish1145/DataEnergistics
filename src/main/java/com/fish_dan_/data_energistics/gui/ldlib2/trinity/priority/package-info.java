@@ -1,7 +1,7 @@
 @ApiStatus.Internal
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity.core;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.priority;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 

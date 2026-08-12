@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostSta
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
-import com.fish_dan_.data_energistics.gui.ldlib2.sync.SyncValueDataProvider;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
@@ -18,12 +17,13 @@ import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import org.jetbrains.annotations.NotNull;
+import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Owns the deterministic synchronization channels used by the Trinity host UI.
@@ -33,6 +33,8 @@ final class TrinityDataCoreUiSync {
     private static final String STORAGE_STATUS_NAME = "trinity_storage_status";
     private static final String STORAGE_PAGE_NAME = "trinity_storage_page";
     private static final String STORAGE_VIEW_NAME = "trinity_storage_view";
+    private static final String STORAGE_PRIORITY_NAME = "trinity_storage_priority";
+    private static final String PATTERN_PRIORITY_NAME = "trinity_pattern_priority";
     private static final String CPU_LIST_STATUS_NAME = "trinity_cpu_list_status";
     private static final String HOST_STATUS_NAME = "trinity_host_status";
     private static final long CPU_PROGRESS_SYNC_INTERVAL_TICKS = 20L;
@@ -42,6 +44,10 @@ final class TrinityDataCoreUiSync {
     private final SyncValue<Integer> storagePage;
     private final SyncValue<TrinityDataCoreStorageView> storageView;
     private final IDataProvider<TrinityDataCoreStorageView> storageViewProvider;
+    private final SyncValue<Integer> storagePriority;
+    private final IDataProvider<Integer> storagePriorityProvider;
+    private final SyncValue<Integer> patternPriority;
+    private final IDataProvider<Integer> patternPriorityProvider;
     private final SyncValue<TrinityCpuListStatus> cpuListStatus;
     private final IDataProvider<TrinityCpuListStatus> cpuListStatusProvider;
     private final SyncValue<TrinityDataCoreHostStatus> hostStatus;
@@ -61,6 +67,10 @@ final class TrinityDataCoreUiSync {
                 TrinityDataCoreStorageView.class,
                 TrinityDataCoreStorageView.EMPTY);
         this.storageViewProvider = new SyncValueDataProvider<>(this.storageView);
+        this.storagePriority = new SyncValue<>(STORAGE_PRIORITY_NAME, Integer.class, 0);
+        this.storagePriorityProvider = new SyncValueDataProvider<>(this.storagePriority);
+        this.patternPriority = new SyncValue<>(PATTERN_PRIORITY_NAME, Integer.class, 0);
+        this.patternPriorityProvider = new SyncValueDataProvider<>(this.patternPriority);
         this.cpuListStatus = new SyncValue<>(
                 CPU_LIST_STATUS_NAME,
                 TrinityCpuListStatus.class,
@@ -74,6 +84,7 @@ final class TrinityDataCoreUiSync {
         configureStorageStatus(menu);
         configureStoragePage(menu);
         configureStorageView(menu);
+        configurePriorities(menu);
         configureCpuListStatus(menu);
         configureHostStatus(menu);
     }
@@ -82,9 +93,6 @@ final class TrinityDataCoreUiSync {
      * Creates side-specific channels while retaining identical channel construction order on both sides.
      */
     static TrinityDataCoreUiSync create(TrinityDataCoreMenu menu) {
-        if (menu == null) {
-            throw new NullPointerException("Trinity menu must not be null");
-        }
         return new TrinityDataCoreUiSync(menu);
     }
 
@@ -92,12 +100,11 @@ final class TrinityDataCoreUiSync {
      * Registers channels in protocol order before the ModularUI is attached to its native menu.
      */
     void register(ModularUI modularUI) {
-        if (modularUI == null) {
-            throw new NullPointerException("Trinity ModularUI must not be null");
-        }
         modularUI.syncManager.registerSyncValue(this.storageStatus);
         modularUI.syncManager.registerSyncValue(this.storagePage);
         modularUI.syncManager.registerSyncValue(this.storageView);
+        modularUI.syncManager.registerSyncValue(this.storagePriority);
+        modularUI.syncManager.registerSyncValue(this.patternPriority);
         modularUI.syncManager.registerSyncValue(this.cpuListStatus);
         modularUI.syncManager.registerSyncValue(this.hostStatus);
     }
@@ -110,7 +117,15 @@ final class TrinityDataCoreUiSync {
         return this.storageViewProvider;
     }
 
-    void setStorageWindowOpen(@NotNull BooleanSupplier storageWindowOpen) {
+    IDataProvider<Integer> storagePriorityProvider() {
+        return this.storagePriorityProvider;
+    }
+
+    IDataProvider<Integer> patternPriorityProvider() {
+        return this.patternPriorityProvider;
+    }
+
+    void setStorageWindowOpen(BooleanSupplier storageWindowOpen) {
         this.storageWindowOpen = storageWindowOpen;
     }
 
@@ -165,6 +180,18 @@ final class TrinityDataCoreUiSync {
         }
     }
 
+    private void configurePriorities(TrinityDataCoreMenu menu) {
+        boolean clientSide = menu.getPlayer().level().isClientSide();
+        this.storagePriority.setToSync(!clientSide);
+        this.storagePriority.setAcceptSync(clientSide);
+        this.patternPriority.setToSync(!clientSide);
+        this.patternPriority.setAcceptSync(clientSide);
+        if (!clientSide) {
+            this.storagePriority.setValueProvider(() -> storagePriority(menu.getHost()));
+            this.patternPriority.setValueProvider(() -> patternPriority(menu.getHost()));
+        }
+    }
+
     private void configureStoragePage(TrinityDataCoreMenu menu) {
         boolean clientSide = menu.getPlayer().level().isClientSide();
         this.storagePage.setToSync(clientSide);
@@ -196,6 +223,14 @@ final class TrinityDataCoreUiSync {
 
     private static TrinityDataCoreStorageView storageView(TrinityDataCoreMenuHost host, int firstEntry) {
         return host == null ? TrinityDataCoreStorageView.EMPTY : host.getStorageView(firstEntry);
+    }
+
+    private static int storagePriority(TrinityDataCoreMenuHost host) {
+        return host == null ? 0 : host.getStoragePriority();
+    }
+
+    private static int patternPriority(TrinityDataCoreMenuHost host) {
+        return host == null ? 0 : host.getPatternPriority();
     }
 
     private static TrinityCpuListStatus cpuListStatus(TrinityDataCoreMenuHost host) {
@@ -288,6 +323,19 @@ final class TrinityDataCoreUiSync {
                 }
             }
             return true;
+        }
+    }
+
+    private record SyncValueDataProvider<T>(SyncValue<T> syncValue) implements IDataProvider<T> {
+
+        @Override
+        public ISubscription registerListener(Consumer<T> listener) {
+            return this.syncValue.addListener(listener);
+        }
+
+        @Override
+        public T getValue() {
+            return this.syncValue.getValue();
         }
     }
 }

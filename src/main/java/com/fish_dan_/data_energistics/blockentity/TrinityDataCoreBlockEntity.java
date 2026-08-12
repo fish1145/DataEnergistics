@@ -145,6 +145,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_RUNTIME_TAG = "trinity_data_core_crafting_runtime";
     private static final String STORAGE_ID_TAG = "trinity_data_core_storage_id";
     private static final String HOST_ID_TAG = "trinity_data_core_host_id";
+    private static final String STORAGE_PRIORITY_TAG = "trinity_data_core_storage_priority";
+    private static final String PATTERN_PRIORITY_TAG = "trinity_data_core_pattern_priority";
     private static final String ACCESS_LEASE_HATCH_POSITION_TAG = "trinity_access_lease_hatch_position";
     private static final String ACCESS_LEASE_EPOCH_TAG = "trinity_access_lease_epoch";
     private static final String NO_FAILURE = "";
@@ -161,6 +163,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private UUID storageId = UUID.randomUUID();
     @Getter
     private UUID hostId = UUID.randomUUID();
+    private int storagePriority;
+    private int patternPriority;
     @Getter
     private TrinityPatternCatalog patternCatalog = new MountedCorePatternCatalog(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouter();
@@ -1011,6 +1015,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return false;
         }
         setIdentity(itemStorageId, itemHostId);
+        Integer itemStoragePriority = stack.get(DEDataComponents.TRINITY_DATA_CORE_STORAGE_PRIORITY);
+        Integer itemPatternPriority = stack.get(DEDataComponents.TRINITY_DATA_CORE_PATTERN_PRIORITY);
+        int restoredStoragePriority = itemStoragePriority == null ? 0 : itemStoragePriority;
+        int restoredPatternPriority = itemPatternPriority == null ? 0 : itemPatternPriority;
+        if (this.storagePriority != restoredStoragePriority || this.patternPriority != restoredPatternPriority) {
+            this.storagePriority = restoredStoragePriority;
+            this.patternPriority = restoredPatternPriority;
+            setChanged();
+        }
         return true;
     }
 
@@ -1020,6 +1033,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     public void saveIdentityToItem(ItemStack stack) {
         stack.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
         stack.set(DEDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
+        stack.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_PRIORITY, this.storagePriority);
+        stack.set(DEDataComponents.TRINITY_DATA_CORE_PATTERN_PRIORITY, this.patternPriority);
     }
 
     @Override
@@ -1038,6 +1053,38 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                 .storageView(this.storageId, this.storageProfile, firstEntry);
+    }
+
+    @Override
+    public int getStoragePriority() {
+        return this.storagePriority;
+    }
+
+    @Override
+    public boolean setStoragePriority(int priority) {
+        if (this.storagePriority == priority) {
+            return false;
+        }
+        this.storagePriority = priority;
+        setChanged();
+        notifyTrinityStoragePriorityChanged();
+        return true;
+    }
+
+    @Override
+    public int getPatternPriority() {
+        return this.patternPriority;
+    }
+
+    @Override
+    public boolean setPatternPriority(int priority) {
+        if (this.patternPriority == priority) {
+            return false;
+        }
+        this.patternPriority = priority;
+        setChanged();
+        notifyTrinityPatternPriorityChanged();
+        return true;
     }
 
     @Override
@@ -1670,6 +1717,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         clearPatternCatalog();
         this.storageId = data.getUUID(STORAGE_ID_TAG);
         this.hostId = data.getUUID(HOST_ID_TAG);
+        this.storagePriority = data.contains(STORAGE_PRIORITY_TAG, Tag.TAG_INT) ? data.getInt(STORAGE_PRIORITY_TAG) : 0;
+        this.patternPriority = data.contains(PATTERN_PRIORITY_TAG, Tag.TAG_INT) ? data.getInt(PATTERN_PRIORITY_TAG) : 0;
         this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
         this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
@@ -1716,6 +1765,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.putUUID(STORAGE_ID_TAG, this.storageId);
         data.putUUID(HOST_ID_TAG, this.hostId);
+        data.putInt(STORAGE_PRIORITY_TAG, this.storagePriority);
+        data.putInt(PATTERN_PRIORITY_TAG, this.patternPriority);
         data.putBoolean(FORMED_TAG, this.formed);
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
         if (this.lastFailurePosition != null) {
@@ -1773,6 +1824,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         clearPatternCatalog();
         this.storageId = UUID.randomUUID();
         this.hostId = UUID.randomUUID();
+        this.storagePriority = 0;
+        this.patternPriority = 0;
         this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
         this.patternCatalogValid = false;
         this.formed = false;
@@ -2460,12 +2513,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStorageContent);
     }
 
+    private void notifyTrinityStoragePriorityChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStoragePriority);
+    }
+
     private void notifyTrinityCpuChanged() {
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuTopology);
     }
 
     private void notifyTrinityPatternPublicationChanged() {
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternPublication);
+    }
+
+    private void notifyTrinityPatternPriorityChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternPriority);
     }
 
     private void notifyTrinityPatternLayoutChanged() {

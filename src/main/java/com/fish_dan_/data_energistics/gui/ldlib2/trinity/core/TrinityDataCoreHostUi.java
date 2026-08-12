@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostModularUI;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
@@ -9,6 +11,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild.TrinityDataCo
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.cpu.TrinityCpuStatusList;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.priority.TrinityPriorityProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage.TrinityDataCoreStorageProvider;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
@@ -30,6 +33,7 @@ import dev.vfyjxf.taffy.style.TaffyPosition;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 /**
  * Mounts the double-sided LDLib2 host tree during Trinity Data Core menu construction.
@@ -245,15 +249,56 @@ public final class TrinityDataCoreHostUi {
     private static void registerProviders(TrinityDataCoreMenu menu,
                                           HostUiExtension hostUi,
                                           TrinityDataCoreUiSync sync) {
+        IntSupplier modifierMask = menu.getPlayer().level().isClientSide() ?
+                () -> DataEnergisticsClientBridgeAccess.get().priorityModifierMask() : () -> 0;
         hostUi.register(TrinityDataCoreStructureProviders.autoBuild(
                 menu,
                 menu::sendHostedAutoBuild,
                 generation -> menu.isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, generation)));
         hostUi.register(new TrinityDataCoreStorageProvider(
                 sync.storageViewProvider(),
-                sync::requestStoragePage));
+                sync::requestStoragePage,
+                () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.STORAGE_PRIORITY)));
+        hostUi.register(priorityProvider(
+                menu,
+                TrinityDataCoreHostUiKeys.STORAGE_PRIORITY,
+                "trinity_storage_priority_window",
+                "screen.data_energistics.trinity_data_core.storage.priority.title",
+                "screen.data_energistics.trinity_data_core.storage.priority.insert_hint",
+                "screen.data_energistics.trinity_data_core.storage.priority.extract_hint",
+                sync.storagePriorityProvider(),
+                modifierMask));
+        hostUi.register(priorityProvider(
+                menu,
+                TrinityDataCoreHostUiKeys.PATTERN_PRIORITY,
+                "trinity_pattern_priority_window",
+                "screen.data_energistics.trinity_data_core.pattern.priority.title",
+                "screen.data_energistics.trinity_data_core.pattern.priority.selection_hint",
+                "screen.data_energistics.trinity_data_core.pattern.priority.scope_hint",
+                sync.patternPriorityProvider(),
+                modifierMask));
         if (!hostUi.registeredKeys().equals(TrinityDataCoreHostUiKeys.registrationOrder())) {
             throw new IllegalStateException("Trinity Data Core hosted providers were registered out of order");
         }
+    }
+
+    private static TrinityPriorityProvider priorityProvider(TrinityDataCoreMenu menu,
+                                                            HostUiKey key,
+                                                            String windowId,
+                                                            String titleKey,
+                                                            String firstHintKey,
+                                                            String secondHintKey,
+                                                            IDataProvider<Integer> priority,
+                                                            IntSupplier modifierMask) {
+        return new TrinityPriorityProvider(
+                key,
+                windowId,
+                Component.translatable(titleKey),
+                Component.translatable(firstHintKey),
+                Component.translatable(secondHintKey),
+                priority,
+                modifierMask,
+                (generation, operation) -> menu.sendHostedPriority(key, generation, operation),
+                generation -> menu.isHostedActionPending(key, generation));
     }
 }

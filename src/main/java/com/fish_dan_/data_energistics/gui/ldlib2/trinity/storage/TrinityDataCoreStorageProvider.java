@@ -18,7 +18,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.function.IntConsumer;
 
@@ -36,11 +35,14 @@ public final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
 
     private final IDataProvider<TrinityDataCoreStorageView> storageView;
     private final IntConsumer storagePageRequest;
+    private final Runnable openPriority;
 
-    public TrinityDataCoreStorageProvider(@NotNull IDataProvider<TrinityDataCoreStorageView> storageView,
-                                          @NotNull IntConsumer storagePageRequest) {
+    public TrinityDataCoreStorageProvider(IDataProvider<TrinityDataCoreStorageView> storageView,
+                                          IntConsumer storagePageRequest,
+                                          Runnable openPriority) {
         this.storageView = storageView;
         this.storagePageRequest = storagePageRequest;
+        this.openPriority = openPriority;
     }
 
     @Override
@@ -49,7 +51,7 @@ public final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
     }
 
     @Override
-    public HostSubUi create(@NotNull HostSubUiContext context) {
+    public HostSubUi create(HostSubUiContext context) {
         if (!key().equals(context.key())) {
             throw new IllegalArgumentException("Trinity storage provider received the wrong host context");
         }
@@ -87,9 +89,9 @@ public final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
         close.text.style(style -> style.tooltips(closeTooltip));
         close.style(style -> style.tooltips(closeTooltip));
 
-        // TODO(storage-priority): connect this editor-authored control when storage priority becomes server state.
         Component priorityTooltip = Component.translatable(
-                "screen.data_energistics.trinity_data_core.storage.priority_unavailable");
+                "button.data_energistics.trinity_data_core.storage_priority");
+        priority.setOnClick(event -> this.openPriority.run());
         priority.text.style(style -> style.tooltips(priorityTooltip));
         priority.style(style -> style.tooltips(priorityTooltip));
         return new HostSubUi(root, root);

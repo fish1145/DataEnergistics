@@ -13,10 +13,12 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinatorHolder;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.priority.PriorityControl;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
@@ -374,6 +376,29 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     }
 
     /**
+     * Sends one constrained priority operation from either independently hosted editor.
+     *
+     * @param key        storage or aggregate-pattern priority window
+     * @param generation accepted OPEN sequence owned by the calling provider
+     * @param operation  authored step/modifier or complete signed int replacement
+     * @return whether a new action ticket was emitted
+     */
+    public boolean sendHostedPriority(HostUiKey key, long generation, PriorityControl.Operation operation) {
+        requirePriorityActionKey(key);
+        return sendHostedAction(
+                key,
+                generation,
+                ticket -> new TrinityHostedPriorityPayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        key,
+                        ticket.generation(),
+                        ticket.sequence(),
+                        operation));
+    }
+
+    /**
      * Sends the static action that returns only installed patterns from the active catalog.
      */
     public boolean sendRefundPatterns() {
@@ -486,6 +511,12 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         this.hostedActionExecutor.autoBuild(player, request);
     }
 
+    /** Executes one priority operation against the current server value after its ticket was claimed. */
+    public TrinityHostedActionStatus executeHostedPriority(HostUiKey key, PriorityControl.Operation operation) {
+        requirePriorityActionKey(key);
+        return this.hostedActionExecutor.priority(key, operation);
+    }
+
     /**
      * Executes the server-authoritative installed-pattern refund after the request ticket was claimed.
      */
@@ -568,6 +599,8 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     private static void requireActionKey(HostUiKey key) {
         if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key) &&
+                !TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key) &&
                 !TrinityDataCoreHostUiKeys.REFUND_PATTERNS.equals(key) &&
                 !TrinityDataCoreHostUiKeys.REFUND_RETAINED_ITEMS.equals(key)) {
             throw new IllegalArgumentException("Unsupported Trinity hosted action key: " + key);
@@ -576,8 +609,18 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
     private static void requireHostedWindowActionKey(HostUiKey key) {
         requireActionKey(key);
-        if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key)) {
+        if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key) &&
+                !TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key)) {
             throw new IllegalArgumentException("Trinity action does not own a hosted child window: " + key);
+        }
+    }
+
+    private static void requirePriorityActionKey(HostUiKey key) {
+        requireHostedWindowActionKey(key);
+        if (!TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key) &&
+                !TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key)) {
+            throw new IllegalArgumentException("Trinity action is not a priority editor action: " + key);
         }
     }
 
@@ -652,6 +695,9 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
          */
         void autoBuild(Player player, TrinityAutoBuildRequest request);
 
+        /** Applies a constrained priority operation to the matching authoritative host field. */
+        TrinityHostedActionStatus priority(HostUiKey key, PriorityControl.Operation operation);
+
         /**
          * Invokes one complete installed-pattern refund attempt.
          */
@@ -675,6 +721,22 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 throw new IllegalStateException("Trinity hosted auto-build requires a data core block entity host");
             }
             dataCore.autoBuildTrinityStructure(player, request);
+        }
+
+        @Override
+        public TrinityHostedActionStatus priority(HostUiKey key, PriorityControl.Operation operation) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity priority update requires a data core host");
+            }
+            boolean changed;
+            if (TrinityDataCoreHostUiKeys.STORAGE_PRIORITY.equals(key)) {
+                changed = this.host.setStoragePriority(operation.apply(this.host.getStoragePriority()));
+            } else if (TrinityDataCoreHostUiKeys.PATTERN_PRIORITY.equals(key)) {
+                changed = this.host.setPatternPriority(operation.apply(this.host.getPatternPriority()));
+            } else {
+                throw new IllegalArgumentException("Unsupported Trinity priority host UI key: " + key);
+            }
+            return changed ? TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.NO_OP;
         }
 
         @Override

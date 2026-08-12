@@ -23,6 +23,18 @@ public final class TrinityDataCoreHostUiKeys {
             Data_Energistics.id("trinity_data_core/storage"));
 
     /**
+     * Server-authoritative editor for the Data Core storage mount priority.
+     */
+    public static final HostUiKey STORAGE_PRIORITY = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/storage_priority"));
+
+    /**
+     * Server-authoritative editor for the aggregate Trinity crafting-provider priority.
+     */
+    public static final HostUiKey PATTERN_PRIORITY = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/pattern_priority"));
+
+    /**
      * Static menu action that returns only installed patterns from the current Trinity catalog.
      */
     public static final HostUiKey REFUND_PATTERNS = new HostUiKey(
@@ -34,7 +46,11 @@ public final class TrinityDataCoreHostUiKeys {
     public static final HostUiKey REFUND_RETAINED_ITEMS = new HostUiKey(
             Data_Energistics.id("trinity_data_core/refund_retained_items"));
 
-    private static final List<HostUiKey> REGISTRATION_ORDER = List.of(AUTO_BUILD, STORAGE);
+    private static final List<HostUiKey> REGISTRATION_ORDER = List.of(
+            AUTO_BUILD,
+            STORAGE,
+            STORAGE_PRIORITY,
+            PATTERN_PRIORITY);
 
     private TrinityDataCoreHostUiKeys() {}
 
