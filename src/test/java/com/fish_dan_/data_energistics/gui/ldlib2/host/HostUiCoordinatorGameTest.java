@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.gametest.framework.GameTest;
@@ -354,7 +355,9 @@ public final class HostUiCoordinatorGameTest {
         helper.succeed();
     }
 
-    /** Creates two independently mounted roots with equal provider registration order. */
+    /**
+     * Creates two independently mounted roots with equal provider registration order.
+     */
     private static CoordinatorPair createPair(GameTestHelper helper, int clientContainerId, int serverContainerId) {
         Endpoint clientEndpoint = createEndpoint(helper, clientContainerId);
         Endpoint serverEndpoint = createEndpoint(helper, serverContainerId);
@@ -374,7 +377,9 @@ public final class HostUiCoordinatorGameTest {
                 requests);
     }
 
-    /** Creates one real AE menu bridge and registers the four protocol identities in fixed order. */
+    /**
+     * Creates one real AE menu bridge and registers the four protocol identities in fixed order.
+     */
     private static Endpoint createEndpoint(GameTestHelper helper, int containerId) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         TestMenu menu = new TestMenu(player, containerId);
@@ -391,19 +396,25 @@ public final class HostUiCoordinatorGameTest {
         return new Endpoint(extension, modularUI, Map.copyOf(providers));
     }
 
-    /** Completes one explicit open request and matching response on both endpoints. */
+    /**
+     * Completes one explicit open request and matching response on both endpoints.
+     */
     private static void roundTripOpen(CoordinatorPair pair, HostUiKey key) {
         assertTrue(pair.client.coordinator.requestOpen(key), "open request must be emitted for " + key.id());
         roundTripPending(pair);
     }
 
-    /** Completes one explicit close request and matching response on both endpoints. */
+    /**
+     * Completes one explicit close request and matching response on both endpoints.
+     */
     private static void roundTripClose(CoordinatorPair pair, HostUiKey key) {
         assertTrue(pair.client.coordinator.requestClose(key), "close request must be emitted for " + key.id());
         roundTripPending(pair);
     }
 
-    /** Delivers the sole pending request to the server and its resulting response back to the client. */
+    /**
+     * Delivers the sole pending request to the server and its resulting response back to the client.
+     */
     private static void roundTripPending(CoordinatorPair pair) {
         assertEquals(1, pair.requests.size());
         HostUiRequest request = pair.requests.removeFirst();
@@ -412,12 +423,16 @@ public final class HostUiCoordinatorGameTest {
         assertTrue(pair.client.coordinator.handleResponse(response), "matching response must change client membership");
     }
 
-    /** Creates a namespaced identity reserved for coordinator GameTests. */
+    /**
+     * Creates a namespaced identity reserved for coordinator GameTests.
+     */
     private static HostUiKey key(String path) {
         return new HostUiKey(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "coordinator_test/" + path));
     }
 
-    /** Returns the sole active dynamic SyncValue id without accessing LDLib2 internals reflectively. */
+    /**
+     * Returns the sole active dynamic SyncValue id without accessing LDLib2 internals reflectively.
+     */
     private static int soleSyncId(HostModularUI modularUI) {
         RegistryFriendlyByteBuf buffer = buffer();
         try {
@@ -429,7 +444,9 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** Delivers a parameterless RPC packet by its expected dynamic id. */
+    /**
+     * Delivers a parameterless RPC packet by its expected dynamic id.
+     */
     private static void invokeRpc(HostModularUI modularUI, int rpcId) {
         RegistryFriendlyByteBuf buffer = buffer();
         try {
@@ -443,54 +460,70 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** Creates a registry-aware buffer for direct UISyncManager protocol verification. */
+    /**
+     * Creates a registry-aware buffer for direct UISyncManager protocol verification.
+     */
     private static RegistryFriendlyByteBuf buffer() {
         return new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY, ConnectionType.OTHER);
     }
 
-    /** Requires a true condition. */
+    /**
+     * Requires a true condition.
+     */
     private static void assertTrue(boolean condition, String message) {
         if (!condition) {
             throw new GameTestAssertException(message);
         }
     }
 
-    /** Requires a false condition. */
+    /**
+     * Requires a false condition.
+     */
     private static void assertFalse(boolean condition, String message) {
         if (condition) {
             throw new GameTestAssertException(message);
         }
     }
 
-    /** Requires equal values. */
+    /**
+     * Requires equal values.
+     */
     private static void assertEquals(Object expected, Object actual) {
         if (!expected.equals(actual)) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
     }
 
-    /** Requires equal long values. */
+    /**
+     * Requires equal long values.
+     */
     private static void assertEquals(long expected, long actual) {
         if (expected != actual) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
     }
 
-    /** Requires distinct object identities. */
+    /**
+     * Requires distinct object identities.
+     */
     private static void assertDifferent(Object first, Object second) {
         if (first == second) {
             throw new GameTestAssertException("Expected distinct objects");
         }
     }
 
-    /** Requires a nullable protocol field to be absent. */
+    /**
+     * Requires a nullable protocol field to be absent.
+     */
     private static void assertNull(Object value) {
         if (value != null) {
             throw new GameTestAssertException("Expected null, got " + value);
         }
     }
 
-    /** Requires provider sealing or another coordinator invariant to fail fast. */
+    /**
+     * Requires provider sealing or another coordinator invariant to fail fast.
+     */
     private static void assertThrows(Runnable action) {
         try {
             action.run();
@@ -500,7 +533,9 @@ public final class HostUiCoordinatorGameTest {
         throw new GameTestAssertException("Expected IllegalStateException");
     }
 
-    /** Requires one exact unchecked failure to survive guarded structural cleanup. */
+    /**
+     * Requires one exact unchecked failure to survive guarded structural cleanup.
+     */
     private static void assertThrowsSame(Throwable expected, Runnable action) {
         try {
             action.run();
@@ -513,7 +548,9 @@ public final class HostUiCoordinatorGameTest {
         throw new GameTestAssertException("Expected unchecked failure");
     }
 
-    /** Unmounted AE menu used to exercise the real LDLib2 bridge without production host state. */
+    /**
+     * Unmounted AE menu used to exercise the real LDLib2 bridge without production host state.
+     */
     private static final class TestMenu extends AEBaseMenu {
 
         private TestMenu(Player player, int containerId) {
@@ -521,7 +558,9 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** Provider that exposes fresh root identities and exactly-once cleanup counts. */
+    /**
+     * Provider that exposes fresh root identities and exactly-once cleanup counts.
+     */
     private static final class CountingProvider implements HostSubUiProvider {
 
         private final HostUiKey key;
@@ -568,12 +607,16 @@ public final class HostUiCoordinatorGameTest {
             return new HostSubUi(root, dragHandle);
         }
 
-        /** Returns the fresh root created by the latest accepted open. */
+        /**
+         * Returns the fresh root created by the latest accepted open.
+         */
         private HostSubUiRoot latestRoot() {
             return this.roots.getLast();
         }
 
-        /** Dispatches a real descendant interaction through LDLib2 capture and target phases. */
+        /**
+         * Dispatches a real descendant interaction through LDLib2 capture and target phases.
+         */
         private void dispatchAction() {
             UIEvent event = UIEvent.create(UIEvents.MOUSE_DOWN);
             event.target = this.latestAction;
@@ -581,7 +624,9 @@ public final class HostUiCoordinatorGameTest {
             UIEventDispatcher.dispatchEvent(event);
         }
 
-        /** Dispatches an event whose target is the dynamic root itself. */
+        /**
+         * Dispatches an event whose target is the dynamic root itself.
+         */
         private void dispatchRootAction() {
             UIEvent event = UIEvent.create(UIEvents.KEY_DOWN);
             event.target = latestRoot();
@@ -589,12 +634,16 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** One mounted extension and its deterministic provider set. */
+    /**
+     * One mounted extension and its deterministic provider set.
+     */
     private record Endpoint(HostUiExtension extension,
                             HostModularUI modularUI,
                             Map<HostUiKey, CountingProvider> providers) {
 
-        /** Returns the counting provider for one known protocol identity. */
+        /**
+         * Returns the counting provider for one known protocol identity.
+         */
         private CountingProvider provider(HostUiKey key) {
             CountingProvider provider = this.providers.get(key);
             if (provider == null) {
@@ -604,12 +653,16 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** Endpoint plus the role-specific coordinator attached to it. */
+    /**
+     * Endpoint plus the role-specific coordinator attached to it.
+     */
     private record CoordinatedEndpoint(Endpoint endpoint,
                                        HostUiCoordinator coordinator,
                                        TerminalTracker terminalTracker) {}
 
-    /** Counts owner-close notifications without changing the mock player's unrelated current menu. */
+    /**
+     * Counts owner-close notifications without changing the mock player's unrelated current menu.
+     */
     private static final class TerminalTracker {
 
         private int invocationCount;
@@ -619,12 +672,16 @@ public final class HostUiCoordinatorGameTest {
         }
     }
 
-    /** In-memory transport connecting two mounted endpoints one request and response at a time. */
+    /**
+     * In-memory transport connecting two mounted endpoints one request and response at a time.
+     */
     private record CoordinatorPair(CoordinatedEndpoint client,
                                    CoordinatedEndpoint server,
                                    List<HostUiRequest> requests) {
 
-        /** Releases both complete ModularUI trees after each protocol scenario. */
+        /**
+         * Releases both complete ModularUI trees after each protocol scenario.
+         */
         private void close() {
             this.client.endpoint.modularUI.onRemoved();
             this.server.endpoint.modularUI.onRemoved();

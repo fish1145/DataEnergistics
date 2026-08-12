@@ -1,12 +1,18 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
-/** Membership change that both sides of one hosted LDLib2 menu apply in the same order. */
+/**
+ * Membership change that both sides of one hosted LDLib2 menu apply in the same order.
+ */
 public enum HostUiOperation {
 
-    /** Creates and attaches one fresh provider tree. */
+    /**
+     * Creates and attaches one fresh provider tree.
+     */
     OPEN(0),
 
-    /** Removes and releases one currently attached provider tree. */
+    /**
+     * Removes and releases one currently attached provider tree.
+     */
     CLOSE(1);
 
     private final int networkId;

@@ -1,8 +1,10 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import java.util.List;
 
-/** Screen-bounded window constraints translated back into the parent-relative LDLib2 layout space. */
+/**
+ * Screen-bounded window constraints translated back into the parent-relative LDLib2 layout space.
+ */
 record HostWindowPlacement(int maximumWidth, int maximumHeight, float left, float top) {
 
     private static final int WINDOW_MARGIN = 4;
@@ -133,10 +135,14 @@ record HostWindowPlacement(int maximumWidth, int maximumHeight, float left, floa
         return true;
     }
 
-    /** Absolute screen position used only while resolving a fresh window's default placement. */
+    /**
+     * Absolute screen position used only while resolving a fresh window's default placement.
+     */
     record ScreenPosition(float left, float top) {}
 
-    /** Absolute bounds of a lower hosted window that must retain an accessible title strip. */
+    /**
+     * Absolute bounds of a lower hosted window that must retain an accessible title strip.
+     */
     record ScreenBounds(float left, float top, float width, float height) {
 
         ScreenBounds {

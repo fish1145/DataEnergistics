@@ -1,8 +1,10 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import net.minecraft.world.entity.player.Player;
 
-/** Menu capability used by generic payload handlers to locate and validate a host UI coordinator. */
+/**
+ * Menu capability used by generic payload handlers to locate and validate a host UI coordinator.
+ */
 public interface HostUiCoordinatorHolder {
 
     /**

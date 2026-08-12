@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity.host;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
 
 /**
  * Exact identity of one action issued by a fresh hosted-window generation.

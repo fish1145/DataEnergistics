@@ -1,6 +1,8 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
-/** Host-owned lifecycle and window actions exposed while a provider builds one fresh child UI. */
+/**
+ * Host-owned lifecycle and window actions exposed while a provider builds one fresh child UI.
+ */
 public interface HostSubUiContext {
 
     /**

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import org.jetbrains.annotations.Nullable;
 

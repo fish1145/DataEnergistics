@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -31,7 +31,9 @@ public final class HostSubUiRoot extends UIElement {
 
     HostSubUiRoot() {}
 
-    /** Installs host bookkeeping callbacks before this root enters the overlay tree. */
+    /**
+     * Installs host bookkeeping callbacks before this root enters the overlay tree.
+     */
     void setRemovalCallbacks(Runnable removalCallback,
                              Consumer<Throwable> detachmentFailureCallback,
                              Runnable selfRemovalCompleteCallback) {
@@ -53,7 +55,9 @@ public final class HostSubUiRoot extends UIElement {
         this.selfRemovalCompleteCallback = selfRemovalCompleteCallback;
     }
 
-    /** Releases a tree that never transferred to LDLib2 ownership. */
+    /**
+     * Releases a tree that never transferred to LDLib2 ownership.
+     */
     void disposeUnattached() {
         if (hasParent() || getModularUI() != null) {
             throw new IllegalStateException("Cannot release a HostSubUiRoot owned by another UI tree");
@@ -62,13 +66,17 @@ public final class HostSubUiRoot extends UIElement {
         rethrow(this.removalFailure);
     }
 
-    /** Returns a deferred callback failure after LDLib2 has completed structural removal. */
+    /**
+     * Returns a deferred callback failure after LDLib2 has completed structural removal.
+     */
     @Nullable
     Throwable removalFailure() {
         return this.removalFailure;
     }
 
-    /** Propagates deferred removal failures only after the parent has completed structural detachment. */
+    /**
+     * Propagates deferred removal failures only after the parent has completed structural detachment.
+     */
     @Override
     public boolean removeSelf() {
         boolean removedFromParent;
@@ -93,7 +101,9 @@ public final class HostSubUiRoot extends UIElement {
         return removedFromParent;
     }
 
-    /** Captures callback failures so UIElement.removeChild can still clear ModularUI, parent, and caches. */
+    /**
+     * Captures callback failures so UIElement.removeChild can still clear ModularUI, parent, and caches.
+     */
     @Override
     protected void onRemoved() {
         if (this.removed) {
@@ -123,7 +133,9 @@ public final class HostSubUiRoot extends UIElement {
         this.removalFailure = failure;
     }
 
-    /** Makes an externally initiated, structurally incomplete detach terminal before preserving its root failure. */
+    /**
+     * Makes an externally initiated, structurally incomplete detach terminal before preserving its root failure.
+     */
     void reportDetachmentFailure(Throwable failure) {
         Throwable combinedFailure = mergeFailures(this.removalFailure, failure);
         this.removalFailure = combinedFailure;
@@ -143,7 +155,9 @@ public final class HostSubUiRoot extends UIElement {
         }
     }
 
-    /** Notifies the host only after the parent has fully cleared LDLib2 ownership. */
+    /**
+     * Notifies the host only after the parent has fully cleared LDLib2 ownership.
+     */
     void reportDetachmentComplete() {
         Runnable callback = this.selfRemovalCompleteCallback;
         this.detachmentFailureCallback = null;
@@ -159,7 +173,9 @@ public final class HostSubUiRoot extends UIElement {
         }
     }
 
-    /** Releases descendants in post-order so one failing sibling cannot strand later resource-owning elements. */
+    /**
+     * Releases descendants in post-order so one failing sibling cannot strand later resource-owning elements.
+     */
     private static @Nullable Throwable releaseTree(UIElement parent,
                                                    UIElement element,
                                                    @Nullable Throwable failure) {
@@ -177,7 +193,9 @@ public final class HostSubUiRoot extends UIElement {
         return failure;
     }
 
-    /** Preserves the first removal failure and appends later callback failures as context. */
+    /**
+     * Preserves the first removal failure and appends later callback failures as context.
+     */
     private static Throwable mergeFailures(@Nullable Throwable first, Throwable next) {
         if (first == null) {
             return next;
@@ -188,7 +206,9 @@ public final class HostSubUiRoot extends UIElement {
         return first;
     }
 
-    /** Rethrows only unchecked failures captured by {@link #onRemoved()}. */
+    /**
+     * Rethrows only unchecked failures captured by {@link #onRemoved()}.
+     */
     private static void rethrow(@Nullable Throwable failure) {
         if (failure instanceof RuntimeException exception) {
             throw exception;

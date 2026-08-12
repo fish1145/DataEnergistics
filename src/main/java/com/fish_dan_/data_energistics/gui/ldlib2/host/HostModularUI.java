@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -8,7 +8,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import org.jetbrains.annotations.Nullable;
 
-/** ModularUI variant that closes hosted windows before LDLib2 recursively releases the root tree. */
+/**
+ * ModularUI variant that closes hosted windows before LDLib2 recursively releases the root tree.
+ */
 public final class HostModularUI extends ModularUI {
 
     private final OverlayHostUiExtension hostUi;
@@ -47,7 +49,9 @@ public final class HostModularUI extends ModularUI {
         return this.hostUi.handleKeyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** Closes child trees once before the first LDLib2 root removal and ignores duplicate mixin callbacks. */
+    /**
+     * Closes child trees once before the first LDLib2 root removal and ignores duplicate mixin callbacks.
+     */
     @Override
     public void onRemoved() {
         if (this.removed) {
@@ -70,7 +74,9 @@ public final class HostModularUI extends ModularUI {
         rethrow(failure);
     }
 
-    /** Preserves the first removal failure and reports later cleanup failures as suppressed context. */
+    /**
+     * Preserves the first removal failure and reports later cleanup failures as suppressed context.
+     */
     private static Throwable mergeFailures(@Nullable Throwable first, Throwable next) {
         if (first == null) {
             return next;
@@ -81,7 +87,9 @@ public final class HostModularUI extends ModularUI {
         return first;
     }
 
-    /** Rethrows only the unchecked failure types collected by {@link #onRemoved()}. */
+    /**
+     * Rethrows only the unchecked failure types collected by {@link #onRemoved()}.
+     */
     private static void rethrow(@Nullable Throwable failure) {
         if (failure instanceof RuntimeException exception) {
             throw exception;

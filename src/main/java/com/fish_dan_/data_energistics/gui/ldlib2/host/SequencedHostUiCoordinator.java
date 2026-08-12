@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -7,7 +7,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-/** Stateful client or server endpoint for the ordered host UI lifecycle protocol. */
+/**
+ * Stateful client or server endpoint for the ordered host UI lifecycle protocol.
+ */
 final class SequencedHostUiCoordinator implements HostUiCoordinator {
 
     private static final long INITIAL_SEQUENCE = 1L;
@@ -38,7 +40,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         this.terminalAction = terminalAction;
     }
 
-    /** Creates the client role and seals its provider order before any dynamic tree can open. */
+    /**
+     * Creates the client role and seals its provider order before any dynamic tree can open.
+     */
     static HostUiCoordinator createClient(HostUiExtension hostUi,
                                           Consumer<HostUiRequest> requestSink,
                                           Runnable terminalAction) {
@@ -52,7 +56,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         return coordinator;
     }
 
-    /** Creates the server role and seals its provider order before any dynamic tree can open. */
+    /**
+     * Creates the server role and seals its provider order before any dynamic tree can open.
+     */
     static HostUiCoordinator createServer(HostUiExtension hostUi, Runnable terminalAction) {
         OverlayHostUiExtension membership = validateHostUi(hostUi);
         validateTerminalAction(terminalAction);
@@ -251,12 +257,16 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         return this.terminal || this.membership.isDisposed();
     }
 
-    /** Makes an uncoordinated host mutation terminal and closes its owning menu exactly once. */
+    /**
+     * Makes an uncoordinated host mutation terminal and closes its owning menu exactly once.
+     */
     void hostBecameTerminal(String reason, @Nullable Throwable failure) {
         enterTerminal(true, reason, failure);
     }
 
-    /** Sends one request while retaining its sequence as uncommitted until the matching accepted response. */
+    /**
+     * Sends one request while retaining its sequence as uncommitted until the matching accepted response.
+     */
     private boolean emitRequest(HostUiOperation operation, HostUiKey key) {
         if (this.nextSequence == Long.MAX_VALUE) {
             enterTerminal(true, "LDLib2 host UI client sequence space is exhausted", null);
@@ -279,7 +289,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         }
     }
 
-    /** Applies one already validated membership change to the package-private authoritative target. */
+    /**
+     * Applies one already validated membership change to the package-private authoritative target.
+     */
     private boolean apply(HostUiRequest request) {
         return switch (request.operation()) {
             case OPEN -> this.membership.openFresh(request.key(), request.sequence());
@@ -287,7 +299,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         };
     }
 
-    /** Rejects a protocol or topology violation without committing its sequence or mutating membership. */
+    /**
+     * Rejects a protocol or topology violation without committing its sequence or mutating membership.
+     */
     private HostUiResponse rejectTerminal(HostUiRequest request, HostUiResponseStatus status) {
         enterTerminal(
                 false,
@@ -298,23 +312,31 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         return HostUiResponse.rejected(request, status);
     }
 
-    /** Commits one successful membership mutation without allowing signed overflow. */
+    /**
+     * Commits one successful membership mutation without allowing signed overflow.
+     */
     private void advanceSequence() {
         this.nextSequence = Math.incrementExact(this.nextSequence);
     }
 
-    /** Clears the global pending guard only after a rejection or completed client mutation. */
+    /**
+     * Clears the global pending guard only after a rejection or completed client mutation.
+     */
     private void clearPendingRequest() {
         this.pendingRequest = null;
         this.membership.coordinatorStateChanged();
     }
 
-    /** Allows UI input to become a request only while the client endpoint remains synchronized. */
+    /**
+     * Allows UI input to become a request only while the client endpoint remains synchronized.
+     */
     private boolean canEmitRequest() {
         return !isTerminal() && this.pendingRequest == null;
     }
 
-    /** Rejects caller bugs before an unknown key can enter the client transport. */
+    /**
+     * Rejects caller bugs before an unknown key can enter the client transport.
+     */
     private void validateRegisteredKey(HostUiKey key) {
         if (key == null) {
             throw violation("requested key must not be null");
@@ -324,7 +346,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         }
     }
 
-    /** Returns the role-specific client transport after construction has proven it exists. */
+    /**
+     * Returns the role-specific client transport after construction has proven it exists.
+     */
     private Consumer<HostUiRequest> requestSink() {
         if (this.requestSink == null) {
             throw violation("client request sink is missing");
@@ -332,7 +356,9 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         return this.requestSink;
     }
 
-    /** Marks this endpoint unusable, logs context, and optionally closes its owner exactly once. */
+    /**
+     * Marks this endpoint unusable, logs context, and optionally closes its owner exactly once.
+     */
     private void enterTerminal(boolean notifyOwner, String reason, @Nullable Throwable failure) {
         if (!this.terminal) {
             this.terminal = true;
@@ -353,21 +379,27 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         }
     }
 
-    /** Enforces endpoint-specific method use while keeping one holder interface on both menu sides. */
+    /**
+     * Enforces endpoint-specific method use while keeping one holder interface on both menu sides.
+     */
     private void ensureClient() {
         if (this.role != Role.CLIENT) {
             throw violation("client lifecycle method invoked on the server coordinator");
         }
     }
 
-    /** Enforces endpoint-specific method use while keeping one holder interface on both menu sides. */
+    /**
+     * Enforces endpoint-specific method use while keeping one holder interface on both menu sides.
+     */
     private void ensureServer() {
         if (this.role != Role.SERVER) {
             throw violation("server lifecycle method invoked on the client coordinator");
         }
     }
 
-    /** Validates and narrows the sole production HostUiExtension implementation. */
+    /**
+     * Validates and narrows the sole production HostUiExtension implementation.
+     */
     private static OverlayHostUiExtension validateHostUi(HostUiExtension hostUi) {
         if (!(hostUi instanceof OverlayHostUiExtension membership)) {
             throw violation("coordinator requires the host extension created by HostUiExtension.create");
@@ -378,20 +410,26 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         return membership;
     }
 
-    /** Validates the owner callback needed for failures outside payload handling. */
+    /**
+     * Validates the owner callback needed for failures outside payload handling.
+     */
     private static void validateTerminalAction(Runnable terminalAction) {
         if (terminalAction == null) {
             throw violation("terminal action must not be null");
         }
     }
 
-    /** Logs each coordinator invariant failure before returning its fail-fast exception. */
+    /**
+     * Logs each coordinator invariant failure before returning its fail-fast exception.
+     */
     private static IllegalStateException violation(String message) {
         Data_Energistics.LOGGER.error("LDLib2 host UI coordinator invariant failed: {}", message);
         return new IllegalStateException(message);
     }
 
-    /** Construction-side role for one endpoint of the lifecycle protocol. */
+    /**
+     * Construction-side role for one endpoint of the lifecycle protocol.
+     */
     private enum Role {
         CLIENT,
         SERVER

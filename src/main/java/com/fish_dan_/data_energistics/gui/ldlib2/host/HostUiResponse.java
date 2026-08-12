@@ -1,9 +1,13 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
-/** Server response that echoes the exact operation identity needed to reject stale acknowledgements. */
+/**
+ * Server response that echoes the exact operation identity needed to reject stale acknowledgements.
+ */
 public record HostUiResponse(HostUiRequest request, HostUiResponseStatus status) {
 
-    /** Validates the echoed request and decision before client-side matching. */
+    /**
+     * Validates the echoed request and decision before client-side matching.
+     */
     public HostUiResponse {
         if (request == null) {
             throw new IllegalArgumentException("Host UI response request must not be null");

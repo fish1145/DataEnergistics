@@ -1,6 +1,8 @@
-package com.fish_dan_.data_energistics.gui.ldlib2;
+package com.fish_dan_.data_energistics.gui.ldlib2.host;
 
-/** Factory that creates a new, independently owned child UI instance on every successful reopen. */
+/**
+ * Factory that creates a new, independently owned child UI instance on every successful reopen.
+ */
 public interface HostSubUiProvider {
 
     /**
