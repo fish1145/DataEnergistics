@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
@@ -73,6 +73,11 @@ public interface StructurePreviewSession {
      * Selects one exact candidate of a predicate present in the current projected snapshot.
      */
     void selectCandidate(PreviewPredicateKey predicateKey, int candidateIndex);
+
+    /**
+     * Selects one exact value of a business tier domain declared by the active structure.
+     */
+    void selectTier(String domainId, int value);
 
     /**
      * Selects the preceding shape variant, wrapping within the declared variant domain.

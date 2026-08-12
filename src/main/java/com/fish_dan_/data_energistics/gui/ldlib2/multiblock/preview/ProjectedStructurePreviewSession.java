@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
@@ -146,6 +146,13 @@ final class ProjectedStructurePreviewSession implements StructurePreviewSession 
             return;
         }
         replaceSelection(this.selection.withCandidate(predicateKey, candidateIndex));
+    }
+
+    @Override
+    public void selectTier(String domainId, int value) {
+        PreviewTierDomain domain = activeSubstructure().tierDomain(domainId);
+        domain.option(value);
+        replaceSelection(this.selection.withTier(domainId, value));
     }
 
     @Override

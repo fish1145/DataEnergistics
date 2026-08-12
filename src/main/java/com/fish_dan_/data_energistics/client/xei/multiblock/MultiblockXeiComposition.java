@@ -13,10 +13,10 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPre
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.PreviewMaterialStrip;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewPresentation;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUi;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.PreviewMaterialStrip;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewPresentation;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;

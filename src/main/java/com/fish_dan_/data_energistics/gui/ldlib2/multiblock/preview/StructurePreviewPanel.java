@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
@@ -22,6 +22,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -34,29 +35,53 @@ import java.util.function.Consumer;
  */
 public final class StructurePreviewPanel extends UIElement {
 
-    /** Suffix used by the independently owned scene element. */
+    /**
+     * Suffix used by the independently owned scene element.
+     */
     public static final String SCENE_SUFFIX = "_scene";
-    /** Suffix used by the previous-variant control. */
+    /**
+     * Suffix used by the previous-variant control.
+     */
     public static final String VARIANT_PREVIOUS_SUFFIX = "_variant_previous";
-    /** Suffix used by the next-variant control. */
+    /**
+     * Suffix used by the next-variant control.
+     */
     public static final String VARIANT_NEXT_SUFFIX = "_variant_next";
-    /** Suffix used by the previous-tier control. */
+    /**
+     * Suffix used by the previous-tier control.
+     */
     public static final String TIER_PREVIOUS_SUFFIX = "_tier_previous";
-    /** Suffix used by the next-tier control. */
+    /**
+     * Suffix used by the next-tier control.
+     */
     public static final String TIER_NEXT_SUFFIX = "_tier_next";
-    /** Suffix prefix used by repeat-unit controls, followed by the unit index and direction. */
+    /**
+     * Suffix prefix used by repeat-unit controls, followed by the unit index and direction.
+     */
     public static final String REPEAT_SUFFIX = "_repeat_";
-    /** Suffix used by the explicit all-layers control. */
+    /**
+     * Suffix used by the explicit all-layers control.
+     */
     public static final String LAYER_ALL_SUFFIX = "_layer_all";
-    /** Suffix used by the previous-layer control. */
+    /**
+     * Suffix used by the previous-layer control.
+     */
     public static final String LAYER_PREVIOUS_SUFFIX = "_layer_previous";
-    /** Suffix used by the next-layer control. */
+    /**
+     * Suffix used by the next-layer control.
+     */
     public static final String LAYER_NEXT_SUFFIX = "_layer_next";
-    /** Suffix used by the selector that exposes ALL and every exact logical layer. */
+    /**
+     * Suffix used by the selector that exposes ALL and every exact logical layer.
+     */
     public static final String LAYER_SELECTOR_SUFFIX = "_layer_selector";
-    /** Suffix used by the selected-block display slot. */
+    /**
+     * Suffix used by the selected-block display slot.
+     */
     public static final String SELECTED_BLOCK_SUFFIX = "_selected_block";
-    /** Suffix used by the canonical material scroller. */
+    /**
+     * Suffix used by the canonical material scroller.
+     */
     public static final String MATERIALS_SUFFIX = "_materials";
 
     private static final String TRANSLATION_PREFIX = "screen.data_energistics.multiblock_preview.";
@@ -72,7 +97,9 @@ public final class StructurePreviewPanel extends UIElement {
     private final StructurePreviewPresentation presentation;
     private final StructurePreviewSceneElement scene;
     private final ItemSlot selectedBlockSlot;
+    private final PreviewCandidateColumn candidateColumn;
     private final PreviewLayerSelector layerSelector;
+    private final UIElement recipeControls;
     private final ScrollerView repeatControls;
     @Nullable
     private final PreviewMaterialStrip materials;
@@ -97,8 +124,14 @@ public final class StructurePreviewPanel extends UIElement {
         this.presentation = presentation;
         this.scene = createScene();
         this.selectedBlockSlot = createSelectedBlockSlot();
+        this.candidateColumn = new PreviewCandidateColumn(
+                idPrefix + "_candidate_column",
+                this::selectCandidate,
+                this::selectTier);
+        this.candidateColumn.setDisplay(false);
         this.layerSelector = createLayerSelector();
         this.repeatControls = createRepeatControls();
+        this.recipeControls = createRecipeControls();
         this.materials = presentation.hasMaterialStrip() ? createMaterials() : null;
 
         setId(idPrefix);
@@ -107,7 +140,7 @@ public final class StructurePreviewPanel extends UIElement {
                 .width(StructurePreviewPresentation.WIDTH)
                 .height(presentation.height()));
         style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        addChildren(this.scene, this.selectedBlockSlot, this.layerSelector, createRecipeControls());
+        addChildren(this.scene, this.selectedBlockSlot, this.candidateColumn, this.layerSelector, this.recipeControls);
         if (this.materials != null) {
             addChild(this.materials);
         }
@@ -116,22 +149,30 @@ public final class StructurePreviewPanel extends UIElement {
         refreshSelectedBlockSlot();
     }
 
-    /** Returns the independently owned model session backing this exact panel. */
+    /**
+     * Returns the independently owned model session backing this exact panel.
+     */
     public StructurePreviewSession session() {
         return this.session;
     }
 
-    /** Returns the independently owned double-sided scene shell contained by this panel. */
+    /**
+     * Returns the independently owned double-sided scene shell contained by this panel.
+     */
     public StructurePreviewSceneElement scene() {
         return this.scene;
     }
 
-    /** Returns the immutable composition that determines panel height and material ownership. */
+    /**
+     * Returns the immutable composition that determines panel height and material ownership.
+     */
     public StructurePreviewPresentation presentation() {
         return this.presentation;
     }
 
-    /** Installs the sole listener notified after recipe-affecting controls replace the retained selection. */
+    /**
+     * Installs the sole listener notified after recipe-affecting controls replace the retained selection.
+     */
     public void setSelectionChangeListener(Consumer<PreviewSelection> selectionChangeListener) {
         if (selectionChangeListener == null) {
             throw new IllegalArgumentException("Structure preview selection listener cannot be null");
@@ -143,39 +184,130 @@ public final class StructurePreviewPanel extends UIElement {
         this.selectionChangeListenerRegistered = true;
     }
 
-    /** Activates another allowed named structure through the visible-control refresh path. */
+    /**
+     * Activates another allowed named structure through the visible-control refresh path.
+     */
     public void selectStructure(String structureKey) {
         changeSelection(() -> this.session.selectStructure(structureKey));
     }
 
-    /** Selects one exact active-structure variant without replacing this panel, session, or Scene. */
+    /**
+     * Selects one exact active-structure variant without replacing this panel, session, or Scene.
+     */
     public void selectVariant(int variantIndex) {
         changeSelection(() -> this.session.selectVariant(variantIndex));
     }
 
-    /** Selects one exact predicate candidate without replacing this panel, session, or Scene. */
+    /**
+     * Selects one exact predicate candidate without replacing this panel, session, or Scene.
+     */
     public void selectCandidate(PreviewPredicateKey predicateKey, int candidateIndex) {
-        changeSelection(() -> this.session.selectCandidate(predicateKey, candidateIndex));
+        PreviewCellSnapshot selectedCell = this.session.selectedCell();
+        BlockPos selectedPosition = selectedCell == null ? null : selectedCell.relativePosition();
+        changeSelection(() -> this.session.selectCandidate(predicateKey, candidateIndex), selectedPosition);
     }
 
-    /** Selects the next tier through the same refresh path used by the visible control. */
+    /**
+     * Selects one exact tier value while retaining the block that exposed its replacement list.
+     */
+    public void selectTier(String domainId, int value) {
+        PreviewCellSnapshot selectedCell = this.session.selectedCell();
+        BlockPos selectedPosition = selectedCell == null ? null : selectedCell.relativePosition();
+        changeSelection(() -> this.session.selectTier(domainId, value), selectedPosition);
+    }
+
+    /**
+     * Selects the next tier through the same refresh path used by the visible control.
+     */
     public void nextTier() {
         changeSelection(this.session::nextTier);
     }
 
-    /** Increments one repeat unit through the same refresh path used by the visible control. */
+    /**
+     * Selects the previous tier through the same refresh path used by the visible control.
+     */
+    public void previousTier() {
+        changeSelection(this.session::previousTier);
+    }
+
+    /**
+     * Increments one repeat unit through the same refresh path used by the visible control.
+     */
     public void nextRepeat(int unitIndex) {
         changeSelection(() -> this.session.nextRepeat(unitIndex));
     }
 
-    /** Selects the next logical layer through the same refresh path used by the visible control. */
+    /**
+     * Decrements one repeat unit through the same refresh path used by the visible control.
+     */
+    public void previousRepeat(int unitIndex) {
+        changeSelection(() -> this.session.previousRepeat(unitIndex));
+    }
+
+    /**
+     * Selects the next logical layer through the same refresh path used by the visible control.
+     */
     public void nextLayer() {
         this.layerSelector.nextLayer();
     }
 
-    /** Selects one exact zero-based logical layer through the visible selector state. */
+    /**
+     * Selects one exact zero-based logical layer through the visible selector state.
+     */
     public void showLayer(int layerIndex) {
         this.layerSelector.showLayer(layerIndex);
+    }
+
+    /**
+     * Restores the explicit all-layers view through the visible selector state.
+     */
+    public void showAllLayers() {
+        this.layerSelector.showAllLayers();
+    }
+
+    /**
+     * Fits the hosted preview into the editor-authored automatic-build scene frame.
+     *
+     * <p>
+     * The NBT layout owns the external layer scroller, material grid, and adjustment controls. This method retains
+     * the original panel as the Scene's lifecycle owner while suppressing only its duplicate integrated controls.
+     * </p>
+     */
+    @ApiStatus.Internal
+    public void useAutoBuildComposition() {
+        PreviewMaterialStrip materialStrip = this.materials;
+        if (this.presentation != StructurePreviewPresentation.HOSTED || materialStrip == null) {
+            throw new IllegalStateException("Only a hosted structure preview can use the automatic-build composition");
+        }
+        layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0)
+                .width(183)
+                .height(133));
+        this.scene.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(20)
+                .top(1)
+                .width(161)
+                .height(127));
+        this.selectedBlockSlot.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(3)
+                .top(3)
+                .width(16)
+                .height(16));
+        this.selectedBlockSlot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        this.candidateColumn.setDisplay(true);
+        detachIntegratedControl(this.layerSelector, "layer selector");
+        detachIntegratedControl(this.recipeControls, "recipe controls");
+        detachIntegratedControl(materialStrip, "material strip");
+    }
+
+    private void detachIntegratedControl(UIElement control, String description) {
+        if (!removeChild(control)) {
+            throw new IllegalStateException("Automatic-build preview could not detach its integrated " + description);
+        }
     }
 
     void bindScene(StructurePreviewSceneBinding binding) {
@@ -340,11 +472,18 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     private void changeSelection(Runnable change) {
+        changeSelection(change, null);
+    }
+
+    private void changeSelection(Runnable change, @Nullable BlockPos retainedSelectedPosition) {
         PreviewSelection previous = this.session.selection();
         change.run();
         PreviewSelection current = this.session.selection();
         if (previous.equals(current)) {
             return;
+        }
+        if (retainedSelectedPosition != null) {
+            this.session.selectBlock(retainedSelectedPosition);
         }
         if (!previous.activeSubstructureId().equals(current.activeSubstructureId()) ||
                 previous.activeSelection().variantIndex() != current.activeSelection().variantIndex()) {
@@ -394,6 +533,10 @@ public final class StructurePreviewPanel extends UIElement {
 
     private void refreshSelectedBlockSlot() {
         PreviewCellSnapshot selected = this.session.selectedCell();
+        this.candidateColumn.refresh(
+                selected,
+                activeSubstructure().tierDomains(),
+                this.session.selection().activeSelection().tierSelections());
         if (selected == null) {
             this.selectedBlockSlot.setItem(ItemStack.EMPTY);
             return;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 /**
  * Fresh hosted preview elements and session returned by one factory invocation.

@@ -1,7 +1,7 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiExtension;
 
 import net.minecraft.network.chat.Component;
 
@@ -64,7 +64,9 @@ final class PreviewLayerSelector extends UIElement {
         refresh();
     }
 
-    /** Rebuilds the exact ALL-plus-layer candidate domain after a new structure snapshot is installed. */
+    /**
+     * Rebuilds the exact ALL-plus-layer candidate domain after a new structure snapshot is installed.
+     */
     void refresh() {
         List<PreviewVisibleLayer> updated = new ArrayList<>(this.session.snapshot().layers().size() + 1);
         updated.add(PreviewVisibleLayer.all());
@@ -76,7 +78,9 @@ final class PreviewLayerSelector extends UIElement {
         refreshSelected();
     }
 
-    /** Selects one exact menu candidate through the same view-only callback used by pointer interaction. */
+    /**
+     * Selects one exact menu candidate through the same view-only callback used by pointer interaction.
+     */
     void selectVisibleLayer(PreviewVisibleLayer visibleLayer) {
         PreviewVisibleLayer candidate = requireCandidate(visibleLayer);
         PreviewVisibleLayer before = this.session.viewState().visibleLayer();
@@ -89,17 +93,23 @@ final class PreviewLayerSelector extends UIElement {
         notifyLayerChange(before);
     }
 
-    /** Selects one exact zero-based logical layer from the current popup domain. */
+    /**
+     * Selects one exact zero-based logical layer from the current popup domain.
+     */
     void showLayer(int layerIndex) {
         selectVisibleLayer(PreviewVisibleLayer.logicalLayer(layerIndex));
     }
 
-    /** Returns the immutable candidate list currently rendered by the popup. */
+    /**
+     * Returns the immutable candidate list currently rendered by the popup.
+     */
     List<PreviewVisibleLayer> candidates() {
         return this.candidates;
     }
 
-    /** Returns whether the selector dialog is currently attached to the ModularUI root. */
+    /**
+     * Returns whether the selector dialog is currently attached to the ModularUI root.
+     */
     boolean isPopupOpen() {
         return this.selector.isOpen();
     }
