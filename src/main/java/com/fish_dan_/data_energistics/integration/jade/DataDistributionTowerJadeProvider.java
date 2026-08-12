@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -45,7 +46,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
                 serverData.getInt(TAG_AE_MAX)));
         tooltip.add(Component.translatable(
                 "screen.data_energistics.network_fe",
-                serverData.getString(TAG_FE)));
+                TrinityAmountFormatter.format(serverData.getLong(TAG_FE))));
         tooltip.add(Component.translatable(
                 "screen.data_energistics.range",
                 formatRangeText(serverData.getInt(TAG_RANGE))));
@@ -60,7 +61,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
 
         data.putInt(TAG_AE_USED, tower.getUsedChannelCount());
         data.putInt(TAG_AE_MAX, tower.getMaxChannelCount());
-        data.putString(TAG_FE, tower.getEnergyDisplayText());
+        data.putLong(TAG_FE, tower.getAvailableFeForUi());
         data.putInt(TAG_RANGE, tower.getConfiguredChunkRadius());
         data.putBoolean(TAG_ONLINE, tower.isNetworkNodeOnline());
     }
