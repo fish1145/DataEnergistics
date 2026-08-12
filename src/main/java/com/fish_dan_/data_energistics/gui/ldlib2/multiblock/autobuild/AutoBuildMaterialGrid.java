@@ -1,6 +1,5 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 
-import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
 import net.minecraft.network.chat.Component;
@@ -19,11 +18,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.LongFunction;
 
 /**
  * Renders the fixed three-column automatic-build material viewport through its editor-authored scrollbar.
  */
-final class TrinityAutoBuildMaterialGrid extends UIElement {
+final class AutoBuildMaterialGrid extends UIElement {
 
     private static final int COLUMN_COUNT = 3;
     private static final int VISIBLE_ROW_COUNT = 6;
@@ -31,21 +31,25 @@ final class TrinityAutoBuildMaterialGrid extends UIElement {
     private static final int VISIBLE_ENTRY_COUNT = COLUMN_COUNT * VISIBLE_ROW_COUNT;
 
     private final List<MaterialEntry> entries = new ArrayList<>(VISIBLE_ENTRY_COUNT);
+    private final LongFunction<String> amountFormatter;
     private List<PreviewMaterial> materials = List.of();
     @Nullable
     private Scroller.Vertical scrollbar;
     private int firstVisibleRow;
     private boolean overflowing;
 
-    TrinityAutoBuildMaterialGrid(@NotNull String id) {
+    AutoBuildMaterialGrid(@NotNull String id,
+                          @NotNull AutoBuildComposition.Region geometry,
+                          @NotNull LongFunction<String> amountFormatter) {
+        this.amountFormatter = amountFormatter;
         setId(id);
         setOverflowVisible(false);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(2)
-                .top(2)
-                .width(COLUMN_COUNT * CELL_SIZE)
-                .height(VISIBLE_ROW_COUNT * CELL_SIZE));
+                .left(geometry.left())
+                .top(geometry.top())
+                .width(geometry.width())
+                .height(geometry.height()));
         style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         for (int index = 0; index < VISIBLE_ENTRY_COUNT; index++) {
             MaterialEntry entry = createEntry(id, index);
@@ -170,10 +174,10 @@ final class TrinityAutoBuildMaterialGrid extends UIElement {
         }
     }
 
-    private static void activate(MaterialEntry entry, PreviewMaterial material) {
+    private void activate(MaterialEntry entry, PreviewMaterial material) {
         entry.root().setVisible(true);
         entry.slot().setItem(material.key().toStack(1));
-        entry.amount().setText(Component.literal(TrinityAmountFormatter.format(material.amount())));
+        entry.amount().setText(Component.literal(this.amountFormatter.apply(material.amount())));
     }
 
     private static void deactivate(MaterialEntry entry) {

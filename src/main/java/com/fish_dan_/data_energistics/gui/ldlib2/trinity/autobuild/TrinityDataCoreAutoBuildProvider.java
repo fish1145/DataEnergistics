@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
 
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
@@ -8,6 +9,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild.AutoBuildComposition;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
@@ -16,7 +18,6 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayo
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;
@@ -70,19 +71,6 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 previewMount,
                 windowId + "_layer_scroller",
                 Scroller.Horizontal.class);
-        layerScroller.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(22)
-                .top(128)
-                .width(152)
-                .height(4));
-        layerScroller.setOverflowVisible(false);
-        layerScroller.scrollContainer.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(152)
-                .height(4));
         requireInsertionPoint(previewMount, layerScroller, "structure preview");
         UIElement materialsMount = TrinityUiXmlLayouts.require(
                 root,
@@ -106,12 +94,12 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 draft.structureKeys(),
                 windowId + "_preview",
                 this.logicalClient.getAsBoolean());
-        addBefore(previewMount, preview.panel(), layerScroller, "structure preview");
-        preview.panel().useAutoBuildComposition();
-
-        TrinityAutoBuildMaterialGrid materialGrid = new TrinityAutoBuildMaterialGrid(windowId + "_material_grid");
-        materialGrid.bindScrollbar(materialScroller);
-        addBefore(materialsMount, materialGrid, materialScroller, "material grid");
+        AutoBuildComposition composition = AutoBuildComposition.builder(
+                preview,
+                controls.elements(previewMount, layerScroller, materialsMount, materialScroller))
+                .geometry(controls.geometry())
+                .materials(windowId + "_material_grid", TrinityAmountFormatter::format)
+                .build();
 
         new TrinityDataCoreAutoBuildPanel(
                 controls,
@@ -120,18 +108,8 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 context,
                 this.hostedAutoBuildAction,
                 this.hostedAutoBuildPending,
-                materialGrid,
-                layerScroller);
+                composition);
         return new HostSubUi(root, root);
-    }
-
-    private static void addBefore(UIElement parent,
-                                  UIElement element,
-                                  UIElement followingSibling,
-                                  String description) {
-        requireInsertionPoint(parent, followingSibling, description);
-        int index = parent.getChildren().indexOf(followingSibling);
-        parent.addChildAt(element, index);
     }
 
     private static void requireInsertionPoint(UIElement parent, UIElement followingSibling, String description) {

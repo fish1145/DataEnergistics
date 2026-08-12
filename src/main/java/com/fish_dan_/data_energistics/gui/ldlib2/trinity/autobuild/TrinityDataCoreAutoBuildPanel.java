@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild.AutoBuildComposition;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
@@ -26,9 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.BiConsumer;
-import java.util.function.BooleanSupplier;
 import java.util.function.LongPredicate;
-import java.util.function.Supplier;
 
 /**
  * Binds one automatic-build draft to the controls authored in the hosted-window NBT.
@@ -58,21 +56,8 @@ final class TrinityDataCoreAutoBuildPanel {
     private final HostSubUiContext context;
     private final BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction;
     private final LongPredicate hostedAutoBuildPending;
-    private final TrinityAutoBuildMaterialGrid materialGrid;
-    private final LayerScrollerBinding layerScroller;
-    private final Button previousStructureButton;
-    private final Button nextStructureButton;
-    private final Button previousContextButton;
-    private final Button nextContextButton;
-    private final Button previousValueButton;
-    private final Button nextValueButton;
-    private final Button confirmButton;
-    private final Label structureTitleLabel;
-    private final Label contextValueLabel;
-    private final Label valueValueLabel;
+    private final AutoBuildComposition composition;
     private TrinityAutoBuildDraft draft;
-    private List<AdjustmentContext> adjustmentContexts = List.of();
-    private int adjustmentContextIndex;
 
     static Layout requireLayout(@NotNull UIElement root) {
         UIElement controls = TrinityUiXmlLayouts.require(root, PANEL_ID, UIElement.class);
@@ -92,7 +77,8 @@ final class TrinityDataCoreAutoBuildPanel {
                 TrinityUiXmlLayouts.require(root, VALUE_TITLE_ID, Label.class),
                 TrinityUiXmlLayouts.require(root, VALUE_VALUE_ID, Label.class),
                 TrinityUiXmlLayouts.require(root, VALUE_NEXT_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, CONFIRM_BUTTON_ID, Button.class));
+                TrinityUiXmlLayouts.require(root, CONFIRM_BUTTON_ID, Button.class),
+                confirmTitle);
     }
 
     private static Label createConfirmTitle() {
@@ -117,8 +103,7 @@ final class TrinityDataCoreAutoBuildPanel {
                                   @NotNull HostSubUiContext context,
                                   @NotNull BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
                                   @NotNull LongPredicate hostedAutoBuildPending,
-                                  @NotNull TrinityAutoBuildMaterialGrid materialGrid,
-                                  @NotNull Scroller.Horizontal layerScroller) {
+                                  @NotNull AutoBuildComposition composition) {
         validateSupportedSelection(draft.spec(), draft.previewSelection());
         if (!preview.session().selection().equals(draft.previewSelection())) {
             throw new IllegalArgumentException("Trinity automatic-build draft and preview must start synchronized");
@@ -132,28 +117,19 @@ final class TrinityDataCoreAutoBuildPanel {
         this.context = context;
         this.hostedAutoBuildAction = hostedAutoBuildAction;
         this.hostedAutoBuildPending = hostedAutoBuildPending;
-        this.materialGrid = materialGrid;
-        this.layerScroller = new LayerScrollerBinding(preview, layerScroller);
-        this.previousStructureButton = layout.previousStructureButton();
-        this.nextStructureButton = layout.nextStructureButton();
-        this.previousContextButton = layout.previousContextButton();
-        this.nextContextButton = layout.nextContextButton();
-        this.previousValueButton = layout.previousValueButton();
-        this.nextValueButton = layout.nextValueButton();
-        this.confirmButton = layout.confirmButton();
-        this.structureTitleLabel = layout.structureTitleLabel();
-        this.contextValueLabel = layout.contextValueLabel();
-        this.valueValueLabel = layout.valueValueLabel();
-
-        configureButton(this.previousStructureButton, () -> selectRelativeStructure(-1));
-        configureButton(this.nextStructureButton, () -> selectRelativeStructure(1));
-        configureButton(this.previousContextButton, () -> selectRelativeContext(-1));
-        configureButton(this.nextContextButton, () -> selectRelativeContext(1));
-        configureButton(this.previousValueButton, () -> adjustValue(false));
-        configureButton(this.nextValueButton, () -> adjustValue(true));
-        configureButton(this.confirmButton, this::submit);
-        layout.contextTitleLabel().setText(Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context"));
-        layout.valueTitleLabel().setText(Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "value"));
+        this.composition = composition;
+        this.composition.bindActions(new AutoBuildComposition.Actions(
+                () -> selectRelativeStructure(-1),
+                () -> selectRelativeStructure(1),
+                this::submit));
+        this.composition.setHeadings(
+                Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context"),
+                Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "value"),
+                Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
+        this.composition.setAdjustmentTooltips(
+                Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context"),
+                label -> Component.translatable(PREVIEW_TRANSLATION_PREFIX + "previous", label),
+                label -> Component.translatable(PREVIEW_TRANSLATION_PREFIX + "next", label));
         this.preview.panel().setSelectionChangeListener(this::replacePreviewSelection);
         layout.root().addEventListener(UIEvents.TICK, ignored -> screenTick());
         refreshBoundState(null);
@@ -162,37 +138,12 @@ final class TrinityDataCoreAutoBuildPanel {
 
     private void screenTick() {
         long generation = this.context.generation();
-        this.confirmButton.setActive(
+        this.composition.setConfirmActive(
                 this.context.canSendServerAction() && !this.hostedAutoBuildPending.test(generation));
     }
 
     private void selectRelativeStructure(int direction) {
         this.preview.panel().selectStructure(relativeStructureKey(direction));
-    }
-
-    private void selectRelativeContext(int direction) {
-        if (this.adjustmentContexts.size() < 2) {
-            return;
-        }
-        this.adjustmentContextIndex = Math.floorMod(
-                this.adjustmentContextIndex + direction,
-                this.adjustmentContexts.size());
-        refreshAdjustmentLabels();
-    }
-
-    private void adjustValue(boolean next) {
-        if (this.adjustmentContexts.isEmpty()) {
-            return;
-        }
-        AdjustmentContext active = this.adjustmentContexts.get(this.adjustmentContextIndex);
-        if (!active.adjustable().getAsBoolean()) {
-            return;
-        }
-        if (next) {
-            active.next().run();
-        } else {
-            active.previous().run();
-        }
     }
 
     private void replacePreviewSelection(PreviewSelection selection) {
@@ -239,17 +190,17 @@ final class TrinityDataCoreAutoBuildPanel {
     }
 
     private void refreshBoundState(@Nullable String retainedContextId) {
-        this.structureTitleLabel.setText(structureTitle(this.draft.previewSelection().activeSubstructureId()));
-        this.materialGrid.setMaterials(this.preview.session().recipeView().inputs());
-        this.layerScroller.refresh();
+        this.composition.setStructureTitle(structureTitle(this.draft.previewSelection().activeSubstructureId()));
+        this.composition.setMaterials(this.preview.session().recipeView().inputs());
+        this.composition.refreshLayers();
         rebuildAdjustmentContexts(retainedContextId);
         refreshStructureNavigationTooltips();
     }
 
     private void rebuildAdjustmentContexts(@Nullable String retainedContextId) {
-        List<AdjustmentContext> contexts = new ArrayList<>();
+        List<AutoBuildComposition.Adjustment> contexts = new ArrayList<>();
         PreviewTierDomain tierDomain = this.draft.activeTierDomain();
-        contexts.add(new AdjustmentContext(
+        contexts.add(new AutoBuildComposition.Adjustment(
                 "tier:" + tierDomain.id(),
                 tierDomain::label,
                 () -> tierDomain.option(this.draft.activeTierValue()).label(),
@@ -260,7 +211,7 @@ final class TrinityDataCoreAutoBuildPanel {
         OptionalInt repeatUnit = this.draft.activeVariableRepeatUnit();
         if (repeatUnit.isPresent()) {
             int unitIndex = repeatUnit.getAsInt();
-            contexts.add(new AdjustmentContext(
+            contexts.add(new AutoBuildComposition.Adjustment(
                     "repeat:" + unitIndex,
                     () -> Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "repeat"),
                     () -> Component.literal(Integer.toString(this.draft.activeRepeatCount())),
@@ -269,76 +220,22 @@ final class TrinityDataCoreAutoBuildPanel {
                     () -> true));
         }
 
-        this.adjustmentContexts = List.copyOf(contexts);
-        this.adjustmentContextIndex = indexOfContext(retainedContextId);
-        refreshAdjustmentLabels();
-    }
-
-    private void refreshAdjustmentLabels() {
-        boolean hasMultipleContexts = this.adjustmentContexts.size() > 1;
-        this.previousContextButton.setActive(hasMultipleContexts);
-        this.nextContextButton.setActive(hasMultipleContexts);
-        if (this.adjustmentContexts.isEmpty()) {
-            this.contextValueLabel.setText(Component.empty());
-            this.valueValueLabel.setText(Component.empty());
-            this.previousValueButton.setActive(false);
-            this.nextValueButton.setActive(false);
-            return;
-        }
-
-        AdjustmentContext active = this.adjustmentContexts.get(this.adjustmentContextIndex);
-        Component label = active.label().get();
-        this.contextValueLabel.setText(label);
-        this.valueValueLabel.setText(active.value().get());
-        boolean adjustable = active.adjustable().getAsBoolean();
-        this.previousValueButton.setActive(adjustable);
-        this.nextValueButton.setActive(adjustable);
-        setTooltip(
-                this.previousContextButton,
-                Component.translatable(PREVIEW_TRANSLATION_PREFIX + "previous",
-                        Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context")));
-        setTooltip(
-                this.nextContextButton,
-                Component.translatable(PREVIEW_TRANSLATION_PREFIX + "next",
-                        Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context")));
-        setTooltip(
-                this.previousValueButton,
-                Component.translatable(PREVIEW_TRANSLATION_PREFIX + "previous", label));
-        setTooltip(
-                this.nextValueButton,
-                Component.translatable(PREVIEW_TRANSLATION_PREFIX + "next", label));
-    }
-
-    private int indexOfContext(@Nullable String retainedContextId) {
-        if (retainedContextId != null) {
-            for (int index = 0; index < this.adjustmentContexts.size(); index++) {
-                if (retainedContextId.equals(this.adjustmentContexts.get(index).id())) {
-                    return index;
-                }
-            }
-        }
-        return 0;
+        this.composition.setAdjustments(contexts, retainedContextId);
     }
 
     @Nullable
     private String activeAdjustmentContextId() {
-        return this.adjustmentContexts.isEmpty() ? null :
-                this.adjustmentContexts.get(this.adjustmentContextIndex).id();
+        return this.composition.activeAdjustmentKey();
     }
 
     private void refreshStructureNavigationTooltips() {
-        setTooltip(
-                this.previousStructureButton,
+        this.composition.setActionTooltips(
                 Component.translatable(
                         PREVIEW_TRANSLATION_PREFIX + "previous",
-                        structureTitle(relativeStructureKey(-1))));
-        setTooltip(
-                this.nextStructureButton,
+                        structureTitle(relativeStructureKey(-1))),
                 Component.translatable(
                         PREVIEW_TRANSLATION_PREFIX + "next",
-                        structureTitle(relativeStructureKey(1))));
-        setTooltip(
-                this.confirmButton,
+                        structureTitle(relativeStructureKey(1))),
                 Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
     }
 
@@ -356,16 +253,6 @@ final class TrinityDataCoreAutoBuildPanel {
                 "screen.data_energistics.trinity_data_core.auto_build.structure." + structureKey);
     }
 
-    private static void configureButton(Button button, Runnable action) {
-        button.setText(Component.empty());
-        button.setOnClick(event -> action.run());
-    }
-
-    private static void setTooltip(Button button, Component tooltip) {
-        button.text.style(style -> style.tooltips(tooltip));
-        button.style(style -> style.tooltips(tooltip));
-    }
-
     private static void validateSupportedSelection(MultiblockPreviewSpec spec, PreviewSelection selection) {
         selection.validateAgainst(spec);
         for (var substructure : spec.substructures()) {
@@ -376,13 +263,6 @@ final class TrinityDataCoreAutoBuildPanel {
             }
         }
     }
-
-    private record AdjustmentContext(String id,
-                                     Supplier<Component> label,
-                                     Supplier<Component> value,
-                                     Runnable previous,
-                                     Runnable next,
-                                     BooleanSupplier adjustable) {}
 
     record Layout(UIElement root,
                   Button previousStructureButton,
@@ -396,65 +276,42 @@ final class TrinityDataCoreAutoBuildPanel {
                   Label valueTitleLabel,
                   Label valueValueLabel,
                   Button nextValueButton,
-                  Button confirmButton) {}
+                  Button confirmButton,
+                  Label confirmTitle) {
 
-    /**
-     * Maps ALL plus every logical layer onto the single horizontal scroller authored in the NBT.
-     */
-    private static final class LayerScrollerBinding {
-
-        private final StructurePreviewUi preview;
-        private final Scroller.Horizontal scroller;
-        private boolean refreshing;
-
-        private LayerScrollerBinding(StructurePreviewUi preview, Scroller.Horizontal scroller) {
-            this.preview = preview;
-            this.scroller = scroller;
-            scroller.setRange(0.0F, 1.0F);
-            scroller.setOnValueChanged(ignored -> selectFromScroller());
+        AutoBuildComposition.Elements elements(@NotNull UIElement previewMount,
+                                               @NotNull Scroller.Horizontal layerScroller,
+                                               @NotNull UIElement materialsMount,
+                                               @NotNull Scroller.Vertical materialScroller) {
+            return new AutoBuildComposition.Elements(
+                    this.root,
+                    previewMount,
+                    layerScroller,
+                    materialsMount,
+                    materialScroller,
+                    new AutoBuildComposition.StructureControls(
+                            this.previousStructureButton,
+                            this.structureTitleLabel,
+                            this.nextStructureButton),
+                    new AutoBuildComposition.AdjustmentControls(
+                            this.previousContextButton,
+                            this.contextTitleLabel,
+                            this.contextValueLabel,
+                            this.nextContextButton,
+                            this.previousValueButton,
+                            this.valueTitleLabel,
+                            this.valueValueLabel,
+                            this.nextValueButton),
+                    new AutoBuildComposition.ConfirmControls(this.confirmButton, this.confirmTitle));
         }
 
-        private void refresh() {
-            int layerCount = this.preview.session().snapshot().layers().size();
-            int selection = selectedIndex();
-            float normalized = layerCount == 0 ? 0.0F : (float) selection / layerCount;
-            float scrollDelta = layerCount == 0 ? 1.0F : 1.0F / layerCount;
-            this.refreshing = true;
-            try {
-                this.scroller.scrollerStyle(style -> style.scrollDelta(scrollDelta));
-                this.scroller.setNormalizedValue(normalized, false);
-                this.scroller.selfAndAllChildren()
-                        .forEach(element -> element.setAllowHitTest(layerCount > 0));
-            } finally {
-                this.refreshing = false;
-            }
-        }
-
-        private void selectFromScroller() {
-            if (this.refreshing) {
-                return;
-            }
-            int layerCount = this.preview.session().snapshot().layers().size();
-            if (layerCount == 0) {
-                return;
-            }
-            int selection = Math.round(this.scroller.getNormalizedValue() * layerCount);
-            this.refreshing = true;
-            try {
-                this.scroller.setNormalizedValue((float) selection / layerCount, false);
-            } finally {
-                this.refreshing = false;
-            }
-            if (selection == 0) {
-                this.preview.panel().showAllLayers();
-            } else {
-                this.preview.panel().showLayer(selection - 1);
-            }
-        }
-
-        private int selectedIndex() {
-            PreviewVisibleLayer visibleLayer = this.preview.session().viewState().visibleLayer();
-            return visibleLayer instanceof PreviewVisibleLayer.LogicalLayer layer ? layer.layerIndex() + 1 : 0;
+        AutoBuildComposition.PreviewGeometry geometry() {
+            return new AutoBuildComposition.PreviewGeometry(
+                    new AutoBuildComposition.Region(0, 0, 183, 133),
+                    new AutoBuildComposition.Region(20, 3, 160, 123),
+                    new AutoBuildComposition.Region(3, 3, 16, 16),
+                    new AutoBuildComposition.Region(22, 128, 152, 4),
+                    new AutoBuildComposition.Region(2, 2, 54, 108));
         }
     }
 }

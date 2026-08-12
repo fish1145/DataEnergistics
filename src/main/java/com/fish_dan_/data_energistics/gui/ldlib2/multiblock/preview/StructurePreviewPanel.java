@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPre
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild.AutoBuildComposition;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneBinding;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneElement;
 
@@ -276,29 +277,29 @@ public final class StructurePreviewPanel extends UIElement {
      * </p>
      */
     @ApiStatus.Internal
-    public void useAutoBuildComposition() {
+    public void useAutoBuildComposition(AutoBuildComposition.PreviewGeometry geometry) {
         PreviewMaterialStrip materialStrip = this.materials;
         if (this.presentation != StructurePreviewPresentation.HOSTED || materialStrip == null) {
             throw new IllegalStateException("Only a hosted structure preview can use the automatic-build composition");
         }
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(183)
-                .height(133));
+                .left(geometry.panel().left())
+                .top(geometry.panel().top())
+                .width(geometry.panel().width())
+                .height(geometry.panel().height()));
         this.scene.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(20)
-                .top(3)
-                .width(160)
-                .height(123));
+                .left(geometry.scene().left())
+                .top(geometry.scene().top())
+                .width(geometry.scene().width())
+                .height(geometry.scene().height()));
         this.selectedBlockSlot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(3)
-                .top(3)
-                .width(16)
-                .height(16));
+                .left(geometry.selectedBlock().left())
+                .top(geometry.selectedBlock().top())
+                .width(geometry.selectedBlock().width())
+                .height(geometry.selectedBlock().height()));
         this.selectedBlockSlot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         this.candidateColumn.setDisplay(true);
         detachIntegratedControl(this.layerSelector, "layer selector");
