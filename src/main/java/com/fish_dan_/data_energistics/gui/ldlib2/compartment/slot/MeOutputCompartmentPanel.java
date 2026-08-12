@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
+package com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
