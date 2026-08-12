@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 
 import java.util.List;
 

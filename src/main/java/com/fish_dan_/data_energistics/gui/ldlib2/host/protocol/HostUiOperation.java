@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.host;
+package com.fish_dan_.data_energistics.gui.ldlib2.host.protocol;
 
 /**
  * Membership change that both sides of one hosted LDLib2 menu apply in the same order.

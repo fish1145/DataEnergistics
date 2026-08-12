@@ -9,10 +9,10 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinator;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinatorHolder;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiExtension;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinatorHolder;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;

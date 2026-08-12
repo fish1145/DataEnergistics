@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVis
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiContext;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
 
 import net.minecraft.network.chat.Component;

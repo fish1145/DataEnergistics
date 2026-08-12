@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiContext;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostSubUiRoot;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
 
 import net.minecraft.network.chat.Component;
 

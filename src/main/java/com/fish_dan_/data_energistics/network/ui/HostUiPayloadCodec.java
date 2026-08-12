@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.network.ui;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiKey;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiOperation;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiRequest;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiResponse;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiResponseStatus;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiOperation;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiRequest;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponse;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponseStatus;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;

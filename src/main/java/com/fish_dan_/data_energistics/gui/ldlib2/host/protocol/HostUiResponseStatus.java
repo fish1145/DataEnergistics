@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.host;
+package com.fish_dan_.data_energistics.gui.ldlib2.host.protocol;
 
 /**
  * Server decision for one exact hosted-window lifecycle request.

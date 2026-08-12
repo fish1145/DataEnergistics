@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.network.ui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinator;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinatorHolder;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiRequest;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiResponse;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiRequest;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponse;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinatorHolder;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

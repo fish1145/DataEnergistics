@@ -1,4 +1,6 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.host;
+package com.fish_dan_.data_energistics.gui.ldlib2.host.window;
+
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 
 /**
  * Host-owned lifecycle and window actions exposed while a provider builds one fresh child UI.

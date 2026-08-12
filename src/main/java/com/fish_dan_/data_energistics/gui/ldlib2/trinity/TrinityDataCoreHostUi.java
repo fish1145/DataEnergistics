@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostModularUI;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiCoordinator;
-import com.fish_dan_.data_energistics.gui.ldlib2.host.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostModularUI;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
