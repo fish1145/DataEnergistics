@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;

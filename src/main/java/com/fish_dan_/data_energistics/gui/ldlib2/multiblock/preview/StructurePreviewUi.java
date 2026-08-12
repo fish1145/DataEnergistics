@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneElement;
+
 /**
  * Fresh hosted preview elements and session returned by one factory invocation.
  *

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
+package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 
