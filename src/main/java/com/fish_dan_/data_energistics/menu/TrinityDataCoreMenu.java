@@ -20,6 +20,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHos
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternMigrationPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternSlotPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
@@ -422,6 +423,19 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         action));
     }
 
+    /** Sends one best-effort migration request from the exact open aggregate-pattern generation. */
+    public boolean sendHostedPatternMigration(long generation) {
+        return sendHostedAction(
+                TrinityDataCoreHostUiKeys.PATTERN,
+                generation,
+                ticket -> new TrinityHostedPatternMigrationPayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        ticket.generation(),
+                        ticket.sequence()));
+    }
+
     /**
      * Sends the static action that returns only installed patterns from the active catalog.
      */
@@ -567,6 +581,11 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
      */
     public TrinityHostedActionStatus executeRefundPatterns(Player player) {
         return this.hostedActionExecutor.refundPatterns(player);
+    }
+
+    /** Executes one server-authoritative best-effort network pattern migration after ticket claim. */
+    public TrinityHostedActionStatus executeHostedPatternMigration(Player player) {
+        return this.hostedActionExecutor.migratePatterns(player);
     }
 
     /**
@@ -758,6 +777,9 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
          */
         TrinityHostedActionStatus refundPatterns(Player player);
 
+        /** Migrates the current AE storage and active pattern-container snapshot into Trinity. */
+        TrinityHostedActionStatus migratePatterns(Player player);
+
         /**
          * Invokes one complete queued-input and pending-output refund attempt.
          */
@@ -825,6 +847,18 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 case DELIVERY_REJECTED, DELIVERY_FAILED -> TrinityHostedActionStatus.DELIVERY_FAILED;
                 case INTERNAL_ERROR -> TrinityHostedActionStatus.INTERNAL_ERROR;
             };
+        }
+
+        @Override
+        public TrinityHostedActionStatus migratePatterns(Player player) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity pattern migration requires a data core host");
+            }
+            var result = this.host.migratePatterns(player);
+            if (result.targetAborted()) {
+                return TrinityHostedActionStatus.STALE_STATE;
+            }
+            return result.changed() ? TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.NO_OP;
         }
 
         @Override

@@ -18,6 +18,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.IntConsumer;
+import java.util.function.LongConsumer;
 
 /**
  * Hosts the Data Core's aggregate installed-pattern catalog window.
@@ -28,6 +29,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
     private final IntConsumer pageRequest;
     private final Level level;
     private final TrinityPatternSlotActionSender slotActionSender;
+    private final LongConsumer migratePatterns;
     private final Runnable openPriority;
     private final Runnable refundPatterns;
     private final Runnable refundRetained;
@@ -36,6 +38,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                                            IntConsumer pageRequest,
                                            Level level,
                                            TrinityPatternSlotActionSender slotActionSender,
+                                           LongConsumer migratePatterns,
                                            Runnable openPriority,
                                            Runnable refundPatterns,
                                            Runnable refundRetained) {
@@ -43,6 +46,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         this.pageRequest = pageRequest;
         this.level = level;
         this.slotActionSender = slotActionSender;
+        this.migratePatterns = migratePatterns;
         this.openPriority = openPriority;
         this.refundPatterns = refundPatterns;
         this.refundRetained = refundRetained;
@@ -87,12 +91,10 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                 Component.translatable("button.data_energistics.trinity_data_core.refund_retained_items"),
                 this.refundRetained);
 
-        controls.migrate().setActive(false);
-        controls.migrate().setAllowHitTest(false);
-        Component unavailable = Component.translatable(
-                "button.data_energistics.trinity_data_core.pattern_migrate.unavailable");
-        controls.migrate().text.style(style -> style.tooltips(unavailable));
-        controls.migrate().style(style -> style.tooltips(unavailable));
+        bindButton(
+                controls.migrate(),
+                Component.translatable("button.data_energistics.trinity_data_core.pattern_migrate"),
+                () -> this.migratePatterns.accept(context.generation()));
         return new HostSubUi(root, root);
     }
 

@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogV
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrationResult;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -107,6 +108,11 @@ public interface TrinityDataCoreMenuHost {
      * @return precise transaction outcome without mixing patterns into retained item delivery
      */
     TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player);
+
+    /**
+     * Best-effort migrates distinct AE-storage patterns and active network pattern-container slots into Trinity.
+     */
+    TrinityPatternMigrationResult migratePatterns(Player player);
 
     /**
      * Returns the last crafting child structure validation error, or an empty string when no error is active.

@@ -60,6 +60,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatal
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrationResult;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrator;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
@@ -1368,6 +1370,58 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             }
         }
         throw new IllegalStateException("Trinity Data Core has no active Trinity access hatch");
+    }
+
+    @Override
+    public TrinityPatternMigrationResult migratePatterns(Player player) {
+        IGrid grid = accessGrid();
+        if (grid == null || !isPatternProviderAvailable()) {
+            return TrinityPatternMigrationResult.targetUnavailable();
+        }
+        TrinityPatternMigrationResult result = TrinityPatternMigrator.migrate(
+                player.level(),
+                grid,
+                accessActionSource(),
+                this.patternCatalog);
+        player.sendSystemMessage(Component.translatable(
+                "message.data_energistics.trinity_data_core.pattern_migration.summary",
+                result.movedFromStorage(),
+                result.movedFromContainers(),
+                result.invalidRefunded(),
+                result.duplicateRefunded(),
+                result.unsupportedKept(),
+                result.storageInvalidKept(),
+                result.storageUnsupportedKept(),
+                result.storageDuplicateKept(),
+                result.storageSourceUncertain(),
+                result.meBlocked(),
+                result.capacitySkipped(),
+                result.sourceFailures(),
+                result.quarantinedSources(),
+                result.fallbackIdentitySources()));
+        if (result.targetAborted()) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.data_energistics.trinity_data_core.pattern_migration.aborted"));
+        }
+        LOGGER.info(
+                "Trinity best-effort pattern migration host={} movedStorage={} movedContainers={} invalidRefunded={} duplicateRefunded={} unsupportedKept={} storageInvalidKept={} storageUnsupportedKept={} storageDuplicateKept={} storageSourceUncertain={} meBlocked={} capacitySkipped={} sourceFailures={} quarantinedSources={} fallbackIdentitySources={} targetAborted={}",
+                this.hostId,
+                result.movedFromStorage(),
+                result.movedFromContainers(),
+                result.invalidRefunded(),
+                result.duplicateRefunded(),
+                result.unsupportedKept(),
+                result.storageInvalidKept(),
+                result.storageUnsupportedKept(),
+                result.storageDuplicateKept(),
+                result.storageSourceUncertain(),
+                result.meBlocked(),
+                result.capacitySkipped(),
+                result.sourceFailures(),
+                result.quarantinedSources(),
+                result.fallbackIdentitySources(),
+                result.targetAborted());
+        return result;
     }
 
     public boolean isLeaseOwner(TrinityAccessHatchBlockEntity hatch) {

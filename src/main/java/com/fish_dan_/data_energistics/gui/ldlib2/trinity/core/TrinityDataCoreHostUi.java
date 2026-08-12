@@ -266,6 +266,7 @@ public final class TrinityDataCoreHostUi {
                 sync::requestPatternPage,
                 menu.getPlayer().level(),
                 menu::sendHostedPatternSlot,
+                menu::sendHostedPatternMigration,
                 () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.PATTERN_PRIORITY),
                 menu::sendRefundPatterns,
                 menu::sendRefundRetainedItems));
