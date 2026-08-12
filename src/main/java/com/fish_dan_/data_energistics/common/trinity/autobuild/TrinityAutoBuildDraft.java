@@ -69,22 +69,30 @@ public final class TrinityAutoBuildDraft {
         return new TrinityAutoBuildDraft(spec, PreviewSelection.initial(spec), buildChoices);
     }
 
-    /** Returns the revision-bound structure metadata used by every draft update. */
+    /**
+     * Returns the revision-bound structure metadata used by every draft update.
+     */
     public MultiblockPreviewSpec spec() {
         return this.spec;
     }
 
-    /** Returns the complete preview selection retained for all structures. */
+    /**
+     * Returns the complete preview selection retained for all structures.
+     */
     public PreviewSelection previewSelection() {
         return this.previewSelection;
     }
 
-    /** Returns the stable Trinity structure order exposed by this draft. */
+    /**
+     * Returns the stable Trinity structure order exposed by this draft.
+     */
     public List<String> structureKeys() {
         return STRUCTURE_KEYS;
     }
 
-    /** Returns whether the named structure is currently marked for construction. */
+    /**
+     * Returns whether the named structure is currently marked for construction.
+     */
     public boolean buildRequested(String structureKey) {
         Boolean requested = this.buildRequestedByStructure.get(structureKey);
         if (requested == null) {
@@ -93,45 +101,61 @@ public final class TrinityAutoBuildDraft {
         return requested;
     }
 
-    /** Returns whether the active structure is currently marked for construction. */
+    /**
+     * Returns whether the active structure is currently marked for construction.
+     */
     public boolean activeBuildRequested() {
         return buildRequested(this.previewSelection.activeSubstructureId());
     }
 
-    /** Activates another structure without resetting any structure-local choice. */
+    /**
+     * Activates another structure without resetting any structure-local choice.
+     */
     public TrinityAutoBuildDraft select(String structureKey) {
         return withPreviewSelection(this.previewSelection.select(structureKey));
     }
 
-    /** Changes the active structure's shape variant. */
+    /**
+     * Changes the active structure's shape variant.
+     */
     public TrinityAutoBuildDraft withVariantIndex(int variantIndex) {
         return withPreviewSelection(this.previewSelection.withVariantIndex(variantIndex));
     }
 
-    /** Changes one repeatable unit of the active structure. */
+    /**
+     * Changes one repeatable unit of the active structure.
+     */
     public TrinityAutoBuildDraft withRepeat(int unitIndex, int repeatCount) {
         return withPreviewSelection(this.previewSelection.withRepeat(unitIndex, repeatCount));
     }
 
-    /** Changes the active structure's sole Trinity tier domain. */
+    /**
+     * Changes the active structure's sole Trinity tier domain.
+     */
     public TrinityAutoBuildDraft withTier(int tierValue) {
         PreviewTierDomain tierDomain = activeTierDomain();
         return withPreviewSelection(this.previewSelection.withTier(tierDomain.id(), tierValue));
     }
 
-    /** Changes one source-predicate candidate of the active structure. */
+    /**
+     * Changes one source-predicate candidate of the active structure.
+     */
     public TrinityAutoBuildDraft withCandidate(PreviewPredicateKey predicateKey, int candidateIndex) {
         return withPreviewSelection(this.previewSelection.withCandidate(predicateKey, candidateIndex));
     }
 
-    /** Changes only the active structure's build enablement. */
+    /**
+     * Changes only the active structure's build enablement.
+     */
     public TrinityAutoBuildDraft withBuildRequested(boolean buildRequested) {
         Map<String, Boolean> updated = new LinkedHashMap<>(this.buildRequestedByStructure);
         updated.put(this.previewSelection.activeSubstructureId(), buildRequested);
         return new TrinityAutoBuildDraft(this.spec, this.previewSelection, updated);
     }
 
-    /** Returns the active structure's single Trinity tier domain. */
+    /**
+     * Returns the active structure's single Trinity tier domain.
+     */
     public PreviewTierDomain activeTierDomain() {
         SubstructurePreviewSpec activeSpec = activeSpec();
         if (activeSpec.tierDomains().size() != 1) {
@@ -148,7 +172,9 @@ public final class TrinityAutoBuildDraft {
         return domain;
     }
 
-    /** Returns the active structure's selected tier value. */
+    /**
+     * Returns the active structure's selected tier value.
+     */
     public int activeTierValue() {
         return this.previewSelection.activeSelection().tierSelections().get(activeTierDomain().id());
     }
@@ -176,7 +202,9 @@ public final class TrinityAutoBuildDraft {
         return variableIndex < 0 ? OptionalInt.empty() : OptionalInt.of(variableIndex);
     }
 
-    /** Returns the active structure's build-planner repeat count. */
+    /**
+     * Returns the active structure's build-planner repeat count.
+     */
     public int activeRepeatCount() {
         OptionalInt variableUnit = activeVariableRepeatUnit();
         if (variableUnit.isEmpty()) {
@@ -206,7 +234,7 @@ public final class TrinityAutoBuildDraft {
     }
 
     /**
-     * Converts the current single-variant/default-candidate state for the existing builder entry point.
+     * Converts the current single-variant state for the existing builder entry point.
      *
      * <p>
      * The conversion rejects fields the legacy request cannot represent instead of silently dropping them. The
@@ -221,9 +249,6 @@ public final class TrinityAutoBuildDraft {
             throw new IllegalStateException("Legacy Trinity auto-build request cannot represent variant " +
                     activeSelection.variantIndex());
         }
-        if (!activeSelection.candidateSelections().isEmpty()) {
-            throw new IllegalStateException("Legacy Trinity auto-build request cannot represent candidate overrides");
-        }
         int structureIndex = structureIndex(this.previewSelection.activeSubstructureId());
         String category = TrinityAutoBuildBlockMap.categoryForStructure(structureIndex);
         return new TrinityAutoBuildRequest(
@@ -231,7 +256,8 @@ public final class TrinityAutoBuildDraft {
                 new TrinityAutoBuildOptions(
                         activeBuildRequested(),
                         activeRepeatCount(),
-                        Map.of(category, activeTierValue())));
+                        Map.of(category, activeTierValue()),
+                        activeSelection.candidateSelections()));
     }
 
     private TrinityAutoBuildDraft withPreviewSelection(PreviewSelection updated) {
