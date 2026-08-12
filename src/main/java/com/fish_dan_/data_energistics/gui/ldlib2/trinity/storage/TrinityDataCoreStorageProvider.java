@@ -66,7 +66,7 @@ public final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(132)
                 .top(144)
-                .width(47)
+                .width(36)
                 .height(23));
         Button close = TrinityUiXmlLayouts.require(root, CLOSE_ID, Button.class);
         Button priority = TrinityUiXmlLayouts.require(root, PRIORITY_ID, Button.class);
