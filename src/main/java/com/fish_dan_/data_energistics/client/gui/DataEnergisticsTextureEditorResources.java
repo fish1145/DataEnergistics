@@ -154,6 +154,7 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("model_material_recycling", modelSprite("material_recycling.png"));
         provider.addResource("model_output", modelSprite("output.png"));
         provider.addResource("model_template_rollback", modelSprite("template_rollback.png"));
+        provider.addResource("model_template_send", modelSprite("template_send.png"));
         provider.addResource("priority_button", prioritySprite("botton.png"));
         provider.addResource("priority_button_disabled", prioritySprite("button_disabled.png"));
         provider.addResource("priority_button_highlighted", prioritySprite("button_highlighted.png"));
