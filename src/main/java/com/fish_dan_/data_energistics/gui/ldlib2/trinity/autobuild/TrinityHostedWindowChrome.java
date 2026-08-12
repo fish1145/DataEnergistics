@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayo
 
 import net.minecraft.network.chat.Component;
 
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import org.jetbrains.annotations.NotNull;
@@ -37,6 +38,7 @@ final class TrinityHostedWindowChrome {
         Label titleLabel = TrinityUiXmlLayouts.require(root, TITLE_ID, Label.class);
         titleLabel.setText(Component.translatable("screen.data_energistics.trinity_data_core.auto_build.title"));
         titleLabel.setAllowHitTest(false);
+        titleLabel.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         close.setOnClick(event -> context.requestClose());
         Component closeTooltip = Component.translatable(CLOSE_TOOLTIP_KEY);
         close.text.style(style -> style.tooltips(closeTooltip));

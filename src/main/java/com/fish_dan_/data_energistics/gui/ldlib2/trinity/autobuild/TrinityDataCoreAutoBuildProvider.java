@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayo
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;
@@ -69,6 +70,19 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 previewMount,
                 windowId + "_layer_scroller",
                 Scroller.Horizontal.class);
+        layerScroller.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(22)
+                .top(128)
+                .width(152)
+                .height(4));
+        layerScroller.setOverflowVisible(false);
+        layerScroller.scrollContainer.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0)
+                .width(152)
+                .height(4));
         requireInsertionPoint(previewMount, layerScroller, "structure preview");
         UIElement materialsMount = TrinityUiXmlLayouts.require(
                 root,

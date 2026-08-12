@@ -18,6 +18,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,6 +49,7 @@ final class TrinityDataCoreAutoBuildPanel {
     static final String VALUE_VALUE_ID = PANEL_ID + "_value_value";
     static final String VALUE_NEXT_ID = PANEL_ID + "_value_next";
     static final String CONFIRM_BUTTON_ID = PANEL_ID + "_confirm";
+    static final String CONFIRM_TITLE_ID = CONFIRM_BUTTON_ID + "_title";
 
     private static final String PREVIEW_TRANSLATION_PREFIX = "screen.data_energistics.multiblock_preview.";
     private static final String AUTO_BUILD_TRANSLATION_PREFIX = "screen.data_energistics.trinity_data_core.auto_build.adjustment.";
@@ -73,7 +75,10 @@ final class TrinityDataCoreAutoBuildPanel {
     private int adjustmentContextIndex;
 
     static Layout requireLayout(@NotNull UIElement root) {
+        UIElement controls = TrinityUiXmlLayouts.require(root, PANEL_ID, UIElement.class);
         TrinityUiXmlLayouts.require(root, STRUCTURE_SELECTOR_ID, UIElement.class);
+        Label confirmTitle = createConfirmTitle();
+        controls.addChild(confirmTitle);
         return new Layout(
                 root,
                 TrinityUiXmlLayouts.require(root, STRUCTURE_PREVIOUS_ID, Button.class),
@@ -88,6 +93,22 @@ final class TrinityDataCoreAutoBuildPanel {
                 TrinityUiXmlLayouts.require(root, VALUE_VALUE_ID, Label.class),
                 TrinityUiXmlLayouts.require(root, VALUE_NEXT_ID, Button.class),
                 TrinityUiXmlLayouts.require(root, CONFIRM_BUTTON_ID, Button.class));
+    }
+
+    private static Label createConfirmTitle() {
+        Label title = new Label();
+        title.setId(CONFIRM_TITLE_ID);
+        title.addClass("trinity-auto-build-confirm-title");
+        title.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
+        title.setAllowHitTest(false);
+        title.setOverflowVisible(false);
+        title.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(207)
+                .top(2)
+                .width(37)
+                .height(8));
+        return title;
     }
 
     TrinityDataCoreAutoBuildPanel(@NotNull Layout layout,
@@ -398,12 +419,10 @@ final class TrinityDataCoreAutoBuildPanel {
             int selection = selectedIndex();
             float normalized = layerCount == 0 ? 0.0F : (float) selection / layerCount;
             float scrollDelta = layerCount == 0 ? 1.0F : 1.0F / layerCount;
-            float thumbPercent = layerCount == 0 ? 100.0F : 100.0F / (layerCount + 1);
             this.refreshing = true;
             try {
                 this.scroller.scrollerStyle(style -> style.scrollDelta(scrollDelta));
                 this.scroller.setNormalizedValue(normalized, false);
-                this.scroller.setScrollBarSize(thumbPercent);
                 this.scroller.selfAndAllChildren()
                         .forEach(element -> element.setAllowHitTest(layerCount > 0));
             } finally {

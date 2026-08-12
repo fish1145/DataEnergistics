@@ -290,9 +290,9 @@ public final class StructurePreviewPanel extends UIElement {
         this.scene.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(20)
-                .top(1)
-                .width(161)
-                .height(127));
+                .top(3)
+                .width(160)
+                .height(123));
         this.selectedBlockSlot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(3)

@@ -140,6 +140,18 @@
     text-shadow: true;
     overflow: hidden;
 }
+
+.trinity-auto-build-confirm-title {
+    adaptive-width: false;
+    adaptive-height: false;
+    font-size: 5;
+    horizontal-align: center;
+    vertical-align: center;
+    text-wrap: hover_roll;
+    text-shadow: false;
+    overflow: hidden;
+}
+
 #trinity_data_core_root {
     padding-all: 5px;
     gap-all: 4px;

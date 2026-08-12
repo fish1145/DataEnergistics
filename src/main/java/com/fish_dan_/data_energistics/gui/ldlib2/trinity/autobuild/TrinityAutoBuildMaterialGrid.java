@@ -42,7 +42,7 @@ final class TrinityAutoBuildMaterialGrid extends UIElement {
         setOverflowVisible(false);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(1)
+                .left(2)
                 .top(2)
                 .width(COLUMN_COUNT * CELL_SIZE)
                 .height(VISIBLE_ROW_COUNT * CELL_SIZE));
@@ -65,7 +65,6 @@ final class TrinityAutoBuildMaterialGrid extends UIElement {
         this.scrollbar = scrollbar;
         scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(ignored -> refreshFromScrollbar());
-        scrollbar.scrollContainer.addEventListener(UIEvents.LAYOUT_CHANGED, ignored -> updateScrollbar());
         updateScrollbar();
     }
 
@@ -142,16 +141,13 @@ final class TrinityAutoBuildMaterialGrid extends UIElement {
         if (this.scrollbar == null) {
             return;
         }
-        int totalRows = Math.max(1, Math.ceilDiv(this.materials.size(), COLUMN_COUNT));
         int maximum = maxFirstVisibleRow();
         this.overflowing = maximum > 0;
         this.firstVisibleRow = Math.min(this.firstVisibleRow, maximum);
         float normalized = maximum == 0 ? 0.0F : (float) this.firstVisibleRow / maximum;
         float scrollDelta = maximum == 0 ? 1.0F : 1.0F / maximum;
-        float thumbPercent = Math.min(100.0F, VISIBLE_ROW_COUNT * 100.0F / totalRows);
         this.scrollbar.scrollerStyle(style -> style.scrollDelta(scrollDelta));
         this.scrollbar.setNormalizedValue(normalized, false);
-        this.scrollbar.setScrollBarSize(thumbPercent);
         this.scrollbar.selfAndAllChildren()
                 .forEach(element -> element.setAllowHitTest(this.overflowing));
     }
