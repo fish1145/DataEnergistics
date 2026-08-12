@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -25,7 +25,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
  * stylesheet. Java callers only locate typed elements here to attach data sources and game actions.
  * </p>
  */
-final class TrinityUiXmlLayouts {
+public final class TrinityUiXmlLayouts {
 
     private static final String ROOT_PATH = "ui/trinity/";
 
@@ -34,7 +34,7 @@ final class TrinityUiXmlLayouts {
     /**
      * Loads one complete LDLib2 UI document and rejects malformed or missing resources immediately.
      */
-    static UI load(@NotNull String name) {
+    public static UI load(@NotNull String name) {
         if (name.isBlank()) {
             throw new IllegalArgumentException("Trinity XML layout name must not be blank");
         }
@@ -72,14 +72,14 @@ final class TrinityUiXmlLayouts {
     /**
      * Loads a detached XML root for a child panel that is later composed into a runtime-owned element.
      */
-    static UIElement loadRoot(String name) {
+    public static UIElement loadRoot(String name) {
         return load(name).rootElement;
     }
 
     /**
      * Retrieves exactly one element by its stable layout id and validates its expected LDLib2 type.
      */
-    static <T extends UIElement> T require(UIElement root, String id, Class<T> type) {
+    public static <T extends UIElement> T require(UIElement root, String id, Class<T> type) {
         if (root == null || id == null || id.isBlank() || type == null) {
             throw new IllegalArgumentException("Trinity XML element lookup arguments must not be null or blank");
         }
@@ -95,7 +95,7 @@ final class TrinityUiXmlLayouts {
     /**
      * Moves every XML child into a runtime subclass while preserving the parsed declarative tree.
      */
-    static void moveChildren(UIElement source, UIElement target) {
+    public static void moveChildren(UIElement source, UIElement target) {
         if (source == null || target == null) {
             throw new IllegalArgumentException("Trinity XML child transfer requires source and target");
         }

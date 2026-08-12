@@ -1,8 +1,10 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
 import net.minecraft.network.chat.Component;
 

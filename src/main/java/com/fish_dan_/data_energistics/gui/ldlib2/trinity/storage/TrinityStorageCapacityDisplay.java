@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;

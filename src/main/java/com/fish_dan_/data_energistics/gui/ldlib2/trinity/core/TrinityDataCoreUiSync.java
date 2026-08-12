@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.cpu;
 
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
@@ -127,7 +127,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     }
 
     /** Binds the editor-authored scrollbar without replacing its layout or textures. */
-    TrinityCpuStatusList bindScrollbar(Scroller.Vertical scrollbar) {
+    public TrinityCpuStatusList bindScrollbar(Scroller.Vertical scrollbar) {
         if (this.scrollbar != null) {
             throw new IllegalStateException("Trinity CPU list already has an editor-authored scrollbar");
         }

@@ -1,8 +1,9 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.inventory.AePlayerInventoryPanel;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 
 import net.minecraft.network.chat.Component;

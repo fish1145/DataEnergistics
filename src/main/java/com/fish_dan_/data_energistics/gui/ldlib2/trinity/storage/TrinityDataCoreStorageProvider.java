@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage;
 
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
@@ -6,6 +6,9 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
 import net.minecraft.network.chat.Component;
 
@@ -22,7 +25,7 @@ import java.util.function.IntConsumer;
 /**
  * Creates the independent exact-key storage window from its editor-authored NBT layout.
  */
-final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
+public final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
 
     static final String WINDOW_ID = "trinity_storage_hosted_window";
     private static final String CONTENT_ID = WINDOW_ID + "_content";
@@ -34,8 +37,8 @@ final class TrinityDataCoreStorageProvider implements HostSubUiProvider {
     private final IDataProvider<TrinityDataCoreStorageView> storageView;
     private final IntConsumer storagePageRequest;
 
-    TrinityDataCoreStorageProvider(@NotNull IDataProvider<TrinityDataCoreStorageView> storageView,
-                                   @NotNull IntConsumer storagePageRequest) {
+    public TrinityDataCoreStorageProvider(@NotNull IDataProvider<TrinityDataCoreStorageView> storageView,
+                                          @NotNull IntConsumer storagePageRequest) {
         this.storageView = storageView;
         this.storagePageRequest = storagePageRequest;
     }

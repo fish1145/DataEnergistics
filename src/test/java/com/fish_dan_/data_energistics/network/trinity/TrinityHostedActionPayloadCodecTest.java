@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildB
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.core.RegistryAccess;

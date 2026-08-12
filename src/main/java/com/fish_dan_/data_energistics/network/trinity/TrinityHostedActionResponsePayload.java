@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.network.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;

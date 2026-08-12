@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildD
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildSubmission;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
 import net.minecraft.network.chat.Component;
 

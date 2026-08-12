@@ -1,10 +1,15 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostModularUI;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild.TrinityDataCoreStructureProviders;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.cpu.TrinityCpuStatusList;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage.TrinityDataCoreStorageProvider;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
@@ -31,7 +36,7 @@ import java.util.function.Function;
  */
 public final class TrinityDataCoreHostUi {
 
-    static final String ROOT_ID = "trinity_data_core_root";
+    public static final String ROOT_ID = "trinity_data_core_root";
     static final String TITLE_ID = "trinity_data_core_title";
     static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
     static final String PLAYER_INVENTORY_ID = "trinity_data_core_player_inventory";

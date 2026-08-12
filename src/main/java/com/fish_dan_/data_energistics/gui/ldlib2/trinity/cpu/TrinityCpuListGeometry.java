@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.cpu;
 
 /** Pixel geometry shared by the native Trinity CPU rows and their vertical scrollbar. */
 final class TrinityCpuListGeometry {

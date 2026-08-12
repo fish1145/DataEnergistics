@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildDraft;
@@ -10,6 +10,9 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;

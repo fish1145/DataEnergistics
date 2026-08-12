@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -22,7 +22,7 @@ import java.io.InputStream;
 /**
  * Loads packaged LDLib2 UI templates from the mod JAR on both logical sides.
  */
-final class TrinityUiNbtLayouts {
+public final class TrinityUiNbtLayouts {
 
     private static final String ROOT_PATH = "ui/trinity/";
     private static final ResourceLocation TRINITY_STYLESHEET = Data_Energistics.id("lss/trinity_ui");
@@ -32,14 +32,14 @@ final class TrinityUiNbtLayouts {
     /**
      * Loads one uncompressed editor-generated UI template and preserves its decoding failure.
      */
-    static UI load(@NotNull String name) {
+    public static UI load(@NotNull String name) {
         return loadTemplate(name).createUI();
     }
 
     /**
      * Applies one editor-generated template to a lifecycle-owned root supplied by the hosted UI framework.
      */
-    static void init(@NotNull String name, @NotNull UIElement root) {
+    public static void init(@NotNull String name, @NotNull UIElement root) {
         loadTemplate(name).initUI(root);
     }
 
