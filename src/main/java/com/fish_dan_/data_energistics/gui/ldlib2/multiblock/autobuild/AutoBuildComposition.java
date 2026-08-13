@@ -54,7 +54,10 @@ public final class AutoBuildComposition {
                 this.elements.materialScroller(),
                 "material grid");
 
-        this.layerScroller = new AutoBuildLayerScroller(this.preview, this.elements.layerScroller());
+        this.layerScroller = new AutoBuildLayerScroller(
+                this.preview,
+                this.elements.layerScroller(),
+                geometry.scene());
         this.adjustmentRail = new AutoBuildAdjustmentRail(this.elements.adjustmentControls());
     }
 

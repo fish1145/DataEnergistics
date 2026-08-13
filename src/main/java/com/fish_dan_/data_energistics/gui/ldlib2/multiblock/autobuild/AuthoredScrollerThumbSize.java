@@ -24,12 +24,19 @@ final class AuthoredScrollerThumbSize {
                         authoredTrack.getContentHeight()));
     }
 
-    static void bind(Scroller.Horizontal scroller) {
+    static void bind(Scroller.Horizontal scroller, AutoBuildComposition.Region track) {
         collapseStepButtons(scroller);
         var authoredTrack = scroller.scrollBar.getParent();
         if (authoredTrack == null || authoredTrack.getParent() != scroller.scrollContainer) {
             throw new IllegalStateException("Horizontal authored scroller thumb is detached from its track");
         }
+        scroller.scrollContainer.layout(layout -> layout
+                .left(track.left())
+                .width(track.width())
+                .minWidth(track.width())
+                .maxWidth(track.width())
+                .setFlexGrow(0)
+                .setFlexShrink(0));
         authoredTrack.addEventListener(
                 UIEvents.LAYOUT_CHANGED,
                 ignored -> synchronize(

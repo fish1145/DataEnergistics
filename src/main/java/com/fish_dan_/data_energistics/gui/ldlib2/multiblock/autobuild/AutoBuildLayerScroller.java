@@ -14,10 +14,12 @@ final class AutoBuildLayerScroller {
     private final Scroller.Horizontal scroller;
     private boolean refreshing;
 
-    AutoBuildLayerScroller(StructurePreviewUi preview, Scroller.Horizontal scroller) {
+    AutoBuildLayerScroller(StructurePreviewUi preview,
+                           Scroller.Horizontal scroller,
+                           AutoBuildComposition.Region track) {
         this.preview = preview;
         this.scroller = scroller;
-        AuthoredScrollerThumbSize.bind(scroller);
+        AuthoredScrollerThumbSize.bind(scroller, track);
         scroller.setRange(0.0F, 1.0F);
         scroller.setOnValueChanged(ignored -> selectFromScroller());
     }
