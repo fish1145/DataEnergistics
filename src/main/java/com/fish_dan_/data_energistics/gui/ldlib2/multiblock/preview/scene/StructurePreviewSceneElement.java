@@ -17,6 +17,10 @@ public final class StructurePreviewSceneElement extends UIElement {
     @Nullable
     private UIElement clientScene;
 
+    public StructurePreviewSceneElement() {
+        setOverflowVisible(false);
+    }
+
     /**
      * Attaches the client-only visual scene without adding an addressable sync or RPC peer to the common tree.
      *

@@ -9,7 +9,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,7 +36,6 @@ public final class AutoBuildComposition {
         this.preview = builder.preview;
         this.elements = builder.elements;
 
-        applyScrollerGeometry(this.elements.layerScroller(), geometry.layerScroller());
         addBefore(
                 this.elements.previewMount(),
                 this.preview.panel(),
@@ -174,22 +172,6 @@ public final class AutoBuildComposition {
         button.style(style -> style.tooltips(tooltip));
     }
 
-    private static void applyScrollerGeometry(Scroller.Horizontal scroller, Region region) {
-        scroller.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(region.left())
-                .top(region.top())
-                .width(region.width())
-                .height(region.height()));
-        scroller.setOverflowVisible(false);
-        scroller.scrollContainer.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(region.width())
-                .height(region.height()));
-    }
-
     private static void addBefore(UIElement parent,
                                   UIElement element,
                                   UIElement followingSibling,
@@ -304,7 +286,6 @@ public final class AutoBuildComposition {
     public record PreviewGeometry(@NotNull Region panel,
                                   @NotNull Region scene,
                                   @NotNull Region selectedBlock,
-                                  @NotNull Region layerScroller,
                                   @NotNull Region materialGrid) {}
 
     /**

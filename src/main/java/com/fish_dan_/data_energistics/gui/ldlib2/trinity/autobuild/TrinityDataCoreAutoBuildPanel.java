@@ -34,6 +34,7 @@ import java.util.function.LongPredicate;
 final class TrinityDataCoreAutoBuildPanel {
 
     static final String PANEL_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_controls";
+    static final String ADJUSTMENT_ID = PANEL_ID + "_adjustment";
     static final String STRUCTURE_SELECTOR_ID = PANEL_ID + "_structure_selector";
     static final String STRUCTURE_PREVIOUS_ID = PANEL_ID + "_structure_previous";
     static final String STRUCTURE_TITLE_ID = PANEL_ID + "_structure_title";
@@ -60,10 +61,10 @@ final class TrinityDataCoreAutoBuildPanel {
     private TrinityAutoBuildDraft draft;
 
     static Layout requireLayout(@NotNull UIElement root) {
-        UIElement controls = TrinityUiXmlLayouts.require(root, PANEL_ID, UIElement.class);
+        UIElement adjustment = TrinityUiXmlLayouts.require(root, ADJUSTMENT_ID, UIElement.class);
         TrinityUiXmlLayouts.require(root, STRUCTURE_SELECTOR_ID, UIElement.class);
         Label confirmTitle = createConfirmTitle();
-        controls.addChild(confirmTitle);
+        adjustment.addChild(confirmTitle);
         return new Layout(
                 root,
                 TrinityUiXmlLayouts.require(root, STRUCTURE_PREVIOUS_ID, Button.class),
@@ -310,7 +311,6 @@ final class TrinityDataCoreAutoBuildPanel {
                     new AutoBuildComposition.Region(0, 0, 183, 133),
                     new AutoBuildComposition.Region(20, 3, 160, 123),
                     new AutoBuildComposition.Region(3, 3, 16, 16),
-                    new AutoBuildComposition.Region(22, 128, 152, 4),
                     new AutoBuildComposition.Region(2, 2, 54, 108));
         }
     }
