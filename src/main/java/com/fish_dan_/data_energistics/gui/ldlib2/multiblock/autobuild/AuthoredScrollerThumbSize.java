@@ -11,21 +11,40 @@ final class AuthoredScrollerThumbSize {
     private AuthoredScrollerThumbSize() {}
 
     static void bind(Scroller.Vertical scroller) {
-        scroller.scrollContainer.addEventListener(
+        collapseStepButtons(scroller);
+        var authoredTrack = scroller.scrollBar.getParent();
+        if (authoredTrack == null || authoredTrack.getParent() != scroller.scrollContainer) {
+            throw new IllegalStateException("Vertical authored scroller thumb is detached from its track");
+        }
+        authoredTrack.addEventListener(
                 UIEvents.LAYOUT_CHANGED,
                 ignored -> synchronize(
                         scroller,
                         scroller.scrollBar.getSizeHeight(),
-                        scroller.scrollContainer.getContentHeight()));
+                        authoredTrack.getContentHeight()));
     }
 
     static void bind(Scroller.Horizontal scroller) {
-        scroller.scrollContainer.addEventListener(
+        collapseStepButtons(scroller);
+        var authoredTrack = scroller.scrollBar.getParent();
+        if (authoredTrack == null || authoredTrack.getParent() != scroller.scrollContainer) {
+            throw new IllegalStateException("Horizontal authored scroller thumb is detached from its track");
+        }
+        authoredTrack.addEventListener(
                 UIEvents.LAYOUT_CHANGED,
                 ignored -> synchronize(
                         scroller,
                         scroller.scrollBar.getSizeWidth(),
-                        scroller.scrollContainer.getContentWidth()));
+                        authoredTrack.getContentWidth()));
+    }
+
+    /** Removes LDLib2's default five-pixel step-button reservations from arrowless authored rails. */
+    private static void collapseStepButtons(Scroller scroller) {
+        scroller.headButton.setDisplay(false);
+        scroller.tailButton.setDisplay(false);
+        scroller.layout(layout -> layout
+                .gapRow(0)
+                .gapColumn(0));
     }
 
     private static void synchronize(Scroller scroller, float thumbLength, float trackLength) {
