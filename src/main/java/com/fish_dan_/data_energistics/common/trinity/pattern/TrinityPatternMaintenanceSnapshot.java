@@ -61,8 +61,12 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
 
     /** Returns the displayed bottom-up fill fraction for capacity or active maintenance progress. */
     public float progress() {
-        long completed = active() ? this.completedUnits : this.installedPatterns;
-        long total = active() ? this.totalUnits : this.patternCapacity;
+        if (this.stage.terminal()) {
+            return 1.0F;
+        }
+        boolean maintenance = this.operation != Operation.IDLE;
+        long completed = maintenance ? this.completedUnits : this.installedPatterns;
+        long total = maintenance ? this.totalUnits : this.patternCapacity;
         return total <= 0L ? 0.0F : (float) Math.clamp(completed / (double) total, 0.0D, 1.0D);
     }
 
