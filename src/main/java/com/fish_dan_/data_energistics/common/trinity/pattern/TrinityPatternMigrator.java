@@ -20,6 +20,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.StorageHelper;
 import appeng.helpers.patternprovider.PatternContainer;
@@ -91,6 +92,8 @@ public final class TrinityPatternMigrator {
         private final List<InstalledRefundCandidate> installedRefunds = new ArrayList<>();
         private final List<StorageCandidate> storageCandidates = new ArrayList<>();
         private final List<ContainerBuilder> containerBuilders = new ArrayList<>();
+        private final List<SortSegment> sortSegments = new ArrayList<>();
+        private final List<SortEntry> pendingSortSegment = new ArrayList<>();
         private List<ContainerSnapshot> containers = List.of();
         private CursorStage cursorStage;
         private int installedRangeIndex;
@@ -103,6 +106,10 @@ public final class TrinityPatternMigrator {
         private int installedRefundIndex;
         private int containerIndex;
         private int containerSlotIndex;
+        private int sortRangeIndex;
+        private int sortSlot;
+        private int sortSegmentIndex;
+        private int sortPosition;
         private long scanUnits;
         private long completedUnits;
         private long totalUnits;
@@ -119,7 +126,7 @@ public final class TrinityPatternMigrator {
                     this.scanUnits,
                     Math.addExact(
                             maximumCandidateUnits(this.storageKeys, this.containerBuilders),
-                            batch.layout.slotCount()));
+                            Math.multiplyExact(3L, batch.layout.slotCount())));
             if (this.scanUnits == 0L) {
                 this.cursorStage = CursorStage.COMPLETE;
             }
@@ -164,7 +171,7 @@ public final class TrinityPatternMigrator {
             return switch (this.cursorStage) {
                 case CAPTURE_INSTALLED, CAPTURE_STORAGE, CAPTURE_CONTAINERS -> Phase.SCANNING;
                 case PROCESS_STORAGE -> Phase.STORAGE;
-                case PROCESS_INSTALLED_REFUNDS, PROCESS_CONTAINERS -> Phase.PATTERN_CONTAINERS;
+                case PROCESS_INSTALLED_REFUNDS, PROCESS_CONTAINERS, CAPTURE_SORT, APPLY_SORT -> Phase.PATTERN_CONTAINERS;
                 case COMPLETE -> Phase.COMPLETE;
                 case CANCELLED -> Phase.CANCELLED;
             };
@@ -193,6 +200,8 @@ public final class TrinityPatternMigrator {
                 case PROCESS_STORAGE -> processStorage();
                 case PROCESS_INSTALLED_REFUNDS -> processInstalledRefund();
                 case PROCESS_CONTAINERS -> processContainer();
+                case CAPTURE_SORT -> captureSort();
+                case APPLY_SORT -> applySort();
                 case COMPLETE, CANCELLED -> false;
             };
         }
@@ -309,11 +318,14 @@ public final class TrinityPatternMigrator {
                 for (ContainerSnapshot container : this.containers) {
                     candidateUnits = Math.addExact(candidateUnits, container.slots().size());
                 }
-                this.totalUnits = Math.addExact(this.scanUnits, candidateUnits);
-                if (candidateUnits == 0L) {
+                if (candidateUnits == 0L && !requireBatch().installedNeedsSorting()) {
+                    this.totalUnits = this.scanUnits;
                     complete();
                     return false;
                 }
+                this.totalUnits = Math.addExact(
+                        Math.addExact(this.scanUnits, candidateUnits),
+                        Math.multiplyExact(2L, requireBatch().layout.slotCount()));
                 this.cursorStage = CursorStage.PROCESS_STORAGE;
                 return false;
             }
@@ -386,7 +398,11 @@ public final class TrinityPatternMigrator {
         private boolean processContainer() {
             Batch current = requireBatch();
             if (current.targetAborted || this.containerIndex >= this.containers.size()) {
-                complete();
+                if (current.targetAborted) {
+                    complete();
+                } else {
+                    this.cursorStage = CursorStage.CAPTURE_SORT;
+                }
                 return false;
             }
             ContainerSnapshot container = this.containers.get(this.containerIndex);
@@ -411,6 +427,64 @@ public final class TrinityPatternMigrator {
             return true;
         }
 
+        private boolean captureSort() {
+            Batch current = requireBatch();
+            List<TrinityPatternCatalog.CoreRange> ranges = current.layout.ranges();
+            if (this.sortRangeIndex >= ranges.size()) {
+                flushSortSegment();
+                this.cursorStage = CursorStage.APPLY_SORT;
+                return false;
+            }
+            TrinityPatternCatalog.CoreRange range = ranges.get(this.sortRangeIndex);
+            SortEntry entry = current.captureSortEntry(range, this.sortSlot++);
+            this.completedUnits++;
+            if (entry == null) {
+                flushSortSegment();
+            } else {
+                this.pendingSortSegment.add(entry);
+            }
+            if (this.sortSlot >= range.mount().blockCapacity()) {
+                this.sortRangeIndex++;
+                this.sortSlot = 0;
+            }
+            return true;
+        }
+
+        private void flushSortSegment() {
+            if (this.pendingSortSegment.size() > 1) {
+                this.sortSegments.add(SortSegment.create(this.pendingSortSegment));
+            }
+            this.pendingSortSegment.clear();
+        }
+
+        private boolean applySort() {
+            Batch current = requireBatch();
+            if (current.targetAborted || this.sortSegmentIndex >= this.sortSegments.size()) {
+                complete();
+                return false;
+            }
+            SortSegment segment = this.sortSegments.get(this.sortSegmentIndex);
+            if (this.sortPosition >= segment.size()) {
+                this.sortSegmentIndex++;
+                this.sortPosition = 0;
+                return false;
+            }
+            int desiredSource = segment.findDesiredSource(this.sortPosition);
+            if (desiredSource < 0) {
+                current.abortTarget("pattern sorting lost an installed snapshot");
+            } else if (desiredSource != this.sortPosition &&
+                    current.swapInstalledPatterns(
+                            segment.target(this.sortPosition),
+                            segment.target(desiredSource),
+                            segment.current(this.sortPosition),
+                            segment.current(desiredSource))) {
+                                segment.swapCurrent(this.sortPosition, desiredSource);
+                            }
+            this.sortPosition++;
+            this.completedUnits++;
+            return true;
+        }
+
         private void complete() {
             this.result = requireBatch().result();
             this.completedUnits = this.totalUnits;
@@ -432,6 +506,8 @@ public final class TrinityPatternMigrator {
         PROCESS_STORAGE,
         PROCESS_INSTALLED_REFUNDS,
         PROCESS_CONTAINERS,
+        CAPTURE_SORT,
+        APPLY_SORT,
         COMPLETE,
         CANCELLED
     }
@@ -460,6 +536,9 @@ public final class TrinityPatternMigrator {
         private int quarantinedSources;
         private int fallbackIdentitySources;
         private boolean targetAborted;
+        private boolean installedSortGap;
+        private boolean installedNeedsSorting;
+        private @Nullable PatternSortKey lastInstalledSortKey;
 
         private Batch(Level level,
                       IGrid grid,
@@ -509,19 +588,48 @@ public final class TrinityPatternMigrator {
 
         @Nullable
         private InstalledRefundCandidate captureInstalled(TrinityPatternCatalog.CoreRange range, int slot) {
-            ItemStack stack = range.mount().core().pattern(slot);
+            TrinityPatternCore core = range.mount().core();
+            ItemStack stack = core.pattern(slot);
+            if (core.isSlotWorking(this.catalog.hostId(), slot)) {
+                this.lastInstalledSortKey = null;
+                this.installedSortGap = false;
+                Decoded decoded = decode(stack);
+                if (decoded.identity() != null) {
+                    this.seen.add(decoded.identity());
+                }
+                return null;
+            }
             Decoded decoded = decode(stack);
             if (stack.isEmpty()) {
+                this.installedSortGap = true;
                 return null;
             }
             TrinityPatternSemanticIdentity identity = decoded.identity();
             boolean duplicate = identity != null && !this.seen.add(identity);
-            if ((identity != null && !duplicate) ||
-                    range.mount().core().isSlotWorking(this.catalog.hostId(), slot)) {
+            if (identity != null && !duplicate) {
+                observeInstalledSortKey(decoded.sortKey());
                 return null;
             }
+            this.installedSortGap = true;
             return new InstalledRefundCandidate(
-                    new TargetSlot(range.mount().core(), slot), stack.copy(), duplicate);
+                    new TargetSlot(core, slot), stack.copy(), duplicate);
+        }
+
+        private void observeInstalledSortKey(@Nullable PatternSortKey sortKey) {
+            if (sortKey == null) {
+                this.lastInstalledSortKey = null;
+                this.installedSortGap = false;
+                return;
+            }
+            if (this.installedSortGap ||
+                    this.lastInstalledSortKey != null && this.lastInstalledSortKey.compareTo(sortKey) > 0) {
+                this.installedNeedsSorting = true;
+            }
+            this.lastInstalledSortKey = sortKey;
+        }
+
+        private boolean installedNeedsSorting() {
+            return this.installedNeedsSorting;
         }
 
         private boolean refundInstalledPattern(InstalledRefundCandidate candidate) {
@@ -545,34 +653,45 @@ public final class TrinityPatternMigrator {
                 this.sourceFailures++;
                 return false;
             }
+            long refundAmount = candidate.stack().getCount();
             long simulated;
             try {
                 simulated = StorageHelper.poweredInsert(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.SIMULATE);
+                        this.grid.getEnergyService(),
+                        this.storage,
+                        key,
+                        refundAmount,
+                        this.actionSource,
+                        Actionable.SIMULATE);
             } catch (RuntimeException failure) {
                 logStorageFailure(key, "installed-pattern refund simulation failed", failure);
                 this.sourceFailures++;
                 return false;
             }
-            if (simulated != 1L) {
+            if (simulated != refundAmount) {
                 this.meBlocked++;
                 return true;
             }
             long inserted;
             try {
                 inserted = StorageHelper.poweredInsert(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+                        this.grid.getEnergyService(),
+                        this.storage,
+                        key,
+                        refundAmount,
+                        this.actionSource,
+                        Actionable.MODULATE);
             } catch (RuntimeException failure) {
                 logStorageFailure(key, "installed-pattern refund insertion failed", failure);
                 inserted = -1L;
             }
-            if (inserted != 1L) {
+            if (inserted != refundAmount) {
                 long insertedAmount = readStorageAmount(key);
                 if (insertedAmount == before) {
                     this.meBlocked++;
                     return true;
                 }
-                if (before == Long.MAX_VALUE || insertedAmount != before + 1L) {
+                if (before > Long.MAX_VALUE - refundAmount || insertedAmount != before + refundAmount) {
                     this.sourceFailures++;
                     return false;
                 }
@@ -589,16 +708,74 @@ public final class TrinityPatternMigrator {
             long compensated;
             try {
                 compensated = StorageHelper.poweredExtraction(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+                        this.grid.getEnergyService(),
+                        this.storage,
+                        key,
+                        refundAmount,
+                        this.actionSource,
+                        Actionable.MODULATE);
             } catch (RuntimeException failure) {
                 logStorageFailure(key, "installed-pattern refund compensation failed", failure);
                 compensated = -1L;
             }
             this.sourceFailures++;
-            if (compensated != 1L && readStorageAmount(key) != before) {
+            if (compensated != refundAmount && readStorageAmount(key) != before) {
                 abortTarget("installed-pattern refund could not restore its AE storage insertion");
             }
             return !this.targetAborted;
+        }
+
+        @Nullable
+        private SortEntry captureSortEntry(TrinityPatternCatalog.CoreRange range, int slot) {
+            TrinityPatternCore core = range.mount().core();
+            if (core.isSlotWorking(this.catalog.hostId(), slot)) {
+                return null;
+            }
+            ItemStack stack = core.pattern(slot);
+            if (stack.isEmpty()) {
+                return new SortEntry(new TargetSlot(core, slot), ItemStack.EMPTY, null);
+            }
+            Decoded decoded = decode(stack);
+            if (decoded.sortKey() == null) {
+                return null;
+            }
+            return new SortEntry(new TargetSlot(core, slot), stack.copyWithCount(1), decoded.sortKey());
+        }
+
+        private boolean swapInstalledPatterns(TargetSlot first,
+                                              TargetSlot second,
+                                              ItemStack firstStack,
+                                              ItemStack secondStack) {
+            if (this.catalog.layoutSnapshot().revision() != this.layout.revision()) {
+                abortTarget("Trinity pattern layout changed during pattern sorting");
+                return false;
+            }
+            if (first.core().isSlotWorking(this.catalog.hostId(), first.slot()) ||
+                    second.core().isSlotWorking(this.catalog.hostId(), second.slot()) ||
+                    !matchesSnapshot(first.core().pattern(first.slot()), firstStack) ||
+                    !matchesSnapshot(second.core().pattern(second.slot()), secondStack)) {
+                abortTarget("Trinity pattern slot changed during pattern sorting");
+                return false;
+            }
+            if (!first.core().trySetPattern(first.slot(), secondStack)) {
+                abortTarget("Trinity pattern sorter rejected a previously decoded pattern");
+                return false;
+            }
+            boolean secondInstalled = second.core().trySetPattern(second.slot(), firstStack);
+            if (secondInstalled && matchesSnapshot(first.core().pattern(first.slot()), secondStack) &&
+                    matchesSnapshot(second.core().pattern(second.slot()), firstStack)) {
+                return true;
+            }
+            boolean secondRestored = !secondInstalled || second.core().trySetPattern(second.slot(), secondStack);
+            boolean firstRestored = first.core().trySetPattern(first.slot(), firstStack);
+            if (!secondRestored || !firstRestored ||
+                    !matchesSnapshot(first.core().pattern(first.slot()), firstStack) ||
+                    !matchesSnapshot(second.core().pattern(second.slot()), secondStack)) {
+                abortTarget("Trinity pattern sorter could not roll back a rejected swap");
+            } else {
+                abortTarget("Trinity pattern sorter rejected a previously decoded pattern");
+            }
+            return false;
         }
 
         private boolean processStorageCandidate(StorageCandidate candidate) {
@@ -954,18 +1131,31 @@ public final class TrinityPatternMigrator {
 
         private Decoded decode(ItemStack stack) {
             if (stack.isEmpty() || !PatternDetailsHelper.isEncodedPattern(stack)) {
-                return new Decoded(stack.copyWithCount(1), null);
+                return new Decoded(stack.copyWithCount(1), null, null);
             }
             try {
                 IPatternDetails details = PatternDetailsHelper.decodePattern(stack, this.level);
-                return details == null ? new Decoded(stack.copyWithCount(1), null) :
-                        new Decoded(stack.copyWithCount(1), TrinityPatternSemanticIdentity.capture(details));
+                if (details == null) {
+                    return new Decoded(stack.copyWithCount(1), null, null);
+                }
+                GenericStack primaryOutput = details.getPrimaryOutput();
+                if (primaryOutput == null || primaryOutput.amount() <= 0L) {
+                    return new Decoded(stack.copyWithCount(1), null, null);
+                }
+                PatternSortKey sortKey = new PatternSortKey(
+                        primaryOutput.what() instanceof AEItemKey itemKey ? itemKey.getId().toString() : primaryOutput.what().getType().getId() + ":" + canonicalTag(
+                                primaryOutput.what().toTag(this.level.registryAccess())),
+                        stableKeyDigest(AEItemKey.of(stack), this.level.registryAccess()));
+                return new Decoded(
+                        stack.copyWithCount(1),
+                        TrinityPatternSemanticIdentity.capture(details),
+                        sortKey);
             } catch (RuntimeException failure) {
                 Data_Energistics.LOGGER.warn(
                         "Pattern migration could not decode encoded item {}",
                         safePatternName(stack),
                         failure);
-                return new Decoded(stack.copyWithCount(1), null);
+                return new Decoded(stack.copyWithCount(1), null, null);
             }
         }
     }
@@ -1078,7 +1268,75 @@ public final class TrinityPatternMigrator {
         }
     }
 
-    private record Decoded(ItemStack stack, @Nullable TrinityPatternSemanticIdentity identity) {}
+    private record Decoded(ItemStack stack,
+                           @Nullable TrinityPatternSemanticIdentity identity,
+                           @Nullable PatternSortKey sortKey) {}
+
+    private record PatternSortKey(String primaryOutputId, String patternDigest)
+            implements Comparable<PatternSortKey> {
+
+        @Override
+        public int compareTo(PatternSortKey other) {
+            int outputComparison = this.primaryOutputId.compareTo(other.primaryOutputId);
+            return outputComparison != 0 ? outputComparison : this.patternDigest.compareTo(other.patternDigest);
+        }
+    }
+
+    private record SortEntry(TargetSlot target, ItemStack stack, @Nullable PatternSortKey sortKey) {}
+
+    private static final class SortSegment {
+
+        private static final Comparator<SortEntry> ORDER = Comparator
+                .comparing(SortEntry::sortKey, Comparator.nullsLast(Comparator.naturalOrder()));
+
+        private final List<TargetSlot> targets;
+        private final List<ItemStack> current;
+        private final List<ItemStack> desired;
+
+        private SortSegment(List<TargetSlot> targets, List<ItemStack> current, List<ItemStack> desired) {
+            this.targets = targets;
+            this.current = current;
+            this.desired = desired;
+        }
+
+        private static SortSegment create(List<SortEntry> entries) {
+            List<TargetSlot> targets = entries.stream().map(SortEntry::target).toList();
+            ArrayList<ItemStack> current = new ArrayList<>(entries.size());
+            entries.forEach(entry -> current.add(entry.stack().copy()));
+            ArrayList<SortEntry> ordered = new ArrayList<>(entries);
+            ordered.sort(ORDER);
+            List<ItemStack> desired = ordered.stream().map(entry -> entry.stack().copy()).toList();
+            return new SortSegment(targets, current, desired);
+        }
+
+        private int size() {
+            return this.targets.size();
+        }
+
+        private TargetSlot target(int index) {
+            return this.targets.get(index);
+        }
+
+        private ItemStack current(int index) {
+            return this.current.get(index);
+        }
+
+        private int findDesiredSource(int index) {
+            ItemStack expected = this.desired.get(index);
+            for (int candidate = index; candidate < this.current.size(); candidate++) {
+                if (matchesSnapshot(this.current.get(candidate), expected)) {
+                    return candidate;
+                }
+            }
+            return -1;
+        }
+
+        private void swapCurrent(int first, int second) {
+            ItemStack stack = this.current.get(first);
+            this.current.set(first, this.current.get(second));
+            this.current.set(second, stack);
+        }
+    }
 
     private record TargetSlot(TrinityPatternCore core, int slot) {}
 

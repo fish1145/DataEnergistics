@@ -721,7 +721,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     public boolean isPatternProviderAvailable() {
         return isStorageAvailable() && this.craftingStructureFormed &&
                 this.structureValidation.isValid(Structure.CRAFTING) && this.craftingProfile.active() &&
-                this.patternCatalogValid &&
+                this.patternCatalogValid && this.patternMaintenanceTask == null &&
                 this.patternCatalog.layoutSnapshot().active();
     }
 
