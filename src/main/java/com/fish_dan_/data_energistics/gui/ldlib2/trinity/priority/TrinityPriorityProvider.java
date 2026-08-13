@@ -67,7 +67,7 @@ public final class TrinityPriorityProvider implements HostSubUiProvider {
             throw new IllegalArgumentException("Trinity priority provider received the wrong host context");
         }
         HostSubUiRoot root = context.createRoot();
-        TrinityUiNbtLayouts.initProjectStyled("priority", root);
+        TrinityUiNbtLayouts.init("priority", root);
         PriorityControl.builder(root, this.windowId)
                 .labels(this.title, this.firstHint, this.secondHint)
                 .state(

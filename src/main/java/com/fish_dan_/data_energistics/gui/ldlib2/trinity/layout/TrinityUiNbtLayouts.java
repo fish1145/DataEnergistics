@@ -43,18 +43,6 @@ public final class TrinityUiNbtLayouts {
         loadTemplate(name).initUI(root);
     }
 
-    /**
-     * Applies an editor-generated template while deliberately replacing editor-only stylesheets with the project
-     * stylesheet. This is used by reusable controls whose authored geometry is retained but whose visual contract is
-     * owned entirely by Data Energistics.
-     */
-    public static void initProjectStyled(@NotNull String name, @NotNull UIElement root) {
-        UITemplate template = loadTemplate(name);
-        template.getStylesheets().clear();
-        template.getStylesheets().add(TRINITY_STYLESHEET);
-        template.initUI(root);
-    }
-
     private static UITemplate loadTemplate(String name) {
         if (name.isBlank()) {
             throw new IllegalArgumentException("Trinity NBT layout name must not be blank");
@@ -80,9 +68,8 @@ public final class TrinityUiNbtLayouts {
                             Platform.getFrozenRegistry().createSerializationContext(NbtOps.INSTANCE),
                             wrapper.getCompound("data"))
                     .getOrThrow();
-            if (!template.getStylesheets().contains(TRINITY_STYLESHEET)) {
-                template.getStylesheets().add(TRINITY_STYLESHEET);
-            }
+            template.getStylesheets().clear();
+            template.getStylesheets().add(TRINITY_STYLESHEET);
             return template;
         } catch (Exception failure) {
             String message = "Unable to load Trinity NBT layout '" + name + "' from " + location +

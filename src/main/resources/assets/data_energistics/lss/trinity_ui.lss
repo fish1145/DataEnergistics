@@ -152,14 +152,17 @@
     overflow: hidden;
 }
 
-#trinity_data_core_root {
+#trinity_data_core_root,
+#trinity_storage_hosted_window,
+#trinity_pattern_hosted_window,
+#trinity_information_exchange_depot_root {
     padding-all: 5px;
     gap-all: 4px;
 }
 
-#trinity_storage_hosted_window {
-    padding-all: 5px;
-    gap-all: 4px;
+button.__disabled__ .__button_text__ {
+    text-color: #FF666666;
+    text-shadow: false;
 }
 
 .trinity-storage-entry-name,
