@@ -11,7 +11,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -62,7 +61,7 @@ public final class AutoBuildComposition {
     /**
      * Starts a composition builder around elements already authored into one host window.
      */
-    public static Builder builder(@NotNull StructurePreviewUi preview, @NotNull Elements elements) {
+    public static Builder builder(StructurePreviewUi preview, Elements elements) {
         return new Builder(preview, elements);
     }
 
@@ -83,7 +82,7 @@ public final class AutoBuildComposition {
     /**
      * Binds host-specific structure navigation and submission callbacks without exposing the internal control tree.
      */
-    public void bindActions(@NotNull Actions actions) {
+    public void bindActions(Actions actions) {
         configureButton(this.elements.structureControls().previous(), actions.previousStructure());
         configureButton(this.elements.structureControls().next(), actions.nextStructure());
         configureButton(this.elements.confirmControls().button(), actions.confirm());
@@ -92,9 +91,9 @@ public final class AutoBuildComposition {
     /**
      * Localizes the editor-authored headings while leaving their geometry host-defined.
      */
-    public void setHeadings(@NotNull Component adjustmentContext,
-                            @NotNull Component adjustmentValue,
-                            @NotNull Component confirm) {
+    public void setHeadings(Component adjustmentContext,
+                            Component adjustmentValue,
+                            Component confirm) {
         this.elements.adjustmentControls().contextTitle().setText(adjustmentContext);
         this.elements.adjustmentControls().valueTitle().setText(adjustmentValue);
         this.elements.confirmControls().title().setText(confirm);
@@ -103,14 +102,14 @@ public final class AutoBuildComposition {
     /**
      * Replaces the current structure name shown by the authored navigation rail.
      */
-    public void setStructureTitle(@NotNull Component title) {
+    public void setStructureTitle(Component title) {
         this.elements.structureControls().title().setText(title);
     }
 
     /**
      * Replaces the fixed virtual material viewport without changing its element count.
      */
-    public void setMaterials(@NotNull List<PreviewMaterial> materials) {
+    public void setMaterials(List<PreviewMaterial> materials) {
         this.materialGrid.setMaterials(materials);
     }
 
@@ -124,7 +123,7 @@ public final class AutoBuildComposition {
     /**
      * Replaces the ordered adjustment registry and retains the stable key when it remains available.
      */
-    public void setAdjustments(@NotNull List<Adjustment> adjustments, @Nullable String retainedStableKey) {
+    public void setAdjustments(List<Adjustment> adjustments, @Nullable String retainedStableKey) {
         this.adjustmentRail.setAdjustments(adjustments, retainedStableKey);
     }
 
@@ -139,18 +138,18 @@ public final class AutoBuildComposition {
     /**
      * Supplies localized directional tooltips used by the adjustment rail.
      */
-    public void setAdjustmentTooltips(@NotNull Component contextLabel,
-                                      @NotNull UnaryOperator<Component> previous,
-                                      @NotNull UnaryOperator<Component> next) {
+    public void setAdjustmentTooltips(Component contextLabel,
+                                      UnaryOperator<Component> previous,
+                                      UnaryOperator<Component> next) {
         this.adjustmentRail.setTooltipFactories(contextLabel, previous, next);
     }
 
     /**
      * Updates the structure-navigation and confirmation tooltips.
      */
-    public void setActionTooltips(@NotNull Component previousStructure,
-                                  @NotNull Component nextStructure,
-                                  @NotNull Component confirm) {
+    public void setActionTooltips(Component previousStructure,
+                                  Component nextStructure,
+                                  Component confirm) {
         setTooltip(this.elements.structureControls().previous(), previousStructure);
         setTooltip(this.elements.structureControls().next(), nextStructure);
         setTooltip(this.elements.confirmControls().button(), confirm);
@@ -209,7 +208,7 @@ public final class AutoBuildComposition {
         /**
          * Defines the exact content regions inside the host's editor-authored frames.
          */
-        public Builder geometry(@NotNull PreviewGeometry geometry) {
+        public Builder geometry(PreviewGeometry geometry) {
             this.geometry = geometry;
             return this;
         }
@@ -217,7 +216,7 @@ public final class AutoBuildComposition {
         /**
          * Defines the runtime material element id and the host's compact amount formatter.
          */
-        public Builder materials(@NotNull String materialGridId, @NotNull LongFunction<String> amountFormatter) {
+        public Builder materials(String materialGridId, LongFunction<String> amountFormatter) {
             this.materialGridId = materialGridId;
             this.amountFormatter = amountFormatter;
             return this;
@@ -255,19 +254,19 @@ public final class AutoBuildComposition {
     /**
      * Host callbacks for the controls whose business meaning is not part of the generic composition.
      */
-    public record Actions(@NotNull Runnable previousStructure,
-                          @NotNull Runnable nextStructure,
-                          @NotNull Runnable confirm) {}
+    public record Actions(Runnable previousStructure,
+                          Runnable nextStructure,
+                          Runnable confirm) {}
 
     /**
      * One stable adjustment entry whose operations own their host-specific selection updates.
      */
-    public record Adjustment(@NotNull String stableKey,
-                             @NotNull Supplier<Component> label,
-                             @NotNull Supplier<Component> value,
-                             @NotNull Runnable previous,
-                             @NotNull Runnable next,
-                             @NotNull BooleanSupplier adjustable) {}
+    public record Adjustment(String stableKey,
+                             Supplier<Component> label,
+                             Supplier<Component> value,
+                             Runnable previous,
+                             Runnable next,
+                             BooleanSupplier adjustable) {}
 
     /**
      * Exact local rectangle inside one editor-authored mount.
@@ -284,44 +283,44 @@ public final class AutoBuildComposition {
     /**
      * Host-specific geometry used to fit runtime content inside editor-authored frames.
      */
-    public record PreviewGeometry(@NotNull Region panel,
-                                  @NotNull Region scene,
-                                  @NotNull Region selectedBlock,
-                                  @NotNull Region materialGrid) {}
+    public record PreviewGeometry(Region panel,
+                                  Region scene,
+                                  Region selectedBlock,
+                                  Region materialGrid) {}
 
     /**
      * All host-authored elements consumed by one composition.
      */
-    public record Elements(@NotNull UIElement root,
-                           @NotNull UIElement previewMount,
-                           @NotNull Scroller.Horizontal layerScroller,
-                           @NotNull UIElement materialsMount,
-                           @NotNull Scroller.Vertical materialScroller,
-                           @NotNull StructureControls structureControls,
-                           @NotNull AdjustmentControls adjustmentControls,
-                           @NotNull ConfirmControls confirmControls) {}
+    public record Elements(UIElement root,
+                           UIElement previewMount,
+                           Scroller.Horizontal layerScroller,
+                           UIElement materialsMount,
+                           Scroller.Vertical materialScroller,
+                           StructureControls structureControls,
+                           AdjustmentControls adjustmentControls,
+                           ConfirmControls confirmControls) {}
 
     /**
      * Structure navigation elements authored by the host layout.
      */
-    public record StructureControls(@NotNull Button previous,
-                                    @NotNull Label title,
-                                    @NotNull Button next) {}
+    public record StructureControls(Button previous,
+                                    Label title,
+                                    Button next) {}
 
     /**
      * Adjustment-context and current-value elements authored by the host layout.
      */
-    public record AdjustmentControls(@NotNull Button previousContext,
-                                     @NotNull Label contextTitle,
-                                     @NotNull Label contextValue,
-                                     @NotNull Button nextContext,
-                                     @NotNull Button previousValue,
-                                     @NotNull Label valueTitle,
-                                     @NotNull Label valueValue,
-                                     @NotNull Button nextValue) {}
+    public record AdjustmentControls(Button previousContext,
+                                     Label contextTitle,
+                                     Label contextValue,
+                                     Button nextContext,
+                                     Button previousValue,
+                                     Label valueTitle,
+                                     Label valueValue,
+                                     Button nextValue) {}
 
     /**
      * Submission icon and its independently authored title.
      */
-    public record ConfirmControls(@NotNull Button button, @NotNull TextElement title) {}
+    public record ConfirmControls(Button button, TextElement title) {}
 }

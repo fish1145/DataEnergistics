@@ -13,7 +13,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -38,9 +37,9 @@ final class AutoBuildMaterialGrid extends UIElement {
     private int firstVisibleRow;
     private boolean overflowing;
 
-    AutoBuildMaterialGrid(@NotNull String id,
-                          @NotNull AutoBuildComposition.Region geometry,
-                          @NotNull LongFunction<String> amountFormatter) {
+    AutoBuildMaterialGrid(String id,
+                          AutoBuildComposition.Region geometry,
+                          LongFunction<String> amountFormatter) {
         this.amountFormatter = amountFormatter;
         setId(id);
         setOverflowVisible(false);
@@ -62,21 +61,21 @@ final class AutoBuildMaterialGrid extends UIElement {
     /**
      * Binds the single scrollbar authored in the NBT instead of creating a second Java scrollbar.
      */
-    void bindScrollbar(@NotNull Scroller.Vertical scrollbar) {
+    void bindScrollbar(Scroller.Vertical scrollbar) {
         if (this.scrollbar != null) {
             throw new IllegalStateException("Trinity automatic-build material grid already has a scrollbar");
         }
         this.scrollbar = scrollbar;
+        AuthoredScrollerThumbSize.bind(scrollbar);
         scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(ignored -> refreshFromScrollbar());
-        AuthoredScrollerThumbTravel.bind(scrollbar);
         updateScrollbar();
     }
 
     /**
      * Replaces the projected material snapshot while retaining the fixed editor-sized entry tree.
      */
-    void setMaterials(@NotNull List<PreviewMaterial> materials) {
+    void setMaterials(List<PreviewMaterial> materials) {
         this.materials = List.copyOf(materials);
         this.firstVisibleRow = Math.min(this.firstVisibleRow, maxFirstVisibleRow());
         updateScrollbar();
@@ -153,7 +152,6 @@ final class AutoBuildMaterialGrid extends UIElement {
         float scrollDelta = maximum == 0 ? 1.0F : 1.0F / maximum;
         this.scrollbar.scrollerStyle(style -> style.scrollDelta(scrollDelta));
         this.scrollbar.setNormalizedValue(normalized, false);
-        AuthoredScrollerThumbTravel.align(this.scrollbar);
         this.scrollbar.selfAndAllChildren()
                 .forEach(element -> element.setAllowHitTest(this.overflowing));
     }
