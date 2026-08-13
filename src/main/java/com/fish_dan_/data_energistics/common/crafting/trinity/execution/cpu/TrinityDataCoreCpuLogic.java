@@ -1025,16 +1025,13 @@ final class TrinityDataCoreCpuLogic {
         boolean synchronousFallback = false;
         boolean nativeSingleCraftFallback = false;
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
-            // A provider window must not be lost solely because the optimistic background proposal has not completed.
-            // Release it and use the synchronous safe path for this already-selected worker pass.
-            this.proposalCoordinator.cancel();
-            proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
-            synchronousFallback = true;
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
         }
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.NoCapacity) {
             // Capacity is a transient server-thread fact. A completed background miss must recapture the current
             // provider window instead of suppressing this worker for the next fair runtime pass.
             proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
+            synchronousFallback = true;
         }
         CraftingDispatchProposal selectedProposal = proposalDecision instanceof TrinityWorkerProposalCoordinator.Ready ready ?
                 ready.proposal() : null;
@@ -1113,6 +1110,9 @@ final class TrinityDataCoreCpuLogic {
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Deferred) {
             this.proposalRetryAt = Math.addExact(currentTick, dispatchBudget.retryBackoffTicks());
             return ProviderDispatchOutcome.DEFERRED;
+        }
+        if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
         }
         if (asynchronousSelection) {
             maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
@@ -2404,6 +2404,7 @@ final class TrinityDataCoreCpuLogic {
                                            boolean proposalDeferred) {
 
         private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false, false, false);
+        private static final ProviderDispatchOutcome AWAITING_PROPOSAL = new ProviderDispatchOutcome(0, false, true, false);
         private static final ProviderDispatchOutcome DEFERRED = new ProviderDispatchOutcome(0, false, false, true);
 
         private ProviderDispatchOutcome(int physicalAttempts, boolean dispatched) {
@@ -2692,7 +2693,7 @@ final class TrinityDataCoreCpuLogic {
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
         if (this.proposalCoordinator.pending()) {
-            return TrinityWorkerSchedulingHint.ready();
+            return TrinityWorkerSchedulingHint.waitingEvent();
         }
         if (this.proposalRetryAt > currentTick) {
             return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);

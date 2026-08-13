@@ -185,13 +185,15 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                 ticket.complete(new DispatchProposalTicket.Failed(exception));
             }
         } catch (RuntimeException exception) {
-            failed = true;
-            Data_Energistics.LOGGER.error(
-                    "Trinity dispatch proposal calculation failed for worker {} job {}",
-                    request.lease().workerNumber(),
-                    request.lease().jobId(),
-                    exception);
-            ticket.complete(new DispatchProposalTicket.Failed(exception));
+            if (!ticket.closed()) {
+                failed = true;
+                Data_Energistics.LOGGER.error(
+                        "Trinity dispatch proposal calculation failed for worker {} job {}",
+                        request.lease().workerNumber(),
+                        request.lease().jobId(),
+                        exception);
+                ticket.complete(new DispatchProposalTicket.Failed(exception));
+            }
         } finally {
             failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
