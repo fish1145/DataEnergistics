@@ -12,7 +12,10 @@ import net.minecraft.world.level.Level;
 
 import appeng.crafting.pattern.EncodedPatternItem;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -37,6 +40,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
     private static final int SLOT_SIZE = 18;
     private static final int MAX_CACHED_PAGES = 16;
+    private static final IGuiTexture PATTERN_SLOT_BACKGROUND = GuiTextureGroup.of(
+            SpriteTexture.of("data_energistics:textures/guis/inventory_slot.png"),
+            new ColorBorderTexture(-1, 0xFF696D88));
 
     private final long generation;
     private final Level level;
@@ -89,7 +95,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             LocalSlot localSlot = new LocalSlot();
             ItemSlot itemSlot = new PatternDisplaySlot(localSlot, index);
             itemSlot.setId(id + "_" + index);
-            itemSlot.getStyle().backgroundTexture(IGuiTexture.EMPTY);
+            itemSlot.getStyle().backgroundTexture(PATTERN_SLOT_BACKGROUND);
             int column = index % TrinityPatternCatalogView.COLUMN_COUNT;
             int row = index / TrinityPatternCatalogView.COLUMN_COUNT;
             itemSlot.layout(slotLayout -> slotLayout
