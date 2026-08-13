@@ -14,7 +14,6 @@ import net.minecraft.core.Direction;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scene;
 import com.lowdragmc.lowdraglib2.math.Size;
@@ -47,8 +46,6 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
         if (!scene.hasParent()) {
             throw new IllegalStateException("Structure preview scene must belong to an element tree before binding");
         }
-        scene.style(style -> style.overflowClip(new ColorRectTexture(0xFFFFFFFF)));
-
         ClientScene clientScene = new ClientScene();
         clientScene.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
