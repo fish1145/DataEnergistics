@@ -88,6 +88,7 @@ public final class TrinityPatternMigrator {
     public static final class Job {
 
         private final @Nullable Batch batch;
+        private final List<InstalledRefundCandidate> installedRefunds = new ArrayList<>();
         private final List<StorageCandidate> storageCandidates = new ArrayList<>();
         private final List<ContainerBuilder> containerBuilders = new ArrayList<>();
         private List<ContainerSnapshot> containers = List.of();
@@ -99,6 +100,7 @@ public final class TrinityPatternMigrator {
         private int captureContainerIndex;
         private int captureContainerSlot;
         private int storageIndex;
+        private int installedRefundIndex;
         private int containerIndex;
         private int containerSlotIndex;
         private long scanUnits;
@@ -115,7 +117,9 @@ public final class TrinityPatternMigrator {
             this.scanUnits = scanWorkUnits(batch.layout, this.storageKeys, this.containerBuilders);
             this.totalUnits = Math.addExact(
                     this.scanUnits,
-                    maximumCandidateUnits(this.storageKeys, this.containerBuilders));
+                    Math.addExact(
+                            maximumCandidateUnits(this.storageKeys, this.containerBuilders),
+                            batch.layout.slotCount()));
             if (this.scanUnits == 0L) {
                 this.cursorStage = CursorStage.COMPLETE;
             }
@@ -160,7 +164,7 @@ public final class TrinityPatternMigrator {
             return switch (this.cursorStage) {
                 case CAPTURE_INSTALLED, CAPTURE_STORAGE, CAPTURE_CONTAINERS -> Phase.SCANNING;
                 case PROCESS_STORAGE -> Phase.STORAGE;
-                case PROCESS_CONTAINERS -> Phase.PATTERN_CONTAINERS;
+                case PROCESS_INSTALLED_REFUNDS, PROCESS_CONTAINERS -> Phase.PATTERN_CONTAINERS;
                 case COMPLETE -> Phase.COMPLETE;
                 case CANCELLED -> Phase.CANCELLED;
             };
@@ -187,6 +191,7 @@ public final class TrinityPatternMigrator {
                 case CAPTURE_STORAGE -> captureStorage();
                 case CAPTURE_CONTAINERS -> captureContainerSlot();
                 case PROCESS_STORAGE -> processStorage();
+                case PROCESS_INSTALLED_REFUNDS -> processInstalledRefund();
                 case PROCESS_CONTAINERS -> processContainer();
                 case COMPLETE, CANCELLED -> false;
             };
@@ -200,7 +205,10 @@ public final class TrinityPatternMigrator {
                 return false;
             }
             TrinityPatternCatalog.CoreRange range = ranges.get(this.installedRangeIndex);
-            current.captureInstalledIdentity(range, this.installedSlot++);
+            InstalledRefundCandidate refund = current.captureInstalled(range, this.installedSlot++);
+            if (refund != null) {
+                this.installedRefunds.add(refund);
+            }
             this.completedUnits++;
             if (this.installedSlot >= range.mount().blockCapacity()) {
                 this.installedRangeIndex++;
@@ -297,7 +305,7 @@ public final class TrinityPatternMigrator {
                     snapshots.add(builder.snapshot());
                 }
                 this.containers = List.copyOf(snapshots);
-                long candidateUnits = this.storageCandidates.size();
+                long candidateUnits = Math.addExact(this.storageCandidates.size(), this.installedRefunds.size());
                 for (ContainerSnapshot container : this.containers) {
                     candidateUnits = Math.addExact(candidateUnits, container.slots().size());
                 }
@@ -341,7 +349,7 @@ public final class TrinityPatternMigrator {
         private boolean processStorage() {
             Batch current = requireBatch();
             if (this.storageIndex >= this.storageCandidates.size() || current.targetAborted) {
-                this.cursorStage = current.targetAborted ? CursorStage.COMPLETE : CursorStage.PROCESS_CONTAINERS;
+                this.cursorStage = current.targetAborted ? CursorStage.COMPLETE : CursorStage.PROCESS_INSTALLED_REFUNDS;
                 if (current.targetAborted) {
                     complete();
                 }
@@ -352,6 +360,25 @@ public final class TrinityPatternMigrator {
             if (!continueStorage) {
                 this.completedUnits += this.storageCandidates.size() - this.storageIndex;
                 this.storageIndex = this.storageCandidates.size();
+            }
+            return true;
+        }
+
+        private boolean processInstalledRefund() {
+            Batch current = requireBatch();
+            if (current.targetAborted || this.installedRefundIndex >= this.installedRefunds.size()) {
+                this.cursorStage = current.targetAborted ? CursorStage.COMPLETE : CursorStage.PROCESS_CONTAINERS;
+                if (current.targetAborted) {
+                    complete();
+                }
+                return false;
+            }
+            boolean continueRefunds = current.refundInstalledPattern(
+                    this.installedRefunds.get(this.installedRefundIndex++));
+            this.completedUnits++;
+            if (!continueRefunds) {
+                this.completedUnits += this.installedRefunds.size() - this.installedRefundIndex;
+                this.installedRefundIndex = this.installedRefunds.size();
             }
             return true;
         }
@@ -403,6 +430,7 @@ public final class TrinityPatternMigrator {
         CAPTURE_STORAGE,
         CAPTURE_CONTAINERS,
         PROCESS_STORAGE,
+        PROCESS_INSTALLED_REFUNDS,
         PROCESS_CONTAINERS,
         COMPLETE,
         CANCELLED
@@ -479,12 +507,98 @@ public final class TrinityPatternMigrator {
             }
         }
 
-        private void captureInstalledIdentity(TrinityPatternCatalog.CoreRange range, int slot) {
+        @Nullable
+        private InstalledRefundCandidate captureInstalled(TrinityPatternCatalog.CoreRange range, int slot) {
             ItemStack stack = range.mount().core().pattern(slot);
             Decoded decoded = decode(stack);
-            if (decoded.identity() != null) {
-                this.seen.add(decoded.identity());
+            if (stack.isEmpty()) {
+                return null;
             }
+            TrinityPatternSemanticIdentity identity = decoded.identity();
+            boolean duplicate = identity != null && !this.seen.add(identity);
+            if ((identity != null && !duplicate) ||
+                    range.mount().core().isSlotWorking(this.catalog.hostId(), slot)) {
+                return null;
+            }
+            return new InstalledRefundCandidate(
+                    new TargetSlot(range.mount().core(), slot), stack.copy(), duplicate);
+        }
+
+        private boolean refundInstalledPattern(InstalledRefundCandidate candidate) {
+            TargetSlot target = candidate.target();
+            if (this.catalog.layoutSnapshot().revision() != this.layout.revision()) {
+                abortTarget("Trinity pattern layout changed during installed-pattern cleanup");
+                return false;
+            }
+            if (target.core().isSlotWorking(this.catalog.hostId(), target.slot()) ||
+                    !matchesSnapshot(target.core().pattern(target.slot()), candidate.stack())) {
+                this.sourceFailures++;
+                return true;
+            }
+            AEItemKey key = AEItemKey.of(candidate.stack());
+            if (key == null) {
+                this.sourceFailures++;
+                return true;
+            }
+            long before = readStorageAmount(key);
+            if (before < 0L) {
+                this.sourceFailures++;
+                return false;
+            }
+            long simulated;
+            try {
+                simulated = StorageHelper.poweredInsert(
+                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.SIMULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(key, "installed-pattern refund simulation failed", failure);
+                this.sourceFailures++;
+                return false;
+            }
+            if (simulated != 1L) {
+                this.meBlocked++;
+                return true;
+            }
+            long inserted;
+            try {
+                inserted = StorageHelper.poweredInsert(
+                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(key, "installed-pattern refund insertion failed", failure);
+                inserted = -1L;
+            }
+            if (inserted != 1L) {
+                long insertedAmount = readStorageAmount(key);
+                if (insertedAmount == before) {
+                    this.meBlocked++;
+                    return true;
+                }
+                if (before == Long.MAX_VALUE || insertedAmount != before + 1L) {
+                    this.sourceFailures++;
+                    return false;
+                }
+            }
+            if (target.core().trySetPattern(target.slot(), ItemStack.EMPTY) &&
+                    target.core().pattern(target.slot()).isEmpty()) {
+                if (candidate.duplicate()) {
+                    this.duplicateRefunded++;
+                } else {
+                    this.invalidRefunded++;
+                }
+                return true;
+            }
+            long compensated;
+            try {
+                compensated = StorageHelper.poweredExtraction(
+                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(key, "installed-pattern refund compensation failed", failure);
+                compensated = -1L;
+            }
+            this.sourceFailures++;
+            if (compensated != 1L && readStorageAmount(key) != before) {
+                abortTarget("installed-pattern refund could not restore its AE storage insertion");
+            }
+            return !this.targetAborted;
         }
 
         private boolean processStorageCandidate(StorageCandidate candidate) {
@@ -896,6 +1010,8 @@ public final class TrinityPatternMigrator {
     }
 
     private record StorageCandidate(AEItemKey key, long capturedAmount) {}
+
+    private record InstalledRefundCandidate(TargetSlot target, ItemStack stack, boolean duplicate) {}
 
     private record StorageKeySnapshot(AEKey key, long amount) {}
 
