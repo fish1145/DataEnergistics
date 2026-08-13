@@ -1,10 +1,6 @@
 @ApiStatus.Internal
-@MethodsReturnNonnullByDefault
-@ParametersAreNonnullByDefault
+@NotNullByDefault
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-
 import org.jetbrains.annotations.ApiStatus;
-
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.jetbrains.annotations.NotNullByDefault;

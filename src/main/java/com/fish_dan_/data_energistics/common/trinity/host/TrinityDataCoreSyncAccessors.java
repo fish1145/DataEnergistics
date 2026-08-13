@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity.host;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 
 import com.lowdragmc.lowdraglib2.syncdata.AccessorRegistries;
 import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;
@@ -40,6 +41,10 @@ public final class TrinityDataCoreSyncAccessors {
         AccessorRegistries.registerAccessor(CustomDirectAccessor.builder(TrinityDataCoreHostStatus.class)
                 .codec(TrinityDataCoreHostStatus.CODEC)
                 .streamCodec(TrinityDataCoreHostStatus.STREAM_CODEC)
+                .build(), 100);
+        AccessorRegistries.registerAccessor(CustomDirectAccessor.builder(TrinityPatternMaintenanceSnapshot.class)
+                .codec(TrinityPatternMaintenanceSnapshot.CODEC)
+                .streamCodec(TrinityPatternMaintenanceSnapshot.STREAM_CODEC)
                 .build(), 100);
         initialized = true;
     }

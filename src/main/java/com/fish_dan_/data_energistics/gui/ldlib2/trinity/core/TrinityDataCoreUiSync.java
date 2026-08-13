@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostSta
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
@@ -38,6 +39,7 @@ final class TrinityDataCoreUiSync {
     private static final String PATTERN_PRIORITY_NAME = "trinity_pattern_priority";
     private static final String PATTERN_PAGE_NAME = "trinity_pattern_page";
     private static final String PATTERN_VIEW_NAME = "trinity_pattern_view";
+    private static final String PATTERN_MAINTENANCE_NAME = "trinity_pattern_maintenance";
     private static final String CPU_LIST_STATUS_NAME = "trinity_cpu_list_status";
     private static final String HOST_STATUS_NAME = "trinity_host_status";
     private static final long CPU_PROGRESS_SYNC_INTERVAL_TICKS = 20L;
@@ -54,6 +56,8 @@ final class TrinityDataCoreUiSync {
     private final SyncValue<Integer> patternPage;
     private final SyncValue<TrinityPatternCatalogView> patternView;
     private final IDataProvider<TrinityPatternCatalogView> patternViewProvider;
+    private final SyncValue<TrinityPatternMaintenanceSnapshot> patternMaintenance;
+    private final IDataProvider<TrinityPatternMaintenanceSnapshot> patternMaintenanceProvider;
     private final SyncValue<TrinityCpuListStatus> cpuListStatus;
     private final IDataProvider<TrinityCpuListStatus> cpuListStatusProvider;
     private final SyncValue<TrinityDataCoreHostStatus> hostStatus;
@@ -84,6 +88,11 @@ final class TrinityDataCoreUiSync {
                 TrinityPatternCatalogView.class,
                 TrinityPatternCatalogView.EMPTY);
         this.patternViewProvider = new SyncValueDataProvider<>(this.patternView);
+        this.patternMaintenance = new SyncValue<>(
+                PATTERN_MAINTENANCE_NAME,
+                TrinityPatternMaintenanceSnapshot.class,
+                TrinityPatternMaintenanceSnapshot.idle(0, 0));
+        this.patternMaintenanceProvider = new SyncValueDataProvider<>(this.patternMaintenance);
         this.cpuListStatus = new SyncValue<>(
                 CPU_LIST_STATUS_NAME,
                 TrinityCpuListStatus.class,
@@ -100,6 +109,7 @@ final class TrinityDataCoreUiSync {
         configurePriorities(menu);
         configurePatternPage(menu);
         configurePatternView(menu);
+        configurePatternMaintenance(menu);
         configureCpuListStatus(menu);
         configureHostStatus(menu);
     }
@@ -122,6 +132,7 @@ final class TrinityDataCoreUiSync {
         modularUI.syncManager.registerSyncValue(this.patternPriority);
         modularUI.syncManager.registerSyncValue(this.patternPage);
         modularUI.syncManager.registerSyncValue(this.patternView);
+        modularUI.syncManager.registerSyncValue(this.patternMaintenance);
         modularUI.syncManager.registerSyncValue(this.cpuListStatus);
         modularUI.syncManager.registerSyncValue(this.hostStatus);
     }
@@ -144,6 +155,10 @@ final class TrinityDataCoreUiSync {
 
     IDataProvider<TrinityPatternCatalogView> patternViewProvider() {
         return this.patternViewProvider;
+    }
+
+    IDataProvider<TrinityPatternMaintenanceSnapshot> patternMaintenanceProvider() {
+        return this.patternMaintenanceProvider;
     }
 
     void setStorageWindowOpen(BooleanSupplier storageWindowOpen) {
@@ -260,6 +275,15 @@ final class TrinityDataCoreUiSync {
         }
     }
 
+    private void configurePatternMaintenance(TrinityDataCoreMenu menu) {
+        boolean clientSide = menu.getPlayer().level().isClientSide();
+        this.patternMaintenance.setToSync(!clientSide);
+        this.patternMaintenance.setAcceptSync(clientSide);
+        if (!clientSide) {
+            this.patternMaintenance.setValueProvider(() -> patternMaintenance(menu.getHost()));
+        }
+    }
+
     private void configureHostStatus(TrinityDataCoreMenu menu) {
         boolean clientSide = menu.getPlayer().level().isClientSide();
         this.hostStatus.setToSync(!clientSide);
@@ -287,6 +311,10 @@ final class TrinityDataCoreUiSync {
 
     private static TrinityPatternCatalogView patternView(TrinityDataCoreMenuHost host, int firstGlobalSlot) {
         return host == null ? TrinityPatternCatalogView.EMPTY : host.getPatternCatalogView(firstGlobalSlot);
+    }
+
+    private static TrinityPatternMaintenanceSnapshot patternMaintenance(TrinityDataCoreMenuHost host) {
+        return host == null ? TrinityPatternMaintenanceSnapshot.idle(0, 0) : host.getPatternMaintenanceSnapshot();
     }
 
     private static TrinityCpuListStatus cpuListStatus(TrinityDataCoreMenuHost host) {

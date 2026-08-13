@@ -263,6 +263,7 @@ public final class TrinityDataCoreHostUi {
                 () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.STORAGE_PRIORITY)));
         hostUi.register(new TrinityAggregatePatternProvider(
                 sync.patternViewProvider(),
+                sync.patternMaintenanceProvider(),
                 sync::requestPatternPage,
                 menu.getPlayer().level(),
                 menu::sendHostedPatternSlot,

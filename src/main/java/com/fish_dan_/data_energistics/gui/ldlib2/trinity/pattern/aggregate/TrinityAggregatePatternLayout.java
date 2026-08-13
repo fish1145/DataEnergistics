@@ -23,6 +23,7 @@ final class TrinityAggregatePatternLayout {
     static final String MIGRATE_ID = WINDOW_ID + "_migrate";
     static final String REFUND_RETAINED_ID = WINDOW_ID + "_refund_retained";
     static final String TITLE_ID = WINDOW_ID + "_title";
+    static final String MAINTENANCE_ID = WINDOW_ID + "_maintenance";
 
     private static final int AUTHORED_CHILD_COUNT = 8;
 

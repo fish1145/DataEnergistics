@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate;
 
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
@@ -26,6 +27,7 @@ import java.util.function.LongConsumer;
 public final class TrinityAggregatePatternProvider implements HostSubUiProvider {
 
     private final IDataProvider<TrinityPatternCatalogView> catalogView;
+    private final IDataProvider<TrinityPatternMaintenanceSnapshot> maintenance;
     private final IntConsumer pageRequest;
     private final Level level;
     private final TrinityPatternSlotActionSender slotActionSender;
@@ -35,6 +37,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
     private final Runnable refundRetained;
 
     public TrinityAggregatePatternProvider(IDataProvider<TrinityPatternCatalogView> catalogView,
+                                           IDataProvider<TrinityPatternMaintenanceSnapshot> maintenance,
                                            IntConsumer pageRequest,
                                            Level level,
                                            TrinityPatternSlotActionSender slotActionSender,
@@ -43,6 +46,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                                            Runnable refundPatterns,
                                            Runnable refundRetained) {
         this.catalogView = catalogView;
+        this.maintenance = maintenance;
         this.pageRequest = pageRequest;
         this.level = level;
         this.slotActionSender = slotActionSender;
@@ -76,6 +80,12 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         patterns.bindDataSource(this.catalogView);
         controls.content().addChildAt(patterns, 0);
         patterns.bindControls(controls.scrollbar(), controls.search(), controls.searchMode());
+
+        TrinityPatternMaintenanceBar maintenanceBar = new TrinityPatternMaintenanceBar(
+                TrinityAggregatePatternLayout.MAINTENANCE_ID,
+                active -> setMaintenanceActive(controls, patterns, active));
+        maintenanceBar.bindDataSource(this.maintenance);
+        root.addChild(maintenanceBar);
 
         bindButton(controls.close(), Component.translatable("gui.close"), context::requestClose);
         bindButton(
@@ -116,5 +126,17 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         button.setOnClick(event -> action.run());
         button.text.style(style -> style.tooltips(tooltip));
         button.style(style -> style.tooltips(tooltip));
+    }
+
+    private static void setMaintenanceActive(TrinityAggregatePatternLayout.Controls controls,
+                                             TrinityAggregatePatternSlots patterns,
+                                             boolean active) {
+        controls.refundPatterns().setActive(!active);
+        controls.refundPatterns().setAllowHitTest(!active);
+        controls.migrate().setActive(!active);
+        controls.migrate().setAllowHitTest(!active);
+        controls.refundRetained().setActive(!active);
+        controls.refundRetained().setAllowHitTest(!active);
+        patterns.setMaintenanceActive(active);
     }
 }

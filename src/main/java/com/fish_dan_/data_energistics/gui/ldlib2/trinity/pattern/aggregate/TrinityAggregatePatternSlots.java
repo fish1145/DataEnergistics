@@ -12,10 +12,9 @@ import net.minecraft.world.level.Level;
 
 import appeng.crafting.pattern.EncodedPatternItem;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -40,9 +39,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
     private static final int SLOT_SIZE = 18;
     private static final int MAX_CACHED_PAGES = 16;
-    private static final IGuiTexture PATTERN_SLOT_BACKGROUND = GuiTextureGroup.of(
-            SpriteTexture.of("data_energistics:textures/guis/inventory_slot.png"),
-            new ColorBorderTexture(-1, 0xFF696D88));
+    private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
 
     private final long generation;
     private final Level level;
@@ -71,6 +68,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private int searchFirstResult;
     private int scanCoveredUntil;
     private boolean searchComplete = true;
+    private boolean maintenanceActive;
 
     TrinityAggregatePatternSlots(String id,
                                  long generation,
@@ -91,11 +89,25 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
                 .top(6)
                 .width(TrinityPatternCatalogView.COLUMN_COUNT * SLOT_SIZE)
                 .height(TrinityPatternCatalogView.ROW_COUNT * SLOT_SIZE));
+        for (int row = 0; row < TrinityPatternCatalogView.ROW_COUNT; row++) {
+            UIElement background = new UIElement();
+            background.setId(id + "_row_" + row);
+            background.setAllowHitTest(false);
+            background.style(style -> style.backgroundTexture(PATTERN_ROW_BACKGROUND));
+            int top = row * SLOT_SIZE;
+            background.layout(rowLayout -> rowLayout
+                    .positionType(TaffyPosition.ABSOLUTE)
+                    .left(0)
+                    .top(top)
+                    .width(TrinityPatternCatalogView.COLUMN_COUNT * SLOT_SIZE)
+                    .height(SLOT_SIZE));
+            addChild(background);
+        }
         for (int index = 0; index < TrinityPatternCatalogView.PAGE_SIZE; index++) {
             LocalSlot localSlot = new LocalSlot();
             ItemSlot itemSlot = new PatternDisplaySlot(localSlot, index);
             itemSlot.setId(id + "_" + index);
-            itemSlot.getStyle().backgroundTexture(PATTERN_SLOT_BACKGROUND);
+            itemSlot.getStyle().backgroundTexture(IGuiTexture.EMPTY);
             int column = index % TrinityPatternCatalogView.COLUMN_COUNT;
             int row = index / TrinityPatternCatalogView.COLUMN_COUNT;
             itemSlot.layout(slotLayout -> slotLayout
@@ -119,6 +131,10 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         searchModeButton.setOnClick(event -> cycleSearchMode());
         updateSearchModeTooltip();
         updateScrollbar(0, 0);
+    }
+
+    void setMaintenanceActive(boolean maintenanceActive) {
+        this.maintenanceActive = maintenanceActive;
     }
 
     @Override
@@ -392,7 +408,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private void sendSlotAction(int viewIndex, UIEvent event) {
         event.stopPropagation();
         event.hasHandler = false;
-        if (!this.level.isClientSide()) {
+        if (!this.level.isClientSide() || this.maintenanceActive) {
             return;
         }
         int globalSlot = this.displayedGlobalSlots[viewIndex];

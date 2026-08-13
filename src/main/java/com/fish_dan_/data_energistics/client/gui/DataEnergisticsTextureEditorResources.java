@@ -152,6 +152,7 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("model_input", modelSprite("input.png"));
         provider.addResource("model_input_and_output", modelSprite("input_and_output.png"));
         provider.addResource("model_material_recycling", modelSprite("material_recycling.png"));
+        provider.addResource("model_pattern_row", modelSprite("model.png"));
         provider.addResource("model_output", modelSprite("output.png"));
         provider.addResource("model_template_rollback", modelSprite("template_rollback.png"));
         provider.addResource("model_template_send", modelSprite("template_send.png"));
