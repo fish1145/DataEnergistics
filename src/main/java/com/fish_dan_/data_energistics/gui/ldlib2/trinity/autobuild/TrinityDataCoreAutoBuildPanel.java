@@ -124,11 +124,11 @@ final class TrinityDataCoreAutoBuildPanel {
                 identify(authoredChild(structureControls, 1, Button.class, "next structure"), STRUCTURE_NEXT_ID),
                 identify(authoredChild(adjustmentControls, 1, Button.class, "previous context"), CONTEXT_PREVIOUS_ID),
                 identifyAndClass(
-                        authoredChild(adjustmentControls, 2, Label.class, "context title"),
+                        authoredChild(adjustmentControls, 3, Label.class, "context title"),
                         CONTEXT_TITLE_ID,
                         "trinity-auto-build-adjustment-title"),
                 identifyAndClass(
-                        authoredChild(adjustmentControls, 3, Label.class, "context value"),
+                        authoredChild(adjustmentControls, 2, Label.class, "context value"),
                         CONTEXT_VALUE_ID,
                         "trinity-auto-build-adjustment-value"),
                 identify(authoredChild(adjustmentControls, 4, Button.class, "next context"), CONTEXT_NEXT_ID),
