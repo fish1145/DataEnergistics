@@ -23,6 +23,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.StorageHelper;
+import appeng.core.definitions.AEItems;
 import appeng.helpers.patternprovider.PatternContainer;
 import org.jetbrains.annotations.Nullable;
 
@@ -254,7 +255,7 @@ public final class TrinityPatternMigrator {
             Set<PatternContainer> identities = Collections.newSetFromMap(new IdentityHashMap<>());
             int ordinal = 0;
             for (Class<?> machineClass : classes) {
-                for (Object machine : current.grid.getActiveMachines(machineClass)) {
+                for (Object machine : current.grid.getMachines(machineClass)) {
                     if (!(machine instanceof PatternContainer container) || current.isTrinitySource(container) ||
                             !identities.add(container)) {
                         continue;
@@ -571,15 +572,16 @@ public final class TrinityPatternMigrator {
         private final TrinityPatternCatalog catalog;
         private final TrinityPatternCatalog.LayoutSnapshot layout;
         private final MEStorage storage;
+        private final AEItemKey blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
         private final Set<TrinityPatternSemanticIdentity> seen = new HashSet<>();
         private int movedFromStorage;
         private int movedFromContainers;
         private int invalidRefunded;
         private int duplicateRefunded;
         private int unsupportedKept;
-        private int storageInvalidKept;
+        private int storageInvalidRecycled;
         private int storageUnsupportedKept;
-        private int storageDuplicateKept;
+        private int storageDuplicateRecycled;
         private int storageSourceUncertain;
         private int meBlocked;
         private int capacitySkipped;
@@ -695,12 +697,7 @@ public final class TrinityPatternMigrator {
                 this.sourceFailures++;
                 return true;
             }
-            AEItemKey key = AEItemKey.of(candidate.stack());
-            if (key == null) {
-                this.sourceFailures++;
-                return true;
-            }
-            long before = readStorageAmount(key);
+            long before = readStorageAmount(this.blankPatternKey);
             if (before < 0L) {
                 this.sourceFailures++;
                 return false;
@@ -711,12 +708,12 @@ public final class TrinityPatternMigrator {
                 simulated = StorageHelper.poweredInsert(
                         this.grid.getEnergyService(),
                         this.storage,
-                        key,
+                        this.blankPatternKey,
                         refundAmount,
                         this.actionSource,
                         Actionable.SIMULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "installed-pattern refund simulation failed", failure);
+                logStorageFailure(this.blankPatternKey, "installed-pattern refund simulation failed", failure);
                 this.sourceFailures++;
                 return false;
             }
@@ -729,16 +726,16 @@ public final class TrinityPatternMigrator {
                 inserted = StorageHelper.poweredInsert(
                         this.grid.getEnergyService(),
                         this.storage,
-                        key,
+                        this.blankPatternKey,
                         refundAmount,
                         this.actionSource,
                         Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "installed-pattern refund insertion failed", failure);
+                logStorageFailure(this.blankPatternKey, "installed-pattern refund insertion failed", failure);
                 inserted = -1L;
             }
             if (inserted != refundAmount) {
-                long insertedAmount = readStorageAmount(key);
+                long insertedAmount = readStorageAmount(this.blankPatternKey);
                 if (insertedAmount == before) {
                     this.meBlocked++;
                     return true;
@@ -762,16 +759,16 @@ public final class TrinityPatternMigrator {
                 compensated = StorageHelper.poweredExtraction(
                         this.grid.getEnergyService(),
                         this.storage,
-                        key,
+                        this.blankPatternKey,
                         refundAmount,
                         this.actionSource,
                         Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "installed-pattern refund compensation failed", failure);
+                logStorageFailure(this.blankPatternKey, "installed-pattern refund compensation failed", failure);
                 compensated = -1L;
             }
             this.sourceFailures++;
-            if (compensated != refundAmount && readStorageAmount(key) != before) {
+            if (compensated != refundAmount && readStorageAmount(this.blankPatternKey) != before) {
                 abortTarget("installed-pattern refund could not restore its AE storage insertion");
             }
             return !this.targetAborted;
@@ -841,16 +838,14 @@ public final class TrinityPatternMigrator {
                 return false;
             }
             if (decoded.identity() == null) {
-                this.storageInvalidKept++;
-                return true;
+                return recycleStoragePattern(candidate, false);
             }
             if (!supports(decoded.stack())) {
                 this.storageUnsupportedKept++;
                 return true;
             }
             if (this.seen.contains(decoded.identity())) {
-                this.storageDuplicateKept++;
-                return true;
+                return recycleStoragePattern(candidate, true);
             }
             TargetSlot target = nextEmptyTarget();
             if (target == null) {
@@ -907,6 +902,76 @@ public final class TrinityPatternMigrator {
             return !this.targetAborted;
         }
 
+        private boolean recycleStoragePattern(StorageCandidate candidate, boolean duplicate) {
+            long blankBefore = readStorageAmount(this.blankPatternKey);
+            if (blankBefore < 0L) {
+                this.storageSourceUncertain++;
+                return false;
+            }
+            long simulated;
+            try {
+                simulated = StorageHelper.poweredInsert(
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.SIMULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(this.blankPatternKey, "storage pattern recycle simulation failed", failure);
+                this.storageSourceUncertain++;
+                return false;
+            }
+            if (simulated != 1L) {
+                this.meBlocked++;
+                return true;
+            }
+            long inserted;
+            try {
+                inserted = StorageHelper.poweredInsert(
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(this.blankPatternKey, "storage pattern recycle insertion failed", failure);
+                inserted = -1L;
+            }
+            if (inserted != 1L && !amountIncreasedByOne(blankBefore, readStorageAmount(this.blankPatternKey))) {
+                this.storageSourceUncertain++;
+                return false;
+            }
+            long extracted;
+            try {
+                extracted = StorageHelper.poweredExtraction(
+                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.actionSource, Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(candidate.key(), "storage pattern recycle extraction failed", failure);
+                extracted = -1L;
+            }
+            long encodedAfter = readStorageAmount(candidate.key());
+            if (encodedAfter == candidate.capturedAmount() - 1L) {
+                if (duplicate) {
+                    this.storageDuplicateRecycled++;
+                } else {
+                    this.storageInvalidRecycled++;
+                }
+                return true;
+            }
+            try {
+                long compensated = StorageHelper.poweredExtraction(
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.MODULATE);
+                if (compensated != 1L) {
+                    Data_Energistics.LOGGER.error(
+                            "AE storage pattern recycle compensation extracted {} blank patterns for host {}",
+                            compensated,
+                            this.catalog.hostId());
+                }
+            } catch (RuntimeException failure) {
+                logStorageFailure(this.blankPatternKey, "storage pattern recycle compensation failed", failure);
+            }
+            this.storageSourceUncertain++;
+            boolean sourceRestored = encodedAfter == candidate.capturedAmount();
+            boolean blankRestored = readStorageAmount(this.blankPatternKey) == blankBefore;
+            return sourceRestored && blankRestored;
+        }
+
         private boolean processContainerCandidate(ContainerSnapshot container, SlotSnapshot slot) {
             if (this.targetAborted) {
                 return false;
@@ -933,12 +998,7 @@ public final class TrinityPatternMigrator {
         }
 
         private boolean refundContainerPattern(ContainerSnapshot container, SlotSnapshot slot, boolean duplicate) {
-            AEItemKey key = AEItemKey.of(slot.stack());
-            if (key == null) {
-                this.sourceFailures++;
-                return true;
-            }
-            long before = readStorageAmount(key);
+            long before = readStorageAmount(this.blankPatternKey);
             if (before < 0L) {
                 this.sourceFailures++;
                 return false;
@@ -946,9 +1006,10 @@ public final class TrinityPatternMigrator {
             long simulated;
             try {
                 simulated = StorageHelper.poweredInsert(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.SIMULATE);
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.SIMULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "container refund simulation failed", failure);
+                logStorageFailure(this.blankPatternKey, "container refund simulation failed", failure);
                 this.sourceFailures++;
                 return false;
             }
@@ -959,13 +1020,14 @@ public final class TrinityPatternMigrator {
             long inserted;
             try {
                 inserted = StorageHelper.poweredInsert(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "container refund insertion failed", failure);
+                logStorageFailure(this.blankPatternKey, "container refund insertion failed", failure);
                 inserted = -1L;
             }
             if (inserted != 1L) {
-                long insertedAmount = readStorageAmount(key);
+                long insertedAmount = readStorageAmount(this.blankPatternKey);
                 if (insertedAmount == before) {
                     this.meBlocked++;
                     return true;
@@ -988,14 +1050,15 @@ public final class TrinityPatternMigrator {
             long compensated;
             try {
                 compensated = StorageHelper.poweredExtraction(
-                        this.grid.getEnergyService(), this.storage, key, 1L, this.actionSource, Actionable.MODULATE);
+                        this.grid.getEnergyService(), this.storage, this.blankPatternKey, 1L,
+                        this.actionSource, Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(key, "container refund compensation failed", failure);
+                logStorageFailure(this.blankPatternKey, "container refund compensation failed", failure);
                 compensated = -1L;
             }
             this.sourceFailures++;
             if (compensated != 1L) {
-                long compensatedAmount = readStorageAmount(key);
+                long compensatedAmount = readStorageAmount(this.blankPatternKey);
                 if (before == Long.MAX_VALUE || compensatedAmount != before) {
                     logSourceFailure(container, slot, "refund compensation could not be proven");
                     return false;
@@ -1149,9 +1212,9 @@ public final class TrinityPatternMigrator {
                     this.invalidRefunded,
                     this.duplicateRefunded,
                     this.unsupportedKept,
-                    this.storageInvalidKept,
+                    this.storageInvalidRecycled,
                     this.storageUnsupportedKept,
-                    this.storageDuplicateKept,
+                    this.storageDuplicateRecycled,
                     this.storageSourceUncertain,
                     this.meBlocked,
                     this.capacitySkipped,
@@ -1171,6 +1234,10 @@ public final class TrinityPatternMigrator {
                         failure);
                 return -1L;
             }
+        }
+
+        private static boolean amountIncreasedByOne(long before, long after) {
+            return before != Long.MAX_VALUE && after == before + 1L;
         }
 
         private void logStorageFailure(AEKey key, String reason, RuntimeException failure) {
