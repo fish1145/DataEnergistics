@@ -246,19 +246,18 @@ public final class TrinityPatternMigrator {
         }
 
         private void captureContainerSources(Batch current) {
-            ArrayList<Class<?>> classes = new ArrayList<>();
+            ArrayList<Class<? extends PatternContainer>> classes = new ArrayList<>();
             for (Class<?> machineClass : current.grid.getMachineClasses()) {
                 if (PatternContainer.class.isAssignableFrom(machineClass)) {
-                    classes.add(machineClass);
+                    classes.add(machineClass.asSubclass(PatternContainer.class));
                 }
             }
             classes.sort(Comparator.comparing(Class::getName));
             Set<PatternContainer> identities = Collections.newSetFromMap(new IdentityHashMap<>());
             int ordinal = 0;
-            for (Class<?> machineClass : classes) {
-                for (Object machine : current.grid.getMachines(machineClass)) {
-                    if (!(machine instanceof PatternContainer container) || current.isTrinitySource(container) ||
-                            !identities.add(container)) {
+            for (Class<? extends PatternContainer> machineClass : classes) {
+                for (PatternContainer container : current.grid.getMachines(machineClass)) {
+                    if (current.isTrinitySource(container) || !identities.add(container)) {
                         continue;
                     }
                     InternalInventory inventory = container.getTerminalPatternInventory();
@@ -269,7 +268,7 @@ public final class TrinityPatternMigrator {
                     this.containerBuilders.add(new ContainerBuilder(
                             container,
                             inventory,
-                            machineClass.getName(),
+                            machineClass,
                             container.getTerminalSortOrder(),
                             container.getClass().getName(),
                             identityDigest,
@@ -1027,8 +1026,28 @@ public final class TrinityPatternMigrator {
             if (this.targetAborted) {
                 return false;
             }
-            if (container.container().getGrid() != this.grid ||
-                    !matchesSnapshot(container.inventory().getStackInSlot(slot.slot()), slot.stack())) {
+            if (!isMountedExternalSource(container)) {
+                Data_Energistics.LOGGER.warn(
+                        "Pattern migration source class={} ordinal={} is no longer an external container mounted on the captured grid",
+                        container.className(),
+                        container.ordinal());
+                this.sourceFailures++;
+                return true;
+            }
+            ItemStack current;
+            try {
+                current = container.inventory().getStackInSlot(slot.slot());
+            } catch (RuntimeException failure) {
+                logSourceFailure(container, slot, "source slot revalidation failed: " + failure.getClass().getSimpleName());
+                this.sourceFailures++;
+                return false;
+            }
+            if (!matchesSnapshot(current, slot.stack())) {
+                Data_Energistics.LOGGER.warn(
+                        "Pattern migration source class={} ordinal={} slot={} changed after capture",
+                        container.className(),
+                        container.ordinal(),
+                        slot.slot());
                 this.sourceFailures++;
                 return true;
             }
@@ -1045,6 +1064,27 @@ public final class TrinityPatternMigrator {
                 return refundContainerPattern(container, slot, true);
             } else {
                 return moveContainerPattern(container, slot, decoded);
+            }
+        }
+
+        private boolean isMountedExternalSource(ContainerSnapshot source) {
+            if (isTrinitySource(source.container())) {
+                return false;
+            }
+            try {
+                for (PatternContainer mounted : this.grid.getMachines(source.discoveryClass())) {
+                    if (mounted == source.container()) {
+                        return true;
+                    }
+                }
+                return false;
+            } catch (RuntimeException failure) {
+                Data_Energistics.LOGGER.error(
+                        "Could not revalidate pattern migration source class={} ordinal={} against its captured grid",
+                        source.className(),
+                        source.ordinal(),
+                        failure);
+                return false;
             }
         }
 
@@ -1384,7 +1424,7 @@ public final class TrinityPatternMigrator {
 
     private record ContainerSnapshot(PatternContainer container,
                                      InternalInventory inventory,
-                                     String discoveryClassName,
+                                     Class<? extends PatternContainer> discoveryClass,
                                      long sortOrder,
                                      String className,
                                      @Nullable String identityDigest,
@@ -1395,7 +1435,7 @@ public final class TrinityPatternMigrator {
     private static final class ContainerBuilder {
 
         private static final Comparator<ContainerBuilder> ORDER = Comparator
-                .comparing((ContainerBuilder builder) -> builder.discoveryClassName)
+                .comparing((ContainerBuilder builder) -> builder.discoveryClass.getName())
                 .thenComparingLong(builder -> builder.sortOrder)
                 .thenComparing(builder -> builder.className)
                 .thenComparing(builder -> builder.identityDigest == null ? "~" : builder.identityDigest)
@@ -1404,7 +1444,7 @@ public final class TrinityPatternMigrator {
         private final PatternContainer container;
         private final InternalInventory inventory;
         private final int slotCount;
-        private final String discoveryClassName;
+        private final Class<? extends PatternContainer> discoveryClass;
         private final long sortOrder;
         private final String className;
         private final @Nullable String identityDigest;
@@ -1414,7 +1454,7 @@ public final class TrinityPatternMigrator {
 
         private ContainerBuilder(PatternContainer container,
                                  InternalInventory inventory,
-                                 String discoveryClassName,
+                                 Class<? extends PatternContainer> discoveryClass,
                                  long sortOrder,
                                  String className,
                                  @Nullable String identityDigest,
@@ -1422,7 +1462,7 @@ public final class TrinityPatternMigrator {
             this.container = container;
             this.inventory = inventory;
             this.slotCount = inventory.size();
-            this.discoveryClassName = discoveryClassName;
+            this.discoveryClass = discoveryClass;
             this.sortOrder = sortOrder;
             this.className = className;
             this.identityDigest = identityDigest;
@@ -1433,7 +1473,7 @@ public final class TrinityPatternMigrator {
             return new ContainerSnapshot(
                     this.container,
                     this.inventory,
-                    this.discoveryClassName,
+                    this.discoveryClass,
                     this.sortOrder,
                     this.className,
                     this.identityDigest,
