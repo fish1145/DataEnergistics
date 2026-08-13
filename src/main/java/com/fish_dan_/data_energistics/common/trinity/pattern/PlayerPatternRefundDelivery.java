@@ -6,20 +6,40 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.storage.MEStorage;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/** Default player-inventory then checked world-drop implementation for installed Trinity pattern refunds. */
+/** Default AE-network, player-inventory, then checked world-drop implementation for installed-pattern refunds. */
 public final class PlayerPatternRefundDelivery implements TrinityPatternRefundDelivery {
 
     private final Player player;
+    @Nullable
+    private final MEStorage networkStorage;
+    @Nullable
+    private final IActionSource actionSource;
     private List<ItemStack> preparedPatterns = List.of();
     private boolean prepared;
     private boolean delivered;
 
-    /** Creates a delivery bound to the requesting player and its current server-level position. */
-    public PlayerPatternRefundDelivery(Player player) {
+    /**
+     * Creates a delivery bound to the requesting player and an optional currently usable AE network.
+     *
+     * @param player         requesting player and final world-drop location
+     * @param networkStorage lease-grid storage, or {@code null} when no AE network is available
+     * @param actionSource   lease-grid permission source, or {@code null} with no AE network
+     */
+    public PlayerPatternRefundDelivery(Player player,
+                                       @Nullable MEStorage networkStorage,
+                                       @Nullable IActionSource actionSource) {
         this.player = player;
+        this.networkStorage = networkStorage;
+        this.actionSource = actionSource;
     }
 
     @Override
@@ -41,8 +61,11 @@ public final class PlayerPatternRefundDelivery implements TrinityPatternRefundDe
         for (int index = 0; index < patterns.size(); index++) {
             ItemStack pattern = patterns.get(index);
             ItemStack remainder = pattern.copy();
+            insertIntoNetwork(remainder);
             try {
-                this.player.getInventory().add(remainder);
+                if (!remainder.isEmpty()) {
+                    this.player.getInventory().add(remainder);
+                }
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Failed to insert Trinity installed-pattern refund {} into player {} inventory",
@@ -55,6 +78,32 @@ public final class PlayerPatternRefundDelivery implements TrinityPatternRefundDe
             }
         }
         return List.of();
+    }
+
+    private void insertIntoNetwork(ItemStack remainder) {
+        if (remainder.isEmpty() || this.networkStorage == null || this.actionSource == null) {
+            return;
+        }
+        AEItemKey key = AEItemKey.of(remainder);
+        if (key == null) {
+            throw new IllegalArgumentException("Installed Trinity pattern refund requires a non-empty item stack");
+        }
+        long offered = remainder.getCount();
+        long inserted;
+        try {
+            inserted = this.networkStorage.insert(key, offered, Actionable.MODULATE, this.actionSource);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to insert Trinity installed-pattern refund {} into the selected AE network; trying player inventory",
+                    remainder,
+                    exception);
+            return;
+        }
+        if (inserted < 0L || inserted > offered) {
+            throw new IllegalStateException("AE storage accepted invalid Trinity installed-pattern refund amount " +
+                    inserted + " for offer " + offered);
+        }
+        remainder.shrink((int) inserted);
     }
 
     private boolean matchesPreparedPatterns(List<ItemStack> patterns) {

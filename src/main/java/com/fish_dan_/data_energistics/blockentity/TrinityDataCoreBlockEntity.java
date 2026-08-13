@@ -657,7 +657,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private PlayerInventoryRefundDelivery createRefundDelivery(Player player) {
+    private RefundDestination resolveRefundDestination() {
         MEStorage networkStorage = null;
         IActionSource actionSource = null;
         IGrid grid = accessGrid();
@@ -672,10 +672,23 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         exception);
             }
         }
+        return new RefundDestination(networkStorage, actionSource);
+    }
+
+    private PlayerInventoryRefundDelivery createRefundDelivery(Player player) {
+        RefundDestination destination = resolveRefundDestination();
         return new PlayerInventoryRefundDelivery(
                 player,
-                networkStorage,
-                actionSource);
+                destination.networkStorage(),
+                destination.actionSource());
+    }
+
+    private PlayerPatternRefundDelivery createPatternRefundDelivery(Player player) {
+        RefundDestination destination = resolveRefundDestination();
+        return new PlayerPatternRefundDelivery(
+                player,
+                destination.networkStorage(),
+                destination.actionSource());
     }
 
     @Override
@@ -1535,7 +1548,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
         task.committing();
-        TrinityPatternCatalog.PatternRefundResult result = preparation.commit(new PlayerPatternRefundDelivery(player));
+        TrinityPatternCatalog.PatternRefundResult result = preparation.commit(createPatternRefundDelivery(player));
         if (result.completed()) {
             setChanged();
             notifyTrinityPatternPublicationChanged();
@@ -3479,6 +3492,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     patternCapacity,
                     this.succeededUnits,
                     this.failedUnits);
+        }
+    }
+
+    private record RefundDestination(@Nullable MEStorage networkStorage, @Nullable IActionSource actionSource) {
+
+        private RefundDestination {
+            if ((networkStorage == null) != (actionSource == null)) {
+                throw new IllegalArgumentException("Trinity refund destination requires a complete AE context");
+            }
         }
     }
 

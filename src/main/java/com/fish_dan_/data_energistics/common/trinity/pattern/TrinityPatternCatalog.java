@@ -442,7 +442,7 @@ public interface TrinityPatternCatalog {
      * into {@link TrinityItemAmount} entries.
      * </p>
      *
-     * @param delivery two-phase inventory and world-drop destination for the complete installed-pattern aggregate
+     * @param delivery two-phase AE, inventory, and world-drop destination for the complete installed-pattern aggregate
      * @return precise final outcome, including no-op, stale-state, and delivery failure cases
      */
     default PatternRefundResult tryRefundPatterns(TrinityPatternRefundDelivery delivery) {
