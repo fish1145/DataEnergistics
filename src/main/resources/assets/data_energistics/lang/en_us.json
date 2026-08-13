@@ -242,7 +242,7 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.completed": "Completed",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.failed": "Failed",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.cancelled": "Cancelled",
-	"message.data_energistics.trinity_data_core.pattern_migration.summary": "Best-effort migration (partial success allowed): %s from ME, %s from containers, %s invalid refunded, %s duplicates refunded, %s container unsupported kept, ME kept %s invalid / %s unsupported / %s duplicate, %s ME source uncertain, %s ME blocked, %s capacity skipped, %s source failures, %s sources quarantined, %s fallback source identities",
+	"message.data_energistics.trinity_data_core.pattern_migration.summary": "Best-effort migration (partial success allowed): %s from ME, %s from containers, %s invalid recycled to blanks, %s duplicates recycled to blanks, %s container unsupported kept, ME recycled %s invalid / kept %s unsupported / recycled %s duplicate, %s ME source uncertain, %s ME blocked, %s capacity skipped, %s source failures, %s sources quarantined, %s fallback source identities",
 	"message.data_energistics.trinity_data_core.pattern_migration.aborted": "Pattern migration stopped because the Trinity target changed or could not be restored.",
 	"button.data_energistics.trinity_data_core.pattern.search_mode.input": "Search: In",
 	"button.data_energistics.trinity_data_core.pattern.search_mode.output": "Search: Out",

@@ -6,9 +6,9 @@ public record TrinityPatternMigrationResult(int movedFromStorage,
                                             int invalidRefunded,
                                             int duplicateRefunded,
                                             int unsupportedKept,
-                                            int storageInvalidKept,
+                                            int storageInvalidRecycled,
                                             int storageUnsupportedKept,
-                                            int storageDuplicateKept,
+                                            int storageDuplicateRecycled,
                                             int storageSourceUncertain,
                                             int meBlocked,
                                             int capacitySkipped,
@@ -25,6 +25,7 @@ public record TrinityPatternMigrationResult(int movedFromStorage,
     /** @return whether the batch changed at least one source or target */
     public boolean changed() {
         return this.movedFromStorage > 0 || this.movedFromContainers > 0 ||
-                this.invalidRefunded > 0 || this.duplicateRefunded > 0;
+                this.invalidRefunded > 0 || this.duplicateRefunded > 0 ||
+                this.storageInvalidRecycled > 0 || this.storageDuplicateRecycled > 0;
     }
 }

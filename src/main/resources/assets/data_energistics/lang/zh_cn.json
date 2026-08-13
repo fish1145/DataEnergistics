@@ -242,7 +242,7 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.completed": "已完成",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.failed": "失败",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.cancelled": "已取消",
-	"message.data_energistics.trinity_data_core.pattern_migration.summary": "尽力迁移（允许部分成功）：ME 迁入 %s，容器迁入 %s，无效退回 %s，重复退回 %s，容器不支持保留 %s，ME 保留无效 %s / 不支持 %s / 重复 %s，ME 来源不确定 %s，ME 阻塞 %s，容量不足跳过 %s，来源失败 %s，熔断来源 %s，回退身份来源 %s",
+	"message.data_energistics.trinity_data_core.pattern_migration.summary": "尽力迁移（允许部分成功）：ME 迁入 %s，容器迁入 %s，无效回收为空白 %s，重复回收为空白 %s，容器不支持保留 %s，ME 回收无效 %s / 保留不支持 %s / 回收重复 %s，ME 来源不确定 %s，ME 阻塞 %s，容量不足跳过 %s，来源失败 %s，熔断来源 %s，回退身份来源 %s",
 	"message.data_energistics.trinity_data_core.pattern_migration.aborted": "Trinity 目标已变化或无法恢复，样板迁移已停止。",
 	"button.data_energistics.trinity_data_core.pattern.search_mode.input": "搜索：输入",
 	"button.data_energistics.trinity_data_core.pattern.search_mode.output": "搜索：输出",
