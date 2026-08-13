@@ -9,7 +9,6 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiContext;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild.AutoBuildComposition;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
 import net.minecraft.network.chat.Component;
 
@@ -17,8 +16,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,6 +49,17 @@ final class TrinityDataCoreAutoBuildPanel {
     static final String CONFIRM_BUTTON_ID = PANEL_ID + "_confirm";
     static final String CONFIRM_TITLE_ID = CONFIRM_BUTTON_ID + "_title";
 
+    static final String PREVIEW_MOUNT_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_preview_mount";
+    static final String LAYER_SCROLLER_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_layer_scroller";
+    static final String MATERIALS_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_materials";
+    static final String MATERIALS_SCROLLER_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID +
+            "_materials_scroller";
+    static final String CLOSE_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_close";
+    static final String WINDOW_TITLE_ID = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID + "_title";
+
+    private static final int AUTHORED_ROOT_CHILD_COUNT = 6;
+    private static final int AUTHORED_ADJUSTMENT_CHILD_COUNT = 9;
+
     private static final String PREVIEW_TRANSLATION_PREFIX = "screen.data_energistics.multiblock_preview.";
     private static final String AUTO_BUILD_TRANSLATION_PREFIX = "screen.data_energistics.trinity_data_core.auto_build.adjustment.";
 
@@ -61,41 +71,129 @@ final class TrinityDataCoreAutoBuildPanel {
     private TrinityAutoBuildDraft draft;
 
     static Layout requireLayout(@NotNull UIElement root) {
-        UIElement adjustment = TrinityUiXmlLayouts.require(root, ADJUSTMENT_ID, UIElement.class);
-        TrinityUiXmlLayouts.require(root, STRUCTURE_SELECTOR_ID, UIElement.class);
-        Label confirmTitle = createConfirmTitle();
-        adjustment.addChild(confirmTitle);
+        List<UIElement> rootChildren = root.getChildren();
+        if (rootChildren.size() != AUTHORED_ROOT_CHILD_COUNT) {
+            throw new IllegalStateException("Automatic-build layout expected " + AUTHORED_ROOT_CHILD_COUNT +
+                    " authored root children, found " + rootChildren.size());
+        }
+        root.setId(TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID);
+        UIElement previewMount = identify(
+                authoredChild(rootChildren, 0, UIElement.class, "structure preview mount"),
+                PREVIEW_MOUNT_ID);
+        Scroller.Horizontal layerScroller = identify(
+                authoredOnlyChild(previewMount, Scroller.Horizontal.class, "layer scroller"),
+                LAYER_SCROLLER_ID);
+        UIElement materialsMount = identify(
+                authoredChild(rootChildren, 1, UIElement.class, "material mount"),
+                MATERIALS_ID);
+        Scroller.Vertical materialScroller = identify(
+                authoredOnlyChild(materialsMount, Scroller.Vertical.class, "material scroller"),
+                MATERIALS_SCROLLER_ID);
+        UIElement structureSelector = authoredChild(rootChildren, 2, UIElement.class, "structure selector");
+        structureSelector.setId(STRUCTURE_SELECTOR_ID);
+        List<UIElement> structureControls = structureSelector.getChildren();
+        if (structureControls.size() != 3) {
+            throw new IllegalStateException("Automatic-build structure selector expected 3 authored children, found " +
+                    structureControls.size());
+        }
+        UIElement adjustment = authoredChild(rootChildren, 3, UIElement.class, "adjustment panel");
+        adjustment.setId(ADJUSTMENT_ID);
+        List<UIElement> adjustmentControls = adjustment.getChildren();
+        if (adjustmentControls.size() != AUTHORED_ADJUSTMENT_CHILD_COUNT) {
+            throw new IllegalStateException("Automatic-build adjustment layout expected " +
+                    AUTHORED_ADJUSTMENT_CHILD_COUNT + " authored children, found " + adjustmentControls.size());
+        }
+        Button confirm = authoredChild(adjustmentControls, 0, Button.class, "confirm");
+        confirm.setId(CONFIRM_BUTTON_ID);
+        TextElement confirmTitle = authoredConfirmTitle(confirm);
+        confirmTitle.setId(CONFIRM_TITLE_ID);
+        confirmTitle.addClass("trinity-auto-build-confirm-title");
+        confirmTitle.setAllowHitTest(false);
+        confirmTitle.setOverflowVisible(false);
         return new Layout(
                 root,
-                TrinityUiXmlLayouts.require(root, STRUCTURE_PREVIOUS_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, STRUCTURE_TITLE_ID, Label.class),
-                TrinityUiXmlLayouts.require(root, STRUCTURE_NEXT_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, CONTEXT_PREVIOUS_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, CONTEXT_TITLE_ID, Label.class),
-                TrinityUiXmlLayouts.require(root, CONTEXT_VALUE_ID, Label.class),
-                TrinityUiXmlLayouts.require(root, CONTEXT_NEXT_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, VALUE_PREVIOUS_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, VALUE_TITLE_ID, Label.class),
-                TrinityUiXmlLayouts.require(root, VALUE_VALUE_ID, Label.class),
-                TrinityUiXmlLayouts.require(root, VALUE_NEXT_ID, Button.class),
-                TrinityUiXmlLayouts.require(root, CONFIRM_BUTTON_ID, Button.class),
-                confirmTitle);
+                previewMount,
+                layerScroller,
+                materialsMount,
+                materialScroller,
+                identify(authoredChild(structureControls, 0, Button.class, "previous structure"), STRUCTURE_PREVIOUS_ID),
+                identifyAndClass(
+                        authoredChild(structureControls, 2, Label.class, "structure title"),
+                        STRUCTURE_TITLE_ID,
+                        "trinity-auto-build-structure-title"),
+                identify(authoredChild(structureControls, 1, Button.class, "next structure"), STRUCTURE_NEXT_ID),
+                identify(authoredChild(adjustmentControls, 1, Button.class, "previous context"), CONTEXT_PREVIOUS_ID),
+                identifyAndClass(
+                        authoredChild(adjustmentControls, 2, Label.class, "context title"),
+                        CONTEXT_TITLE_ID,
+                        "trinity-auto-build-adjustment-title"),
+                identifyAndClass(
+                        authoredChild(adjustmentControls, 3, Label.class, "context value"),
+                        CONTEXT_VALUE_ID,
+                        "trinity-auto-build-adjustment-value"),
+                identify(authoredChild(adjustmentControls, 4, Button.class, "next context"), CONTEXT_NEXT_ID),
+                identify(authoredChild(adjustmentControls, 8, Button.class, "previous value"), VALUE_PREVIOUS_ID),
+                identifyAndClass(
+                        authoredChild(adjustmentControls, 7, Label.class, "value title"),
+                        VALUE_TITLE_ID,
+                        "trinity-auto-build-adjustment-title"),
+                identifyAndClass(
+                        authoredChild(adjustmentControls, 6, Label.class, "value value"),
+                        VALUE_VALUE_ID,
+                        "trinity-auto-build-adjustment-value"),
+                identify(authoredChild(adjustmentControls, 5, Button.class, "next value"), VALUE_NEXT_ID),
+                confirm,
+                confirmTitle,
+                identify(authoredChild(rootChildren, 4, Button.class, "close button"), CLOSE_ID),
+                identify(authoredChild(rootChildren, 5, Label.class, "window title"), WINDOW_TITLE_ID));
     }
 
-    private static Label createConfirmTitle() {
-        Label title = new Label();
-        title.setId(CONFIRM_TITLE_ID);
-        title.addClass("trinity-auto-build-confirm-title");
-        title.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
-        title.setAllowHitTest(false);
-        title.setOverflowVisible(false);
-        title.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(207)
-                .top(2)
-                .width(37)
-                .height(8));
-        return title;
+    private static <T extends UIElement> T authoredChild(List<UIElement> children,
+                                                         int index,
+                                                         Class<T> type,
+                                                         String role) {
+        if (index < 0 || index >= children.size()) {
+            throw new IllegalStateException("Automatic-build layout is missing " + role);
+        }
+        UIElement child = children.get(index);
+        if (!type.isInstance(child)) {
+            throw new IllegalStateException("Automatic-build layout " + role + " has type " +
+                    child.getClass().getName() + ", expected " + type.getName());
+        }
+        return type.cast(child);
+    }
+
+    private static <T extends UIElement> T authoredOnlyChild(UIElement parent, Class<T> type, String role) {
+        List<UIElement> children = parent.getChildren();
+        if (children.size() != 1) {
+            throw new IllegalStateException("Automatic-build layout " + role +
+                    " expected one authored child, found " + children.size());
+        }
+        return authoredChild(children, 0, type, role);
+    }
+
+    private static TextElement authoredConfirmTitle(Button confirm) {
+        List<TextElement> titles = confirm.getChildren().stream()
+                .filter(TextElement.class::isInstance)
+                .map(TextElement.class::cast)
+                .filter(child -> child != confirm.text)
+                .toList();
+        if (titles.size() != 1) {
+            throw new IllegalStateException("Automatic-build confirm button expected one authored title, found " +
+                    titles.size());
+        }
+        return titles.getFirst();
+    }
+
+    private static <T extends UIElement> T identify(T element, String id) {
+        element.setId(id);
+        return element;
+    }
+
+    private static <T extends UIElement> T identifyAndClass(T element, String id, String className) {
+        identify(element, id);
+        element.addClass(className);
+        return element;
     }
 
     TrinityDataCoreAutoBuildPanel(@NotNull Layout layout,
@@ -266,6 +364,10 @@ final class TrinityDataCoreAutoBuildPanel {
     }
 
     record Layout(UIElement root,
+                  UIElement previewMount,
+                  Scroller.Horizontal layerScroller,
+                  UIElement materialsMount,
+                  Scroller.Vertical materialScroller,
                   Button previousStructureButton,
                   Label structureTitleLabel,
                   Button nextStructureButton,
@@ -278,18 +380,17 @@ final class TrinityDataCoreAutoBuildPanel {
                   Label valueValueLabel,
                   Button nextValueButton,
                   Button confirmButton,
-                  Label confirmTitle) {
+                  TextElement confirmTitle,
+                  Button closeButton,
+                  Label windowTitleLabel) {
 
-        AutoBuildComposition.Elements elements(@NotNull UIElement previewMount,
-                                               @NotNull Scroller.Horizontal layerScroller,
-                                               @NotNull UIElement materialsMount,
-                                               @NotNull Scroller.Vertical materialScroller) {
+        AutoBuildComposition.Elements elements() {
             return new AutoBuildComposition.Elements(
                     this.root,
-                    previewMount,
-                    layerScroller,
-                    materialsMount,
-                    materialScroller,
+                    this.previewMount,
+                    this.layerScroller,
+                    this.materialsMount,
+                    this.materialScroller,
                     new AutoBuildComposition.StructureControls(
                             this.previousStructureButton,
                             this.structureTitleLabel,
@@ -309,7 +410,7 @@ final class TrinityDataCoreAutoBuildPanel {
         AutoBuildComposition.PreviewGeometry geometry() {
             return new AutoBuildComposition.PreviewGeometry(
                     new AutoBuildComposition.Region(0, 0, 183, 133),
-                    new AutoBuildComposition.Region(20, 3, 160, 123),
+                    new AutoBuildComposition.Region(20, 3, 159, 123),
                     new AutoBuildComposition.Region(3, 3, 16, 16),
                     new AutoBuildComposition.Region(2, 2, 54, 108));
         }

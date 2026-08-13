@@ -14,10 +14,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePre
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
-import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.BiConsumer;
@@ -61,27 +58,8 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
         HostSubUiRoot root = context.createRoot();
         String windowId = TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID;
         TrinityUiNbtLayouts.init("auto_build", root);
-        TrinityHostedWindowChrome.bindExisting(root, context);
-
-        UIElement previewMount = TrinityUiXmlLayouts.require(
-                root,
-                windowId + "_preview_mount",
-                UIElement.class);
-        Scroller.Horizontal layerScroller = TrinityUiXmlLayouts.require(
-                previewMount,
-                windowId + "_layer_scroller",
-                Scroller.Horizontal.class);
-        requireInsertionPoint(previewMount, layerScroller, "structure preview");
-        UIElement materialsMount = TrinityUiXmlLayouts.require(
-                root,
-                windowId + "_materials",
-                UIElement.class);
-        Scroller.Vertical materialScroller = TrinityUiXmlLayouts.require(
-                materialsMount,
-                windowId + "_materials_scroller",
-                Scroller.Vertical.class);
-        requireInsertionPoint(materialsMount, materialScroller, "material grid");
         TrinityDataCoreAutoBuildPanel.Layout controls = TrinityDataCoreAutoBuildPanel.requireLayout(root);
+        TrinityHostedWindowChrome.bindExisting(root, context);
 
         MultiblockPreviewSpec spec = this.previewSpec.get();
         if (spec == null) {
@@ -96,7 +74,7 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 this.logicalClient.getAsBoolean());
         AutoBuildComposition composition = AutoBuildComposition.builder(
                 preview,
-                controls.elements(previewMount, layerScroller, materialsMount, materialScroller))
+                controls.elements())
                 .geometry(controls.geometry())
                 .materials(windowId + "_material_grid", TrinityAmountFormatter::format)
                 .build();
@@ -110,15 +88,5 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
                 this.hostedAutoBuildPending,
                 composition);
         return new HostSubUi(root, root);
-    }
-
-    private static void requireInsertionPoint(UIElement parent, UIElement followingSibling, String description) {
-        if (followingSibling.getParent() != parent) {
-            throw new IllegalStateException("Editor-authored " + description + " scrollbar belongs to another panel");
-        }
-        int index = parent.getChildren().indexOf(followingSibling);
-        if (index < 0) {
-            throw new IllegalStateException("Editor-authored " + description + " scrollbar is missing");
-        }
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
+import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scene;
 import com.lowdragmc.lowdraglib2.math.Size;
@@ -35,7 +36,7 @@ import java.util.function.BiConsumer;
 public final class LdlibStructurePreviewSceneBinder implements StructurePreviewSceneBinder {
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
-    private static final int VIEWPORT_MARGIN = 6;
+    private static final int VIEWPORT_MARGIN = 12;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
@@ -46,6 +47,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
         if (!scene.hasParent()) {
             throw new IllegalStateException("Structure preview scene must belong to an element tree before binding");
         }
+        scene.style(style -> style.overflowClip(new ColorRectTexture(0xFFFFFFFF)));
 
         ClientScene clientScene = new ClientScene();
         clientScene.layout(layout -> layout

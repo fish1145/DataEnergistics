@@ -9,6 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -322,5 +323,5 @@ public final class AutoBuildComposition {
     /**
      * Submission icon and its independently authored title.
      */
-    public record ConfirmControls(@NotNull Button button, @NotNull Label title) {}
+    public record ConfirmControls(@NotNull Button button, @NotNull TextElement title) {}
 }
