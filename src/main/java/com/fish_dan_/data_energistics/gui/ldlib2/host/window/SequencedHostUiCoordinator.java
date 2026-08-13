@@ -211,7 +211,7 @@ final class SequencedHostUiCoordinator implements HostUiCoordinator {
         if (!response.accepted()) {
             clearPendingRequest();
             enterTerminal(
-                    true,
+                    false,
                     "Server rejected LDLib2 host UI operation " + request.operation() + " for " + request.key().id() +
                             " at sequence " + request.sequence() + ": " + response.status(),
                     null);

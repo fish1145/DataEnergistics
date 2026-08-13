@@ -291,7 +291,7 @@ public final class HostUiCoordinatorGameTest {
         assertTrue(serverFailure.client.coordinator.isTerminal(), "matching apply rejection must terminate the client");
         assertNull(serverFailure.client.coordinator.pendingRequest());
         assertEquals(1L, serverFailure.client.coordinator.nextSequence());
-        assertEquals(1, serverFailure.client.terminalTracker.invocationCount);
+        assertEquals(0, serverFailure.client.terminalTracker.invocationCount);
         serverFailure.close();
 
         CoordinatorPair clientFailure = createPair(helper, 63, 64);
