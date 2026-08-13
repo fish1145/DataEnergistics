@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.Struct
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneBinding;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneElement;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.neoforged.api.distmarker.Dist;
@@ -34,6 +35,7 @@ import java.util.function.BiConsumer;
 public final class LdlibStructurePreviewSceneBinder implements StructurePreviewSceneBinder {
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
+    private static final int VIEWPORT_MARGIN = 6;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
@@ -107,6 +109,8 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
          */
         @Nullable
         private PreviewViewState currentViewState;
+        private int viewportWidth;
+        private int viewportHeight;
         private boolean released;
 
         BindingImpl(StructurePreviewSceneElement shell,
@@ -162,7 +166,12 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             if (this.released) {
                 throw new IllegalStateException("Released structure preview scene binding cannot be constrained");
             }
-            this.scene.createScene(this.world, true, Size.of(width, height))
+            this.viewportWidth = width;
+            this.viewportHeight = height;
+            double guiScale = Minecraft.getInstance().getWindow().getGuiScale();
+            int renderWidth = Math.max(width, (int) Math.ceil(width * guiScale));
+            int renderHeight = Math.max(height, (int) Math.ceil(height * guiScale));
+            this.scene.createScene(this.world, true, Size.of(renderWidth, renderHeight))
                     .setTickWorld(false)
                     .setDraggable(true)
                     .setScalable(true)
@@ -186,6 +195,8 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             this.released = true;
             this.currentSnapshot = null;
             this.currentViewState = null;
+            this.viewportWidth = 0;
+            this.viewportHeight = 0;
 
             Throwable failure = null;
             UIElement parent = this.scene.getParent();
@@ -217,7 +228,51 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             renderState.blockStates().forEach((position, state) -> blocks.put(position, new BlockInfo(state)));
             this.world.addBlocks(blocks);
             List<BlockPos> renderedCore = renderState.renderedCore();
-            this.scene.setRenderedCore(renderedCore, null, !renderedCore.isEmpty());
+            boolean constrained = this.viewportWidth > 0 && this.viewportHeight > 0;
+            this.scene.setRenderedCore(renderedCore, null, !constrained && !renderedCore.isEmpty());
+            if (constrained && !renderedCore.isEmpty()) {
+                fitConstrainedCamera(renderedCore);
+            }
+        }
+
+        /**
+         * Fits the complete block volume inside the authored preview cavity instead of relying on
+         * LDLib2's largest-axis heuristic, which can clip diagonal structures at the separator.
+         */
+        private void fitConstrainedCamera(List<BlockPos> renderedCore) {
+            int minX = Integer.MAX_VALUE;
+            int minY = Integer.MAX_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int maxY = Integer.MIN_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            for (BlockPos position : renderedCore) {
+                minX = Math.min(minX, position.getX());
+                minY = Math.min(minY, position.getY());
+                minZ = Math.min(minZ, position.getZ());
+                maxX = Math.max(maxX, position.getX());
+                maxY = Math.max(maxY, position.getY());
+                maxZ = Math.max(maxZ, position.getZ());
+            }
+
+            double halfWidth = (maxX - minX + 1) / 2.0;
+            double halfHeight = (maxY - minY + 1) / 2.0;
+            double halfDepth = (maxZ - minZ + 1) / 2.0;
+            double radius = Math.sqrt(
+                    halfWidth * halfWidth + halfHeight * halfHeight + halfDepth * halfDepth);
+            double innerWidth = Math.max(1, this.viewportWidth - VIEWPORT_MARGIN * 2);
+            double innerHeight = Math.max(1, this.viewportHeight - VIEWPORT_MARGIN * 2);
+            double verticalHalfFov = Math.toRadians(30);
+            double verticalFitAngle = Math.atan(Math.tan(verticalHalfFov) * innerHeight / this.viewportHeight);
+            double horizontalFitAngle = Math.atan(Math.tan(verticalHalfFov) * innerWidth / this.viewportHeight);
+            double limitingAngle = Math.min(verticalFitAngle, horizontalFitAngle);
+            float cameraDistance = (float) (radius / Math.sin(limitingAngle) * 1.05);
+            Vector3f center = new Vector3f(
+                    (minX + maxX) / 2.0f + 0.5f,
+                    (minY + maxY) / 2.0f + 0.5f,
+                    (minZ + maxZ) / 2.0f + 0.5f);
+            this.scene.setCenter(center);
+            this.scene.setZoom(cameraDistance);
         }
 
         /**
