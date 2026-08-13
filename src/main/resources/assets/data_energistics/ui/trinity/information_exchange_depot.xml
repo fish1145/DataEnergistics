@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<trinity-information-exchange-depot width="280">
-    <management-panel left="198" width="82">
-        <title left="201" top="8"/>
-        <button id="search-mode" left="3" top="25" width="76" height="18" text-left-padding="4" text-scale="0.75"/>
-        <button id="refund-patterns" left="3" top="55" width="76" height="18" text-left-padding="4" text-scale="0.75"/>
-        <button id="refund-retained-items" left="3" top="77" width="76" height="18" text-left-padding="4" text-scale="0.75"/>
-    </management-panel>
-</trinity-information-exchange-depot>

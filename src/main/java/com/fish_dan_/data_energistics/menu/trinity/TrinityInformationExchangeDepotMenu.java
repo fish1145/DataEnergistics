@@ -1,354 +1,89 @@
 package com.fish_dan_.data_energistics.menu.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity.StorageMode;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.exchange.TrinityInformationExchangeDepotUi;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
 
-import appeng.helpers.InventoryAction;
-import appeng.helpers.patternprovider.PatternContainer;
+import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.PatternAccessTermMenu;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+/** Dedicated mode menu for one physical Trinity information exchange depot. */
+public final class TrinityInformationExchangeDepotMenu extends AEBaseMenu {
 
-/**
- * Pattern-access terminal menu scoped to one lease-holding Trinity information exchange depot.
- *
- * <p>
- * AE2 continues to provide its bounded pattern inventory protocol while this menu adds two independently acknowledged
- * refund actions for the data core currently managed by the hatch.
- * </p>
- */
-public class TrinityInformationExchangeDepotMenu extends PatternAccessTermMenu {
-
-    private static final String ACTION_REFUND_PATTERNS = "dataEnergistics$refundPatterns";
-    private static final String ACTION_REFUND_RETAINED_ITEMS = "dataEnergistics$refundRetainedItems";
+    private static final String ACTION_SET_MODE = "set_information_exchange_mode";
 
     private final TrinityInformationExchangeDepotMenuHost host;
 
     @GuiSync(801)
-    public long refundPatternsRevision;
-    @GuiSync(802)
-    public int refundPatternsStatus = TrinityHostedActionStatus.REJECTED.networkId();
-    @GuiSync(803)
-    public long refundRetainedItemsRevision;
-    @GuiSync(804)
-    public int refundRetainedItemsStatus = TrinityHostedActionStatus.REJECTED.networkId();
+    public int modeId;
 
-    private long clientObservedRefundPatternsRevision;
-    private long clientObservedRefundRetainedItemsRevision;
-    private long nextRefundPatternsSequence = 1L;
-    private long nextRefundRetainedItemsSequence = 1L;
-    private long lastAcceptedRefundPatternsSequence;
-    private long lastAcceptedRefundRetainedItemsSequence;
-    private boolean refundPatternsPending;
-    private boolean refundRetainedItemsPending;
-    @Nullable
-    private TrinityHostedActionStatus refundPatternsResult;
-    @Nullable
-    private TrinityHostedActionStatus refundRetainedItemsResult;
-
-    /**
-     * Creates the registered information-exchange-depot menu with the standard AE2 player inventory binding.
-     *
-     * @param id              active container identifier
-     * @param playerInventory inventory of the player opening the hatch
-     * @param host            exact hatch selected by the menu locator
-     */
-    public TrinityInformationExchangeDepotMenu(int id, Inventory playerInventory, TrinityInformationExchangeDepotMenuHost host) {
-        this(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), id, playerInventory, host, true);
-    }
-
-    /**
-     * Creates an information-exchange-depot menu for registered variants that control player inventory binding.
-     *
-     * @param menuType        registered menu type
-     * @param id              active container identifier
-     * @param playerInventory inventory of the player opening the hatch
-     * @param host            exact hatch selected by the menu locator
-     * @param bindInventory   whether AE2 should create the player's inventory slots
-     */
-    public TrinityInformationExchangeDepotMenu(MenuType<?> menuType,
+    public TrinityInformationExchangeDepotMenu(
                                                int id,
                                                Inventory playerInventory,
-                                               TrinityInformationExchangeDepotMenuHost host,
-                                               boolean bindInventory) {
-        super(menuType, id, playerInventory, requireHost(host), bindInventory);
+                                               TrinityInformationExchangeDepotMenuHost host) {
+        super(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), id, playerInventory, host);
         this.host = host;
-        this.registerClientAction(
-                ACTION_REFUND_PATTERNS,
-                Long.class,
-                sequence -> executeRefund(RefundTarget.PATTERNS, sequence));
-        this.registerClientAction(
-                ACTION_REFUND_RETAINED_ITEMS,
-                Long.class,
-                sequence -> executeRefund(RefundTarget.RETAINED_ITEMS, sequence));
+        registerClientAction(ACTION_SET_MODE, Integer.class, this::setModeFromClient);
+        refreshState();
+        TrinityInformationExchangeDepotUi.mount(
+                this,
+                Component.translatable("gui.data_energistics.trinity_information_exchange_depot.title"));
     }
 
-    /**
-     * Keeps the menu attached only while the original hatch block entity and player route remain current.
-     */
+    @Override
+    public void broadcastChanges() {
+        if (isServerSide()) {
+            refreshState();
+        }
+        super.broadcastChanges();
+    }
+
     @Override
     public boolean stillValid(Player player) {
-        return super.stillValid(player) && this.host.isInformationExchangeDepotMenuValid(player);
+        return this.host.isInformationExchangeDepotMenuValid(player);
     }
 
-    /**
-     * Called by the AE2 visibility mixin to reject every grid pattern container not owned by this menu's hatch.
-     *
-     * @param container candidate discovered by AE2's grid-wide scan
-     * @return whether the exact candidate belongs to this information exchange depot
-     */
-    public boolean isManagedPatternContainer(PatternContainer container) {
-        return this.host.isManagedPatternContainer(container);
+    public StorageMode mode() {
+        return StorageMode.fromNetworkId(this.modeId);
     }
 
-    /**
-     * Rejects delayed or forged slot actions after the player, hatch block or lease has left this menu's route.
-     */
-    @Override
-    public void doAction(ServerPlayer player, InventoryAction action, int slot, long id) {
-        if (canManagePatterns(player)) {
-            super.doAction(player, action, slot, id);
-        }
-    }
-
-    /**
-     * Applies the same live-route validation before AE2 inserts a player pattern into any selected partition.
-     */
-    @Override
-    public void quickMovePattern(ServerPlayer player, int clickedSlot, List<Long> allowedPatternContainers) {
-        if (canManagePatterns(player)) {
-            super.quickMovePattern(player, clickedSlot, allowedPatternContainers);
-        }
-    }
-
-    /**
-     * Sends one installed-pattern refund request unless that same action is already awaiting a response.
-     *
-     * @return whether the request was accepted for transport
-     */
-    public boolean requestRefundPatterns() {
-        captureSynchronizedResults();
-        if (!canRequestRefund() || this.refundPatternsPending) {
-            return false;
-        }
-        long sequence = nextClientSequence(RefundTarget.PATTERNS);
-        if (sequence < 0L) {
-            this.refundPatternsResult = TrinityHostedActionStatus.REJECTED;
-            return false;
-        }
-        this.refundPatternsPending = true;
-        this.refundPatternsResult = null;
-        return sendRefundRequest(ACTION_REFUND_PATTERNS, RefundTarget.PATTERNS, sequence);
-    }
-
-    /**
-     * Sends one retained-item refund request unless that same action is already awaiting a response.
-     *
-     * @return whether the request was accepted for transport
-     */
-    public boolean requestRefundRetainedItems() {
-        captureSynchronizedResults();
-        if (!canRequestRefund() || this.refundRetainedItemsPending) {
-            return false;
-        }
-        long sequence = nextClientSequence(RefundTarget.RETAINED_ITEMS);
-        if (sequence < 0L) {
-            this.refundRetainedItemsResult = TrinityHostedActionStatus.REJECTED;
-            return false;
-        }
-        this.refundRetainedItemsPending = true;
-        this.refundRetainedItemsResult = null;
-        return sendRefundRequest(ACTION_REFUND_RETAINED_ITEMS, RefundTarget.RETAINED_ITEMS, sequence);
-    }
-
-    /**
-     * Reports whether the installed-pattern refund independently awaits its next revision.
-     */
-    public boolean isRefundPatternsPending() {
-        captureSynchronizedResults();
-        return this.refundPatternsPending;
-    }
-
-    /**
-     * Reports whether the retained-item refund independently awaits its next revision.
-     */
-    public boolean isRefundRetainedItemsPending() {
-        captureSynchronizedResults();
-        return this.refundRetainedItemsPending;
-    }
-
-    /**
-     * Consumes the newest installed-pattern refund outcome exactly once on the client.
-     *
-     * @return completed result, or {@code null} when none is ready
-     */
-    @Nullable
-    public TrinityHostedActionStatus consumeRefundPatternsResult() {
-        captureSynchronizedResults();
-        TrinityHostedActionStatus result = this.refundPatternsResult;
-        this.refundPatternsResult = null;
-        return result;
-    }
-
-    /**
-     * Consumes the newest retained-item refund outcome exactly once on the client.
-     *
-     * @return completed result, or {@code null} when none is ready
-     */
-    @Nullable
-    public TrinityHostedActionStatus consumeRefundRetainedItemsResult() {
-        captureSynchronizedResults();
-        TrinityHostedActionStatus result = this.refundRetainedItemsResult;
-        this.refundRetainedItemsResult = null;
-        return result;
-    }
-
-    private static TrinityInformationExchangeDepotMenuHost requireHost(@Nullable TrinityInformationExchangeDepotMenuHost host) {
-        if (host == null) {
-            throw new IllegalArgumentException("Trinity information exchange depot menu requires a host");
-        }
-        return host;
-    }
-
-    private boolean canRequestRefund() {
-        return this.isClientSide() && this.getPlayer().containerMenu == this;
-    }
-
-    private boolean canManagePatterns(ServerPlayer player) {
-        return player.containerMenu == this &&
-                this.stillValid(player) &&
-                this.host.isInformationExchangeManagementAvailable(player);
-    }
-
-    private boolean sendRefundRequest(String actionName, RefundTarget target, long sequence) {
-        try {
-            this.sendClientAction(actionName, sequence);
-            return true;
-        } catch (RuntimeException exception) {
-            setClientTransportFailure(target);
-            Data_Energistics.LOGGER.error(
-                    "Failed to send Trinity information exchange depot refund request for player {}, menu {}, target {}",
-                    this.getPlayer().getName().getString(),
-                    this.containerId,
-                    target,
-                    exception);
-            return false;
-        }
-    }
-
-    private void setClientTransportFailure(RefundTarget target) {
-        if (target == RefundTarget.PATTERNS) {
-            this.refundPatternsPending = false;
-            this.refundPatternsResult = TrinityHostedActionStatus.INTERNAL_ERROR;
+    public void sendSetMode(StorageMode mode) {
+        if (!isClientSide() || getPlayer().containerMenu != this) {
             return;
         }
-        this.refundRetainedItemsPending = false;
-        this.refundRetainedItemsResult = TrinityHostedActionStatus.INTERNAL_ERROR;
+        sendClientAction(ACTION_SET_MODE, mode.networkId());
     }
 
-    private void executeRefund(RefundTarget target, @Nullable Long sequence) {
-        if (sequence == null || !claimServerSequence(target, sequence)) {
-            return;
-        }
-        TrinityHostedActionStatus status;
-        Player player = this.getPlayer();
+    private void setModeFromClient(int requestedModeId) {
+        Player player = getPlayer();
         try {
-            if (!(player instanceof ServerPlayer) ||
-                    player.containerMenu != this ||
-                    !this.stillValid(player) ||
-                    !this.host.isInformationExchangeManagementAvailable(player)) {
-                status = TrinityHostedActionStatus.REJECTED;
-            } else {
-                status = switch (target) {
-                    case PATTERNS -> this.host.refundPatterns(player);
-                    case RETAINED_ITEMS -> this.host.refundRetainedItems(player);
-                };
-                if (status == null) {
-                    throw new IllegalStateException("Trinity information exchange depot refund returned no action status");
-                }
+            StorageMode requestedMode = StorageMode.fromNetworkId(requestedModeId);
+            if (player.containerMenu != this || !stillValid(player) ||
+                    !this.host.setInformationExchangeMode(player, requestedMode)) {
+                Data_Energistics.LOGGER.warn(
+                        "Rejected Trinity information exchange mode change: player={}, menu={}, mode={}",
+                        player.getName().getString(),
+                        this.containerId,
+                        requestedMode);
             }
-        } catch (RuntimeException exception) {
-            status = TrinityHostedActionStatus.INTERNAL_ERROR;
-            Data_Energistics.LOGGER.error(
-                    "Failed to execute Trinity information exchange depot refund for player {}, menu {}, host {}, target {}",
+        } catch (IllegalArgumentException exception) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected malformed Trinity information exchange mode: player={}, menu={}, mode={}",
                     player.getName().getString(),
                     this.containerId,
-                    this.host,
-                    target,
+                    requestedModeId,
                     exception);
         }
-        publishRefundResult(target, status);
+        refreshState();
+        broadcastChanges();
     }
 
-    private long nextClientSequence(RefundTarget target) {
-        long sequence = target == RefundTarget.PATTERNS ?
-                this.nextRefundPatternsSequence : this.nextRefundRetainedItemsSequence;
-        if (sequence > TrinityHostedActionTicket.MAX_SEQUENCE) {
-            return -1L;
-        }
-        if (target == RefundTarget.PATTERNS) {
-            this.nextRefundPatternsSequence++;
-        } else {
-            this.nextRefundRetainedItemsSequence++;
-        }
-        return sequence;
-    }
-
-    private boolean claimServerSequence(RefundTarget target, long sequence) {
-        if (sequence < 1L || sequence > TrinityHostedActionTicket.MAX_SEQUENCE) {
-            return false;
-        }
-        if (target == RefundTarget.PATTERNS) {
-            if (sequence <= this.lastAcceptedRefundPatternsSequence) {
-                return false;
-            }
-            this.lastAcceptedRefundPatternsSequence = sequence;
-            return true;
-        }
-        if (sequence <= this.lastAcceptedRefundRetainedItemsSequence) {
-            return false;
-        }
-        this.lastAcceptedRefundRetainedItemsSequence = sequence;
-        return true;
-    }
-
-    private void publishRefundResult(RefundTarget target, TrinityHostedActionStatus status) {
-        if (target == RefundTarget.PATTERNS) {
-            this.refundPatternsStatus = status.networkId();
-            this.refundPatternsRevision++;
-            return;
-        }
-        this.refundRetainedItemsStatus = status.networkId();
-        this.refundRetainedItemsRevision++;
-    }
-
-    private void captureSynchronizedResults() {
-        if (!this.isClientSide()) {
-            return;
-        }
-        if (this.refundPatternsRevision != this.clientObservedRefundPatternsRevision) {
-            this.clientObservedRefundPatternsRevision = this.refundPatternsRevision;
-            this.refundPatternsPending = false;
-            this.refundPatternsResult = TrinityHostedActionStatus.fromNetworkId(this.refundPatternsStatus);
-        }
-        if (this.refundRetainedItemsRevision != this.clientObservedRefundRetainedItemsRevision) {
-            this.clientObservedRefundRetainedItemsRevision = this.refundRetainedItemsRevision;
-            this.refundRetainedItemsPending = false;
-            this.refundRetainedItemsResult = TrinityHostedActionStatus.fromNetworkId(this.refundRetainedItemsStatus);
-        }
-    }
-
-    private enum RefundTarget {
-        PATTERNS,
-        RETAINED_ITEMS
+    private void refreshState() {
+        this.modeId = this.host.informationExchangeMode().networkId();
     }
 }

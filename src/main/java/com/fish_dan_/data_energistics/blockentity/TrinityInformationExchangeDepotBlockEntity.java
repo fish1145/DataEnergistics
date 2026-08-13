@@ -28,7 +28,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.Tr
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
@@ -51,8 +50,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.Settings;
-import appeng.api.config.ShowPatternProviders;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.networking.IGrid;
@@ -101,12 +98,12 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     private static final TrinityCraftingRouteResolver CRAFTING_ROUTE_RESOLVER = new TrinityCraftingRouteResolver();
     /** Stable target identity for the bound Trinity pattern catalog. */
     private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
-    private static final String TERMINAL_CONFIG_TAG = "terminal_config";
+    private static final String STORAGE_MODE_TAG = "storage_mode";
 
     private final MEStorage networkStorage = new HatchStorage();
     private final IStorageProvider storageProvider = new HatchStorageProvider();
     private final ICraftingProvider craftingProvider = new HatchCraftingProvider();
-    private final ConfigManager configManager = new ConfigManager(this::onTerminalConfigChanged);
+    private final ConfigManager craftingStatusConfig = new ConfigManager(this::saveChanges);
     private final Set<PatternContainer> managedTerminalPartitions = Collections.newSetFromMap(new IdentityHashMap<>());
     @Nullable
     private TrinityInformationExchangeDepotBindingState compartmentBindingState;
@@ -126,13 +123,10 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     private CpuPublication cpuPublication;
     @Nullable
     private PatternPublication patternPublication;
-    private boolean loadingTerminalConfig;
+    private StorageMode storageMode = StorageMode.STORAGE;
 
     public TrinityInformationExchangeDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
-        this.configManager.registerSetting(
-                Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
-                ShowPatternProviders.VISIBLE);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
@@ -180,41 +174,27 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         return ILinkStatus.ofDisconnected();
     }
 
-    /**
-     * Crafting status does not expose upgrades for the Trinity information exchange depot.
-     */
     @Override
     public IUpgradeInventory getUpgrades() {
         return UpgradeInventories.empty();
     }
 
-    /**
-     * Shares the persisted pattern-provider visibility setting with AE2's pattern-access terminal menu.
-     */
     @Override
     public IConfigManager getConfigManager() {
-        return this.configManager;
+        return this.craftingStatusConfig;
     }
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        this.loadingTerminalConfig = true;
-        try {
-            if (data.contains(TERMINAL_CONFIG_TAG)) {
-                this.configManager.readFromNBT(data.getCompound(TERMINAL_CONFIG_TAG), registries);
-            }
-        } finally {
-            this.loadingTerminalConfig = false;
-        }
+        this.storageMode = data.contains(STORAGE_MODE_TAG) ?
+                StorageMode.fromSerializedName(data.getString(STORAGE_MODE_TAG)) : StorageMode.STORAGE;
     }
 
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
-        CompoundTag terminalConfig = new CompoundTag();
-        this.configManager.writeToNBT(terminalConfig, registries);
-        data.put(TERMINAL_CONFIG_TAG, terminalConfig);
+        data.putString(STORAGE_MODE_TAG, this.storageMode.serializedName());
     }
 
     @Override
@@ -890,63 +870,24 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
                         this.worldPosition.getZ() + 0.5D) <= 64.0D;
     }
 
-    /**
-     * Validates the complete server route before a data-core management operation is allowed.
-     */
     @Override
-    public boolean isInformationExchangeManagementAvailable(Player player) {
-        Level currentLevel = this.level;
-        return player instanceof ServerPlayer &&
-                isInformationExchangeDepotMenuValid(player) &&
-                currentLevel != null &&
-                !currentLevel.isClientSide() &&
-                isAccessOnline();
+    public StorageMode informationExchangeMode() {
+        return this.storageMode;
     }
 
-    /**
-     * Accepts only an identity currently mounted by this exact lease-holding hatch.
-     */
     @Override
-    public boolean isManagedPatternContainer(PatternContainer container) {
-        if (container == null) {
-            throw new IllegalArgumentException("Trinity pattern container cannot be null");
+    public boolean setInformationExchangeMode(Player player, StorageMode mode) {
+        if (!(player instanceof ServerPlayer) || !isInformationExchangeDepotMenuValid(player)) {
+            return false;
         }
-        return isAccessOnline() && this.managedTerminalPartitions.contains(container);
-    }
-
-    /**
-     * Refunds installed patterns through the currently bound host after revalidating the access lease.
-     */
-    @Override
-    public TrinityHostedActionStatus refundPatterns(Player player) {
-        TrinityDataCoreBlockEntity host = refundHost(player);
-        if (host == null) {
-            return TrinityHostedActionStatus.REJECTED;
+        if (this.storageMode == mode) {
+            return true;
         }
-        return switch (host.tryRefundPatterns(player)) {
-            case COMPLETED -> TrinityHostedActionStatus.COMPLETED;
-            case NO_PATTERNS -> TrinityHostedActionStatus.NO_OP;
-            case BLOCKED_BY_WORK, STALE -> TrinityHostedActionStatus.STALE_STATE;
-            case DELIVERY_REJECTED, DELIVERY_FAILED -> TrinityHostedActionStatus.DELIVERY_FAILED;
-            case INTERNAL_ERROR -> TrinityHostedActionStatus.INTERNAL_ERROR;
-        };
-    }
-
-    /**
-     * Refunds queued inputs and pending outputs through the current host after revalidating the access lease.
-     */
-    @Override
-    public TrinityHostedActionStatus refundRetainedItems(Player player) {
-        TrinityDataCoreBlockEntity host = refundHost(player);
-        if (host == null) {
-            return TrinityHostedActionStatus.REJECTED;
-        }
-        if (!host.hasRefundablePatternState()) {
-            return host.isCraftingStructureFormed() ?
-                    TrinityHostedActionStatus.NO_OP : TrinityHostedActionStatus.STALE_STATE;
-        }
-        return host.tryRefundAll(player) ?
-                TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.DELIVERY_FAILED;
+        this.storageMode = mode;
+        this.saveChanges();
+        this.markForUpdate();
+        requestStorageUpdate();
+        return true;
     }
 
     /**
@@ -958,21 +899,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
 
     public IActionSource actionSource() {
         return IActionSource.ofMachine(this);
-    }
-
-    private void onTerminalConfigChanged() {
-        if (!this.loadingTerminalConfig) {
-            this.saveChanges();
-        }
-    }
-
-    @Nullable
-    private TrinityDataCoreBlockEntity refundHost(Player player) {
-        if (!isInformationExchangeManagementAvailable(player)) {
-            return null;
-        }
-        TrinityDataCoreBlockEntity host = boundHost(false);
-        return host != null && host.isLeaseOwner(this) && host.isStorageAvailable() ? host : null;
     }
 
     @Nullable
@@ -1460,6 +1386,9 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
+            if (!storageMode.allowsInsert()) {
+                return 0L;
+            }
             TrinityDataCoreBlockEntity host = boundHost();
             if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
@@ -1475,6 +1404,9 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
+            if (!storageMode.allowsExtract()) {
+                return 0L;
+            }
             TrinityDataCoreBlockEntity host = boundHost();
             if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
@@ -1489,6 +1421,9 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
 
         @Override
         public void getAvailableStacks(KeyCounter out) {
+            if (!storageMode.exposesContents()) {
+                return;
+            }
             TrinityDataCoreBlockEntity host = boundHost();
             if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return;
@@ -1505,6 +1440,69 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
             return host != null && isCandidateOnline() &&
                     host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this) &&
                     host.isStorageAvailable();
+        }
+    }
+
+    /** Controls only the direction in which the internal Trinity storage is mounted into AE2. */
+    public enum StorageMode {
+
+        STORAGE("storage", true, true),
+        INPUT("input", true, false),
+        OUTPUT("output", false, true);
+
+        private final String serializedName;
+        private final boolean allowsInsert;
+        private final boolean allowsExtract;
+
+        StorageMode(String serializedName, boolean allowsInsert, boolean allowsExtract) {
+            this.serializedName = serializedName;
+            this.allowsInsert = allowsInsert;
+            this.allowsExtract = allowsExtract;
+        }
+
+        public String serializedName() {
+            return this.serializedName;
+        }
+
+        public boolean allowsInsert() {
+            return this.allowsInsert;
+        }
+
+        public boolean allowsExtract() {
+            return this.allowsExtract;
+        }
+
+        public boolean exposesContents() {
+            return this.allowsExtract;
+        }
+
+        public int networkId() {
+            return switch (this) {
+                case STORAGE -> 0;
+                case INPUT -> 1;
+                case OUTPUT -> 2;
+            };
+        }
+
+        public static StorageMode fromNetworkId(int networkId) {
+            return switch (networkId) {
+                case 0 -> STORAGE;
+                case 1 -> INPUT;
+                case 2 -> OUTPUT;
+                default -> throw new IllegalArgumentException("Unknown information exchange mode " + networkId);
+            };
+        }
+
+        private static StorageMode fromSerializedName(String name) {
+            return switch (name) {
+                case "storage" -> STORAGE;
+                case "input" -> INPUT;
+                case "output" -> OUTPUT;
+                default -> {
+                    LOGGER.warn("Unknown Trinity information exchange storage mode '{}'; using storage mode", name);
+                    yield STORAGE;
+                }
+            };
         }
     }
 }

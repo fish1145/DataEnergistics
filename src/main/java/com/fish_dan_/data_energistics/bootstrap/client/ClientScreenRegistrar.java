@@ -40,7 +40,7 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, DEMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, DEMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
         InitScreens.register(event, DEMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
-        InitScreens.register(event, DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), TrinityInformationExchangeDepotScreen::new, "/screens/trinity_information_exchange_depot.json");
+        event.register(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), TrinityInformationExchangeDepotScreen::new);
         event.register(DEMenus.TRINITY_DATA_CORE.get(), TrinityDataCoreScreen::new);
         InitScreens.register(event, DEMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
         InitScreens.register(event, DEMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");

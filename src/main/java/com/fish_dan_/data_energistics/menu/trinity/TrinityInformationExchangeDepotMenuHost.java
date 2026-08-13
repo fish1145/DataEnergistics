@@ -1,21 +1,13 @@
 package com.fish_dan_.data_energistics.menu.trinity;
 
-import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity.StorageMode;
 
 import net.minecraft.world.entity.player.Player;
 
-import appeng.api.storage.IPatternAccessTermMenuHost;
-import appeng.helpers.patternprovider.PatternContainer;
-
 /**
- * Defines the server-authoritative management boundary exposed by one Trinity information exchange depot.
- *
- * <p>
- * The menu depends on this interface so pattern visibility and refund execution remain tied to the exact hatch that
- * opened it instead of to every pattern provider on the shared AE grid.
- * </p>
+ * Defines the narrow server-authoritative mode boundary exposed by one Trinity information exchange depot.
  */
-public interface TrinityInformationExchangeDepotMenuHost extends IPatternAccessTermMenuHost {
+public interface TrinityInformationExchangeDepotMenuHost {
 
     /**
      * Verifies that the hatch block entity still occupies its original block and remains within interaction distance.
@@ -25,35 +17,7 @@ public interface TrinityInformationExchangeDepotMenuHost extends IPatternAccessT
      */
     boolean isInformationExchangeDepotMenuValid(Player player);
 
-    /**
-     * Verifies the full server-side management route, including the active grid node, current host lease and storage.
-     *
-     * @param player server player attempting a management action
-     * @return whether a refund action may execute now
-     */
-    boolean isInformationExchangeManagementAvailable(Player player);
+    StorageMode informationExchangeMode();
 
-    /**
-     * Restricts AE2's grid-wide pattern scan to a partition mounted by this exact information exchange depot.
-     *
-     * @param container candidate grid pattern container
-     * @return whether this hatch currently owns the candidate by identity
-     */
-    boolean isManagedPatternContainer(PatternContainer container);
-
-    /**
-     * Attempts to refund every installed pattern from the currently leased Trinity Data Core.
-     *
-     * @param player validated server player receiving the refund
-     * @return precise server-authoritative action outcome
-     */
-    TrinityHostedActionStatus refundPatterns(Player player);
-
-    /**
-     * Attempts to refund queued inputs and pending outputs from the currently leased Trinity Data Core.
-     *
-     * @param player validated server player receiving the refund
-     * @return precise server-authoritative action outcome
-     */
-    TrinityHostedActionStatus refundRetainedItems(Player player);
+    boolean setInformationExchangeMode(Player player, StorageMode mode);
 }
