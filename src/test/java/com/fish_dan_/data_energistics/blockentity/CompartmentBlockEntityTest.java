@@ -27,8 +27,6 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureV
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.State;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureValidation.Structure;
 import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityStructureWorldViewFactory;
-import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
-import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
@@ -2202,16 +2200,6 @@ public final class CompartmentBlockEntityTest {
                         new TrinityAutoBuildOptions(true, 1, tierSelections)));
         helper.assertTrue(result.success(), "Trinity " + structureName + " auto-build should commit: " + result.failure());
         helper.assertTrue(result.placed() > 0, "Trinity " + structureName + " auto-build should place structure blocks");
-    }
-
-    private static BlockPos findCpuCore(ServerLevel level, BlockPos origin) {
-        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-32, -8, -32), origin.offset(32, 32, 32))) {
-            if (level.getBlockState(pos).getBlock() instanceof TrinityCoreComponent component &&
-                    component.kind() == TrinityCoreKind.PARALLEL_CPU) {
-                return pos.immutable();
-            }
-        }
-        throw new IllegalStateException("Auto-built Trinity CPU structure has no parallel CPU core");
     }
 
     private static List<TrinityAccessHatchBlockEntity> requireBuiltTrinityAccessHatches(GameTestHelper helper,

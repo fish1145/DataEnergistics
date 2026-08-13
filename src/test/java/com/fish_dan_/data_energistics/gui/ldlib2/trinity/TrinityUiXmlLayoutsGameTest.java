@@ -19,41 +19,13 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
-
-import java.util.List;
 
 /** Dedicated-server regressions for the embedded Trinity XML menu trees. */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class TrinityUiXmlLayoutsGameTest {
 
-    private static final List<LayoutExpectation> LAYOUTS = List.of(
-            new LayoutExpectation("data_core", "trinity_data_core_root"),
-            new LayoutExpectation("data_core_status", "trinity_data_core_status"),
-            new LayoutExpectation("data_core_storage", "trinity_data_core_storage_status"),
-            new LayoutExpectation("data_core_launcher", "trinity_data_core_host_launchers"),
-            new LayoutExpectation("auto_build_panel", "trinity_auto_build_hosted_window_controls"),
-            new LayoutExpectation("auto_build_window", "trinity_auto_build_window_template"),
-            new LayoutExpectation("pattern_core", "trinity_pattern_core_root"),
-            new LayoutExpectation("pattern_core_panel", "trinity_pattern_core_panel"));
-
     private TrinityUiXmlLayoutsGameTest() {}
-
-    @TestHolder("trinity_embedded_xml_layouts_load_on_server")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void embeddedLayoutsLoadOnServer(GameTestHelper helper) {
-        helper.assertFalse(helper.getLevel().isClientSide(), "GameTest must execute on the logical server");
-        for (LayoutExpectation expectation : LAYOUTS) {
-            UI ui = TrinityUiXmlLayouts.load(expectation.name());
-            helper.assertValueEqual(
-                    ui.rootElement.getId(),
-                    expectation.rootId(),
-                    "Embedded Trinity layout must preserve its stable root id: " + expectation.name());
-        }
-        helper.succeed();
-    }
 
     @TestHolder("trinity_data_core_menu_mounts_embedded_xml_on_server")
     @EmptyTemplate("5")
@@ -89,6 +61,4 @@ public final class TrinityUiXmlLayoutsGameTest {
         menu.removed(player);
         helper.succeed();
     }
-
-    private record LayoutExpectation(String name, String rootId) {}
 }

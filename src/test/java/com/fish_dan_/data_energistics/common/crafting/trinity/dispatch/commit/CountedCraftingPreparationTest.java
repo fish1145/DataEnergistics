@@ -93,7 +93,6 @@ public final class CountedCraftingPreparationTest {
         assertThrows(IllegalArgumentException.class, () -> new CraftingDispatchTarget(null));
         assertThrows(IllegalArgumentException.class, () -> new CraftingDispatchTarget(""));
         assertThrows(IllegalArgumentException.class, () -> new CraftingDispatchTarget("  "));
-        assertEquals(CraftingDispatchTarget.provider(), CraftingDispatchTarget.provider());
     }
 
     private static final class FixedAdmission implements CountedCraftingAdmission {

@@ -1747,13 +1747,6 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static StructureWorldView childStructureWorld(BlockPattern pattern,
                                                           BlockPos controllerPos,
                                                           Direction frontFacing,
-                                                          Function<Character, BlockState> stateFactory) {
-        return childStructureWorld(pattern, controllerPos, frontFacing, false, stateFactory);
-    }
-
-    private static StructureWorldView childStructureWorld(BlockPattern pattern,
-                                                          BlockPos controllerPos,
-                                                          Direction frontFacing,
                                                           boolean flipped,
                                                           Function<Character, BlockState> stateFactory) {
         return world(structureStates(
