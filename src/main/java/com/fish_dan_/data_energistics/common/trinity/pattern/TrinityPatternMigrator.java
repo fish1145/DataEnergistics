@@ -100,6 +100,7 @@ public final class TrinityPatternMigrator {
         private int storageIndex;
         private int containerIndex;
         private int containerSlotIndex;
+        private long scanUnits;
         private long completedUnits;
         private long totalUnits;
         private TrinityPatternMigrationResult result;
@@ -107,7 +108,14 @@ public final class TrinityPatternMigrator {
         private Job(Batch batch) {
             this.batch = batch;
             this.cursorStage = CursorStage.CAPTURE_INSTALLED;
-            this.result = TrinityPatternMigrationResult.targetUnavailable();
+            this.result = batch.result();
+            this.storageKeys = snapshotStorage(batch);
+            captureContainerSources(batch);
+            this.scanUnits = scanWorkUnits(batch.layout, this.storageKeys, this.containerBuilders);
+            this.totalUnits = this.scanUnits;
+            if (this.scanUnits == 0L) {
+                this.cursorStage = CursorStage.COMPLETE;
+            }
         }
 
         private Job() {
@@ -185,12 +193,12 @@ public final class TrinityPatternMigrator {
             Batch current = requireBatch();
             List<TrinityPatternCatalog.CoreRange> ranges = current.layout.ranges();
             if (this.installedRangeIndex >= ranges.size()) {
-                this.storageKeys = snapshotStorage(current);
                 this.cursorStage = CursorStage.CAPTURE_STORAGE;
                 return false;
             }
             TrinityPatternCatalog.CoreRange range = ranges.get(this.installedRangeIndex);
             current.captureInstalledIdentity(range, this.installedSlot++);
+            this.completedUnits++;
             if (this.installedSlot >= range.mount().blockCapacity()) {
                 this.installedRangeIndex++;
                 this.installedSlot = 0;
@@ -207,15 +215,14 @@ public final class TrinityPatternMigrator {
                         PatternDetailsHelper.isEncodedPattern(itemKey.getReadOnlyStack())) {
                     this.storageCandidates.add(new StorageCandidate(itemKey, amount));
                 }
+                this.completedUnits++;
                 return true;
             }
-            captureContainerSources();
             this.cursorStage = CursorStage.CAPTURE_CONTAINERS;
             return false;
         }
 
-        private void captureContainerSources() {
-            Batch current = requireBatch();
+        private void captureContainerSources(Batch current) {
             ArrayList<Class<?>> classes = new ArrayList<>();
             for (Class<?> machineClass : current.grid.getMachineClasses()) {
                 if (PatternContainer.class.isAssignableFrom(machineClass)) {
@@ -249,6 +256,17 @@ public final class TrinityPatternMigrator {
             this.containerBuilders.sort(ContainerBuilder.ORDER);
         }
 
+        private static long scanWorkUnits(TrinityPatternCatalog.LayoutSnapshot layout,
+                                          List<StorageKeySnapshot> storageKeys,
+                                          List<ContainerBuilder> containerBuilders) {
+            long total = layout.slotCount();
+            total = Math.addExact(total, storageKeys.size());
+            for (ContainerBuilder builder : containerBuilders) {
+                total = Math.addExact(total, builder.slotCount);
+            }
+            return total;
+        }
+
         private static List<StorageKeySnapshot> snapshotStorage(Batch batch) {
             ArrayList<StorageKeySnapshot> snapshots = new ArrayList<>();
             for (var entry : batch.storage.getAvailableStacks()) {
@@ -267,20 +285,26 @@ public final class TrinityPatternMigrator {
                     snapshots.add(builder.snapshot());
                 }
                 this.containers = List.copyOf(snapshots);
-                this.totalUnits = this.storageCandidates.size();
+                long candidateUnits = this.storageCandidates.size();
                 for (ContainerSnapshot container : this.containers) {
-                    this.totalUnits += container.slots().size();
+                    candidateUnits = Math.addExact(candidateUnits, container.slots().size());
                 }
+                if (candidateUnits == 0L) {
+                    complete();
+                    return false;
+                }
+                this.totalUnits = Math.addExact(this.scanUnits, candidateUnits);
                 this.cursorStage = CursorStage.PROCESS_STORAGE;
                 return false;
             }
             ContainerBuilder builder = this.containerBuilders.get(this.captureContainerIndex);
-            if (this.captureContainerSlot >= builder.inventory.size()) {
+            if (this.captureContainerSlot >= builder.slotCount) {
                 this.captureContainerIndex++;
                 this.captureContainerSlot = 0;
                 return false;
             }
             int slot = this.captureContainerSlot++;
+            this.completedUnits++;
             try {
                 ItemStack stack = builder.inventory.getStackInSlot(slot);
                 if (!stack.isEmpty() && PatternDetailsHelper.isEncodedPattern(stack)) {
@@ -289,7 +313,9 @@ public final class TrinityPatternMigrator {
             } catch (RuntimeException failure) {
                 requireBatch().sourceFailures++;
                 builder.quarantined = true;
-                this.captureContainerSlot = builder.inventory.size();
+                long remainingSlots = builder.slotCount - this.captureContainerSlot;
+                this.completedUnits = Math.addExact(this.completedUnits, remainingSlots);
+                this.captureContainerSlot = builder.slotCount;
                 Data_Energistics.LOGGER.error(
                         "Could not capture pattern migration source class={} ordinal={} slot={}",
                         builder.className,
@@ -867,6 +893,7 @@ public final class TrinityPatternMigrator {
 
         private final PatternContainer container;
         private final InternalInventory inventory;
+        private final int slotCount;
         private final String discoveryClassName;
         private final long sortOrder;
         private final String className;
@@ -884,6 +911,7 @@ public final class TrinityPatternMigrator {
                                  int ordinal) {
             this.container = container;
             this.inventory = inventory;
+            this.slotCount = inventory.size();
             this.discoveryClassName = discoveryClassName;
             this.sortOrder = sortOrder;
             this.className = className;

@@ -1415,8 +1415,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 grid,
                 accessActionSource(),
                 this.patternCatalog);
-        if (job.isDone() && job.result().targetAborted()) {
-            return TrinityHostedActionStatus.STALE_STATE;
+        if (job.isDone()) {
+            return job.result().targetAborted() ? TrinityHostedActionStatus.STALE_STATE : TrinityHostedActionStatus.NO_OP;
         }
         this.retainedPatternMaintenanceResult = null;
         this.patternMaintenanceTask = new MigrationPatternMaintenanceTask(player.getUUID(), job);
@@ -3386,7 +3386,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         private final TrinityPatternMigrator.Job job;
 
         private MigrationPatternMaintenanceTask(UUID playerId, TrinityPatternMigrator.Job job) {
-            super(playerId, TrinityPatternMaintenanceSnapshot.Stage.SCANNING, 0L);
+            super(playerId, TrinityPatternMaintenanceSnapshot.Stage.SCANNING, job.totalUnits());
             this.job = job;
         }
 
