@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
+import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 import com.fish_dan_.data_energistics.util.StableDigest;
 
 import net.minecraft.core.HolderLookup;
@@ -236,8 +237,8 @@ public final class TrinityPatternMigrator {
             int ordinal = 0;
             for (Class<?> machineClass : classes) {
                 for (Object machine : current.grid.getActiveMachines(machineClass)) {
-                    if (!(machine instanceof PatternContainer container) ||
-                            container instanceof TrinityPatternTerminalPartition || !identities.add(container)) {
+                    if (!(machine instanceof PatternContainer container) || current.isTrinitySource(container) ||
+                            !identities.add(container)) {
                         continue;
                     }
                     InternalInventory inventory = container.getTerminalPatternInventory();
@@ -458,6 +459,23 @@ public final class TrinityPatternMigrator {
                         container.getClass().getName(),
                         failure);
                 return null;
+            }
+        }
+
+        private boolean isTrinitySource(PatternContainer container) {
+            if (container instanceof TrinityPatternTerminalPartition) {
+                return true;
+            }
+            try {
+                return PatternProviderRuntimeBindings.resolve(container)
+                        .map(binding -> binding.identity() instanceof ProviderIdentity.Trinity)
+                        .orElse(false);
+            } catch (RuntimeException failure) {
+                Data_Energistics.LOGGER.warn(
+                        "Pattern migration could not classify provider class {}; treating it as an external source",
+                        container.getClass().getName(),
+                        failure);
+                return false;
             }
         }
 
