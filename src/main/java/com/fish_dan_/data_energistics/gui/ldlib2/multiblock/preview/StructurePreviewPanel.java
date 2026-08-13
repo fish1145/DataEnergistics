@@ -294,6 +294,9 @@ public final class StructurePreviewPanel extends UIElement {
                 .top(geometry.scene().top())
                 .width(geometry.scene().width())
                 .height(geometry.scene().height()));
+        if (this.sceneBinding != null) {
+            this.sceneBinding.constrainToViewport(geometry.scene().width(), geometry.scene().height());
+        }
         this.selectedBlockSlot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(geometry.selectedBlock().left())

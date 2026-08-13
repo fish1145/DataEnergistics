@@ -13,9 +13,9 @@ import net.minecraft.core.Direction;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scene;
+import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.utils.data.BlockInfo;
 import com.lowdragmc.lowdraglib2.utils.virtuallevel.TrackedDummyWorld;
 import dev.vfyjxf.taffy.style.TaffyPosition;
@@ -45,7 +45,6 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             throw new IllegalStateException("Structure preview scene must belong to an element tree before binding");
         }
 
-        scene.style(style -> style.overflowClip(new ColorRectTexture(0xFFFFFFFF)));
         ClientScene clientScene = new ClientScene();
         clientScene.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
@@ -152,6 +151,30 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
                         snapshot.definitionKey(),
                         failure);
                 throw failure;
+            }
+        }
+
+        @Override
+        public void constrainToViewport(int width, int height) {
+            if (width <= 0 || height <= 0) {
+                throw new IllegalArgumentException("Structure preview viewport dimensions must be positive");
+            }
+            if (this.released) {
+                throw new IllegalStateException("Released structure preview scene binding cannot be constrained");
+            }
+            this.scene.createScene(this.world, true, Size.of(width, height))
+                    .setTickWorld(false)
+                    .setDraggable(true)
+                    .setScalable(true)
+                    .setRenderSelect(true)
+                    .setRenderFacing(false)
+                    .setShowHoverBlockTips(true)
+                    .useCacheBuffer();
+            if (this.currentSnapshot != null && this.currentViewState != null) {
+                StructurePreviewRenderState renderState = StructurePreviewRenderState.from(
+                        this.currentSnapshot,
+                        this.currentViewState);
+                replaceSnapshot(renderState);
             }
         }
 

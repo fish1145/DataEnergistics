@@ -17,6 +17,16 @@ public interface StructurePreviewSceneBinding {
     void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState);
 
     /**
+     * Recreates this preview through an off-screen render target whose final texture is constrained to the scene
+     * element. Callers use this only for compositions where neighboring authored controls must never be overwritten
+     * by the immediate world renderer.
+     *
+     * @param width  positive off-screen width matching the authored scene aspect ratio
+     * @param height positive off-screen height matching the authored scene aspect ratio
+     */
+    void constrainToViewport(int width, int height);
+
+    /**
      * Attempts every resource cleanup owned by this exact scene binding once. Repeated calls are no-ops, including
      * after the first call reports an aggregated cleanup failure.
      */
