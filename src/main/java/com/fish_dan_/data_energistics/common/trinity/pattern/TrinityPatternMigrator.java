@@ -112,7 +112,9 @@ public final class TrinityPatternMigrator {
             this.storageKeys = snapshotStorage(batch);
             captureContainerSources(batch);
             this.scanUnits = scanWorkUnits(batch.layout, this.storageKeys, this.containerBuilders);
-            this.totalUnits = this.scanUnits;
+            this.totalUnits = Math.addExact(
+                    this.scanUnits,
+                    maximumCandidateUnits(this.storageKeys, this.containerBuilders));
             if (this.scanUnits == 0L) {
                 this.cursorStage = CursorStage.COMPLETE;
             }
@@ -267,6 +269,15 @@ public final class TrinityPatternMigrator {
             return total;
         }
 
+        private static long maximumCandidateUnits(List<StorageKeySnapshot> storageKeys,
+                                                  List<ContainerBuilder> containerBuilders) {
+            long total = storageKeys.size();
+            for (ContainerBuilder builder : containerBuilders) {
+                total = Math.addExact(total, builder.slotCount);
+            }
+            return total;
+        }
+
         private static List<StorageKeySnapshot> snapshotStorage(Batch batch) {
             ArrayList<StorageKeySnapshot> snapshots = new ArrayList<>();
             for (var entry : batch.storage.getAvailableStacks()) {
@@ -289,11 +300,11 @@ public final class TrinityPatternMigrator {
                 for (ContainerSnapshot container : this.containers) {
                     candidateUnits = Math.addExact(candidateUnits, container.slots().size());
                 }
+                this.totalUnits = Math.addExact(this.scanUnits, candidateUnits);
                 if (candidateUnits == 0L) {
                     complete();
                     return false;
                 }
-                this.totalUnits = Math.addExact(this.scanUnits, candidateUnits);
                 this.cursorStage = CursorStage.PROCESS_STORAGE;
                 return false;
             }
