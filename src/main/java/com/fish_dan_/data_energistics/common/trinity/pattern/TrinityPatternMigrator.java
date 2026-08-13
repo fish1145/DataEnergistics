@@ -106,6 +106,7 @@ public final class TrinityPatternMigrator {
         private int captureContainerIndex;
         private int captureContainerSlot;
         private int storageIndex;
+        private long storageCandidateAmount;
         private int installedRefundIndex;
         private int containerIndex;
         private int containerSlotIndex;
@@ -303,9 +304,23 @@ public final class TrinityPatternMigrator {
 
         private static long maximumCandidateUnits(List<StorageKeySnapshot> storageKeys,
                                                   List<ContainerBuilder> containerBuilders) {
-            long total = storageKeys.size();
+            long total = 0L;
+            for (StorageKeySnapshot storageKey : storageKeys) {
+                if (storageKey.key() instanceof AEItemKey itemKey &&
+                        PatternDetailsHelper.isEncodedPattern(itemKey.getReadOnlyStack())) {
+                    total = Math.addExact(total, storageKey.amount());
+                }
+            }
             for (ContainerBuilder builder : containerBuilders) {
                 total = Math.addExact(total, builder.slotCount);
+            }
+            return total;
+        }
+
+        private static long storageCandidateUnits(List<StorageCandidate> storageCandidates) {
+            long total = 0L;
+            for (StorageCandidate candidate : storageCandidates) {
+                total = Math.addExact(total, candidate.capturedAmount());
             }
             return total;
         }
@@ -328,7 +343,7 @@ public final class TrinityPatternMigrator {
                     snapshots.add(builder.snapshot());
                 }
                 this.containers = List.copyOf(snapshots);
-                long candidateUnits = Math.addExact(this.storageCandidates.size(), this.installedRefunds.size());
+                long candidateUnits = Math.addExact(storageCandidateUnits(this.storageCandidates), this.installedRefunds.size());
                 for (ContainerSnapshot container : this.containers) {
                     candidateUnits = Math.addExact(candidateUnits, container.slots().size());
                 }
@@ -381,13 +396,43 @@ public final class TrinityPatternMigrator {
                 }
                 return false;
             }
-            boolean continueStorage = current.processStorageCandidate(this.storageCandidates.get(this.storageIndex++));
+            StorageCandidate candidate = this.storageCandidates.get(this.storageIndex);
+            long expectedAmount = candidate.capturedAmount() - this.storageCandidateAmount;
+            StorageCandidateOutcome outcome = current.processStorageCandidate(candidate.key(), expectedAmount);
             this.completedUnits++;
-            if (!continueStorage) {
-                this.completedUnits += this.storageCandidates.size() - this.storageIndex;
-                this.storageIndex = this.storageCandidates.size();
+            switch (outcome) {
+                case CONSUMED -> advanceStorageCandidate(candidate);
+                case SKIPPED -> skipStorageCandidate(candidate);
+                case STOPPED -> {
+                    this.completedUnits += remainingStorageUnits();
+                    this.storageIndex = this.storageCandidates.size();
+                    this.storageCandidateAmount = 0L;
+                }
             }
             return true;
+        }
+
+        private void advanceStorageCandidate(StorageCandidate candidate) {
+            this.storageCandidateAmount++;
+            if (this.storageCandidateAmount >= candidate.capturedAmount()) {
+                this.storageIndex++;
+                this.storageCandidateAmount = 0L;
+            }
+        }
+
+        private void skipStorageCandidate(StorageCandidate candidate) {
+            this.completedUnits += candidate.capturedAmount() - this.storageCandidateAmount - 1L;
+            this.storageIndex++;
+            this.storageCandidateAmount = 0L;
+        }
+
+        private long remainingStorageUnits() {
+            long remaining = this.storageCandidates.get(this.storageIndex).capturedAmount() -
+                    this.storageCandidateAmount - 1L;
+            for (int index = this.storageIndex + 1; index < this.storageCandidates.size(); index++) {
+                remaining = Math.addExact(remaining, this.storageCandidates.get(index).capturedAmount());
+            }
+            return remaining;
         }
 
         private boolean processInstalledRefund() {
@@ -828,62 +873,62 @@ public final class TrinityPatternMigrator {
             return false;
         }
 
-        private boolean processStorageCandidate(StorageCandidate candidate) {
+        private StorageCandidateOutcome processStorageCandidate(AEItemKey key, long expectedAmount) {
             if (this.targetAborted) {
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
-            Decoded decoded = decode(candidate.key().toStack());
-            if (readStorageAmount(candidate.key()) != candidate.capturedAmount()) {
+            Decoded decoded = decode(key.toStack());
+            if (readStorageAmount(key) != expectedAmount) {
                 this.storageSourceUncertain++;
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
             if (decoded.identity() == null) {
-                return recycleStoragePattern(candidate, false);
+                return recycleStoragePattern(key, expectedAmount, false);
             }
             if (!supports(decoded.stack())) {
                 this.storageUnsupportedKept++;
-                return true;
+                return StorageCandidateOutcome.SKIPPED;
             }
             if (this.seen.contains(decoded.identity())) {
-                return recycleStoragePattern(candidate, true);
+                return recycleStoragePattern(key, expectedAmount, true);
             }
             TargetSlot target = nextEmptyTarget();
             if (target == null) {
                 if (!this.targetAborted) {
                     this.capacitySkipped++;
                 }
-                return true;
+                return this.targetAborted ? StorageCandidateOutcome.STOPPED : StorageCandidateOutcome.SKIPPED;
             }
             long simulated;
             try {
                 simulated = StorageHelper.poweredExtraction(
-                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.grid.getEnergyService(), this.storage, key, 1L,
                         this.actionSource, Actionable.SIMULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(candidate.key(), "simulation failed", failure);
+                logStorageFailure(key, "simulation failed", failure);
                 this.storageSourceUncertain++;
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
             if (simulated != 1L || !install(target, decoded.stack())) {
                 this.meBlocked++;
-                return true;
+                return this.targetAborted ? StorageCandidateOutcome.STOPPED : StorageCandidateOutcome.SKIPPED;
             }
-            long before = candidate.capturedAmount();
+            long before = expectedAmount;
             long extracted;
             try {
                 extracted = StorageHelper.poweredExtraction(
-                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.grid.getEnergyService(), this.storage, key, 1L,
                         this.actionSource, Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(candidate.key(), "extraction failed", failure);
+                logStorageFailure(key, "extraction failed", failure);
                 extracted = -1L;
             }
             if (extracted == 1L) {
                 this.movedFromStorage++;
                 this.seen.add(decoded.identity());
-                return true;
+                return StorageCandidateOutcome.CONSUMED;
             }
-            long after = readStorageAmount(candidate.key());
+            long after = readStorageAmount(key);
             if (after == before - 1L) {
                 this.movedFromStorage++;
                 this.seen.add(decoded.identity());
@@ -896,17 +941,22 @@ public final class TrinityPatternMigrator {
                 Data_Energistics.LOGGER.error(
                         "Stopped AE storage pattern migration for host {} after uncertain key count before={} after={} key={}",
                         this.catalog.hostId(), before, after,
-                        stableKeyDigest(candidate.key(), this.level.registryAccess()));
-                return false;
+                        stableKeyDigest(key, this.level.registryAccess()));
+                return StorageCandidateOutcome.STOPPED;
             }
-            return !this.targetAborted;
+            if (after == before) {
+                return this.targetAborted ? StorageCandidateOutcome.STOPPED : StorageCandidateOutcome.SKIPPED;
+            }
+            return StorageCandidateOutcome.CONSUMED;
         }
 
-        private boolean recycleStoragePattern(StorageCandidate candidate, boolean duplicate) {
+        private StorageCandidateOutcome recycleStoragePattern(AEItemKey key,
+                                                              long expectedAmount,
+                                                              boolean duplicate) {
             long blankBefore = readStorageAmount(this.blankPatternKey);
             if (blankBefore < 0L) {
                 this.storageSourceUncertain++;
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
             long simulated;
             try {
@@ -916,11 +966,11 @@ public final class TrinityPatternMigrator {
             } catch (RuntimeException failure) {
                 logStorageFailure(this.blankPatternKey, "storage pattern recycle simulation failed", failure);
                 this.storageSourceUncertain++;
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
             if (simulated != 1L) {
                 this.meBlocked++;
-                return true;
+                return StorageCandidateOutcome.SKIPPED;
             }
             long inserted;
             try {
@@ -933,25 +983,25 @@ public final class TrinityPatternMigrator {
             }
             if (inserted != 1L && !amountIncreasedByOne(blankBefore, readStorageAmount(this.blankPatternKey))) {
                 this.storageSourceUncertain++;
-                return false;
+                return StorageCandidateOutcome.STOPPED;
             }
             long extracted;
             try {
                 extracted = StorageHelper.poweredExtraction(
-                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.grid.getEnergyService(), this.storage, key, 1L,
                         this.actionSource, Actionable.MODULATE);
             } catch (RuntimeException failure) {
-                logStorageFailure(candidate.key(), "storage pattern recycle extraction failed", failure);
+                logStorageFailure(key, "storage pattern recycle extraction failed", failure);
                 extracted = -1L;
             }
-            long encodedAfter = readStorageAmount(candidate.key());
-            if (encodedAfter == candidate.capturedAmount() - 1L) {
+            long encodedAfter = readStorageAmount(key);
+            if (encodedAfter == expectedAmount - 1L) {
                 if (duplicate) {
                     this.storageDuplicateRecycled++;
                 } else {
                     this.storageInvalidRecycled++;
                 }
-                return true;
+                return StorageCandidateOutcome.CONSUMED;
             }
             try {
                 long compensated = StorageHelper.poweredExtraction(
@@ -967,9 +1017,10 @@ public final class TrinityPatternMigrator {
                 logStorageFailure(this.blankPatternKey, "storage pattern recycle compensation failed", failure);
             }
             this.storageSourceUncertain++;
-            boolean sourceRestored = encodedAfter == candidate.capturedAmount();
+            boolean sourceRestored = encodedAfter == expectedAmount;
             boolean blankRestored = readStorageAmount(this.blankPatternKey) == blankBefore;
-            return sourceRestored && blankRestored;
+            return sourceRestored && blankRestored ?
+                    StorageCandidateOutcome.SKIPPED : StorageCandidateOutcome.STOPPED;
         }
 
         private boolean processContainerCandidate(ContainerSnapshot container, SlotSnapshot slot) {
@@ -1468,5 +1519,11 @@ public final class TrinityPatternMigrator {
         REMOVED,
         UNCHANGED,
         UNKNOWN
+    }
+
+    private enum StorageCandidateOutcome {
+        CONSUMED,
+        SKIPPED,
+        STOPPED
     }
 }
