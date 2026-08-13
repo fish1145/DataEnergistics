@@ -87,8 +87,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         setOverflowVisible(false);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(2)
-                .top(2)
+                .left(4)
+                .top(6)
                 .width(TrinityPatternCatalogView.COLUMN_COUNT * SLOT_SIZE)
                 .height(TrinityPatternCatalogView.ROW_COUNT * SLOT_SIZE));
         for (int index = 0; index < TrinityPatternCatalogView.PAGE_SIZE; index++) {
