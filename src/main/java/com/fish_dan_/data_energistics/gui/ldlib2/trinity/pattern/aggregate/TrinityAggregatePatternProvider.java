@@ -63,7 +63,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
             throw new IllegalArgumentException("Trinity aggregate pattern provider received the wrong host context");
         }
         HostSubUiRoot root = context.createRoot();
-        TrinityUiNbtLayouts.initProjectStyled("pattern", root);
+        TrinityUiNbtLayouts.init("pattern", root);
         TrinityAggregatePatternLayout.Controls controls = TrinityAggregatePatternLayout.bind(root);
         root.addChild(createTitle());
 

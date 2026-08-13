@@ -10,7 +10,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import appeng.crafting.pattern.EncodedPatternItem;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -87,6 +89,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             LocalSlot localSlot = new LocalSlot();
             ItemSlot itemSlot = new PatternDisplaySlot(localSlot, index);
             itemSlot.setId(id + "_" + index);
+            itemSlot.getStyle().backgroundTexture(IGuiTexture.EMPTY);
             int column = index % TrinityPatternCatalogView.COLUMN_COUNT;
             int row = index / TrinityPatternCatalogView.COLUMN_COUNT;
             itemSlot.layout(slotLayout -> slotLayout
@@ -416,6 +419,22 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         private PatternDisplaySlot(LocalSlot slot, int viewIndex) {
             super(slot);
             this.viewIndex = viewIndex;
+        }
+
+        @Override
+        public ItemStack getValue() {
+            ItemStack pattern = super.getValue();
+            if (!TrinityAggregatePatternSlots.this.level.isClientSide() ||
+                    DataEnergisticsClientBridgeAccess.get().isShiftDown()) {
+                return pattern;
+            }
+            if (pattern.getItem() instanceof EncodedPatternItem encodedPattern) {
+                ItemStack output = encodedPattern.getOutput(pattern);
+                if (!output.isEmpty()) {
+                    return output;
+                }
+            }
+            return pattern;
         }
 
         @Override

@@ -461,7 +461,6 @@ final class OverlayHostUiExtension implements HostUiExtension {
         root.stopInteractionEventsPropagation();
         root.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE));
         WindowPosition savedPosition = this.savedPositions.get(entry.key);
-        entry.restoredPosition = savedPosition != null;
         if (savedPosition != null) {
             root.layout(layout -> layout.left(savedPosition.left).top(savedPosition.top));
         }
@@ -726,40 +725,6 @@ final class OverlayHostUiExtension implements HostUiExtension {
                     entry.subUi.root().getLayoutY(),
                     entry.subUi.root().getSizeWidth(),
                     entry.subUi.root().getSizeHeight());
-            if (!entry.positionInitialized && !entry.restoredPosition) {
-                float clampedScreenX = entry.subUi.root().getPositionX() +
-                        placement.left() - entry.subUi.root().getLayoutX();
-                float clampedScreenY = entry.subUi.root().getPositionY() +
-                        placement.top() - entry.subUi.root().getLayoutY();
-                List<HostWindowPlacement.ScreenBounds> lowerWindows = new ArrayList<>();
-                for (WindowEntry lowerEntry : this.bottomToTop) {
-                    if (lowerEntry == entry) {
-                        break;
-                    }
-                    if (lowerEntry.subUi.root().getSizeWidth() <= 0 ||
-                            lowerEntry.subUi.root().getSizeHeight() <= 0) {
-                        continue;
-                    }
-                    lowerWindows.add(new HostWindowPlacement.ScreenBounds(
-                            lowerEntry.subUi.root().getPositionX(),
-                            lowerEntry.subUi.root().getPositionY(),
-                            lowerEntry.subUi.root().getSizeWidth(),
-                            lowerEntry.subUi.root().getSizeHeight()));
-                }
-                HostWindowPlacement.ScreenPosition cascaded = HostWindowPlacement.cascadeInitial(
-                        screenWidth,
-                        screenHeight,
-                        clampedScreenX,
-                        clampedScreenY,
-                        entry.subUi.root().getSizeWidth(),
-                        entry.subUi.root().getSizeHeight(),
-                        lowerWindows);
-                placement = new HostWindowPlacement(
-                        placement.maximumWidth(),
-                        placement.maximumHeight(),
-                        placement.left() + cascaded.left() - clampedScreenX,
-                        placement.top() + cascaded.top() - clampedScreenY);
-            }
             HostWindowPlacement finalPlacement = placement;
             if (entry.viewportWidth != screenWidth || entry.viewportHeight != screenHeight) {
                 entry.viewportWidth = screenWidth;
@@ -775,7 +740,6 @@ final class OverlayHostUiExtension implements HostUiExtension {
                         .top(finalPlacement.top()));
             }
             rememberPosition(entry);
-            entry.positionInitialized = true;
         } finally {
             entry.clamping = false;
         }
@@ -917,8 +881,6 @@ final class OverlayHostUiExtension implements HostUiExtension {
         private final OpeningContext context;
         private boolean removalRequestedByHost;
         private boolean clamping;
-        private boolean restoredPosition;
-        private boolean positionInitialized;
         private int viewportWidth = -1;
         private int viewportHeight = -1;
 
