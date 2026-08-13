@@ -198,7 +198,7 @@
 .priority-control-title {
     adaptive-width: false;
     adaptive-height: false;
-    font-size: 9;
+    font-size: 7;
     vertical-align: center;
     text-shadow: false;
     overflow: hidden;
@@ -207,7 +207,7 @@
 .priority-control-step-text {
     adaptive-width: false;
     adaptive-height: false;
-    font-size: 9;
+    font-size: 6;
     horizontal-align: center;
     vertical-align: center;
     text-shadow: false;
@@ -215,7 +215,7 @@
 }
 
 .priority-control-value {
-    font-size: 9;
+    font-size: 7;
     text-shadow: false;
 }
 
