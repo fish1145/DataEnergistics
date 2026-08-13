@@ -25,7 +25,6 @@ import java.util.function.LongFunction;
  */
 final class AutoBuildMaterialGrid extends UIElement {
 
-    private static final float SCROLLBAR_SIZE_EPSILON = 0.01F;
     private static final int COLUMN_COUNT = 3;
     private static final int VISIBLE_ROW_COUNT = 6;
     private static final int CELL_SIZE = 18;
@@ -70,9 +69,7 @@ final class AutoBuildMaterialGrid extends UIElement {
         this.scrollbar = scrollbar;
         scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(ignored -> refreshFromScrollbar());
-        scrollbar.scrollContainer.addEventListener(
-                UIEvents.LAYOUT_CHANGED,
-                ignored -> alignScrollbarRangeWithAuthoredThumb());
+        AuthoredScrollerThumbTravel.bind(scrollbar);
         updateScrollbar();
     }
 
@@ -156,29 +153,9 @@ final class AutoBuildMaterialGrid extends UIElement {
         float scrollDelta = maximum == 0 ? 1.0F : 1.0F / maximum;
         this.scrollbar.scrollerStyle(style -> style.scrollDelta(scrollDelta));
         this.scrollbar.setNormalizedValue(normalized, false);
-        alignScrollbarRangeWithAuthoredThumb();
+        AuthoredScrollerThumbTravel.align(this.scrollbar);
         this.scrollbar.selfAndAllChildren()
                 .forEach(element -> element.setAllowHitTest(this.overflowing));
-    }
-
-    /**
-     * LDLib2 positions a scrollbar from its percentage size before the NBT-authored maximum pixel size is applied.
-     * Keep the authored thumb dimensions, but use their resolved height when calculating the normalized travel range.
-     */
-    private void alignScrollbarRangeWithAuthoredThumb() {
-        if (this.scrollbar == null) {
-            return;
-        }
-        float trackHeight = this.scrollbar.scrollContainer.getContentHeight();
-        float thumbHeight = this.scrollbar.scrollBar.getSizeHeight();
-        if (trackHeight <= 0.0F || thumbHeight <= 0.0F || thumbHeight > trackHeight) {
-            return;
-        }
-        float resolvedPercent = thumbHeight * 100.0F / trackHeight;
-        if (Math.abs(this.scrollbar.getScrollerStyle().scrollBarSize() - resolvedPercent) >
-                SCROLLBAR_SIZE_EPSILON) {
-            this.scrollbar.setScrollBarSize(resolvedPercent);
-        }
     }
 
     private int maxFirstVisibleRow() {

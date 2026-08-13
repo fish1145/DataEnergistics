@@ -19,6 +19,7 @@ final class AutoBuildLayerScroller {
         this.scroller = scroller;
         scroller.setRange(0.0F, 1.0F);
         scroller.setOnValueChanged(ignored -> selectFromScroller());
+        AuthoredScrollerThumbTravel.bind(scroller);
     }
 
     void refresh() {
@@ -30,6 +31,7 @@ final class AutoBuildLayerScroller {
         try {
             this.scroller.scrollerStyle(style -> style.scrollDelta(scrollDelta));
             this.scroller.setNormalizedValue(normalized, false);
+            AuthoredScrollerThumbTravel.align(this.scroller);
             this.scroller.selfAndAllChildren()
                     .forEach(element -> element.setAllowHitTest(layerCount > 0));
         } finally {
@@ -49,6 +51,7 @@ final class AutoBuildLayerScroller {
         this.refreshing = true;
         try {
             this.scroller.setNormalizedValue((float) selection / layerCount, false);
+            AuthoredScrollerThumbTravel.align(this.scroller);
         } finally {
             this.refreshing = false;
         }
