@@ -454,6 +454,13 @@ public final class TrinityDataCoreCraftingRuntime {
             }
             if (result.physicalAttempted()) {
                 advanceWorkerTickStartAfter(workerNumber);
+                if (this.retainedWorkers.get(workerNumber) == worker) {
+                    if (result.hasReadyWork()) {
+                        enqueueReady(workerNumber);
+                    } else {
+                        scheduleAfterWorkerTick(worker, currentTick);
+                    }
+                }
                 return new CraftingDispatchStepResult(
                         true,
                         result.stateChanged(),

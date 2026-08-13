@@ -186,6 +186,16 @@ public final class CountedCraftingProviderAdapters {
         return REGISTRY.mutationRevision();
     }
 
+    /**
+     * Returns whether this provider combines logical crafts through a counted admission.
+     *
+     * @param provider live provider identity
+     * @return whether one physical call may represent multiple logical crafts
+     */
+    public static boolean supportsCountedDispatch(ICraftingProvider provider) {
+        return REGISTRY.find(provider) != null || provider instanceof CountedCraftingProvider;
+    }
+
     static CountedCraftingPreparation prepareProviderTarget(
                                                             CountedCraftingProviderAdapter adapter,
                                                             IPatternDetails patternDetails,

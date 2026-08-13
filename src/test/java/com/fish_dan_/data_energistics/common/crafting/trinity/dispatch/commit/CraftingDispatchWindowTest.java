@@ -61,6 +61,21 @@ public final class CraftingDispatchWindowTest {
     }
 
     @Test
+    void countedProvidersReceiveIndependentSinglePushAllowances() {
+        CraftingDispatchWindow window = fixedWindow(new CraftingDispatchLimits(4, 4, Long.MAX_VALUE));
+        ICraftingProvider first = new EqualCraftingProvider();
+        ICraftingProvider second = new EqualCraftingProvider();
+        IPatternDetails firstPattern = new IdentityPatternDetails();
+        IPatternDetails secondPattern = new IdentityPatternDetails();
+
+        assertTrue(acquireCounted(window, first, firstPattern, target("north")));
+        assertFalse(window.canAttemptCounted(first, secondPattern, target("south")));
+        assertTrue(window.canAttemptCounted(second, secondPattern, target("south")));
+        assertTrue(acquireCounted(window, second, secondPattern, target("south")));
+        assertEquals(2, window.attemptCount());
+    }
+
+    @Test
     void targetRejectionDoesNotBlockAnotherTargetOrConsumePhysicalQuota() {
         CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         ICraftingProvider provider = new EqualCraftingProvider();
@@ -412,6 +427,16 @@ public final class CraftingDispatchWindowTest {
                                    IPatternDetails pattern,
                                    CraftingDispatchTarget target) {
         try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            return submission.tryAcquire(target) == CraftingDispatchWindow.Acquisition.ACQUIRED;
+        }
+    }
+
+    private static boolean acquireCounted(
+                                          CraftingDispatchWindow window,
+                                          ICraftingProvider provider,
+                                          IPatternDetails pattern,
+                                          CraftingDispatchTarget target) {
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginCountedSubmission(provider, pattern)) {
             return submission.tryAcquire(target) == CraftingDispatchWindow.Acquisition.ACQUIRED;
         }
     }
