@@ -1154,6 +1154,27 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         };
     }
 
+    @Override
+    public boolean tryQuickMovePatternFromPlayer(ItemStack pattern) {
+        if (!this.patternCatalogValid || isPatternMaintenanceActive() || pattern.isEmpty()) {
+            return false;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        for (int globalSlot = 0; globalSlot < layout.slotCount(); globalSlot++) {
+            TrinityPatternCatalog.GlobalSlot target = this.patternCatalog.resolveGlobalSlot(
+                    layout.revision(),
+                    globalSlot);
+            if (target == null) {
+                return false;
+            }
+            if (target.core().pattern(target.coreSlot()).isEmpty() &&
+                    target.core().trySetPattern(target.coreSlot(), pattern.copyWithCount(1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static TrinityPatternSlotResult primaryPatternClick(TrinityPatternCore core,
                                                                 int coreSlot,
                                                                 ItemStack installed,

@@ -175,6 +175,14 @@ public interface TrinityDataCoreMenuHost {
                                                     TrinityPatternSlotAction action);
 
     /**
+     * Installs one pattern from the main UI player inventory into the first available aggregate slot.
+     *
+     * @param pattern one encoded pattern removed from the source inventory slot
+     * @return whether the pattern was installed and the source removal may be committed
+     */
+    boolean tryQuickMovePatternFromPlayer(ItemStack pattern);
+
+    /**
      * Returns the priority used when the Trinity storage is mounted into AE2.
      */
     int getStoragePriority();

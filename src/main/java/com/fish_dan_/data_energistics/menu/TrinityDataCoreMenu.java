@@ -37,6 +37,7 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -249,12 +250,27 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         return this.playerInventory.player;
     }
 
-    /**
-     * A status-only menu has no machine slots, so shift-click cannot move an item to another side.
-     */
+    /** Moves one player-inventory pattern into the first available aggregate pattern slot. */
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        return ItemStack.EMPTY;
+        if (this.host == null || this.host.isPatternMaintenanceActive() || index < 0 || index >= this.slots.size()) {
+            return ItemStack.EMPTY;
+        }
+        Slot sourceSlot = this.slots.get(index);
+        if (!sourceSlot.hasItem() || !sourceSlot.mayPickup(player)) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack sourceBefore = sourceSlot.getItem().copy();
+        ItemStack extracted = sourceSlot.remove(1);
+        if (extracted.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        if (!this.host.tryQuickMovePatternFromPlayer(extracted)) {
+            sourceSlot.set(sourceBefore);
+            return ItemStack.EMPTY;
+        }
+        sourceSlot.setChanged();
+        return sourceBefore;
     }
 
     /**
