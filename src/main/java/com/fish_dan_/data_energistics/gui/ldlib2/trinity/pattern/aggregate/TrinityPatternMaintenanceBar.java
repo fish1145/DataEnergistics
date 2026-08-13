@@ -34,7 +34,7 @@ final class TrinityPatternMaintenanceBar extends BindableUIElement<TrinityPatter
         style(style -> style.backgroundTexture(new ColorRectTexture(BACKGROUND_COLOR)));
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(-1)
+                .left(1)
                 .top(15)
                 .width(4)
                 .height(HEIGHT));
