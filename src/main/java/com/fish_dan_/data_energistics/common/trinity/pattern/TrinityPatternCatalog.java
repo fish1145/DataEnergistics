@@ -62,6 +62,43 @@ public interface TrinityPatternCatalog {
     }
 
     /**
+     * Reversible, incrementally prepared refund of every installed pattern in one captured catalog layout.
+     *
+     * <p>
+     * No pattern leaves the catalog during {@link #prepareNext()}. The caller may therefore yield between cores
+     * and either cancel the preparation or perform one final atomic commit.
+     * </p>
+     */
+    interface PatternRefundPreparation {
+
+        /** Returns how many mounted cores must be inspected. */
+        int totalUnits();
+
+        /** Returns how many mounted cores have finished preparation. */
+        int completedUnits();
+
+        /** Returns whether preparation reached a commit-ready or terminal state. */
+        boolean isPrepared();
+
+        /**
+         * Prepares one mounted core. The call is invalid after preparation reached a terminal state.
+         */
+        void prepareNext();
+
+        /**
+         * Returns the preparation-only terminal result, or {@code null} while the transaction is commit-ready.
+         */
+        @Nullable
+        PatternRefundResult terminalResult();
+
+        /** Performs final revision validation, all core commits, publication, and delivery without yielding. */
+        PatternRefundResult commit(TrinityPatternRefundDelivery delivery);
+
+        /** Rolls back every prepared core transaction. Repeated cancellation has no effect. */
+        void cancel();
+    }
+
+    /**
      * Describes one core found during a host structure scan.
      *
      * @param position      world position used for deterministic ordering and diagnostics
@@ -408,7 +445,17 @@ public interface TrinityPatternCatalog {
      * @param delivery two-phase inventory and world-drop destination for the complete installed-pattern aggregate
      * @return precise final outcome, including no-op, stale-state, and delivery failure cases
      */
-    PatternRefundResult tryRefundPatterns(TrinityPatternRefundDelivery delivery);
+    default PatternRefundResult tryRefundPatterns(TrinityPatternRefundDelivery delivery) {
+        PatternRefundPreparation preparation = beginPatternRefund();
+        while (!preparation.isPrepared()) {
+            preparation.prepareNext();
+        }
+        PatternRefundResult terminal = preparation.terminalResult();
+        return terminal == null ? preparation.commit(delivery) : terminal;
+    }
+
+    /** Captures one reversible pattern-refund preparation owned by the caller until commit or cancel. */
+    PatternRefundPreparation beginPatternRefund();
 
     /**
      * Atomically returns every queued input and pending output from every core in the current active aggregate.

@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
-import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrationResult;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -107,12 +107,20 @@ public interface TrinityDataCoreMenuHost {
      * @param player player who receives inventory-first and final world-drop pattern delivery
      * @return precise transaction outcome without mixing patterns into retained item delivery
      */
-    TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player);
+    TrinityHostedActionStatus startPatternRefund(Player player);
 
     /**
      * Best-effort migrates distinct AE-storage patterns and active network pattern-container slots into Trinity.
      */
-    TrinityPatternMigrationResult migratePatterns(Player player);
+    TrinityHostedActionStatus startPatternMigration(Player player);
+
+    /** Returns the non-persistent capacity or active pattern-maintenance progress snapshot. */
+    TrinityPatternMaintenanceSnapshot getPatternMaintenanceSnapshot();
+
+    /** Returns whether a migration or installed-pattern refund currently owns the catalog. */
+    default boolean isPatternMaintenanceActive() {
+        return getPatternMaintenanceSnapshot().active();
+    }
 
     /**
      * Returns the last crafting child structure validation error, or an empty string when no error is active.

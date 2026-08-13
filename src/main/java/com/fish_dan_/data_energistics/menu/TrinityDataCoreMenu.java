@@ -826,6 +826,9 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
             if (this.host == null) {
                 throw new IllegalStateException("Trinity aggregate pattern action requires a data core host");
             }
+            if (this.host.isPatternMaintenanceActive()) {
+                return new TrinityPatternSlotResult(TrinityHostedActionStatus.STALE_STATE, carried);
+            }
             return this.host.applyPatternSlotAction(
                     player,
                     layoutRevision,
@@ -840,13 +843,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
             if (this.host == null) {
                 throw new IllegalStateException("Trinity installed-pattern refund requires a data core host");
             }
-            return switch (this.host.tryRefundPatterns(player)) {
-                case COMPLETED -> TrinityHostedActionStatus.COMPLETED;
-                case NO_PATTERNS -> TrinityHostedActionStatus.NO_OP;
-                case BLOCKED_BY_WORK, STALE -> TrinityHostedActionStatus.STALE_STATE;
-                case DELIVERY_REJECTED, DELIVERY_FAILED -> TrinityHostedActionStatus.DELIVERY_FAILED;
-                case INTERNAL_ERROR -> TrinityHostedActionStatus.INTERNAL_ERROR;
-            };
+            return this.host.startPatternRefund(player);
         }
 
         @Override
@@ -854,17 +851,16 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
             if (this.host == null) {
                 throw new IllegalStateException("Trinity pattern migration requires a data core host");
             }
-            var result = this.host.migratePatterns(player);
-            if (result.targetAborted()) {
-                return TrinityHostedActionStatus.STALE_STATE;
-            }
-            return result.changed() ? TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.NO_OP;
+            return this.host.startPatternMigration(player);
         }
 
         @Override
         public TrinityHostedActionStatus refundRetainedItems(Player player) {
             if (this.host == null) {
                 throw new IllegalStateException("Trinity retained-item refund requires a data core host");
+            }
+            if (this.host.isPatternMaintenanceActive()) {
+                return TrinityHostedActionStatus.REJECTED;
             }
             if (!this.host.hasRefundablePatternState()) {
                 return this.host.isCraftingStructureFormed() ?

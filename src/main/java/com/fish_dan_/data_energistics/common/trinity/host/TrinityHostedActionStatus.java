@@ -21,7 +21,9 @@ public enum TrinityHostedActionStatus {
     /** Delivery could not be prepared or completed without risking a partial return. */
     DELIVERY_FAILED(4),
     /** A server-side action or response boundary failed unexpectedly. */
-    INTERNAL_ERROR(5);
+    INTERNAL_ERROR(5),
+    /** The request started a bounded server-tick task whose final result will arrive through synchronized state. */
+    STARTED(6);
 
     private final int networkId;
 

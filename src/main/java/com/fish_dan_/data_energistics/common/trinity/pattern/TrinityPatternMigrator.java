@@ -46,20 +46,328 @@ public final class TrinityPatternMigrator {
                                                         IGrid grid,
                                                         IActionSource actionSource,
                                                         TrinityPatternCatalog catalog) {
+        Job job = begin(level, grid, actionSource, catalog);
+        while (!job.isDone()) {
+            job.advance(Integer.MAX_VALUE, Long.MAX_VALUE);
+        }
+        return job.result();
+    }
+
+    /** Starts a resumable migration that performs bounded work on subsequent server ticks. */
+    public static Job begin(Level level,
+                            IGrid grid,
+                            IActionSource actionSource,
+                            TrinityPatternCatalog catalog) {
         TrinityPatternCatalog.LayoutSnapshot layout = catalog.layoutSnapshot();
         if (!layout.active()) {
-            return TrinityPatternMigrationResult.targetUnavailable();
+            return Job.targetUnavailable();
         }
         MEStorage storage = grid.getStorageService().getInventory();
-        Batch batch = new Batch(level, grid, actionSource, catalog, layout, storage);
-        batch.captureInstalledIdentities();
-        List<StorageCandidate> storageSnapshot = batch.captureStorage();
-        List<ContainerSnapshot> containerSnapshot = batch.captureContainers();
-        batch.processStorage(storageSnapshot);
-        if (!batch.targetAborted) {
-            batch.processContainers(containerSnapshot);
+        return new Job(new Batch(level, grid, actionSource, catalog, layout, storage));
+    }
+
+    /** Coarse operation stage exposed to the Data Core maintenance task. */
+    public enum Phase {
+        SCANNING,
+        STORAGE,
+        PATTERN_CONTAINERS,
+        COMPLETE,
+        CANCELLED
+    }
+
+    /**
+     * Server-thread cursor over one immutable migration snapshot.
+     *
+     * <p>
+     * Each call respects both the work-unit and wall-clock boundary after taking the source collections' immutable
+     * membership snapshots. Installed Trinity slots, captured AE keys, and source inventory slots are then inspected
+     * incrementally.
+     * </p>
+     */
+    public static final class Job {
+
+        private final @Nullable Batch batch;
+        private final List<StorageCandidate> storageCandidates = new ArrayList<>();
+        private final List<ContainerBuilder> containerBuilders = new ArrayList<>();
+        private List<ContainerSnapshot> containers = List.of();
+        private CursorStage cursorStage;
+        private int installedRangeIndex;
+        private int installedSlot;
+        private List<StorageKeySnapshot> storageKeys = List.of();
+        private int storageKeyIndex;
+        private int captureContainerIndex;
+        private int captureContainerSlot;
+        private int storageIndex;
+        private int containerIndex;
+        private int containerSlotIndex;
+        private long completedUnits;
+        private long totalUnits;
+        private TrinityPatternMigrationResult result;
+
+        private Job(Batch batch) {
+            this.batch = batch;
+            this.cursorStage = CursorStage.CAPTURE_INSTALLED;
+            this.result = TrinityPatternMigrationResult.targetUnavailable();
         }
-        return batch.result();
+
+        private Job() {
+            this.batch = null;
+            this.cursorStage = CursorStage.COMPLETE;
+            this.result = TrinityPatternMigrationResult.targetUnavailable();
+        }
+
+        private static Job targetUnavailable() {
+            return new Job();
+        }
+
+        /** Advances at most {@code maximumUnits} or until the monotonic deadline is reached. */
+        public void advance(int maximumUnits, long deadlineNanos) {
+            if (maximumUnits <= 0) {
+                throw new IllegalArgumentException("Pattern migration requires a positive work-unit budget");
+            }
+            int consumed = 0;
+            while (!isDone() && consumed < maximumUnits && System.nanoTime() < deadlineNanos) {
+                if (advanceOne()) {
+                    consumed++;
+                }
+            }
+        }
+
+        /** Stops future work. Already committed best-effort candidates remain committed. */
+        public void cancel() {
+            if (!isDone()) {
+                this.result = requireBatch().result();
+                this.cursorStage = CursorStage.CANCELLED;
+            }
+        }
+
+        public boolean isDone() {
+            return this.cursorStage == CursorStage.COMPLETE || this.cursorStage == CursorStage.CANCELLED;
+        }
+
+        public Phase phase() {
+            return switch (this.cursorStage) {
+                case CAPTURE_INSTALLED, CAPTURE_STORAGE, CAPTURE_CONTAINERS -> Phase.SCANNING;
+                case PROCESS_STORAGE -> Phase.STORAGE;
+                case PROCESS_CONTAINERS -> Phase.PATTERN_CONTAINERS;
+                case COMPLETE -> Phase.COMPLETE;
+                case CANCELLED -> Phase.CANCELLED;
+            };
+        }
+
+        public long completedUnits() {
+            return this.completedUnits;
+        }
+
+        public long totalUnits() {
+            return this.totalUnits;
+        }
+
+        public TrinityPatternMigrationResult result() {
+            if (!isDone()) {
+                throw new IllegalStateException("Pattern migration result is unavailable before completion");
+            }
+            return this.result;
+        }
+
+        private boolean advanceOne() {
+            return switch (this.cursorStage) {
+                case CAPTURE_INSTALLED -> captureInstalled();
+                case CAPTURE_STORAGE -> captureStorage();
+                case CAPTURE_CONTAINERS -> captureContainerSlot();
+                case PROCESS_STORAGE -> processStorage();
+                case PROCESS_CONTAINERS -> processContainer();
+                case COMPLETE, CANCELLED -> false;
+            };
+        }
+
+        private boolean captureInstalled() {
+            Batch current = requireBatch();
+            List<TrinityPatternCatalog.CoreRange> ranges = current.layout.ranges();
+            if (this.installedRangeIndex >= ranges.size()) {
+                this.storageKeys = snapshotStorage(current);
+                this.cursorStage = CursorStage.CAPTURE_STORAGE;
+                return false;
+            }
+            TrinityPatternCatalog.CoreRange range = ranges.get(this.installedRangeIndex);
+            current.captureInstalledIdentity(range, this.installedSlot++);
+            if (this.installedSlot >= range.mount().blockCapacity()) {
+                this.installedRangeIndex++;
+                this.installedSlot = 0;
+            }
+            return true;
+        }
+
+        private boolean captureStorage() {
+            if (this.storageKeyIndex < this.storageKeys.size()) {
+                StorageKeySnapshot snapshot = this.storageKeys.get(this.storageKeyIndex++);
+                AEKey key = snapshot.key();
+                long amount = snapshot.amount();
+                if (amount > 0L && key instanceof AEItemKey itemKey &&
+                        PatternDetailsHelper.isEncodedPattern(itemKey.getReadOnlyStack())) {
+                    this.storageCandidates.add(new StorageCandidate(itemKey, amount));
+                }
+                return true;
+            }
+            captureContainerSources();
+            this.cursorStage = CursorStage.CAPTURE_CONTAINERS;
+            return false;
+        }
+
+        private void captureContainerSources() {
+            Batch current = requireBatch();
+            ArrayList<Class<?>> classes = new ArrayList<>();
+            for (Class<?> machineClass : current.grid.getMachineClasses()) {
+                if (PatternContainer.class.isAssignableFrom(machineClass)) {
+                    classes.add(machineClass);
+                }
+            }
+            classes.sort(Comparator.comparing(Class::getName));
+            Set<PatternContainer> identities = Collections.newSetFromMap(new IdentityHashMap<>());
+            int ordinal = 0;
+            for (Class<?> machineClass : classes) {
+                for (Object machine : current.grid.getActiveMachines(machineClass)) {
+                    if (!(machine instanceof PatternContainer container) ||
+                            container instanceof TrinityPatternTerminalPartition || !identities.add(container)) {
+                        continue;
+                    }
+                    InternalInventory inventory = container.getTerminalPatternInventory();
+                    String identityDigest = current.resolveIdentityDigest(container);
+                    if (identityDigest == null) {
+                        current.fallbackIdentitySources++;
+                    }
+                    this.containerBuilders.add(new ContainerBuilder(
+                            container,
+                            inventory,
+                            machineClass.getName(),
+                            container.getTerminalSortOrder(),
+                            container.getClass().getName(),
+                            identityDigest,
+                            ordinal++));
+                }
+            }
+            this.containerBuilders.sort(ContainerBuilder.ORDER);
+        }
+
+        private static List<StorageKeySnapshot> snapshotStorage(Batch batch) {
+            ArrayList<StorageKeySnapshot> snapshots = new ArrayList<>();
+            for (var entry : batch.storage.getAvailableStacks()) {
+                if (entry.getLongValue() > 0L) {
+                    snapshots.add(new StorageKeySnapshot(entry.getKey(), entry.getLongValue()));
+                }
+            }
+            snapshots.sort(Comparator.comparing(snapshot -> stableKeyDigest(snapshot.key(), batch.level.registryAccess())));
+            return List.copyOf(snapshots);
+        }
+
+        private boolean captureContainerSlot() {
+            if (this.captureContainerIndex >= this.containerBuilders.size()) {
+                ArrayList<ContainerSnapshot> snapshots = new ArrayList<>(this.containerBuilders.size());
+                for (ContainerBuilder builder : this.containerBuilders) {
+                    snapshots.add(builder.snapshot());
+                }
+                this.containers = List.copyOf(snapshots);
+                this.totalUnits = this.storageCandidates.size();
+                for (ContainerSnapshot container : this.containers) {
+                    this.totalUnits += container.slots().size();
+                }
+                this.cursorStage = CursorStage.PROCESS_STORAGE;
+                return false;
+            }
+            ContainerBuilder builder = this.containerBuilders.get(this.captureContainerIndex);
+            if (this.captureContainerSlot >= builder.inventory.size()) {
+                this.captureContainerIndex++;
+                this.captureContainerSlot = 0;
+                return false;
+            }
+            int slot = this.captureContainerSlot++;
+            try {
+                ItemStack stack = builder.inventory.getStackInSlot(slot);
+                if (!stack.isEmpty() && PatternDetailsHelper.isEncodedPattern(stack)) {
+                    builder.slots.add(new SlotSnapshot(slot, stack.copy()));
+                }
+            } catch (RuntimeException failure) {
+                requireBatch().sourceFailures++;
+                builder.quarantined = true;
+                this.captureContainerSlot = builder.inventory.size();
+                Data_Energistics.LOGGER.error(
+                        "Could not capture pattern migration source class={} ordinal={} slot={}",
+                        builder.className,
+                        builder.ordinal,
+                        slot,
+                        failure);
+            }
+            return true;
+        }
+
+        private boolean processStorage() {
+            Batch current = requireBatch();
+            if (this.storageIndex >= this.storageCandidates.size() || current.targetAborted) {
+                this.cursorStage = current.targetAborted ? CursorStage.COMPLETE : CursorStage.PROCESS_CONTAINERS;
+                if (current.targetAborted) {
+                    complete();
+                }
+                return false;
+            }
+            boolean continueStorage = current.processStorageCandidate(this.storageCandidates.get(this.storageIndex++));
+            this.completedUnits++;
+            if (!continueStorage) {
+                this.completedUnits += this.storageCandidates.size() - this.storageIndex;
+                this.storageIndex = this.storageCandidates.size();
+            }
+            return true;
+        }
+
+        private boolean processContainer() {
+            Batch current = requireBatch();
+            if (current.targetAborted || this.containerIndex >= this.containers.size()) {
+                complete();
+                return false;
+            }
+            ContainerSnapshot container = this.containers.get(this.containerIndex);
+            if (container.quarantined() || this.containerSlotIndex >= container.slots().size()) {
+                if (container.quarantined()) {
+                    current.quarantinedSources++;
+                    this.completedUnits += container.slots().size() - this.containerSlotIndex;
+                }
+                this.containerIndex++;
+                this.containerSlotIndex = 0;
+                return false;
+            }
+            SlotSnapshot slot = container.slots().get(this.containerSlotIndex++);
+            boolean continueSource = current.processContainerCandidate(container, slot);
+            this.completedUnits++;
+            if (!continueSource) {
+                current.quarantinedSources++;
+                this.completedUnits += container.slots().size() - this.containerSlotIndex;
+                this.containerIndex++;
+                this.containerSlotIndex = 0;
+            }
+            return true;
+        }
+
+        private void complete() {
+            this.result = requireBatch().result();
+            this.completedUnits = this.totalUnits;
+            this.cursorStage = CursorStage.COMPLETE;
+        }
+
+        private Batch requireBatch() {
+            if (this.batch == null) {
+                throw new IllegalStateException("Pattern migration target is unavailable");
+            }
+            return this.batch;
+        }
+    }
+
+    private enum CursorStage {
+        CAPTURE_INSTALLED,
+        CAPTURE_STORAGE,
+        CAPTURE_CONTAINERS,
+        PROCESS_STORAGE,
+        PROCESS_CONTAINERS,
+        COMPLETE,
+        CANCELLED
     }
 
     private static final class Batch {
@@ -101,67 +409,6 @@ public final class TrinityPatternMigrator {
             this.storage = storage;
         }
 
-        private List<StorageCandidate> captureStorage() {
-            ArrayList<StorageCandidate> candidates = new ArrayList<>();
-            for (var entry : this.storage.getAvailableStacks()) {
-                if (entry.getLongValue() > 0L && entry.getKey() instanceof AEItemKey itemKey &&
-                        PatternDetailsHelper.isEncodedPattern(itemKey.getReadOnlyStack())) {
-                    candidates.add(new StorageCandidate(itemKey, entry.getLongValue()));
-                }
-            }
-            candidates.sort(Comparator.comparing(candidate -> stableKeyDigest(
-                    candidate.key(), this.level.registryAccess())));
-            return List.copyOf(candidates);
-        }
-
-        private List<ContainerSnapshot> captureContainers() {
-            ArrayList<Class<?>> classes = new ArrayList<>();
-            for (Class<?> machineClass : this.grid.getMachineClasses()) {
-                if (PatternContainer.class.isAssignableFrom(machineClass)) {
-                    classes.add(machineClass);
-                }
-            }
-            classes.sort(Comparator.comparing(Class::getName));
-            Set<PatternContainer> identities = Collections.newSetFromMap(new IdentityHashMap<>());
-            ArrayList<ContainerSnapshot> snapshots = new ArrayList<>();
-            int ordinal = 0;
-            for (Class<?> machineClass : classes) {
-                for (Object machine : this.grid.getActiveMachines(machineClass)) {
-                    if (!(machine instanceof PatternContainer container) ||
-                            container instanceof TrinityPatternTerminalPartition || !identities.add(container)) {
-                        continue;
-                    }
-                    InternalInventory inventory = container.getTerminalPatternInventory();
-                    ArrayList<SlotSnapshot> slots = new ArrayList<>(inventory.size());
-                    for (int slot = 0; slot < inventory.size(); slot++) {
-                        ItemStack stack = inventory.getStackInSlot(slot);
-                        if (!stack.isEmpty()) {
-                            slots.add(new SlotSnapshot(slot, stack.copy()));
-                        }
-                    }
-                    String identityDigest = resolveIdentityDigest(container);
-                    if (identityDigest == null) {
-                        this.fallbackIdentitySources++;
-                    }
-                    snapshots.add(new ContainerSnapshot(
-                            container,
-                            inventory,
-                            machineClass.getName(),
-                            container.getTerminalSortOrder(),
-                            container.getClass().getName(),
-                            identityDigest,
-                            ordinal++,
-                            List.copyOf(slots)));
-                }
-            }
-            snapshots.sort(Comparator.comparing(ContainerSnapshot::discoveryClassName)
-                    .thenComparingLong(ContainerSnapshot::sortOrder)
-                    .thenComparing(ContainerSnapshot::className)
-                    .thenComparing(snapshot -> snapshot.identityDigest() == null ? "~" : snapshot.identityDigest())
-                    .thenComparingInt(ContainerSnapshot::ordinal));
-            return List.copyOf(snapshots);
-        }
-
         @Nullable
         private String resolveIdentityDigest(PatternContainer container) {
             try {
@@ -177,128 +424,112 @@ public final class TrinityPatternMigrator {
             }
         }
 
-        private void captureInstalledIdentities() {
-            for (TrinityPatternCatalog.CoreRange range : this.layout.ranges()) {
-                TrinityPatternCore core = range.mount().core();
-                for (int slot = 0; slot < range.mount().blockCapacity(); slot++) {
-                    ItemStack stack = core.pattern(slot);
-                    Decoded decoded = decode(stack);
-                    if (decoded.identity() != null) {
-                        this.seen.add(decoded.identity());
-                    }
-                }
+        private void captureInstalledIdentity(TrinityPatternCatalog.CoreRange range, int slot) {
+            ItemStack stack = range.mount().core().pattern(slot);
+            Decoded decoded = decode(stack);
+            if (decoded.identity() != null) {
+                this.seen.add(decoded.identity());
             }
         }
 
-        private void processStorage(List<StorageCandidate> candidates) {
-            for (StorageCandidate candidate : candidates) {
-                if (this.targetAborted) {
-                    return;
-                }
-                Decoded decoded = decode(candidate.key().toStack());
-                if (readStorageAmount(candidate.key()) != candidate.capturedAmount()) {
-                    this.storageSourceUncertain++;
-                    return;
-                }
-                if (decoded.identity() == null) {
-                    this.storageInvalidKept++;
-                    continue;
-                }
-                if (!supports(decoded.stack())) {
-                    this.storageUnsupportedKept++;
-                    continue;
-                }
-                if (this.seen.contains(decoded.identity())) {
-                    this.storageDuplicateKept++;
-                    continue;
-                }
-                TargetSlot target = nextEmptyTarget();
-                if (target == null) {
-                    if (!this.targetAborted) {
-                        this.capacitySkipped++;
-                    }
-                    continue;
-                }
-                long simulated;
-                try {
-                    simulated = StorageHelper.poweredExtraction(
-                            this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
-                            this.actionSource, Actionable.SIMULATE);
-                } catch (RuntimeException failure) {
-                    logStorageFailure(candidate.key(), "simulation failed", failure);
-                    this.storageSourceUncertain++;
-                    return;
-                }
-                if (simulated != 1L || !install(target, decoded.stack())) {
-                    this.meBlocked++;
-                    continue;
-                }
-                long before = candidate.capturedAmount();
-                long extracted;
-                try {
-                    extracted = StorageHelper.poweredExtraction(
-                            this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
-                            this.actionSource, Actionable.MODULATE);
-                } catch (RuntimeException failure) {
-                    logStorageFailure(candidate.key(), "extraction failed", failure);
-                    extracted = -1L;
-                }
-                if (extracted == 1L) {
-                    this.movedFromStorage++;
-                    this.seen.add(decoded.identity());
-                    continue;
-                }
-                long after = readStorageAmount(candidate.key());
-                if (after == before - 1L) {
-                    this.movedFromStorage++;
-                    this.seen.add(decoded.identity());
-                } else if (after == before && rollbackTarget(target, decoded.stack())) {
-                    this.meBlocked++;
-                } else if (after == before) {
-                    abortTarget("ME extraction did not remove the installed encoded pattern");
-                } else {
-                    this.storageSourceUncertain++;
-                    Data_Energistics.LOGGER.error(
-                            "Stopped AE storage pattern migration for host {} after uncertain key count before={} after={} key={}",
-                            this.catalog.hostId(), before, after,
-                            stableKeyDigest(candidate.key(), this.level.registryAccess()));
-                    return;
-                }
+        private boolean processStorageCandidate(StorageCandidate candidate) {
+            if (this.targetAborted) {
+                return false;
             }
+            Decoded decoded = decode(candidate.key().toStack());
+            if (readStorageAmount(candidate.key()) != candidate.capturedAmount()) {
+                this.storageSourceUncertain++;
+                return false;
+            }
+            if (decoded.identity() == null) {
+                this.storageInvalidKept++;
+                return true;
+            }
+            if (!supports(decoded.stack())) {
+                this.storageUnsupportedKept++;
+                return true;
+            }
+            if (this.seen.contains(decoded.identity())) {
+                this.storageDuplicateKept++;
+                return true;
+            }
+            TargetSlot target = nextEmptyTarget();
+            if (target == null) {
+                if (!this.targetAborted) {
+                    this.capacitySkipped++;
+                }
+                return true;
+            }
+            long simulated;
+            try {
+                simulated = StorageHelper.poweredExtraction(
+                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.actionSource, Actionable.SIMULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(candidate.key(), "simulation failed", failure);
+                this.storageSourceUncertain++;
+                return false;
+            }
+            if (simulated != 1L || !install(target, decoded.stack())) {
+                this.meBlocked++;
+                return true;
+            }
+            long before = candidate.capturedAmount();
+            long extracted;
+            try {
+                extracted = StorageHelper.poweredExtraction(
+                        this.grid.getEnergyService(), this.storage, candidate.key(), 1L,
+                        this.actionSource, Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                logStorageFailure(candidate.key(), "extraction failed", failure);
+                extracted = -1L;
+            }
+            if (extracted == 1L) {
+                this.movedFromStorage++;
+                this.seen.add(decoded.identity());
+                return true;
+            }
+            long after = readStorageAmount(candidate.key());
+            if (after == before - 1L) {
+                this.movedFromStorage++;
+                this.seen.add(decoded.identity());
+            } else if (after == before && rollbackTarget(target, decoded.stack())) {
+                this.meBlocked++;
+            } else if (after == before) {
+                abortTarget("ME extraction did not remove the installed encoded pattern");
+            } else {
+                this.storageSourceUncertain++;
+                Data_Energistics.LOGGER.error(
+                        "Stopped AE storage pattern migration for host {} after uncertain key count before={} after={} key={}",
+                        this.catalog.hostId(), before, after,
+                        stableKeyDigest(candidate.key(), this.level.registryAccess()));
+                return false;
+            }
+            return !this.targetAborted;
         }
 
-        private void processContainers(List<ContainerSnapshot> containers) {
-            for (ContainerSnapshot container : containers) {
-                if (this.targetAborted) {
-                    return;
-                }
-                boolean quarantined = false;
-                for (SlotSnapshot slot : container.slots()) {
-                    if (quarantined || this.targetAborted) {
-                        break;
-                    }
-                    if (container.container().getGrid() != this.grid ||
-                            !matchesSnapshot(container.inventory().getStackInSlot(slot.slot()), slot.stack())) {
-                        this.sourceFailures++;
-                        continue;
-                    }
-                    if (!PatternDetailsHelper.isEncodedPattern(slot.stack())) {
-                        continue;
-                    }
-                    Decoded decoded = decode(slot.stack());
-                    if (decoded.identity() == null) {
-                        quarantined = !refundContainerPattern(container, slot, false);
-                    } else if (!supports(decoded.stack())) {
-                        this.unsupportedKept++;
-                    } else if (this.seen.contains(decoded.identity())) {
-                        quarantined = !refundContainerPattern(container, slot, true);
-                    } else {
-                        quarantined = !moveContainerPattern(container, slot, decoded);
-                    }
-                }
-                if (quarantined) {
-                    this.quarantinedSources++;
-                }
+        private boolean processContainerCandidate(ContainerSnapshot container, SlotSnapshot slot) {
+            if (this.targetAborted) {
+                return false;
+            }
+            if (container.container().getGrid() != this.grid ||
+                    !matchesSnapshot(container.inventory().getStackInSlot(slot.slot()), slot.stack())) {
+                this.sourceFailures++;
+                return true;
+            }
+            if (!PatternDetailsHelper.isEncodedPattern(slot.stack())) {
+                return true;
+            }
+            Decoded decoded = decode(slot.stack());
+            if (decoded.identity() == null) {
+                return refundContainerPattern(container, slot, false);
+            } else if (!supports(decoded.stack())) {
+                this.unsupportedKept++;
+                return true;
+            } else if (this.seen.contains(decoded.identity())) {
+                return refundContainerPattern(container, slot, true);
+            } else {
+                return moveContainerPattern(container, slot, decoded);
             }
         }
 
@@ -611,6 +842,8 @@ public final class TrinityPatternMigrator {
 
     private record StorageCandidate(AEItemKey key, long capturedAmount) {}
 
+    private record StorageKeySnapshot(AEKey key, long amount) {}
+
     private record SlotSnapshot(int slot, ItemStack stack) {}
 
     private record ContainerSnapshot(PatternContainer container,
@@ -620,7 +853,57 @@ public final class TrinityPatternMigrator {
                                      String className,
                                      @Nullable String identityDigest,
                                      int ordinal,
-                                     List<SlotSnapshot> slots) {}
+                                     List<SlotSnapshot> slots,
+                                     boolean quarantined) {}
+
+    private static final class ContainerBuilder {
+
+        private static final Comparator<ContainerBuilder> ORDER = Comparator
+                .comparing((ContainerBuilder builder) -> builder.discoveryClassName)
+                .thenComparingLong(builder -> builder.sortOrder)
+                .thenComparing(builder -> builder.className)
+                .thenComparing(builder -> builder.identityDigest == null ? "~" : builder.identityDigest)
+                .thenComparingInt(builder -> builder.ordinal);
+
+        private final PatternContainer container;
+        private final InternalInventory inventory;
+        private final String discoveryClassName;
+        private final long sortOrder;
+        private final String className;
+        private final @Nullable String identityDigest;
+        private final int ordinal;
+        private final List<SlotSnapshot> slots = new ArrayList<>();
+        private boolean quarantined;
+
+        private ContainerBuilder(PatternContainer container,
+                                 InternalInventory inventory,
+                                 String discoveryClassName,
+                                 long sortOrder,
+                                 String className,
+                                 @Nullable String identityDigest,
+                                 int ordinal) {
+            this.container = container;
+            this.inventory = inventory;
+            this.discoveryClassName = discoveryClassName;
+            this.sortOrder = sortOrder;
+            this.className = className;
+            this.identityDigest = identityDigest;
+            this.ordinal = ordinal;
+        }
+
+        private ContainerSnapshot snapshot() {
+            return new ContainerSnapshot(
+                    this.container,
+                    this.inventory,
+                    this.discoveryClassName,
+                    this.sortOrder,
+                    this.className,
+                    this.identityDigest,
+                    this.ordinal,
+                    List.copyOf(this.slots),
+                    this.quarantined);
+        }
+    }
 
     private record Decoded(ItemStack stack, @Nullable TrinityPatternSemanticIdentity identity) {}
 

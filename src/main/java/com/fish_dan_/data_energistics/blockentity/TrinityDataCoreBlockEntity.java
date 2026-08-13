@@ -60,6 +60,7 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatal
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrationResult;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigrator;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter;
@@ -80,6 +81,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -160,6 +162,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CPU_STRUCTURE_NAME = DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME;
     private static final String CRAFTING_STRUCTURE_NAME = DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
+    private static final int PATTERN_MAINTENANCE_WORK_UNITS_PER_TICK = 64;
+    private static final long PATTERN_MAINTENANCE_TIME_BUDGET_NANOS = 2_000_000L;
+    private static final long PATTERN_MAINTENANCE_TERMINAL_TICKS = 40L;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     /**
      * Atomic inventory-and-world transaction shared by every Trinity structure build request.
@@ -245,6 +250,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * Supplies diagnostic-only identifiers for opaque admission handles.
      */
     private long nextCraftingAdmissionTokenId;
+    @Nullable
+    private PatternMaintenanceTask patternMaintenanceTask;
+    @Nullable
+    private RetainedPatternMaintenanceResult retainedPatternMaintenanceResult;
 
     /**
      * Captures a failed release without reconstructing the old catalog or persisting transient ownership.
@@ -419,6 +428,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         reevaluateAccessLease();
         flushRequestedAccessLeasePublication();
         flushRequestedPatternLayoutRefresh();
+        tickPatternMaintenance(gameTime);
         if (this.patternCatalogValid) {
             TrinityPatternCatalog.LayoutSnapshot layoutBeforeFlush = this.patternCatalog.layoutSnapshot();
             if (this.patternCatalog.refreshChangedPatterns()) {
@@ -433,7 +443,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 }
             }
         }
-        tickOwnedPatternCores();
+        if (!isPatternRefundMaintenanceActive()) {
+            tickOwnedPatternCores();
+        }
     }
 
     @Override
@@ -534,17 +546,34 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player) {
+    public TrinityHostedActionStatus startPatternRefund(Player player) {
+        if (this.patternMaintenanceTask != null) {
+            return TrinityHostedActionStatus.REJECTED;
+        }
         if (!this.patternCatalogValid) {
-            return TrinityPatternCatalog.PatternRefundResult.STALE;
+            return TrinityHostedActionStatus.STALE_STATE;
         }
-        TrinityPatternCatalog.PatternRefundResult result = this.patternCatalog.tryRefundPatterns(
-                new PlayerPatternRefundDelivery(player));
-        if (result.completed()) {
-            setChanged();
-            notifyTrinityPatternPublicationChanged();
+        TrinityPatternCatalog.PatternRefundPreparation preparation = this.patternCatalog.beginPatternRefund();
+        this.retainedPatternMaintenanceResult = null;
+        this.patternMaintenanceTask = new RefundPatternMaintenanceTask(player.getUUID(), preparation);
+        return TrinityHostedActionStatus.STARTED;
+    }
+
+    @Override
+    public TrinityPatternMaintenanceSnapshot getPatternMaintenanceSnapshot() {
+        int capacity = patternCapacity();
+        int installed = installedPatternCount();
+        PatternMaintenanceTask task = this.patternMaintenanceTask;
+        if (task != null) {
+            return task.snapshot(installed, capacity);
         }
-        return result;
+        RetainedPatternMaintenanceResult retained = this.retainedPatternMaintenanceResult;
+        long gameTime = this.level == null ? Long.MIN_VALUE : this.level.getGameTime();
+        if (retained != null && gameTime <= retained.expiresAtGameTime()) {
+            return retained.snapshot(installed, capacity);
+        }
+        this.retainedPatternMaintenanceResult = null;
+        return TrinityPatternMaintenanceSnapshot.idle(installed, capacity);
     }
 
     @Override
@@ -1373,35 +1402,49 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public TrinityPatternMigrationResult migratePatterns(Player player) {
+    public TrinityHostedActionStatus startPatternMigration(Player player) {
+        if (this.patternMaintenanceTask != null) {
+            return TrinityHostedActionStatus.REJECTED;
+        }
         IGrid grid = accessGrid();
         if (grid == null || !isPatternProviderAvailable()) {
-            return TrinityPatternMigrationResult.targetUnavailable();
+            return TrinityHostedActionStatus.STALE_STATE;
         }
-        TrinityPatternMigrationResult result = TrinityPatternMigrator.migrate(
+        TrinityPatternMigrator.Job job = TrinityPatternMigrator.begin(
                 player.level(),
                 grid,
                 accessActionSource(),
                 this.patternCatalog);
-        player.sendSystemMessage(Component.translatable(
-                "message.data_energistics.trinity_data_core.pattern_migration.summary",
-                result.movedFromStorage(),
-                result.movedFromContainers(),
-                result.invalidRefunded(),
-                result.duplicateRefunded(),
-                result.unsupportedKept(),
-                result.storageInvalidKept(),
-                result.storageUnsupportedKept(),
-                result.storageDuplicateKept(),
-                result.storageSourceUncertain(),
-                result.meBlocked(),
-                result.capacitySkipped(),
-                result.sourceFailures(),
-                result.quarantinedSources(),
-                result.fallbackIdentitySources()));
-        if (result.targetAborted()) {
+        if (job.isDone() && job.result().targetAborted()) {
+            return TrinityHostedActionStatus.STALE_STATE;
+        }
+        this.retainedPatternMaintenanceResult = null;
+        this.patternMaintenanceTask = new MigrationPatternMaintenanceTask(player.getUUID(), job);
+        return TrinityHostedActionStatus.STARTED;
+    }
+
+    private void reportPatternMigrationResult(@Nullable ServerPlayer player, TrinityPatternMigrationResult result) {
+        if (player != null) {
             player.sendSystemMessage(Component.translatable(
-                    "message.data_energistics.trinity_data_core.pattern_migration.aborted"));
+                    "message.data_energistics.trinity_data_core.pattern_migration.summary",
+                    result.movedFromStorage(),
+                    result.movedFromContainers(),
+                    result.invalidRefunded(),
+                    result.duplicateRefunded(),
+                    result.unsupportedKept(),
+                    result.storageInvalidKept(),
+                    result.storageUnsupportedKept(),
+                    result.storageDuplicateKept(),
+                    result.storageSourceUncertain(),
+                    result.meBlocked(),
+                    result.capacitySkipped(),
+                    result.sourceFailures(),
+                    result.quarantinedSources(),
+                    result.fallbackIdentitySources()));
+            if (result.targetAborted()) {
+                player.sendSystemMessage(Component.translatable(
+                        "message.data_energistics.trinity_data_core.pattern_migration.aborted"));
+            }
         }
         LOGGER.info(
                 "Trinity best-effort pattern migration host={} movedStorage={} movedContainers={} invalidRefunded={} duplicateRefunded={} unsupportedKept={} storageInvalidKept={} storageUnsupportedKept={} storageDuplicateKept={} storageSourceUncertain={} meBlocked={} capacitySkipped={} sourceFailures={} quarantinedSources={} fallbackIdentitySources={} targetAborted={}",
@@ -1421,7 +1464,158 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 result.quarantinedSources(),
                 result.fallbackIdentitySources(),
                 result.targetAborted());
-        return result;
+    }
+
+    private void tickPatternMaintenance(long gameTime) {
+        PatternMaintenanceTask task = this.patternMaintenanceTask;
+        if (task == null) {
+            RetainedPatternMaintenanceResult retained = this.retainedPatternMaintenanceResult;
+            if (retained != null && gameTime > retained.expiresAtGameTime()) {
+                this.retainedPatternMaintenanceResult = null;
+            }
+            return;
+        }
+        long deadline = System.nanoTime() + PATTERN_MAINTENANCE_TIME_BUDGET_NANOS;
+        try {
+            task.tick(this, gameTime, deadline);
+        } catch (RuntimeException failure) {
+            LOGGER.error(
+                    "Pattern maintenance failed for Trinity host {} operation={} stage={}",
+                    this.hostId,
+                    task.operation(),
+                    task.stage(),
+                    failure);
+            task.cancel();
+            finishPatternMaintenance(task, TrinityPatternMaintenanceSnapshot.Stage.FAILED, gameTime, 0, 1);
+        }
+    }
+
+    private void tickPatternMigration(MigrationPatternMaintenanceTask task, long gameTime, long deadline) {
+        TrinityPatternMigrator.Job job = task.job();
+        job.advance(PATTERN_MAINTENANCE_WORK_UNITS_PER_TICK, deadline);
+        task.updateMigration(job);
+        if (!job.isDone()) {
+            return;
+        }
+        TrinityPatternMigrationResult result = job.result();
+        reportPatternMigrationResult(resolveMaintenancePlayer(task.playerId()), result);
+        int succeeded = result.movedFromStorage() + result.movedFromContainers() + result.invalidRefunded() +
+                result.duplicateRefunded();
+        int failed = result.sourceFailures() + result.quarantinedSources() + result.storageSourceUncertain() +
+                (result.targetAborted() ? 1 : 0);
+        finishPatternMaintenance(
+                task,
+                result.targetAborted() ? TrinityPatternMaintenanceSnapshot.Stage.FAILED :
+                        TrinityPatternMaintenanceSnapshot.Stage.COMPLETED,
+                gameTime,
+                succeeded,
+                failed);
+    }
+
+    private void tickPatternRefund(RefundPatternMaintenanceTask task, long gameTime, long deadline) {
+        TrinityPatternCatalog.PatternRefundPreparation preparation = task.preparation();
+        int units = 0;
+        while (!preparation.isPrepared() && units < PATTERN_MAINTENANCE_WORK_UNITS_PER_TICK &&
+                System.nanoTime() < deadline) {
+            preparation.prepareNext();
+            units++;
+        }
+        task.updateRefund(preparation);
+        if (!preparation.isPrepared()) {
+            return;
+        }
+        TrinityPatternCatalog.PatternRefundResult terminal = preparation.terminalResult();
+        if (terminal != null) {
+            finishPatternRefund(task, terminal, gameTime);
+            return;
+        }
+        ServerPlayer player = resolveMaintenancePlayer(task.playerId());
+        if (player == null) {
+            task.waitForPlayer();
+            return;
+        }
+        task.committing();
+        TrinityPatternCatalog.PatternRefundResult result = preparation.commit(new PlayerPatternRefundDelivery(player));
+        if (result.completed()) {
+            setChanged();
+            notifyTrinityPatternPublicationChanged();
+        }
+        finishPatternRefund(task, result, gameTime);
+    }
+
+    private void finishPatternRefund(PatternMaintenanceTask task,
+                                     TrinityPatternCatalog.PatternRefundResult result,
+                                     long gameTime) {
+        TrinityPatternMaintenanceSnapshot.Stage stage = switch (result) {
+            case COMPLETED, NO_PATTERNS -> TrinityPatternMaintenanceSnapshot.Stage.COMPLETED;
+            case BLOCKED_BY_WORK, STALE, DELIVERY_REJECTED, DELIVERY_FAILED, INTERNAL_ERROR -> TrinityPatternMaintenanceSnapshot.Stage.FAILED;
+        };
+        finishPatternMaintenance(
+                task,
+                stage,
+                gameTime,
+                result.completed() ? 1 : 0,
+                stage == TrinityPatternMaintenanceSnapshot.Stage.FAILED ? 1 : 0);
+    }
+
+    private void finishPatternMaintenance(PatternMaintenanceTask task,
+                                          TrinityPatternMaintenanceSnapshot.Stage stage,
+                                          long gameTime,
+                                          int succeededUnits,
+                                          int failedUnits) {
+        if (this.patternMaintenanceTask != task) {
+            throw new IllegalStateException("Completed pattern maintenance task is no longer active");
+        }
+        this.patternMaintenanceTask = null;
+        this.retainedPatternMaintenanceResult = new RetainedPatternMaintenanceResult(
+                task.operation(),
+                stage,
+                task.completedUnits(),
+                task.totalUnits(),
+                succeededUnits,
+                failedUnits,
+                Math.addExact(gameTime, PATTERN_MAINTENANCE_TERMINAL_TICKS));
+    }
+
+    private @Nullable ServerPlayer resolveMaintenancePlayer(UUID playerId) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+        return serverLevel.getServer().getPlayerList().getPlayer(playerId);
+    }
+
+    private int installedPatternCount() {
+        if (!this.patternCatalogValid) {
+            return 0;
+        }
+        int installed = 0;
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            for (int slot = 0; slot < range.mount().blockCapacity(); slot++) {
+                if (!range.mount().core().pattern(slot).isEmpty()) {
+                    installed++;
+                }
+            }
+        }
+        return installed;
+    }
+
+    private int patternCapacity() {
+        return this.patternCatalogValid ? this.patternCatalog.layoutSnapshot().slotCount() : 0;
+    }
+
+    private boolean isPatternRefundMaintenanceActive() {
+        PatternMaintenanceTask task = this.patternMaintenanceTask;
+        return task instanceof RefundPatternMaintenanceTask;
+    }
+
+    private void cancelPatternMaintenance(long gameTime) {
+        PatternMaintenanceTask task = this.patternMaintenanceTask;
+        if (task == null) {
+            return;
+        }
+        task.cancel();
+        finishPatternMaintenance(task, TrinityPatternMaintenanceSnapshot.Stage.CANCELLED, gameTime, 0, 1);
     }
 
     public boolean isLeaseOwner(TrinityInformationExchangeDepotBlockEntity hatch) {
@@ -2877,6 +3071,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public void onChunkUnloaded() {
         invalidateCraftingAdmissions();
+        cancelPatternMaintenance(this.level == null ? 0L : this.level.getGameTime());
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         if (isServerStopping()) {
@@ -2892,6 +3087,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public void setRemoved() {
         invalidateCraftingAdmissions();
+        cancelPatternMaintenance(this.level == null ? 0L : this.level.getGameTime());
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         if (isServerStopping()) {
@@ -3117,6 +3313,174 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private record AutoBuildOrientation(Direction front, boolean flipped) {}
+
+    private abstract static sealed class PatternMaintenanceTask
+                                                                permits MigrationPatternMaintenanceTask, RefundPatternMaintenanceTask {
+
+        private final UUID playerId;
+        private TrinityPatternMaintenanceSnapshot.Stage stage;
+        private long completedUnits;
+        private long totalUnits;
+
+        private PatternMaintenanceTask(UUID playerId,
+                                       TrinityPatternMaintenanceSnapshot.Stage stage,
+                                       long totalUnits) {
+            this.playerId = playerId;
+            this.stage = stage;
+            this.totalUnits = totalUnits;
+        }
+
+        abstract TrinityPatternMaintenanceSnapshot.Operation operation();
+
+        abstract void tick(TrinityDataCoreBlockEntity host, long gameTime, long deadline);
+
+        abstract void cancel();
+
+        final UUID playerId() {
+            return this.playerId;
+        }
+
+        private TrinityPatternMaintenanceSnapshot.Stage stage() {
+            return this.stage;
+        }
+
+        private long completedUnits() {
+            return this.completedUnits;
+        }
+
+        private long totalUnits() {
+            return this.totalUnits;
+        }
+
+        final void waitForPlayer() {
+            this.stage = TrinityPatternMaintenanceSnapshot.Stage.WAITING_FOR_PLAYER;
+        }
+
+        final void committing() {
+            this.stage = TrinityPatternMaintenanceSnapshot.Stage.COMMITTING;
+        }
+
+        final void updateProgress(long completedUnits,
+                                  long totalUnits,
+                                  TrinityPatternMaintenanceSnapshot.Stage stage) {
+            this.completedUnits = completedUnits;
+            this.totalUnits = totalUnits;
+            this.stage = stage;
+        }
+
+        private TrinityPatternMaintenanceSnapshot snapshot(int installedPatterns, int patternCapacity) {
+            return new TrinityPatternMaintenanceSnapshot(
+                    operation(),
+                    this.stage,
+                    this.completedUnits,
+                    this.totalUnits,
+                    installedPatterns,
+                    patternCapacity,
+                    0,
+                    0);
+        }
+    }
+
+    private static final class MigrationPatternMaintenanceTask extends PatternMaintenanceTask {
+
+        private final TrinityPatternMigrator.Job job;
+
+        private MigrationPatternMaintenanceTask(UUID playerId, TrinityPatternMigrator.Job job) {
+            super(playerId, TrinityPatternMaintenanceSnapshot.Stage.SCANNING, 0L);
+            this.job = job;
+        }
+
+        @Override
+        TrinityPatternMaintenanceSnapshot.Operation operation() {
+            return TrinityPatternMaintenanceSnapshot.Operation.MIGRATION;
+        }
+
+        @Override
+        void tick(TrinityDataCoreBlockEntity host, long gameTime, long deadline) {
+            host.tickPatternMigration(this, gameTime, deadline);
+        }
+
+        @Override
+        void cancel() {
+            this.job.cancel();
+        }
+
+        private TrinityPatternMigrator.Job job() {
+            return this.job;
+        }
+
+        private void updateMigration(TrinityPatternMigrator.Job job) {
+            TrinityPatternMaintenanceSnapshot.Stage stage = switch (job.phase()) {
+                case SCANNING -> TrinityPatternMaintenanceSnapshot.Stage.SCANNING;
+                case STORAGE -> TrinityPatternMaintenanceSnapshot.Stage.STORAGE;
+                case PATTERN_CONTAINERS -> TrinityPatternMaintenanceSnapshot.Stage.PATTERN_CONTAINERS;
+                case COMPLETE -> TrinityPatternMaintenanceSnapshot.Stage.COMPLETED;
+                case CANCELLED -> TrinityPatternMaintenanceSnapshot.Stage.CANCELLED;
+            };
+            updateProgress(job.completedUnits(), job.totalUnits(), stage);
+        }
+    }
+
+    private static final class RefundPatternMaintenanceTask extends PatternMaintenanceTask {
+
+        private final TrinityPatternCatalog.PatternRefundPreparation preparation;
+
+        private RefundPatternMaintenanceTask(UUID playerId,
+                                             TrinityPatternCatalog.PatternRefundPreparation preparation) {
+            super(
+                    playerId,
+                    TrinityPatternMaintenanceSnapshot.Stage.PREPARING_REFUND,
+                    preparation.totalUnits());
+            this.preparation = preparation;
+        }
+
+        @Override
+        TrinityPatternMaintenanceSnapshot.Operation operation() {
+            return TrinityPatternMaintenanceSnapshot.Operation.REFUND_PATTERNS;
+        }
+
+        @Override
+        void tick(TrinityDataCoreBlockEntity host, long gameTime, long deadline) {
+            host.tickPatternRefund(this, gameTime, deadline);
+        }
+
+        @Override
+        void cancel() {
+            this.preparation.cancel();
+        }
+
+        private TrinityPatternCatalog.PatternRefundPreparation preparation() {
+            return this.preparation;
+        }
+
+        private void updateRefund(TrinityPatternCatalog.PatternRefundPreparation preparation) {
+            updateProgress(
+                    preparation.completedUnits(),
+                    preparation.totalUnits(),
+                    TrinityPatternMaintenanceSnapshot.Stage.PREPARING_REFUND);
+        }
+    }
+
+    private record RetainedPatternMaintenanceResult(TrinityPatternMaintenanceSnapshot.Operation operation,
+                                                    TrinityPatternMaintenanceSnapshot.Stage stage,
+                                                    long completedUnits,
+                                                    long totalUnits,
+                                                    int succeededUnits,
+                                                    int failedUnits,
+                                                    long expiresAtGameTime) {
+
+        private TrinityPatternMaintenanceSnapshot snapshot(int installedPatterns, int patternCapacity) {
+            return new TrinityPatternMaintenanceSnapshot(
+                    this.operation,
+                    this.stage,
+                    this.completedUnits,
+                    this.totalUnits,
+                    installedPatterns,
+                    patternCapacity,
+                    this.succeededUnits,
+                    this.failedUnits);
+        }
+    }
 
     private record PatternCatalogScanResult(boolean valid,
                                             List<TrinityPatternCatalog.CoreMount> mounts,

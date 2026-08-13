@@ -123,7 +123,7 @@ public record TrinityHostedActionResponsePayload(int containerId,
             case INTERNAL_ERROR -> player.displayClientMessage(
                     Component.translatable("message.data_energistics.trinity_data_core.auto_build.internal_error"),
                     false);
-            case NO_OP, DELIVERY_FAILED -> {
+            case STARTED, NO_OP, DELIVERY_FAILED -> {
                 Data_Energistics.LOGGER.error("Unexpected Trinity auto-build result status: {}", result.status());
                 player.displayClientMessage(
                         Component.translatable("message.data_energistics.trinity_data_core.auto_build.internal_error"),
