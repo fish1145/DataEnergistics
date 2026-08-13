@@ -156,6 +156,10 @@ record PriorityControlLayout(
         button.addClass("priority-control-step");
         button.enableText();
         button.text.addClass("priority-control-step-text");
+        button.text.layout(layout -> layout
+                .widthPercent(100)
+                .heightPercent(100)
+                .marginHorizontal(0));
     }
 
     private static <T extends UIElement> T require(
