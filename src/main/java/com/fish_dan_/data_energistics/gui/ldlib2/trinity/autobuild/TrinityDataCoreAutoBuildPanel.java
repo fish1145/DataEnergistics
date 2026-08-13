@@ -410,7 +410,8 @@ final class TrinityDataCoreAutoBuildPanel {
         AutoBuildComposition.PreviewGeometry geometry() {
             return new AutoBuildComposition.PreviewGeometry(
                     new AutoBuildComposition.Region(0, 0, 183, 133),
-                    new AutoBuildComposition.Region(20, 3, 159, 123),
+                    new AutoBuildComposition.Region(20, 3, 156, 123),
+                    new AutoBuildComposition.HorizontalSpan(23, 150),
                     new AutoBuildComposition.Region(3, 3, 16, 16),
                     new AutoBuildComposition.Region(2, 2, 54, 108));
         }

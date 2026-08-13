@@ -16,7 +16,7 @@ final class AutoBuildLayerScroller {
 
     AutoBuildLayerScroller(StructurePreviewUi preview,
                            Scroller.Horizontal scroller,
-                           AutoBuildComposition.Region track) {
+                           AutoBuildComposition.HorizontalSpan track) {
         this.preview = preview;
         this.scroller = scroller;
         AuthoredScrollerThumbSize.bind(scroller, track);
@@ -49,12 +49,6 @@ final class AutoBuildLayerScroller {
             return;
         }
         int selection = Math.round(this.scroller.getNormalizedValue() * layerCount);
-        this.refreshing = true;
-        try {
-            this.scroller.setNormalizedValue((float) selection / layerCount, false);
-        } finally {
-            this.refreshing = false;
-        }
         if (selection == 0) {
             this.preview.panel().showAllLayers();
         } else {

@@ -24,7 +24,7 @@ final class AuthoredScrollerThumbSize {
                         authoredTrack.getContentHeight()));
     }
 
-    static void bind(Scroller.Horizontal scroller, AutoBuildComposition.Region track) {
+    static void bind(Scroller.Horizontal scroller, AutoBuildComposition.HorizontalSpan track) {
         collapseStepButtons(scroller);
         var authoredTrack = scroller.scrollBar.getParent();
         if (authoredTrack == null || authoredTrack.getParent() != scroller.scrollContainer) {

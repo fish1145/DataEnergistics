@@ -57,7 +57,7 @@ public final class AutoBuildComposition {
         this.layerScroller = new AutoBuildLayerScroller(
                 this.preview,
                 this.elements.layerScroller(),
-                geometry.scene());
+                geometry.layerTrack());
         this.adjustmentRail = new AutoBuildAdjustmentRail(this.elements.adjustmentControls());
     }
 
@@ -283,11 +283,22 @@ public final class AutoBuildComposition {
         }
     }
 
+    /** Exact horizontal span occupied by one editor-authored rail. */
+    public record HorizontalSpan(int left, int width) {
+
+        public HorizontalSpan {
+            if (width <= 0) {
+                throw new IllegalArgumentException("Automatic-build horizontal spans require a positive width");
+            }
+        }
+    }
+
     /**
      * Host-specific geometry used to fit runtime content inside editor-authored frames.
      */
     public record PreviewGeometry(Region panel,
                                   Region scene,
+                                  HorizontalSpan layerTrack,
                                   Region selectedBlock,
                                   Region materialGrid) {}
 
