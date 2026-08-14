@@ -14,7 +14,7 @@ public final class PinyinUtil {
     }
 
     public static String normalizeSearch(String text) {
-        if (text == null || text.isBlank()) {
+        if (text.isBlank()) {
             return "";
         }
         StringBuilder builder = new StringBuilder(text.length());
@@ -28,10 +28,10 @@ public final class PinyinUtil {
     }
 
     public static boolean matchesSearch(String text, String filter) {
-        if (text == null || text.isEmpty()) {
+        if (text.isEmpty()) {
             return false;
         }
-        if (filter == null || filter.isEmpty()) {
+        if (filter.isEmpty()) {
             return true;
         }
 
@@ -45,11 +45,22 @@ public final class PinyinUtil {
             return true;
         }
 
-        if (ModFlags.isJechLoaded()) {
-            return JechMatcher.contains(text, filter);
-        }
+        return matchesNormalizedJech(text, normalizedFilter);
+    }
 
-        return false;
+    /**
+     * Matches one normalized query through JECh. Callers that compare the same query with multiple candidates can
+     * normalize it once and reuse this method.
+     *
+     * @param text             candidate text shown by the UI
+     * @param normalizedFilter query normalized by {@link #normalizeSearch(String)}
+     * @return whether JECh matches the candidate, or {@code false} when JECh is not loaded
+     */
+    public static boolean matchesNormalizedJech(String text, String normalizedFilter) {
+        if (!ModFlags.isJechLoaded() || text.isEmpty() || normalizedFilter.isEmpty()) {
+            return false;
+        }
+        return JechMatcher.contains(text, normalizedFilter);
     }
 
     private static boolean isSubsequenceMatch(String filter, String variant) {
@@ -71,11 +82,7 @@ public final class PinyinUtil {
     private static final class JechMatcher {
 
         static boolean contains(String text, String filter) {
-            try {
-                return Match.contains(text, filter);
-            } catch (NoClassDefFoundError | NoSuchMethodError ignored) {
-                return false;
-            }
+            return Match.contains(text, filter, true);
         }
     }
 }

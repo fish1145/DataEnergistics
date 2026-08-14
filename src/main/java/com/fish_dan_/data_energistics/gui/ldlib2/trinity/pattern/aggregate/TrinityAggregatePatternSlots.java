@@ -139,6 +139,12 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         this.searchModeButton = searchModeButton;
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
         search.setTextResponder(this::setQuery);
+        search.addEventListener(UIEvents.MOUSE_DOWN, event -> {
+            if (event.button == 1) {
+                search.setText("");
+                event.stopPropagation();
+            }
+        });
         searchModeButton.setOnClick(event -> cycleSearchMode());
         updateSearchModePresentation();
         updateScrollbar(0, 0);

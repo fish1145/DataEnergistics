@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.trinity;
 
+import com.fish_dan_.data_energistics.util.PinyinUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -10,82 +12,51 @@ import java.util.Locale;
 public final class TrinityPatternSearchMatcher {
 
     /**
-     * Validates both candidate groups before selecting the requested search scope, ensuring malformed cached data fails
-     * at the matcher boundary.
-     *
-     * @param inputs  localized input names in their display order
-     * @param outputs localized output names in their display order
-     * @param mode    scope that decides which names are included
-     * @return lower-case candidate names separated by newlines
-     * @throws NullPointerException if a collection, the mode, or any candidate name is {@code null}
-     */
-    public String createSearchText(List<String> inputs, List<String> outputs, TrinityPatternSearchMode mode) {
-        return createSearchText(inputs, outputs, List.of(), mode);
-    }
-
-    /**
-     * Builds candidate text for the selected input/output scope and appends machine-specific terms as independent
-     * candidates regardless of that scope.
+     * Compares one query directly against cached candidate groups without joining and splitting their names on every
+     * search pass.
      *
      * @param inputs     localized input names in their display order
      * @param outputs    localized output names in their display order
-     * @param extraTerms localized machine-specific names that must not be merged with another candidate
+     * @param extraTerms localized machine-specific names included in every scope
      * @param mode       scope that decides which ordinary names are included
-     * @return lower-case candidate names separated by newlines
-     * @throws NullPointerException if a collection, the mode, or any candidate name is {@code null}
-     */
-    public String createSearchText(List<String> inputs,
-                                   List<String> outputs,
-                                   List<String> extraTerms,
-                                   TrinityPatternSearchMode mode) {
-        List<String> normalizedInputs = normalize(inputs);
-        List<String> normalizedOutputs = normalize(outputs);
-        List<String> normalizedExtraTerms = normalize(extraTerms);
-
-        String selectedNames = switch (mode) {
-            case INPUT -> String.join("\n", normalizedInputs);
-            case OUTPUT -> String.join("\n", normalizedOutputs);
-            case INPUT_OUTPUT -> joinInputsAndOutputs(normalizedInputs, normalizedOutputs);
-        };
-        return appendExtraTerms(selectedNames, normalizedExtraTerms);
-    }
-
-    /**
-     * Compares query tokens against each candidate name independently using EAE's ordered partial-token semantics.
-     *
-     * @param searchText newline-delimited candidate names
      * @param query      user-entered search query
      * @return {@code true} for a blank query or when one candidate contains every query token in order
-     * @throws NullPointerException if the search text or query is {@code null}
+     * @throws NullPointerException if a collection, the mode, the query, or any candidate name is {@code null}
      */
-    public boolean matchesSearchText(String searchText, String query) {
-        List<String> queryTokens = tokenize(normalizeText(query));
+    public boolean matches(List<String> inputs,
+                           List<String> outputs,
+                           List<String> extraTerms,
+                           TrinityPatternSearchMode mode,
+                           String query) {
+        String normalizedQuery = normalizeText(query);
+        List<String> queryTokens = tokenize(normalizedQuery);
         if (queryTokens.isEmpty()) {
             return true;
         }
 
-        String normalizedSearchText = normalizeText(searchText);
-        for (String candidateName : normalizedSearchText.split("\\R", -1)) {
-            if (containsOrderedTokens(tokenize(candidateName), queryTokens)) {
+        return switch (mode) {
+            case INPUT -> matchesCandidates(inputs, queryTokens, normalizedQuery) ||
+                    matchesCandidates(extraTerms, queryTokens, normalizedQuery);
+            case OUTPUT -> matchesCandidates(outputs, queryTokens, normalizedQuery) ||
+                    matchesCandidates(extraTerms, queryTokens, normalizedQuery);
+            case INPUT_OUTPUT -> matchesCandidates(inputs, queryTokens, normalizedQuery) ||
+                    matchesCandidates(outputs, queryTokens, normalizedQuery) ||
+                    matchesCandidates(extraTerms, queryTokens, normalizedQuery);
+        };
+    }
+
+    private static boolean matchesCandidates(
+                                             List<String> candidates,
+                                             List<String> queryTokens,
+                                             String normalizedQuery) {
+        for (String candidate : candidates) {
+            String normalizedCandidate = normalizeText(candidate);
+            if (containsOrderedTokens(normalizedCandidate, queryTokens) ||
+                    PinyinUtil.matchesNormalizedJech(candidate, normalizedQuery)) {
                 return true;
             }
         }
         return false;
-    }
-
-    /**
-     * Converts every candidate with {@link Locale#ROOT} while retaining list order and duplicate names.
-     *
-     * @param candidates names to normalize
-     * @return normalized candidates in the original order
-     * @throws NullPointerException if the collection or any candidate is {@code null}
-     */
-    private static List<String> normalize(List<String> candidates) {
-        ArrayList<String> normalizedCandidates = new ArrayList<>(candidates.size());
-        for (String candidate : candidates) {
-            normalizedCandidates.add(candidate.toLowerCase(Locale.ROOT));
-        }
-        return normalizedCandidates;
     }
 
     /**
@@ -118,54 +89,36 @@ public final class TrinityPatternSearchMatcher {
     /**
      * Replicates EAE token comparison by consuming matching candidate tokens in forward order.
      *
-     * @param candidateTokens tokens from one candidate name
-     * @param queryTokens     normalized query tokens
+     * @param candidate   one normalized candidate name
+     * @param queryTokens normalized query tokens
      * @return whether every query token is contained by an ordered candidate-token subsequence
      */
-    private static boolean containsOrderedTokens(List<String> candidateTokens, List<String> queryTokens) {
-        int candidateIndex = 0;
+    private static boolean containsOrderedTokens(String candidate, List<String> queryTokens) {
+        int candidateOffset = 0;
         for (String queryToken : queryTokens) {
-            while (candidateIndex < candidateTokens.size() &&
-                    !candidateTokens.get(candidateIndex).contains(queryToken)) {
-                candidateIndex++;
+            boolean matched = false;
+            while (candidateOffset < candidate.length()) {
+                while (candidateOffset < candidate.length() && candidate.charAt(candidateOffset) == ' ') {
+                    candidateOffset++;
+                }
+                if (candidateOffset == candidate.length()) {
+                    break;
+                }
+                int tokenEnd = candidate.indexOf(' ', candidateOffset);
+                if (tokenEnd < 0) {
+                    tokenEnd = candidate.length();
+                }
+                int matchOffset = candidate.indexOf(queryToken, candidateOffset);
+                candidateOffset = tokenEnd + 1;
+                if (matchOffset >= 0 && matchOffset < tokenEnd) {
+                    matched = true;
+                    break;
+                }
             }
-            if (candidateIndex == candidateTokens.size()) {
+            if (!matched) {
                 return false;
             }
-            candidateIndex++;
         }
         return true;
-    }
-
-    /**
-     * Produces the combined scope with every input candidate preceding every output candidate.
-     *
-     * @param inputs  normalized input names
-     * @param outputs normalized output names
-     * @return both groups joined by newlines
-     */
-    private static String joinInputsAndOutputs(List<String> inputs, List<String> outputs) {
-        ArrayList<String> combined = new ArrayList<>(Math.addExact(inputs.size(), outputs.size()));
-        combined.addAll(inputs);
-        combined.addAll(outputs);
-        return String.join("\n", combined);
-    }
-
-    /**
-     * Keeps every machine-specific term separate from the selected ordinary candidate group.
-     *
-     * @param selectedNames normalized names selected by the current input/output scope
-     * @param extraTerms    normalized machine-specific candidate names
-     * @return every candidate separated by one newline
-     */
-    private static String appendExtraTerms(String selectedNames, List<String> extraTerms) {
-        if (extraTerms.isEmpty()) {
-            return selectedNames;
-        }
-        String joinedExtraTerms = String.join("\n", extraTerms);
-        if (selectedNames.isEmpty()) {
-            return joinedExtraTerms;
-        }
-        return selectedNames + "\n" + joinedExtraTerms;
     }
 }

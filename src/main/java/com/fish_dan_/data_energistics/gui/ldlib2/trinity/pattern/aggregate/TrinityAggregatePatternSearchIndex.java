@@ -43,9 +43,7 @@ final class TrinityAggregatePatternSearchIndex {
         PatternSearchNames names = this.namesByDefinition.computeIfAbsent(
                 definition,
                 ignored -> decode(encodedPattern));
-        return MATCHER.matchesSearchText(
-                MATCHER.createSearchText(names.inputs(), names.outputs(), names.extraTerms(), mode),
-                query);
+        return MATCHER.matches(names.inputs(), names.outputs(), names.extraTerms(), mode, query);
     }
 
     void clear() {

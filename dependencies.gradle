@@ -16,7 +16,6 @@ dependencies {
 
     // AE2
     accessCompileOnly(forge.ae2)
-    testImplementation(forge.ae2)
     compileOnly(forge.guideme)
     compileOnly(forge.ae2wt)
     compileOnly(forge.ae2wt.api)
@@ -32,7 +31,6 @@ dependencies {
     compileOnly(forge.sut)
     compileOnly(forge.ae2ji)
     compileOnly(forge.ae2ct)
-    testImplementation(forge.ae2ct)
     compileOnly(forge.amek)
     compileOnly(forge.mek)
     compileOnly(forge.eco)
@@ -48,13 +46,10 @@ dependencies {
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
-    testCompileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
-    testCompileOnly(forge.emi)
 
     // UI framework
     compileOnly(forge.ldlib)
-    testImplementation(forge.ldlib)
 
     // WAILA-likes
     compileOnly(forge.jade)

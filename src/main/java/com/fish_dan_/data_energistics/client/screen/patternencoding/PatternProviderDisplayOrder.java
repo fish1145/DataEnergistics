@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -26,8 +25,7 @@ final class PatternProviderDisplayOrder {
                                                                         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
                                                                         String query,
                                                                         Function<ResourceLocation, String> defaultNameResolver,
-                                                                        Function<ResourceLocation, List<String>> recipeTypeNameResolver,
-                                                                        BiPredicate<String, String> searchMatcher) {
+                                                                        Function<ResourceLocation, List<String>> recipeTypeNameResolver) {
         String normalizedQuery = PinyinUtil.normalizeSearch(query);
         if (normalizedQuery.isEmpty()) {
             return List.copyOf(providers);
@@ -41,10 +39,9 @@ final class PatternProviderDisplayOrder {
         Map<ResourceLocation, List<String>> recipeTypeNames = new HashMap<>();
 
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providers) {
-            boolean searchMatches = searchMatcher.test(
-                    buildSearchSource(provider, defaultNameResolver, recipeTypeNameResolver,
-                            defaultNames, recipeTypeNames),
-                    normalizedQuery);
+            List<String> searchTerms = buildSearchTerms(provider, defaultNameResolver, recipeTypeNameResolver,
+                    defaultNames, recipeTypeNames);
+            boolean searchMatches = matchesSearchTerms(searchTerms, normalizedQuery);
             if (provider.exactViewerMatch()) {
                 (searchMatches ? exactSearchMatches : exactRemaining).add(provider);
             } else {
@@ -60,22 +57,46 @@ final class PatternProviderDisplayOrder {
         return List.copyOf(ordered);
     }
 
-    private static String buildSearchSource(
-                                            PatternEncodingPreviewMenu.SyncedPatternProvider provider,
-                                            Function<ResourceLocation, String> defaultNameResolver,
-                                            Function<ResourceLocation, List<String>> recipeTypeNameResolver,
-                                            Map<ResourceLocation, String> defaultNames,
-                                            Map<ResourceLocation, List<String>> recipeTypeNames) {
-        StringBuilder source = new StringBuilder(provider.displayName().getString());
-        source.append(' ')
-                .append(defaultNames.computeIfAbsent(provider.iconItemId(), defaultNameResolver))
-                .append(' ')
-                .append(provider.iconItemId());
-        for (ResourceLocation recipeTypeId : provider.supportedRecipeTypeIds()) {
-            for (String localizedName : recipeTypeNames.computeIfAbsent(recipeTypeId, recipeTypeNameResolver)) {
-                source.append(' ').append(localizedName);
+    private static boolean matchesSearchTerms(List<String> terms, String normalizedQuery) {
+        StringBuilder combined = new StringBuilder();
+        for (String term : terms) {
+            combined.append(PinyinUtil.normalizeSearch(term));
+        }
+        String normalizedSource = combined.toString();
+        if (normalizedSource.contains(normalizedQuery) || isSubsequenceMatch(normalizedQuery, normalizedSource)) {
+            return true;
+        }
+        for (String term : terms) {
+            if (PinyinUtil.matchesNormalizedJech(term, normalizedQuery)) {
+                return true;
             }
         }
-        return source.toString();
+        return false;
+    }
+
+    private static boolean isSubsequenceMatch(String query, String source) {
+        int queryIndex = 0;
+        for (int sourceIndex = 0; sourceIndex < source.length() && queryIndex < query.length(); sourceIndex++) {
+            if (source.charAt(sourceIndex) == query.charAt(queryIndex)) {
+                queryIndex++;
+            }
+        }
+        return queryIndex == query.length();
+    }
+
+    private static List<String> buildSearchTerms(
+                                                 PatternEncodingPreviewMenu.SyncedPatternProvider provider,
+                                                 Function<ResourceLocation, String> defaultNameResolver,
+                                                 Function<ResourceLocation, List<String>> recipeTypeNameResolver,
+                                                 Map<ResourceLocation, String> defaultNames,
+                                                 Map<ResourceLocation, List<String>> recipeTypeNames) {
+        List<String> terms = new ArrayList<>();
+        terms.add(provider.displayName().getString());
+        terms.add(defaultNames.computeIfAbsent(provider.iconItemId(), defaultNameResolver));
+        terms.add(provider.iconItemId().toString());
+        for (ResourceLocation recipeTypeId : provider.supportedRecipeTypeIds()) {
+            terms.addAll(recipeTypeNames.computeIfAbsent(recipeTypeId, recipeTypeNameResolver));
+        }
+        return terms;
     }
 }
