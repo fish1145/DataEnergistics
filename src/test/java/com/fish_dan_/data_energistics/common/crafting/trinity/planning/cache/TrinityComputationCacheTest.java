@@ -346,7 +346,7 @@ final class TrinityComputationCacheTest {
         TrinityComputationCache cache = cache(executor, 4);
         AtomicInteger calculations = new AtomicInteger();
 
-        Future<String> submitted = cache.submit(1L, 1L, () -> cache.computeInline(
+        Future<String> submitted = cache.submit(1L, () -> cache.computeInline(
                 1L,
                 TrinityComputationNamespace.COMPILED_GRAPH,
                 TrinityComputationCache.SEMANTIC_REVISION,
@@ -365,7 +365,7 @@ final class TrinityComputationCacheTest {
         CountDownLatch finished = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
 
-        Future<String> submitted = cache.submit(1L, 1L, () -> cache.computeInline(
+        Future<String> submitted = cache.submit(1L, () -> cache.computeInline(
                 1L,
                 TrinityComputationNamespace.COMPILED_GRAPH,
                 TrinityComputationCache.SEMANTIC_REVISION,

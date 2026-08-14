@@ -183,7 +183,7 @@ public final class CraftingDispatchGovernor {
             return false;
         }
         this.completedWindows = Math.incrementExact(this.completedWindows);
-        this.lastQueueRatio = this.window.averageQueueRatio();
+        this.lastQueueRatio = this.window.averageProposalPressure();
         this.lastStaleRatio = this.window.staleRatio();
         this.lastAcceptanceRatio = this.window.acceptanceRatio();
         this.lastBusiestWorkerShare = this.window.busiestWorkerShare();
@@ -342,7 +342,7 @@ public final class CraftingDispatchGovernor {
     private static final class WindowAccumulator {
 
         private int samples;
-        private double queueRatioSum;
+        private double proposalPressureSum;
         private int accepted;
         private int rejected;
         private int stale;
@@ -351,7 +351,7 @@ public final class CraftingDispatchGovernor {
 
         private void add(CraftingDispatchMetrics metrics) {
             this.samples = Math.incrementExact(this.samples);
-            this.queueRatioSum += metrics.queueRatio();
+            this.proposalPressureSum += metrics.proposalPressureRatio();
             this.accepted = Math.addExact(this.accepted, metrics.acceptedProviderCalls());
             this.rejected = Math.addExact(this.rejected, metrics.rejectedProviderCalls());
             this.stale = Math.addExact(this.stale, metrics.staleProposals());
@@ -363,8 +363,8 @@ public final class CraftingDispatchGovernor {
             return this.samples;
         }
 
-        private double averageQueueRatio() {
-            return this.samples == 0 ? 0.0D : this.queueRatioSum / (double) this.samples;
+        private double averageProposalPressure() {
+            return this.samples == 0 ? 0.0D : this.proposalPressureSum / (double) this.samples;
         }
 
         private double staleRatio() {
@@ -387,7 +387,7 @@ public final class CraftingDispatchGovernor {
 
         private void reset() {
             this.samples = 0;
-            this.queueRatioSum = 0.0D;
+            this.proposalPressureSum = 0.0D;
             this.accepted = 0;
             this.rejected = 0;
             this.stale = 0;

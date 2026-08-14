@@ -431,12 +431,6 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
         helper.assertValueEqual(inserted, amount, "The real AE2 network must store the complete ingredient: " + key);
     }
 
-    private static long networkStored(IGrid grid, AEKey key) {
-        return grid.getStorageService()
-                .getInventory()
-                .extract(key, Long.MAX_VALUE, Actionable.SIMULATE, IActionSource.empty());
-    }
-
     private static ICraftingPlan awaitPlan(Future<ICraftingPlan> future) {
         if (future == null || !future.isDone()) {
             throw new GameTestAssertException("The real AE2 crafting plan is still calculating");

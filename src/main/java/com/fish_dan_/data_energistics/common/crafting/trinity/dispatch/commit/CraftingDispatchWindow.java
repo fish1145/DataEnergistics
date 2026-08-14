@@ -253,13 +253,37 @@ public final class CraftingDispatchWindow {
                               ICraftingProvider provider,
                               IPatternDetails pattern,
                               CraftingDispatchTarget target) {
+        return canAttempt(provider, pattern, target, this.limits.maxAttemptsPerProvider());
+    }
+
+    /**
+     * Checks a counted provider route whose first physical call consumes this provider's complete current-window
+     * allowance. Other provider identities retain their own independent allowance.
+     *
+     * @param provider counted provider instance to inspect
+     * @param pattern  pattern about to be prepared
+     * @param target   stable provider-local target
+     * @return whether this provider has not submitted a counted batch in the current window
+     */
+    public boolean canAttemptCounted(
+                                     ICraftingProvider provider,
+                                     IPatternDetails pattern,
+                                     CraftingDispatchTarget target) {
+        return canAttempt(provider, pattern, target, 1);
+    }
+
+    private boolean canAttempt(
+                               ICraftingProvider provider,
+                               IPatternDetails pattern,
+                               CraftingDispatchTarget target,
+                               int providerAttemptLimit) {
         validateProvider(provider);
         validatePattern(pattern);
         validateTarget(target);
         ProviderState state = this.states.get(provider);
         return hasCompletedGlobalCapacity() &&
                 this.serverBudget.canStart(0L) &&
-                (state == null || state.canAttempt(pattern, target, this.limits.maxAttemptsPerProvider()));
+                (state == null || state.canAttempt(pattern, target, providerAttemptLimit));
     }
 
     /**
@@ -275,6 +299,25 @@ public final class CraftingDispatchWindow {
      * @return closeable scope that owns physical attempt acquisition for this provider path
      */
     public SubmissionScope beginSubmission(ICraftingProvider provider, IPatternDetails pattern) {
+        return beginSubmission(provider, pattern, this.limits.maxAttemptsPerProvider());
+    }
+
+    /**
+     * Starts a counted provider path whose physical acquisition is limited to one call for this provider identity in
+     * the current window.
+     *
+     * @param provider counted provider instance about to be prepared
+     * @param pattern  exact pattern being prepared
+     * @return closeable counted submission scope
+     */
+    public SubmissionScope beginCountedSubmission(ICraftingProvider provider, IPatternDetails pattern) {
+        return beginSubmission(provider, pattern, 1);
+    }
+
+    private SubmissionScope beginSubmission(
+                                            ICraftingProvider provider,
+                                            IPatternDetails pattern,
+                                            int providerAttemptLimit) {
         validateProvider(provider);
         validatePattern(pattern);
         if (this.activeSubmission != null) {
@@ -283,12 +326,16 @@ public final class CraftingDispatchWindow {
         if (this.activeCapacityCapture != null) {
             throw new IllegalStateException("Crafting dispatch submission cannot overlap capacity capture");
         }
-        if (!canAttempt(provider, pattern)) {
+        ProviderState state = this.states.get(provider);
+        if (!hasCompletedGlobalCapacity() ||
+                !this.serverBudget.canStart(0L) ||
+                (state != null && !state.canAttempt(pattern, null, providerAttemptLimit))) {
             throw new IllegalStateException("Crafting dispatch submission is unavailable");
         }
         MeasuredSubmissionScope submission = new MeasuredSubmissionScope(
                 provider,
                 pattern,
+                providerAttemptLimit,
                 this.nanoClock.getAsLong());
         this.activeSubmission = submission;
         return submission;
@@ -525,6 +572,10 @@ public final class CraftingDispatchWindow {
          */
         private final IPatternDetails pattern;
         /**
+         * Physical-call ceiling selected for this provider kind before preparation begins.
+         */
+        private final int providerAttemptLimit;
+        /**
          * Monotonic timestamp captured immediately before provider work begins.
          */
         private final long startedAtNanos;
@@ -536,9 +587,11 @@ public final class CraftingDispatchWindow {
         private MeasuredSubmissionScope(
                                         ICraftingProvider provider,
                                         IPatternDetails pattern,
+                                        int providerAttemptLimit,
                                         long startedAtNanos) {
             this.provider = provider;
             this.pattern = pattern;
+            this.providerAttemptLimit = providerAttemptLimit;
             this.startedAtNanos = startedAtNanos;
         }
 
@@ -548,7 +601,7 @@ public final class CraftingDispatchWindow {
             validateTarget(target);
             ProviderState state = states.computeIfAbsent(this.provider, ignored -> new ProviderState());
             if (attemptCount >= limits.maxAttemptsPerGrid() ||
-                    !state.hasAttemptCapacity(limits.maxAttemptsPerProvider()) ||
+                    !state.hasAttemptCapacity(this.providerAttemptLimit) ||
                     !hasServerSubmissionTime(this)) {
                 return Acquisition.WINDOW_EXHAUSTED;
             }

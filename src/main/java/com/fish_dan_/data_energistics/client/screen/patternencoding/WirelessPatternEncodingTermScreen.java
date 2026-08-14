@@ -138,6 +138,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     @Override
     public void init() {
         super.init();
+        PatternEncodingPreferencesClient.initializeMenu(this.menu);
         this.encodePatternWidget = resolveEncodePatternWidget();
         if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
             this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
@@ -212,7 +213,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                 return true;
             }
             if (button == 1) {
-                previewLayout().data_energistics$resetPreviewPanelOffset();
+                PatternEncodingPreferencesClient.setPreviewPanelOffset(this.menu, 0, 0);
                 this.previewPanelCurrentOffsetX = 0;
                 this.previewPanelCurrentOffsetY = 0;
                 this.previewPanelDragging = false;
@@ -820,9 +821,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     private void savePreviewPanelDragOffset(double mouseX, double mouseY) {
         updatePreviewPanelDragOffset(mouseX, mouseY);
-        previewLayout().data_energistics$setPreviewPanelOffset(
-                this.previewPanelCurrentOffsetX,
-                this.previewPanelCurrentOffsetY);
+        PatternEncodingPreferencesClient.setPreviewPanelOffset(
+                this.menu, this.previewPanelCurrentOffsetX, this.previewPanelCurrentOffsetY);
         this.previewPanelDragBaseBounds = null;
     }
 

@@ -29,18 +29,19 @@ public interface TrinityPlanningGateway extends AutoCloseable {
     }
 
     /**
-     * Starts Trinity exclusively when a qualified Trinity CPU is currently available; otherwise delegates to AE2.
+     * Starts Trinity when the Grid has an eligible online Trinity CPU; otherwise delegates to AE2.
      *
-     * @param qualifiedTrinityCpu whether the current grid has an online, idle CPU eligible for an extended plan
-     * @param gridScope           owning Grid publication scope
-     * @param graphRevision       immutable graph revision used by the Trinity calculation
-     * @param requestedOutput     requested output retained for a standalone Trinity diagnostic
-     * @param trinityCalculation  immutable-snapshot calculation submitted only when the CPU gate passes
-     * @param ae2Calculation      original AE2 calculation used only when the Trinity CPU gate does not pass
+     * @param trinityPlanningAvailable whether the current Grid has an online CPU eligible for an extended plan;
+     *                                 transient worker occupancy does not affect this qualification
+     * @param gridScope                owning Grid publication scope
+     * @param graphRevision            immutable graph revision used by the Trinity calculation
+     * @param requestedOutput          requested output retained for a standalone Trinity diagnostic
+     * @param trinityCalculation       immutable-snapshot calculation submitted only when the CPU gate passes
+     * @param ae2Calculation           original AE2 calculation used only when the Trinity CPU gate does not pass
      * @return one cooperative future for the selected planner
      */
     Future<ICraftingPlan> begin(
-                                boolean qualifiedTrinityCpu,
+                                boolean trinityPlanningAvailable,
                                 long gridScope,
                                 long graphRevision,
                                 GenericStack requestedOutput,
@@ -48,7 +49,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
                                 Supplier<Future<ICraftingPlan>> ae2Calculation);
 
     /**
-     * Submits a Trinity-only continuation such as remaining-work replanning through the same bounded pool.
+     * Submits a Trinity-only continuation such as remaining-work replanning through its isolated bounded lane.
      *
      * @param gridScope          owning Grid publication scope
      * @param graphRevision      immutable graph revision used by the calculation
@@ -61,7 +62,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
                                                 Callable<TrinityPlanningAttempt> trinityCalculation);
 
     /**
-     * Executes pure planning through the shared multi-level cache on the current accepted planner worker.
+     * Executes initial-request planning through the global cache on the current accepted planner worker.
      *
      * @param input immutable Grid-scoped planning input
      * @return algorithm result and exact cache path
@@ -72,14 +73,23 @@ public interface TrinityPlanningGateway extends AutoCloseable {
                                                                                   throws InterruptedException, ExecutionException;
 
     /**
-     * Shares the server-lifetime computation partition with pure dispatch calculations without transferring cache
-     * ownership to the dispatch executor.
+     * Executes remaining-work planning through the global cache on its isolated planner worker.
      *
-     * @return cache owned and closed by this gateway
+     * @param input immutable Grid-scoped planning input
+     * @return algorithm result and exact cache path
+     * @throws InterruptedException when this worker is interrupted while joining shared continuation work
+     * @throws ExecutionException   when a bottom calculation fails
      */
-    default TrinityComputationCache computationCache() {
-        throw new UnsupportedOperationException("This Trinity planning gateway does not expose a computation cache");
-    }
+    TrinityPlanningComputationResult calculateRemainingTrinity(TrinityPlanningInput input)
+                                                                                           throws InterruptedException, ExecutionException;
+
+    /**
+     * Exposes the single server-lifetime cache shared by planning, replanning, and pure dispatch calculations. The
+     * gateway retains lifecycle ownership; consumers must not close it.
+     *
+     * @return global thread-safe Trinity computation cache
+     */
+    TrinityComputationCache computationCache();
 
     /**
      * Cancels cached and in-flight work owned by one unloaded Grid publication scope.

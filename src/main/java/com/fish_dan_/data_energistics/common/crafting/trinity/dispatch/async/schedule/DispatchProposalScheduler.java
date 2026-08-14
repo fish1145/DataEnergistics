@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import java.util.function.Supplier;
 
 /**
- * Independent bounded executor for pure dispatch-proposal calculations.
+ * Independent bounded virtual-thread scheduler for pure dispatch-proposal calculations.
  *
  * <p>
  * Submission never mutates crafting resources. A rejected submission leaves no worker or grid permit behind, allowing
@@ -23,9 +23,9 @@ public interface DispatchProposalScheduler extends AutoCloseable {
     }
 
     /**
-     * Creates an independent bounded scheduler.
+     * Creates an independent admission-bounded scheduler.
      *
-     * @param limits immutable executor limits
+     * @param limits immutable admission limits
      * @return running scheduler
      */
     static DispatchProposalScheduler create(DispatchProposalLimits limits,
@@ -54,7 +54,7 @@ public interface DispatchProposalScheduler extends AutoCloseable {
      * Drains accumulated proposal timing and admission facts for one process-local grid generation.
      *
      * <p>
-     * Current queue depth and outstanding counts are snapshots and are not reset.
+     * Current global and per-grid outstanding counts are snapshots and are not reset.
      * </p>
      *
      * @param gridGeneration current grid publication scope
@@ -111,7 +111,7 @@ public interface DispatchProposalScheduler extends AutoCloseable {
         WORKER_BUSY,
         GRID_LIMIT,
         HIGH_WATER,
-        QUEUE_FULL,
+        GLOBAL_LIMIT,
         DISABLED,
         CLOSED
     }
