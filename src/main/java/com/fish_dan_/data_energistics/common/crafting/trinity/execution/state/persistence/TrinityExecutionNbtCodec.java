@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Firing;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.RepeatBlock;
@@ -17,6 +18,7 @@ import net.minecraft.nbt.Tag;
 import appeng.api.stacks.AEKey;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -31,7 +33,8 @@ public final class TrinityExecutionNbtCodec {
 
     private static final int LEGACY_SCHEMA = 2;
     private static final int CLOCK_SCHEMA = 3;
-    private static final int SCHEMA = 4;
+    private static final int OUTPUT_SCHEMA = 4;
+    private static final int SCHEMA = 5;
     private static final String PLAN_KIND = "trinity_compact";
     private static final String SCHEMA_TAG = "schema_version";
     private static final String PLAN_KIND_TAG = "plan_kind";
@@ -48,6 +51,7 @@ public final class TrinityExecutionNbtCodec {
     private static final String SEED_RESERVE_TAG = "seed_reserve";
     private static final String COMPLETION_SEALED_TAG = "completion_sealed";
     private static final String COMPLETION_BUFFER_TAG = "completion_buffer";
+    private static final String ACTUAL_FINAL_OUTPUTS_TAG = "actual_final_outputs";
     private static final String DELIVERY_REMAINING_TAG = "delivery_remaining";
     private static final String LEDGER_TAG = "borrowing_ledger";
     private static final String SAVED_AT_TICK_TAG = "saved_at_tick";
@@ -87,6 +91,27 @@ public final class TrinityExecutionNbtCodec {
     private static final String AMOUNT_TAG = "amount";
 
     private static final Set<String> ROOT_FIELDS = Set.of(
+            SCHEMA_TAG,
+            PLAN_KIND_TAG,
+            CATALOG_REVISION_TAG,
+            QUANTITY_MODE_TAG,
+            TARGET_KEY_TAG,
+            TARGET_AMOUNT_TAG,
+            STATUS_TAG,
+            FAILURE_REASON_TAG,
+            GENERATION_TAG,
+            STAGES_TAG,
+            STAGE_ORDER_TAG,
+            REPEAT_BLOCKS_TAG,
+            SEED_RESERVE_TAG,
+            COMPLETION_SEALED_TAG,
+            COMPLETION_BUFFER_TAG,
+            ACTUAL_FINAL_OUTPUTS_TAG,
+            DELIVERY_REMAINING_TAG,
+            LEDGER_TAG,
+            SAVED_AT_TICK_TAG,
+            BUDGET_RETRY_AT_TAG);
+    private static final Set<String> PRE_DYNAMIC_ROOT_FIELDS = Set.of(
             SCHEMA_TAG,
             PLAN_KIND_TAG,
             CATALOG_REVISION_TAG,
@@ -195,6 +220,7 @@ public final class TrinityExecutionNbtCodec {
         root.put(SEED_RESERVE_TAG, saveAmounts(snapshot.seedReserve(), registries));
         root.putBoolean(COMPLETION_SEALED_TAG, snapshot.completionSealed());
         root.putLong(COMPLETION_BUFFER_TAG, snapshot.completionBuffer());
+        root.put(ACTUAL_FINAL_OUTPUTS_TAG, saveAmounts(snapshot.actualFinalOutputs(), registries));
         root.putLong(DELIVERY_REMAINING_TAG, snapshot.deliveryRemaining());
         root.put(LEDGER_TAG, TrinityBorrowingLedgerNbtCodec.encode(snapshot.borrowingEntries(), registries));
         root.putLong(SAVED_AT_TICK_TAG, snapshot.savedAtTick());
@@ -215,13 +241,19 @@ public final class TrinityExecutionNbtCodec {
         }
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "execution schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LEGACY_SCHEMA && schema != CLOCK_SCHEMA && schema != SCHEMA) {
+        if (schema != LEGACY_SCHEMA && schema != CLOCK_SCHEMA &&
+                schema != OUTPUT_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity execution schema");
         }
-        requireFields(tag, schema >= CLOCK_SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
+        Set<String> rootFields = schema == SCHEMA ? ROOT_FIELDS :
+                schema >= CLOCK_SCHEMA ? PRE_DYNAMIC_ROOT_FIELDS : LEGACY_ROOT_FIELDS;
+        requireFields(tag, rootFields, "execution root");
         requireType(tag, PLAN_KIND_TAG, Tag.TAG_STRING, "execution plan kind");
         requireType(tag, CATALOG_REVISION_TAG, Tag.TAG_LONG, "execution catalog revision");
         requireType(tag, QUANTITY_MODE_TAG, Tag.TAG_STRING, "execution quantity mode");
+        if (schema >= SCHEMA) {
+            requireType(tag, ACTUAL_FINAL_OUTPUTS_TAG, Tag.TAG_LIST, "execution actual final outputs");
+        }
         requireType(tag, TARGET_KEY_TAG, Tag.TAG_COMPOUND, "execution target key");
         requireType(tag, TARGET_AMOUNT_TAG, Tag.TAG_LONG, "execution target amount");
         requireType(tag, STATUS_TAG, Tag.TAG_STRING, "execution status");
@@ -254,10 +286,117 @@ public final class TrinityExecutionNbtCodec {
                 readAmountMap(tag, SEED_RESERVE_TAG, registries, "seed reserve", false),
                 tag.getBoolean(COMPLETION_SEALED_TAG),
                 tag.getLong(COMPLETION_BUFFER_TAG),
+                schema >= SCHEMA ?
+                        readAmountMap(tag, ACTUAL_FINAL_OUTPUTS_TAG, registries, "actual final output", false) :
+                        Map.of(),
                 tag.getLong(DELIVERY_REMAINING_TAG),
                 TrinityBorrowingLedgerNbtCodec.decode(tag.getCompound(LEDGER_TAG), registries),
                 schema >= CLOCK_SCHEMA ? nonNegative(tag.getLong(SAVED_AT_TICK_TAG), "save tick") : -1L,
                 tag.getLong(BUDGET_RETRY_AT_TAG));
+    }
+
+    /**
+     * Conservatively recovers item ownership from a plan snapshot whose enclosing job could not be restored.
+     *
+     * <p>
+     * Each schema-5 actual variant is decoded independently so one damaged entry cannot discard other
+     * machine-returned items. The numeric exact remainder is recovered only when the complete actual-variant list is
+     * trustworthy; older schemas contain only the exact target in their completion buffer.
+     * </p>
+     *
+     * @param tag        persisted execution snapshot
+     * @param registries server registry lookup used by AE key codecs
+     * @return immutable keyed contents safe to move into CPU recovery inventory
+     */
+    public static Map<AEKey, Long> recoverCompletionContents(CompoundTag tag,
+                                                             HolderLookup.Provider registries) {
+        if (tag == null || registries == null) {
+            throw new IllegalArgumentException("Trinity completion recovery requires a snapshot and registries");
+        }
+        if (!tag.contains(SCHEMA_TAG, Tag.TAG_INT)) {
+            return Map.of();
+        }
+        int schema = tag.getInt(SCHEMA_TAG);
+        if (schema != LEGACY_SCHEMA && schema != CLOCK_SCHEMA &&
+                schema != OUTPUT_SCHEMA && schema != SCHEMA) {
+            return Map.of();
+        }
+
+        LinkedHashMap<AEKey, Long> recovered = new LinkedHashMap<>();
+        long actualAmount = 0L;
+        boolean actualLedgerComplete = true;
+        if (schema == SCHEMA) {
+            Tag rawActualOutputs = tag.get(ACTUAL_FINAL_OUTPUTS_TAG);
+            if (!(rawActualOutputs instanceof ListTag actualOutputs) ||
+                    (!actualOutputs.isEmpty() && actualOutputs.getElementType() != Tag.TAG_COMPOUND)) {
+                Data_Energistics.LOGGER.error(
+                        "Cannot completely recover a damaged Trinity actual final-output list");
+                actualLedgerComplete = false;
+            } else {
+                for (Tag encoded : actualOutputs) {
+                    try {
+                        if (!(encoded instanceof CompoundTag entry) ||
+                                !entry.getAllKeys().equals(AMOUNT_FIELDS) ||
+                                !entry.contains(KEY_TAG, Tag.TAG_COMPOUND) ||
+                                !entry.contains(AMOUNT_TAG, Tag.TAG_LONG)) {
+                            throw new IllegalArgumentException("Damaged actual final-output recovery entry");
+                        }
+                        AEKey key = decodeKey(
+                                entry.getCompound(KEY_TAG),
+                                registries,
+                                "actual final-output recovery");
+                        long amount = entry.getLong(AMOUNT_TAG);
+                        if (amount <= 0L || recovered.containsKey(key)) {
+                            throw new IllegalArgumentException(
+                                    "Actual final-output recovery requires unique positive entries");
+                        }
+                        actualAmount = Math.addExact(actualAmount, amount);
+                        recovered.put(key, amount);
+                    } catch (RuntimeException exception) {
+                        actualLedgerComplete = false;
+                        Data_Energistics.LOGGER.error(
+                                "Skipped one damaged Trinity actual final-output recovery entry",
+                                exception);
+                    }
+                }
+            }
+        }
+
+        if (!tag.contains(COMPLETION_SEALED_TAG, Tag.TAG_BYTE) ||
+                !tag.getBoolean(COMPLETION_SEALED_TAG) ||
+                !tag.contains(COMPLETION_BUFFER_TAG, Tag.TAG_LONG)) {
+            return Collections.unmodifiableMap(recovered);
+        }
+        long completionBuffer = tag.getLong(COMPLETION_BUFFER_TAG);
+        if (completionBuffer <= 0L || schema == SCHEMA && !actualLedgerComplete) {
+            return Collections.unmodifiableMap(recovered);
+        }
+        long exactAmount;
+        try {
+            exactAmount = schema == SCHEMA ?
+                    Math.subtractExact(completionBuffer, actualAmount) :
+                    completionBuffer;
+        } catch (ArithmeticException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Cannot recover an overflowing Trinity exact completion remainder",
+                    exception);
+            return Collections.unmodifiableMap(recovered);
+        }
+        if (exactAmount <= 0L || !tag.contains(TARGET_KEY_TAG, Tag.TAG_COMPOUND)) {
+            return Collections.unmodifiableMap(recovered);
+        }
+        try {
+            AEKey targetKey = decodeKey(
+                    tag.getCompound(TARGET_KEY_TAG),
+                    registries,
+                    "completion recovery target");
+            recovered.merge(targetKey, exactAmount, Math::addExact);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Could not recover the exact Trinity completion remainder",
+                    exception);
+        }
+        return Collections.unmodifiableMap(recovered);
     }
 
     private static List<Integer> readStageOrder(CompoundTag root) {
@@ -326,13 +465,13 @@ public final class TrinityExecutionNbtCodec {
         ArrayList<Firing> firings = new ArrayList<>();
         for (Tag encoded : encodedFirings) {
             CompoundTag firingTag = (CompoundTag) encoded;
-            requireFields(firingTag, schema == SCHEMA ? FIRING_FIELDS : LEGACY_FIRING_FIELDS, "stage firing");
+            requireFields(firingTag, schema >= OUTPUT_SCHEMA ? FIRING_FIELDS : LEGACY_FIRING_FIELDS, "stage firing");
             requireType(firingTag, DEFINITION_TAG, Tag.TAG_STRING, "firing definition identity");
             requireType(firingTag, PUBLICATION_TAG, Tag.TAG_STRING, "firing publication identity");
             requireType(firingTag, PRIMARY_OUTPUT_TAG, Tag.TAG_COMPOUND, "firing primary output");
             requireType(firingTag, VARIANT_ORDINAL_TAG, Tag.TAG_INT, "firing variant ordinal");
             requireType(firingTag, PLANNED_COUNT_TAG, Tag.TAG_LONG, "firing planned count");
-            if (schema == SCHEMA) {
+            if (schema >= OUTPUT_SCHEMA) {
                 requireType(firingTag, OUTPUTS_TAG, Tag.TAG_LIST, "firing outputs");
             }
             requireType(firingTag, REMAINING_COUNT_TAG, Tag.TAG_LONG, "firing remaining count");
@@ -348,7 +487,7 @@ public final class TrinityExecutionNbtCodec {
                     primaryOutput,
                     firingTag.getInt(VARIANT_ORDINAL_TAG),
                     firingTag.getLong(PLANNED_COUNT_TAG),
-                    schema == SCHEMA ?
+                    schema >= OUTPUT_SCHEMA ?
                             readAmountMap(firingTag, OUTPUTS_TAG, registries, "firing output", false) :
                             Map.of(),
                     firingTag.getLong(REMAINING_COUNT_TAG),

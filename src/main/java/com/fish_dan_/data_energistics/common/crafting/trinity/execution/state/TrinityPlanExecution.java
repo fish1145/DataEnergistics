@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
@@ -164,6 +165,7 @@ public final class TrinityPlanExecution {
     private boolean completionSealed;
     private long completionBuffer;
     private long deliveryRemaining;
+    private final LinkedHashMap<AEKey, Long> actualFinalOutputs = new LinkedHashMap<>();
 
     private TrinityPlanExecution(AEKey targetKey,
                                  long targetAmount,
@@ -222,6 +224,7 @@ public final class TrinityPlanExecution {
         restored.completionSealed = snapshot.completionSealed();
         restored.completionBuffer = snapshot.completionBuffer();
         restored.deliveryRemaining = snapshot.deliveryRemaining();
+        restored.actualFinalOutputs.putAll(snapshot.actualFinalOutputs());
         restored.budgetRetryAt = rebaseRetryAt(
                 snapshot.budgetRetryAt(),
                 snapshot.savedAtTick(),
@@ -818,12 +821,40 @@ public final class TrinityPlanExecution {
      * @param amount exact amount moved into the completion buffer
      */
     public void sealCompletion(long amount) {
-        if (!productionComplete() || this.failed || this.completionSealed || amount != this.deliveryRemaining) {
+        long actualAmount = actualFinalOutputAmount();
+        if (!productionComplete() || this.failed || this.completionSealed || amount < 0L ||
+                Math.addExact(amount, actualAmount) != this.deliveryRemaining) {
             throw new IllegalStateException("A Trinity completion buffer requires one exact post-production delivery seal");
         }
         this.completionSealed = true;
-        this.completionBuffer = amount;
+        this.completionBuffer = Math.addExact(amount, actualAmount);
         markDurableMutation();
+    }
+
+    /**
+     * Retains an actual same-item final output outside the working inventory so exact downstream inputs cannot use it.
+     *
+     * @param actualKey actual machine-returned key with all Data Components intact
+     * @param amount    positive accepted amount
+     */
+    public void recordActualFinalOutput(AEItemKey actualKey, long amount) {
+        if (this.completionSealed || amount <= 0L || !(this.targetKey instanceof AEItemKey targetItem) ||
+                actualKey.getItem() != targetItem.getItem()) {
+            throw new IllegalArgumentException("An actual Trinity final output must match the requested registered item");
+        }
+        long actualAmount = actualFinalOutputAmount();
+        if (amount > this.deliveryRemaining - actualAmount) {
+            throw new IllegalArgumentException("Actual Trinity final outputs exceed the undelivered request");
+        }
+        this.actualFinalOutputs.merge(actualKey, amount, Math::addExact);
+        markDurableMutation();
+    }
+
+    /**
+     * @return total actual variants already owned for final delivery
+     */
+    public long actualFinalOutputAmount() {
+        return this.actualFinalOutputs.values().stream().mapToLong(Long::longValue).reduce(0L, Math::addExact);
     }
 
     /**
@@ -837,7 +868,8 @@ public final class TrinityPlanExecution {
      * @param amount exact remaining target amount completed virtually
      */
     public void completeVirtually(long amount) {
-        if (!productionComplete() || this.failed || this.completionSealed || amount != this.deliveryRemaining) {
+        if (!productionComplete() || this.failed || this.completionSealed ||
+                !this.actualFinalOutputs.isEmpty() || amount != this.deliveryRemaining) {
             throw new IllegalStateException(
                     "A Trinity virtual completion requires the exact remaining target after production completes");
         }
@@ -851,8 +883,15 @@ public final class TrinityPlanExecution {
      * @return immutable offer from the isolated completion buffer
      */
     public Optional<GenericStack> completionOffer() {
-        return this.completionBuffer == 0L ? Optional.empty() :
-                Optional.of(new GenericStack(this.targetKey, this.completionBuffer));
+        if (!this.completionSealed || this.completionBuffer == 0L) {
+            return Optional.empty();
+        }
+        for (Map.Entry<AEKey, Long> entry : this.actualFinalOutputs.entrySet()) {
+            if (entry.getValue() > 0L) {
+                return Optional.of(new GenericStack(entry.getKey(), entry.getValue()));
+            }
+        }
+        return Optional.of(new GenericStack(this.targetKey, this.completionBuffer));
     }
 
     /**
@@ -860,11 +899,25 @@ public final class TrinityPlanExecution {
      *
      * @param acceptedAmount positive amount accepted from the completion offer
      */
-    public void recordDelivered(long acceptedAmount) {
+    public void recordDelivered(AEKey acceptedKey, long acceptedAmount) {
         if (!this.completionSealed || acceptedAmount <= 0L || acceptedAmount > this.completionBuffer ||
                 acceptedAmount > this.deliveryRemaining) {
             throw new IllegalArgumentException("A Trinity delivery must deduct a positive accepted completion amount");
         }
+        Long actualAmount = this.actualFinalOutputs.get(acceptedKey);
+        if (actualAmount != null) {
+            if (acceptedAmount > actualAmount) {
+                throw new IllegalArgumentException("A Trinity delivery exceeds its actual final-output variant");
+            }
+            if (acceptedAmount == actualAmount) {
+                this.actualFinalOutputs.remove(acceptedKey);
+            } else {
+                this.actualFinalOutputs.put(acceptedKey, actualAmount - acceptedAmount);
+            }
+        } else if (!this.targetKey.equals(acceptedKey) || acceptedAmount >
+                Math.subtractExact(this.completionBuffer, actualFinalOutputAmount())) {
+                    throw new IllegalArgumentException("A Trinity delivery key is absent from its completion buffer");
+                }
         this.completionBuffer -= acceptedAmount;
         this.deliveryRemaining -= acceptedAmount;
         markDurableMutation();
@@ -875,15 +928,50 @@ public final class TrinityPlanExecution {
      *
      * @return released stack, or empty when the buffer contains nothing
      */
-    public Optional<GenericStack> releaseCompletionForStandalone() {
-        if (!this.completionSealed || this.completionBuffer == 0L) {
-            return Optional.empty();
+    public Map<AEKey, Long> releaseCompletionForStandalone() {
+        LinkedHashMap<AEKey, Long> released = new LinkedHashMap<>(this.actualFinalOutputs);
+        long actualAmount = actualFinalOutputAmount();
+        if (this.completionSealed) {
+            long exactAmount = Math.subtractExact(this.completionBuffer, actualAmount);
+            if (exactAmount > 0L) {
+                released.merge(this.targetKey, exactAmount, Math::addExact);
+            }
+            this.deliveryRemaining = Math.subtractExact(this.deliveryRemaining, this.completionBuffer);
+            this.completionBuffer = 0L;
         }
-        GenericStack released = new GenericStack(this.targetKey, this.completionBuffer);
-        this.deliveryRemaining = Math.subtractExact(this.deliveryRemaining, this.completionBuffer);
-        this.completionBuffer = 0L;
-        markDurableMutation();
-        return Optional.of(released);
+        if (!this.actualFinalOutputs.isEmpty() || !released.isEmpty()) {
+            this.actualFinalOutputs.clear();
+            markDurableMutation();
+        }
+        return Collections.unmodifiableMap(released);
+    }
+
+    /**
+     * Returns the exact amount owned in the isolated completion state for one key.
+     */
+    public long completionAmount(AEKey key) {
+        if (!this.completionSealed) {
+            return this.actualFinalOutputs.getOrDefault(key, 0L);
+        }
+        long actual = this.actualFinalOutputs.getOrDefault(key, 0L);
+        if (this.targetKey.equals(key)) {
+            return Math.addExact(actual, Math.subtractExact(this.completionBuffer, actualFinalOutputAmount()));
+        }
+        return actual;
+    }
+
+    /**
+     * @return immutable keyed contents currently isolated from ordinary working inventory
+     */
+    public Map<AEKey, Long> completionContents() {
+        LinkedHashMap<AEKey, Long> contents = new LinkedHashMap<>(this.actualFinalOutputs);
+        if (this.completionSealed) {
+            long exactAmount = Math.subtractExact(this.completionBuffer, actualFinalOutputAmount());
+            if (exactAmount > 0L) {
+                contents.merge(this.targetKey, exactAmount, Math::addExact);
+            }
+        }
+        return Collections.unmodifiableMap(contents);
     }
 
     /**
@@ -940,6 +1028,7 @@ public final class TrinityPlanExecution {
                 this.seedReserve,
                 this.completionSealed,
                 this.completionBuffer,
+                this.actualFinalOutputs,
                 this.deliveryRemaining,
                 this.borrowingLedger.entries(),
                 currentTick,
@@ -1090,6 +1179,24 @@ public final class TrinityPlanExecution {
         if (this.completionBuffer < 0L || this.deliveryRemaining < 0L ||
                 this.deliveryRemaining > this.targetAmount || this.completionBuffer > this.deliveryRemaining) {
             throw new IllegalArgumentException("A Trinity completion buffer contains impossible delivery amounts");
+        }
+        AEItemKey targetItem = this.targetKey instanceof AEItemKey itemKey ? itemKey : null;
+        if (targetItem == null && !this.actualFinalOutputs.isEmpty()) {
+            throw new IllegalArgumentException("Only item targets can retain actual final-output variants");
+        }
+        long actualAmount = 0L;
+        if (targetItem != null) {
+            for (Map.Entry<AEKey, Long> entry : this.actualFinalOutputs.entrySet()) {
+                if (!(entry.getKey() instanceof AEItemKey itemKey) || entry.getValue() <= 0L ||
+                        itemKey.getItem() != targetItem.getItem()) {
+                    throw new IllegalArgumentException(
+                            "A Trinity actual final-output buffer contains an invalid item variant");
+                }
+                actualAmount = Math.addExact(actualAmount, entry.getValue());
+            }
+        }
+        if (actualAmount > this.deliveryRemaining || this.completionSealed && actualAmount > this.completionBuffer) {
+            throw new IllegalArgumentException("A Trinity actual final-output buffer exceeds remaining delivery ownership");
         }
         if (!this.completionSealed &&
                 (this.completionBuffer != 0L || this.deliveryRemaining != this.targetAmount)) {
