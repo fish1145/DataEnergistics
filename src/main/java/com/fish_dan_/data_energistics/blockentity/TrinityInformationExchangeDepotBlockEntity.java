@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferResult;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferTarget;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
@@ -28,6 +31,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.Tr
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
@@ -56,9 +60,11 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
+import appeng.api.networking.IStackWatcher;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.events.GridCraftingCpuChange;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -74,14 +80,17 @@ import appeng.api.util.AECableType;
 import appeng.api.util.IConfigManager;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.helpers.patternprovider.PatternContainer;
+import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.util.ConfigManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,10 +109,16 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     /** Stable target identity for the bound Trinity pattern catalog. */
     private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
     private static final String STORAGE_MODE_TAG = "storage_mode";
+    private static final int TRANSFER_KEYS_PER_TICK = 64;
+    private static final long TRANSFER_NANOS_PER_TICK = 2_000_000L;
 
     private final MEStorage networkStorage = new HatchStorage();
     private final IStorageProvider storageProvider = new HatchStorageProvider();
     private final ICraftingProvider craftingProvider = new HatchCraftingProvider();
+    private final IStorageWatcherNode transferWatcherNode = new TransferWatcherNode();
+    private final IActionSource transferActionSource = new MachineSource(this);
+    private final ArrayDeque<AEKey> transferQueue = new ArrayDeque<>();
+    private final Set<AEKey> queuedTransferKeys = new HashSet<>();
     private final ConfigManager craftingStatusConfig = new ConfigManager(this::saveChanges);
     private final Set<PatternContainer> managedTerminalPartitions = Collections.newSetFromMap(new IdentityHashMap<>());
     @Nullable
@@ -125,6 +140,18 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     @Nullable
     private PatternPublication patternPublication;
     private StorageMode storageMode = StorageMode.STORAGE;
+    @Nullable
+    private IStackWatcher transferWatcher;
+    @Nullable
+    private IGrid transferGrid;
+    @Nullable
+    private UUID transferStorageId;
+    @Nullable
+    private TrinityDataCoreStorageProfile transferStorageProfile;
+    private long transferStorageStructureRevision = -1L;
+    private boolean transferWatcherConfigured;
+    private boolean inputSnapshotDirty = true;
+    private boolean outputSnapshotDirty = true;
     /** Complete elapsed time of the most recently executed server tick for this depot. */
     private long lastServerTickNanos;
 
@@ -133,6 +160,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
+                .addService(IStorageWatcherNode.class, this.transferWatcherNode)
                 .setExposedOnSides(EnumSet.allOf(Direction.class))
                 .setVisualRepresentation(DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
@@ -248,6 +276,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         try {
             finishGridBootReevaluation();
             updateActiveState();
+            tickStorageTransfer();
             refreshTerminalPartitionsSafely();
         } finally {
             this.lastServerTickNanos = System.nanoTime() - tickStartedAtNanos;
@@ -261,7 +290,11 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         if (!canRefreshGridServices()) {
             return;
         }
-        requestStorageUpdate();
+        switch (this.storageMode) {
+            case STORAGE -> requestStorageUpdate();
+            case INPUT -> this.inputSnapshotDirty = true;
+            case OUTPUT -> this.outputSnapshotDirty = true;
+        }
     }
 
     /**
@@ -271,7 +304,9 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         if (!canRefreshGridServices()) {
             return;
         }
-        requestStorageUpdate();
+        if (this.storageMode.mountsStorage()) {
+            requestStorageUpdate();
+        }
     }
 
     /**
@@ -323,6 +358,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
      * Forcefully withdraws an old lease owner in terminal, CPU, pattern, then storage order.
      */
     public void withdrawTrinityLeasePublications() {
+        resetTransferState();
         if (this.level instanceof ServerLevel serverLevel &&
                 ServerLifecycleEventHandler.isStopping(serverLevel.getServer())) {
             discardShutdownPublications();
@@ -904,6 +940,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
             return true;
         }
         this.storageMode = mode;
+        resetTransferState();
         this.saveChanges();
         this.markForUpdate();
         requestStorageUpdate();
@@ -1196,12 +1233,356 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         this.terminalPartitionAttachmentCheckRequested = true;
     }
 
+    /** Advances active input/output transfer work without allowing one depot to monopolize the server tick. */
+    private void tickStorageTransfer() {
+        if (this.storageMode == StorageMode.STORAGE) {
+            if (this.transferGrid != null || !this.transferQueue.isEmpty() || this.transferWatcherConfigured) {
+                resetTransferState();
+            }
+            return;
+        }
+
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        IGrid grid = accessGrid();
+        if (host == null || grid == null || !(this.level instanceof ServerLevel serverLevel)) {
+            if (this.transferGrid != null || !this.transferQueue.isEmpty() || this.transferWatcherConfigured) {
+                resetTransferState();
+            }
+            return;
+        }
+
+        MEStorage aggregateStorage = grid.getStorageService().getInventory();
+        FiniteNetworkStorageAccess finiteStorage = (FiniteNetworkStorageAccess) aggregateStorage;
+        updateTransferContext(host, grid, finiteStorage.storageStructureRevision());
+
+        TrinityDataCoreStorageSavedData storageData = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
+        if (this.storageMode.pullsFromNetwork()) {
+            configureInputWatcher();
+            if (this.inputSnapshotDirty) {
+                rebuildInputSnapshot(grid);
+            }
+            processInputQueue(finiteStorage, new TrinityStorageTarget(
+                    storageData,
+                    host.getStorageId(),
+                    host.storageProfile()));
+            return;
+        }
+
+        disableTransferWatcher();
+        if (this.outputSnapshotDirty) {
+            rebuildOutputSnapshot(storageData, host.getStorageId());
+        }
+        processOutputQueue(storageData, host, aggregateStorage);
+    }
+
+    private void updateTransferContext(TrinityDataCoreBlockEntity host, IGrid grid, long storageStructureRevision) {
+        UUID storageId = host.getStorageId();
+        TrinityDataCoreStorageProfile storageProfile = host.storageProfile();
+        boolean contextChanged = this.transferGrid != grid ||
+                !storageId.equals(this.transferStorageId) ||
+                !storageProfile.equals(this.transferStorageProfile);
+        if (contextChanged) {
+            clearTransferQueue();
+            disableTransferWatcher();
+            this.transferGrid = grid;
+            this.transferStorageId = storageId;
+            this.transferStorageProfile = storageProfile;
+            this.transferStorageStructureRevision = storageStructureRevision;
+            this.inputSnapshotDirty = true;
+            this.outputSnapshotDirty = true;
+            return;
+        }
+
+        if (this.storageMode.pullsFromNetwork() &&
+                this.transferStorageStructureRevision != storageStructureRevision) {
+            clearTransferQueue();
+            this.transferStorageStructureRevision = storageStructureRevision;
+            this.inputSnapshotDirty = true;
+        }
+    }
+
+    private void configureInputWatcher() {
+        if (this.transferWatcher == null || this.transferWatcherConfigured) {
+            return;
+        }
+        this.transferWatcher.setWatchAll(true);
+        this.transferWatcherConfigured = true;
+        this.inputSnapshotDirty = true;
+    }
+
+    private void disableTransferWatcher() {
+        if (this.transferWatcher != null && this.transferWatcherConfigured) {
+            this.transferWatcher.reset();
+        }
+        this.transferWatcherConfigured = false;
+    }
+
+    private void rebuildInputSnapshot(IGrid grid) {
+        clearTransferQueue();
+        for (var entry : grid.getStorageService().getCachedInventory()) {
+            if (entry.getLongValue() > 0L) {
+                enqueueTransfer(entry.getKey());
+            }
+        }
+        this.inputSnapshotDirty = false;
+    }
+
+    private void rebuildOutputSnapshot(TrinityDataCoreStorageSavedData storageData, UUID storageId) {
+        clearTransferQueue();
+        KeyCounter contents = new KeyCounter();
+        storageData.addAvailableStacks(storageId, contents);
+        for (var entry : contents) {
+            if (entry.getLongValue() > 0L) {
+                enqueueTransfer(entry.getKey());
+            }
+        }
+        this.outputSnapshotDirty = false;
+    }
+
+    private void processInputQueue(FiniteNetworkStorageAccess finiteStorage, FiniteTransferTarget target) {
+        long startedAtNanos = System.nanoTime();
+        int scheduledKeys = Math.min(TRANSFER_KEYS_PER_TICK, this.transferQueue.size());
+        for (int processedKeys = 0; processedKeys < scheduledKeys && System.nanoTime() - startedAtNanos < TRANSFER_NANOS_PER_TICK; processedKeys++) {
+            AEKey key = this.transferQueue.removeFirst();
+            boolean retry = false;
+            try {
+                FiniteTransferResult result = finiteStorage.transferFinite(
+                        key,
+                        Long.MAX_VALUE,
+                        this.transferActionSource,
+                        target);
+                if (!result.consistent()) {
+                    logInputTransferMismatch(key, result);
+                }
+                retry = result.retrySuggested();
+            } catch (RuntimeException exception) {
+                LOGGER.error("Failed to transfer finite AE storage key {} into Trinity storage at {}",
+                        key,
+                        this.worldPosition,
+                        exception);
+                retry = true;
+            } finally {
+                finishTransferKey(key, retry);
+            }
+        }
+    }
+
+    private void processOutputQueue(TrinityDataCoreStorageSavedData storageData,
+                                    TrinityDataCoreBlockEntity host,
+                                    MEStorage aggregateStorage) {
+        long startedAtNanos = System.nanoTime();
+        int scheduledKeys = Math.min(TRANSFER_KEYS_PER_TICK, this.transferQueue.size());
+        for (int processedKeys = 0; processedKeys < scheduledKeys && System.nanoTime() - startedAtNanos < TRANSFER_NANOS_PER_TICK; processedKeys++) {
+            AEKey key = this.transferQueue.removeFirst();
+            boolean retry = false;
+            try {
+                OutputTransferResult result = transferOutputKey(
+                        storageData,
+                        host,
+                        aggregateStorage,
+                        key);
+                if (!result.consistent()) {
+                    logOutputTransferMismatch(key, result);
+                }
+                retry = result.retrySuggested();
+            } catch (RuntimeException exception) {
+                LOGGER.error("Failed to transfer Trinity storage key {} into AE storage at {}",
+                        key,
+                        this.worldPosition,
+                        exception);
+                retry = true;
+            } finally {
+                finishTransferKey(key, retry);
+            }
+        }
+    }
+
+    private OutputTransferResult transferOutputKey(TrinityDataCoreStorageSavedData storageData,
+                                                   TrinityDataCoreBlockEntity host,
+                                                   MEStorage target,
+                                                   AEKey key) {
+        UUID storageId = host.getStorageId();
+        TrinityDataCoreStorageProfile storageProfile = host.storageProfile();
+        long simulatedExtraction = storageData.extract(storageId, key, Long.MAX_VALUE, Actionable.SIMULATE);
+        if (simulatedExtraction <= 0L) {
+            return OutputTransferResult.EMPTY;
+        }
+
+        long simulatedTargetInsert = target.insert(
+                key,
+                simulatedExtraction,
+                Actionable.SIMULATE,
+                this.transferActionSource);
+        if (simulatedTargetInsert <= 0L) {
+            return OutputTransferResult.RETRY;
+        }
+
+        long plannedExtraction = Math.min(simulatedExtraction, simulatedTargetInsert);
+        long extracted = storageData.extract(storageId, key, plannedExtraction, Actionable.MODULATE);
+        if (extracted != plannedExtraction) {
+            long restored = storageData.insert(storageId, key, extracted, Actionable.MODULATE, storageProfile);
+            return new OutputTransferResult(
+                    plannedExtraction,
+                    extracted,
+                    0L,
+                    extracted,
+                    restored,
+                    true);
+        }
+
+        long accepted;
+        try {
+            accepted = target.insert(key, extracted, Actionable.MODULATE, this.transferActionSource);
+        } catch (RuntimeException exception) {
+            long restored = storageData.insert(storageId, key, extracted, Actionable.MODULATE, storageProfile);
+            if (restored != extracted) {
+                exception.addSuppressed(new IllegalStateException(
+                        "Trinity output transfer restored " + restored + " of " + extracted +
+                                " to storage " + storageId));
+            }
+            throw exception;
+        }
+
+        long rollbackAmount = accepted < 0L || accepted > extracted ? extracted : extracted - accepted;
+        long restored = storageData.insert(storageId, key, rollbackAmount, Actionable.MODULATE, storageProfile);
+        boolean remaining = storageData.extract(storageId, key, Long.MAX_VALUE, Actionable.SIMULATE) > 0L;
+        return new OutputTransferResult(
+                plannedExtraction,
+                extracted,
+                accepted,
+                rollbackAmount,
+                restored,
+                accepted != extracted || remaining);
+    }
+
+    private void logInputTransferMismatch(AEKey key, FiniteTransferResult result) {
+        LOGGER.error(
+                "Finite AE input transfer mismatch at {} for {}: transferred={}, planned={}, extracted={}, " +
+                        "targetAccepted={}, sourceRollback={}/{}, skippedInfinite={}",
+                this.worldPosition,
+                key,
+                result.transferred(),
+                result.plannedSourceExtraction(),
+                result.sourceExtracted(),
+                result.targetAccepted(),
+                result.sourceRollbackAccepted(),
+                result.sourceRollback(),
+                result.skippedInfiniteSources());
+    }
+
+    private void logOutputTransferMismatch(AEKey key, OutputTransferResult result) {
+        LOGGER.error(
+                "Trinity output transfer mismatch at {} for {}: planned={}, extracted={}, targetAccepted={}, " +
+                        "storageRollback={}/{}",
+                this.worldPosition,
+                key,
+                result.plannedExtraction(),
+                result.sourceExtracted(),
+                result.targetAccepted(),
+                result.sourceRollbackAccepted(),
+                result.sourceRollback());
+    }
+
+    private void finishTransferKey(AEKey key, boolean retry) {
+        this.queuedTransferKeys.remove(key);
+        if (retry) {
+            enqueueTransfer(key);
+        }
+    }
+
+    private void enqueueTransfer(AEKey key) {
+        if (this.queuedTransferKeys.add(key)) {
+            this.transferQueue.addLast(key);
+        }
+    }
+
+    private void clearTransferQueue() {
+        this.transferQueue.clear();
+        this.queuedTransferKeys.clear();
+    }
+
+    private void resetTransferState() {
+        disableTransferWatcher();
+        clearTransferQueue();
+        this.transferGrid = null;
+        this.transferStorageId = null;
+        this.transferStorageProfile = null;
+        this.transferStorageStructureRevision = -1L;
+        this.inputSnapshotDirty = true;
+        this.outputSnapshotDirty = true;
+    }
+
+    private final class TransferWatcherNode implements IStorageWatcherNode {
+
+        @Override
+        public void updateWatcher(IStackWatcher newWatcher) {
+            transferWatcher = newWatcher;
+            transferWatcherConfigured = false;
+            if (storageMode.pullsFromNetwork()) {
+                clearTransferQueue();
+                inputSnapshotDirty = true;
+                configureInputWatcher();
+            }
+        }
+
+        @Override
+        public void onStackChange(AEKey what, long amount) {
+            if (storageMode.pullsFromNetwork() && amount > 0L) {
+                enqueueTransfer(what);
+            }
+        }
+    }
+
+    private record TrinityStorageTarget(TrinityDataCoreStorageSavedData storageData,
+                                        UUID storageId,
+                                        TrinityDataCoreStorageProfile storageProfile)
+            implements FiniteTransferTarget {
+
+        @Override
+        public long simulateInsert(AEKey what, long amount) {
+            return this.storageData.insert(
+                    this.storageId,
+                    what,
+                    amount,
+                    Actionable.SIMULATE,
+                    this.storageProfile);
+        }
+
+        @Override
+        public long insert(AEKey what, long amount) {
+            return this.storageData.insert(
+                    this.storageId,
+                    what,
+                    amount,
+                    Actionable.MODULATE,
+                    this.storageProfile);
+        }
+    }
+
+    private record OutputTransferResult(long plannedExtraction,
+                                        long sourceExtracted,
+                                        long targetAccepted,
+                                        long sourceRollback,
+                                        long sourceRollbackAccepted,
+                                        boolean retrySuggested) {
+
+        private static final OutputTransferResult EMPTY = new OutputTransferResult(0L, 0L, 0L, 0L, 0L, false);
+        private static final OutputTransferResult RETRY = new OutputTransferResult(0L, 0L, 0L, 0L, 0L, true);
+
+        private boolean consistent() {
+            return this.plannedExtraction == this.sourceExtracted &&
+                    this.sourceExtracted == this.targetAccepted + this.sourceRollback &&
+                    this.sourceRollback == this.sourceRollbackAccepted;
+        }
+    }
+
     private final class HatchStorageProvider implements IStorageProvider {
 
         @Override
         public void mountInventories(IStorageMounts storageMounts) {
             TrinityDataCoreBlockEntity host = boundHost(false);
-            if (host != null && host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this) &&
+            if (storageMode.mountsStorage() && host != null &&
+                    host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this) &&
                     host.isStorageAvailable()) {
                 storageMounts.mount(networkStorage, host.getStoragePriority());
             }
@@ -1406,7 +1787,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
-            if (!storageMode.allowsInsert()) {
+            if (!storageMode.mountsStorage()) {
                 return 0L;
             }
             TrinityDataCoreBlockEntity host = boundHost();
@@ -1424,7 +1805,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
-            if (!storageMode.allowsExtract()) {
+            if (!storageMode.mountsStorage()) {
                 return 0L;
             }
             TrinityDataCoreBlockEntity host = boundHost();
@@ -1441,7 +1822,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
 
         @Override
         public void getAvailableStacks(KeyCounter out) {
-            if (!storageMode.exposesContents()) {
+            if (!storageMode.mountsStorage()) {
                 return;
             }
             TrinityDataCoreBlockEntity host = boundHost();
@@ -1463,37 +1844,33 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
     }
 
-    /** Controls only the direction in which the internal Trinity storage is mounted into AE2. */
+    /** Selects one explicit exchange behavior while retaining stable network IDs and serialized names. */
     public enum StorageMode {
 
-        STORAGE("storage", true, true),
-        INPUT("input", true, false),
-        OUTPUT("output", false, true);
+        STORAGE("storage"),
+        INPUT("input"),
+        OUTPUT("output");
 
         private final String serializedName;
-        private final boolean allowsInsert;
-        private final boolean allowsExtract;
 
-        StorageMode(String serializedName, boolean allowsInsert, boolean allowsExtract) {
+        StorageMode(String serializedName) {
             this.serializedName = serializedName;
-            this.allowsInsert = allowsInsert;
-            this.allowsExtract = allowsExtract;
         }
 
         public String serializedName() {
             return this.serializedName;
         }
 
-        public boolean allowsInsert() {
-            return this.allowsInsert;
+        public boolean mountsStorage() {
+            return this == STORAGE;
         }
 
-        public boolean allowsExtract() {
-            return this.allowsExtract;
+        public boolean pullsFromNetwork() {
+            return this == INPUT;
         }
 
-        public boolean exposesContents() {
-            return this.allowsExtract;
+        public boolean pushesToNetwork() {
+            return this == OUTPUT;
         }
 
         public int networkId() {
