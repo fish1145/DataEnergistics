@@ -1166,6 +1166,65 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
+    public TrinityHostedActionStatus quickMovePatternsToPlayer(Player player,
+                                                               long layoutRevision,
+                                                               List<Integer> globalSlots) {
+        if (!this.patternCatalogValid || isPatternMaintenanceActive()) {
+            return TrinityHostedActionStatus.STALE_STATE;
+        }
+        if (globalSlots.isEmpty() || globalSlots.size() > TrinityPatternCatalogView.PAGE_SIZE) {
+            throw new IllegalArgumentException("Trinity pattern quick-move batch size is outside the viewport bound");
+        }
+
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        if (layout.revision() != layoutRevision) {
+            return TrinityHostedActionStatus.STALE_STATE;
+        }
+        Set<Integer> uniqueSlots = new HashSet<>(globalSlots.size());
+        List<TrinityPatternCatalog.GlobalSlot> resolvedSlots = new ArrayList<>(globalSlots.size());
+        for (int globalSlot : globalSlots) {
+            if (!uniqueSlots.add(globalSlot)) {
+                throw new IllegalArgumentException("Duplicate Trinity pattern quick-move global slot: " + globalSlot);
+            }
+            TrinityPatternCatalog.GlobalSlot resolved = this.patternCatalog.resolveGlobalSlot(
+                    layoutRevision,
+                    globalSlot);
+            if (resolved == null) {
+                return TrinityHostedActionStatus.STALE_STATE;
+            }
+            resolvedSlots.add(resolved);
+        }
+
+        boolean moved = false;
+        boolean deliveryFailed = false;
+        for (TrinityPatternCatalog.GlobalSlot resolved : resolvedSlots) {
+            TrinityPatternSlotResult result = quickMovePattern(
+                    player,
+                    resolved.core(),
+                    resolved.coreSlot(),
+                    resolved.core().pattern(resolved.coreSlot()),
+                    ItemStack.EMPTY);
+            switch (result.status()) {
+                case COMPLETED -> moved = true;
+                case NO_OP -> {
+                    // An empty slot is harmless when the client view raced with an earlier successful transfer.
+                }
+                case DELIVERY_FAILED -> deliveryFailed = true;
+                case INTERNAL_ERROR -> {
+                    return TrinityHostedActionStatus.INTERNAL_ERROR;
+                }
+                case STALE_STATE, REJECTED, STARTED -> {
+                    return result.status();
+                }
+            }
+        }
+        if (deliveryFailed) {
+            return TrinityHostedActionStatus.DELIVERY_FAILED;
+        }
+        return moved ? TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.NO_OP;
+    }
+
+    @Override
     public boolean tryQuickMovePatternFromPlayer(ItemStack pattern) {
         if (!this.patternCatalogValid || isPatternMaintenanceActive() || pattern.isEmpty()) {
             return false;

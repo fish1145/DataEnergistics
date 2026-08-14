@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
@@ -21,6 +22,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHos
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternMigrationPayload;
+import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternQuickMovePayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPatternSlotPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
@@ -45,7 +47,10 @@ import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -71,6 +76,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     private final MultiblockPreviewSpec autoBuildPreviewSpec;
     private final Map<HostUiKey, ClientHostedActionState> clientHostedActions = new HashMap<>();
     private final Map<HostUiKey, ServerHostedActionState> serverHostedActions = new HashMap<>();
+    private final ArrayDeque<QueuedPatternQuickMove> queuedPatternQuickMoves = new ArrayDeque<>();
     /**
      * Double-sided child-window endpoint owned by this menu's mounted LDLib2 root.
      */
@@ -253,7 +259,9 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
     /** Moves one player-inventory pattern into the first available aggregate pattern slot. */
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        if (this.host == null || this.host.isPatternMaintenanceActive() || index < 0 || index >= this.slots.size()) {
+        if (this.host == null || this.host.isPatternMaintenanceActive() ||
+                !this.hostUiCoordinator.hostUi().isOpen(TrinityDataCoreHostUiKeys.PATTERN) ||
+                index < 0 || index >= this.slots.size()) {
             return ItemStack.EMPTY;
         }
         Slot sourceSlot = this.slots.get(index);
@@ -287,6 +295,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
      */
     @Override
     public void removed(Player player) {
+        this.queuedPatternQuickMoves.clear();
         Throwable failure = null;
         try {
             super.removed(player);
@@ -439,6 +448,29 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         action));
     }
 
+    /** Queues one complete Shift-drag selection and emits it when the PATTERN action lane becomes idle. */
+    public boolean sendHostedPatternQuickMove(long generation,
+                                              long layoutRevision,
+                                              List<Integer> globalSlots) {
+        QueuedPatternQuickMove request = new QueuedPatternQuickMove(generation, layoutRevision, globalSlots);
+        if (this.hostUiCoordinator.isTerminal() || this.hostUiCoordinator.pendingRequest() != null ||
+                !this.hostUiCoordinator.hostUi().isOpen(TrinityDataCoreHostUiKeys.PATTERN, generation)) {
+            return false;
+        }
+        ClientHostedActionState state = this.clientHostedActions.computeIfAbsent(
+                TrinityDataCoreHostUiKeys.PATTERN,
+                ignored -> new ClientHostedActionState());
+        if (state.generation != generation) {
+            state.reset(generation);
+            this.queuedPatternQuickMoves.clear();
+        }
+        if (state.pending == null && this.queuedPatternQuickMoves.isEmpty()) {
+            return dispatchPatternQuickMove(request);
+        }
+        this.queuedPatternQuickMoves.addLast(request);
+        return true;
+    }
+
     /** Sends one best-effort migration request from the exact open aggregate-pattern generation. */
     public boolean sendHostedPatternMigration(long generation) {
         return sendHostedAction(
@@ -521,6 +553,14 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         }
         state.pending = null;
         state.result = result;
+        if (TrinityDataCoreHostUiKeys.PATTERN.equals(result.key())) {
+            if (result.status() == TrinityHostedActionStatus.COMPLETED ||
+                    result.status() == TrinityHostedActionStatus.NO_OP) {
+                dispatchNextPatternQuickMove(state);
+            } else {
+                this.queuedPatternQuickMoves.clear();
+            }
+        }
         return true;
     }
 
@@ -604,6 +644,13 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         return this.hostedActionExecutor.migratePatterns(player);
     }
 
+    /** Executes one validated ordered Shift-drag batch without catalog-revision self-invalidation. */
+    public TrinityHostedActionStatus executeHostedPatternQuickMove(Player player,
+                                                                   long layoutRevision,
+                                                                   List<Integer> globalSlots) {
+        return this.hostedActionExecutor.patternQuickMove(player, layoutRevision, globalSlots);
+    }
+
     /**
      * Executes the server-authoritative queued-input and pending-output refund after ticket claim.
      */
@@ -674,6 +721,38 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                     ticket.sequence(),
                     failure);
             return false;
+        }
+    }
+
+    private boolean dispatchPatternQuickMove(QueuedPatternQuickMove request) {
+        return sendHostedAction(
+                TrinityDataCoreHostUiKeys.PATTERN,
+                request.generation(),
+                ticket -> new TrinityHostedPatternQuickMovePayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        ticket.generation(),
+                        ticket.sequence(),
+                        request.layoutRevision(),
+                        request.globalSlots()));
+    }
+
+    private void dispatchNextPatternQuickMove(ClientHostedActionState state) {
+        if (state.pending != null || this.queuedPatternQuickMoves.isEmpty()) {
+            return;
+        }
+        QueuedPatternQuickMove next = this.queuedPatternQuickMoves.peekFirst();
+        if (this.hostUiCoordinator.isTerminal() || this.hostUiCoordinator.pendingRequest() != null ||
+                state.generation != next.generation() ||
+                !this.hostUiCoordinator.hostUi().isOpen(TrinityDataCoreHostUiKeys.PATTERN, next.generation())) {
+            this.queuedPatternQuickMoves.clear();
+            return;
+        }
+        if (dispatchPatternQuickMove(next)) {
+            this.queuedPatternQuickMoves.removeFirst();
+        } else {
+            this.queuedPatternQuickMoves.clear();
         }
     }
 
@@ -788,6 +867,11 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                                              ItemStack carried,
                                              TrinityPatternSlotAction action);
 
+        /** Moves an ordered batch of installed patterns to the requesting player's inventory. */
+        TrinityHostedActionStatus patternQuickMove(Player player,
+                                                   long layoutRevision,
+                                                   List<Integer> globalSlots);
+
         /**
          * Invokes one complete installed-pattern refund attempt.
          */
@@ -855,6 +939,16 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         }
 
         @Override
+        public TrinityHostedActionStatus patternQuickMove(Player player,
+                                                          long layoutRevision,
+                                                          List<Integer> globalSlots) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity aggregate pattern quick-move requires a data core host");
+            }
+            return this.host.quickMovePatternsToPlayer(player, layoutRevision, globalSlots);
+        }
+
+        @Override
         public TrinityHostedActionStatus refundPatterns(Player player) {
             if (this.host == null) {
                 throw new IllegalStateException("Trinity installed-pattern refund requires a data core host");
@@ -914,5 +1008,27 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
         private long generation;
         private long lastAcceptedSequence;
+    }
+
+    /** Immutable client gesture retained until the PATTERN hosted-action lane can send it. */
+    private record QueuedPatternQuickMove(long generation,
+                                          long layoutRevision,
+                                          List<Integer> globalSlots) {
+
+        private QueuedPatternQuickMove {
+            if (generation < 1L || layoutRevision < 0L || globalSlots == null || globalSlots.isEmpty()) {
+                throw new IllegalArgumentException("Invalid queued Trinity pattern quick-move request");
+            }
+            LinkedHashSet<Integer> uniqueSlots = new LinkedHashSet<>(globalSlots.size());
+            for (Integer globalSlot : globalSlots) {
+                if (globalSlot == null || globalSlot < 0 || !uniqueSlots.add(globalSlot)) {
+                    throw new IllegalArgumentException("Invalid or duplicate queued Trinity pattern slot: " + globalSlot);
+                }
+            }
+            if (uniqueSlots.size() > TrinityPatternCatalogView.PAGE_SIZE) {
+                throw new IllegalArgumentException("Queued Trinity pattern quick-move exceeds the viewport size");
+            }
+            globalSlots = List.copyOf(uniqueSlots);
+        }
     }
 }

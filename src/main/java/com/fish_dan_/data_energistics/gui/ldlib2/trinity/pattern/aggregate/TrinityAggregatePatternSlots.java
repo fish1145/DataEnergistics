@@ -28,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntConsumer;
@@ -45,6 +46,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private final Level level;
     private final IntConsumer pageRequest;
     private final TrinityPatternSlotActionSender slotActionSender;
+    private final TrinityPatternQuickMoveSender quickMoveSender;
     private final TrinityAggregatePatternSearchIndex searchIndex;
     private final List<LocalSlot> localSlots = new ArrayList<>(TrinityPatternCatalogView.PAGE_SIZE);
     private final int[] displayedGlobalSlots = new int[TrinityPatternCatalogView.PAGE_SIZE];
@@ -56,6 +58,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         }
     };
     private final List<SearchHit> searchHits = new ArrayList<>();
+    private final LinkedHashSet<Integer> quickMoveSweepSlots = new LinkedHashSet<>();
 
     private TrinityPatternCatalogView value = TrinityPatternCatalogView.EMPTY;
     private TrinityPatternSearchMode searchMode = TrinityPatternSearchMode.INPUT_OUTPUT;
@@ -69,16 +72,20 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private int scanCoveredUntil;
     private boolean searchComplete = true;
     private boolean maintenanceActive;
+    private boolean quickMoveSweepActive;
+    private long quickMoveSweepLayoutRevision;
 
     TrinityAggregatePatternSlots(String id,
                                  long generation,
                                  Level level,
                                  IntConsumer pageRequest,
-                                 TrinityPatternSlotActionSender slotActionSender) {
+                                 TrinityPatternSlotActionSender slotActionSender,
+                                 TrinityPatternQuickMoveSender quickMoveSender) {
         this.generation = generation;
         this.level = level;
         this.pageRequest = pageRequest;
         this.slotActionSender = slotActionSender;
+        this.quickMoveSender = quickMoveSender;
         this.searchIndex = new TrinityAggregatePatternSearchIndex(level);
         Arrays.fill(this.displayedGlobalSlots, -1);
         setId(id);
@@ -120,6 +127,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             addChild(itemSlot);
         }
         addEventListener(UIEvents.TICK, event -> refreshLanguage());
+        addEventListener(UIEvents.DRAG_END, this::finishQuickMoveSweep);
         internalSetup();
     }
 
@@ -135,6 +143,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
     void setMaintenanceActive(boolean maintenanceActive) {
         this.maintenanceActive = maintenanceActive;
+        if (maintenanceActive) {
+            clearQuickMoveSweep();
+        }
     }
 
     @Override
@@ -149,6 +160,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             return this;
         }
 
+        if (this.quickMoveSweepActive && this.quickMoveSweepLayoutRevision != next.layoutRevision()) {
+            clearQuickMoveSweep();
+        }
         boolean catalogChanged = !sameCatalog(this.value, next);
         this.value = next;
         if (catalogChanged) {
@@ -417,9 +431,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         }
 
         TrinityPatternSlotAction action;
-        if (event.button == 0 && DataEnergisticsClientBridgeAccess.get().isShiftDown()) {
-            action = TrinityPatternSlotAction.QUICK_MOVE;
-        } else if (event.button == 0) {
+        if (event.button == 0) {
             action = TrinityPatternSlotAction.PRIMARY;
         } else if (event.button == 1) {
             action = TrinityPatternSlotAction.SECONDARY;
@@ -434,6 +446,55 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
                 action);
     }
 
+    private void beginQuickMoveSweep(int viewIndex, UIEvent event) {
+        event.stopPropagation();
+        event.hasHandler = false;
+        if (!this.level.isClientSide() || this.maintenanceActive || event.button != 0 ||
+                !DataEnergisticsClientBridgeAccess.get().isShiftDown()) {
+            return;
+        }
+        clearQuickMoveSweep();
+        this.quickMoveSweepLayoutRevision = this.value.layoutRevision();
+        this.quickMoveSweepActive = addQuickMoveSweepSlot(viewIndex);
+        if (this.quickMoveSweepActive) {
+            startDrag(null, null);
+        }
+    }
+
+    private void enterQuickMoveSweep(int viewIndex, UIEvent event) {
+        if (!this.quickMoveSweepActive || event.dragHandler == null || event.dragHandler.dragSource != this ||
+                this.maintenanceActive || !DataEnergisticsClientBridgeAccess.get().isShiftDown()) {
+            return;
+        }
+        addQuickMoveSweepSlot(viewIndex);
+    }
+
+    private boolean addQuickMoveSweepSlot(int viewIndex) {
+        int globalSlot = this.displayedGlobalSlots[viewIndex];
+        if (globalSlot < 0 || this.localSlots.get(viewIndex).getItem().isEmpty()) {
+            return false;
+        }
+        return this.quickMoveSweepSlots.add(globalSlot);
+    }
+
+    private void finishQuickMoveSweep(UIEvent event) {
+        if (!this.quickMoveSweepActive || event.dragHandler == null || event.dragHandler.dragSource != this) {
+            return;
+        }
+        List<Integer> selectedSlots = List.copyOf(this.quickMoveSweepSlots);
+        long layoutRevision = this.quickMoveSweepLayoutRevision;
+        clearQuickMoveSweep();
+        if (!this.maintenanceActive && !selectedSlots.isEmpty()) {
+            this.quickMoveSender.send(this.generation, layoutRevision, selectedSlots);
+        }
+    }
+
+    private void clearQuickMoveSweep() {
+        this.quickMoveSweepActive = false;
+        this.quickMoveSweepLayoutRevision = 0L;
+        this.quickMoveSweepSlots.clear();
+    }
+
     private final class PatternDisplaySlot extends ItemSlot {
 
         private final int viewIndex;
@@ -441,6 +502,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         private PatternDisplaySlot(LocalSlot slot, int viewIndex) {
             super(slot);
             this.viewIndex = viewIndex;
+            addEventListener(UIEvents.DRAG_ENTER, event -> enterQuickMoveSweep(this.viewIndex, event));
         }
 
         @Override
@@ -461,7 +523,11 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
         @Override
         protected void onMouseDown(UIEvent event) {
-            sendSlotAction(this.viewIndex, event);
+            if (event.button == 0 && DataEnergisticsClientBridgeAccess.get().isShiftDown()) {
+                beginQuickMoveSweep(this.viewIndex, event);
+            } else {
+                sendSlotAction(this.viewIndex, event);
+            }
         }
     }
 

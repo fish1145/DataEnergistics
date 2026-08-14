@@ -31,6 +31,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
     private final IntConsumer pageRequest;
     private final Level level;
     private final TrinityPatternSlotActionSender slotActionSender;
+    private final TrinityPatternQuickMoveSender quickMoveSender;
     private final LongConsumer migratePatterns;
     private final Runnable openPriority;
     private final Runnable refundPatterns;
@@ -41,6 +42,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                                            IntConsumer pageRequest,
                                            Level level,
                                            TrinityPatternSlotActionSender slotActionSender,
+                                           TrinityPatternQuickMoveSender quickMoveSender,
                                            LongConsumer migratePatterns,
                                            Runnable openPriority,
                                            Runnable refundPatterns,
@@ -50,6 +52,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         this.pageRequest = pageRequest;
         this.level = level;
         this.slotActionSender = slotActionSender;
+        this.quickMoveSender = quickMoveSender;
         this.migratePatterns = migratePatterns;
         this.openPriority = openPriority;
         this.refundPatterns = refundPatterns;
@@ -76,7 +79,8 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                 context.generation(),
                 this.level,
                 this.pageRequest,
-                this.slotActionSender);
+                this.slotActionSender,
+                this.quickMoveSender);
         patterns.bindDataSource(this.catalogView);
         controls.content().addChildAt(patterns, 0);
         patterns.bindControls(controls.scrollbar(), controls.search(), controls.searchMode());

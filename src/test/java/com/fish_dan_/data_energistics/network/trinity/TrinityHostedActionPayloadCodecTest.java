@@ -31,7 +31,7 @@ public final class TrinityHostedActionPayloadCodecTest {
     private static final UUID MENU_SESSION_ID = new UUID(0L, 2L);
 
     @Test
-    void autoBuildAndResponsePayloadsRoundTripAndConsumeTheirCompleteBuffers() {
+    void hostedActionPayloadsRoundTripAndConsumeTheirCompleteBuffers() {
         TrinityHostedAutoBuildPayload autoBuild = new TrinityHostedAutoBuildPayload(
                 42,
                 HOST_ID,
@@ -64,6 +64,23 @@ public final class TrinityHostedActionPayloadCodecTest {
             assertEquals(0, responseBuffer.readableBytes());
         } finally {
             responseBuffer.release();
+        }
+
+        TrinityHostedPatternQuickMovePayload quickMove = new TrinityHostedPatternQuickMovePayload(
+                42,
+                HOST_ID,
+                MENU_SESSION_ID,
+                9L,
+                6L,
+                3L,
+                List.of(1, 4, 7));
+        RegistryFriendlyByteBuf quickMoveBuffer = buffer();
+        try {
+            TrinityHostedPatternQuickMovePayload.STREAM_CODEC.encode(quickMoveBuffer, quickMove);
+            assertEquals(quickMove, TrinityHostedPatternQuickMovePayload.STREAM_CODEC.decode(quickMoveBuffer));
+            assertEquals(0, quickMoveBuffer.readableBytes());
+        } finally {
+            quickMoveBuffer.release();
         }
     }
 
@@ -146,7 +163,6 @@ public final class TrinityHostedActionPayloadCodecTest {
                         1L,
                         1L,
                         submission));
-
         RegistryFriendlyByteBuf trailing = buffer();
         try {
             TrinityHostedAutoBuildPayload.STREAM_CODEC.encode(

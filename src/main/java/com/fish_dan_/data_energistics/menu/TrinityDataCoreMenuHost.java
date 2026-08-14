@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -176,6 +177,11 @@ public interface TrinityDataCoreMenuHost {
                                                     int globalSlot,
                                                     ItemStack carried,
                                                     TrinityPatternSlotAction action);
+
+    /** Moves one ordered set of installed patterns into the requesting player's inventory. */
+    TrinityHostedActionStatus quickMovePatternsToPlayer(Player player,
+                                                        long layoutRevision,
+                                                        List<Integer> globalSlots);
 
     /**
      * Installs one pattern from the main UI player inventory into the first available aggregate slot.

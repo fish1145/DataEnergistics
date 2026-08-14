@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildS
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionTicket;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.priority.PriorityControl;
@@ -17,6 +18,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -86,6 +88,49 @@ final class TrinityHostedActionPayloadCodec {
         requireRange("sequence", sequence, 1L, TrinityHostedActionTicket.MAX_SEQUENCE);
         buffer.writeVarLong(generation);
         buffer.writeVarLong(sequence);
+    }
+
+    /** Reads one non-empty ordered set of aggregate slots selected by a single Shift-drag gesture. */
+    static List<Integer> readPatternQuickMoveSlots(RegistryFriendlyByteBuf buffer) {
+        int count = readBoundedInt(
+                buffer,
+                "pattern quick-move slot count",
+                1,
+                TrinityPatternCatalogView.PAGE_SIZE);
+        LinkedHashSet<Integer> slots = new LinkedHashSet<>(count);
+        for (int index = 0; index < count; index++) {
+            int globalSlot = readBoundedInt(buffer, "pattern quick-move global slot", 0, Integer.MAX_VALUE);
+            if (!slots.add(globalSlot)) {
+                throw new IllegalArgumentException("Duplicate Trinity pattern quick-move global slot: " + globalSlot);
+            }
+        }
+        return List.copyOf(slots);
+    }
+
+    /** Writes one previously validated ordered set of aggregate slots. */
+    static void writePatternQuickMoveSlots(RegistryFriendlyByteBuf buffer, List<Integer> globalSlots) {
+        List<Integer> slots = requirePatternQuickMoveSlots(globalSlots);
+        writeCount(buffer, "pattern quick-move slot count", slots.size(), TrinityPatternCatalogView.PAGE_SIZE);
+        for (int globalSlot : slots) {
+            buffer.writeVarInt(globalSlot);
+        }
+    }
+
+    /** Freezes and validates one client gesture before it enters the hosted-action queue. */
+    static List<Integer> requirePatternQuickMoveSlots(List<Integer> globalSlots) {
+        if (globalSlots == null || globalSlots.isEmpty() ||
+                globalSlots.size() > TrinityPatternCatalogView.PAGE_SIZE) {
+            throw new IllegalArgumentException("Trinity pattern quick-move requires 1.." +
+                    TrinityPatternCatalogView.PAGE_SIZE + " global slots");
+        }
+        LinkedHashSet<Integer> slots = new LinkedHashSet<>(globalSlots.size());
+        for (Integer globalSlot : globalSlots) {
+            if (globalSlot == null || globalSlot < 0 || !slots.add(globalSlot)) {
+                throw new IllegalArgumentException("Invalid or duplicate Trinity pattern quick-move global slot: " +
+                        globalSlot);
+            }
+        }
+        return List.copyOf(slots);
     }
 
     /** Reads and validates one of the two independently hosted priority window identities. */
