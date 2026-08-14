@@ -1,5 +1,26 @@
 # ChangeLog
 
+## Version [v3.1.0](https://github.com/fish1145/DataEnergistics/compare/v3.0.3-1.21...v3.1.0-1.21)
+### Added
+
+- 移除样板上传主方块校验 by @QiuYe-123 in [#194](https://github.com/fish1145/DataEnergistics/pull/194)
+- 修复 Trinity 精确缺料与无容量派发 by @QiuYe-123 in [#195](https://github.com/fish1145/DataEnergistics/pull/195)
+- 支持自定义搜索适配 JECh 并清理外部测试依赖 by @QiuYe-123 in [#197](https://github.com/fish1145/DataEnergistics/pull/197)
+
+### Fixed
+
+- 修复 Trinity 计划与 AE2 Crafting Tree 兼容 by @QiuYe-123 in [#191](https://github.com/fish1145/DataEnergistics/pull/191)
+- 重写样板供应器上下文排序 by @QiuYe-123 in [#192](https://github.com/fish1145/DataEnergistics/pull/192)
+- 修复样板编码预览渲染层级 by @QiuYe-123 in [#193](https://github.com/fish1145/DataEnergistics/pull/193)
+- 修复 Trinity 精确缺料与无容量派发 by @QiuYe-123 in [#195](https://github.com/fish1145/DataEnergistics/pull/195)
+- 修复 Trinity 派发与数据重组器容量 by @QiuYe-123 in [#196](https://github.com/fish1145/DataEnergistics/pull/196)
+- 支持自定义搜索适配 JECh 并清理外部测试依赖 by @QiuYe-123 in [#197](https://github.com/fish1145/DataEnergistics/pull/197)
+
+### Changed
+
+- UI重做 by @QiuYe-123 in [#185](https://github.com/fish1145/DataEnergistics/pull/185)
+
+ 
 ## Version [v3.0.3](https://github.com/fish1145/DataEnergistics/compare/v3.0.2-1.21...v3.0.3-1.21)
 ### Added
 
