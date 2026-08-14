@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sc
 /**
  * Immutable process-local proposal facts drained by one grid Governor.
  *
- * @param admitted         proposals accepted by the scheduler
- * @param rejected         proposals rejected before background calculation
- * @param completed        completed pure proposal calculations
- * @param failed           calculations that completed with an isolated failure
- * @param stale            proposals discarded after a server-thread generation or route revalidation failed
- * @param queueWaitNanos   accumulated virtual-thread scheduling wait
- * @param calculationNanos accumulated pure proposal calculation time
- * @param globalOutstanding current accepted tickets across all grids
+ * @param admitted               proposals accepted by the scheduler
+ * @param rejected               proposals rejected before background calculation
+ * @param completed              completed pure proposal calculations
+ * @param failed                 calculations that completed with an isolated failure
+ * @param stale                  proposals discarded after a server-thread generation or route revalidation failed
+ * @param queueWaitNanos         accumulated virtual-thread scheduling wait
+ * @param calculationNanos       accumulated pure proposal calculation time
+ * @param globalOutstanding      current accepted tickets across all grids
  * @param globalOutstandingLimit fixed global ticket limit
- * @param gridOutstanding current outstanding tickets for this grid
+ * @param gridOutstanding        current outstanding tickets for this grid
  */
 public record DispatchProposalMetrics(
                                       int admitted,
