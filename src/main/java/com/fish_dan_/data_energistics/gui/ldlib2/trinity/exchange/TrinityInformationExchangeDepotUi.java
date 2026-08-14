@@ -40,6 +40,9 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String INPUT_MODE_ID = "trinity_information_exchange_depot_mode_input";
     private static final String STORAGE_MODE_ID = "trinity_information_exchange_depot_mode_storage";
     private static final String OUTPUT_MODE_ID = "trinity_information_exchange_depot_mode_output";
+    private static final String INPUT_MODE_LABEL_ID = INPUT_MODE_ID + "_label";
+    private static final String STORAGE_MODE_LABEL_ID = STORAGE_MODE_ID + "_label";
+    private static final String OUTPUT_MODE_LABEL_ID = OUTPUT_MODE_ID + "_label";
     private static final String MIGRATION_PANEL_ID = "trinity_information_exchange_depot_migration";
     private static final String MIGRATION_STATE_ID = MIGRATION_PANEL_ID + "_state";
     private static final String MIGRATION_PROGRESS_ID = MIGRATION_PANEL_ID + "_progress";
@@ -100,9 +103,9 @@ public final class TrinityInformationExchangeDepotUi {
     }
 
     private static void bindModes(TrinityInformationExchangeDepotMenu menu, Layout layout) {
-        bindMode(menu, layout.input(), StorageMode.INPUT);
-        bindMode(menu, layout.storage(), StorageMode.STORAGE);
-        bindMode(menu, layout.output(), StorageMode.OUTPUT);
+        bindMode(menu, layout.storage(), layout.storageLabel(), StorageMode.STORAGE);
+        bindMode(menu, layout.input(), layout.inputLabel(), StorageMode.INPUT);
+        bindMode(menu, layout.output(), layout.outputLabel(), StorageMode.OUTPUT);
         layout.root().addEventListener(UIEvents.TICK, ignored -> {
             StorageMode mode = menu.mode();
             layout.input().setOn(mode == StorageMode.INPUT, false);
@@ -114,20 +117,18 @@ public final class TrinityInformationExchangeDepotUi {
     private static void bindMode(
                                  TrinityInformationExchangeDepotMenu menu,
                                  Toggle toggle,
+                                 Label label,
                                  StorageMode mode) {
         String translationKey = TRANSLATION_PREFIX + "mode." + mode.serializedName();
-        toggle.enableText();
-        toggle.setText(Component.translatable(translationKey));
-        toggle.toggleLabel(label -> {
-            label.setOverflowVisible(false);
-            label.addClass("trinity-information-exchange-mode-label");
-        });
+        toggle.noText();
         toggle.setOnToggleChanged(on -> {
             if (on && menu.mode() != mode) {
                 menu.sendSetMode(mode);
             }
         });
         Component tooltip = Component.translatable(translationKey + ".hint");
+        label.setText(Component.translatable(translationKey));
+        label.style(style -> style.tooltips(tooltip));
         toggle.style(style -> style.tooltips(tooltip));
         toggle.toggleButton(button -> button.style(style -> style.tooltips(tooltip)));
     }
@@ -229,6 +230,9 @@ public final class TrinityInformationExchangeDepotUi {
                           Toggle output,
                           Label title,
                           Button close,
+                          Label inputLabel,
+                          Label storageLabel,
+                          Label outputLabel,
                           TelemetryArea telemetry) {
 
         private static Layout bind(UIElement root) {
@@ -260,23 +264,52 @@ public final class TrinityInformationExchangeDepotUi {
             input.setId(INPUT_MODE_ID);
             storage.setId(STORAGE_MODE_ID);
             output.setId(OUTPUT_MODE_ID);
-            return new Layout(root, content, group, input, storage, output, title, close, TelemetryArea.create(content));
+            Label storageLabel = modeLabel(STORAGE_MODE_LABEL_ID);
+            Label inputLabel = modeLabel(INPUT_MODE_LABEL_ID);
+            Label outputLabel = modeLabel(OUTPUT_MODE_LABEL_ID);
+            content.addChildren(storageLabel, inputLabel, outputLabel);
+            return new Layout(
+                    root,
+                    content,
+                    group,
+                    input,
+                    storage,
+                    output,
+                    title,
+                    close,
+                    inputLabel,
+                    storageLabel,
+                    outputLabel,
+                    TelemetryArea.create(content));
         }
 
         private void applyGeometry() {
-            place(this.title, CONTENT_INSET, 5, PANEL_WIDTH, 10);
+            this.content.removeChild(this.title);
+            this.root.addChild(this.title);
+            place(this.title, 8, 1, 160, 9);
 
             Label modeTitle = text(
                     MODE_TITLE_ID,
                     TRANSLATION_PREFIX + "mode.title",
-                    "trinity-information-exchange-label");
-            place(modeTitle, CONTENT_INSET, 21, 31, 14);
+                    "trinity-information-exchange-section-title");
+            place(modeTitle, CONTENT_INSET, 3, PANEL_WIDTH, 8);
             this.content.addChild(modeTitle);
 
-            place(this.group, 39, 20, 140, 15);
-            place(this.input, 0, 0, 41, 14);
-            place(this.storage, 41, 0, 58, 14);
-            place(this.output, 99, 0, 41, 14);
+            place(this.storageLabel, 8, 13, 57, 8);
+            place(this.inputLabel, 65, 13, 57, 8);
+            place(this.outputLabel, 122, 13, 57, 8);
+
+            place(this.group, 8, 22, PANEL_WIDTH, 12);
+            place(this.storage, 17, 0, 22, 12);
+            place(this.input, 74, 0, 22, 12);
+            place(this.output, 131, 0, 22, 12);
+        }
+
+        private static Label modeLabel(String id) {
+            Label label = value(id);
+            label.removeClass("trinity-information-exchange-value");
+            label.addClass("trinity-information-exchange-mode-caption");
+            return label;
         }
 
         private static List<UIElement> authoredChildren(UIElement element) {
@@ -330,7 +363,7 @@ public final class TrinityInformationExchangeDepotUi {
         }
 
         private static TelemetryArea create(UIElement content) {
-            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 39, 41);
+            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 41, 40);
             Label migrationTitle = text(
                     MIGRATION_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "migration.title",
@@ -356,7 +389,7 @@ public final class TrinityInformationExchangeDepotUi {
             progressTrack.addChild(progressFill);
             migrationPanel.addChildren(migrationTitle, state, progressTrack, progress);
 
-            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 84, 37);
+            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85, 38);
             Label performanceTitle = text(
                     PERFORMANCE_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "performance.title",

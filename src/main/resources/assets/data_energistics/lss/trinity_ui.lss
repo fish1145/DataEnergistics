@@ -164,7 +164,7 @@
 .trinity-information-exchange-section-title,
 .trinity-information-exchange-label,
 .trinity-information-exchange-value,
-.trinity-information-exchange-mode-label {
+.trinity-information-exchange-mode-caption {
     adaptive-width: false;
     adaptive-height: false;
     vertical-align: center;
@@ -200,8 +200,8 @@
     text-wrap: hover_roll;
 }
 
-.trinity-information-exchange-mode-label {
-    font-size: 5.5;
+.trinity-information-exchange-mode-caption {
+    font-size: 6;
     text-color: #FF414255;
     horizontal-align: center;
     text-wrap: hover_roll;
