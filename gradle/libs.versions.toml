@@ -1,16 +1,17 @@
 [versions]
 minecraft = "1.21.1"
-neoForge = "21.1.219"
+neoForge = "21.1.248"
 loader = "4"
 parchment = "2024.11.17" # https://parchmentmc.org/docs/getting-started
-shadow = "9.4.0"
-spotless = "8.6.0"
-modDevGradle = "2.0.141"
-lombok = "9.2.0"
-modaccessor = "1.1"
-jetbrains-annotations = "26.0.1"
-junit-jupiter = "5.10.2"
-junit-platform = "1.10.2"
+shadow = "9.6.1"
+spotless = "8.9.0"
+modDevGradle = "2.0.143"
+lombok = "9.5.0"
+modaccessor = "1.2.1"
+jetbrains-annotations = "26.1.0"
+jspecify = "1.0.1"
+junit-jupiter = "6.1.3"
+junit-platform = "6.1.3"
 renderNurse = "0.0.26"
 mixin = "0.8.7"
 ojalgo = "57.1.0"
@@ -20,6 +21,7 @@ minecraft               = { module = "com.mojang:minecraft", version.ref = "mine
 neoForge                = { module = "net.neoforged:neoforge", version.ref = "neoForge" }
 testframework           = { module = "net.neoforged:testframework", version.ref = "neoForge" }
 jetbrains-annotations   = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+jspecify                = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 junit-jupiter            = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 junit-platform-launcher  = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 renderNurse             = { module = "net.neoforged:render-nurse", version.ref = "renderNurse" }
