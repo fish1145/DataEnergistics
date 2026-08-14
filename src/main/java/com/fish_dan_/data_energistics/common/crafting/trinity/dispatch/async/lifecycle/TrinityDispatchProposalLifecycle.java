@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.li
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 
 import org.jspecify.annotations.Nullable;
 
 /**
- * Owns the bounded proposal executor and its dispatch-only computation cache for one logical server lifetime.
+ * Owns the proposal executor while borrowing the global Trinity computation cache for one logical server lifetime.
  */
 public final class TrinityDispatchProposalLifecycle {
 
@@ -21,14 +22,9 @@ public final class TrinityDispatchProposalLifecycle {
             if (resources != null) {
                 throw new IllegalStateException("The Trinity dispatch proposal scheduler is already running");
             }
-            TrinityComputationCache dispatchCache = TrinityComputationCache.create(Runnable::run);
-            try {
-                DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(() -> dispatchCache);
-                resources = new DispatchResources(dispatchCache, scheduler);
-            } catch (RuntimeException | Error failure) {
-                dispatchCache.close();
-                throw failure;
-            }
+            DispatchProposalScheduler scheduler = DispatchProposalScheduler.create(
+                    TrinityPlanningGatewayLifecycle::computationCache);
+            resources = new DispatchResources(scheduler);
         }
     }
 
@@ -37,23 +33,20 @@ public final class TrinityDispatchProposalLifecycle {
         return runningResources().scheduler();
     }
 
-    /** @return cache reserved for dispatch capacity and proposal calculations */
+    /** @return global cache shared by planning, replanning, and dispatch calculations */
     public static TrinityComputationCache dispatchComputationCache() {
-        return runningResources().dispatchCache();
+        runningResources();
+        return TrinityPlanningGatewayLifecycle.computationCache();
     }
 
     /**
-     * Cancels proposal work and cached dispatch calculations owned by one unloaded Grid.
+     * Cancels proposal work owned by one unloaded Grid. The planning lifecycle clears the shared cache once after this
+     * scheduler boundary has stopped publishing.
      *
      * @param gridScope unloaded Grid publication scope
      */
     public static void clearGrid(long gridScope) {
-        DispatchResources current = runningResources();
-        try {
-            current.scheduler().clearGrid(gridScope);
-        } finally {
-            current.dispatchCache().clearGrid(gridScope);
-        }
+        runningResources().scheduler().clearGrid(gridScope);
     }
 
     /** Cancels outstanding proposals and stops the independent executor. */
@@ -64,11 +57,7 @@ public final class TrinityDispatchProposalLifecycle {
                 return;
             }
             resources = null;
-            try {
-                closing.scheduler().close();
-            } finally {
-                closing.dispatchCache().close();
-            }
+            closing.scheduler().close();
         }
     }
 
@@ -80,7 +69,5 @@ public final class TrinityDispatchProposalLifecycle {
         return current;
     }
 
-    private record DispatchResources(
-                                     TrinityComputationCache dispatchCache,
-                                     DispatchProposalScheduler scheduler) {}
+    private record DispatchResources(DispatchProposalScheduler scheduler) {}
 }

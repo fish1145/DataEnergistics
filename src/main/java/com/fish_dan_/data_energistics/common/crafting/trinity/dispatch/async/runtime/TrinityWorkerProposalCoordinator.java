@@ -117,7 +117,7 @@ public final class TrinityWorkerProposalCoordinator {
         WORKER_BUSY,
         GRID_LIMIT,
         HIGH_WATER,
-        QUEUE_FULL
+        GLOBAL_LIMIT
     }
 
     private final Supplier<DispatchProposalScheduler> scheduler;
@@ -254,7 +254,7 @@ public final class TrinityWorkerProposalCoordinator {
             case WORKER_BUSY -> new Deferred(DeferredReason.WORKER_BUSY);
             case GRID_LIMIT -> new Deferred(DeferredReason.GRID_LIMIT);
             case HIGH_WATER -> new Deferred(DeferredReason.HIGH_WATER);
-            case QUEUE_FULL -> new Deferred(DeferredReason.QUEUE_FULL);
+            case GLOBAL_LIMIT -> new Deferred(DeferredReason.GLOBAL_LIMIT);
             case DISABLED -> new Fallback(FallbackReason.SCHEDULER_DISABLED);
             case CLOSED -> new Fallback(FallbackReason.SCHEDULER_CLOSED);
         };

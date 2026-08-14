@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sc
 /**
  * Immutable process-local proposal facts drained by one grid Governor.
  *
- * @param admitted         proposals accepted by the bounded executor
+ * @param admitted         proposals accepted by the scheduler
  * @param rejected         proposals rejected before background calculation
  * @param completed        completed pure proposal calculations
  * @param failed           calculations that completed with an isolated failure
  * @param stale            proposals discarded after a server-thread generation or route revalidation failed
- * @param queueWaitNanos   accumulated executor queue wait
+ * @param queueWaitNanos   accumulated virtual-thread scheduling wait
  * @param calculationNanos accumulated pure proposal calculation time
- * @param queueDepth       current global executor queue depth
- * @param queueCapacity    fixed global executor queue capacity
- * @param outstanding      current outstanding tickets for this grid
+ * @param globalOutstanding current accepted tickets across all grids
+ * @param globalOutstandingLimit fixed global ticket limit
+ * @param gridOutstanding current outstanding tickets for this grid
  */
 public record DispatchProposalMetrics(
                                       int admitted,
@@ -22,17 +22,17 @@ public record DispatchProposalMetrics(
                                       int stale,
                                       long queueWaitNanos,
                                       long calculationNanos,
-                                      int queueDepth,
-                                      int queueCapacity,
-                                      int outstanding) {
+                                      int globalOutstanding,
+                                      int globalOutstandingLimit,
+                                      int gridOutstanding) {
 
     public DispatchProposalMetrics {
         if (admitted < 0 || rejected < 0 || completed < 0 || failed < 0 || stale < 0 ||
                 queueWaitNanos < 0L || calculationNanos < 0L ||
-                queueDepth < 0 || queueCapacity <= 0 || outstanding < 0) {
+                globalOutstanding < 0 || globalOutstandingLimit <= 0 || gridOutstanding < 0) {
             throw new IllegalArgumentException("Dispatch proposal metrics are out of range");
         }
-        if (failed > completed || queueDepth > queueCapacity) {
+        if (failed > completed || globalOutstanding > globalOutstandingLimit) {
             throw new IllegalArgumentException("Dispatch proposal metrics are internally inconsistent");
         }
     }
