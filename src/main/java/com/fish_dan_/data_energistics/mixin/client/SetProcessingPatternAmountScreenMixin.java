@@ -49,8 +49,8 @@ public abstract class SetProcessingPatternAmountScreenMixin
 
         PatternOutputMatchMenu state = (PatternOutputMatchMenu) this.getMenu();
         this.dataEnergistics$outputMatchButton = new ToggleButton(
-                Icon.FUZZY_IGNORE,
-                Icon.FUZZY_PERCENT_99,
+                Icon.S_SUBSTITUTION_ENABLED,
+                Icon.S_SUBSTITUTION_DISABLED,
                 enabled -> {
                     state.data_energistics$setProcessingOutputSameItem(enabled);
                     this.dataEnergistics$outputMatchButton.setState(
