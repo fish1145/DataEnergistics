@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.entrypoint;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
+import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
@@ -31,6 +32,7 @@ public final class DataEnergisticsRegistrySnapshot {
     private final TrinityPatternRecipeIdResolvers trinityPatternRecipes;
     private final List<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
     private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
+    private final List<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
 
     /**
      * Freezes all registration values without retaining a mutable staging collection.
@@ -40,13 +42,15 @@ public final class DataEnergisticsRegistrySnapshot {
                                     List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations,
                                     Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers,
                                     Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
-                                    List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters) {
+                                    List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters,
+                                    Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters) {
         this.universalTerminalRegistrations = List.copyOf(universalTerminalRegistrations);
         this.patternProviderRegistrations = List.copyOf(patternProviderRegistrations);
         this.adaptivePatternProviderRegistrations = List.copyOf(adaptivePatternProviderRegistrations);
         this.trinityPatternRecipes = new TrinityPatternRecipeIdResolvers(trinityPatternRecipeIdResolvers);
         this.trinityPatternSearchTermRegistrations = List.copyOf(trinityPatternSearchTerms.values());
         this.virtualCraftingOutputAdapters = List.copyOf(virtualCraftingOutputAdapters);
+        this.dynamicCraftingOutputAdapters = List.copyOf(dynamicCraftingOutputAdapters.values());
     }
 
     /**
@@ -96,5 +100,12 @@ public final class DataEnergisticsRegistrySnapshot {
      */
     public List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters() {
         return this.virtualCraftingOutputAdapters;
+    }
+
+    /**
+     * @return dynamic-output adapters in deterministic plugin and declaration order
+     */
+    public List<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters() {
+        return this.dynamicCraftingOutputAdapters;
     }
 }

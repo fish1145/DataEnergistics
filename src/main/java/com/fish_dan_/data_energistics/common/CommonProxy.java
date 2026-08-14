@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.dataflow.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerGridServices;
+import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
@@ -75,6 +76,7 @@ public class CommonProxy {
             DataEnergisticsRegistrySnapshot snapshot = DataEnergisticsEntrypointLoader.initialize();
             UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
             VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
+            DynamicCraftingOutputAdapters.install(snapshot.dynamicCraftingOutputAdapters());
             PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
             AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             DEUpgrades.init();
