@@ -3,56 +3,57 @@ ae2 = "19.2.17"
 ae2wt = "19.5.1"
 configuration = "3.1.1-neoforge"
 
-jei = "19.25.1.328"
+jei = "19.44.0.401"
 emi = "1.1.24+1.21.1"
 
-ldlib = "2.2.28"
+ldlib = "2.2.35"
 mekanism = "1.21.1-10.7.19.85"
-pneumaticcraft = "8.2.9+mc1.21.1"
-kotlinforforge = "5.7.0"
+pneumaticcraft = "8.2.23+mc1.21.1"
+kotlinforforge = "5.12.0"
 curios = "9.5.1+1.21.1"
-architectury = "13.0.8"
+architectury = "13.0.11"
 brandonscore = "1.21.1-3.2.1.309"
-codechickenlib = "1.21.1-4.6.1.526"
+codechickenlib = "1.21.1-4.6.1.529"
 draconic-evolution = "1.21.1-3.1.4.632"
 modern-industrialization = "2.5.5"
+grandpower = "3.0.0"
 
 ## ftb mod ##
-ftblibrary = "2101.1.31"
-ftbultimine  = "2101.1.13"
+ftblibrary = "2101.1.35"
+ftbultimine  = "2101.1.15"
 
 ## modrinth maven ##
-jade = "15.10.0+neoforge"
-sodium = "mc1.21.1-0.6.13-neoforge"
-iris = "1.8.8+1.21.1-neoforge"
-modernfix = "4SPHwiDB" # 5.24.3+mc1.21.1
+jade = "15.10.6+neoforge"
+sodium = "mc1.21.1-0.6.13-neoforge" # Required by Iris 1.8.12
+iris = "1.8.12+1.21.1-neoforge"
+modernfix = "VsJnrw8k" # 5.27.20+mc1.21.1
 bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
 spark = "6225208"
 guideme = "21.1.17"
-geckolib = "7707149"
+geckolib = "8350073"
 glodium = "5821676"
 ae2ji = "7727898"
 ae2ct = "7182163"
 eae = "8511901"
-aae = "7849217"
+aae = "8564177"
 aecs = "8498888"
 actually-additions = "8281896"
 eco = "8463264"
 extendedae-plus = "8379620"
 applied-flux = "8204513"
 applied-pneumatics = "7723695"
-applied-create = "8424628"
+applied-create = "8546920"
 mega-cells = "7952621"
-sut = "8548584"
+sut = "8633889"
 cloth-config = "5729127"
 amek = "7096962"
-jech = "8117474"
+jech = "8541967"
 ctm = "5587515"
 worldedit = "5830452"
 worldedit-cui-forge = "7195941"
-oritech = "8295566"
+oritech = "8556549"
 athena = "dJgL278E"
 
 ## libs ##
@@ -80,6 +81,7 @@ brandonscore        = { module = "com.brandon3055.brandonscore:BrandonsCore", ve
 codechickenlib      = { module = "io.codechicken:CodeChickenLib", version.ref = "codechickenlib" }
 draconic-evolution  = { module = "com.brandon3055.draconicevolution:Draconic-Evolution", version.ref = "draconic-evolution" }
 modern-industrialization = { module = "aztech:Modern-Industrialization", version.ref = "modern-industrialization" }
+grandpower          = { module = "dev.technici4n:GrandPower", version.ref = "grandpower" }
 
 ftblibrary          = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftblibrary" }
 ftbultimine         = { module = "dev.ftb.mods:ftb-ultimine-neoforge", version.ref = "ftbultimine" }

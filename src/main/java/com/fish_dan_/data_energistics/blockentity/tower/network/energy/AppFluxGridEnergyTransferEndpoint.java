@@ -1,8 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
-import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
-import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointRole;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 
@@ -45,21 +43,12 @@ public final class AppFluxGridEnergyTransferEndpoint implements TowerEnergyTrans
     @Override
     public TowerEnergyEndpointSnapshot freeze() {
         requireLoaded();
-        long stored = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.host, Long.MAX_VALUE, true);
-        long free = AE2FluxIntegration.insertEnergyIntoOwnNetwork(this.host, Long.MAX_VALUE, true);
-        if (stored < 0 || free < 0) {
+        long extractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.host, Long.MAX_VALUE, true);
+        long receivable = AE2FluxIntegration.insertEnergyIntoOwnNetwork(this.host, Long.MAX_VALUE, true);
+        if (extractable < 0 || receivable < 0) {
             throw new TowerEnergyTransferException("Applied Flux returned a negative network snapshot");
         }
-        long capacity = saturatingAdd(stored, free);
-        long receivable = Math.min(free, capacity - stored);
-        return new TowerEnergyEndpointSnapshot(
-                this.endpoint,
-                stored,
-                capacity,
-                stored,
-                receivable,
-                TowerEnergyDirection.BIDIRECTIONAL,
-                TowerEnergyEndpointRole.BUFFER);
+        return TowerEnergyEndpointSnapshot.buffer(this.endpoint, extractable, receivable);
     }
 
     @Override
@@ -136,12 +125,5 @@ public final class AppFluxGridEnergyTransferEndpoint implements TowerEnergyTrans
                     "Applied Flux returned invalid transfer result " + actual + " for " + requested);
         }
         return actual;
-    }
-
-    /**
-     * Adds capacity components without wrapping.
-     */
-    private static long saturatingAdd(long left, long right) {
-        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 }

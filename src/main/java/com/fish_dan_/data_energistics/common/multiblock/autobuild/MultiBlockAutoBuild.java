@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -173,6 +175,10 @@ public interface MultiBlockAutoBuild {
          */
         private final Map<Block, Block> selectedTierBlocks;
         /**
+         * Maps unexpanded source predicates to the exact candidate index selected in the preview.
+         */
+        private final Map<PreviewPredicateKey, Integer> candidateSelections;
+        /**
          * Maps upgradeable candidate blocks to their positive, host-defined tier rank.
          */
         private final Map<Block, Integer> tierRanks;
@@ -196,6 +202,7 @@ public interface MultiBlockAutoBuild {
             this.flipped = builder.flipped;
             this.repeatCount = builder.repeatCount;
             this.selectedTierBlocks = Map.copyOf(builder.selectedTierBlocks);
+            this.candidateSelections = Map.copyOf(builder.candidateSelections);
             this.tierRanks = Map.copyOf(builder.tierRanks);
             this.partSideResolver = builder.partSideResolver;
             this.stagingPolicy = builder.stagingPolicy;
@@ -208,6 +215,12 @@ public interface MultiBlockAutoBuild {
             for (int tierRank : this.tierRanks.values()) {
                 if (tierRank < 1) {
                     throw new IllegalArgumentException("Auto-build tier ranks must be positive: " + tierRank);
+                }
+            }
+            for (int candidateIndex : this.candidateSelections.values()) {
+                if (candidateIndex < 0) {
+                    throw new IllegalArgumentException(
+                            "Auto-build candidate indexes cannot be negative: " + candidateIndex);
                 }
             }
         }
@@ -290,6 +303,13 @@ public interface MultiBlockAutoBuild {
         }
 
         /**
+         * Returns exact source-predicate choices that override automatic candidate selection.
+         */
+        public Map<PreviewPredicateKey, Integer> candidateSelections() {
+            return this.candidateSelections;
+        }
+
+        /**
          * Returns host-declared tier ranks used to permit only safe upward replacement of existing tier candidates.
          */
         public Map<Block, Integer> tierRanks() {
@@ -355,6 +375,10 @@ public interface MultiBlockAutoBuild {
              * Mutable accumulation of candidate-to-tier selections.
              */
             private final Map<Block, Block> selectedTierBlocks = new LinkedHashMap<>();
+            /**
+             * Mutable accumulation of exact source-predicate candidate choices.
+             */
+            private final Map<PreviewPredicateKey, Integer> candidateSelections = new LinkedHashMap<>();
             /**
              * Mutable host-defined rank table for candidates that support upward replacement.
              */
@@ -453,6 +477,15 @@ public interface MultiBlockAutoBuild {
             public Builder selectedTierBlocks(Map<Block, Block> selectedTierBlocks) {
                 this.selectedTierBlocks.clear();
                 this.selectedTierBlocks.putAll(selectedTierBlocks);
+                return this;
+            }
+
+            /**
+             * Supplies exact candidate indexes for source predicates overridden in the structure preview.
+             */
+            public Builder candidateSelections(Map<PreviewPredicateKey, Integer> candidateSelections) {
+                this.candidateSelections.clear();
+                this.candidateSelections.putAll(candidateSelections);
                 return this;
             }
 

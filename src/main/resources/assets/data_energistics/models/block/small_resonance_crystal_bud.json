@@ -1,7 +1,7 @@
 {
-  "parent": "minecraft:block/cross",
-  "render_type": "cutout",
-  "textures": {
-    "cross": "data_energistics:block/small_resonance_crystal_bud"
-  }
+	"parent": "minecraft:block/cross",
+	"render_type": "cutout",
+	"textures": {
+		"cross": "data_energistics:block/small_resonance_crystal_bud"
+	}
 }

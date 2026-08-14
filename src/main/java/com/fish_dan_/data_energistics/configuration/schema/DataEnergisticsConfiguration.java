@@ -406,8 +406,8 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Bounded Trinity planning workers. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
-                "Trinity 规划器的有界工作线程数。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
+                "Bounded workers for initial Trinity plan calculations. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
+                "Trinity 初始计划计算的有界工作线程数。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
         })
         @Configurable.Range(min = 1, max = 8)
         @Configurable.UpdateRestriction(UpdateRestrictions.GAME_RESTART)
@@ -416,8 +416,18 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Maximum queued planning requests. Requires a game restart.",
-                "允许排队的最大规划请求数。需要重启游戏。"
+                "Bounded workers for Trinity CPU remaining-work replanning. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
+                "Trinity CPU 剩余工作重规划的有界工作线程数。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
+        })
+        @Configurable.Range(min = 1, max = 8)
+        @Configurable.UpdateRestriction(UpdateRestrictions.GAME_RESTART)
+        @Configurable.Gui.Slider
+        public int cpuPlannerThreads = recommendedPlannerThreads(Runtime.getRuntime().availableProcessors());
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum queued requests per planning lane. Requires a game restart.",
+                "每条规划轨道允许排队的最大请求数。需要重启游戏。"
         })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         @Configurable.UpdateRestriction(UpdateRestrictions.GAME_RESTART)

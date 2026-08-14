@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -33,72 +33,103 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
- * Bounded-executor implementation that runs Trinity exclusively after the Trinity CPU gate has passed.
+ * Runs initial requests and remaining-work replanning on isolated bounded execution lanes after the Trinity CPU gate
+ * has passed.
  */
 final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
     private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
-    private final ExecutorService plannerExecutor;
-    private final boolean ownsExecutor;
-    private final TrinityComputationCache computationCache;
+    private final ExecutorService initialPlannerExecutor;
+    private final ExecutorService remainingPlannerExecutor;
+    private final boolean ownsExecutors;
+    private final TrinityComputationCache planningCache;
     private final TrinityPlanningComputation planningComputation;
 
     ConcurrentTrinityPlanningGateway(TrinityCrafting settings) {
-        this(createExecutor(settings), true);
+        this(createOwnedExecutors(settings));
+    }
+
+    private ConcurrentTrinityPlanningGateway(PlanningExecutors executors) {
+        this(executors.initial(), executors.remaining(), true);
     }
 
     ConcurrentTrinityPlanningGateway(ExecutorService plannerExecutor, boolean ownsExecutor) {
-        if (plannerExecutor == null) {
-            throw new IllegalArgumentException("A Trinity planning gateway requires an executor");
-        }
-        this.plannerExecutor = plannerExecutor;
-        this.ownsExecutor = ownsExecutor;
-        this.computationCache = TrinityComputationCache.create(plannerExecutor);
+        this(plannerExecutor, plannerExecutor, ownsExecutor);
+    }
+
+    ConcurrentTrinityPlanningGateway(
+                                     ExecutorService initialPlannerExecutor,
+                                     ExecutorService remainingPlannerExecutor,
+                                     boolean ownsExecutors) {
+        this.initialPlannerExecutor = initialPlannerExecutor;
+        this.remainingPlannerExecutor = remainingPlannerExecutor;
+        this.ownsExecutors = ownsExecutors;
+        this.planningCache = TrinityComputationCache.create(initialPlannerExecutor);
         this.planningComputation = TrinityPlanningComputation.create(
-                this.computationCache,
+                this.planningCache,
                 TrinityGraphPlanner.pipeline());
     }
 
-    private static ExecutorService createExecutor(TrinityCrafting settings) {
+    private static PlanningExecutors createOwnedExecutors(TrinityCrafting settings) {
+        ExecutorService initial = createExecutor(
+                settings.plannerThreads(),
+                settings.plannerQueueCapacity(),
+                "DataEnergistics-TrinityInitialPlanner-");
+        ExecutorService remaining = createExecutor(
+                settings.cpuPlannerThreads(),
+                settings.plannerQueueCapacity(),
+                "DataEnergistics-TrinityRemainingPlanner-");
+        return new PlanningExecutors(initial, remaining);
+    }
+
+    private static ExecutorService createExecutor(int workerCount, int queueCapacity, String threadNamePrefix) {
         ThreadFactory threadFactory = task -> {
-            Thread thread = new Thread(task, "DataEnergistics-TrinityPlanner-" + THREAD_SEQUENCE.incrementAndGet());
+            Thread thread = new Thread(task, threadNamePrefix + THREAD_SEQUENCE.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         };
         return new ThreadPoolExecutor(
-                settings.plannerThreads(),
-                settings.plannerThreads(),
+                workerCount,
+                workerCount,
                 0L,
                 TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(settings.plannerQueueCapacity()),
+                new ArrayBlockingQueue<>(queueCapacity),
                 threadFactory,
                 new ThreadPoolExecutor.AbortPolicy());
     }
 
+    private record PlanningExecutors(ExecutorService initial, ExecutorService remaining) {}
+
+    private static void validatePlanningScope(long gridScope, long graphRevision) {
+        if (gridScope < 0L || graphRevision < 0L) {
+            throw new IllegalArgumentException("Trinity planning requires a non-negative Grid scope and graph revision");
+        }
+    }
+
     @Override
     public Future<ICraftingPlan> begin(
-                                       boolean qualifiedTrinityCpu,
+                                       boolean trinityPlanningAvailable,
                                        long gridScope,
                                        long graphRevision,
                                        GenericStack requestedOutput,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
                                        Supplier<Future<ICraftingPlan>> ae2Calculation) {
-        if (!qualifiedTrinityCpu) {
+        if (!trinityPlanningAvailable) {
             try {
-                Future<ICraftingPlan> ae2Future = ae2Calculation.get();
-                if (ae2Future == null) {
-                    throw new IllegalStateException("AE2 planning factory returned no future");
-                }
-                return ae2Future;
+                return ae2Calculation.get();
             } catch (RuntimeException exception) {
                 return CompletableFuture.failedFuture(exception);
             }
         }
+        validatePlanningScope(gridScope, graphRevision);
 
         Future<TrinityPlanningAttempt> trinityFuture;
         try {
-            trinityFuture = this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
+            trinityFuture = this.planningCache.submit(
+                    this.initialPlannerExecutor,
+                    gridScope,
+                    trinityCalculation);
         } catch (RejectedExecutionException exception) {
             Data_Energistics.LOGGER.warn("Trinity planner queue rejected a calculation; publishing a terminal diagnostic",
                     exception);
@@ -117,8 +148,12 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                                                        long gridScope,
                                                        long graphRevision,
                                                        Callable<TrinityPlanningAttempt> trinityCalculation) {
+        validatePlanningScope(gridScope, graphRevision);
         try {
-            return this.computationCache.submit(gridScope, graphRevision, trinityCalculation);
+            return this.planningCache.submit(
+                    this.remainingPlannerExecutor,
+                    gridScope,
+                    trinityCalculation);
         } catch (RejectedExecutionException exception) {
             Data_Energistics.LOGGER.warn("Trinity planner queue rejected a continuation calculation", exception);
             return CompletableFuture.completedFuture(TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
@@ -136,22 +171,31 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     }
 
     @Override
+    public TrinityPlanningComputationResult calculateRemainingTrinity(TrinityPlanningInput input)
+                                                                                                  throws InterruptedException, ExecutionException {
+        return this.planningComputation.calculate(input);
+    }
+
+    @Override
     public TrinityComputationCache computationCache() {
-        return this.computationCache;
+        return this.planningCache;
     }
 
     @Override
     public void clearGrid(long gridScope) {
-        this.computationCache.clearGrid(gridScope);
+        this.planningCache.clearGrid(gridScope);
     }
 
     @Override
     public void close() {
         try {
-            this.computationCache.close();
+            this.planningCache.close();
         } finally {
-            if (this.ownsExecutor) {
-                this.plannerExecutor.shutdownNow();
+            if (this.ownsExecutors) {
+                this.initialPlannerExecutor.shutdownNow();
+                if (this.remainingPlannerExecutor != this.initialPlannerExecutor) {
+                    this.remainingPlannerExecutor.shutdownNow();
+                }
             }
         }
     }

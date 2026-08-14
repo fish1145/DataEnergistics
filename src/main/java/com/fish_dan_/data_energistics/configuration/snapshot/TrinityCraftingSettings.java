@@ -13,6 +13,7 @@ public record TrinityCraftingSettings(
                                       int maxScheduleStates,
                                       int graphRebuildBudgetMs,
                                       int plannerThreads,
+                                      int cpuPlannerThreads,
                                       int plannerQueueCapacity,
                                       int dynamicRetryMaxTicks,
                                       CraftingQuantityMode defaultQuantityMode)
@@ -20,7 +21,8 @@ public record TrinityCraftingSettings(
 
     public TrinityCraftingSettings {
         if (maxSccKeys <= 0 || maxBindingVariants <= 0 || maxScheduleStates <= 0 || graphRebuildBudgetMs <= 0 ||
-                plannerThreads <= 0 || plannerThreads > 8 || plannerQueueCapacity <= 0 || dynamicRetryMaxTicks <= 0) {
+                plannerThreads <= 0 || plannerThreads > 8 || cpuPlannerThreads <= 0 || cpuPlannerThreads > 8 ||
+                plannerQueueCapacity <= 0 || dynamicRetryMaxTicks <= 0) {
             throw new IllegalArgumentException("Trinity crafting budgets must be positive and use at most 8 workers");
         }
     }
@@ -31,6 +33,7 @@ public record TrinityCraftingSettings(
                 32768,
                 500000,
                 4,
+                DataEnergisticsConfiguration.TrinityCraftingSchema.recommendedPlannerThreads(availableProcessors),
                 DataEnergisticsConfiguration.TrinityCraftingSchema.recommendedPlannerThreads(availableProcessors),
                 128,
                 200,

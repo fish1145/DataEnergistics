@@ -18,7 +18,7 @@ public final class TrinityCraftingRouteResolver {
      * Resolves an immutable owning-grid and effective-service route while preserving the current virtual-membership
      * generation without changing node or grid state.
      *
-     * @param node       access-hatch grid node, or {@code null} before attachment
+     * @param node       information-exchange-depot grid node, or {@code null} before attachment
      * @param leaseEpoch current host lease epoch
      * @return resolved route, or {@code null} while the node has no owning grid or remains an inactive subordinate
      */

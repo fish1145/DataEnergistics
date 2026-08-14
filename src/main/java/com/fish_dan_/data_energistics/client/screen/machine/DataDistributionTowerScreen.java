@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
+import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
@@ -133,7 +135,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 this.menu.unlimitedChannels ? "∞" : Long.toString(this.menu.remainingChannels)));
         setTextContent("available_fe", Component.translatable(
                 "screen.data_energistics.network_fe",
-                formatFeAmount(this.menu.availableFe)));
+                TrinityAmountFormatter.format(this.menu.availableFe)));
         setTextContent("range", Component.translatable(
                 "screen.data_energistics.range",
                 formatRangeText(this.menu.chunkRadius)));
@@ -187,6 +189,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean wasFocused = this.searchBox != null && this.searchBox.isFocused();
+        if (this.searchBox != null && AETextFieldInteraction.clearOnRightClick(this.searchBox, mouseX, mouseY, button)) {
+            updateSearchSuggestion();
+            return true;
+        }
+
         BoundRow hoveredRow = findHoveredRow(mouseX, mouseY);
         if (hoveredRow != null) {
             if (hoveredRow.placeholder()) {
@@ -378,19 +385,6 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         }
 
         this.searchBox.setPlaceholder(this.searchBox.isFocused() ? null : SEARCH_HINT);
-    }
-
-    private static String formatFeAmount(long amount) {
-        if (amount >= 1_000_000_000L) {
-            return String.format(Locale.ROOT, "%.1fG", amount / 1_000_000_000.0);
-        }
-        if (amount >= 1_000_000L) {
-            return String.format(Locale.ROOT, "%.1fM", amount / 1_000_000.0);
-        }
-        if (amount >= 1_000L) {
-            return String.format(Locale.ROOT, "%.1fk", amount / 1_000.0);
-        }
-        return Long.toString(amount);
     }
 
     private BoundRow findHoveredRow(double mouseX, double mouseY) {

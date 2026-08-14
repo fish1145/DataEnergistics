@@ -28,6 +28,13 @@ import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 public final class DataEnergisticsTextureEditorResources {
 
     private static final String TRINITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/trinity_data_core/";
+    private static final String AUTO_BUILD_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/autobuild/";
+    private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
+    private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
+    private static final String MODEL_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/model/";
+    private static final String PRIORITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/priority/";
+    private static final String SLOT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/slot/";
+    private static final String STORAGE_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/storage/";
 
     private DataEnergisticsTextureEditorResources() {}
 
@@ -79,7 +86,7 @@ public final class DataEnergisticsTextureEditorResources {
                 new ColorRectTexture(0xFFE3E3EA),
                 new ColorBorderTexture(-1, 0xFF696D88)));
         provider.addResource("trinity_player_slot_background", GuiTextureGroup.of(
-                sprite("inventory_slot.png"),
+                guiSprite("inventory_slot.png"),
                 new ColorBorderTexture(-1, 0xFF696D88)));
         provider.addResource("trinity_section_background", GuiTextureGroup.of(
                 new ColorRectTexture(0xFFA7ADBF),
@@ -104,6 +111,61 @@ public final class DataEnergisticsTextureEditorResources {
      * @param provider provider receiving the raw texture assets
      */
     private static void registerTextureAssets(BuiltinResourceProvider<IGuiTexture> provider) {
+        provider.addResource("autobuild_build", autobuildSprite("build.png"));
+        provider.addResource("autobuild_detailed_adjustment", autobuildSprite("detailed_adjustment.png"));
+        provider.addResource("autobuild_detailed_material_stats", autobuildSprite("detailed_material_stats.png"));
+        provider.addResource("autobuild_structure_switch", autobuildSprite("structure_switch.png"));
+        provider.addResource("autobuild_structure_view", autobuildSprite("structure_view.png"));
+        provider.addResource("backpack_above_average", backpackSprite("above_average.png"));
+        provider.addResource("backpack_below_average", backpackSprite("below_average.png"));
+        provider.addResource("backpack_bottom_left", backpackSprite("bottom_left.png"));
+        provider.addResource("backpack_bottom_right", backpackSprite("bottom_right.png"));
+        provider.addResource("backpack_checkbox", backpackSprite("checkbox.png"));
+        provider.addResource("backpack_in_the_inventory", backpackSprite("in_the_inventory.png"));
+        provider.addResource("backpack_left_center", backpackSprite("left_center.png"));
+        provider.addResource("backpack_left_of_the_inventory", backpackSprite("left_of_the_inventory.png"));
+        provider.addResource("backpack_middle", backpackSprite("middle.png"));
+        provider.addResource("backpack_right_middle", backpackSprite("right_middle.png"));
+        provider.addResource("backpack_right_side_of_the_inventory", backpackSprite("right_side_of_the_inventory.png"));
+        provider.addResource("backpack_top_left", backpackSprite("top_left.png"));
+        provider.addResource("backpack_top_right", backpackSprite("top_right.png"));
+        provider.addResource("gui_back", guiSprite("back.png"));
+        provider.addResource("gui_background", guiSprite("background.png"));
+        provider.addResource("gui_button", guiSprite("botton.png"));
+        provider.addResource("gui_button_disabled", guiSprite("button_disabled.png"));
+        provider.addResource("gui_button_highlighted", guiSprite("button_highlighted.png"));
+        provider.addResource("gui_close", guiSprite("close.png"));
+        provider.addResource("gui_front", guiSprite("front.png"));
+        provider.addResource("gui_inventory_slot", guiSprite("inventory_slot.png"));
+        provider.addResource("gui_trinity_information_exchange_depot", guiSprite("trinity_information_exchange_depot.png"));
+        provider.addResource("gui_prepare_on", guiSprite("prepare_on.png"));
+        provider.addResource("gui_prepare_off", guiSprite("prepare_off.png"));
+        provider.addResource("gui_on", guiSprite("on.png"));
+        provider.addResource("gui_off", guiSprite("off.png"));
+        provider.addResource("gui_priority", guiSprite("priority.png"));
+        provider.addResource("gui_small_highlighted", guiSprite("small_highlighted.png"));
+        provider.addResource("gui_small_scroller", guiSprite("small_scroller.png"));
+        provider.addResource("gui_small_scroller_disabled", guiSprite("small_scroller_disabled.png"));
+        provider.addResource("gui_text_field", guiSprite("text_field.png"));
+        provider.addResource("gui_text_field_checkbox", guiSprite("text_field_checkbox.png"));
+        provider.addResource("model_home", modelSprite("home.png"));
+        provider.addResource("model_input", modelSprite("input.png"));
+        provider.addResource("model_input_and_output", modelSprite("input_and_output.png"));
+        provider.addResource("model_material_recycling", modelSprite("material_recycling.png"));
+        provider.addResource("model_pattern_row", modelSprite("model.png"));
+        provider.addResource("model_output", modelSprite("output.png"));
+        provider.addResource("model_template_rollback", modelSprite("template_rollback.png"));
+        provider.addResource("model_template_send", modelSprite("template_send.png"));
+        provider.addResource("priority_button", prioritySprite("botton.png"));
+        provider.addResource("priority_button_disabled", prioritySprite("button_disabled.png"));
+        provider.addResource("priority_button_highlighted", prioritySprite("button_highlighted.png"));
+        provider.addResource("priority_home", prioritySprite("home.png"));
+        provider.addResource("slot_button_slot", slotSprite("button_slot.png"));
+        provider.addResource("slot_button_slot_1", slotSprite("button_slot_1.png"));
+        provider.addResource("slot_button_slot_2", slotSprite("button_slot_2.png"));
+        provider.addResource("slot_model", slotSprite("model.png"));
+        provider.addResource("slot_storage", slotSprite("storage.png"));
+        provider.addResource("storage_home", storageSprite("home.png"));
         provider.addResource("trinity_cpu_entry", sprite("cpu_entry.png"));
         provider.addResource("trinity_cpu_entry_selected", sprite("cpu_entry_selected.png"));
         provider.addResource("trinity_cpu_icon_craft", sprite("cpu_icon_craft.png"));
@@ -114,8 +176,8 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("trinity_cpu_idle", sprite("cpu_idle.png"));
         provider.addResource("trinity_cpu_panel", sprite("cpu_panel.png"));
         provider.addResource("trinity_cpu_task_overlay", sprite("cpu_task_overlay.png"));
+        provider.addResource("trinity_home", sprite("home.png"));
         provider.addResource("trinity_host_layout_reference", sprite("host_layout_reference.png"));
-        provider.addResource("trinity_inventory_slot", sprite("inventory_slot.png"));
         provider.addResource("trinity_status_panel", sprite("status_panel.png"));
         provider.addResource("trinity_storage_capacity_track", sprite("storage_capacity_track.png"));
         provider.addResource("trinity_storage_fluid_fill", sprite("storage_fluid_fill.png"));
@@ -131,5 +193,75 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture sprite(String fileName) {
         return SpriteTexture.of(TRINITY_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for an automatic-build GUI asset.
+     *
+     * @param fileName asset file under the automatic-build GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture autobuildSprite(String fileName) {
+        return SpriteTexture.of(AUTO_BUILD_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a top-level GUI asset.
+     *
+     * @param fileName asset file directly under the GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture guiSprite(String fileName) {
+        return SpriteTexture.of(GUI_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a model GUI asset.
+     *
+     * @param fileName asset file under the model GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture modelSprite(String fileName) {
+        return SpriteTexture.of(MODEL_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a priority GUI asset.
+     *
+     * @param fileName asset file under the priority GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture prioritySprite(String fileName) {
+        return SpriteTexture.of(PRIORITY_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a backpack GUI asset.
+     *
+     * @param fileName asset file under the backpack GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture backpackSprite(String fileName) {
+        return SpriteTexture.of(BACKPACK_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a slot GUI asset.
+     *
+     * @param fileName asset file under the slot GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture slotSprite(String fileName) {
+        return SpriteTexture.of(SLOT_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for a storage GUI asset.
+     *
+     * @param fileName asset file under the storage GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture storageSprite(String fileName) {
+        return SpriteTexture.of(STORAGE_TEXTURE_ROOT + fileName);
     }
 }

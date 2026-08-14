@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
@@ -25,7 +25,7 @@ public class NetworkStatusJadeProvider implements IBlockComponentProvider, IServ
 
     public static final NetworkStatusJadeProvider DIGITAL_STORAGE_DEPOT = new NetworkStatusJadeProvider("digital_storage_depot", DigitalStorageDepotBlock.class);
     public static final NetworkStatusJadeProvider DATA_SANCTUM_INTERFACE = new NetworkStatusJadeProvider("data_sanctum_interface", DataSanctumInterfaceBlock.class);
-    public static final NetworkStatusJadeProvider ME_ACCESS_HATCH = new NetworkStatusJadeProvider("me_access_hatch", CompartmentBlock.class);
+    public static final NetworkStatusJadeProvider TRINITY_INFORMATION_EXCHANGE_DEPOT = new NetworkStatusJadeProvider("trinity_information_exchange_depot", CompartmentBlock.class);
     public static final NetworkStatusJadeProvider TUNING_FORK_BASE = new NetworkStatusJadeProvider("tuning_fork_base", TuningForkBaseBlock.class);
 
     private static final String TAG_ONLINE = "online";
@@ -73,8 +73,8 @@ public class NetworkStatusJadeProvider implements IBlockComponentProvider, IServ
         if (accessor.getBlockEntity() instanceof DataSanctumInterfaceBlockEntity dataInterface) {
             return dataInterface.isOnline();
         }
-        if (accessor.getBlockEntity() instanceof TrinityAccessHatchBlockEntity accessHatch) {
-            return accessHatch.isAccessOnline();
+        if (accessor.getBlockEntity() instanceof TrinityInformationExchangeDepotBlockEntity exchangeDepot) {
+            return exchangeDepot.isAccessOnline();
         }
         if (accessor.getBlockEntity() instanceof TuningForkBaseBlockEntity tuningForkBase) {
             return tuningForkBase.isOnline();

@@ -16,7 +16,7 @@ public enum CompartmentType {
     ME_INPUT("me_input", true),
     ME_OUTPUT("me_output", true),
     PATTERN_BUFFER("pattern_buffer", false),
-    TRINITY_ACCESS("trinity_access", true);
+    TRINITY_INFORMATION_EXCHANGE("trinity_information_exchange", true);
 
     private final String id;
     private final boolean aeCapable;

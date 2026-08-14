@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
 import com.fish_dan_.data_energistics.client.screen.Ldlib2AeProtocolScreen;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeItemSlot;
+import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.inventory.Slot;

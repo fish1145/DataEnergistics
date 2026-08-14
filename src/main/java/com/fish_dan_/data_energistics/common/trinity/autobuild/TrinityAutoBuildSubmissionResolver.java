@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.trinity.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.json.definition.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
@@ -12,7 +13,9 @@ import com.modularmc.mdl.api.multiblock.RepeatRange;
 import java.util.List;
 import java.util.Map;
 
-/** Converts an untrusted revision-bound UI submission into the existing atomic builder request. */
+/**
+ * Converts an untrusted revision-bound UI submission into the existing atomic builder request.
+ */
 public final class TrinityAutoBuildSubmissionResolver {
 
     /**
@@ -38,10 +41,6 @@ public final class TrinityAutoBuildSubmissionResolver {
         if (fingerprint.variantIndex() != 0) {
             throw new IllegalArgumentException("Trinity auto-build currently supports only explicit variant 0");
         }
-        if (!fingerprint.candidateSelections().isEmpty()) {
-            throw new IllegalArgumentException("Trinity auto-build currently supports only default candidates");
-        }
-
         String structureName = fingerprint.structureKey().structureName();
         SubstructurePreviewSpec structure = spec.substructure(structureName);
         JsonMultiBlockStructureKey expectedKey = structure.definition(fingerprint.variantIndex()).key();
@@ -65,6 +64,9 @@ public final class TrinityAutoBuildSubmissionResolver {
         for (Map.Entry<String, Integer> tier : fingerprint.tierSelections().entrySet()) {
             selection = selection.withTier(tier.getKey(), tier.getValue());
         }
+        for (Map.Entry<PreviewPredicateKey, Integer> candidate : fingerprint.candidateSelections().entrySet()) {
+            selection = selection.withCandidate(candidate.getKey(), candidate.getValue());
+        }
         ProjectionFingerprint rebuilt = ProjectionFingerprint.from(selection);
         if (!rebuilt.equals(fingerprint)) {
             throw new IllegalArgumentException("Trinity auto-build projection fingerprint did not reconstruct exactly");
@@ -82,7 +84,8 @@ public final class TrinityAutoBuildSubmissionResolver {
                 new TrinityAutoBuildOptions(
                         submission.buildRequested(),
                         repeatCount,
-                        Map.of(tierCategory, fingerprint.tierSelections().get(tierCategory))));
+                        Map.of(tierCategory, fingerprint.tierSelections().get(tierCategory)),
+                        fingerprint.candidateSelections()));
     }
 
     private static int resolveBuilderRepeat(String structureName,

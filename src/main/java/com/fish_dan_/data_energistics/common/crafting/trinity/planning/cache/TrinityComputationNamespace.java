@@ -5,6 +5,9 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
  */
 public enum TrinityComputationNamespace {
 
+    /** Caller-owned planning orchestration tracked for cancellation but never retained in the shared LRU. */
+    PLANNING_REQUEST(null),
+
     /** Target-reachable graph derived from one publication revision. */
     REACHABLE_GRAPH(RevisionDomain.PLANNING),
 

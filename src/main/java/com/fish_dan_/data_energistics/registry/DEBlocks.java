@@ -285,9 +285,9 @@ public final class DEBlocks {
     public static final DeferredBlock<CompartmentBlock> ME_PATTERN_BUFFER = registerCompartment(
             "me_pattern_buffer",
             CompartmentType.PATTERN_BUFFER);
-    public static final DeferredBlock<CompartmentBlock> TRINITY_ACCESS_HATCH = registerCompartment(
-            "me_access_hatch",
-            CompartmentType.TRINITY_ACCESS);
+    public static final DeferredBlock<CompartmentBlock> TRINITY_INFORMATION_EXCHANGE_DEPOT = registerCompartment(
+            "trinity_information_exchange_depot",
+            CompartmentType.TRINITY_INFORMATION_EXCHANGE);
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(
             "budding_data_crystal_0",

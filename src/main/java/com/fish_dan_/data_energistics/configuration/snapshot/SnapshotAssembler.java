@@ -43,6 +43,7 @@ public final class SnapshotAssembler {
                 source,
                 revision,
                 schema.trinityCrafting.plannerThreads,
+                schema.trinityCrafting.cpuPlannerThreads,
                 schema.trinityCrafting.plannerQueueCapacity);
     }
 
@@ -51,6 +52,7 @@ public final class SnapshotAssembler {
                                                  Path source,
                                                  long revision,
                                                  int activePlannerThreads,
+                                                 int activeCpuPlannerThreads,
                                                  int activePlannerQueueCapacity) throws InvalidConfigurationException {
         DataRipperSettings dataRipper = dataRipper(schema, source);
         DataDistributionTowerSettings tower = tower(schema, source);
@@ -63,6 +65,7 @@ public final class SnapshotAssembler {
                 schema,
                 source,
                 activePlannerThreads,
+                activeCpuPlannerThreads,
                 activePlannerQueueCapacity);
         TrinityDispatchSettings dispatch = dispatch(schema, source);
         return new ConfigurationSnapshot(
@@ -339,6 +342,7 @@ public final class SnapshotAssembler {
                                                     DataEnergisticsConfiguration schema,
                                                     Path source,
                                                     int activePlannerThreads,
+                                                    int activeCpuPlannerThreads,
                                                     int activePlannerQueueCapacity) throws InvalidConfigurationException {
         DataEnergisticsConfiguration.TrinityCraftingSchema crafting = schema.trinityCrafting;
         if (crafting.defaultQuantityMode == null) {
@@ -369,6 +373,7 @@ public final class SnapshotAssembler {
                         1,
                         Integer.MAX_VALUE),
                 integer(source, "trinityCrafting.plannerThreads", activePlannerThreads, 1, 8),
+                integer(source, "trinityCrafting.cpuPlannerThreads", activeCpuPlannerThreads, 1, 8),
                 integer(
                         source,
                         "trinityCrafting.plannerQueueCapacity",

@@ -51,7 +51,7 @@ public record TrinityDispatchSettings(
                         TimeUnit.MILLISECONDS.toNanos(this.hardCommitBudgetMs)),
                 CraftingDispatchBudget.actorPermitsFor(this.hardGridAttempts),
                 this.hardProviderAttempts,
-                DispatchProposalLimits.DEFAULT_QUEUE_CAPACITY,
+                DispatchProposalLimits.DEFAULT_MAX_OUTSTANDING,
                 1,
                 true);
         CraftingDispatchBudget safeBudget = new CraftingDispatchBudget(

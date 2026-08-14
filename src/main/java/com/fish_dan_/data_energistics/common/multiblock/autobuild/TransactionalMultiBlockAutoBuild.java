@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,6 +28,7 @@ import appeng.api.parts.PartHelper;
 import appeng.parts.PartPlacement;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
+import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import org.apache.logging.log4j.Logger;
@@ -37,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Two-phase builder for MDLib-backed structures. Pre-publication failures restore staged state and supplies;
@@ -178,6 +181,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         MultiblockState state = new MultiblockState(context.world(), context.origin(), context.structureName());
         state.clean();
         ArrayList<PositionPlan> positions = new ArrayList<>();
+        Set<PreviewPredicateKey> appliedCandidateSelections = new LinkedHashSet<>();
         int reused = 0;
         int expandedZ = coordinates.minZ();
 
@@ -187,7 +191,14 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     int patternZ = pattern.unitStarts[unit] + inner;
                     state.getLayerCount().clear();
                     state.getStructureLayerCount().clear();
-                    LayerOutcome layer = planLayer(context, coordinates, state, patternZ, expandedZ, positions);
+                    LayerOutcome layer = planLayer(
+                            context,
+                            coordinates,
+                            state,
+                            patternZ,
+                            expandedZ,
+                            positions,
+                            appliedCandidateSelections);
                     reused += layer.reused();
                     if (layer.failure() != null) {
                         return new PlanOutcome(List.of(), reused, layer.failure());
@@ -195,6 +206,14 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     expandedZ++;
                 }
             }
+        }
+        if (!appliedCandidateSelections.containsAll(context.candidateSelections().keySet())) {
+            Set<PreviewPredicateKey> unknown = new LinkedHashSet<>(context.candidateSelections().keySet());
+            unknown.removeAll(appliedCandidateSelections);
+            return new PlanOutcome(List.of(), reused, new Failure(
+                    FailureType.UNSUPPORTED_CANDIDATE,
+                    null,
+                    "Candidate selections do not address buildable source predicates: " + unknown));
         }
         return new PlanOutcome(List.copyOf(positions), reused, null);
     }
@@ -204,7 +223,8 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                                           MultiblockState state,
                                           int patternZ,
                                           int expandedZ,
-                                          List<PositionPlan> positions) {
+                                          List<PositionPlan> positions,
+                                          Set<PreviewPredicateKey> appliedCandidateSelections) {
         int reused = 0;
         for (int yOffset = coordinates.minY(); yOffset < coordinates.minY() + coordinates.thumbLength(); yOffset++) {
             for (int xOffset = coordinates.minX(); xOffset < coordinates.minX() + coordinates.palmLength(); xOffset++) {
@@ -223,7 +243,19 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     continue;
                 }
 
-                PositionOutcome positionOutcome = preflightPosition(context, state, predicate, target, positions);
+                PreviewPredicateKey predicateKey = coordinates.predicateKey(patternZ, yOffset, xOffset);
+                int candidateIndex = context.candidateSelections().getOrDefault(predicateKey, -1);
+                if (candidateIndex >= 0) {
+                    appliedCandidateSelections.add(predicateKey);
+                }
+
+                PositionOutcome positionOutcome = preflightPosition(
+                        context,
+                        state,
+                        predicate,
+                        target,
+                        candidateIndex,
+                        positions);
                 if (positionOutcome.failure() != null) {
                     return new LayerOutcome(reused, positionOutcome.failure());
                 }
@@ -239,6 +271,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                                                      MultiblockState state,
                                                      TraceabilityPredicate predicate,
                                                      BlockPos target,
+                                                     int candidateIndex,
                                                      List<PositionPlan> positions) {
         if (!context.level().isLoaded(target) || !state.update(target, predicate)) {
             return PositionOutcome.failure(failure(
@@ -256,10 +289,32 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
 
         TierSelection tierSelection = tierSelectionOutcome.selection();
+        Candidate explicitCandidate = null;
+        if (candidateIndex >= 0) {
+            ExplicitCandidateOutcome explicitOutcome = resolveExplicitCandidate(
+                    predicate,
+                    tierSelection,
+                    candidateIndex,
+                    target);
+            if (explicitOutcome.failure() != null) {
+                return PositionOutcome.failure(explicitOutcome.failure());
+            }
+            if (explicitOutcome.empty()) {
+                return PositionOutcome.plannedPosition();
+            }
+            explicitCandidate = explicitOutcome.candidate();
+        }
+
         BlockState currentState = context.level().getBlockState(target);
-        boolean predicateMatched = predicate.test(state);
-        boolean requiresPart = requiresPartCandidate(predicate);
-        boolean missingRequiredPart = requiresPart && !hasMatchingRequiredPart(context, predicate, target);
+        boolean requiresPart = explicitCandidate == null ?
+                requiresPartCandidate(predicate) :
+                explicitCandidate.stack().getItem() instanceof IPartItem<?>;
+        boolean missingRequiredPart = requiresPart && (explicitCandidate == null ?
+                !hasMatchingRequiredPart(context, predicate, target) :
+                !hasMatchingRequiredPart(context, explicitCandidate, target));
+        boolean predicateMatched = explicitCandidate == null ?
+                predicate.test(state) :
+                matchesCandidate(context, explicitCandidate, currentState, target);
         boolean replacesExistingTier = tierSelection.replacesExisting(
                 currentState.getBlock(),
                 context.tierRanks());
@@ -279,7 +334,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     "Required position is occupied by a non-replaceable block"));
         }
 
-        List<Candidate> candidates = supportedCandidates(predicate, tierSelection, missingRequiredPart);
+        List<Candidate> candidates = explicitCandidate == null ?
+                supportedCandidates(predicate, tierSelection, missingRequiredPart) :
+                List.of(explicitCandidate);
         if (candidates.isEmpty()) {
             return PositionOutcome.failure(failure(
                     FailureType.UNSUPPORTED_CANDIDATE,
@@ -398,6 +455,57 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         return List.copyOf(candidates);
     }
 
+    private static ExplicitCandidateOutcome resolveExplicitCandidate(TraceabilityPredicate predicate,
+                                                                     TierSelection tierSelection,
+                                                                     int candidateIndex,
+                                                                     BlockPos target) {
+        boolean allowsEmpty = predicate.hasAir() || predicate.blockStateCandidates().stream().anyMatch(BlockState::isAir);
+        ArrayList<Candidate> candidates = new ArrayList<>();
+        List<PatternCandidate> patternCandidates;
+        try {
+            patternCandidates = predicate.patternCandidates();
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            return ExplicitCandidateOutcome.failure(failure(
+                    FailureType.UNSUPPORTED_CANDIDATE,
+                    target,
+                    "Structure predicate candidate pairing failed: " + exception.getMessage()));
+        }
+        for (PatternCandidate patternCandidate : patternCandidates) {
+            BlockState previewState = patternCandidate.previewState();
+            if (previewState.isAir()) {
+                return ExplicitCandidateOutcome.failure(failure(
+                        FailureType.UNSUPPORTED_CANDIDATE,
+                        target,
+                        "Air candidates cannot expose placement items"));
+            }
+            if (tierSelection.isSelected() && previewState.getBlock() != tierSelection.selectedBlock()) {
+                continue;
+            }
+            ItemStack placementStack = patternCandidate.placementStack().copyWithCount(1);
+            boolean part = placementStack.getItem() instanceof IPartItem<?>;
+            if (!part && !(placementStack.getItem() instanceof BlockItem)) {
+                return ExplicitCandidateOutcome.failure(failure(
+                        FailureType.UNSUPPORTED_CANDIDATE,
+                        target,
+                        "Selected preview candidate is neither a block nor an AE2 part"));
+            }
+            addCandidate(candidates, new Candidate(placementStack, part ? null : previewState));
+        }
+
+        if (allowsEmpty && candidateIndex == 0) {
+            return ExplicitCandidateOutcome.emptySelection();
+        }
+
+        int concreteIndex = candidateIndex - (allowsEmpty ? 1 : 0);
+        if (concreteIndex < 0 || concreteIndex >= candidates.size()) {
+            return ExplicitCandidateOutcome.failure(failure(
+                    FailureType.UNSUPPORTED_CANDIDATE,
+                    target,
+                    "Selected candidate index " + candidateIndex + " is outside the resolved predicate candidates"));
+        }
+        return ExplicitCandidateOutcome.selected(candidates.get(concreteIndex));
+    }
+
     private static boolean requiresPartCandidate(TraceabilityPredicate predicate) {
         for (ItemStack candidate : predicate.placementCandidates()) {
             if (candidate.getItem() instanceof IPartItem<?>) {
@@ -424,6 +532,26 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             }
         }
         return false;
+    }
+
+    private static boolean hasMatchingRequiredPart(Context context, Candidate candidate, BlockPos target) {
+        if (!(candidate.stack().getItem() instanceof IPartItem<?> partItem)) {
+            return false;
+        }
+        Direction placementSide = context.partSideResolver().resolve(target, candidate.stack().copyWithCount(1));
+        return placementSide != null &&
+                (isPartItem(PartHelper.getPart(context.level(), target, null), partItem) ||
+                        isPartItem(PartHelper.getPart(context.level(), target, placementSide), partItem));
+    }
+
+    private static boolean matchesCandidate(Context context,
+                                            Candidate candidate,
+                                            BlockState currentState,
+                                            BlockPos target) {
+        if (candidate.stack().getItem() instanceof IPartItem<?>) {
+            return hasMatchingRequiredPart(context, candidate, target);
+        }
+        return candidate.desiredState() != null && candidate.desiredState().equals(currentState);
     }
 
     private static boolean isPartItem(@Nullable IPart part, IPartItem<?> item) {
@@ -1236,6 +1364,23 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
     private record Candidate(ItemStack stack, @Nullable BlockState desiredState) {}
 
+    private record ExplicitCandidateOutcome(@Nullable Candidate candidate,
+                                            boolean empty,
+                                            @Nullable Failure failure) {
+
+        private static ExplicitCandidateOutcome selected(Candidate candidate) {
+            return new ExplicitCandidateOutcome(candidate, false, null);
+        }
+
+        private static ExplicitCandidateOutcome emptySelection() {
+            return new ExplicitCandidateOutcome(null, true, null);
+        }
+
+        private static ExplicitCandidateOutcome failure(Failure failure) {
+            return new ExplicitCandidateOutcome(null, false, failure);
+        }
+    }
+
     private record AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {}
 
     private record CandidateSelection(@Nullable Candidate candidate,
@@ -1339,7 +1484,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                                boolean physicallyStaged,
                                boolean deferredPartHost) {}
 
-    /** Tracks only positions whose state was physically changed before publication. */
+    /**
+     * Tracks only positions whose state was physically changed before publication.
+     */
     private static final class StagingProgress {
 
         private final Map<BlockPos, WorldSnapshot> physicalSnapshots = new LinkedHashMap<>();
@@ -1391,7 +1538,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
     }
 
-    /** One planned material deduction with its source slot and durable publication target. */
+    /**
+     * One planned material deduction with its source slot and durable publication target.
+     */
     static record MaterialReservation(BlockPos position, int inventorySlot, ItemStack stack) {
 
         MaterialReservation {
@@ -1400,7 +1549,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
     }
 
-    /** Reports whether every deducted reservation was either returned or deliberately retained after publication. */
+    /**
+     * Reports whether every deducted reservation was either returned or deliberately retained after publication.
+     */
     static record RefundOutcome(boolean completed, @Nullable String detail) {
 
         private static RefundOutcome success() {
@@ -1412,7 +1563,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
     }
 
-    /** Owns only the material actually deducted by this auto-build request. */
+    /**
+     * Owns only the material actually deducted by this auto-build request.
+     */
     static final class InventoryTransaction {
 
         private final Inventory inventory;
@@ -1790,6 +1943,10 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                         yOffset);
             }
             return this.pattern.getPredicate(z, y, x);
+        }
+
+        private PreviewPredicateKey predicateKey(int z, int yOffset, int xOffset) {
+            return new PreviewPredicateKey(z, yOffset - this.minY, xOffset - this.minX);
         }
 
         private BlockPos actualRelativeOffset(int xOffset,

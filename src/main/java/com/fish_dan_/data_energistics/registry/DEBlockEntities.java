@@ -18,8 +18,8 @@ import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
@@ -122,11 +122,11 @@ public final class DEBlockEntities {
             () -> BlockEntityType.Builder.of(
                     MePatternBufferBlockEntity::new,
                     DEBlocks.ME_PATTERN_BUFFER.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityAccessHatchBlockEntity>> TRINITY_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "me_access_hatch",
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityInformationExchangeDepotBlockEntity>> TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "trinity_information_exchange_depot",
             () -> BlockEntityType.Builder.of(
-                    TrinityAccessHatchBlockEntity::new,
-                    DEBlocks.TRINITY_ACCESS_HATCH.get()).build(null));
+                    TrinityInformationExchangeDepotBlockEntity::new,
+                    DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityPatternCoreBlockEntity>> TRINITY_PATTERN_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "trinity_pattern_core",
             () -> BlockEntityType.Builder.of(
@@ -146,7 +146,7 @@ public final class DEBlockEntities {
                 type == ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get() ||
-                type == TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get();
+                type == TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get();
     }
 
     public static void register(IEventBus modEventBus) {

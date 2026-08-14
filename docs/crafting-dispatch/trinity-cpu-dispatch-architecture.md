@@ -101,7 +101,7 @@ Phase 0 至 Phase 2 已补齐：
 VirtualGrid 的 P0 身份缺口已通过 typed execution route 修复。`TrinityCraftingExecutionRoute` 同时绑定物理
 `owningGrid`、实际提供 crafting/storage/energy 服务的 `serviceGrid`、access lease epoch 和 virtual membership
 generation。CPU 发布、提交、在线判定、状态菜单和输出路由统一使用 `serviceGrid`；`connectedGrid()`、`accessGrid()`、
-Access Hatch 选举和物理租约仍保留 owning grid 语义。inactive、未注册或代次不匹配的虚拟成员不产生可执行路由，旧菜单
+信息交换仓选举和物理租约仍保留 owning grid 语义。inactive、未注册或代次不匹配的虚拟成员不产生可执行路由，旧菜单
 目标与后续 proposal 因完整 route token 不匹配而失效。
 
 Phase 3 同步容量路径现已接入：
@@ -412,7 +412,7 @@ CPU 根据能力选择三种模式：
 
 ### 11.1 原子计数合批
 
-适用于原版普通外部库存路径、本模组 ME 访问仓以及明确具有一次性 admission 契约的路径。
+适用于原版普通外部库存路径、本模组三位一体信息交换仓以及明确具有一次性 admission 契约的路径。
 
 - 一次物理调用承载多个相同逻辑 craft；
 - preparation 固定目标和接受数量；
@@ -663,7 +663,7 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 | 供应器类别 | 容量来源 | CPU 模式 | 备注 |
 | --- | --- | --- | --- |
 | AE2 精确原版 `PatternProviderLogic` | 原版 target 模拟和现有 accessor | `TARGETED` counted 切片 | Blocking/Lock/专用机器回退单次 |
-| Trinity ME 访问仓 | 本模组目录和一次性 admission | `TARGETED` counted 切片 | 保留目录身份与所有权边界 |
+| 三位一体信息交换仓 | 本模组目录和一次性 admission | `TARGETED` counted 切片 | 保留目录身份与所有权边界 |
 | 本模组自适应样板供应器普通路线 | 原版 target 模拟和现有 accessor | `TARGETED` counted 切片 | 特殊 addon 路线不复用普通语义 |
 | 公共 API 直接或注册的 counted provider | provider 自身 admission | `AGGREGATE` counted | API 保持软依赖，不暴露内部 target 类型 |
 | AE2 `PatternProviderLogic` 子类、ExtendedAE Plus 与自适应特殊 addon 路线 | 无完整编译期定向契约 | `UNKNOWN` 单次 | 保留真实 `pushPattern` hook、内部顺序与回收语义 |
@@ -758,7 +758,7 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已实现 `CapacitySlicePlanner` 的稳定 cursor、启动优先最大最小公平切分和 `BigInteger` 数量边界，slice 数只受物理调用额度约束；
 - 已将 `CraftingDispatchCommitter` 接入 Trinity 同步 provider 主路径，统一物理 attempt、输入所有权判定和一次性账本结算；
 - 已接入 ready work 的服务器线程惰性快照、只读输入 prototype、提交前 revision/route 重验和稳定 cursor 路由；
-- 已支持 AE2 精确原版 provider、Trinity Access Hatch 和 Adaptive 普通路线的 `TARGETED` counted 切片；公共 counted API 使用 `AGGREGATE`；
+- 已支持 AE2 精确原版 provider、三位一体信息交换仓和 Adaptive 普通路线的 `TARGETED` counted 切片；公共 counted API 使用 `AGGREGATE`；
 - 已将 AE2 provider 子类及无法证明语义等价的 addon 路线显式降级为 `UNKNOWN` 单次，ExtendedAE Plus 不会绕过真实 hook；
 - 已增加独立每网格 4 ms 容量采集预算，覆盖只读 prototype 构造和 provider 容量模拟；该预算与 30 ms commit 预算分别计量；
 - 供应器兼容层不加入任何写行为。

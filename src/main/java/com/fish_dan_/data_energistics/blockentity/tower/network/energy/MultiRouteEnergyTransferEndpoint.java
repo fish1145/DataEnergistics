@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
+import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointRole;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 
 import org.jetbrains.annotations.Nullable;
@@ -96,10 +97,12 @@ public final class MultiRouteEnergyTransferEndpoint implements TowerEnergyTransf
 
             if (physicalSnapshot == null) {
                 physicalSnapshot = snapshot;
-            } else if (snapshot.stored() != physicalSnapshot.stored() || snapshot.capacity() != physicalSnapshot.capacity()) {
-                throw new TowerEnergyTransferException(
-                        "Energy routes for one backing reported inconsistent state: " + physicalSnapshot.stored() + "/" + physicalSnapshot.capacity() + " and " + snapshot.stored() + "/" + snapshot.capacity() + " through " + description());
-            }
+            } else if (snapshot.role() != physicalSnapshot.role() ||
+                    snapshot.stored() != physicalSnapshot.stored() ||
+                    snapshot.capacity() != physicalSnapshot.capacity()) {
+                        throw new TowerEnergyTransferException(
+                                "Energy routes for one backing reported inconsistent state: " + physicalSnapshot.stored() + "/" + physicalSnapshot.capacity() + " and " + snapshot.stored() + "/" + snapshot.capacity() + " through " + description());
+                    }
             if (snapshot.direction().allowsExtract() && (extractionSnapshot == null || snapshot.extractable() > extractionSnapshot.extractable())) {
                 this.selectedExtractionRoute = route;
                 extractionSnapshot = snapshot;
@@ -129,12 +132,17 @@ public final class MultiRouteEnergyTransferEndpoint implements TowerEnergyTransf
         if (direction == null) {
             throw new TowerEnergyTransferException("Frozen energy backing exposes no usable route: " + description());
         }
+        long extractable = extractionSnapshot == null ? 0 : extractionSnapshot.extractable();
+        long receivable = insertionSnapshot == null ? 0 : insertionSnapshot.receivable();
+        if (physicalSnapshot.role() == TowerEnergyEndpointRole.BUFFER) {
+            return TowerEnergyEndpointSnapshot.buffer(this.endpoint, extractable, receivable);
+        }
         return new TowerEnergyEndpointSnapshot(
                 this.endpoint,
                 physicalSnapshot.stored(),
                 physicalSnapshot.capacity(),
-                extractionSnapshot == null ? 0 : extractionSnapshot.extractable(),
-                insertionSnapshot == null ? 0 : insertionSnapshot.receivable(),
+                extractable,
+                receivable,
                 direction);
     }
 

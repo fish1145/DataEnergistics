@@ -1,0 +1,72 @@
+package com.fish_dan_.data_energistics.gui.ldlib2.trinity.core;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
+
+import java.util.List;
+
+/**
+ * Stable production identities for Trinity Data Core actions and child UI.
+ */
+public final class TrinityDataCoreHostUiKeys {
+
+    /**
+     * Automatic-build configuration and structure-preview window.
+     */
+    public static final HostUiKey AUTO_BUILD = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/auto_build"));
+
+    /**
+     * Exact-key contents and internal-capacity window for the Trinity data store.
+     */
+    public static final HostUiKey STORAGE = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/storage"));
+
+    /**
+     * Aggregate installed-pattern catalog and pattern-maintenance window.
+     */
+    public static final HostUiKey PATTERN = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/pattern"));
+
+    /**
+     * Server-authoritative editor for the Data Core storage mount priority.
+     */
+    public static final HostUiKey STORAGE_PRIORITY = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/storage_priority"));
+
+    /**
+     * Server-authoritative editor for the aggregate Trinity crafting-provider priority.
+     */
+    public static final HostUiKey PATTERN_PRIORITY = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/pattern_priority"));
+
+    /**
+     * Static menu action that returns only installed patterns from the current Trinity catalog.
+     */
+    public static final HostUiKey REFUND_PATTERNS = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/refund_patterns"));
+
+    /**
+     * Static menu action that returns queued inputs and pending outputs without touching installed patterns.
+     */
+    public static final HostUiKey REFUND_RETAINED_ITEMS = new HostUiKey(
+            Data_Energistics.id("trinity_data_core/refund_retained_items"));
+
+    private static final List<HostUiKey> REGISTRATION_ORDER = List.of(
+            AUTO_BUILD,
+            STORAGE,
+            PATTERN,
+            STORAGE_PRIORITY,
+            PATTERN_PRIORITY);
+
+    private TrinityDataCoreHostUiKeys() {}
+
+    /**
+     * Returns the immutable client/server provider registration order sealed by the host coordinator.
+     *
+     * @return stable hosted-window identities in client/server protocol order
+     */
+    public static List<HostUiKey> registrationOrder() {
+        return REGISTRATION_ORDER;
+    }
+}

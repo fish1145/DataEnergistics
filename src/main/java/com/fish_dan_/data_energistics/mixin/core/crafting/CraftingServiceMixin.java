@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
@@ -211,7 +211,7 @@ public abstract class CraftingServiceMixin
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode());
-        long maxTrinityBytes = dataEnergistics$maxEligibleTrinityBytes(actionSource);
+        long maxTrinityBytes = dataEnergistics$maxPlanningTrinityBytes(actionSource);
         if (maxTrinityBytes <= 0L) {
             return original.call(level, simRequester, what, amount, strategy);
         }
@@ -301,8 +301,16 @@ public abstract class CraftingServiceMixin
         return Collections.unmodifiableMap(available);
     }
 
+    /**
+     * Returns the largest online Trinity coordinator capacity eligible to plan for this request.
+     *
+     * <p>
+     * Worker occupancy is deliberately excluded because it is transient execution state. CPU availability remains
+     * enforced when the completed plan is submitted.
+     * </p>
+     */
     @Unique
-    private long dataEnergistics$maxEligibleTrinityBytes(@Nullable IActionSource source) {
+    private long dataEnergistics$maxPlanningTrinityBytes(@Nullable IActionSource source) {
         long maxBytes = 0L;
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             if (runtime.publishedCpus().isEmpty()) {
@@ -314,7 +322,6 @@ public abstract class CraftingServiceMixin
                     coordinator.canBeAutoSelectedFor(source);
             if (coordinator.number() == 0 &&
                     coordinator.isActive() &&
-                    coordinator.canAcceptJob() &&
                     sourceAllowed) {
                 maxBytes = Math.max(maxBytes, coordinator.getAvailableStorage());
             }
@@ -346,7 +353,7 @@ public abstract class CraftingServiceMixin
     private void dataEnergistics$markAddedTrinityDataCoreCpuListDirty(IGridNode gridNode,
                                                                       CompoundTag savedData,
                                                                       CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
+        if (gridNode.getOwner() instanceof TrinityInformationExchangeDepotBlockEntity) {
             this.updateList = true;
         }
     }
@@ -354,7 +361,7 @@ public abstract class CraftingServiceMixin
     @Inject(method = "removeNode", at = @At("HEAD"))
     private void dataEnergistics$removeTrinityDataCoreCpuNode(IGridNode gridNode, CallbackInfo ci) {
         boolean withdrawn = data_energistics$withdraw(gridNode);
-        if (withdrawn || gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
+        if (withdrawn || gridNode.getOwner() instanceof TrinityInformationExchangeDepotBlockEntity) {
             this.updateList = true;
         }
     }
@@ -362,8 +369,8 @@ public abstract class CraftingServiceMixin
     @Inject(method = "updateCPUClusters", at = @At("RETURN"))
     private void dataEnergistics$updateTrinityDataCoreCpuClusters(CallbackInfo ci) {
         Map<IGridNode, TrinityDataCoreCraftingRuntime> scannedRuntimes = new IdentityHashMap<>();
-        for (IGridNode node : this.grid.getMachineNodes(TrinityAccessHatchBlockEntity.class)) {
-            TrinityAccessHatchBlockEntity hatch = (TrinityAccessHatchBlockEntity) node.getOwner();
+        for (IGridNode node : this.grid.getMachineNodes(TrinityInformationExchangeDepotBlockEntity.class)) {
+            TrinityInformationExchangeDepotBlockEntity hatch = (TrinityInformationExchangeDepotBlockEntity) node.getOwner();
             TrinityDataCoreCraftingRuntime runtime = hatch.boundCraftingRuntime();
             if (runtime != null) {
                 scannedRuntimes.put(node, runtime);
@@ -590,7 +597,7 @@ public abstract class CraftingServiceMixin
         }
         long gridScope = data_energistics$craftingProviderPublicationIndex().publicationScope();
         try {
-            TrinityDispatchProposalLifecycle.scheduler().clearGrid(gridScope);
+            TrinityDispatchProposalLifecycle.clearGrid(gridScope);
             TrinityPlanningGatewayLifecycle.gateway().clearGrid(gridScope);
             this.dataEnergistics$trinityCraftingGraphRebuilder = null;
             this.dataEnergistics$planningGridCleared = true;

@@ -221,7 +221,7 @@ public final class TrinityRemainingPlanCalculation {
                                                     Map<AEKey, BigInteger> available,
                                                     TrinityCrafting settings) {
         try {
-            TrinityPlanningComputationResult computation = gateway.calculateTrinity(new TrinityPlanningInput(
+            TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
                     gridScope,
                     graph,
                     target,

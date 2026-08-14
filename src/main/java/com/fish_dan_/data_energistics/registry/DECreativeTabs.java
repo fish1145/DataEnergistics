@@ -169,7 +169,7 @@ public final class DECreativeTabs {
         output.accept(DEItems.ME_COMPOSITE_INPUT_WAREHOUSE);
         output.accept(DEItems.ME_COMPOSITE_OUTPUT_WAREHOUSE);
         output.accept(DEItems.ME_PATTERN_BUFFER);
-        output.accept(DEItems.TRINITY_ACCESS_HATCH);
+        output.accept(DEItems.TRINITY_INFORMATION_EXCHANGE_DEPOT);
 
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_1M);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_4M);

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.screen.patternencoding;
 import com.fish_dan_.data_energistics.client.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
+import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.widget.PatternRecipeTypeToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
@@ -10,7 +11,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -138,6 +138,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     @Override
     public void init() {
         super.init();
+        PatternEncodingPreferencesClient.initializeMenu(this.menu);
         this.encodePatternWidget = resolveEncodePatternWidget();
         if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
             this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
@@ -187,11 +188,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             return true;
         }
 
-        if (this.providerRenameBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerRenameBox, mouseX, mouseY, button)) {
+        if (this.providerRenameBox != null && AETextFieldInteraction.clearOnRightClick(this.providerRenameBox, mouseX, mouseY, button)) {
             return true;
         }
 
-        if (this.providerSearchBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerSearchBox, mouseX, mouseY, button)) {
+        if (this.providerSearchBox != null && AETextFieldInteraction.clearOnRightClick(this.providerSearchBox, mouseX, mouseY, button)) {
             return true;
         }
 
@@ -212,7 +213,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                 return true;
             }
             if (button == 1) {
-                previewLayout().data_energistics$resetPreviewPanelOffset();
+                PatternEncodingPreferencesClient.setPreviewPanelOffset(this.menu, 0, 0);
                 this.previewPanelCurrentOffsetX = 0;
                 this.previewPanelCurrentOffsetY = 0;
                 this.previewPanelDragging = false;
@@ -820,9 +821,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     private void savePreviewPanelDragOffset(double mouseX, double mouseY) {
         updatePreviewPanelDragOffset(mouseX, mouseY);
-        previewLayout().data_energistics$setPreviewPanelOffset(
-                this.previewPanelCurrentOffsetX,
-                this.previewPanelCurrentOffsetY);
+        PatternEncodingPreferencesClient.setPreviewPanelOffset(
+                this.menu, this.previewPanelCurrentOffsetX, this.previewPanelCurrentOffsetY);
         this.previewPanelDragBaseBounds = null;
     }
 
@@ -909,8 +909,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                 providerState.providers(),
                 query,
                 this::getDefaultProviderName,
-                PatternProviderRecipeTypeNames::resolve,
-                PinyinUtil::matchesSearch);
+                PatternProviderRecipeTypeNames::resolve);
         this.visibleProvidersCacheDirty = false;
         return this.cachedVisibleProviders;
     }

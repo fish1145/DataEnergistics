@@ -359,105 +359,8 @@ public final class MountedCorePatternCatalog implements TrinityPatternCatalog {
     }
 
     @Override
-    public PatternRefundResult tryRefundPatterns(TrinityPatternRefundDelivery delivery) {
-        LayoutSnapshot capturedLayout = this.layout;
-        if (capturedLayout.active() && capturedLayout.mounts().isEmpty()) {
-            return PatternRefundResult.NO_PATTERNS;
-        }
-        if (!isCurrentPatternRefundLayout(capturedLayout)) {
-            return PatternRefundResult.STALE;
-        }
-
-        ArrayList<PatternRefundCapture> captures = new ArrayList<>(capturedLayout.ranges().size());
-        ArrayList<ItemStack> patterns = new ArrayList<>();
-        List<ItemStack> undelivered = List.of();
-        boolean committed = false;
-        try {
-            for (CoreRange range : capturedLayout.ranges()) {
-                if (!isCurrentPatternRefundLayout(capturedLayout)) {
-                    return PatternRefundResult.STALE;
-                }
-                if (range.mount().core().hasWork()) {
-                    return PatternRefundResult.BLOCKED_BY_WORK;
-                }
-            }
-            for (CoreRange range : capturedLayout.ranges()) {
-                if (!isCurrentPatternRefundLayout(capturedLayout)) {
-                    return PatternRefundResult.STALE;
-                }
-                TrinityPatternCore.PatternRefundTransaction transaction = range.mount().core().preparePatternRefund();
-                captures.add(new PatternRefundCapture(range, transaction, List.of(), List.of()));
-                if (transaction.isBlockedByWork()) {
-                    return PatternRefundResult.BLOCKED_BY_WORK;
-                }
-                List<Integer> slots = capturePatternRefundSlots(range);
-                List<ItemStack> capturedPatterns = copyPatternStacks(transaction.patterns());
-                if (capturedPatterns.size() < slots.size()) {
-                    throw new IllegalStateException(
-                            "Trinity pattern refund capture is missing installed patterns for core " + range.coreId());
-                }
-                captures.set(captures.size() - 1, new PatternRefundCapture(
-                        range, transaction, slots, capturedPatterns));
-                patterns.addAll(capturedPatterns);
-            }
-            if (patterns.isEmpty()) {
-                return PatternRefundResult.NO_PATTERNS;
-            }
-            if (!isCurrentPatternRefundLayout(capturedLayout)) {
-                return PatternRefundResult.STALE;
-            }
-            boolean deliveryPrepared;
-            try {
-                deliveryPrepared = delivery.prepare(copyPatternStacks(patterns));
-            } catch (RuntimeException exception) {
-                Data_Energistics.LOGGER.error(
-                        "Trinity pattern refund delivery preparation failed for catalog {}",
-                        this.hostId,
-                        exception);
-                return PatternRefundResult.DELIVERY_FAILED;
-            }
-            if (!deliveryPrepared) {
-                return PatternRefundResult.DELIVERY_REJECTED;
-            }
-            for (PatternRefundCapture capture : captures) {
-                if (!isCurrentPatternRefundLayout(capturedLayout) || !capture.transaction().commit()) {
-                    return PatternRefundResult.STALE;
-                }
-            }
-            if (!isCurrentPatternRefundLayout(capturedLayout)) {
-                return PatternRefundResult.STALE;
-            }
-            markPatternRefundSlotsDirty(captures);
-            refreshChangedPatterns();
-            if (!isCurrentPatternRefundLayout(capturedLayout)) {
-                return PatternRefundResult.STALE;
-            }
-            committed = true;
-            try {
-                undelivered = copyPatternStacks(delivery.deliver(copyPatternStacks(patterns)));
-            } catch (RuntimeException exception) {
-                Data_Energistics.LOGGER.error(
-                        "Trinity pattern refund delivery failed after catalog {} committed installed patterns",
-                        this.hostId,
-                        exception);
-                undelivered = copyPatternStacks(patterns);
-                return PatternRefundResult.DELIVERY_FAILED;
-            }
-            return undelivered.isEmpty() ? PatternRefundResult.COMPLETED : PatternRefundResult.DELIVERY_FAILED;
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Failed to atomically refund installed Trinity patterns from catalog {}",
-                    this.hostId,
-                    exception);
-            return PatternRefundResult.INTERNAL_ERROR;
-        } finally {
-            if (committed) {
-                completePatternRefundTransactions(captures, copyPatternStacks(patterns), undelivered);
-            } else {
-                rollbackPatternRefundTransactions(captures);
-                refreshRolledBackPatternRefundPublication(capturedLayout, captures);
-            }
-        }
+    public PatternRefundPreparation beginPatternRefund() {
+        return new MountedPatternRefundPreparation(this.layout);
     }
 
     @Override
@@ -1059,6 +962,189 @@ public final class MountedCorePatternCatalog implements TrinityPatternCatalog {
                         .toList();
             }
             return !changedPublications.isEmpty();
+        }
+    }
+
+    private final class MountedPatternRefundPreparation implements PatternRefundPreparation {
+
+        private final LayoutSnapshot capturedLayout;
+        private final List<PatternRefundCapture> captures;
+        private final List<ItemStack> patterns = new ArrayList<>();
+        private int rangeIndex;
+        private boolean prepared;
+        private boolean closed;
+        @Nullable
+        private PatternRefundResult terminalResult;
+
+        private MountedPatternRefundPreparation(LayoutSnapshot capturedLayout) {
+            this.capturedLayout = capturedLayout;
+            this.captures = new ArrayList<>(capturedLayout.ranges().size());
+            if (capturedLayout.active() && capturedLayout.mounts().isEmpty()) {
+                finishPreparation(PatternRefundResult.NO_PATTERNS);
+            } else if (!isCurrentPatternRefundLayout(capturedLayout)) {
+                finishPreparation(PatternRefundResult.STALE);
+            }
+        }
+
+        @Override
+        public int totalUnits() {
+            return this.capturedLayout.ranges().size();
+        }
+
+        @Override
+        public int completedUnits() {
+            return this.rangeIndex;
+        }
+
+        @Override
+        public boolean isPrepared() {
+            return this.prepared;
+        }
+
+        @Override
+        public void prepareNext() {
+            requireOpen();
+            if (this.prepared) {
+                throw new IllegalStateException("Trinity pattern refund preparation is already complete");
+            }
+            if (!isCurrentPatternRefundLayout(this.capturedLayout)) {
+                finishPreparation(PatternRefundResult.STALE);
+                return;
+            }
+            CoreRange range = this.capturedLayout.ranges().get(this.rangeIndex);
+            try {
+                if (range.mount().core().hasWork()) {
+                    finishPreparation(PatternRefundResult.BLOCKED_BY_WORK);
+                    return;
+                }
+                TrinityPatternCore.PatternRefundTransaction transaction = range.mount().core().preparePatternRefund();
+                this.captures.add(new PatternRefundCapture(range, transaction, List.of(), List.of()));
+                if (transaction.isBlockedByWork()) {
+                    finishPreparation(PatternRefundResult.BLOCKED_BY_WORK);
+                    return;
+                }
+                List<Integer> slots = capturePatternRefundSlots(range);
+                List<ItemStack> capturedPatterns = copyPatternStacks(transaction.patterns());
+                if (capturedPatterns.size() < slots.size()) {
+                    throw new IllegalStateException(
+                            "Trinity pattern refund capture is missing installed patterns for core " + range.coreId());
+                }
+                this.captures.set(this.captures.size() - 1, new PatternRefundCapture(
+                        range, transaction, slots, capturedPatterns));
+                this.patterns.addAll(capturedPatterns);
+                this.rangeIndex++;
+                if (this.rangeIndex == this.capturedLayout.ranges().size()) {
+                    finishPreparation(this.patterns.isEmpty() ? PatternRefundResult.NO_PATTERNS : null);
+                }
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to prepare installed Trinity pattern refund for catalog {} core {}",
+                        MountedCorePatternCatalog.this.hostId,
+                        range.coreId(),
+                        exception);
+                finishPreparation(PatternRefundResult.INTERNAL_ERROR);
+            }
+        }
+
+        @Override
+        @Nullable
+        public PatternRefundResult terminalResult() {
+            if (!this.prepared) {
+                throw new IllegalStateException("Trinity pattern refund preparation has not completed");
+            }
+            return this.terminalResult;
+        }
+
+        @Override
+        public PatternRefundResult commit(TrinityPatternRefundDelivery delivery) {
+            requireOpen();
+            if (!this.prepared || this.terminalResult != null) {
+                throw new IllegalStateException("Trinity pattern refund preparation is not commit-ready");
+            }
+            List<ItemStack> undelivered = List.of();
+            boolean committed = false;
+            try {
+                if (!isCurrentPatternRefundLayout(this.capturedLayout)) {
+                    return PatternRefundResult.STALE;
+                }
+                boolean deliveryPrepared;
+                try {
+                    deliveryPrepared = delivery.prepare(copyPatternStacks(this.patterns));
+                } catch (RuntimeException exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Trinity pattern refund delivery preparation failed for catalog {}",
+                            MountedCorePatternCatalog.this.hostId,
+                            exception);
+                    return PatternRefundResult.DELIVERY_FAILED;
+                }
+                if (!deliveryPrepared) {
+                    return PatternRefundResult.DELIVERY_REJECTED;
+                }
+                for (PatternRefundCapture capture : this.captures) {
+                    if (!isCurrentPatternRefundLayout(this.capturedLayout) || !capture.transaction().commit()) {
+                        return PatternRefundResult.STALE;
+                    }
+                }
+                if (!isCurrentPatternRefundLayout(this.capturedLayout)) {
+                    return PatternRefundResult.STALE;
+                }
+                markPatternRefundSlotsDirty(this.captures);
+                refreshChangedPatterns();
+                if (!isCurrentPatternRefundLayout(this.capturedLayout)) {
+                    return PatternRefundResult.STALE;
+                }
+                committed = true;
+                try {
+                    undelivered = copyPatternStacks(delivery.deliver(copyPatternStacks(this.patterns)));
+                } catch (RuntimeException exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Trinity pattern refund delivery failed after catalog {} committed installed patterns",
+                            MountedCorePatternCatalog.this.hostId,
+                            exception);
+                    undelivered = copyPatternStacks(this.patterns);
+                    return PatternRefundResult.DELIVERY_FAILED;
+                }
+                return undelivered.isEmpty() ? PatternRefundResult.COMPLETED : PatternRefundResult.DELIVERY_FAILED;
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to atomically refund installed Trinity patterns from catalog {}",
+                        MountedCorePatternCatalog.this.hostId,
+                        exception);
+                return PatternRefundResult.INTERNAL_ERROR;
+            } finally {
+                this.closed = true;
+                if (committed) {
+                    completePatternRefundTransactions(
+                            this.captures, copyPatternStacks(this.patterns), undelivered);
+                } else {
+                    rollbackPatternRefundTransactions(this.captures);
+                    refreshRolledBackPatternRefundPublication(this.capturedLayout, this.captures);
+                }
+            }
+        }
+
+        @Override
+        public void cancel() {
+            if (this.closed) {
+                return;
+            }
+            this.closed = true;
+            rollbackPatternRefundTransactions(this.captures);
+            refreshRolledBackPatternRefundPublication(this.capturedLayout, this.captures);
+        }
+
+        private void finishPreparation(@Nullable PatternRefundResult terminalResult) {
+            this.prepared = true;
+            this.terminalResult = terminalResult;
+            if (terminalResult != null) {
+                cancel();
+            }
+        }
+
+        private void requireOpen() {
+            if (this.closed) {
+                throw new IllegalStateException("Trinity pattern refund preparation is already closed");
+            }
         }
     }
 

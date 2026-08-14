@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferen
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
 import com.fish_dan_.data_energistics.client.screen.MenuClientRefreshHandler;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalStateSyncClientHandler;
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucce
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.entity.player.Player;
 
 import guideme.document.block.LytBlock;
@@ -30,6 +31,23 @@ public final class ClientRuntimeBridge implements DataEnergisticsClientBridge {
     @Override
     public boolean isClientThread() {
         return ClientThreadHelper.isClientThread();
+    }
+
+    @Override
+    public int priorityModifierMask() {
+        int mask = 0;
+        if (Screen.hasShiftDown()) {
+            mask |= 1;
+        }
+        if (Screen.hasControlDown()) {
+            mask |= 2;
+        }
+        return mask;
+    }
+
+    @Override
+    public boolean isShiftDown() {
+        return Screen.hasShiftDown();
     }
 
     @Override

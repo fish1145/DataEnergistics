@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -139,7 +140,7 @@ public final class ResonanceGameplayGameTest {
     }
 
     private static TuningForkBlockEntity placeFork(GameTestHelper helper, BlockPos forkPos) {
-        helper.setBlock(forkPos.below(), DEBlocks.TUNING_FORK_BASE.get());
+        helper.setBlock(forkPos.below(), BuiltInRegistries.BLOCK.get(Data_Energistics.id("tuning_fork_base")));
         helper.setBlock(forkPos, DEBlocks.AMETHYST_TUNING_FORK.get());
         BlockEntity blockEntity = helper.getBlockEntity(forkPos);
         if (blockEntity instanceof TuningForkBlockEntity tuningFork) {

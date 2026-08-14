@@ -141,7 +141,7 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
             case ME_INPUT -> DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
             case ME_OUTPUT -> DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
             case PATTERN_BUFFER -> DEBlocks.ME_PATTERN_BUFFER.get();
-            case TRINITY_ACCESS -> DEBlocks.TRINITY_ACCESS_HATCH.get();
+            case TRINITY_INFORMATION_EXCHANGE -> DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get();
         };
     }
 

@@ -2,13 +2,20 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
-import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionStatus;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotResult;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,7 +23,9 @@ import java.util.UUID;
  */
 public interface TrinityDataCoreMenuHost {
 
-    /** Sentinel displayed when the formed main storage core structure has no finite capacity limit. */
+    /**
+     * Sentinel displayed when the formed main storage core structure has no finite capacity limit.
+     */
     String UNLIMITED_STORAGE_CAPACITY = "MAX";
 
     /**
@@ -25,9 +34,12 @@ public interface TrinityDataCoreMenuHost {
     UUID getHostId();
 
     /**
-     * Reports whether the host has an active Trinity access hatch.
+     * Reports whether the host has an active Trinity information exchange depot.
      */
     boolean isOnline();
+
+    /** Returns the complete elapsed time of the host's latest server-side tick in nanoseconds. */
+    long lastServerTickNanos();
 
     /**
      * Reports whether the declared multiblock structure is currently formed.
@@ -99,7 +111,20 @@ public interface TrinityDataCoreMenuHost {
      * @param player player who receives inventory-first and final world-drop pattern delivery
      * @return precise transaction outcome without mixing patterns into retained item delivery
      */
-    TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player);
+    TrinityHostedActionStatus startPatternRefund(Player player);
+
+    /**
+     * Best-effort migrates distinct AE-storage patterns and active network pattern-container slots into Trinity.
+     */
+    TrinityHostedActionStatus startPatternMigration(Player player);
+
+    /** Returns the non-persistent capacity or active pattern-maintenance progress snapshot. */
+    TrinityPatternMaintenanceSnapshot getPatternMaintenanceSnapshot();
+
+    /** Returns whether a migration or installed-pattern refund currently owns the catalog. */
+    default boolean isPatternMaintenanceActive() {
+        return getPatternMaintenanceSnapshot().active();
+    }
 
     /**
      * Returns the last crafting child structure validation error, or an empty string when no error is active.
@@ -132,6 +157,63 @@ public interface TrinityDataCoreMenuHost {
      * Returns the authoritative storage contents and capacity profile as one immutable state.
      */
     TrinityDataCoreStorageStatus getStorageStatus();
+
+    /**
+     * Returns one atomic storage snapshot containing the current capacity and every exact stored AE key.
+     */
+    TrinityDataCoreStorageView getStorageView(int firstEntry);
+
+    /**
+     * Returns one bounded aggregate pattern page with the exact layout and content revisions that identify it.
+     */
+    TrinityPatternCatalogView getPatternCatalogView(int firstGlobalSlot);
+
+    /**
+     * Applies one revision-bound aggregate slot click after resolving its current physical core and slot.
+     */
+    TrinityPatternSlotResult applyPatternSlotAction(Player player,
+                                                    long layoutRevision,
+                                                    long catalogRevision,
+                                                    int globalSlot,
+                                                    ItemStack carried,
+                                                    TrinityPatternSlotAction action);
+
+    /** Moves one ordered set of installed patterns into the requesting player's inventory. */
+    TrinityHostedActionStatus quickMovePatternsToPlayer(Player player,
+                                                        long layoutRevision,
+                                                        List<Integer> globalSlots);
+
+    /**
+     * Installs one pattern from the main UI player inventory into the first available aggregate slot.
+     *
+     * @param pattern one encoded pattern removed from the source inventory slot
+     * @return whether the pattern was installed and the source removal may be committed
+     */
+    boolean tryQuickMovePatternFromPlayer(ItemStack pattern);
+
+    /**
+     * Returns the priority used when the Trinity storage is mounted into AE2.
+     */
+    int getStoragePriority();
+
+    /**
+     * Changes the priority used when the Trinity storage is mounted into AE2.
+     *
+     * @return whether the authoritative value changed
+     */
+    boolean setStoragePriority(int priority);
+
+    /**
+     * Returns the priority published for every pattern in the Trinity aggregate provider.
+     */
+    int getPatternPriority();
+
+    /**
+     * Changes the priority published for every pattern in the Trinity aggregate provider.
+     *
+     * @return whether the authoritative value changed
+     */
+    boolean setPatternPriority(int priority);
 
     /**
      * Returns the exact ordered CPUs currently published by this structure to AE2.

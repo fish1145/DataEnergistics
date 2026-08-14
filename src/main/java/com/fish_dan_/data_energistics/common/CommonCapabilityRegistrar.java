@@ -212,7 +212,7 @@ final class CommonCapabilityRegistrar {
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
-                DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(),
+                DEBlockEntities.TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,

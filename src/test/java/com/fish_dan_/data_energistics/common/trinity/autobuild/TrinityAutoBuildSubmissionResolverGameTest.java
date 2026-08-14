@@ -26,10 +26,10 @@ public final class TrinityAutoBuildSubmissionResolverGameTest {
 
     private TrinityAutoBuildSubmissionResolverGameTest() {}
 
-    @TestHolder("trinity_hosted_auto_build_resolver_reconstructs_and_rejects_unrepresented_fields")
+    @TestHolder("trinity_hosted_auto_build_resolver_reconstructs_and_rejects_invalid_fields")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void reconstructsAndRejectsUnrepresentedFields(GameTestHelper helper) {
+    public static void reconstructsAndRejectsInvalidFields(GameTestHelper helper) {
         MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
                 .require(DEVerticalMultiBlocks.trinityDataCoreId());
         TrinityAutoBuildSubmissionResolver resolver = new TrinityAutoBuildSubmissionResolver();
@@ -63,9 +63,11 @@ public final class TrinityAutoBuildSubmissionResolverGameTest {
         List<Integer> invalidRepeats = new ArrayList<>(fingerprint.repeatCounts());
         invalidRepeats.set(0, 2);
         assertRejected(resolver, spec, submission(withRepeats(fingerprint, invalidRepeats)));
-        assertRejected(resolver, spec, submission(withCandidates(
-                fingerprint,
-                Map.of(new PreviewPredicateKey(0, 0, 0), 0))));
+        Map<PreviewPredicateKey, Integer> candidateSelections = Map.of(new PreviewPredicateKey(0, 0, 0), 0);
+        TrinityAutoBuildRequest candidateRequest = resolver.resolve(
+                spec,
+                submission(withCandidates(fingerprint, candidateSelections)));
+        assertEquals(candidateSelections, candidateRequest.options().candidateSelections());
         helper.succeed();
     }
 
