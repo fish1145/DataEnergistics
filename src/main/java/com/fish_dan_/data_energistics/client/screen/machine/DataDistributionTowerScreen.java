@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
+import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
@@ -188,6 +189,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean wasFocused = this.searchBox != null && this.searchBox.isFocused();
+        if (this.searchBox != null && AETextFieldInteraction.clearOnRightClick(this.searchBox, mouseX, mouseY, button)) {
+            updateSearchSuggestion();
+            return true;
+        }
+
         BoundRow hoveredRow = findHoveredRow(mouseX, mouseY);
         if (hoveredRow != null) {
             if (hoveredRow.placeholder()) {
