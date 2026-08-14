@@ -211,7 +211,7 @@ public abstract class CraftingServiceMixin
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode());
-        long maxTrinityBytes = dataEnergistics$maxEligibleTrinityBytes(actionSource);
+        long maxTrinityBytes = dataEnergistics$maxPlanningTrinityBytes(actionSource);
         if (maxTrinityBytes <= 0L) {
             return original.call(level, simRequester, what, amount, strategy);
         }
@@ -301,8 +301,16 @@ public abstract class CraftingServiceMixin
         return Collections.unmodifiableMap(available);
     }
 
+    /**
+     * Returns the largest online Trinity coordinator capacity eligible to plan for this request.
+     *
+     * <p>
+     * Worker occupancy is deliberately excluded because it is transient execution state. CPU availability remains
+     * enforced when the completed plan is submitted.
+     * </p>
+     */
     @Unique
-    private long dataEnergistics$maxEligibleTrinityBytes(@Nullable IActionSource source) {
+    private long dataEnergistics$maxPlanningTrinityBytes(@Nullable IActionSource source) {
         long maxBytes = 0L;
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             if (runtime.publishedCpus().isEmpty()) {
@@ -314,7 +322,6 @@ public abstract class CraftingServiceMixin
                     coordinator.canBeAutoSelectedFor(source);
             if (coordinator.number() == 0 &&
                     coordinator.isActive() &&
-                    coordinator.canAcceptJob() &&
                     sourceAllowed) {
                 maxBytes = Math.max(maxBytes, coordinator.getAvailableStorage());
             }
@@ -590,7 +597,7 @@ public abstract class CraftingServiceMixin
         }
         long gridScope = data_energistics$craftingProviderPublicationIndex().publicationScope();
         try {
-            TrinityDispatchProposalLifecycle.scheduler().clearGrid(gridScope);
+            TrinityDispatchProposalLifecycle.clearGrid(gridScope);
             TrinityPlanningGatewayLifecycle.gateway().clearGrid(gridScope);
             this.dataEnergistics$trinityCraftingGraphRebuilder = null;
             this.dataEnergistics$planningGridCleared = true;

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
@@ -378,6 +379,16 @@ final class TrinityRemainingPlanCalculationTest {
         @Override
         public TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input) {
             throw new UnsupportedOperationException("Recorded futures do not execute planning callbacks");
+        }
+
+        @Override
+        public TrinityPlanningComputationResult calculateRemainingTrinity(TrinityPlanningInput input) {
+            throw new UnsupportedOperationException("Recorded futures do not execute planning callbacks");
+        }
+
+        @Override
+        public TrinityComputationCache computationCache() {
+            throw new UnsupportedOperationException("Recorded futures do not access the computation cache");
         }
 
         @Override

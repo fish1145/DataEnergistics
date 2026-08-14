@@ -123,18 +123,27 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                                                                                          throws InterruptedException, ExecutionException;
 
     /**
-     * Submits one lifecycle-tracked orchestration task without registering it in the LRU. The returned future owns the
-     * orchestration: {@link Future#cancel(boolean)} with interruption enabled interrupts its planner thread once no
-     * other request still needs its active inline work. Unsubscribed work is removed; completed inner results remain
-     * reusable.
+     * Submits one lifecycle-tracked orchestration task on the cache's default executor without registering it in the
+     * LRU. The returned future owns the orchestration, while completed inner values remain globally reusable.
      *
      * @param gridScope   immutable Grid publication scope
-     * @param revision    publication revision used to cancel obsolete orchestration
      * @param calculation orchestration that enters inline cache layers
      * @param <V>         result type
      * @return caller-owned future
      */
-    <V> Future<V> submit(long gridScope, long revision, Callable<V> calculation);
+    <V> Future<V> submit(long gridScope, Callable<V> calculation);
+
+    /**
+     * Submits one lifecycle-tracked orchestration task on a selected execution lane. Lane selection does not partition
+     * cached values: every inline layer still joins this cache's global thread-safe Grid partition.
+     *
+     * @param executionLane executor reserved for this request family
+     * @param gridScope     immutable Grid publication scope
+     * @param calculation   orchestration that enters inline cache layers
+     * @param <V>           result type
+     * @return caller-owned future
+     */
+    <V> Future<V> submit(Executor executionLane, long gridScope, Callable<V> calculation);
 
     /**
      * Removes and cancels revision-bound entries that cannot publish into the current graph revision.

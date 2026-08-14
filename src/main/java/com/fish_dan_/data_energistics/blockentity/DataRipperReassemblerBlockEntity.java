@@ -111,10 +111,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int UPGRADE_SLOTS = 5;
     public static final int BASE_PARALLEL = 1;
     public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 8;
-    public static final int ITEM_SLOT_CAPACITY = 256;
+    public static final int ITEM_SLOT_CAPACITY = 1_024;
     public static final double ENERGY_CAPACITY = 160_000.0D;
 
     private static final String STORAGE_TAG = "storage";
+    private static final String STORAGE_SLOT_TAG = "Slot";
+    private static final String STORAGE_COUNT_TAG = "DataEnergisticsCount";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String FLUID_INPUT_A_TAG = "fluid_input_a";
     private static final String FLUID_INPUT_B_TAG = "fluid_input_b";
@@ -2099,6 +2101,50 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         private ReassemblerItemInventory() {
             super(DataRipperReassemblerBlockEntity.this, STORAGE_SLOTS);
+        }
+
+        @Override
+        public void writeToNBT(CompoundTag data, String name, HolderLookup.Provider registries) {
+            if (isEmpty()) {
+                data.remove(name);
+                return;
+            }
+
+            ListTag storedItems = new ListTag();
+            for (int slot = 0; slot < size(); slot++) {
+                ItemStack stack = getStackInSlot(slot);
+                if (stack.isEmpty()) {
+                    continue;
+                }
+
+                CompoundTag storedStack = new CompoundTag();
+                storedStack.putInt(STORAGE_SLOT_TAG, slot);
+                storedStack.putInt(STORAGE_COUNT_TAG, stack.getCount());
+                storedItems.add(stack.copyWithCount(1).save(registries, storedStack));
+            }
+            data.put(name, storedItems);
+        }
+
+        @Override
+        public void readFromNBT(CompoundTag data, String name, HolderLookup.Provider registries) {
+            super.readFromNBT(data, name, registries);
+            ListTag storedItems = data.getList(name, Tag.TAG_COMPOUND);
+            for (int index = 0; index < storedItems.size(); index++) {
+                CompoundTag storedStack = storedItems.getCompound(index);
+                if (!storedStack.contains(STORAGE_COUNT_TAG, Tag.TAG_INT)) {
+                    continue;
+                }
+
+                int slot = storedStack.getInt(STORAGE_SLOT_TAG);
+                if (slot < 0 || slot >= size()) {
+                    continue;
+                }
+
+                ItemStack stack = getStackInSlot(slot);
+                if (!stack.isEmpty()) {
+                    stack.setCount(storedStack.getInt(STORAGE_COUNT_TAG));
+                }
+            }
         }
 
         @Override

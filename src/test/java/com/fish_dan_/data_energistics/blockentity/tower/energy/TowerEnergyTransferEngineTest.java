@@ -1221,62 +1221,6 @@ class TowerEnergyTransferEngineTest {
         }
     }
 
-    private static final class OpaqueShortWritingReceiver implements IEnergyStorage {
-
-        private long value;
-        private final long limit;
-        private final long firstWriteLimit;
-        private int realAttempts;
-
-        private OpaqueShortWritingReceiver(long limit, long firstWriteLimit) {
-            this.limit = limit;
-            this.firstWriteLimit = firstWriteLimit;
-        }
-
-        @Override
-        public int receiveEnergy(int maxReceive, boolean simulate) {
-            if (simulate) {
-                return (int) Math.min(maxReceive, this.limit - this.value);
-            }
-            this.realAttempts++;
-            if (this.realAttempts > 1) {
-                return 0;
-            }
-            long inserted = Math.min(maxReceive, Math.min(this.firstWriteLimit, this.limit - this.value));
-            this.value += inserted;
-            return (int) inserted;
-        }
-
-        @Override
-        public int extractEnergy(int maxExtract, boolean simulate) {
-            return 0;
-        }
-
-        @Override
-        public int getEnergyStored() {
-            return (int) this.value;
-        }
-
-        @Override
-        public int getMaxEnergyStored() {
-            return (int) this.limit;
-        }
-
-        @Override
-        public boolean canExtract() {
-            return false;
-        }
-
-        @Override
-        public boolean canReceive() {
-            return true;
-        }
-
-        private long stored() {
-            return this.value;
-        }
-    }
-
     private static final class TestEnergyStorage implements IEnergyStorage {
 
         private long stored;

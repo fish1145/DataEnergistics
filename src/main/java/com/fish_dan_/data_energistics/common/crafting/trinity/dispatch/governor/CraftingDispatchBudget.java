@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.Cr
  * @param dispatchLimits      server-thread physical call and time limits
  * @param actorPermits        maximum outstanding proposals admitted for the grid
  * @param providerQuantum     provider fairness quantum, never a logical counted-batch limit
- * @param proposalHighWater   global proposal-queue depth at which this grid defers new proposals
+ * @param proposalHighWater   global outstanding-proposal depth at which this grid defers new proposals
  * @param retryBackoffTicks   retry delay used for bounded scheduler pressure
  * @param asynchronousEnabled whether new asynchronous proposals may be admitted
  */
@@ -26,7 +26,7 @@ public record CraftingDispatchBudget(
             CraftingDispatchLimits.DEFAULT,
             actorPermitsFor(CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_GRID),
             CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
-            DispatchProposalLimits.DEFAULT_QUEUE_CAPACITY,
+            DispatchProposalLimits.DEFAULT_MAX_OUTSTANDING,
             1,
             true);
 

@@ -51,7 +51,7 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void proposalLeaseSelectsOneImmutableTargetAndRejectsASecondWorkerTicket() throws InterruptedException {
-        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(1, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             CraftingDispatchProposalRequest request = request(1L, runtimeId, 1, 0L, 6L);
@@ -81,15 +81,15 @@ public final class TrinityDispatchRuntimeTest {
             assertEquals(2, metrics.admitted());
             assertEquals(1, metrics.rejected());
             assertTrue(metrics.completed() >= 1);
-            assertEquals(0, metrics.outstanding());
-            assertEquals(4, metrics.queueCapacity());
+            assertEquals(0, metrics.gridOutstanding());
+            assertEquals(4, metrics.globalOutstandingLimit());
         } finally {
             scheduler.close();
         }
     }
 
     @Test
-    void queueRejectionReleasesWorkerAdmissionWithoutRunningResourceLogic() throws InterruptedException {
+    void outstandingLimitReleasesWorkerAdmissionWithoutRunningResourceLogic() throws InterruptedException {
         CountDownLatch running = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         DispatchProposalCandidatePlanner delegate = createCandidatePlanner();
@@ -106,7 +106,7 @@ public final class TrinityDispatchRuntimeTest {
             return delegate.plan(request, lifecycleActive);
         };
         BoundedDispatchProposalScheduler scheduler = new BoundedDispatchProposalScheduler(
-                new DispatchProposalLimits(1, 2, 4, 16),
+                new DispatchProposalLimits(3, 4, 16),
                 blockingPlanner);
         try {
             UUID runtimeId = UUID.randomUUID();
@@ -132,7 +132,7 @@ public final class TrinityDispatchRuntimeTest {
             TrinityWorkerProposalCoordinator.Deferred full = assertInstanceOf(
                     TrinityWorkerProposalCoordinator.Deferred.class,
                     deferredWorker.submit(deferredRequest, deferredRequest, () -> {}));
-            assertEquals(TrinityWorkerProposalCoordinator.DeferredReason.QUEUE_FULL, full.reason());
+            assertEquals(TrinityWorkerProposalCoordinator.DeferredReason.GLOBAL_LIMIT, full.reason());
 
             release.countDown();
             first.ticket().close();
@@ -151,7 +151,7 @@ public final class TrinityDispatchRuntimeTest {
     @Test
     void governorPolicyControlsAsyncAdmissionAndProviderQuantumWithoutSplittingLogicalCrafts()
                                                                                                throws InterruptedException {
-        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 8, 8, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(8, 8, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             CraftingDispatchProposalRequest disabledRequest = request(5L, runtimeId, 1, 0L, 6L);
@@ -209,7 +209,7 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void coordinatorDiscardsACompletedProposalWhenAnyGenerationLeaseChanges() throws InterruptedException {
-        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(1, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             TrinityWorkerProposalCoordinator coordinator = TrinityWorkerProposalCoordinator.create(() -> scheduler);
@@ -306,7 +306,7 @@ public final class TrinityDispatchRuntimeTest {
 
     @Test
     void providerShardsDoNotOversellProviderRoutesOrSharedMachines() throws InterruptedException {
-        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(2, 4, 4, 16));
+        DispatchProposalScheduler scheduler = createScheduler(new DispatchProposalLimits(4, 4, 16));
         try {
             UUID runtimeId = UUID.randomUUID();
             MachineTargetId firstMachine = MachineTargetId.forBlockTarget(
@@ -428,7 +428,7 @@ public final class TrinityDispatchRuntimeTest {
             }
         };
         DispatchProposalScheduler scheduler = new BoundedDispatchProposalScheduler(
-                new DispatchProposalLimits(1, 4, 4, 16),
+                new DispatchProposalLimits(4, 4, 16),
                 delayedPlanner);
         try {
             UUID runtimeId = UUID.randomUUID();
@@ -448,7 +448,7 @@ public final class TrinityDispatchRuntimeTest {
             scheduler.clearGrid(8L);
             cache.clearGrid(8L);
             assertInstanceOf(DispatchProposalTicket.Cancelled.class, owner.ticket().state());
-            assertEquals(0, scheduler.snapshotAndResetMetrics(8L).outstanding());
+            assertEquals(0, scheduler.snapshotAndResetMetrics(8L).gridOutstanding());
 
             DispatchProposalScheduler.Accepted released = submitAndAwait(scheduler, otherGrid);
             assertInstanceOf(DispatchProposalTicket.Ready.class, released.ticket().state());
@@ -479,7 +479,7 @@ public final class TrinityDispatchRuntimeTest {
             assertEquals(0, clearedMetrics.stale());
             assertEquals(0L, clearedMetrics.queueWaitNanos());
             assertEquals(0L, clearedMetrics.calculationNanos());
-            assertEquals(0, clearedMetrics.outstanding());
+            assertEquals(0, clearedMetrics.gridOutstanding());
         } finally {
             releaseLateLookup.complete(null);
             scheduler.close();

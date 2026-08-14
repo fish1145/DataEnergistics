@@ -6,6 +6,9 @@ import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityCachedComputation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationNamespace;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +41,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -284,16 +289,46 @@ public final class ConcurrentTrinityPlanningGatewayTest {
     }
 
     @Test
-    void submitsTrinityOnlyContinuationThroughSharedBoundedExecutor() throws Exception {
-        this.executor = Executors.newSingleThreadExecutor();
-        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(this.executor, false);
+    void isolatedPlanningLanesShareOneGlobalCache() throws Exception {
+        ManualExecutor initialExecutor = new ManualExecutor();
+        ManualExecutor remainingExecutor = new ManualExecutor();
+        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(
+                initialExecutor,
+                remainingExecutor,
+                false);
         TrinityCraftingPlan plan = trinityPlan();
+        AtomicInteger cacheCalculations = new AtomicInteger();
+        Callable<TrinityPlanningAttempt> cachedCalculation = () -> {
+            gateway.computationCache().computeInline(
+                    1L,
+                    TrinityComputationNamespace.COMPILED_GRAPH,
+                    TrinityComputationCache.SEMANTIC_REVISION,
+                    "shared-structure",
+                    () -> TrinityCachedComputation.cacheable(cacheCalculations.incrementAndGet()));
+            return TrinityPlanningAttempt.success(plan);
+        };
+        try {
+            Future<TrinityPlanningAttempt> remaining = gateway.beginTrinity(1L, 1L, cachedCalculation);
+            Future<ICraftingPlan> initial = gateway.begin(
+                    true,
+                    1L,
+                    1L,
+                    new GenericStack(TARGET, 1L),
+                    cachedCalculation,
+                    () -> CompletableFuture.completedFuture(ae2Plan(false)));
 
-        TrinityPlanningAttempt attempt = gateway.beginTrinity(1L, 1L,
-                () -> TrinityPlanningAttempt.success(plan)).get(1L, TimeUnit.SECONDS);
+            initialExecutor.runNext();
 
-        assertTrue(attempt.successful());
-        assertSame(plan, attempt.plan());
+            assertTrue(initial.isDone());
+            assertSame(plan, initial.get());
+            assertFalse(remaining.isDone());
+
+            remainingExecutor.runNext();
+            assertSame(plan, remaining.get().plan());
+            assertEquals(1, cacheCalculations.get());
+        } finally {
+            gateway.close();
+        }
     }
 
     @Test

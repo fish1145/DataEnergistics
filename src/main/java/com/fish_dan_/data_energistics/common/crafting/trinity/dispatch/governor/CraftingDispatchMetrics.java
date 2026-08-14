@@ -29,9 +29,9 @@ public record CraftingDispatchMetrics(
                                       int staleProposals,
                                       BigInteger committedLogicalCrafts,
                                       int physicalCalls,
-                                      int proposalQueueDepth,
-                                      int proposalQueueCapacity,
-                                      int outstandingProposals,
+                                      int proposalOutstanding,
+                                      int proposalOutstandingLimit,
+                                      int gridOutstandingProposals,
                                       double busiestWorkerShare) {
 
     public CraftingDispatchMetrics {
@@ -42,8 +42,8 @@ public record CraftingDispatchMetrics(
         if (admittedProposals < 0 || rejectedProposals < 0 || completedProposals < 0 || failedProposals < 0 ||
                 failedProposals > completedProposals ||
                 acceptedProviderCalls < 0 || rejectedProviderCalls < 0 || staleProposals < 0 ||
-                physicalCalls < 0 || proposalQueueDepth < 0 || proposalQueueCapacity <= 0 ||
-                outstandingProposals < 0) {
+                physicalCalls < 0 || proposalOutstanding < 0 || proposalOutstandingLimit <= 0 ||
+                gridOutstandingProposals < 0) {
             throw new IllegalArgumentException("Crafting dispatch counters are out of range");
         }
         if (committedLogicalCrafts == null || committedLogicalCrafts.signum() < 0) {
@@ -83,9 +83,9 @@ public record CraftingDispatchMetrics(
                 proposals.stale(),
                 window.committedLogicalCrafts(),
                 window.attemptCount(),
-                proposals.queueDepth(),
-                proposals.queueCapacity(),
-                proposals.outstanding(),
+                proposals.globalOutstanding(),
+                proposals.globalOutstandingLimit(),
+                proposals.gridOutstanding(),
                 busiestWorkerShare);
     }
 
@@ -117,17 +117,17 @@ public record CraftingDispatchMetrics(
                 proposals.stale(),
                 BigInteger.ZERO,
                 0,
-                proposals.queueDepth(),
-                proposals.queueCapacity(),
-                proposals.outstanding(),
+                proposals.globalOutstanding(),
+                proposals.globalOutstandingLimit(),
+                proposals.gridOutstanding(),
                 0.0D);
     }
 
     /**
-     * @return current global proposal queue utilization
+     * @return current global outstanding-proposal utilization
      */
-    public double queueRatio() {
-        return (double) this.proposalQueueDepth / (double) this.proposalQueueCapacity;
+    public double proposalPressureRatio() {
+        return (double) this.proposalOutstanding / (double) this.proposalOutstandingLimit;
     }
 
     /**

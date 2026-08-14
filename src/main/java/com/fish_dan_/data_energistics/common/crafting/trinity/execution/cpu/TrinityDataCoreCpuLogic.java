@@ -121,9 +121,9 @@ final class TrinityDataCoreCpuLogic {
     private final TrinityDataCoreVirtualCpu cpu;
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
     private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create(
-            TrinityPlanningGatewayLifecycle::computationCache);
+            TrinityDispatchProposalLifecycle::dispatchComputationCache);
     private final DispatchCapacityPlanner capacityPlanner = DispatchCapacityPlanner.create(
-            TrinityPlanningGatewayLifecycle::computationCache);
+            TrinityDispatchProposalLifecycle::dispatchComputationCache);
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
@@ -1025,16 +1025,13 @@ final class TrinityDataCoreCpuLogic {
         boolean synchronousFallback = false;
         boolean nativeSingleCraftFallback = false;
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
-            // A provider window must not be lost solely because the optimistic background proposal has not completed.
-            // Release it and use the synchronous safe path for this already-selected worker pass.
-            this.proposalCoordinator.cancel();
-            proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
-            synchronousFallback = true;
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
         }
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.NoCapacity) {
             // Capacity is a transient server-thread fact. A completed background miss must recapture the current
             // provider window instead of suppressing this worker for the next fair runtime pass.
             proposalDecision = TrinityWorkerProposalCoordinator.Empty.INSTANCE;
+            synchronousFallback = true;
         }
         CraftingDispatchProposal selectedProposal = proposalDecision instanceof TrinityWorkerProposalCoordinator.Ready ready ?
                 ready.proposal() : null;
@@ -1114,6 +1111,9 @@ final class TrinityDataCoreCpuLogic {
             this.proposalRetryAt = Math.addExact(currentTick, dispatchBudget.retryBackoffTicks());
             return ProviderDispatchOutcome.DEFERRED;
         }
+        if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
+        }
         if (asynchronousSelection) {
             maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
             physicalCallLimit = 1;
@@ -1162,11 +1162,16 @@ final class TrinityDataCoreCpuLogic {
                 }
                 continue;
             }
-            if (!dispatchWindow.canAttempt(provider, details, snapshot.route())) {
+            boolean countedDispatch = CountedCraftingProviderAdapters.supportsCountedDispatch(provider);
+            if (!canAttemptProvider(dispatchWindow, provider, details, snapshot.route(), countedDispatch)) {
                 continue;
             }
 
-            try (CraftingDispatchWindow.SubmissionScope submission = dispatchWindow.beginSubmission(provider, details)) {
+            try (CraftingDispatchWindow.SubmissionScope submission = beginProviderSubmission(
+                    dispatchWindow,
+                    provider,
+                    details,
+                    countedDispatch)) {
                 if (providerBusy(provider, details, dispatchWindow)) {
                     continue;
                 }
@@ -1232,7 +1237,8 @@ final class TrinityDataCoreCpuLogic {
                                 offeredCount,
                                 snapshot,
                                 dispatchWindow,
-                                nativeSingleCraftFallback);
+                                nativeSingleCraftFallback,
+                                countedDispatch);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
                                 "Crafting provider {} threw while preparing pattern {} on Trinity CPU {}; isolating the provider for this dispatch window",
@@ -1264,7 +1270,7 @@ final class TrinityDataCoreCpuLogic {
                     }
                     if ((snapshot.routingMode() != ProviderRoutingMode.AGGREGATE &&
                             !target.equals(snapshot.route())) ||
-                            !dispatchWindow.canAttempt(provider, details, target)) {
+                            !canAttemptProvider(dispatchWindow, provider, details, target, countedDispatch)) {
                         continue;
                     }
                     long count;
@@ -1402,7 +1408,8 @@ final class TrinityDataCoreCpuLogic {
                                                                long offeredCount,
                                                                ProviderCapacitySnapshot snapshot,
                                                                CraftingDispatchWindow dispatchWindow,
-                                                               boolean nativeSingleCraftFallback) {
+                                                               boolean nativeSingleCraftFallback,
+                                                               boolean countedDispatch) {
         if (nativeSingleCraftFallback) {
             return CountedCraftingProviderAdapters.prepareNativeSingleCraft(
                     provider,
@@ -1415,7 +1422,27 @@ final class TrinityDataCoreCpuLogic {
                 prototype,
                 offeredCount,
                 snapshot,
-                target -> dispatchWindow.canAttempt(provider, details, target));
+                target -> canAttemptProvider(dispatchWindow, provider, details, target, countedDispatch));
+    }
+
+    private static boolean canAttemptProvider(CraftingDispatchWindow dispatchWindow,
+                                              ICraftingProvider provider,
+                                              IPatternDetails pattern,
+                                              CraftingDispatchTarget target,
+                                              boolean countedDispatch) {
+        return countedDispatch ?
+                dispatchWindow.canAttemptCounted(provider, pattern, target) :
+                dispatchWindow.canAttempt(provider, pattern, target);
+    }
+
+    private static CraftingDispatchWindow.SubmissionScope beginProviderSubmission(
+                                                                                  CraftingDispatchWindow dispatchWindow,
+                                                                                  ICraftingProvider provider,
+                                                                                  IPatternDetails pattern,
+                                                                                  boolean countedDispatch) {
+        return countedDispatch ?
+                dispatchWindow.beginCountedSubmission(provider, pattern) :
+                dispatchWindow.beginSubmission(provider, pattern);
     }
 
     /**
@@ -2377,6 +2404,7 @@ final class TrinityDataCoreCpuLogic {
                                            boolean proposalDeferred) {
 
         private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false, false, false);
+        private static final ProviderDispatchOutcome AWAITING_PROPOSAL = new ProviderDispatchOutcome(0, false, true, false);
         private static final ProviderDispatchOutcome DEFERRED = new ProviderDispatchOutcome(0, false, false, true);
 
         private ProviderDispatchOutcome(int physicalAttempts, boolean dispatched) {
@@ -2665,7 +2693,7 @@ final class TrinityDataCoreCpuLogic {
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
         if (this.proposalCoordinator.pending()) {
-            return TrinityWorkerSchedulingHint.ready();
+            return TrinityWorkerSchedulingHint.waitingEvent();
         }
         if (this.proposalRetryAt > currentTick) {
             return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);

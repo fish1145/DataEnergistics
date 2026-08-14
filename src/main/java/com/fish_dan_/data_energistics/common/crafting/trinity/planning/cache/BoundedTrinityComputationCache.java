@@ -202,46 +202,36 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     }
 
     @Override
-    public <V> Future<V> submit(long gridScope, long revision, Callable<V> calculation) {
-        if (gridScope < 0L || revision < 0L || calculation == null) {
-            throw new IllegalArgumentException("A detached Trinity computation requires scope, revision, and calculation");
+    public <V> Future<V> submit(long gridScope, Callable<V> calculation) {
+        return submit(this.executor, gridScope, calculation);
+    }
+
+    @Override
+    public <V> Future<V> submit(Executor executionLane, long gridScope, Callable<V> calculation) {
+        if (executionLane == null || gridScope < 0L || calculation == null) {
+            throw new IllegalArgumentException("A detached Trinity computation requires an execution lane, scope, and calculation");
         }
         CacheEntry<V> entry;
         CallerFuture<V> callerFuture;
-        List<CacheEntry<?>> cancelled = new ArrayList<>();
-        boolean staleRevision;
         synchronized (this.cacheLock) {
             requireOpen();
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
-            staleRevision = advanceRevision(
+            ScopedKey scopedKey = new ScopedKey(
+                    TrinityComputationNamespace.PLANNING_REQUEST,
+                    SEMANTIC_REVISION,
+                    new Object());
+            entry = new CacheEntry<>(
                     partition,
-                    TrinityComputationNamespace.SOLVED_PLAN,
-                    revision,
-                    cancelled);
-            if (staleRevision) {
-                entry = null;
-                callerFuture = null;
-            } else {
-                ScopedKey scopedKey = new ScopedKey(TrinityComputationNamespace.SOLVED_PLAN, revision, new Object());
-                entry = new CacheEntry<>(
-                        partition,
-                        scopedKey,
-                        () -> TrinityCachedComputation.transientValue(calculation.call()),
-                        false,
-                        true,
-                        true);
-                partition.bypassEntries.put(scopedKey, entry);
-                callerFuture = new CallerFuture<>(entry);
-            }
-        }
-        cancelled.forEach(CacheEntry::cancelObsolete);
-        if (staleRevision) {
-            CompletableFuture<V> stale = new CompletableFuture<>();
-            stale.cancel(false);
-            return stale;
+                    scopedKey,
+                    () -> TrinityCachedComputation.transientValue(calculation.call()),
+                    false,
+                    false,
+                    true);
+            partition.bypassEntries.put(scopedKey, entry);
+            callerFuture = new CallerFuture<>(entry);
         }
         try {
-            this.executor.execute(entry.execution);
+            executionLane.execute(entry.execution);
         } catch (RejectedExecutionException exception) {
             entry.reject(exception);
             throw exception;

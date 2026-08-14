@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.Cr
  *
  * @param actorPermits      maximum outstanding proposals for the grid
  * @param providerQuantum   maximum outstanding proposals reserving one provider
- * @param proposalHighWater global executor queue depth that defers this grid
+ * @param proposalHighWater global outstanding-ticket depth that defers this grid
  * @param enabled           whether asynchronous proposals may be admitted
  */
 public record DispatchProposalPolicy(
@@ -29,7 +29,7 @@ public record DispatchProposalPolicy(
         return new DispatchProposalPolicy(
                 DispatchProposalLimits.DEFAULT_PER_GRID_OUTSTANDING,
                 CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
-                DispatchProposalLimits.DEFAULT_QUEUE_CAPACITY,
+                DispatchProposalLimits.DEFAULT_MAX_OUTSTANDING,
                 true);
     }
 }

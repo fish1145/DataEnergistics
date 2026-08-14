@@ -14,32 +14,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * Fixed bounded implementation enforcing one proposal per worker and a separate per-grid outstanding limit.
+ * Virtual-thread-per-ticket implementation enforcing one proposal per worker plus global and per-grid admission limits.
  */
 final class BoundedDispatchProposalScheduler implements DispatchProposalScheduler {
 
-    private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
-
-    private final Object queueAdmissionLock = new Object();
+    private final Object admissionLock = new Object();
     private final DispatchProposalLimits limits;
     private final DispatchProposalCandidatePlanner candidatePlanner;
     private final ProviderShardDispatcher shardDispatcher;
-    private final ThreadPoolExecutor executor;
+    private final ExecutorService executor;
     private final ConcurrentMap<WorkerKey, ScheduledProposalTicket> outstandingWorkers = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, GridAdmission> admissionsByGrid = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, MutableMetrics> metricsByGrid = new ConcurrentHashMap<>();
@@ -60,7 +56,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         this.limits = limits;
         this.candidatePlanner = candidatePlanner;
         this.shardDispatcher = ProviderShardDispatcher.create(limits.shardCount());
-        this.executor = createExecutor(limits);
+        this.executor = createExecutor();
     }
 
     @Override
@@ -85,7 +81,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                 gridGeneration,
                 GridAdmission::new);
         Admission admission;
-        synchronized (this.queueAdmissionLock) {
+        synchronized (this.admissionLock) {
             admission = gridAdmission.admit(request.lease(), workerKey, wakeup, policy);
             if (admission instanceof AdmissionGranted granted) {
                 ScheduledProposalTicket ticket = granted.ticket();
@@ -102,17 +98,20 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                     }
                 } catch (RejectedExecutionException exception) {
                     ticket.close();
-                    admission = new AdmissionRejected(RejectionReason.QUEUE_FULL, granted.metrics());
+                    admission = new AdmissionRejected(RejectionReason.CLOSED, granted.metrics());
                 }
             }
         }
-        if (admission instanceof AdmissionRejected rejected) {
-            rejected.metrics().recordRejected();
-            return new Rejected(rejected.reason());
-        }
-        AdmissionGranted granted = (AdmissionGranted) admission;
-        granted.metrics().recordAdmitted();
-        return new Accepted(granted.ticket());
+        return switch (admission) {
+            case AdmissionRejected(RejectionReason reason, MutableMetrics metrics) -> {
+                metrics.recordRejected();
+                yield new Rejected(reason);
+            }
+            case AdmissionGranted(ScheduledProposalTicket ticket, MutableMetrics metrics) -> {
+                metrics.recordAdmitted();
+                yield new Accepted(ticket);
+            }
+        };
     }
 
     @Override
@@ -185,13 +184,15 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                 ticket.complete(new DispatchProposalTicket.Failed(exception));
             }
         } catch (RuntimeException exception) {
-            failed = true;
-            Data_Energistics.LOGGER.error(
-                    "Trinity dispatch proposal calculation failed for worker {} job {}",
-                    request.lease().workerNumber(),
-                    request.lease().jobId(),
-                    exception);
-            ticket.complete(new DispatchProposalTicket.Failed(exception));
+            if (!ticket.closed()) {
+                failed = true;
+                Data_Energistics.LOGGER.error(
+                        "Trinity dispatch proposal calculation failed for worker {} job {}",
+                        request.lease().workerNumber(),
+                        request.lease().jobId(),
+                        exception);
+                ticket.complete(new DispatchProposalTicket.Failed(exception));
+            }
         } finally {
             failed |= ticket.wakeupFailed();
             long calculationNanos = elapsedNanos(startedAtNanos, System.nanoTime());
@@ -210,7 +211,6 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
 
     private void cancelTask(FutureTask<Void> task) {
         task.cancel(true);
-        this.executor.remove(task);
     }
 
     private MutableMetrics metrics(long gridGeneration) {
@@ -225,22 +225,11 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         return elapsed;
     }
 
-    private static ThreadPoolExecutor createExecutor(DispatchProposalLimits limits) {
-        ThreadFactory threadFactory = task -> {
-            Thread thread = new Thread(
-                    task,
-                    "DataEnergistics-TrinityDispatch-" + THREAD_SEQUENCE.incrementAndGet());
-            thread.setDaemon(true);
-            return thread;
-        };
-        return new ThreadPoolExecutor(
-                limits.workerThreads(),
-                limits.workerThreads(),
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(limits.queueCapacity()),
-                threadFactory,
-                new ThreadPoolExecutor.AbortPolicy());
+    private static ExecutorService createExecutor() {
+        ThreadFactory threadFactory = Thread.ofVirtual()
+                .name("DataEnergistics-TrinityDispatch-", 0L)
+                .factory();
+        return Executors.newThreadPerTaskExecutor(threadFactory);
     }
 
     /**
@@ -254,8 +243,8 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
     }
 
     /**
-     * Per-Grid admission state. Only the queue check and executor handoff serialize globally; asynchronous completion,
-     * metrics snapshots, and Grid cleanup stay on their own Grid state.
+     * Per-Grid admission state. Only the global outstanding check and executor handoff serialize; asynchronous
+     * completion, metrics snapshots, and Grid cleanup stay on their own Grid state.
      */
     private final class GridAdmission {
 
@@ -267,8 +256,8 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         }
 
         /**
-         * Applies the original rejection order and registers one ticket while the caller owns the short global queue
-         * admission boundary.
+         * Applies the rejection order and registers one ticket while the caller owns the short global admission
+         * boundary.
          */
         private synchronized Admission admit(
                                              CraftingDispatchLease lease,
@@ -289,9 +278,13 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
             if (this.tickets.size() >= gridLimit) {
                 return new AdmissionRejected(RejectionReason.GRID_LIMIT, gridMetrics);
             }
-            if (policy.proposalHighWater() < limits.queueCapacity() &&
-                    executor.getQueue().size() >= policy.proposalHighWater()) {
+            int globalOutstanding = outstandingWorkers.size();
+            if (policy.proposalHighWater() < limits.maxOutstanding() &&
+                    globalOutstanding >= policy.proposalHighWater()) {
                 return new AdmissionRejected(RejectionReason.HIGH_WATER, gridMetrics);
+            }
+            if (globalOutstanding >= limits.maxOutstanding()) {
+                return new AdmissionRejected(RejectionReason.GLOBAL_LIMIT, gridMetrics);
             }
 
             ScheduledProposalTicket ticket = new ScheduledProposalTicket(
@@ -339,7 +332,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         }
 
         private synchronized DispatchProposalMetrics snapshotAndResetMetrics() {
-            int queueDepth = executor.getQueue().size();
+            int globalOutstanding = outstandingWorkers.size();
             MutableMetrics gridMetrics = metricsByGrid.get(this.gridGeneration);
             if (gridMetrics == null) {
                 return new DispatchProposalMetrics(
@@ -350,13 +343,13 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                         0,
                         0L,
                         0L,
-                        queueDepth,
-                        limits.queueCapacity(),
+                        globalOutstanding,
+                        limits.maxOutstanding(),
                         this.tickets.size());
             }
             return gridMetrics.snapshotAndReset(
-                    queueDepth,
-                    limits.queueCapacity(),
+                    globalOutstanding,
+                    limits.maxOutstanding(),
                     this.tickets.size());
         }
     }
@@ -373,7 +366,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
     private record ClearedGrid(List<ScheduledProposalTicket> tickets, @Nullable MutableMetrics metrics) {}
 
     /**
-     * Per-Grid accumulator that keeps proposal completion paths off the submission queue lock.
+     * Per-Grid accumulator that keeps proposal completion paths off the submission admission lock.
      */
     private static final class MutableMetrics {
 
@@ -430,9 +423,9 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         }
 
         private synchronized DispatchProposalMetrics snapshotAndReset(
-                                                                      int queueDepth,
-                                                                      int queueCapacity,
-                                                                      int outstanding) {
+                                                                      int globalOutstanding,
+                                                                      int globalOutstandingLimit,
+                                                                      int gridOutstanding) {
             DispatchProposalMetrics snapshot = new DispatchProposalMetrics(
                     this.admitted,
                     this.rejected,
@@ -441,9 +434,9 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                     this.stale,
                     this.queueWaitNanos,
                     this.calculationNanos,
-                    queueDepth,
-                    queueCapacity,
-                    outstanding);
+                    globalOutstanding,
+                    globalOutstandingLimit,
+                    gridOutstanding);
             reset();
             return snapshot;
         }
