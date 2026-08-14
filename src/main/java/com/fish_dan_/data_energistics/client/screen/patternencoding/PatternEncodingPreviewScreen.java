@@ -11,7 +11,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -1101,8 +1100,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 providerState.providers(),
                 query,
                 this::getDefaultProviderName,
-                PatternProviderRecipeTypeNames::resolve,
-                PinyinUtil::matchesSearch);
+                PatternProviderRecipeTypeNames::resolve);
         this.visibleProvidersCacheDirty = false;
         return this.cachedVisibleProviders;
     }
