@@ -67,11 +67,13 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
         requireLoaded();
         IEnergyStorage storage = this.endpoint.storage();
         try {
+            if (this.appFluxStorage) {
+                return freezeAppFlux(storage);
+            }
             long stored;
             long capacity;
             long extractable;
             long receivable;
-            long appFluxFree = 0;
             boolean canExtract;
             boolean canReceive;
             if (!this.brandonsCoreStorage && mekanismSupported(storage)) {
@@ -87,12 +89,6 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                 capacity = this.brandonsCore.capacity(storage);
                 canExtract = this.brandonsCore.canExtract(storage);
                 canReceive = this.brandonsCore.canReceive(storage);
-            } else if (this.appFluxStorage) {
-                stored = AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, Long.MAX_VALUE, true);
-                appFluxFree = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, Long.MAX_VALUE, true);
-                capacity = saturatingAdd(stored, appFluxFree);
-                canExtract = storage.canExtract();
-                canReceive = storage.canReceive();
             } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
                 EnergySnapshot snapshot = modernIndustrializationStorage.snapshot();
                 stored = snapshot.stored();
@@ -115,13 +111,8 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                         "Energy endpoint returned invalid frozen state " + stored + "/" + capacity + ": " + description());
             }
             long free = capacity - stored;
-            if (this.appFluxStorage) {
-                extractable = canExtract ? stored : 0;
-                receivable = canReceive ? Math.min(appFluxFree, free) : 0;
-            } else {
-                extractable = canExtract ? captureBudget(storage, stored, false) : 0;
-                receivable = canReceive ? captureBudget(storage, free, true) : 0;
-            }
+            extractable = canExtract ? captureBudget(storage, stored, false) : 0;
+            receivable = canReceive ? captureBudget(storage, free, true) : 0;
             return new TowerEnergyEndpointSnapshot(
                     endpoint(), stored, capacity, extractable, receivable, direction);
         } catch (TowerEnergyTransferException exception) {
@@ -130,6 +121,21 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
             ThrowableIsolation.rethrowIfFatal(exception);
             throw new TowerEnergyTransferException("Could not freeze energy endpoint " + description(), exception);
         }
+    }
+
+    /**
+     * Captures independent single-operation budgets for an Applied Flux network wrapper.
+     */
+    private TowerEnergyEndpointSnapshot freezeAppFlux(IEnergyStorage storage) {
+        boolean canExtract = storage.canExtract();
+        boolean canReceive = storage.canReceive();
+        if (!canExtract || !canReceive) {
+            throw new TowerEnergyTransferException(
+                    "Applied Flux network endpoint no longer permits bidirectional transfer: " + description());
+        }
+        long extractable = AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, Long.MAX_VALUE, true);
+        long receivable = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, Long.MAX_VALUE, true);
+        return TowerEnergyEndpointSnapshot.buffer(endpoint(), extractable, receivable);
     }
 
     @Override
@@ -378,12 +384,5 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
                     "Energy endpoint returned invalid " + operation + " result " + actual + " for " + requested);
         }
         return actual;
-    }
-
-    /**
-     * Adds non-negative energy components without wrapping.
-     */
-    private static long saturatingAdd(long left, long right) {
-        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 }

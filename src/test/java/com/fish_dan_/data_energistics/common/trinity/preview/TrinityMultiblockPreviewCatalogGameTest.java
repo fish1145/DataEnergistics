@@ -47,7 +47,7 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
     private static final ResourceLocation CABLE_BUS = ResourceLocation.parse("ae2:cable_bus");
     private static final ResourceLocation FLUIX_COVERED_CABLE = ResourceLocation.parse("ae2:fluix_covered_cable");
     private static final ResourceLocation RED_COVERED_CABLE = ResourceLocation.parse("ae2:red_covered_cable");
-    private static final ResourceLocation TRINITY_ACCESS_HATCH = ResourceLocation.parse("data_energistics:me_access_hatch");
+    private static final ResourceLocation TRINITY_INFORMATION_EXCHANGE_DEPOT = ResourceLocation.parse("data_energistics:trinity_information_exchange_depot");
     private static final ResourceLocation QUARTZ_VIBRANT_GLASS = ResourceLocation.parse("ae2:quartz_vibrant_glass");
     private static final int CHILD_CELLS_PER_REPEAT = 198;
     private static final long CHILD_MATERIALS_PER_REPEAT = 36L;
@@ -244,11 +244,11 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
                 .filter(predicate -> predicate.candidates().stream()
                         .map(TrinityMultiblockPreviewCatalogGameTest::blockId)
                         .toList()
-                        .containsAll(List.of(TRINITY_ACCESS_HATCH, QUARTZ_VIBRANT_GLASS)))
+                        .containsAll(List.of(TRINITY_INFORMATION_EXCHANGE_DEPOT, QUARTZ_VIBRANT_GLASS)))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError(
                         "Main preview did not expose the access hatch and vibrant glass candidates"));
-        helper.assertValueEqual(blockId(accessPredicate.candidates().getFirst()), TRINITY_ACCESS_HATCH,
+        helper.assertValueEqual(blockId(accessPredicate.candidates().getFirst()), TRINITY_INFORMATION_EXCHANGE_DEPOT,
                 "Access hatch must be the first default candidate");
         helper.assertValueEqual(blockId(accessPredicate.candidates().get(1)), QUARTZ_VIBRANT_GLASS,
                 "Vibrant glass must remain the alternate access-position candidate");

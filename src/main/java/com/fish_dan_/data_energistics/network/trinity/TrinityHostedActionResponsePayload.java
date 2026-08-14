@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.network.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityHostedActionResult;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKeys;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -123,7 +123,7 @@ public record TrinityHostedActionResponsePayload(int containerId,
             case INTERNAL_ERROR -> player.displayClientMessage(
                     Component.translatable("message.data_energistics.trinity_data_core.auto_build.internal_error"),
                     false);
-            case NO_OP, DELIVERY_FAILED -> {
+            case STARTED, NO_OP, DELIVERY_FAILED -> {
                 Data_Energistics.LOGGER.error("Unexpected Trinity auto-build result status: {}", result.status());
                 player.displayClientMessage(
                         Component.translatable("message.data_energistics.trinity_data_core.auto_build.internal_error"),

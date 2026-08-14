@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostModularUI;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.neoforged.api.distmarker.Dist;

@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
  * route is resolved and compared only on the server thread.
  * </p>
  *
- * @param leaseEpoch           Access Hatch lease epoch
+ * @param leaseEpoch           information exchange depot lease epoch
  * @param membershipGeneration VirtualGrid membership generation
  */
 public record TrinityCraftingExecutionRouteToken(long leaseEpoch, long membershipGeneration) {

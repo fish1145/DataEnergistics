@@ -354,12 +354,13 @@ COMMON 默认值：
 | `maxScheduleStates` | 500000 |
 | `graphRebuildBudgetMs` | 4 |
 | `plannerThreads` | `max(1, min(8, availableProcessors / 2))` |
+| `cpuPlannerThreads` | `max(1, min(8, availableProcessors / 2))` |
 | `plannerQueueCapacity` | 128 |
 | `dynamicRetryMaxTicks` | 200 |
 | `defaultQuantityMode` | `NET_NEW` |
 
-初始请求与运行中作业的剩余量重规划使用相互隔离的有界执行轨道，后台作业不会占用确认页规划线程。配置的 worker
-预算优先保留一个初始规划 worker，其余用于剩余量重规划；当预算为 1 时，两条轨道仍各保留一个 worker。两条轨道与
+初始请求与运行中作业的剩余量重规划使用相互隔离的有界执行轨道，后台作业不会占用确认页规划线程。`plannerThreads`
+只限制初始计划，`cpuPlannerThreads` 只限制 CPU 剩余量重规划，两项配置互不拆分也互不借用。两条轨道与
 CPU 派发候选计算共享同一个服务器生命周期、线程安全的 computation cache，相同语义键可以跨轨道命中，执行隔离不会
 复制或分割缓存。CPU 派发为每个已接纳的 CPU worker ticket 启动独立虚拟线程，同时保留单 CPU、单 Grid 和全局
 outstanding 上限；世界状态和资源提交仍只在服务器线程执行。MIP 不设置 wall-clock 结果截止时间并响应 Future 的协作取消；

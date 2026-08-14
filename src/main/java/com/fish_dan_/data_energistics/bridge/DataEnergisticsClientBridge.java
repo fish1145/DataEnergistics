@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bridge;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
@@ -25,6 +25,20 @@ public interface DataEnergisticsClientBridge {
      * @return {@code true} when execution is on the client thread.
      */
     boolean isClientThread();
+
+    /**
+     * Captures the current Shift/Ctrl combination for a priority-button click.
+     *
+     * @return bit zero for Shift and bit one for Ctrl
+     */
+    int priorityModifierMask();
+
+    /**
+     * Returns whether either Shift key is held for one client-side inventory click.
+     *
+     * @return {@code true} while the client is requesting a quick-move action
+     */
+    boolean isShiftDown();
 
     /**
      * Returns the client adapter that installs an independent LDLib2 world renderer on a common scene shell.

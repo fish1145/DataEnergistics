@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
@@ -69,7 +69,7 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
             return;
         }
         this.dataEnergistics$requestedTarget = target;
-        if (!(host instanceof TrinityAccessHatchBlockEntity hatch) ||
+        if (!(host instanceof TrinityInformationExchangeDepotBlockEntity hatch) ||
                 hatch.cpuStatusTargetState(target) != TargetState.CURRENT_CPU) {
             throw new IllegalStateException("Trinity CPU status target became stale during menu construction");
         }
@@ -104,8 +104,8 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
         }
 
         ITerminalHost menuHost = ((CraftingStatusMenu) (Object) this).getHost();
-        if (!(menuHost instanceof TrinityAccessHatchBlockEntity hatch)) {
-            dataEnergistics$closeStaleTarget("menu host is no longer the Trinity access hatch", target);
+        if (!(menuHost instanceof TrinityInformationExchangeDepotBlockEntity hatch)) {
+            dataEnergistics$closeStaleTarget("menu host is no longer the Trinity information exchange depot", target);
             ci.cancel();
             return;
         }
@@ -141,7 +141,7 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
 
     @Unique
     private boolean dataEnergistics$selectCoordinatorFallback(TrinityCraftingStatusSelection.Target target,
-                                                              TrinityAccessHatchBlockEntity hatch) {
+                                                              TrinityInformationExchangeDepotBlockEntity hatch) {
         TrinityCraftingExecutionRoute route = hatch.craftingExecutionRoute();
         if (!target.route().isCurrent(route)) {
             return false;

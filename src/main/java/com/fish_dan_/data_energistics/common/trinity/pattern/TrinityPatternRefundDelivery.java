@@ -5,12 +5,12 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * Two-phase non-AE delivery contract for an already-collected Trinity installed-pattern refund.
+ * Two-phase delivery contract for an already-collected Trinity installed-pattern refund.
  *
  * <p>
- * {@link #prepare(List)} validates the player inventory and world-drop fallback before any core is mutated.
+ * {@link #prepare(List)} validates the delivery context before any core is mutated.
  * {@link #deliver(List)} runs only after every mounted core cleared its exact captured slots. Implementations must
- * deliver every remainder through the final world-drop fallback instead of discarding or routing it through AE.
+ * deliver every remainder through AE storage, the player inventory, and the final world-drop fallback in that order.
  * </p>
  */
 public interface TrinityPatternRefundDelivery {
@@ -27,8 +27,8 @@ public interface TrinityPatternRefundDelivery {
      * Delivers installed patterns after the core transaction committed.
      *
      * <p>
-     * Implementations must first use the player's inventory and must create world drops for every rejected remainder.
-     * A rejected world drop is returned as the exact ordered suffix that remains undelivered.
+     * Implementations must first use AE storage, then the player's inventory, and finally create world drops for every
+     * rejected remainder. A rejected world drop is returned as the exact ordered suffix that remains undelivered.
      * </p>
      *
      * @param patterns immutable slot-ordered copies of every installed encoded pattern in the aggregate

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityPatternCoreUi;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical.TrinityPatternCoreUi;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.network.chat.Component;

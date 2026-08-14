@@ -18,7 +18,7 @@ import java.util.UUID;
  * @param jobId                persistent AE2 crafting-link identity
  * @param jobRevision          transient job mutation revision
  * @param workGeneration       compact-plan generation, or legacy task lease generation
- * @param routeLeaseEpoch      Access Hatch lease epoch
+ * @param routeLeaseEpoch      information exchange depot lease epoch
  * @param membershipGeneration VirtualGrid membership generation
  */
 public record CraftingDispatchLease(

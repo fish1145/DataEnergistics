@@ -7,7 +7,7 @@
 			"aisle": "front"
 		},
 		"replaceable_compartments": {
-			"@": ["trinity_access"]
+			"@": ["trinity_information_exchange"]
 		},
 		"auto_build_staging": {
 			"block_symbols": [

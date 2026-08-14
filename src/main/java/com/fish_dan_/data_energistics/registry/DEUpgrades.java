@@ -52,7 +52,7 @@ public final class DEUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), DEBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), DEBlocks.ME_PATTERN_BUFFER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), DEBlocks.TRINITY_ACCESS_HATCH.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get(), DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");

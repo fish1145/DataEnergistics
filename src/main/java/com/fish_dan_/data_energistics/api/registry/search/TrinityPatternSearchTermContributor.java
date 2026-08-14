@@ -21,7 +21,7 @@ public interface TrinityPatternSearchTermContributor {
     /**
      * Extracts stable, player-visible search candidates from one encoded pattern stack.
      *
-     * @param encodedPattern encoded pattern displayed by the Trinity access hatch
+     * @param encodedPattern encoded pattern displayed by the Trinity information exchange depot
      * @return non-null independent candidate names in declaration order
      */
     @NotNull

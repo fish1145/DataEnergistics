@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.network.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
@@ -88,14 +88,14 @@ public final class TrinityOpenCpuStatusPayloadHandler {
             return null;
         }
         TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
-        TrinityOpenCpuStatusValidator.Resolution<TrinityDataCoreVirtualCpu, TrinityAccessHatchBlockEntity, TrinityCraftingExecutionRoute> resolution = TrinityOpenCpuStatusValidator.resolve(
+        TrinityOpenCpuStatusValidator.Resolution<TrinityDataCoreVirtualCpu, TrinityInformationExchangeDepotBlockEntity, TrinityCraftingExecutionRoute> resolution = TrinityOpenCpuStatusValidator.resolve(
                 payload.hostId(),
                 payload.cpuNumber(),
                 host.getHostId(),
                 host.isStructureFormed() && host.isCpuProviderAvailable(),
                 runtime.publishedCpus(),
                 TrinityDataCoreVirtualCpu::number,
-                host::getActiveAccessHatch,
+                host::getActiveInformationExchangeDepot,
                 hatch -> host.isLeaseOwner(hatch) && hatch.boundCraftingRuntime() == runtime ?
                         hatch.craftingExecutionRoute() : null,
                 (route, cpu) -> route != null && route.serviceGrid().getCraftingService().getCpus().contains(cpu));
@@ -127,6 +127,6 @@ public final class TrinityOpenCpuStatusPayloadHandler {
     }
 
     private record RoutedCpu(TrinityDataCoreBlockEntity host,
-                             TrinityAccessHatchBlockEntity hatch,
+                             TrinityInformationExchangeDepotBlockEntity hatch,
                              TrinityCraftingStatusSelection.Target target) {}
 }

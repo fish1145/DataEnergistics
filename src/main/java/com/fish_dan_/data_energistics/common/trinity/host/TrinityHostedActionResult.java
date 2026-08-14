@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity.host;
 
-import com.fish_dan_.data_energistics.gui.ldlib2.HostUiKey;
+import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 
 /**
  * Consumable terminal result for the exact client ticket that was pending when an ACK arrived.

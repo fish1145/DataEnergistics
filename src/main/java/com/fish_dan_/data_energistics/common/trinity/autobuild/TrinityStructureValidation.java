@@ -19,7 +19,7 @@ public interface TrinityStructureValidation {
 
     /** Identifies one independently validated part of the Trinity multiblock. */
     enum Structure {
-        /** Main structure that owns storage and access hatches. */
+        /** Main structure that owns storage and information exchange depots. */
         MAIN,
         /** Optional CPU child structure. */
         CPU,

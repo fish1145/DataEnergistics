@@ -114,6 +114,179 @@ public final class TrinityHostedActionPayloadHandler {
         }
     }
 
+    /** Routes a constrained priority operation through the shared generation and replay guards. */
+    static void handlePriority(TrinityHostedPriorityPayload payload, Player player) {
+        handlePriority(payload, player, responseSink(player));
+    }
+
+    /** Test seam retaining the complete production routing and terminal response path. */
+    public static void handlePriority(TrinityHostedPriorityPayload payload,
+                                      Player player,
+                                      Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
+        if (routed == null) {
+            return;
+        }
+        TrinityHostedActionStatus status;
+        try {
+            status = routed.menu().executeHostedPriority(payload.key(), payload.operation());
+        } catch (IllegalArgumentException failure) {
+            logFailure("priority operation was rejected", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.REJECTED;
+        } catch (RuntimeException failure) {
+            logFailure("priority business entry failed", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                status,
+                responseSink);
+    }
+
+    /** Routes one revision-bound aggregate pattern click through the shared generation and replay guards. */
+    static void handlePatternSlot(TrinityHostedPatternSlotPayload payload, Player player) {
+        handlePatternSlot(payload, player, responseSink(player));
+    }
+
+    /** Test seam retaining the complete hosted routing and terminal response path. */
+    public static void handlePatternSlot(TrinityHostedPatternSlotPayload payload,
+                                         Player player,
+                                         Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
+        if (routed == null) {
+            return;
+        }
+        TrinityHostedActionStatus status;
+        try {
+            status = routed.menu().executeHostedPatternSlot(
+                    routed.player(),
+                    payload.layoutRevision(),
+                    payload.catalogRevision(),
+                    payload.globalSlot(),
+                    payload.action());
+        } catch (IllegalArgumentException failure) {
+            logFailure("aggregate pattern slot action was rejected", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.REJECTED;
+        } catch (RuntimeException failure) {
+            logFailure("aggregate pattern slot business entry failed", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                status,
+                responseSink);
+    }
+
+    /** Routes one ordered aggregate quick-move batch through the shared generation and replay guards. */
+    static void handlePatternQuickMove(TrinityHostedPatternQuickMovePayload payload, Player player) {
+        handlePatternQuickMove(payload, player, responseSink(player));
+    }
+
+    /** Test seam retaining the complete hosted routing and terminal response path. */
+    public static void handlePatternQuickMove(TrinityHostedPatternQuickMovePayload payload,
+                                              Player player,
+                                              Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
+        if (routed == null) {
+            return;
+        }
+        TrinityHostedActionStatus status;
+        try {
+            status = routed.menu().executeHostedPatternQuickMove(
+                    routed.player(),
+                    payload.layoutRevision(),
+                    payload.globalSlots());
+        } catch (IllegalArgumentException failure) {
+            logFailure("aggregate pattern quick-move batch was rejected",
+                    routed.player(),
+                    routed.menu(),
+                    payload.ticket(),
+                    failure);
+            status = TrinityHostedActionStatus.REJECTED;
+        } catch (RuntimeException failure) {
+            logFailure("aggregate pattern quick-move business entry failed",
+                    routed.player(),
+                    routed.menu(),
+                    payload.ticket(),
+                    failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                status,
+                responseSink);
+    }
+
+    /** Routes one best-effort pattern migration through the aggregate window generation and replay guards. */
+    static void handlePatternMigration(TrinityHostedPatternMigrationPayload payload, Player player) {
+        handlePatternMigration(payload, player, responseSink(player));
+    }
+
+    /** Test seam retaining the complete hosted routing and terminal response path. */
+    public static void handlePatternMigration(TrinityHostedPatternMigrationPayload payload,
+                                              Player player,
+                                              Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
+        if (routed == null) {
+            return;
+        }
+        TrinityHostedActionStatus status;
+        try {
+            status = routed.menu().executeHostedPatternMigration(routed.player());
+        } catch (RuntimeException failure) {
+            logFailure("aggregate pattern migration failed", routed.player(), routed.menu(), payload.ticket(), failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                status,
+                responseSink);
+    }
+
     /**
      * Routes the installed-pattern action without requiring a hosted child window.
      */
