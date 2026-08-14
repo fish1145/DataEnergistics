@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompl
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutput;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputResolutionException;
+import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
@@ -58,7 +59,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
@@ -2066,6 +2066,53 @@ final class TrinityDataCoreCpuLogic {
                         amount,
                         dynamicRoute(currentJob, plannedKey),
                         semantics.adapterId()));
+            }
+        }
+
+        if (EncodedPatternDynamicOutput.isMarked(details.getDefinition())) {
+            DynamicCraftingOutput declaration = EncodedPatternDynamicOutput.resolve(details);
+            AEItemKey plannedKey = (AEItemKey) declaration.plannedOutput().what();
+            long markedAmount;
+            try {
+                markedAmount = Math.multiplyExact(declaration.plannedOutput().amount(), count);
+            } catch (ArithmeticException exception) {
+                throw new DynamicCraftingOutputResolutionException(
+                        "Encoded pattern output amount overflow for " + details.getDefinition(),
+                        exception);
+            }
+            if (amountFor(expectedOutputs, plannedKey) < markedAmount) {
+                throw new DynamicCraftingOutputResolutionException(
+                        "Encoded pattern output is not present in the prepared physical outputs for " +
+                                details.getDefinition());
+            }
+            if (amountFor(expectedContainerItems, plannedKey) > 0L) {
+                throw new DynamicCraftingOutputResolutionException(
+                        "Encoded pattern output conflicts with a returned input container for " +
+                                details.getDefinition());
+            }
+
+            long adapterAmount;
+            try {
+                adapterAmount = resolved.stream()
+                        .filter(registration -> registration.plannedKey().equals(plannedKey))
+                        .mapToLong(DynamicCraftingOutputLedger.Registration::amount)
+                        .reduce(0L, Math::addExact);
+            } catch (ArithmeticException exception) {
+                throw new DynamicCraftingOutputResolutionException(
+                        "Combined dynamic output amount overflow for " + details.getDefinition(),
+                        exception);
+            }
+            if (adapterAmount > markedAmount) {
+                throw new DynamicCraftingOutputResolutionException(
+                        "Registered dynamic output exceeds the encoded pattern output for " +
+                                details.getDefinition());
+            }
+            if (adapterAmount < markedAmount) {
+                resolved.add(new DynamicCraftingOutputLedger.Registration(
+                        plannedKey,
+                        markedAmount - adapterAmount,
+                        dynamicRoute(currentJob, plannedKey),
+                        EncodedPatternDynamicOutput.SOURCE_ID));
             }
         }
 

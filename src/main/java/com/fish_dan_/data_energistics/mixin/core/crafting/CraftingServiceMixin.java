@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin.core.crafting;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
@@ -30,6 +31,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityInitialPlanCalculation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityInitialPlanningRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
@@ -39,6 +41,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.cap
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 import com.fish_dan_.data_energistics.configuration.runtime.TrinityDispatchGovernorState;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
@@ -51,6 +54,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.CalculationStrategy;
@@ -85,15 +89,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -211,18 +218,37 @@ public abstract class CraftingServiceMixin
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode());
+        Optional<TrinityCraftingGraphSnapshot> graph = data_energistics$trinityCraftingGraphSnapshot();
+        CraftingProviderPublicationIndex publications = data_energistics$craftingProviderPublicationIndex();
+        long publicationRevision = publications.publicationRevision();
         long maxTrinityBytes = dataEnergistics$maxPlanningTrinityBytes(actionSource);
         if (maxTrinityBytes <= 0L) {
+            boolean requiresTrinity;
+            try {
+                requiresTrinity = graph
+                        .filter(snapshot -> snapshot.revision() == publicationRevision)
+                        .map(snapshot -> dataEnergistics$requiresTrinityDynamicOutput(snapshot, what))
+                        .orElseGet(() -> dataEnergistics$requiresTrinityDynamicOutputFromProviders(what));
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to inspect dynamic output markers before native AE2 planning; refusing unsafe fallback",
+                        exception);
+                requiresTrinity = true;
+            }
+            if (requiresTrinity) {
+                return dataEnergistics$noEligibleTrinityCpuDynamicOutputPlan(
+                        what,
+                        amount,
+                        publicationRevision);
+            }
             return original.call(level, simRequester, what, amount, strategy);
         }
 
         long requestId = DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE.incrementAndGet();
-        Optional<TrinityCraftingGraphSnapshot> graph = data_energistics$trinityCraftingGraphSnapshot();
         Map<AEKey, BigInteger> available = graph
                 .map(this::dataEnergistics$capturePlanningInventory)
                 .orElse(Map.of());
 
-        CraftingProviderPublicationIndex publications = data_energistics$craftingProviderPublicationIndex();
         long gridScope = publications.publicationScope();
         long graphRevision = graph
                 .map(TrinityCraftingGraphSnapshot::revision)
@@ -243,6 +269,73 @@ public abstract class CraftingServiceMixin
                         maxTrinityBytes,
                         settings),
                 () -> original.call(level, simRequester, what, amount, strategy));
+    }
+
+    /**
+     * Detects player-marked output semantics before selecting the native planner. Native AE2 plans and CPUs do not
+     * understand this encoded-pattern component, so any reachable marked transition makes fallback unsafe.
+     */
+    @Unique
+    private static boolean dataEnergistics$requiresTrinityDynamicOutput(
+                                                                        TrinityCraftingGraphSnapshot graph,
+                                                                        AEKey target) {
+        return graph.reachableSubgraph(target)
+                .patterns()
+                .stream()
+                .anyMatch(pattern -> EncodedPatternDynamicOutput.isMarked(pattern.definition()));
+    }
+
+    /**
+     * Covers the short publication window before a current immutable graph is available. The live provider index is
+     * read only on this server-thread entry point and traversed by exact primary-output dependencies.
+     */
+    @Unique
+    private boolean dataEnergistics$requiresTrinityDynamicOutputFromProviders(AEKey target) {
+        ArrayDeque<AEKey> pending = new ArrayDeque<>();
+        Set<AEKey> visitedKeys = new HashSet<>();
+        Set<AEKey> visitedPatterns = new HashSet<>();
+        pending.add(target);
+        while (!pending.isEmpty()) {
+            AEKey required = pending.removeFirst();
+            if (!visitedKeys.add(required)) {
+                continue;
+            }
+            for (IPatternDetails pattern : this.craftingProviders.getCraftingFor(required)) {
+                if (!visitedPatterns.add(pattern.getDefinition())) {
+                    continue;
+                }
+                if (EncodedPatternDynamicOutput.isMarked(pattern.getDefinition())) {
+                    return true;
+                }
+                TrinityPatternPublicationSignature publication = TrinityPatternPublicationSignature.capture(pattern);
+                for (TrinityPatternPublicationSignature.Input input : publication.inputs()) {
+                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                        pending.addLast(alternative.stack().what());
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Publishes a confirmation-page diagnostic without ever starting the native AE2 planner.
+     */
+    @Unique
+    private static Future<ICraftingPlan> dataEnergistics$noEligibleTrinityCpuDynamicOutputPlan(
+                                                                                               AEKey target,
+                                                                                               long amount,
+                                                                                               long graphRevision) {
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU,
+                Component.translatable(
+                        "gui.data_energistics.trinity_planning.dynamic_output_requires_trinity_cpu"),
+                Map.of(
+                        "graphRevision", Long.toString(graphRevision),
+                        "target", target.toString()));
+        return CompletableFuture.completedFuture(TrinityDiagnosedCraftingPlan.forDiagnostic(
+                new GenericStack(target, amount),
+                diagnostic));
     }
 
     @Unique
