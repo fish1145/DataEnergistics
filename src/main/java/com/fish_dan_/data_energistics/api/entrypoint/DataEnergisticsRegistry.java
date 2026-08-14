@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.api.entrypoint;
 
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
+import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
@@ -12,7 +13,7 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
  *
  * <p>
  * All facets refer to the same staging transaction. A plugin can therefore register terminals, provider
- * integrations and virtual output adapters from one entrypoint without coordinating multiple annotations.
+ * integrations and crafting-output adapters from one entrypoint without coordinating multiple annotations.
  * </p>
  */
 public interface DataEnergisticsRegistry {
@@ -46,4 +47,9 @@ public interface DataEnergisticsRegistry {
      * @return virtual crafting output declaration facet
      */
     VirtualCraftingRegistry virtualCrafting();
+
+    /**
+     * @return dynamic physical crafting-output declaration facet
+     */
+    DynamicCraftingOutputRegistry dynamicCraftingOutputs();
 }

@@ -85,6 +85,8 @@
 		"client.CraftAmountScreenMixin",
 		"client.CraftConfirmScreenMixin",
 		"client.NumberEntryWidgetAccessor",
+		"client.PatternEncodingTermScreenMixin",
+		"client.SetProcessingPatternAmountScreenMixin",
 		"client.Ldlib2AeProtocolScreenMixin",
 		"client.TerminalSettingsScreenMixin",
 		"client.TooltipsMixin",

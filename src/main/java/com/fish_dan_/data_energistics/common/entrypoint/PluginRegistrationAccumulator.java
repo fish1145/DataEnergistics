@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.common.entrypoint;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
+import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
+import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
@@ -29,7 +31,7 @@ import java.util.Map;
  *
  * <p>
  * A plugin writes only to its own staging object. Commit validates every cross-plugin uniqueness constraint before
- * mutating the accumulator, so a rejected plugin cannot leak a partial terminal, provider, or virtual-output
+ * mutating the accumulator, so a rejected plugin cannot leak a partial terminal, provider, or crafting-output
  * registration.
  * </p>
  */
@@ -42,6 +44,7 @@ final class PluginRegistrationAccumulator {
     private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
     private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
     private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
+    private final Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new LinkedHashMap<>();
     private volatile boolean frozen;
 
     /**
@@ -98,6 +101,11 @@ final class PluginRegistrationAccumulator {
                 throw new IllegalStateException("Duplicate virtual crafting output adapter from " + staging.description());
             }
         }
+        for (ResourceLocation adapterId : staging.dynamicCraftingOutputAdapters.keySet()) {
+            if (this.dynamicCraftingOutputAdapters.containsKey(adapterId)) {
+                throw new IllegalStateException("Duplicate dynamic crafting output adapter ID '" + adapterId + "' from " + staging.description());
+            }
+        }
 
         this.universalTerminals.putAll(staging.universalTerminals);
         this.patternProviders.putAll(staging.patternProviders);
@@ -107,6 +115,7 @@ final class PluginRegistrationAccumulator {
         this.trinityPatternRecipeIdResolvers.putAll(staging.trinityPatternRecipeIdResolvers);
         this.trinityPatternSearchTerms.putAll(staging.trinityPatternSearchTerms);
         this.virtualCraftingOutputAdapters.addAll(staging.virtualCraftingOutputAdapters);
+        this.dynamicCraftingOutputAdapters.putAll(staging.dynamicCraftingOutputAdapters);
         staging.markCommitted();
     }
 
@@ -121,7 +130,8 @@ final class PluginRegistrationAccumulator {
                 List.copyOf(this.adaptivePatternProviders.values()),
                 this.trinityPatternRecipeIdResolvers,
                 this.trinityPatternSearchTerms,
-                this.virtualCraftingOutputAdapters);
+                this.virtualCraftingOutputAdapters,
+                this.dynamicCraftingOutputAdapters);
         this.frozen = true;
         return snapshot;
     }
@@ -149,12 +159,14 @@ final class PluginRegistrationAccumulator {
         private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
         private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
         private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
+        private final Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new LinkedHashMap<>();
         private final UniversalTerminalRegistry universalTerminalRegistry = new StagedUniversalTerminalRegistry();
         private final PatternProviderRegistry patternProviderRegistry = new StagedPatternProviderRegistry();
         private final AdaptivePatternProviderRegistry adaptivePatternProviderRegistry = new StagedAdaptivePatternProviderRegistry();
         private final TrinityPatternRecipeIdRegistry trinityPatternRecipeIdRegistry = new StagedTrinityPatternRecipeIdRegistry();
         private final TrinityPatternSearchRegistry trinityPatternSearchRegistry = new StagedTrinityPatternSearchRegistry();
         private final VirtualCraftingRegistry virtualCraftingRegistry = new StagedVirtualCraftingRegistry();
+        private final DynamicCraftingOutputRegistry dynamicCraftingOutputRegistry = new StagedDynamicCraftingOutputRegistry();
         private State state = State.OPEN;
 
         /**
@@ -196,6 +208,11 @@ final class PluginRegistrationAccumulator {
             return this.virtualCraftingRegistry;
         }
 
+        @Override
+        public DynamicCraftingOutputRegistry dynamicCraftingOutputs() {
+            return this.dynamicCraftingOutputRegistry;
+        }
+
         /**
          * Closes and clears a failed transaction without touching already committed plugins.
          */
@@ -210,6 +227,7 @@ final class PluginRegistrationAccumulator {
             this.trinityPatternRecipeIdResolvers.clear();
             this.trinityPatternSearchTerms.clear();
             this.virtualCraftingOutputAdapters.clear();
+            this.dynamicCraftingOutputAdapters.clear();
         }
 
         /**
@@ -362,6 +380,24 @@ final class PluginRegistrationAccumulator {
                     throw new IllegalStateException("Duplicate virtual crafting output adapter in " + description());
                 }
                 virtualCraftingOutputAdapters.add(stagedAdapter);
+            }
+        }
+
+        /**
+         * Stages stateless dynamic-output adapters by stable public ID and declaration order.
+         */
+        private final class StagedDynamicCraftingOutputRegistry implements DynamicCraftingOutputRegistry {
+
+            @Override
+            public void register(DynamicCraftingOutputAdapter adapter) {
+                requireOpen();
+                adapter = requireStagedValue(adapter, "Dynamic crafting output adapter");
+                ResourceLocation adapterId = requireStagedValue(
+                        adapter.id(), "Dynamic crafting output adapter ID");
+                if (dynamicCraftingOutputAdapters.putIfAbsent(adapterId, adapter) != null) {
+                    throw new IllegalStateException(
+                            "Duplicate dynamic crafting output adapter ID '" + adapterId + "' in " + description());
+                }
             }
         }
 

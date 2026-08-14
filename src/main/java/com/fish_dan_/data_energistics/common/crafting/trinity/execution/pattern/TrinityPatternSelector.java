@@ -19,7 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
 /**
@@ -90,16 +92,12 @@ public final class TrinityPatternSelector {
     private final TrinityPatternBindingEnumerator bindingEnumerator = TrinityPatternBindingEnumerator.create();
 
     /**
-     * Selects either the planned ordinal or, for a cycle stage, the best currently executable alternative.
+     * Selects an exact runtime binding without enabling current-job dynamic input aliases.
      *
-     * @param pattern             exact live pattern returned by {@link TrinityPatternResolver}
-     * @param plannedOrdinal      binding ordinal retained by the plan
-     * @param dynamic             whether this cycle stage may switch to another legal binding
-     * @param remainingCrafts     remaining logical firings for the work item
-     * @param cpuAvailability     current CPU-owned amount for a key
-     * @param networkAvailability current simulatable network amount for a key
-     * @param maxVariants         configured Cartesian expansion bound
-     * @return explicit selection, wait set, or a hard planning bound failure
+     * <p>
+     * This overload preserves the existing selector contract for callers that do not own a
+     * dynamic-output ledger.
+     * </p>
      */
     public Result select(IPatternDetails pattern,
                          int plannedOrdinal,
@@ -108,7 +106,39 @@ public final class TrinityPatternSelector {
                          ToLongFunction<AEKey> cpuAvailability,
                          ToLongFunction<AEKey> networkAvailability,
                          int maxVariants) {
-        if (plannedOrdinal < 0 || remainingCrafts <= 0L || maxVariants <= 0) {
+        return select(
+                pattern,
+                plannedOrdinal,
+                dynamic,
+                remainingCrafts,
+                cpuAvailability,
+                networkAvailability,
+                ignored -> Optional.empty(),
+                maxVariants);
+    }
+
+    /**
+     * Selects either the planned ordinal or, for a cycle stage, the best currently executable alternative.
+     *
+     * @param pattern              exact live pattern returned by {@link TrinityPatternResolver}
+     * @param plannedOrdinal       binding ordinal retained by the plan
+     * @param dynamic              whether this cycle stage may switch to another legal binding
+     * @param remainingCrafts      remaining logical firings for the work item
+     * @param cpuAvailability      current CPU-owned amount for a key
+     * @param networkAvailability  current simulatable network amount for a key
+     * @param dynamicInputResolver current-job resolver for actual same-item variants returned by dynamic outputs
+     * @param maxVariants          configured Cartesian expansion bound
+     * @return explicit selection, wait set, or a hard planning bound failure
+     */
+    public Result select(IPatternDetails pattern,
+                         int plannedOrdinal,
+                         boolean dynamic,
+                         long remainingCrafts,
+                         ToLongFunction<AEKey> cpuAvailability,
+                         ToLongFunction<AEKey> networkAvailability,
+                         Function<GenericStack, Optional<AEItemKey>> dynamicInputResolver,
+                         int maxVariants) {
+        if (plannedOrdinal < 0 || remainingCrafts <= 0L || dynamicInputResolver == null || maxVariants <= 0) {
             throw new IllegalArgumentException("A Trinity runtime binding requires an ordinal, work and variant limit");
         }
 
@@ -146,7 +176,8 @@ public final class TrinityPatternSelector {
                         binding.cartesianOrdinal(),
                         remainingCrafts,
                         cpuAvailability,
-                        networkAvailability);
+                        networkAvailability,
+                        dynamicInputResolver);
             } catch (ArithmeticException exception) {
                 return new ArithmeticOverflow("runtime_pattern_binding");
             }
@@ -159,6 +190,7 @@ public final class TrinityPatternSelector {
             return new Unavailable(observedKeys);
         }
         IPatternDetails extractionPattern = new BoundPatternDetails(pattern, best.selectedInputs());
+        best.aggregatedInputs().forEach(input -> observedKeys.add(input.what()));
         return new Selected(
                 extractionPattern,
                 best.ordinal(),
@@ -190,7 +222,8 @@ public final class TrinityPatternSelector {
                                       int ordinal,
                                       long remainingCrafts,
                                       ToLongFunction<AEKey> cpuAvailability,
-                                      ToLongFunction<AEKey> networkAvailability) {
+                                      ToLongFunction<AEKey> networkAvailability,
+                                      Function<GenericStack, Optional<AEItemKey>> dynamicInputResolver) {
         ArrayList<SelectedInput> selected = new ArrayList<>(inputs.size());
         LinkedHashMap<AEKey, Long> aggregated = new LinkedHashMap<>();
         for (int slot = 0; slot < inputs.size(); slot++) {
@@ -200,8 +233,15 @@ public final class TrinityPatternSelector {
                     .get(alternatives.get(slot));
             GenericStack template = alternative.stack();
             long amount = Math.multiplyExact(template.amount(), input.signature().multiplier());
-            aggregated.merge(template.what(), amount, Math::addExact);
-            selected.add(new SelectedInput(input.delegate(), template, alternative.remainingKey()));
+            AEKey selectedKey = dynamicInputResolver.apply(new GenericStack(template.what(), amount))
+                    .<AEKey>map(key -> key)
+                    .orElse(template.what());
+            GenericStack selectedTemplate = new GenericStack(selectedKey, template.amount());
+            AEKey remainingKey = selectedKey.equals(template.what()) ?
+                    alternative.remainingKey() :
+                    input.delegate().getRemainingKey(selectedKey);
+            aggregated.merge(selectedKey, amount, Math::addExact);
+            selected.add(new SelectedInput(input.delegate(), selectedTemplate, remainingKey));
         }
 
         long maximumCrafts = remainingCrafts;
