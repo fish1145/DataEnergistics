@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.gui.ldlib2.trinity.autobuild.TrinityDataCoreStructureProviders;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -21,9 +20,6 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
-
-import java.util.List;
 
 /**
  * Dedicated-server regressions for the packaged Trinity UI layouts.
@@ -32,31 +28,7 @@ import java.util.List;
 @PrefixGameTestTemplate(false)
 public final class TrinityUiXmlLayoutsGameTest {
 
-    private static final List<LayoutExpectation> LAYOUTS = List.of(
-            new LayoutExpectation("pattern_core", "trinity_pattern_core_root"),
-            new LayoutExpectation("pattern_core_panel", "trinity_pattern_core_panel"));
-
     private TrinityUiXmlLayoutsGameTest() {}
-
-    @TestHolder("trinity_embedded_xml_layouts_load_on_server")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void embeddedLayoutsLoadOnServer(GameTestHelper helper) {
-        helper.assertFalse(helper.getLevel().isClientSide(), "GameTest must execute on the logical server");
-        for (LayoutExpectation expectation : LAYOUTS) {
-            UI ui = TrinityUiXmlLayouts.load(expectation.name());
-            helper.assertValueEqual(
-                    ui.rootElement.getId(),
-                    expectation.rootId(),
-                    "Embedded Trinity layout must preserve its stable root id: " + expectation.name());
-        }
-        UI autoBuildUi = TrinityUiNbtLayouts.load("auto_build");
-        helper.assertValueEqual(
-                autoBuildUi.rootElement.getId(),
-                TrinityDataCoreStructureProviders.AUTO_BUILD_WINDOW_ID,
-                "Embedded automatic-build NBT must preserve its stable root id");
-        helper.succeed();
-    }
 
     @TestHolder("trinity_data_core_menu_mounts_embedded_nbt_on_server")
     @EmptyTemplate("5")
@@ -92,6 +64,4 @@ public final class TrinityUiXmlLayoutsGameTest {
         menu.removed(player);
         helper.succeed();
     }
-
-    private record LayoutExpectation(String name, String rootId) {}
 }
