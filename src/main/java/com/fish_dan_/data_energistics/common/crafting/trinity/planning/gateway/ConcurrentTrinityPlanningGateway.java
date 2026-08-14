@@ -72,15 +72,16 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     }
 
     private static PlanningExecutors createOwnedExecutors(TrinityCrafting settings) {
+        int initialWorkerCount = Math.ceilDiv(settings.plannerThreads(), 2);
         ExecutorService initial = createExecutor(
-                1,
+                initialWorkerCount,
                 settings.plannerQueueCapacity(),
                 "DataEnergistics-TrinityInitialPlanner-");
         if (settings.plannerThreads() == 1) {
             return new PlanningExecutors(initial, initial);
         }
         ExecutorService remaining = createExecutor(
-                settings.plannerThreads() - 1,
+                settings.plannerThreads() - initialWorkerCount,
                 settings.plannerQueueCapacity(),
                 "DataEnergistics-TrinityRemainingPlanner-");
         return new PlanningExecutors(initial, remaining);
