@@ -174,6 +174,8 @@ public interface DataEnergisticsSettings {
 
         int plannerThreads();
 
+        int cpuPlannerThreads();
+
         int plannerQueueCapacity();
 
         int dynamicRetryMaxTicks();

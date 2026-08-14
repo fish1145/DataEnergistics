@@ -406,13 +406,23 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Bounded Trinity planning worker budget split across isolated initial and remaining-work lanes; both share one global cache. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
-                "在初始规划与剩余量重规划隔离轨道间分配的 Trinity 有界工作线程预算；两者共享一个全局缓存。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
+                "Bounded workers for initial Trinity plan calculations. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
+                "Trinity 初始计划计算的有界工作线程数。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
         })
         @Configurable.Range(min = 1, max = 8)
         @Configurable.UpdateRestriction(UpdateRestrictions.GAME_RESTART)
         @Configurable.Gui.Slider
         public int plannerThreads = recommendedPlannerThreads(Runtime.getRuntime().availableProcessors());
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Bounded workers for Trinity CPU remaining-work replanning. Default: clamp(CPU / 2, 1, 8). Requires a game restart.",
+                "Trinity CPU 剩余工作重规划的有界工作线程数。默认：clamp(CPU / 2, 1, 8)。需要重启游戏。"
+        })
+        @Configurable.Range(min = 1, max = 8)
+        @Configurable.UpdateRestriction(UpdateRestrictions.GAME_RESTART)
+        @Configurable.Gui.Slider
+        public int cpuPlannerThreads = recommendedPlannerThreads(Runtime.getRuntime().availableProcessors());
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({

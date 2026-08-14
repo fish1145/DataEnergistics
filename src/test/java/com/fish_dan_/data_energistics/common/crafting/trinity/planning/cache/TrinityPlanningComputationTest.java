@@ -292,6 +292,7 @@ final class TrinityPlanningComputationTest {
                 500_000,
                 4,
                 2,
+                2,
                 128,
                 200,
                 CraftingQuantityMode.NET_NEW);

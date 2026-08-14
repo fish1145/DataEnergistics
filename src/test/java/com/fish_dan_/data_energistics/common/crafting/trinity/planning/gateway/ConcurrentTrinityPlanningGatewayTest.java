@@ -13,7 +13,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
-import com.fish_dan_.data_energistics.configuration.snapshot.TrinityCraftingSettings;
 
 import net.minecraft.network.chat.Component;
 
@@ -287,44 +286,6 @@ public final class ConcurrentTrinityPlanningGatewayTest {
         assertFalse(diagnosed.ae2FallbackEstimate());
         assertFalse(ae2Started.get());
         assertEquals(TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL, diagnosed.diagnostic().code());
-    }
-
-    @Test
-    void singleWorkerBudgetUsesOneWorkerForBothPlanningLanes() throws Exception {
-        TrinityPlanningGateway gateway = new ConcurrentTrinityPlanningGateway(TrinityCraftingSettings.defaults(1));
-        TrinityCraftingPlan plan = trinityPlan();
-        CountDownLatch initialStarted = new CountDownLatch(1);
-        CountDownLatch releaseInitial = new CountDownLatch(1);
-        CompletableFuture<Thread> initialWorker = new CompletableFuture<>();
-        CompletableFuture<Thread> remainingWorker = new CompletableFuture<>();
-        try {
-            Future<ICraftingPlan> initial = gateway.begin(
-                    true,
-                    1L,
-                    1L,
-                    new GenericStack(TARGET, 1L),
-                    () -> {
-                        initialWorker.complete(Thread.currentThread());
-                        initialStarted.countDown();
-                        releaseInitial.await();
-                        return TrinityPlanningAttempt.success(plan);
-                    },
-                    () -> CompletableFuture.completedFuture(ae2Plan(false)));
-            assertTrue(initialStarted.await(1L, TimeUnit.SECONDS));
-
-            Future<TrinityPlanningAttempt> remaining = gateway.beginTrinity(1L, 1L, () -> {
-                remainingWorker.complete(Thread.currentThread());
-                return TrinityPlanningAttempt.success(plan);
-            });
-
-            releaseInitial.countDown();
-            assertSame(plan, initial.get(1L, TimeUnit.SECONDS));
-            assertSame(plan, remaining.get(1L, TimeUnit.SECONDS).plan());
-            assertSame(initialWorker.get(1L, TimeUnit.SECONDS), remainingWorker.get(1L, TimeUnit.SECONDS));
-        } finally {
-            releaseInitial.countDown();
-            gateway.close();
-        }
     }
 
     @Test
