@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Owns the single bounded planning pool for one logical server lifetime.
+ * Owns the bounded planning gateway and its isolated execution lanes for one logical server lifetime.
  *
  * <p>
  * A process-wide lifecycle prevents every AE2 grid from multiplying the configured worker and queue budgets.
@@ -37,6 +38,13 @@ public final class TrinityPlanningGatewayLifecycle {
             throw new IllegalStateException("The Trinity planning gateway is not running");
         }
         return gateway;
+    }
+
+    /**
+     * @return the running server-lifetime cache shared across every Trinity computation lane
+     */
+    public static synchronized TrinityComputationCache computationCache() {
+        return gateway().computationCache();
     }
 
     /**

@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +43,7 @@ import java.util.function.LongSupplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TrinityPlanningComputationTest {
@@ -128,7 +130,7 @@ final class TrinityPlanningComputationTest {
     }
 
     @Test
-    void revisionChangeCancelsInflightStructureThenCachesTheRevisedResult() throws Exception {
+    void revisionChangeCancelsObsoleteSolveButSharesInflightStructure() throws Exception {
         CountingPipeline pipeline = new CountingPipeline();
         pipeline.compileEntered = new CountDownLatch(1);
         pipeline.releaseCompile = new CountDownLatch(1);
@@ -145,9 +147,9 @@ final class TrinityPlanningComputationTest {
                 11L,
                 BigInteger.ONE,
                 Map.of(inputKey, BigInteger.ONE)));
-        assertTrue(obsolete.isCancelled());
         pipeline.releaseCompile.countDown();
 
+        assertThrows(CancellationException.class, obsolete::get);
         TrinityPlanningComputationResult revised = get(revisedFuture);
         TrinityPlanningComputationResult nextRevision = get(computation.begin(input(
                 7L,
@@ -155,12 +157,12 @@ final class TrinityPlanningComputationTest {
                 BigInteger.ONE,
                 Map.of(inputKey, BigInteger.ONE))));
 
-        assertEquals(PlanningCachePath.MISS, revised.cachePath());
+        assertEquals(PlanningCachePath.STRUCTURE_HIT, revised.cachePath());
         assertEquals(PlanningCachePath.STRUCTURE_HIT, nextRevision.cachePath());
         assertTrue(revised.result().successful());
         assertEquals(11L, revised.result().value().catalogRevision());
         assertEquals(12L, nextRevision.result().value().catalogRevision());
-        assertEquals(2, pipeline.compilations.get());
+        assertEquals(1, pipeline.compilations.get());
         assertEquals(2, pipeline.solves.get());
     }
 

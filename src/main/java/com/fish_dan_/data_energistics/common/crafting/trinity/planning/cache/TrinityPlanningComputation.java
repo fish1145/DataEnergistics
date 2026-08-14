@@ -59,7 +59,8 @@ public final class TrinityPlanningComputation {
     }
 
     /**
-     * Invalidates obsolete revision-bound entries and submits one caller-isolated orchestration.
+     * Submits one caller-isolated orchestration; revision invalidation occurs when that request enters the shared
+     * computation layers.
      *
      * @param input immutable pure planning input
      * @return caller-owned future; cancellation with interruption enabled stops this request's planner thread
@@ -68,7 +69,6 @@ public final class TrinityPlanningComputation {
         validateInput(input);
         return this.cache.submit(
                 input.gridScope(),
-                input.graph().revision(),
                 () -> calculate(input));
     }
 
