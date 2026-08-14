@@ -41,6 +41,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private static final int SLOT_SIZE = 18;
     private static final int MAX_CACHED_PAGES = 16;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
+    private static final IGuiTexture SEARCH_INPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input.png");
+    private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
+    private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
 
     private final long generation;
     private final Level level;
@@ -137,7 +140,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
         search.setTextResponder(this::setQuery);
         searchModeButton.setOnClick(event -> cycleSearchMode());
-        updateSearchModeTooltip();
+        updateSearchModePresentation();
         updateScrollbar(0, 0);
     }
 
@@ -247,13 +250,13 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             return;
         }
         this.searchMode = this.searchMode.next();
-        updateSearchModeTooltip();
+        updateSearchModePresentation();
         if (hasQuery()) {
             restartSearch();
         }
     }
 
-    private void updateSearchModeTooltip() {
+    private void updateSearchModePresentation() {
         if (this.searchModeButton == null) {
             return;
         }
@@ -262,7 +265,12 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             case OUTPUT -> "button.data_energistics.trinity_data_core.pattern.search_mode.output";
             case INPUT_OUTPUT -> "button.data_energistics.trinity_data_core.pattern.search_mode.input_output";
         });
-        this.searchModeButton.text.style(style -> style.tooltips(tooltip));
+        IGuiTexture icon = switch (this.searchMode) {
+            case INPUT -> SEARCH_INPUT_ICON;
+            case OUTPUT -> SEARCH_OUTPUT_ICON;
+            case INPUT_OUTPUT -> SEARCH_INPUT_OUTPUT_ICON;
+        };
+        this.searchModeButton.text.style(style -> style.backgroundTexture(icon).tooltips(tooltip));
         this.searchModeButton.style(style -> style.tooltips(tooltip));
     }
 
