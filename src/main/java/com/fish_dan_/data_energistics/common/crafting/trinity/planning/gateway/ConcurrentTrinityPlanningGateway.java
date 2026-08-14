@@ -47,16 +47,11 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     private final TrinityPlanningComputation planningComputation;
 
     ConcurrentTrinityPlanningGateway(TrinityCrafting settings) {
-        this(
-                createExecutor(
-                        1,
-                        settings.plannerQueueCapacity(),
-                        "DataEnergistics-TrinityInitialPlanner-"),
-                createExecutor(
-                        Math.max(1, settings.plannerThreads() - 1),
-                        settings.plannerQueueCapacity(),
-                        "DataEnergistics-TrinityRemainingPlanner-"),
-                true);
+        this(createOwnedExecutors(settings));
+    }
+
+    private ConcurrentTrinityPlanningGateway(PlanningExecutors executors) {
+        this(executors.initial(), executors.remaining(), true);
     }
 
     ConcurrentTrinityPlanningGateway(ExecutorService plannerExecutor, boolean ownsExecutor) {
@@ -76,6 +71,21 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                 TrinityGraphPlanner.pipeline());
     }
 
+    private static PlanningExecutors createOwnedExecutors(TrinityCrafting settings) {
+        ExecutorService initial = createExecutor(
+                1,
+                settings.plannerQueueCapacity(),
+                "DataEnergistics-TrinityInitialPlanner-");
+        if (settings.plannerThreads() == 1) {
+            return new PlanningExecutors(initial, initial);
+        }
+        ExecutorService remaining = createExecutor(
+                settings.plannerThreads() - 1,
+                settings.plannerQueueCapacity(),
+                "DataEnergistics-TrinityRemainingPlanner-");
+        return new PlanningExecutors(initial, remaining);
+    }
+
     private static ExecutorService createExecutor(int workerCount, int queueCapacity, String threadNamePrefix) {
         ThreadFactory threadFactory = task -> {
             Thread thread = new Thread(task, threadNamePrefix + THREAD_SEQUENCE.incrementAndGet());
@@ -91,6 +101,8 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                 threadFactory,
                 new ThreadPoolExecutor.AbortPolicy());
     }
+
+    private record PlanningExecutors(ExecutorService initial, ExecutorService remaining) {}
 
     private static void validatePlanningScope(long gridScope, long graphRevision) {
         if (gridScope < 0L || graphRevision < 0L) {
