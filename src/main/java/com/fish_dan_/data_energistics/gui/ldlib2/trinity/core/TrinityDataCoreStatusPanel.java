@@ -17,8 +17,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
 
+import java.util.Locale;
 import java.util.function.Supplier;
 
 /** Binds one compact status overview into the Data Core's editor-authored home panel. */
@@ -48,10 +48,11 @@ final class TrinityDataCoreStatusPanel {
     private TrinityDataCoreStatusPanel() {}
 
     /** Adds the status content without replacing the NBT-authored panel background or geometry. */
-    static void bindExisting(@NotNull UIElement homePanel,
-                             @NotNull IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider,
-                             @NotNull IDataProvider<TrinityDataCoreStorageStatus> storageStatusProvider,
-                             @NotNull IDataProvider<TrinityCpuListStatus> cpuListStatusProvider) {
+    static void bindExisting(UIElement homePanel,
+                             IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider,
+                             IDataProvider<TrinityDataCoreStorageStatus> storageStatusProvider,
+                             IDataProvider<TrinityCpuListStatus> cpuListStatusProvider,
+                             IDataProvider<Long> coreTickNanosProvider) {
         UIElement content = new UIElement();
         content.setId(CONTENT_ID);
         content.setOverflowVisible(false);
@@ -62,12 +63,26 @@ final class TrinityDataCoreStatusPanel {
                 .width(WIDTH)
                 .height(HEIGHT));
 
-        row(
+        positionedRow(
                 content,
                 "online",
                 "screen.data_energistics.trinity_data_core.status_label",
                 3,
-                () -> onlineText(hostStatusProvider.getValue()));
+                () -> onlineText(hostStatusProvider.getValue()),
+                LABEL_LEFT,
+                28,
+                34,
+                38);
+        positionedRow(
+                content,
+                "tick_cost",
+                "screen.data_energistics.trinity_data_core.tick_cost_label",
+                3,
+                () -> tickCostText(coreTickNanosProvider.getValue()),
+                82,
+                27,
+                109,
+                50);
 
         heading(content, "structure", "screen.data_energistics.trinity_data_core.section.structure", 14);
         row(
@@ -162,16 +177,37 @@ final class TrinityDataCoreStatusPanel {
                             String labelTranslationKey,
                             int top,
                             Supplier<Component> valueSupplier) {
+        positionedRow(
+                content,
+                id,
+                labelTranslationKey,
+                top,
+                valueSupplier,
+                LABEL_LEFT,
+                LABEL_WIDTH,
+                VALUE_LEFT,
+                VALUE_WIDTH);
+    }
+
+    private static void positionedRow(UIElement content,
+                                      String id,
+                                      String labelTranslationKey,
+                                      int top,
+                                      Supplier<Component> valueSupplier,
+                                      int labelLeft,
+                                      int labelWidth,
+                                      int valueLeft,
+                                      int valueWidth) {
         Label label = new Label();
         label.setId(CONTENT_ID + "_" + id + "_label");
         label.setText(Component.translatable(labelTranslationKey));
         label.setAllowHitTest(false);
-        configureLine(label, LABEL_LEFT, LABEL_WIDTH, top, TextWrap.NONE, LABEL_COLOR);
+        configureLine(label, labelLeft, labelWidth, top, TextWrap.NONE, LABEL_COLOR);
 
         Label value = new Label();
         value.setId(CONTENT_ID + "_" + id + "_value");
         value.bindDataSource(SupplierDataSource.of(valueSupplier));
-        configureLine(value, VALUE_LEFT, VALUE_WIDTH, top, TextWrap.HOVER_ROLL, VALUE_COLOR);
+        configureLine(value, valueLeft, valueWidth, top, TextWrap.HOVER_ROLL, VALUE_COLOR);
 
         content.addChildren(label, value);
     }
@@ -284,6 +320,16 @@ final class TrinityDataCoreStatusPanel {
 
     private static Component storageCapacityText(TrinityDataCoreStorageStatus status) {
         return status.unlimited() ? unlimitedText() : valueText(compact(status.amountCapacity().toString()));
+    }
+
+    private static Component tickCostText(long nanos) {
+        if (nanos < 1_000L) {
+            return valueText(nanos + " ns");
+        }
+        if (nanos < 1_000_000L) {
+            return valueText(String.format(Locale.ROOT, "%.1f µs", nanos / 1_000.0D));
+        }
+        return valueText(String.format(Locale.ROOT, "%.2f ms", nanos / 1_000_000.0D));
     }
 
     private static Component unlimitedText() {

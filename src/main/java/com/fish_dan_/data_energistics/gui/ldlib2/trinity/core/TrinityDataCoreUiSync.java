@@ -20,6 +20,7 @@ import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -42,6 +43,7 @@ final class TrinityDataCoreUiSync {
     private static final String PATTERN_MAINTENANCE_NAME = "trinity_pattern_maintenance";
     private static final String CPU_LIST_STATUS_NAME = "trinity_cpu_list_status";
     private static final String HOST_STATUS_NAME = "trinity_host_status";
+    private static final String CORE_TICK_NANOS_NAME = "trinity_core_tick_nanos";
     private static final long CPU_PROGRESS_SYNC_INTERVAL_TICKS = 20L;
 
     private final SyncValue<TrinityDataCoreStorageStatus> storageStatus;
@@ -62,6 +64,8 @@ final class TrinityDataCoreUiSync {
     private final IDataProvider<TrinityCpuListStatus> cpuListStatusProvider;
     private final SyncValue<TrinityDataCoreHostStatus> hostStatus;
     private final IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider;
+    private final SyncValue<Long> coreTickNanos;
+    private final IDataProvider<Long> coreTickNanosProvider;
     private final CpuStatusSnapshotProvider cpuStatusSnapshots = new CpuStatusSnapshotProvider();
     private BooleanSupplier storageWindowOpen = () -> false;
     private BooleanSupplier patternWindowOpen = () -> false;
@@ -103,6 +107,8 @@ final class TrinityDataCoreUiSync {
                 TrinityDataCoreHostStatus.class,
                 TrinityDataCoreHostStatus.EMPTY);
         this.hostStatusProvider = new SyncValueDataProvider<>(this.hostStatus);
+        this.coreTickNanos = new SyncValue<>(CORE_TICK_NANOS_NAME, Long.class, 0L);
+        this.coreTickNanosProvider = new SyncValueDataProvider<>(this.coreTickNanos);
         configureStorageStatus(menu);
         configureStoragePage(menu);
         configureStorageView(menu);
@@ -112,6 +118,7 @@ final class TrinityDataCoreUiSync {
         configurePatternMaintenance(menu);
         configureCpuListStatus(menu);
         configureHostStatus(menu);
+        configureCoreTickNanos(menu);
     }
 
     /**
@@ -135,6 +142,7 @@ final class TrinityDataCoreUiSync {
         modularUI.syncManager.registerSyncValue(this.patternMaintenance);
         modularUI.syncManager.registerSyncValue(this.cpuListStatus);
         modularUI.syncManager.registerSyncValue(this.hostStatus);
+        modularUI.syncManager.registerSyncValue(this.coreTickNanos);
     }
 
     IDataProvider<TrinityDataCoreStorageStatus> storageStatusProvider() {
@@ -197,6 +205,10 @@ final class TrinityDataCoreUiSync {
 
     IDataProvider<TrinityDataCoreHostStatus> hostStatusProvider() {
         return this.hostStatusProvider;
+    }
+
+    IDataProvider<Long> coreTickNanosProvider() {
+        return this.coreTickNanosProvider;
     }
 
     SyncValue<TrinityDataCoreStorageStatus> storageStatus() {
@@ -293,35 +305,44 @@ final class TrinityDataCoreUiSync {
         }
     }
 
-    private static TrinityDataCoreStorageStatus storageStatus(TrinityDataCoreMenuHost host) {
+    private void configureCoreTickNanos(TrinityDataCoreMenu menu) {
+        boolean clientSide = menu.getPlayer().level().isClientSide();
+        this.coreTickNanos.setToSync(!clientSide);
+        this.coreTickNanos.setAcceptSync(clientSide);
+        if (!clientSide) {
+            this.coreTickNanos.setValueProvider(() -> coreTickNanos(menu.getHost()));
+        }
+    }
+
+    private static TrinityDataCoreStorageStatus storageStatus(@Nullable TrinityDataCoreMenuHost host) {
         return host == null ? TrinityDataCoreStorageStatus.EMPTY : host.getStorageStatus();
     }
 
-    private static TrinityDataCoreStorageView storageView(TrinityDataCoreMenuHost host, int firstEntry) {
+    private static TrinityDataCoreStorageView storageView(@Nullable TrinityDataCoreMenuHost host, int firstEntry) {
         return host == null ? TrinityDataCoreStorageView.EMPTY : host.getStorageView(firstEntry);
     }
 
-    private static int storagePriority(TrinityDataCoreMenuHost host) {
+    private static int storagePriority(@Nullable TrinityDataCoreMenuHost host) {
         return host == null ? 0 : host.getStoragePriority();
     }
 
-    private static int patternPriority(TrinityDataCoreMenuHost host) {
+    private static int patternPriority(@Nullable TrinityDataCoreMenuHost host) {
         return host == null ? 0 : host.getPatternPriority();
     }
 
-    private static TrinityPatternCatalogView patternView(TrinityDataCoreMenuHost host, int firstGlobalSlot) {
+    private static TrinityPatternCatalogView patternView(@Nullable TrinityDataCoreMenuHost host, int firstGlobalSlot) {
         return host == null ? TrinityPatternCatalogView.EMPTY : host.getPatternCatalogView(firstGlobalSlot);
     }
 
-    private static TrinityPatternMaintenanceSnapshot patternMaintenance(TrinityDataCoreMenuHost host) {
+    private static TrinityPatternMaintenanceSnapshot patternMaintenance(@Nullable TrinityDataCoreMenuHost host) {
         return host == null ? TrinityPatternMaintenanceSnapshot.idle(0, 0) : host.getPatternMaintenanceSnapshot();
     }
 
-    private static TrinityCpuListStatus cpuListStatus(TrinityDataCoreMenuHost host) {
+    private static TrinityCpuListStatus cpuListStatus(@Nullable TrinityDataCoreMenuHost host) {
         return host == null ? TrinityCpuListStatus.EMPTY : host.getCpuListStatus();
     }
 
-    static TrinityDataCoreHostStatus hostStatus(TrinityDataCoreMenuHost host) {
+    static TrinityDataCoreHostStatus hostStatus(@Nullable TrinityDataCoreMenuHost host) {
         if (host == null) {
             return TrinityDataCoreHostStatus.EMPTY;
         }
@@ -355,10 +376,14 @@ final class TrinityDataCoreUiSync {
                 targetName);
     }
 
+    private static long coreTickNanos(@Nullable TrinityDataCoreMenuHost host) {
+        return host == null ? 0L : host.lastServerTickNanos();
+    }
+
     private static StructureStatus structureStatus(boolean formed,
                                                    int matchedBlocks,
                                                    String failureReason,
-                                                   BlockPos failurePosition) {
+                                                   @Nullable BlockPos failurePosition) {
         return new StructureStatus(
                 formed,
                 matchedBlocks,

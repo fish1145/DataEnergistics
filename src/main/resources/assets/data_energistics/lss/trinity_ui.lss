@@ -160,6 +160,53 @@
     gap-all: 4px;
 }
 
+.trinity-information-exchange-title,
+.trinity-information-exchange-section-title,
+.trinity-information-exchange-label,
+.trinity-information-exchange-value,
+.trinity-information-exchange-mode-label {
+    adaptive-width: false;
+    adaptive-height: false;
+    vertical-align: center;
+    text-shadow: false;
+    overflow: hidden;
+}
+
+.trinity-information-exchange-title {
+    font-size: 7;
+    text-color: #FF343548;
+    horizontal-align: left;
+    text-wrap: hover_roll;
+}
+
+.trinity-information-exchange-section-title {
+    font-size: 6.5;
+    text-color: #FF343548;
+    horizontal-align: left;
+    text-wrap: none;
+}
+
+.trinity-information-exchange-label {
+    font-size: 6;
+    text-color: #FF4A4B60;
+    horizontal-align: left;
+    text-wrap: none;
+}
+
+.trinity-information-exchange-value {
+    font-size: 6;
+    text-color: #FF246082;
+    horizontal-align: left;
+    text-wrap: hover_roll;
+}
+
+.trinity-information-exchange-mode-label {
+    font-size: 5.5;
+    text-color: #FF414255;
+    horizontal-align: center;
+    text-wrap: hover_roll;
+}
+
 button.__disabled__ .__button_text__ {
     text-color: #FF666666;
     text-shadow: false;

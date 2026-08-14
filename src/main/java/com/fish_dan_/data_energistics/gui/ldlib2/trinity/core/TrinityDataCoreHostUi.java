@@ -87,7 +87,8 @@ public final class TrinityDataCoreHostUi {
                     TrinityUiXmlLayouts.require(root, TrinityDataCoreStatusPanel.PANEL_ID, UIElement.class),
                     sync.hostStatusProvider(),
                     sync.storageStatusProvider(),
-                    sync.cpuListStatusProvider());
+                    sync.cpuListStatusProvider(),
+                    sync.coreTickNanosProvider());
             mountCpuList(
                     root,
                     cpuList(menu, sync.cpuListStatusProvider()));
