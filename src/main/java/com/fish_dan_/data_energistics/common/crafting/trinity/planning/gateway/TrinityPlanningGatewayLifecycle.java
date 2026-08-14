@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Owns the single bounded planning pool for one logical server lifetime.
@@ -12,7 +13,7 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.
  */
 public final class TrinityPlanningGatewayLifecycle {
 
-    private static TrinityPlanningGateway gateway;
+    private static @Nullable TrinityPlanningGateway gateway;
 
     private TrinityPlanningGatewayLifecycle() {}
 
@@ -36,13 +37,6 @@ public final class TrinityPlanningGatewayLifecycle {
             throw new IllegalStateException("The Trinity planning gateway is not running");
         }
         return gateway;
-    }
-
-    /**
-     * @return server-lifetime cache shared by planning and pure dispatch computations
-     */
-    public static synchronized TrinityComputationCache computationCache() {
-        return gateway().computationCache();
     }
 
     /**

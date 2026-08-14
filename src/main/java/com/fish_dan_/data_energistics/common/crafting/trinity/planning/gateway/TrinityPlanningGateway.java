@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
@@ -29,9 +28,10 @@ public interface TrinityPlanningGateway extends AutoCloseable {
     }
 
     /**
-     * Starts Trinity exclusively when a qualified Trinity CPU is currently available; otherwise delegates to AE2.
+     * Starts Trinity when the Grid has an eligible online Trinity CPU; otherwise delegates to AE2.
      *
-     * @param qualifiedTrinityCpu whether the current grid has an online, idle CPU eligible for an extended plan
+     * @param trinityPlanningAvailable whether the current Grid has an online CPU eligible for an extended plan;
+     *                                 transient worker occupancy does not affect this qualification
      * @param gridScope           owning Grid publication scope
      * @param graphRevision       immutable graph revision used by the Trinity calculation
      * @param requestedOutput     requested output retained for a standalone Trinity diagnostic
@@ -40,7 +40,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @return one cooperative future for the selected planner
      */
     Future<ICraftingPlan> begin(
-                                boolean qualifiedTrinityCpu,
+                                boolean trinityPlanningAvailable,
                                 long gridScope,
                                 long graphRevision,
                                 GenericStack requestedOutput,
@@ -70,16 +70,6 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      */
     TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
                                                                                   throws InterruptedException, ExecutionException;
-
-    /**
-     * Shares the server-lifetime computation partition with pure dispatch calculations without transferring cache
-     * ownership to the dispatch executor.
-     *
-     * @return cache owned and closed by this gateway
-     */
-    default TrinityComputationCache computationCache() {
-        throw new UnsupportedOperationException("This Trinity planning gateway does not expose a computation cache");
-    }
 
     /**
      * Cancels cached and in-flight work owned by one unloaded Grid publication scope.

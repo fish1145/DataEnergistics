@@ -121,9 +121,9 @@ final class TrinityDataCoreCpuLogic {
     private final TrinityDataCoreVirtualCpu cpu;
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
     private final ProviderCapacityResolver capacityResolver = ProviderCapacityResolver.create(
-            TrinityPlanningGatewayLifecycle::computationCache);
+            TrinityDispatchProposalLifecycle::dispatchComputationCache);
     private final DispatchCapacityPlanner capacityPlanner = DispatchCapacityPlanner.create(
-            TrinityPlanningGatewayLifecycle::computationCache);
+            TrinityDispatchProposalLifecycle::dispatchComputationCache);
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
