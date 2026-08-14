@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.menu.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity.StorageMode;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.exchange.TrinityInformationExchangeDepotUi;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
@@ -16,11 +18,29 @@ import appeng.menu.guisync.GuiSync;
 public final class TrinityInformationExchangeDepotMenu extends AEBaseMenu {
 
     private static final String ACTION_SET_MODE = "set_information_exchange_mode";
+    private static final TrinityPatternMaintenanceSnapshot.Operation[] MAINTENANCE_OPERATIONS = TrinityPatternMaintenanceSnapshot.Operation.values();
+    private static final TrinityPatternMaintenanceSnapshot.Stage[] MAINTENANCE_STAGES = TrinityPatternMaintenanceSnapshot.Stage.values();
 
     private final TrinityInformationExchangeDepotMenuHost host;
 
     @GuiSync(801)
     public int modeId;
+    @GuiSync(802)
+    public int maintenanceOperationId;
+    @GuiSync(803)
+    public int maintenanceStageId;
+    @GuiSync(804)
+    public long maintenanceCompletedUnits;
+    @GuiSync(805)
+    public long maintenanceTotalUnits;
+    @GuiSync(806)
+    public long maintenanceTickNanos;
+    @GuiSync(807)
+    public long maintenanceTickWorkUnits;
+    @GuiSync(808)
+    public long coreTickNanos;
+    @GuiSync(809)
+    public long exchangeDepotTickNanos;
 
     public TrinityInformationExchangeDepotMenu(
                                                int id,
@@ -50,6 +70,22 @@ public final class TrinityInformationExchangeDepotMenu extends AEBaseMenu {
 
     public StorageMode mode() {
         return StorageMode.fromNetworkId(this.modeId);
+    }
+
+    /** Returns the synchronized maintenance operation without conflating an installed-pattern refund with migration. */
+    public TrinityPatternMaintenanceSnapshot.Operation maintenanceOperation() {
+        return enumValue(
+                MAINTENANCE_OPERATIONS,
+                this.maintenanceOperationId,
+                "maintenance operation");
+    }
+
+    /** Returns the exact bounded migration/refund phase reported by the Data Core. */
+    public TrinityPatternMaintenanceSnapshot.Stage maintenanceStage() {
+        return enumValue(
+                MAINTENANCE_STAGES,
+                this.maintenanceStageId,
+                "maintenance stage");
     }
 
     public void sendSetMode(StorageMode mode) {
@@ -85,5 +121,22 @@ public final class TrinityInformationExchangeDepotMenu extends AEBaseMenu {
 
     private void refreshState() {
         this.modeId = this.host.informationExchangeMode().networkId();
+        TrinityInformationExchangeDepotStatus status = this.host.informationExchangeStatus();
+        TrinityPatternMaintenanceSnapshot maintenance = status.patternMaintenance();
+        this.maintenanceOperationId = maintenance.operation().ordinal();
+        this.maintenanceStageId = maintenance.stage().ordinal();
+        this.maintenanceCompletedUnits = maintenance.completedUnits();
+        this.maintenanceTotalUnits = maintenance.totalUnits();
+        this.maintenanceTickNanos = maintenance.lastTickNanos();
+        this.maintenanceTickWorkUnits = maintenance.lastTickWorkUnits();
+        this.coreTickNanos = status.coreTickNanos();
+        this.exchangeDepotTickNanos = status.exchangeDepotTickNanos();
+    }
+
+    private static <T> T enumValue(T[] values, int networkId, String role) {
+        if (networkId < 0 || networkId >= values.length) {
+            throw new IllegalStateException("Unknown Trinity information exchange " + role + " " + networkId);
+        }
+        return values[networkId];
     }
 }

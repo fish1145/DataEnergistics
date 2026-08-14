@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.trinity;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity.StorageMode;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
 
 import net.minecraft.world.entity.player.Player;
 
@@ -18,6 +19,9 @@ public interface TrinityInformationExchangeDepotMenuHost {
     boolean isInformationExchangeDepotMenuValid(Player player);
 
     StorageMode informationExchangeMode();
+
+    /** Returns migration progress and separately measured core, migration, and depot tick costs. */
+    TrinityInformationExchangeDepotStatus informationExchangeStatus();
 
     boolean setInformationExchangeMode(Player player, StorageMode mode);
 }

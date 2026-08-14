@@ -28,6 +28,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.Tr
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
+import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
@@ -124,6 +125,8 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     @Nullable
     private PatternPublication patternPublication;
     private StorageMode storageMode = StorageMode.STORAGE;
+    /** Complete elapsed time of the most recently executed server tick for this depot. */
+    private long lastServerTickNanos;
 
     public TrinityInformationExchangeDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.TRINITY_INFORMATION_EXCHANGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -241,9 +244,14 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
-        finishGridBootReevaluation();
-        updateActiveState();
-        refreshTerminalPartitionsSafely();
+        long tickStartedAtNanos = System.nanoTime();
+        try {
+            finishGridBootReevaluation();
+            updateActiveState();
+            refreshTerminalPartitionsSafely();
+        } finally {
+            this.lastServerTickNanos = System.nanoTime() - tickStartedAtNanos;
+        }
     }
 
     /**
@@ -873,6 +881,18 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     @Override
     public StorageMode informationExchangeMode() {
         return this.storageMode;
+    }
+
+    @Override
+    public TrinityInformationExchangeDepotStatus informationExchangeStatus() {
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host == null) {
+            return TrinityInformationExchangeDepotStatus.unbound(this.lastServerTickNanos);
+        }
+        return new TrinityInformationExchangeDepotStatus(
+                host.getPatternMaintenanceSnapshot(),
+                host.lastServerTickNanos(),
+                this.lastServerTickNanos);
     }
 
     @Override

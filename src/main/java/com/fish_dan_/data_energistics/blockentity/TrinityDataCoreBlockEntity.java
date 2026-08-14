@@ -254,6 +254,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private PatternMaintenanceTask patternMaintenanceTask;
     @Nullable
     private RetainedPatternMaintenanceResult retainedPatternMaintenanceResult;
+    /** Complete elapsed time of the most recently executed server tick for this core. */
+    private long lastServerTickNanos;
 
     /**
      * Captures a failed release without reconstructing the old catalog or persisting transient ownership.
@@ -385,6 +387,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
+        long tickStartedAtNanos = System.nanoTime();
         try {
             tickServerState();
         } catch (RuntimeException exception) {
@@ -396,7 +399,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 notifyTrinityPatternLayoutChanged();
             }
             LOGGER.error("Failed to tick Trinity Data Core at {}; runtime was paused", this.worldPosition, exception);
+        } finally {
+            this.lastServerTickNanos = System.nanoTime() - tickStartedAtNanos;
         }
+    }
+
+    /** Returns the complete elapsed time of the latest server-side core tick. */
+    @Override
+    public long lastServerTickNanos() {
+        return this.lastServerTickNanos;
     }
 
     private void tickServerState() {
@@ -1510,6 +1521,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
         long deadline = System.nanoTime() + PATTERN_MAINTENANCE_TIME_BUDGET_NANOS;
+        task.beginTickMeasurement();
         try {
             task.tick(this, gameTime, deadline);
         } catch (RuntimeException failure) {
@@ -1521,6 +1533,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     failure);
             task.cancel();
             finishPatternMaintenance(task, TrinityPatternMaintenanceSnapshot.Stage.FAILED, gameTime, 0, 1);
+        } finally {
+            if (this.patternMaintenanceTask == task) {
+                task.finishTickMeasurement();
+            }
         }
     }
 
@@ -1600,6 +1616,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.patternMaintenanceTask != task) {
             throw new IllegalStateException("Completed pattern maintenance task is no longer active");
         }
+        task.finishTickMeasurement();
         this.patternMaintenanceTask = null;
         this.retainedPatternMaintenanceResult = new RetainedPatternMaintenanceResult(
                 task.operation(),
@@ -1608,6 +1625,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 task.totalUnits(),
                 succeededUnits,
                 failedUnits,
+                task.lastTickNanos(),
+                task.lastTickWorkUnits(),
                 Math.addExact(gameTime, PATTERN_MAINTENANCE_TERMINAL_TICKS));
     }
 
@@ -3355,6 +3374,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         private TrinityPatternMaintenanceSnapshot.Stage stage;
         private long completedUnits;
         private long totalUnits;
+        private boolean tickMeasurementActive;
+        private long tickStartedAtNanos;
+        private long tickStartingCompletedUnits;
+        private long lastTickNanos;
+        private long lastTickWorkUnits;
 
         private PatternMaintenanceTask(UUID playerId,
                                        TrinityPatternMaintenanceSnapshot.Stage stage,
@@ -3386,6 +3410,36 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return this.totalUnits;
         }
 
+        private long lastTickNanos() {
+            return this.lastTickNanos;
+        }
+
+        private long lastTickWorkUnits() {
+            return this.lastTickWorkUnits;
+        }
+
+        final void beginTickMeasurement() {
+            if (this.tickMeasurementActive) {
+                throw new IllegalStateException("Pattern maintenance tick measurement is already active");
+            }
+            this.tickMeasurementActive = true;
+            this.tickStartedAtNanos = System.nanoTime();
+            this.tickStartingCompletedUnits = this.completedUnits;
+        }
+
+        final void finishTickMeasurement() {
+            if (!this.tickMeasurementActive) {
+                return;
+            }
+            this.tickMeasurementActive = false;
+            long completedThisTick = Math.subtractExact(this.completedUnits, this.tickStartingCompletedUnits);
+            if (completedThisTick < 0L) {
+                throw new IllegalStateException("Pattern maintenance completed units moved backwards during one tick");
+            }
+            this.lastTickNanos = System.nanoTime() - this.tickStartedAtNanos;
+            this.lastTickWorkUnits = completedThisTick;
+        }
+
         final void waitForPlayer() {
             this.stage = TrinityPatternMaintenanceSnapshot.Stage.WAITING_FOR_PLAYER;
         }
@@ -3411,7 +3465,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     installedPatterns,
                     patternCapacity,
                     0,
-                    0);
+                    0,
+                    this.lastTickNanos,
+                    this.lastTickWorkUnits);
         }
     }
 
@@ -3501,6 +3557,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                                     long totalUnits,
                                                     int succeededUnits,
                                                     int failedUnits,
+                                                    long lastTickNanos,
+                                                    long lastTickWorkUnits,
                                                     long expiresAtGameTime) {
 
         private TrinityPatternMaintenanceSnapshot snapshot(int installedPatterns, int patternCapacity) {
@@ -3512,7 +3570,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     installedPatterns,
                     patternCapacity,
                     this.succeededUnits,
-                    this.failedUnits);
+                    this.failedUnits,
+                    this.lastTickNanos,
+                    this.lastTickWorkUnits);
         }
     }
 

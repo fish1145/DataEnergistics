@@ -6,7 +6,20 @@ import net.minecraft.network.codec.StreamCodec;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-/** Immutable server-authoritative progress of Data Core pattern maintenance. */
+/**
+ * Immutable server-authoritative progress and measured work cost of Data Core pattern maintenance.
+ *
+ * @param operation         operation that owns the catalog, or idle
+ * @param stage             current bounded phase
+ * @param completedUnits    actual work units completed across the operation
+ * @param totalUnits        current authoritative total work units
+ * @param installedPatterns patterns currently installed in the catalog
+ * @param patternCapacity   total catalog capacity
+ * @param succeededUnits    successful terminal units
+ * @param failedUnits       failed terminal units
+ * @param lastTickNanos     elapsed time spent in the latest maintenance task tick
+ * @param lastTickWorkUnits increase in completed units during that same maintenance tick
+ */
 public record TrinityPatternMaintenanceSnapshot(Operation operation,
                                                 Stage stage,
                                                 long completedUnits,
@@ -14,7 +27,9 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
                                                 int installedPatterns,
                                                 int patternCapacity,
                                                 int succeededUnits,
-                                                int failedUnits) {
+                                                int failedUnits,
+                                                long lastTickNanos,
+                                                long lastTickWorkUnits) {
 
     private static final Codec<Operation> OPERATION_CODEC = Codec.STRING.xmap(Operation::valueOf, Operation::name);
     private static final Codec<Stage> STAGE_CODEC = Codec.STRING.xmap(Stage::valueOf, Stage::name);
@@ -27,13 +42,17 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
                     Codec.INT.fieldOf("installed_patterns").forGetter(TrinityPatternMaintenanceSnapshot::installedPatterns),
                     Codec.INT.fieldOf("pattern_capacity").forGetter(TrinityPatternMaintenanceSnapshot::patternCapacity),
                     Codec.INT.fieldOf("succeeded_units").forGetter(TrinityPatternMaintenanceSnapshot::succeededUnits),
-                    Codec.INT.fieldOf("failed_units").forGetter(TrinityPatternMaintenanceSnapshot::failedUnits))
+                    Codec.INT.fieldOf("failed_units").forGetter(TrinityPatternMaintenanceSnapshot::failedUnits),
+                    Codec.LONG.fieldOf("last_tick_nanos").forGetter(TrinityPatternMaintenanceSnapshot::lastTickNanos),
+                    Codec.LONG.fieldOf("last_tick_work_units")
+                            .forGetter(TrinityPatternMaintenanceSnapshot::lastTickWorkUnits))
             .apply(instance, TrinityPatternMaintenanceSnapshot::new));
     public static final StreamCodec<RegistryFriendlyByteBuf, TrinityPatternMaintenanceSnapshot> STREAM_CODEC = StreamCodec.of(TrinityPatternMaintenanceSnapshot::encode, TrinityPatternMaintenanceSnapshot::decode);
 
     public TrinityPatternMaintenanceSnapshot {
         if (completedUnits < 0L || totalUnits < 0L || completedUnits > totalUnits || installedPatterns < 0 ||
-                patternCapacity < 0 || installedPatterns > patternCapacity || succeededUnits < 0 || failedUnits < 0) {
+                patternCapacity < 0 || installedPatterns > patternCapacity || succeededUnits < 0 || failedUnits < 0 ||
+                lastTickNanos < 0L || lastTickWorkUnits < 0L) {
             throw new IllegalArgumentException("Invalid Trinity pattern maintenance progress");
         }
         if (operation == Operation.IDLE && stage != Stage.IDLE) {
@@ -51,7 +70,9 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
                 installedPatterns,
                 patternCapacity,
                 0,
-                0);
+                0,
+                0L,
+                0L);
     }
 
     /** Returns whether one migration or installed-pattern refund currently owns the catalog. */
@@ -79,6 +100,8 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
         buffer.writeVarInt(value.patternCapacity);
         buffer.writeVarInt(value.succeededUnits);
         buffer.writeVarInt(value.failedUnits);
+        buffer.writeVarLong(value.lastTickNanos);
+        buffer.writeVarLong(value.lastTickWorkUnits);
     }
 
     private static TrinityPatternMaintenanceSnapshot decode(RegistryFriendlyByteBuf buffer) {
@@ -90,7 +113,9 @@ public record TrinityPatternMaintenanceSnapshot(Operation operation,
                 buffer.readVarInt(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
-                buffer.readVarInt());
+                buffer.readVarInt(),
+                buffer.readVarLong(),
+                buffer.readVarLong());
     }
 
     /** Pattern-maintenance operation shown by the aggregate pattern view. */

@@ -37,6 +37,9 @@ public interface TrinityDataCoreMenuHost {
      */
     boolean isOnline();
 
+    /** Returns the complete elapsed time of the host's latest server-side tick in nanoseconds. */
+    long lastServerTickNanos();
+
     /**
      * Reports whether the declared multiblock structure is currently formed.
      */
