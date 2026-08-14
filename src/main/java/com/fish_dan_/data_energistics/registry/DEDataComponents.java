@@ -187,6 +187,14 @@ public final class DEDataComponents {
                     .cacheEncoding()
                     .build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> PROCESSING_OUTPUT_SAME_ITEM = DATA_COMPONENT_TYPES.register(
+            "processing_output_same_item",
+            () -> DataComponentType.<Boolean>builder()
+                    .persistent(Codec.BOOL)
+                    .networkSynchronized(ByteBufCodecs.BOOL)
+                    .cacheEncoding()
+                    .build());
+
     private DEDataComponents() {}
 
     public static void register(IEventBus eventBus) {

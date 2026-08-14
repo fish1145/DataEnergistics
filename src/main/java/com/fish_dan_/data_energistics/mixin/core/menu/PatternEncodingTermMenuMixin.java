@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
@@ -14,6 +15,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
@@ -66,6 +68,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 // Apply after EAEP's default-priority TAIL hook so this cancellable encode path bypasses its uploader.
 @Mixin(value = PatternEncodingTermMenu.class, priority = 900)
@@ -73,7 +76,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                    implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
                                                    PatternEncodingPreviewLayoutAware,
                                                    BlankPatternProxyMenu, PatternEncodingMultiblockTransferTarget,
-                                                   PatternEncodingPreferenceMenu, PatternEncodingInheritedState {
+                                                   PatternEncodingPreferenceMenu, PatternEncodingInheritedState,
+                                                   PatternOutputMatchMenu {
 
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "dataEnergistics$transferEncodedPatternToProvider";
@@ -87,6 +91,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private static final String DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_SET_PROCESSING_OUTPUT_SAME_ITEM = "dataEnergistics$setProcessingOutputSameItem";
     @GuiSync(795)
     @Unique
     public int dataEnergistics$previewPanelOffsetX;
@@ -133,6 +139,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     @Nullable
     private String dataEnergistics$displayTransferKeyOutputSerialized;
+    @GuiSync(797)
+    @Unique
+    public boolean dataEnergistics$processingOutputSameItem;
+    @Unique
+    @Nullable
+    private AEItemKey dataEnergistics$observedEncodedPattern;
 
     @Shadow
     @Final
@@ -155,6 +167,41 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Invoker("clearPattern")
     protected abstract void dataEnergistics$invokeClearPattern();
+
+    @Override
+    public boolean data_energistics$isProcessingOutputSameItem() {
+        return this.dataEnergistics$processingOutputSameItem;
+    }
+
+    @Override
+    public void data_energistics$setProcessingOutputSameItem(boolean enabled) {
+        if (enabled && !dataEnergistics$canUseSameItemOutput()) {
+            if (this.isServerSide()) {
+                Data_Energistics.LOGGER.warn(
+                        "Rejected SAME_ITEM processing-output action from {} because output slot zero is not an item",
+                        this.getPlayer().getGameProfile().getName());
+            }
+            this.dataEnergistics$processingOutputSameItem = false;
+            return;
+        }
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_SET_PROCESSING_OUTPUT_SAME_ITEM, enabled);
+        }
+        this.dataEnergistics$processingOutputSameItem = enabled;
+    }
+
+    @Unique
+    private boolean dataEnergistics$canUseSameItemOutput() {
+        if (this.mode != EncodingMode.PROCESSING) {
+            return false;
+        }
+        var outputs = ((PatternEncodingTermMenu) (Object) this).getProcessingOutputSlots();
+        if (outputs.length == 0) {
+            return false;
+        }
+        GenericStack output = GenericStack.fromItemStack(outputs[0].getItem());
+        return output != null && output.what() instanceof AEItemKey;
+    }
 
     @Unique
     @Override
@@ -432,7 +479,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             PatternEncodingSourceHelper.applyPendingTransferRecipeMetadata(
                     (PatternEncodingTermMenu) (Object) this);
 
-            ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
+            ItemStack encodedPattern = this.dataEnergistics$invokeEncodePattern();
+            if (this.mode == EncodingMode.PROCESSING && encodedPattern != null &&
+                    AEItems.PROCESSING_PATTERN.is(encodedPattern)) {
+                encodedPattern = dataEnergistics$encodeProcessingPatternWithGenericStacks();
+            }
             if (encodedPattern == null) {
                 this.dataEnergistics$invokeClearPattern();
                 PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
@@ -440,6 +491,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 ci.cancel();
                 return;
             }
+
+            EncodedPatternDynamicOutput.apply(
+                    encodedPattern,
+                    this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
 
             ItemStack encodeOutput = this.encodedPatternSlot.getItem();
             if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
@@ -809,6 +864,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$setPatternSourceEnabledFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED, Boolean.class,
                 this::dataEnergistics$setUploadEnabledFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_SET_PROCESSING_OUTPUT_SAME_ITEM, Boolean.class,
+                this::data_energistics$setProcessingOutputSameItem);
         registerClientAction(DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE,
                 this::data_energistics$clearPatternSourceState);
         registerClientAction(PatternEncodingPreviewLayoutHelper.ACTION_SET_PREVIEW_PANEL_OFFSET, String.class,
@@ -848,6 +905,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             PatternEncodingSourceHelper.sanitizeActiveDataRipperTransferLayout((PatternEncodingTermMenu) (Object) this);
             dataEnergistics$flushBlankPatternSlotToNetwork();
             dataEnergistics$syncPatternProvidersIfNeeded();
+            dataEnergistics$refreshProcessingOutputMatchFromEncodedPattern();
         }
     }
 
@@ -855,12 +913,26 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private void dataEnergistics$updatePendingPatternSourceOnModeChange(EncodingMode mode,
                                                                         CallbackInfo ci) {
         var fallbackWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
+        if (mode != EncodingMode.PROCESSING) {
+            this.dataEnergistics$processingOutputSameItem = false;
+        }
         this.dataEnergistics$pendingPatternSource = fallbackWorkstation;
         data_energistics$getPreferenceSession().setRankingContext(
                 PatternEncodingSourceHelper.resolveFixedModeRankingContext(mode, fallbackWorkstation));
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), fallbackWorkstation);
         }
+    }
+
+    @Unique
+    private void dataEnergistics$refreshProcessingOutputMatchFromEncodedPattern() {
+        AEItemKey definition = AEItemKey.of(this.encodedPatternSlot.getItem());
+        if (Objects.equals(definition, this.dataEnergistics$observedEncodedPattern)) {
+            return;
+        }
+        this.dataEnergistics$observedEncodedPattern = definition;
+        this.dataEnergistics$processingOutputSameItem = definition != null &&
+                EncodedPatternDynamicOutput.isMarked(definition);
     }
 
     @Unique

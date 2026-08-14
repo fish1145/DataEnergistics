@@ -23,23 +23,25 @@ import java.util.Set;
  * The live scheduler converts to and from this model while NBT details remain isolated in the
  * persistence package.
  *
- * @param catalogRevision   graph catalog revision used by the plan
- * @param quantityMode      requested delivery interpretation
- * @param targetKey         final requested key
- * @param targetAmount      exact requested amount
- * @param status            durable execution status
- * @param failureReason     diagnostic retained only by failed executions
- * @param generation        plan generation used to reject stale work
- * @param stages            durable stage definitions and cursors
- * @param stageOrder        stable topological execution order
- * @param repeatBlocks      durable compressed cycle cursors
- * @param seedReserve       initial cycle seed owned by the CPU
- * @param completionSealed  whether output has entered the isolated completion buffer
- * @param completionBuffer  undelivered output currently isolated from cycle inputs
- * @param deliveryRemaining total target amount still owed to the requester
- * @param borrowingEntries  ownership-preserving dynamic borrowing history
- * @param savedAtTick       server tick used to convert retry deadlines across a restart, or {@code -1} for legacy saves
- * @param budgetRetryAt     next tick after a physical budget exhaustion, or {@code -1}
+ * @param catalogRevision    graph catalog revision used by the plan
+ * @param quantityMode       requested delivery interpretation
+ * @param targetKey          final requested key
+ * @param targetAmount       exact requested amount
+ * @param status             durable execution status
+ * @param failureReason      diagnostic retained only by failed executions
+ * @param generation         plan generation used to reject stale work
+ * @param stages             durable stage definitions and cursors
+ * @param stageOrder         stable topological execution order
+ * @param repeatBlocks       durable compressed cycle cursors
+ * @param seedReserve        initial cycle seed owned by the CPU
+ * @param completionSealed   whether output has entered the isolated completion buffer
+ * @param completionBuffer   undelivered output currently isolated from cycle inputs
+ * @param actualFinalOutputs actual item variants isolated from working inventory
+ * @param deliveryRemaining  total target amount still owed to the requester
+ * @param borrowingEntries   ownership-preserving dynamic borrowing history
+ * @param savedAtTick        server tick used to convert retry deadlines across a restart, or {@code -1} for legacy
+ *                           saves
+ * @param budgetRetryAt      next tick after a physical budget exhaustion, or {@code -1}
  */
 public record TrinityExecutionSnapshot(
                                        long catalogRevision,
@@ -55,6 +57,7 @@ public record TrinityExecutionSnapshot(
                                        Map<AEKey, Long> seedReserve,
                                        boolean completionSealed,
                                        long completionBuffer,
+                                       Map<AEKey, Long> actualFinalOutputs,
                                        long deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
@@ -68,6 +71,7 @@ public record TrinityExecutionSnapshot(
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
         seedReserve = immutableMap(seedReserve);
+        actualFinalOutputs = immutableAmounts(actualFinalOutputs, false, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < -1L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be less than the legacy sentinel");

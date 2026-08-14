@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
@@ -9,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
@@ -188,6 +190,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
+            EncodedPatternDynamicOutput.apply(
+                    encodedPattern,
+                    this.mode == EncodingMode.PROCESSING &&
+                            ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
             encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
         } finally {
