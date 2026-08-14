@@ -195,6 +195,13 @@ public final class TrinityDataCoreHostUi {
         if (expectedSlots.size() != 36) {
             throw mountViolation("Trinity Data Core UI must contain exactly 36 native player ItemSlots");
         }
+        for (int menuIndex = 0; menuIndex < expectedSlots.size(); menuIndex++) {
+            ItemSlot itemSlot = expectedSlots.get(menuIndex);
+            if (!itemSlot.getChildren().isEmpty()) {
+                throw mountViolation("native player ItemSlot '" + itemSlot.getId() + "' at menu index " +
+                        menuIndex + " must be a leaf because child elements intercept vanilla slot hit-testing");
+            }
+        }
 
         holder.setModularUI(modularUI);
 
@@ -268,6 +275,7 @@ public final class TrinityDataCoreHostUi {
                 sync::requestPatternPage,
                 menu.getPlayer().level(),
                 menu::sendHostedPatternSlot,
+                menu::sendHostedPatternQuickMove,
                 menu::sendHostedPatternMigration,
                 () -> hostUi.requestToggle(TrinityDataCoreHostUiKeys.PATTERN_PRIORITY),
                 menu::sendRefundPatterns,
