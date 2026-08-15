@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
-import com.fish_dan_.data_energistics.block.DataNukeBlock;
-import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
+import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
+import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;

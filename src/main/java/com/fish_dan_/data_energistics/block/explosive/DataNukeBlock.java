@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.explosive;
 
 import com.fish_dan_.data_energistics.entity.DataNukePrimedEntity;
 
