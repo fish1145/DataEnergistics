@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierData;
 import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierData;
-import com.fish_dan_.data_energistics.mixin.core.accessor.ExperienceOrbAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.minecraft.ExperienceOrbAccessor;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
