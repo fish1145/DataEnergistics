@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.worldgen;
 
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;

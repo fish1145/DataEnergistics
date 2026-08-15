@@ -1,11 +1,8 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataNukeBlock;
-import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
-import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
@@ -24,6 +21,9 @@ import com.fish_dan_.data_energistics.block.tower.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityPatternCoreBlock;
+import com.fish_dan_.data_energistics.block.worldgen.DataCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.worldgen.EnderCohesionMeteoriteBlock;
+import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 
