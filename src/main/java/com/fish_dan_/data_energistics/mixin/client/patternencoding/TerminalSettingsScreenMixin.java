@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.client;
+package com.fish_dan_.data_energistics.mixin.client.patternencoding;
 
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
