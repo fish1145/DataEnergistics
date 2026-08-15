@@ -76,6 +76,7 @@ import appeng.api.config.PowerUnit;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -119,11 +120,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
     public static final long KEY_INPUT_CAPACITY = 640_000L;
-    /**
-     * Maximum hidden output slots: each carrier reserves 64 slots.
-     */
-    private static final int HIDDEN_SLOTS_PER_CARRIER = 64;
-    private static final int HIDDEN_BUFFER_SLOTS = SLOT_COUNT * HIDDEN_SLOTS_PER_CARRIER;
+    private static final int LEGACY_HIDDEN_BUFFER_SLOTS = SLOT_COUNT * 64;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
     private static final long DATA_FLOW_PER_WORK_CYCLE = 3_200L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;
@@ -142,6 +139,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private static final int PENDING_OUTPUT_OFFER_BUDGET = 64;
     private static final int MAX_EXTERNAL_IO_OPERATIONS_PER_TICK = 64;
     private static final long MAX_EXTERNAL_IO_NANOS_PER_TICK = 2_000_000L;
+    private static final int MAX_AUTO_PULL_BACKOFF_TICKS = 20;
     private static final int UPGRADE_SLOTS = 6;
     private static final long DATA_FLOW_PER_CONVERTED_ITEM = 1L;
     private static final long DATA_FLOW_PER_CONVERTED_EXPERIENCE = 1L;
@@ -158,7 +156,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private static final ResourceLocation ARMADILLO_ENTITY_ID = ResourceLocation.parse("minecraft:armadillo");
     private static final ResourceLocation TURTLE_ENTITY_ID = ResourceLocation.parse("minecraft:turtle");
     private static final double SIMULATED_DROP_CAPTURE_RADIUS_SQUARED = 16.0D;
-    private static final ThreadLocal<SimulatedDeathDrops> SIMULATED_DEATH_DROPS = new ThreadLocal<>();
+    private static final ThreadLocal<@Nullable SimulatedDeathDrops> SIMULATED_DEATH_DROPS = new ThreadLocal<>();
     private static final Direction[] DIRECTIONS = Direction.values();
 
     /**
@@ -176,13 +174,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             Instruments.DREAM_GOAT_HORN);
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
-    private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
     private final MimeticPendingOutputLedger pendingOutput = new MimeticPendingOutputLedger(this::markRuntimePersistenceDirty);
     private final MimeticExternalIoBudget externalIoBudget = new MimeticExternalIoBudget(MAX_EXTERNAL_IO_OPERATIONS_PER_TICK, MAX_EXTERNAL_IO_NANOS_PER_TICK);
     /**
      * Keeps each component-sensitive item moving independently through bounded container slot attempts.
      */
     private final Map<AEItemKey, AdjacentContainerInsertionCursor> adjacentInsertionCursors = new HashMap<>();
+    private final Map<Direction, AdjacentContainerTarget> adjacentContainerTargets = new EnumMap<>(Direction.class);
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     @Getter
     private final GenericInternalInventory externalKeyInventory = new DataFlowExternalInventory();
@@ -200,10 +198,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private int runtimeBatchDepth;
     private boolean runtimePersistenceDirty;
     private boolean runtimeKeyMenuDirty;
-    private GenericStack keyInputStack;
+    private long lastAutoPullAttemptGameTime = Long.MIN_VALUE;
+    private long nextAutoPullAttemptGameTime = Long.MIN_VALUE;
+    private int autoPullBackoffTicks = 1;
+    private @Nullable GenericStack keyInputStack;
     private int cachedSpeedCardCount = -1;
-    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
-    private Player cachedFakePlayer;
+    private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private @Nullable Player cachedFakePlayer;
     private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
     private final Map<Integer, MimeticCarrierPlan> carrierPlans = new HashMap<>();
     private @Nullable LoadedRules carrierPlanRules;
@@ -270,20 +271,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         this.carrierPlans.clear();
         this.carrierPlanRules = null;
         this.biologyLootSamples.clear();
+        this.cachedCropLootStates.clear();
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.adjacentInsertionCursors.clear();
+        this.adjacentContainerTargets.clear();
         this.pendingOutput.readFromNbt(registries, data.getList(PENDING_OUTPUTS_TAG, Tag.TAG_COMPOUND));
-        this.hiddenBuffer.readFromNBT(data, HIDDEN_BUFFER_TAG, registries);
-        List<ItemStack> legacyPending = new ArrayList<>();
-        for (ItemStack stack : this.hiddenBuffer) {
-            if (!stack.isEmpty()) {
-                legacyPending.add(stack.copy());
-            }
-        }
-        if (!legacyPending.isEmpty()) {
-            this.pendingOutput.append(legacyPending);
-            this.hiddenBuffer.clear();
-        }
+        migrateLegacyHiddenBuffer(data, registries);
         this.keyInputStack = data.contains(KEY_INPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_INPUT_TAG)) : null;
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.autoPullKeyInput = data.getBoolean(AUTO_PULL_KEY_INPUT_TAG);
@@ -302,16 +295,35 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         this.workTicks = Math.max(0, data.getInt(WORK_TICKS_TAG));
         clampWorkProgressToCurrentInterval();
         this.pendingOutputFlushCooldown = 0;
+        resetAutoPullBackoff();
         this.powerUsageDirty = true;
         this.cachedActiveCarrierCount = 0;
         syncKeyMenuFromStack();
+    }
+
+    private void migrateLegacyHiddenBuffer(CompoundTag data, HolderLookup.Provider registries) {
+        if (!data.contains(HIDDEN_BUFFER_TAG, Tag.TAG_LIST)) {
+            return;
+        }
+
+        AppEngInternalInventory legacyBuffer = new AppEngInternalInventory(null, LEGACY_HIDDEN_BUFFER_SLOTS);
+        legacyBuffer.readFromNBT(data, HIDDEN_BUFFER_TAG, registries);
+        List<ItemStack> legacyPending = new ArrayList<>();
+        for (ItemStack stack : legacyBuffer) {
+            if (!stack.isEmpty()) {
+                legacyPending.add(stack.copy());
+            }
+        }
+        if (!legacyPending.isEmpty()) {
+            this.pendingOutput.append(legacyPending);
+        }
     }
 
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        this.hiddenBuffer.writeToNBT(data, HIDDEN_BUFFER_TAG, registries);
+        data.remove(HIDDEN_BUFFER_TAG);
         data.put(PENDING_OUTPUTS_TAG, this.pendingOutput.writeToNbt(registries));
         if (this.keyInputStack != null && this.keyInputStack.amount() > 0) {
             data.put(KEY_INPUT_TAG, GenericStack.writeTag(registries, this.keyInputStack));
@@ -397,7 +409,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     @Override
-    public InternalInventory getSubInventory(ResourceLocation id) {
+    public @Nullable InternalInventory getSubInventory(ResourceLocation id) {
         if (ISegmentedInventory.STORAGE.equals(id)) {
             return this.storage;
         }
@@ -429,7 +441,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         beginRuntimeBatch();
         try {
             updatePowerUsageIfNeeded();
-            refillInputsForWork();
+            refillInputsForWork(currentLevel.getGameTime());
             int remainingTicks = tickBudget;
             while (remainingTicks > 0) {
                 if (!this.pendingOutput.isEmpty()) {
@@ -505,18 +517,25 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1 - ticksSinceLastFlushAttempt;
     }
 
-    private void refillInputsForWork() {
+    private void refillInputsForWork(long currentGameTime) {
         refillEnergyCache();
         if (this.autoPullKeyInput) {
-            refillKeyFromNetwork();
+            refillKeyFromNetwork(currentGameTime);
         }
     }
 
     @Override
     public void onReady() {
         super.onReady();
+        resetAutoPullBackoff();
         updatePowerUsage();
         updateOnlineState();
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        resetAutoPullBackoff();
     }
 
     public boolean isOnline() {
@@ -561,20 +580,23 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         this.autoPullKeyInput = enabled;
+        if (enabled) {
+            resetAutoPullBackoff();
+        }
         this.setChanged();
         this.markForClientUpdate();
         return this.autoPullKeyInput;
     }
 
     public DataExtractorDropRoutingMode setDropRoutingMode(DataExtractorDropRoutingMode mode) {
-        DataExtractorDropRoutingMode resolvedMode = mode == null ? DataExtractorDropRoutingMode.OFF : mode;
-        if (this.dropRoutingMode == resolvedMode) {
+        if (this.dropRoutingMode == mode) {
             return this.dropRoutingMode;
         }
 
-        this.dropRoutingMode = resolvedMode;
-        if (resolvedMode != DataExtractorDropRoutingMode.CONTAINER) {
+        this.dropRoutingMode = mode;
+        if (mode != DataExtractorDropRoutingMode.CONTAINER) {
             this.adjacentInsertionCursors.clear();
+            this.adjacentContainerTargets.clear();
         }
         this.pendingOutputFlushCooldown = 0;
         this.setChanged();
@@ -588,6 +610,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
+        if (!enabled) {
+            this.adjacentContainerTargets.remove(side);
+        }
         this.setChanged();
         this.markForClientUpdate();
     }
@@ -607,6 +632,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             boolean autoPullKeyInput = settings.getBoolean(AUTO_PULL_KEY_INPUT_TAG);
             if (this.autoPullKeyInput != autoPullKeyInput) {
                 this.autoPullKeyInput = autoPullKeyInput;
+                if (autoPullKeyInput) {
+                    resetAutoPullBackoff();
+                }
                 changed = true;
             }
         }
@@ -616,6 +644,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 this.dropRoutingMode = dropRoutingMode;
                 if (dropRoutingMode != DataExtractorDropRoutingMode.CONTAINER) {
                     this.adjacentInsertionCursors.clear();
+                    this.adjacentContainerTargets.clear();
                 }
                 this.pendingOutputFlushCooldown = 0;
                 changed = true;
@@ -637,11 +666,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
-        for (ItemStack stack : this.hiddenBuffer) {
-            if (!stack.isEmpty()) {
-                drops.add(stack.copy());
-            }
-        }
         drops.addAll(this.pendingOutput.toItemStacks());
         for (ItemStack stack : this.upgrades) {
             if (!stack.isEmpty()) {
@@ -654,11 +678,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     public void clearContent() {
         super.clearContent();
         this.carrierPlans.clear();
-        this.hiddenBuffer.clear();
+        this.biologyLootSamples.clear();
+        this.cachedCropLootStates.clear();
         this.pendingOutput.clear();
         this.adjacentInsertionCursors.clear();
+        this.adjacentContainerTargets.clear();
         this.upgrades.clear();
         this.keyInputStack = null;
+        resetAutoPullBackoff();
         syncKeyMenuFromStack();
     }
 
@@ -770,18 +797,27 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         MimeticGeneratedOutput.Accumulator biologyOutput = MimeticGeneratedOutput.accumulator();
         MimeticGeneratedOutput.Accumulator oreOutput = MimeticGeneratedOutput.accumulator();
         MimeticGeneratedOutput.Accumulator cropOutput = MimeticGeneratedOutput.accumulator();
+        Set<BiologyLootSampleKey> activeBiologySamples = new HashSet<>();
+        Set<Block> activeCropLootStates = new HashSet<>();
         int biologyRolls = getBiologyLootRollsPerCycle();
         int itemRolls = getOreOutputRollsPerCycle();
+        boolean convertOverflow = hasOverflowDestructionCard();
         int activeSlotCount = getActiveSlotCount();
         for (int slot = 0; slot < activeSlotCount; slot++) {
             MimeticCarrierPlan plan = this.carrierPlans.computeIfAbsent(
                     slot,
                     index -> resolveCarrierPlan(serverLevel, this.storage.getStackInSlot(index)));
             if (plan instanceof MimeticCarrierPlan.Biology biology) {
-                biologyOutput.add(generateBiologyLoot(serverLevel, biology, biologyRolls));
+                if (biology.entityType() != null && (biology.fixedOutput().isEmpty() || convertOverflow)) {
+                    activeBiologySamples.add(new BiologyLootSampleKey(biology.entityId(), !biology.fixedOutput().isEmpty()));
+                }
+                biologyOutput.add(generateBiologyLoot(serverLevel, biology, biologyRolls, convertOverflow));
             } else if (plan instanceof MimeticCarrierPlan.Ore ore) {
                 oreOutput.addRepeated(ore.output(), itemRolls);
             } else if (plan instanceof MimeticCarrierPlan.Crop crop) {
+                if (crop.fixedOutput().isEmpty() && crop.sourceBlock() != null) {
+                    activeCropLootStates.add(crop.sourceBlock());
+                }
                 if (!crop.fixedOutput().isEmpty()) {
                     cropOutput.addRepeated(crop.fixedOutput(), itemRolls);
                     continue;
@@ -792,9 +828,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
         }
 
-        submitGeneratedLoot(biologyOutput.build());
-        submitGeneratedLoot(oreOutput.build());
-        submitGeneratedLoot(cropOutput.build());
+        this.biologyLootSamples.keySet().retainAll(activeBiologySamples);
+        this.cachedCropLootStates.keySet().retainAll(activeCropLootStates);
+
+        submitGeneratedLoot(biologyOutput.build(), convertOverflow);
+        submitGeneratedLoot(oreOutput.build(), convertOverflow);
+        submitGeneratedLoot(cropOutput.build(), convertOverflow);
     }
 
     private void refreshCarrierPlans() {
@@ -902,9 +941,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         return flushIntoAdjacentContainers(
                 this.pendingOutput,
-                getAdjacentItemHandlers(),
+                getAdjacentContainerTargets(),
                 this.adjacentInsertionCursors,
-                PENDING_OUTPUT_OFFER_BUDGET,
                 this.externalIoBudget);
     }
 
@@ -912,25 +950,20 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
      * Applies a fixed number of single-slot container attempts while retaining per-item progress between calls.
      *
      * @param pendingOutput    authoritative generated-item ledger
-     * @param adjacentHandlers current handlers keyed by stable block direction
+     * @param adjacentTargets  current handlers and stable slot counts keyed by direction
      * @param insertionCursors per-item scan positions retained across ticks
-     * @param offerBudget      positive maximum number of real slot attempts
      * @param externalIoBudget shared real-tick external call allowance
      * @return exact number of items accepted by adjacent handlers
      */
-    static long flushIntoAdjacentContainers(
-                                            MimeticPendingOutputLedger pendingOutput,
-                                            Map<Direction, IItemHandler> adjacentHandlers,
-                                            Map<AEItemKey, AdjacentContainerInsertionCursor> insertionCursors,
-                                            int offerBudget,
-                                            MimeticExternalIoBudget externalIoBudget) {
-        if (offerBudget <= 0) {
-            throw new IllegalArgumentException("offerBudget must be positive");
-        }
-
+    private static long flushIntoAdjacentContainers(
+                                                    MimeticPendingOutputLedger pendingOutput,
+                                                    Map<Direction, AdjacentContainerTarget> adjacentTargets,
+                                                    Map<AEItemKey, AdjacentContainerInsertionCursor> insertionCursors,
+                                                    MimeticExternalIoBudget externalIoBudget) {
         long totalAccepted = 0L;
+        @Nullable
         AEItemKey[] offeredKey = new AEItemKey[1];
-        for (int offer = 0; offer < offerBudget && !pendingOutput.isEmpty(); offer++) {
+        for (int offer = 0; offer < PENDING_OUTPUT_OFFER_BUDGET && !pendingOutput.isEmpty(); offer++) {
             offeredKey[0] = null;
             long accepted = pendingOutput.flush(stack -> {
                 AEItemKey key = AEItemKey.of(stack);
@@ -942,8 +975,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 AdjacentContainerInsertionCursor cursor = insertionCursors.computeIfAbsent(key, ignored -> new AdjacentContainerInsertionCursor());
                 return acceptedAmount(
                         stack,
-                        insertIntoNextAdjacentContainerSlot(stack, adjacentHandlers, cursor, externalIoBudget),
-                        "adjacent container");
+                        insertIntoNextAdjacentContainerSlot(stack, adjacentTargets, cursor, externalIoBudget));
             }, 1);
             totalAccepted = Math.addExact(totalAccepted, accepted);
             if (offeredKey[0] == null) {
@@ -960,16 +992,16 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
      * Attempts one stack against at most one real slot, advancing before any third-party call can fail.
      *
      * @param stack            offered component-preserving stack
-     * @param adjacentHandlers current handlers keyed by stable block direction
+     * @param adjacentTargets  current handlers and stable slot counts keyed by direction
      * @param cursor           per-item scan position
      * @param externalIoBudget shared real-tick external call allowance
      * @return unconfirmed remainder after the one bounded attempt
      */
-    static ItemStack insertIntoNextAdjacentContainerSlot(
-                                                         ItemStack stack,
-                                                         Map<Direction, IItemHandler> adjacentHandlers,
-                                                         AdjacentContainerInsertionCursor cursor,
-                                                         MimeticExternalIoBudget externalIoBudget) {
+    private static ItemStack insertIntoNextAdjacentContainerSlot(
+                                                                 ItemStack stack,
+                                                                 Map<Direction, AdjacentContainerTarget> adjacentTargets,
+                                                                 AdjacentContainerInsertionCursor cursor,
+                                                                 MimeticExternalIoBudget externalIoBudget) {
         if (stack.isEmpty()) {
             return ItemStack.EMPTY;
         }
@@ -977,34 +1009,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         for (int checkedSides = 0; checkedSides < DIRECTIONS.length; checkedSides++) {
             Direction direction = DIRECTIONS[cursor.nextSideIndex];
             cursor.nextSideIndex = (cursor.nextSideIndex + 1) % DIRECTIONS.length;
-            IItemHandler handler = adjacentHandlers.get(direction);
-            if (handler == null) {
+            AdjacentContainerTarget target = adjacentTargets.get(direction);
+            if (target == null) {
                 continue;
             }
 
-            int slotCount;
-            if (!externalIoBudget.tryAcquire()) {
-                return stack;
-            }
-            try {
-                slotCount = handler.getSlots();
-            } catch (RuntimeException exception) {
-                Data_Energistics.LOGGER.error(
-                        "Failed to query data mimetic field output handler {}; trying the next adjacent container",
-                        handler.getClass().getName(),
-                        exception);
-                continue;
-            }
-            if (slotCount <= 0) {
-                if (slotCount < 0) {
-                    Data_Energistics.LOGGER.error(
-                            "Data mimetic field output handler {} reported invalid slot count {}",
-                            handler.getClass().getName(),
-                            slotCount);
-                }
-                continue;
-            }
-
+            IItemHandler handler = target.handler();
+            int slotCount = target.slotCount();
             int storedSlot = cursor.nextSlots.getOrDefault(direction, 0);
             int slot = storedSlot < slotCount ? storedSlot : storedSlot % slotCount;
             cursor.nextSlots.put(direction, slot == slotCount - 1 ? 0 : slot + 1);
@@ -1016,6 +1027,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             try {
                 slotRemainder = handler.insertItem(slot, offeredToSlot.copy(), false);
             } catch (RuntimeException exception) {
+                adjacentTargets.remove(direction, target);
                 Data_Energistics.LOGGER.error(
                         "Failed to insert data mimetic field output {} into slot {} of {}; retaining the unconfirmed remainder",
                         offeredToSlot,
@@ -1038,13 +1050,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return stack;
     }
 
-    static int acceptedAmount(ItemStack offered, ItemStack remaining, String destination) {
+    private static int acceptedAmount(ItemStack offered, ItemStack remaining) {
         if (remaining.isEmpty()) {
             return offered.getCount();
         }
         if (!ItemStack.isSameItemSameComponents(offered, remaining) || remaining.getCount() > offered.getCount()) {
             throw new IllegalStateException(
-                    "Data mimetic field " + destination + " returned an invalid remainder for " + offered);
+                    "Data mimetic field adjacent container returned an invalid remainder for " + offered);
         }
         return offered.getCount() - remaining.getCount();
     }
@@ -1096,6 +1108,45 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return this.adjacentItemHandlers.getAllBySide(this.outputSides);
     }
 
+    private Map<Direction, AdjacentContainerTarget> getAdjacentContainerTargets() {
+        Map<Direction, IItemHandler> handlers = getAdjacentItemHandlers();
+        this.adjacentContainerTargets.entrySet().removeIf(
+                entry -> handlers.get(entry.getKey()) != entry.getValue().handler());
+        for (Map.Entry<Direction, IItemHandler> entry : handlers.entrySet()) {
+            AdjacentContainerTarget current = this.adjacentContainerTargets.get(entry.getKey());
+            if (current != null && current.handler() == entry.getValue()) {
+                continue;
+            }
+            if (!this.externalIoBudget.tryAcquire()) {
+                break;
+            }
+
+            int slotCount;
+            try {
+                slotCount = entry.getValue().getSlots();
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to query data mimetic field output handler {}",
+                        entry.getValue().getClass().getName(),
+                        exception);
+                continue;
+            }
+            if (slotCount < 0) {
+                Data_Energistics.LOGGER.error(
+                        "Data mimetic field output handler {} reported invalid slot count {}",
+                        entry.getValue().getClass().getName(),
+                        slotCount);
+                continue;
+            }
+            if (slotCount > 0) {
+                this.adjacentContainerTargets.put(
+                        entry.getKey(),
+                        new AdjacentContainerTarget(entry.getValue(), slotCount));
+            }
+        }
+        return this.adjacentContainerTargets;
+    }
+
     @Nullable
     private MEStorage getConnectedItemNetwork() {
         IGridNode node = this.getMainNode().getNode();
@@ -1110,8 +1161,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private MimeticGeneratedOutput generateBiologyLoot(
                                                        ServerLevel serverLevel,
                                                        MimeticCarrierPlan.Biology plan,
-                                                       int targetRolls) {
-        if (!plan.fixedOutput().isEmpty() && !hasOverflowDestructionCard()) {
+                                                       int targetRolls,
+                                                       boolean convertOverflow) {
+        if (!plan.fixedOutput().isEmpty() && !convertOverflow) {
             return plan.fixedOutput().repeat(targetRolls);
         }
 
@@ -1315,7 +1367,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private List<ItemStack> generateBlockLootDrops(ServerLevel serverLevel, BlockState state) {
-        if (state == null || state.isAir()) {
+        if (state.isAir()) {
             return List.of();
         }
 
@@ -1392,11 +1444,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return block.defaultBlockState();
     }
 
-    private void submitGeneratedLoot(MimeticGeneratedOutput generated) {
+    private void submitGeneratedLoot(MimeticGeneratedOutput generated, boolean convertOverflow) {
         if (generated.isEmpty()) {
             return;
         }
-        if (hasOverflowDestructionCard()) {
+        if (convertOverflow) {
             convertGeneratedLootToDataFlow(generated);
             return;
         }
@@ -1511,20 +1563,19 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return networkStorage.insert(DataFlowKey.of(), amount, Actionable.MODULATE, IActionSource.ofMachine(this));
     }
 
-    private long insertDataFlowIntoKeyInput(long amount) {
+    private void insertDataFlowIntoKeyInput(long amount) {
         if (amount <= 0) {
-            return 0L;
+            return;
         }
 
-        long stored = this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey ? this.keyInputStack.amount() : 0L;
+        long stored = dataFlowAmount(this.keyInputStack);
         long accepted = Math.min(amount, KEY_INPUT_CAPACITY - stored);
         if (accepted <= 0) {
-            return 0L;
+            return;
         }
 
         this.keyInputStack = new GenericStack(DataFlowKey.of(), stored + accepted);
         markKeyInputChanged();
-        return accepted;
     }
 
     private boolean hasOverflowDestructionCard() {
@@ -1619,6 +1670,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         long remaining = this.keyInputStack.amount() - required;
         this.keyInputStack = remaining > 0 ? new GenericStack(DataFlowKey.of(), remaining) : null;
+        resetAutoPullBackoff();
         markKeyInputChanged();
         return true;
     }
@@ -1654,34 +1706,71 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    private void refillKeyFromNetwork() {
-        IGridNode node = this.getMainNode().getNode();
-        if (node == null || node.getGrid() == null || !node.isActive()) {
+    private void refillKeyFromNetwork(long currentGameTime) {
+        if (this.lastAutoPullAttemptGameTime == currentGameTime || currentGameTime < this.nextAutoPullAttemptGameTime) {
             return;
         }
 
-        long stored = this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey ? this.keyInputStack.amount() : 0L;
+        long stored = dataFlowAmount(this.keyInputStack);
         long missing = KEY_INPUT_CAPACITY - stored;
         if (missing <= 0) {
             return;
         }
 
-        var inventory = node.getGrid().getStorageService().getInventory();
-        if (inventory == null) {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            recordAutoPullFailure(currentGameTime);
             return;
         }
 
+        var inventory = node.getGrid().getStorageService().getInventory();
         if (!this.externalIoBudget.tryAcquire()) {
+            deferAutoPullUntilNextTick(currentGameTime);
             return;
         }
+        this.lastAutoPullAttemptGameTime = currentGameTime;
         long extracted = inventory.extract(DataFlowKey.of(), missing, Actionable.MODULATE, IActionSource.ofMachine(this));
         if (extracted <= 0) {
+            recordAutoPullFailure(currentGameTime);
             return;
         }
 
         long updated = stored + extracted;
         this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, updated));
         markKeyInputChanged();
+        recordAutoPullSuccess(currentGameTime);
+    }
+
+    private void resetAutoPullBackoff() {
+        this.nextAutoPullAttemptGameTime = Long.MIN_VALUE;
+        this.autoPullBackoffTicks = 1;
+    }
+
+    private void recordAutoPullSuccess(long currentGameTime) {
+        this.lastAutoPullAttemptGameTime = currentGameTime;
+        this.nextAutoPullAttemptGameTime = currentGameTime + 1L;
+        this.autoPullBackoffTicks = 1;
+    }
+
+    private void recordAutoPullFailure(long currentGameTime) {
+        this.lastAutoPullAttemptGameTime = currentGameTime;
+        this.nextAutoPullAttemptGameTime = currentGameTime + this.autoPullBackoffTicks;
+        this.autoPullBackoffTicks = Math.min(MAX_AUTO_PULL_BACKOFF_TICKS, this.autoPullBackoffTicks * 2);
+    }
+
+    private void deferAutoPullUntilNextTick(long currentGameTime) {
+        this.lastAutoPullAttemptGameTime = currentGameTime;
+        this.nextAutoPullAttemptGameTime = Math.max(this.nextAutoPullAttemptGameTime, currentGameTime + 1L);
+    }
+
+    private void resetAutoPullBackoffIfCapacityOpened(long previousAmount, long currentAmount) {
+        if (currentAmount < previousAmount) {
+            resetAutoPullBackoff();
+        }
+    }
+
+    private static long dataFlowAmount(@Nullable GenericStack stack) {
+        return stack != null && stack.what() instanceof DataFlowKey ? stack.amount() : 0L;
     }
 
     private GenericStackInv createKeyMenuInventory() {
@@ -1715,12 +1804,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         this.syncingKeyMenu = true;
         try {
+            long previousAmount = dataFlowAmount(this.keyInputStack);
             var stack = this.keyMenuInventory.getStack(0);
             if (stack == null || !(stack.what() instanceof DataFlowKey) || stack.amount() <= 0) {
                 this.keyInputStack = null;
             } else {
                 this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, stack.amount()));
             }
+            resetAutoPullBackoffIfCapacityOpened(previousAmount, dataFlowAmount(this.keyInputStack));
             markRuntimePersistenceDirty();
         } finally {
             this.syncingKeyMenu = false;
@@ -1868,6 +1959,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 return;
             }
 
+            resetAutoPullBackoffIfCapacityOpened(dataFlowAmount(current), dataFlowAmount(clamped));
             keyInputStack = clamped;
             onChange();
         }
@@ -1888,7 +1980,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 return 0L;
             }
 
-            long stored = keyInputStack != null && keyInputStack.what() instanceof DataFlowKey ? keyInputStack.amount() : 0L;
+            long stored = dataFlowAmount(keyInputStack);
             long inserted = Math.min(amount, KEY_INPUT_CAPACITY - stored);
             if (inserted <= 0L) {
                 return 0L;
@@ -1915,6 +2007,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             if (mode == Actionable.MODULATE) {
                 long remaining = keyInputStack.amount() - extracted;
                 keyInputStack = remaining > 0L ? new GenericStack(DataFlowKey.of(), remaining) : null;
+                resetAutoPullBackoff();
                 onChange();
             }
             return extracted;
@@ -1968,10 +2061,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    /**
-     * Stores the next direction and slot for one component-sensitive pending item.
-     */
-    static final class AdjacentContainerInsertionCursor {
+    private record AdjacentContainerTarget(IItemHandler handler, int slotCount) {}
+
+    /** Stores the next direction and slot for one component-sensitive pending item. */
+    private static final class AdjacentContainerInsertionCursor {
 
         /**
          * Next stable direction index to inspect.
