@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaint
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot.Stage;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressAppearance;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressBar;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 
 import net.minecraft.network.chat.Component;
@@ -47,7 +49,6 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String MIGRATION_STATE_ID = MIGRATION_PANEL_ID + "_state";
     private static final String MIGRATION_PROGRESS_ID = MIGRATION_PANEL_ID + "_progress";
     private static final String MIGRATION_PROGRESS_TRACK_ID = MIGRATION_PANEL_ID + "_track";
-    private static final String MIGRATION_PROGRESS_FILL_ID = MIGRATION_PANEL_ID + "_fill";
     private static final String PERFORMANCE_PANEL_ID = "trinity_information_exchange_depot_performance";
     private static final String EXCHANGE_TICK_ID = PERFORMANCE_PANEL_ID + "_exchange_tick";
     private static final String CORE_TICK_ID = PERFORMANCE_PANEL_ID + "_core_tick";
@@ -59,12 +60,11 @@ public final class TrinityInformationExchangeDepotUi {
     private static final int PANEL_WIDTH = CONTENT_WIDTH - CONTENT_INSET * 2;
     private static final int PANEL_BACKGROUND_COLOR = 0x284A4C63;
     private static final int PANEL_BORDER_COLOR = 0xFF85879B;
-    private static final int PROGRESS_BACKGROUND_COLOR = 0xFF4A4C62;
-    private static final int PROGRESS_ACTIVE_COLOR = 0xFF4D8DFF;
-    private static final int PROGRESS_COMPLETED_COLOR = 0xFF45C46A;
-    private static final int PROGRESS_FAILED_COLOR = 0xFFE05252;
-    private static final int PROGRESS_IDLE_COLOR = 0xFF72758A;
-    private static final int PROGRESS_WIDTH = PANEL_WIDTH - 10;
+    private static final int PROGRESS_TEXT_WIDTH = PANEL_WIDTH - 10;
+    private static final int PROGRESS_TRACK_LEFT = 6;
+    private static final int PROGRESS_TRACK_TOP = 55;
+    private static final int PROGRESS_TRACK_WIDTH = 175;
+    private static final int PROGRESS_TRACK_HEIGHT = 10;
     private static final double TICK_BUDGET_NANOS = 50_000_000.0D;
 
     private TrinityInformationExchangeDepotUi() {}
@@ -332,7 +332,7 @@ public final class TrinityInformationExchangeDepotUi {
 
     private static final class TelemetryArea {
 
-        private final UIElement progressFill;
+        private final TrinityPatternProgressBar progressBar;
         private final Label state;
         private final Label progress;
         private final Label exchangeTick;
@@ -348,13 +348,13 @@ public final class TrinityInformationExchangeDepotUi {
         private long migrationTickWorkUnits = -1L;
 
         private TelemetryArea(
-                              UIElement progressFill,
+                              TrinityPatternProgressBar progressBar,
                               Label state,
                               Label progress,
                               Label exchangeTick,
                               Label coreTick,
                               Label migrationTick) {
-            this.progressFill = progressFill;
+            this.progressBar = progressBar;
             this.state = state;
             this.progress = progress;
             this.exchangeTick = exchangeTick;
@@ -372,22 +372,16 @@ public final class TrinityInformationExchangeDepotUi {
             Label progress = value(MIGRATION_PROGRESS_ID);
             place(migrationTitle, 5, 3, 61, 8);
             place(state, 67, 3, 99, 8);
-            place(progress, 5, 24, PROGRESS_WIDTH, 9);
+            place(progress, 5, 24, PROGRESS_TEXT_WIDTH, 9);
+            migrationPanel.addChildren(migrationTitle, state, progress);
 
-            UIElement progressTrack = new UIElement();
-            progressTrack.setId(MIGRATION_PROGRESS_TRACK_ID);
-            progressTrack.setAllowHitTest(false);
-            progressTrack.setOverflowVisible(false);
-            progressTrack.style(style -> style.backgroundTexture(new ColorRectTexture(PROGRESS_BACKGROUND_COLOR)));
-            place(progressTrack, 5, 14, PROGRESS_WIDTH, 6);
-
-            UIElement progressFill = new UIElement();
-            progressFill.setId(MIGRATION_PROGRESS_FILL_ID);
-            progressFill.setAllowHitTest(false);
-            progressFill.style(style -> style.backgroundTexture(new ColorRectTexture(PROGRESS_IDLE_COLOR)));
-            place(progressFill, 0, 0, 0, 6);
-            progressTrack.addChild(progressFill);
-            migrationPanel.addChildren(migrationTitle, state, progressTrack, progress);
+            TrinityPatternProgressBar progressBar = TrinityPatternProgressBar.horizontal(MIGRATION_PROGRESS_TRACK_ID);
+            place(
+                    progressBar,
+                    PROGRESS_TRACK_LEFT,
+                    PROGRESS_TRACK_TOP,
+                    PROGRESS_TRACK_WIDTH,
+                    PROGRESS_TRACK_HEIGHT);
 
             UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85, 38);
             Label performanceTitle = text(
@@ -425,8 +419,8 @@ public final class TrinityInformationExchangeDepotUi {
                     migrationLabel,
                     migrationTick);
 
-            content.addChildren(migrationPanel, performancePanel);
-            return new TelemetryArea(progressFill, state, progress, exchangeTick, coreTick, migrationTick);
+            content.addChildren(migrationPanel, progressBar, performancePanel);
+            return new TelemetryArea(progressBar, state, progress, exchangeTick, coreTick, migrationTick);
         }
 
         private void bind(TrinityInformationExchangeDepotMenu menu, UIElement tickSource) {
@@ -447,9 +441,13 @@ public final class TrinityInformationExchangeDepotUi {
                 this.total = nextTotal;
                 this.state.setText(maintenanceState(operation, stage));
                 this.progress.setText(maintenanceProgress(stage, nextCompleted, nextTotal));
-                int width = (int) Math.round(PROGRESS_WIDTH * maintenanceProgressRatio(stage, nextCompleted, nextTotal));
-                place(this.progressFill, 0, 0, width, 6);
-                this.progressFill.style(style -> style.backgroundTexture(new ColorRectTexture(progressColor(stage))));
+                if (operation == Operation.IDLE) {
+                    this.progressBar.clearProgress();
+                } else {
+                    this.progressBar.setProgress(
+                            (float) maintenanceProgressRatio(stage, nextCompleted, nextTotal),
+                            progressAppearance(operation, stage));
+                }
             }
 
             if (this.exchangeTickNanos != menu.exchangeDepotTickNanos) {
@@ -471,12 +469,15 @@ public final class TrinityInformationExchangeDepotUi {
             }
         }
 
-        private static int progressColor(Stage stage) {
+        private static TrinityPatternProgressAppearance progressAppearance(Operation operation, Stage stage) {
             return switch (stage) {
-                case COMPLETED -> PROGRESS_COMPLETED_COLOR;
-                case FAILED, CANCELLED -> PROGRESS_FAILED_COLOR;
-                case IDLE -> PROGRESS_IDLE_COLOR;
-                default -> PROGRESS_ACTIVE_COLOR;
+                case COMPLETED -> TrinityPatternProgressAppearance.COMPLETED;
+                case FAILED, CANCELLED -> TrinityPatternProgressAppearance.FAILED;
+                default -> switch (operation) {
+                    case MIGRATION -> TrinityPatternProgressAppearance.MIGRATION;
+                    case REFUND_PATTERNS -> TrinityPatternProgressAppearance.REFUND;
+                    case IDLE -> throw new IllegalStateException("Idle maintenance has no progress appearance");
+                };
             };
         }
     }
