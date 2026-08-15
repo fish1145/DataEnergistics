@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
-import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;

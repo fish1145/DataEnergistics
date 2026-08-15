@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.powered;
 
-import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
-import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
