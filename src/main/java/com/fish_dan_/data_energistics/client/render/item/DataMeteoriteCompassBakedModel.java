@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.item;
 
-import com.fish_dan_.data_energistics.client.DataMeteoriteCompassClientCache;
+import com.fish_dan_.data_energistics.client.meteorite.DataMeteoriteCompassClientCache;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;

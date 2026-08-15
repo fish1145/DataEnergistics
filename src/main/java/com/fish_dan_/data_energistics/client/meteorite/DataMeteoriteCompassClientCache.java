@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client;
+package com.fish_dan_.data_energistics.client.meteorite;
 
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
