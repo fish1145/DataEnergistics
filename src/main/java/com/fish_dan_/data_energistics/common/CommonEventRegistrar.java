@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEventHandler;
+import com.fish_dan_.data_energistics.common.sonic.FormationPlaneSonicBoomEchoCapture;
 import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
