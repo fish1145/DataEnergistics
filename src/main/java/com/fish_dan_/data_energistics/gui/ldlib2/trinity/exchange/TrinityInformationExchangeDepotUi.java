@@ -63,10 +63,12 @@ public final class TrinityInformationExchangeDepotUi {
     private static final int TELEMETRY_PANEL_LEFT = 6;
     private static final int TELEMETRY_PANEL_WIDTH = 175;
     private static final int TELEMETRY_PANEL_HEIGHT = 42;
+    private static final int MIGRATION_PANEL_TOP = 41;
+    private static final int PERFORMANCE_PANEL_TOP = 86;
     private static final int PROGRESS_TEXT_WIDTH = PANEL_WIDTH - 10;
-    private static final int PROGRESS_TRACK_LEFT = 6;
-    private static final int PROGRESS_TRACK_TOP = 55;
-    private static final int PROGRESS_TRACK_WIDTH = 175;
+    private static final int PROGRESS_TRACK_LEFT = TELEMETRY_PANEL_LEFT + 3;
+    private static final int PROGRESS_TRACK_TOP = MIGRATION_PANEL_TOP + 15;
+    private static final int PROGRESS_TRACK_WIDTH = TELEMETRY_PANEL_WIDTH - 6;
     private static final int PROGRESS_TRACK_HEIGHT = 10;
     private static final double TICK_BUDGET_NANOS = 50_000_000.0D;
 
@@ -289,7 +291,7 @@ public final class TrinityInformationExchangeDepotUi {
         private void applyGeometry() {
             this.content.removeChild(this.title);
             this.root.addChild(this.title);
-            place(this.title, 8, 0, 160, 12);
+            place(this.title, 8, 2, 160, 10);
 
             Label modeTitle = text(
                     MODE_TITLE_ID,
@@ -366,16 +368,16 @@ public final class TrinityInformationExchangeDepotUi {
         }
 
         private static TelemetryArea create(UIElement content) {
-            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 41);
+            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, MIGRATION_PANEL_TOP);
             Label migrationTitle = text(
                     MIGRATION_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "migration.title",
                     "trinity-information-exchange-section-title");
             Label state = value(MIGRATION_STATE_ID);
             Label progress = value(MIGRATION_PROGRESS_ID);
-            place(migrationTitle, 5, 3, 61, 8);
-            place(state, 67, 3, 99, 8);
-            place(progress, 5, 24, PROGRESS_TEXT_WIDTH, 9);
+            place(migrationTitle, 5, 5, 61, 8);
+            place(state, 67, 5, 99, 8);
+            place(progress, 5, 28, PROGRESS_TEXT_WIDTH, 9);
             migrationPanel.addChildren(migrationTitle, state, progress);
 
             TrinityPatternProgressBar progressBar = TrinityPatternProgressBar.horizontal(MIGRATION_PROGRESS_TRACK_ID);
@@ -386,7 +388,7 @@ public final class TrinityInformationExchangeDepotUi {
                     PROGRESS_TRACK_WIDTH,
                     PROGRESS_TRACK_HEIGHT);
 
-            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85);
+            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, PERFORMANCE_PANEL_TOP);
             Label performanceTitle = text(
                     PERFORMANCE_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "performance.title",
@@ -406,13 +408,13 @@ public final class TrinityInformationExchangeDepotUi {
             Label exchangeTick = value(EXCHANGE_TICK_ID + "_value");
             Label coreTick = value(CORE_TICK_ID + "_value");
             Label migrationTick = value(MIGRATION_TICK_ID + "_value");
-            place(performanceTitle, 5, 3, 161, 8);
-            place(exchangeLabel, 5, 12, 55, 8);
-            place(exchangeTick, 61, 12, 105, 8);
-            place(coreLabel, 5, 20, 55, 8);
-            place(coreTick, 61, 20, 105, 8);
-            place(migrationLabel, 5, 28, 55, 8);
-            place(migrationTick, 61, 28, 105, 8);
+            place(performanceTitle, 5, 5, 161, 8);
+            place(exchangeLabel, 5, 14, 55, 8);
+            place(exchangeTick, 61, 14, 105, 8);
+            place(coreLabel, 5, 22, 55, 8);
+            place(coreTick, 61, 22, 105, 8);
+            place(migrationLabel, 5, 30, 55, 8);
+            place(migrationTick, 61, 30, 105, 8);
             performancePanel.addChildren(
                     performanceTitle,
                     exchangeLabel,

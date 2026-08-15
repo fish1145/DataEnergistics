@@ -173,7 +173,7 @@
 }
 
 .trinity-information-exchange-title {
-    font-size: 8;
+    font-size: 7.5;
     text-color: #FF343548;
     horizontal-align: left;
     text-wrap: hover_roll;
