@@ -65,9 +65,6 @@ public final class TrinityCraftingCycleSummaryProjection {
         LinkedHashMap<AEKey, MaterialRoles> materials = new LinkedHashMap<>();
         for (Integer stageIndex : block.stageOrder()) {
             TrinityPlanStage stage = stagesByIndex.get(stageIndex);
-            if (stage == null || !stage.cycleStage()) {
-                throw new IllegalArgumentException("A Trinity repeat block must reference an existing cycle stage");
-            }
             for (TrinityPlanPatternFiring firing : stage.firings()) {
                 patternExecutions = patternExecutions.add(firing.count().multiply(block.repetitions()));
                 patternTypes.add(firing.patternIdentity());

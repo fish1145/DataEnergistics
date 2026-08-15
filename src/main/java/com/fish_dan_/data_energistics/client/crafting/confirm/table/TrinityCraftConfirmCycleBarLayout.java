@@ -20,9 +20,6 @@ final class TrinityCraftConfirmCycleBarLayout {
      */
     static List<Segment> segments(List<TrinityCraftingCycleMaterialContribution> contributions,
                                   int pixelWidth) {
-        if (pixelWidth <= 0) {
-            throw new IllegalArgumentException("A cycle bar must have a positive pixel width");
-        }
         if (contributions.isEmpty()) {
             return List.of();
         }

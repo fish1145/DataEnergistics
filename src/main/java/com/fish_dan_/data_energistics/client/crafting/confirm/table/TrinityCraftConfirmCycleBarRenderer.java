@@ -42,10 +42,6 @@ public final class TrinityCraftConfirmCycleBarRenderer {
                 }
 
                 List<TrinityCraftingCycleMaterialContribution> contributions = summary.contributionsFor(entries.get(entryIndex).getWhat());
-                if (contributions.isEmpty()) {
-                    continue;
-                }
-
                 int cellX = TABLE_X + column * (CELL_WIDTH + CELL_BORDER);
                 int barY = TABLE_Y + row * (CELL_HEIGHT + CELL_BORDER) + CELL_HEIGHT - BAR_HEIGHT;
                 for (TrinityCraftConfirmCycleBarLayout.Segment segment : TrinityCraftConfirmCycleBarLayout.segments(contributions, CELL_WIDTH)) {
