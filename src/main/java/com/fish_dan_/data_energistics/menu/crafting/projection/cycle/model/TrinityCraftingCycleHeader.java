@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu.crafting.projection;
+package com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model;
 
 import java.math.BigInteger;
 
