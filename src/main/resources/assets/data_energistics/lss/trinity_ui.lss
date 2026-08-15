@@ -181,7 +181,7 @@
 }
 
 .trinity-information-exchange-mode-title {
-    font-size: 6.5;
+    font-size: 7.5;
     text-color: #FF343548;
     horizontal-align: center;
     text-wrap: none;
