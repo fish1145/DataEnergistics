@@ -55,7 +55,7 @@
 		"core.patternprovider.NetworkCraftingProvidersRevisionMixin",
 		"core.grid.network.NetworkStatusMixin",
 		"core.grid.storage.NetworkStorageMixin",
-		"core.accessor.NeoForgeEnergyStorageAccessor",
+		"core.accessor.neoforge.NeoForgeEnergyStorageAccessor",
 		"core.grid.network.PathingCalculationMixin",
 		"core.grid.network.PathingServiceMixin",
 		"core.menu.patternencoding.PatternEncodingLogicPreviewLayoutMixin",
