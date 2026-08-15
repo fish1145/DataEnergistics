@@ -201,6 +201,30 @@ public record MimeticGeneratedOutput(Map<AEItemKey, Long> items, long experience
         }
 
         /**
+         * Adds a compact output for multiple logical rolls without creating intermediate maps.
+         *
+         * @param output      generated result for one roll
+         * @param repetitions non-negative repetition count
+         * @return this accumulator
+         */
+        public Accumulator addRepeated(MimeticGeneratedOutput output, int repetitions) {
+            if (repetitions < 0) {
+                throw new IllegalArgumentException("repetitions cannot be negative");
+            }
+            if (repetitions == 0 || output.isEmpty()) {
+                return this;
+            }
+            output.items.forEach((key, amount) -> this.items.merge(
+                    key,
+                    Math.multiplyExact(amount, repetitions),
+                    Math::addExact));
+            this.experience = saturatedAdd(
+                    this.experience,
+                    saturatedMultiply(output.experience, repetitions));
+            return this;
+        }
+
+        /**
          * Adds non-negative experience.
          *
          * @param amount experience count

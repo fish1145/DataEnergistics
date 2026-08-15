@@ -4,12 +4,14 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticCarrierPlan;
 import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticGeneratedOutput;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.configuration.rules.LoadedRules;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierData;
 import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierData;
@@ -196,6 +198,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private Player cachedFakePlayer;
     private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
+    private final Map<Integer, MimeticCarrierPlan> carrierPlans = new HashMap<>();
+    private @Nullable LoadedRules carrierPlanRules;
     /**
      * Reuses sampled biology results between refreshes to keep entity simulation off the hot work-cycle path.
      */
@@ -256,6 +260,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
+        this.carrierPlans.clear();
+        this.carrierPlanRules = null;
+        this.biologyLootSamples.clear();
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.adjacentInsertionCursors.clear();
         this.pendingOutput.readFromNbt(registries, data.getList(PENDING_OUTPUTS_TAG, Tag.TAG_COMPOUND));
@@ -474,9 +481,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 break;
             }
 
-            performBiologyMimeticWork();
-            performOreMimeticWork();
-            performCropMimeticWork();
+            performMimeticWork();
         }
         updateOnlineState();
     }
@@ -634,6 +639,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     @Override
     public void clearContent() {
         super.clearContent();
+        this.carrierPlans.clear();
         this.hiddenBuffer.clear();
         this.pendingOutput.clear();
         this.adjacentInsertionCursors.clear();
@@ -682,6 +688,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
             overflow.add(stack.copy());
             this.storage.setItemDirect(i, ItemStack.EMPTY);
+            this.carrierPlans.remove(i);
             changed = true;
         }
 
@@ -697,6 +704,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         markPowerUsageDirty();
         if (inv == this.storage) {
+            this.carrierPlans.remove(slot);
             this.saveChanges();
             this.markForClientUpdate();
         }
@@ -739,63 +747,128 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return !stack.isEmpty() && (BiologyDataCarrierData.isComplete(stack) || OreDataCarrierData.isComplete(stack) || CropDataCarrierData.isComplete(stack));
     }
 
-    private void performBiologyMimeticWork() {
+    private void performMimeticWork() {
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
 
-        MimeticGeneratedOutput generatedLoot = MimeticGeneratedOutput.empty();
+        refreshCarrierPlans();
+        MimeticGeneratedOutput.Accumulator biologyOutput = MimeticGeneratedOutput.accumulator();
+        MimeticGeneratedOutput.Accumulator oreOutput = MimeticGeneratedOutput.accumulator();
+        MimeticGeneratedOutput.Accumulator cropOutput = MimeticGeneratedOutput.accumulator();
+        int biologyRolls = getBiologyLootRollsPerCycle();
+        int itemRolls = getOreOutputRollsPerCycle();
         int activeSlotCount = getActiveSlotCount();
-        for (int i = 0; i < activeSlotCount; i++) {
-            ItemStack carrier = this.storage.getStackInSlot(i);
-            if (BiologyDataCarrierData.isComplete(carrier)) {
-                generatedLoot = generatedLoot.merge(generateBiologyLoot(serverLevel, carrier));
+        for (int slot = 0; slot < activeSlotCount; slot++) {
+            MimeticCarrierPlan plan = this.carrierPlans.computeIfAbsent(
+                    slot,
+                    index -> resolveCarrierPlan(serverLevel, this.storage.getStackInSlot(index)));
+            if (plan instanceof MimeticCarrierPlan.Biology biology) {
+                biologyOutput.add(generateBiologyLoot(serverLevel, biology, biologyRolls));
+            } else if (plan instanceof MimeticCarrierPlan.Ore ore) {
+                oreOutput.addRepeated(ore.output(), itemRolls);
+            } else if (plan instanceof MimeticCarrierPlan.Crop crop) {
+                if (!crop.fixedOutput().isEmpty()) {
+                    cropOutput.addRepeated(crop.fixedOutput(), itemRolls);
+                    continue;
+                }
+                for (int roll = 0; roll < itemRolls; roll++) {
+                    cropOutput.add(generateCropLoot(serverLevel, crop));
+                }
             }
         }
 
-        submitGeneratedLoot(generatedLoot);
+        submitGeneratedLoot(biologyOutput.build());
+        submitGeneratedLoot(oreOutput.build());
+        submitGeneratedLoot(cropOutput.build());
     }
 
-    private void performOreMimeticWork() {
-        if (!(this.level instanceof ServerLevel serverLevel)) {
+    private void refreshCarrierPlans() {
+        LoadedRules published = DataExtractorRuleTable.snapshot();
+        if (published == this.carrierPlanRules) {
             return;
         }
 
-        MimeticGeneratedOutput.Accumulator generated = MimeticGeneratedOutput.accumulator();
-        int activeSlotCount = getActiveSlotCount();
-        for (int i = 0; i < activeSlotCount; i++) {
-            ItemStack carrier = this.storage.getStackInSlot(i);
-            if (!OreDataCarrierData.isComplete(carrier)) {
-                continue;
-            }
-
-            for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
-                generated.addStacks(generateOreLoot(serverLevel, carrier));
-            }
-        }
-
-        submitGeneratedLoot(generated.build());
+        this.carrierPlanRules = published;
+        this.carrierPlans.clear();
+        this.biologyLootSamples.clear();
     }
 
-    private void performCropMimeticWork() {
-        if (!(this.level instanceof ServerLevel serverLevel)) {
-            return;
+    private MimeticCarrierPlan resolveCarrierPlan(ServerLevel serverLevel, ItemStack carrier) {
+        if (BiologyDataCarrierData.isComplete(carrier)) {
+            ResourceLocation entityId = BiologyDataCarrierData.getEntityTypeId(carrier);
+            if (entityId == null) {
+                return MimeticCarrierPlan.Empty.INSTANCE;
+            }
+            List<ItemStack> fixedOutputs = DataExtractorRuleTable.getConfiguredOutputs(
+                    DataExtractorRuleTable.DataType.MOB,
+                    entityId);
+            if (fixedOutputs.isEmpty()) {
+                fixedOutputs = getBuiltInBiologyMimeticOutputs(serverLevel, entityId);
+            }
+            EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
+            return new MimeticCarrierPlan.Biology(
+                    entityId,
+                    entityType,
+                    MimeticGeneratedOutput.fromStacks(fixedOutputs));
         }
 
-        MimeticGeneratedOutput.Accumulator generated = MimeticGeneratedOutput.accumulator();
-        int activeSlotCount = getActiveSlotCount();
-        for (int i = 0; i < activeSlotCount; i++) {
-            ItemStack carrier = this.storage.getStackInSlot(i);
-            if (!CropDataCarrierData.isComplete(carrier)) {
-                continue;
+        if (OreDataCarrierData.isComplete(carrier)) {
+            ResourceLocation oreItemId = OreDataCarrierData.getOreItemId(carrier);
+            if (oreItemId == null) {
+                return MimeticCarrierPlan.Empty.INSTANCE;
+            }
+            List<ItemStack> outputs = DataExtractorRuleTable.getConfiguredOutputs(
+                    DataExtractorRuleTable.DataType.ORE,
+                    oreItemId);
+            if (outputs.isEmpty()) {
+                Item oreItem = BuiltInRegistries.ITEM.getOptional(oreItemId).orElse(null);
+                if (oreItem != null) {
+                    outputs = List.of(new ItemStack(oreItem));
+                }
+            }
+            return new MimeticCarrierPlan.Ore(MimeticGeneratedOutput.fromStacks(outputs));
+        }
+
+        if (CropDataCarrierData.isComplete(carrier)) {
+            ResourceLocation cropItemId = CropDataCarrierData.getCropItemId(carrier);
+            List<ItemStack> fixedOutputs = cropItemId == null ? List.of() : DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.CROP, cropItemId);
+            if (fixedOutputs.isEmpty() && cropItemId != null && cropItemId.equals(BuiltInRegistries.ITEM.getKey(Items.CHORUS_FLOWER))) {
+                fixedOutputs = List.of(new ItemStack(Items.CHORUS_FLOWER), new ItemStack(Items.CHORUS_FRUIT));
             }
 
-            for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
-                generated.addStacks(generateCropLoot(serverLevel, carrier));
+            ResourceLocation lootTableId = CropDataCarrierData.getLootTableId(carrier);
+            ResourceLocation sourceBlockId = CropDataCarrierData.getSourceBlockId(carrier);
+            Block sourceBlock = sourceBlockId == null ? null : BuiltInRegistries.BLOCK.getOptional(sourceBlockId).orElse(null);
+            Item cropItem = cropItemId == null ? null : BuiltInRegistries.ITEM.getOptional(cropItemId).orElse(null);
+            MimeticGeneratedOutput fallback = cropItem == null ? MimeticGeneratedOutput.empty() : MimeticGeneratedOutput.fromStacks(List.of(new ItemStack(cropItem)));
+            return new MimeticCarrierPlan.Crop(
+                    MimeticGeneratedOutput.fromStacks(fixedOutputs),
+                    lootTableId,
+                    sourceBlock,
+                    fallback);
+        }
+
+        return MimeticCarrierPlan.Empty.INSTANCE;
+    }
+
+    private MimeticGeneratedOutput generateCropLoot(ServerLevel serverLevel, MimeticCarrierPlan.Crop plan) {
+        if (plan.lootTableId() != null) {
+            MimeticGeneratedOutput treeLoot = MimeticGeneratedOutput.fromStacks(
+                    generateConfiguredLootTableDrops(serverLevel, plan.lootTableId()));
+            if (!treeLoot.isEmpty()) {
+                return treeLoot;
             }
         }
 
-        submitGeneratedLoot(generated.build());
+        if (plan.sourceBlock() != null) {
+            MimeticGeneratedOutput blockLoot = MimeticGeneratedOutput.fromStacks(
+                    generateBlockLootDrops(serverLevel, getRecordedCropLootState(plan.sourceBlock())));
+            if (!blockLoot.isEmpty()) {
+                return blockLoot;
+            }
+        }
+        return plan.fallback();
     }
 
     private long flushPendingOutput() {
@@ -1006,40 +1079,28 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return storageService == null ? null : storageService.getInventory();
     }
 
-    private MimeticGeneratedOutput generateBiologyLoot(ServerLevel serverLevel, ItemStack carrier) {
-        ResourceLocation entityId = BiologyDataCarrierData.getEntityTypeId(carrier);
-        if (entityId == null) {
-            return MimeticGeneratedOutput.empty();
+    private MimeticGeneratedOutput generateBiologyLoot(
+                                                       ServerLevel serverLevel,
+                                                       MimeticCarrierPlan.Biology plan,
+                                                       int targetRolls) {
+        if (!plan.fixedOutput().isEmpty() && !hasOverflowDestructionCard()) {
+            return plan.fixedOutput().repeat(targetRolls);
         }
 
-        List<ItemStack> fixedOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.MOB, entityId);
-        if (fixedOutputs.isEmpty()) {
-            fixedOutputs = getBuiltInBiologyMimeticOutputs(serverLevel, entityId);
-        }
-        if (!fixedOutputs.isEmpty() && !hasOverflowDestructionCard()) {
-            return MimeticGeneratedOutput.accumulator()
-                    .addRepeatedStacks(fixedOutputs, getBiologyLootRollsPerCycle())
-                    .build();
-        }
-
-        EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
+        EntityType<?> entityType = plan.entityType();
         if (entityType == null) {
-            return MimeticGeneratedOutput.accumulator()
-                    .addRepeatedStacks(fixedOutputs, getBiologyLootRollsPerCycle())
-                    .build();
+            return plan.fixedOutput().repeat(targetRolls);
         }
 
-        int targetRolls = getBiologyLootRollsPerCycle();
-        List<MimeticGeneratedOutput> samples = getBiologyLootSamples(serverLevel, entityId, entityType, fixedOutputs);
+        List<MimeticGeneratedOutput> samples = getBiologyLootSamples(serverLevel, plan, entityType);
         return scaleGeneratedLoot(samples, targetRolls);
     }
 
     private List<MimeticGeneratedOutput> getBiologyLootSamples(
                                                                ServerLevel serverLevel,
-                                                               ResourceLocation entityId,
-                                                               EntityType<?> entityType,
-                                                               List<ItemStack> fixedOutputs) {
-        BiologyLootSampleKey cacheKey = new BiologyLootSampleKey(entityId, !fixedOutputs.isEmpty());
+                                                               MimeticCarrierPlan.Biology plan,
+                                                               EntityType<?> entityType) {
+        BiologyLootSampleKey cacheKey = new BiologyLootSampleKey(plan.entityId(), !plan.fixedOutput().isEmpty());
         long gameTime = serverLevel.getGameTime();
         BiologyLootSamples cached = this.biologyLootSamples.get(cacheKey);
         if (cached != null && gameTime >= cached.refreshedAt() && gameTime - cached.refreshedAt() < BIOLOGY_LOOT_SAMPLE_REFRESH_INTERVAL_TICKS) {
@@ -1076,12 +1137,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
 
             List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
-            if (fixedOutputs.isEmpty()) {
+            if (plan.fixedOutput().isEmpty()) {
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     rollLoot = rollLoot.merge(simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer));
                 }
             } else {
-                rollLoot = MimeticGeneratedOutput.fromStacks(fixedOutputs);
+                rollLoot = plan.fixedOutput();
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     rollLoot = rollLoot.merge(simulateEntityExperience(serverLevel, simulatedEntity, fakePlayer));
                 }
@@ -1214,69 +1275,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return MimeticGeneratedOutput.fromStacks(List.of(), experience);
     }
 
-    private List<ItemStack> generateOreLoot(ServerLevel serverLevel, ItemStack carrier) {
-        ResourceLocation oreItemId = OreDataCarrierData.getOreItemId(carrier);
-        if (oreItemId == null) {
-            return List.of();
-        }
-
-        List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.ORE, oreItemId);
-        if (!configuredOutputs.isEmpty()) {
-            return configuredOutputs;
-        }
-
-        Item oreItem = BuiltInRegistries.ITEM.getOptional(oreItemId).orElse(null);
-        if (oreItem == null) {
-            return List.of();
-        }
-
-        return List.of(new ItemStack(oreItem));
-    }
-
-    private List<ItemStack> generateCropLoot(ServerLevel serverLevel, ItemStack carrier) {
-        ResourceLocation cropItemId = CropDataCarrierData.getCropItemId(carrier);
-        if (cropItemId != null) {
-            List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.CROP, cropItemId);
-            if (!configuredOutputs.isEmpty()) {
-                return configuredOutputs;
-            }
-
-            if (cropItemId.equals(BuiltInRegistries.ITEM.getKey(Items.CHORUS_FLOWER))) {
-                return List.of(new ItemStack(Items.CHORUS_FLOWER), new ItemStack(Items.CHORUS_FRUIT));
-            }
-        }
-
-        ResourceLocation lootTableId = CropDataCarrierData.getLootTableId(carrier);
-        if (lootTableId != null) {
-            List<ItemStack> treeLoot = generateConfiguredLootTableDrops(serverLevel, lootTableId);
-            if (!treeLoot.isEmpty()) {
-                return treeLoot;
-            }
-        }
-
-        ResourceLocation sourceBlockId = CropDataCarrierData.getSourceBlockId(carrier);
-        if (sourceBlockId != null) {
-            Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(sourceBlockId).orElse(null);
-            if (sourceBlock != null) {
-                List<ItemStack> lootTableDrops = generateBlockLootDrops(serverLevel, getRecordedCropLootState(sourceBlock));
-                if (!lootTableDrops.isEmpty()) {
-                    return lootTableDrops;
-                }
-            }
-        }
-
-        if (cropItemId == null) {
-            return List.of();
-        }
-
-        Item cropItem = BuiltInRegistries.ITEM.getOptional(cropItemId).orElse(null);
-        if (cropItem == null) {
-            return List.of();
-        }
-
-        return List.of(new ItemStack(cropItem));
-    }
-
     private List<ItemStack> generateConfiguredLootTableDrops(ServerLevel serverLevel, ResourceLocation lootTableId) {
         LootTable lootTable = serverLevel.getServer()
                 .reloadableRegistries()
@@ -1367,6 +1365,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private void submitGeneratedLoot(MimeticGeneratedOutput generated) {
+        if (generated.isEmpty()) {
+            return;
+        }
         if (hasOverflowDestructionCard()) {
             convertGeneratedLootToDataFlow(generated);
             return;
