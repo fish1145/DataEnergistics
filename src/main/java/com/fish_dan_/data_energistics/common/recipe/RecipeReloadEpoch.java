@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common;
+package com.fish_dan_.data_energistics.common.recipe;
 
 import java.util.concurrent.atomic.AtomicLong;
 

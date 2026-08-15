@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;

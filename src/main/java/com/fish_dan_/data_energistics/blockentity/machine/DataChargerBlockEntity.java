@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity.machine;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;

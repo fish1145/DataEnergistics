@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.timeshift;
 
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.resources.ResourceLocation;

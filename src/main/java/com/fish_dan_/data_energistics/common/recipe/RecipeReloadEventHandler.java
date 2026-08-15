@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common;
+package com.fish_dan_.data_energistics.common.recipe;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
