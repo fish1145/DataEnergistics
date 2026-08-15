@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.client;
+package com.fish_dan_.data_energistics.mixin.client.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;

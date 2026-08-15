@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.client;
+package com.fish_dan_.data_energistics.mixin.client.crafting;
 
 import appeng.client.gui.widgets.ConfirmableTextField;
 import appeng.client.gui.widgets.NumberEntryWidget;
