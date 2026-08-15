@@ -70,7 +70,9 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         }
         HostSubUiRoot root = context.createRoot();
         TrinityUiNbtLayouts.init("pattern", root);
-        TrinityAggregatePatternLayout.Controls controls = TrinityAggregatePatternLayout.bind(root);
+        TrinityAggregatePatternLayout.Controls controls = TrinityAggregatePatternLayout.bind(
+                root,
+                this.level.isClientSide());
         controls.title().setText(Component.translatable("screen.data_energistics.trinity_data_core.pattern.title"));
         controls.title().setAllowHitTest(false);
 
