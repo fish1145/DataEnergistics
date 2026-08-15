@@ -918,8 +918,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     /**
      * Reads one external FE capability for a display-only target snapshot.
      *
-     * <p>An invalid or failing third-party capability is omitted from this one display update. Transfer code keeps its
-     * own endpoint resolution and is not affected.</p>
+     * <p>
+     * An invalid or failing third-party capability is omitted from this one display update. Transfer code keeps its
+     * own endpoint resolution and is not affected.
+     * </p>
      */
     @Nullable
     private TargetEnergySnapshot readTargetEnergySnapshot(BlockPos targetPos, @Nullable Direction side) {
@@ -959,7 +961,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void logInvalidTargetEnergySnapshot(TargetEnergyFailureKey failureKey, String storageType,
-                                                 int stored, int capacity) {
+                                                int stored, int capacity) {
         ServerLevel level = claimTargetEnergySnapshotFailureLog(failureKey);
         if (level == null) {
             return;
@@ -976,7 +978,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void logTargetEnergySnapshotFailure(TargetEnergyFailureKey failureKey, String storageType,
-                                                 String operation, Throwable exception) {
+                                                String operation, Throwable exception) {
         ServerLevel level = claimTargetEnergySnapshotFailureLog(failureKey);
         if (level == null) {
             return;
