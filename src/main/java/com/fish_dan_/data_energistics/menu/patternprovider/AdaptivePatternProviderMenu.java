@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
