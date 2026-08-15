@@ -10,13 +10,21 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.behavior.warden.SonicBoom;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.AmethystClusterBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -126,7 +134,108 @@ public final class ResonanceGameplayGameTest {
         helper.succeed();
     }
 
-    private static void assertCrystalStage(GameTestHelper helper, BlockPos pos, net.minecraft.world.level.block.Block expected,
+    @TestHolder("warden_sonic_boom_resonance_precedes_target_damage_rejection")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 20)
+    public static void wardenSonicBoomResonancePrecedesTargetDamageRejection(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Warden warden = EntityType.WARDEN.create(level);
+        WitherBoss target = EntityType.WITHER.create(level);
+        if (warden == null || target == null) {
+            throw new GameTestAssertException("Failed to create Warden sonic-boom mixin test entities");
+        }
+
+        warden.setPos(Vec3.atBottomCenterOf(helper.absolutePos(WARDEN_POS)));
+        target.setPos(Vec3.atBottomCenterOf(helper.absolutePos(TARGET_POS)));
+        target.setInvulnerableTicks(200);
+        level.addFreshEntity(warden);
+        level.addFreshEntity(target);
+
+        Vec3 start = warden.position().add(
+                warden.getAttachments().get(EntityAttachment.WARDEN_CHEST, 0, warden.getYRot()));
+        Vec3 direction = target.getEyePosition().subtract(start).normalize();
+        BlockPos crystalPos = BlockPos.containing(start.add(direction.scale(2.0D)));
+        level.setBlock(crystalPos.below(), Blocks.AMETHYST_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(crystalPos, Blocks.AMETHYST_CLUSTER.defaultBlockState(), Block.UPDATE_ALL);
+
+        warden.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, target);
+        warden.getBrain().eraseMemory(MemoryModuleType.SONIC_BOOM_SOUND_DELAY);
+        warden.getBrain().eraseMemory(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN);
+
+        float healthBefore = target.getHealth();
+        new ExposedSonicBoom().emit(level, warden);
+
+        helper.assertValueEqual(
+                target.getHealth(),
+                healthBefore,
+                "The invulnerable Wither must reject sonic-boom damage");
+        helper.assertTrue(
+                level.getBlockState(crystalPos).is(DEBlocks.MEDIUM_RESONANCE_CRYSTAL_BUD.get()),
+                "The emitted sonic boom must transform resonance candidates before target damage rejection");
+        helper.succeed();
+    }
+
+    @TestHolder("online_tuning_fork_intercepts_warden_sonic_boom")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 40)
+    public static void onlineTuningForkInterceptsWardenSonicBoom(GameTestHelper helper) {
+        BlockPos forkPos = new BlockPos(2, 2, 2);
+        BlockPos basePos = forkPos.below();
+        TuningForkBlockEntity tuningFork = placeFork(helper, forkPos);
+        helper.setBlock(
+                basePos.relative(Direction.NORTH),
+                BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("ae2", "creative_energy_cell")));
+        helper.setBlock(
+                basePos.relative(Direction.SOUTH),
+                BuiltInRegistries.BLOCK.get(Data_Energistics.id("digital_storage_depot")));
+
+        BlockState baseState = helper.getBlockState(basePos);
+        if (!(baseState.getBlock().getStateDefinition().getProperty("online")
+                instanceof BooleanProperty onlineProperty)) {
+            throw new GameTestAssertException("Placed tuning-fork base has no online property");
+        }
+
+        ServerLevel level = helper.getLevel();
+        Warden warden = EntityType.WARDEN.create(level);
+        LivingEntity target = EntityType.COW.create(level);
+        if (warden == null || target == null) {
+            throw new GameTestAssertException("Failed to create Warden interception test entities");
+        }
+        warden.setNoAi(true);
+        warden.setPos(Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(0, 1, 2))));
+        target.setPos(Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(4, 1, 2))));
+        level.addFreshEntity(warden);
+        level.addFreshEntity(target);
+
+        helper.runAfterDelay(10, () -> {
+            helper.assertTrue(
+                    helper.getBlockState(basePos).getValue(onlineProperty),
+                    "The tuning-fork base must join the powered AE network");
+
+            warden.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, target);
+            warden.getBrain().eraseMemory(MemoryModuleType.SONIC_BOOM_SOUND_DELAY);
+            warden.getBrain().eraseMemory(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN);
+            float healthBefore = target.getHealth();
+            Vec3 movementBefore = target.getDeltaMovement();
+            new ExposedSonicBoom().emit(level, warden);
+
+            helper.assertValueEqual(
+                    target.getHealth(),
+                    healthBefore,
+                    "A successful tuning-fork interception must cancel sonic-boom damage");
+            helper.assertValueEqual(
+                    target.getDeltaMovement(),
+                    movementBefore,
+                    "A successful tuning-fork interception must cancel sonic-boom knockback");
+            helper.assertValueEqual(
+                    tuningFork.getDamage(),
+                    1,
+                    "The intercepting tuning fork must lose one durability");
+            helper.succeed();
+        });
+    }
+
+    private static void assertCrystalStage(GameTestHelper helper, BlockPos pos, Block expected,
                                            Direction expectedFacing) {
         BlockState state = helper.getBlockState(pos);
         helper.assertTrue(state.is(expected), "Unexpected resonance crystal stage: " + state);
@@ -140,12 +249,20 @@ public final class ResonanceGameplayGameTest {
     }
 
     private static TuningForkBlockEntity placeFork(GameTestHelper helper, BlockPos forkPos) {
-        helper.setBlock(forkPos.below(), BuiltInRegistries.BLOCK.get(Data_Energistics.id("tuning_fork_base")));
+        BlockPos basePos = forkPos.below();
+        helper.setBlock(basePos, BuiltInRegistries.BLOCK.get(Data_Energistics.id("tuning_fork_base")));
         helper.setBlock(forkPos, DEBlocks.AMETHYST_TUNING_FORK.get());
         BlockEntity blockEntity = helper.getBlockEntity(forkPos);
         if (blockEntity instanceof TuningForkBlockEntity tuningFork) {
             return tuningFork;
         }
         throw new GameTestAssertException("Placed tuning fork has no matching block entity at " + forkPos);
+    }
+
+    private static final class ExposedSonicBoom extends SonicBoom {
+
+        private void emit(ServerLevel level, Warden warden) {
+            super.tick(level, warden, level.getGameTime());
+        }
     }
 }
