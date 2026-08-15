@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
@@ -15,7 +16,6 @@ import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.common.memorycard;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentMap;

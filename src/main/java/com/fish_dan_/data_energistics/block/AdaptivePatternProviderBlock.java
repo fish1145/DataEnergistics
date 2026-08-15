@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
-import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

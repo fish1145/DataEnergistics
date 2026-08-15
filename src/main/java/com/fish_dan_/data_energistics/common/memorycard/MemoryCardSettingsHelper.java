@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.common.memorycard;
 
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;

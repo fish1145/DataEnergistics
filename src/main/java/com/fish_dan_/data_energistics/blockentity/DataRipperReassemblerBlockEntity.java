@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
@@ -13,7 +14,6 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

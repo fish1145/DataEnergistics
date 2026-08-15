@@ -7,12 +7,12 @@ import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.ae2.sanctum.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.mixin.core.accessor.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
