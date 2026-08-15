@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.menu.patternencoding.source;
 
 import net.minecraft.resources.ResourceLocation;
 

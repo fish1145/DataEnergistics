@@ -18,12 +18,12 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSource
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
