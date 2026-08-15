@@ -28,7 +28,7 @@ final class TrinityPatternMaintenanceBar extends BindableUIElement<TrinityPatter
         setId(id);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(-2)
+                .left(0)
                 .top(15)
                 .width(WIDTH)
                 .height(HEIGHT));

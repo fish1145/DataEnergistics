@@ -119,7 +119,7 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         title.setAllowHitTest(false);
         title.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(6)
+                .left(12)
                 .top(3)
                 .width(64)
                 .height(8));
