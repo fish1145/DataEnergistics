@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.discovery;
 
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 
@@ -19,7 +19,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.me.InWorldGridNode;
 import appeng.parts.AEBasePart;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalCon
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class ExampleTerminalBehavior implements UniversalTerminalBehavior {
 

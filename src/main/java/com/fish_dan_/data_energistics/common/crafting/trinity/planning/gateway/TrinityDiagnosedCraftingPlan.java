@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingPlan;

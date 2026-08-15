@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.ae2.grid;
 import net.minecraft.core.Direction;
 
 import appeng.api.networking.IGridNode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides tower-only access to a mounted device node after its block has been authorized through AE's node-host

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.xei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.ClientThreadHelper;
+import com.fish_dan_.data_energistics.client.runtime.ClientThreadHelper;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

@@ -1,6 +1,6 @@
 # 注册 Universal Terminal
 
-从 `DataEnergisticsRegistry.universalTerminals()` 获取 `UniversalTerminalRegistry`，在插件注册阶段声明终端。新集成应使用 `api.registry.terminal`，不要再创建 `util.UniversalTerminalDefinition`。
+从 `DataEnergisticsRegistry.universalTerminals()` 获取 `UniversalTerminalRegistry`，在插件注册阶段声明终端。新集成和从 3.0.x 升级的集成都必须使用 `api.registry.terminal`；旧 `util.UniversalTerminalDefinition` 已从 3.1.0 起移除。
 
 ## 标准注册
 

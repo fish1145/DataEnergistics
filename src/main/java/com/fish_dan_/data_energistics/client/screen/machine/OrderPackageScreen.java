@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
-import com.fish_dan_.data_energistics.menu.OrderPackageMenu;
+import com.fish_dan_.data_energistics.menu.storage.OrderPackageMenu;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,7 +17,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.style.ScreenStyle;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Configures and displays the raw generic target of an order package.

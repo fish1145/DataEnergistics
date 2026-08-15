@@ -1,15 +1,14 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
-import com.fish_dan_.data_energistics.accessor.PatternProviderBatchBridge;
-import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
-import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchBridge;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderLogicAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.patternprovider.PatternProviderBatching;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
@@ -20,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 
 import net.minecraft.core.BlockPos;
@@ -78,7 +78,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;

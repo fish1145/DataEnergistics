@@ -8,7 +8,7 @@ import net.minecraft.core.BlockPos;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 

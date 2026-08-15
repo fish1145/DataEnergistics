@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.mixin.core.condenser;
 
-import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.client.widget.CondenserOutputModeButton;
-import com.fish_dan_.data_energistics.mixin.core.accessor.WidgetContainerAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.WidgetContainerAccessor;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

@@ -15,7 +15,7 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
 import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
 import appeng.core.definitions.AEItems;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;

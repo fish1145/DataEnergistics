@@ -21,15 +21,15 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class SonicBoomMixin {
 
     @WrapOperation(
-            method = "lambda$tick$2(Lnet/minecraft/world/entity/monster/warden/Warden;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)V",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/LivingEntity;hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
+                   method = "lambda$tick$2(Lnet/minecraft/world/entity/monster/warden/Warden;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)V",
+                   at = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/world/entity/LivingEntity;hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
     private static boolean dataEnergistics$processResonanceBeforeDamage(
-            LivingEntity target,
-            DamageSource source,
-            float amount,
-            Operation<Boolean> original) {
+                                                                        LivingEntity target,
+                                                                        DamageSource source,
+                                                                        float amount,
+                                                                        Operation<Boolean> original) {
         if (target.level() instanceof ServerLevel level &&
                 source.is(DamageTypes.SONIC_BOOM) &&
                 source.getDirectEntity() instanceof Warden warden &&

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
+import com.fish_dan_.data_energistics.client.recipe.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeUiProvider;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.registry.DEBlocks;

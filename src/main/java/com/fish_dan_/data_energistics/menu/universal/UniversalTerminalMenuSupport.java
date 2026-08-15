@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;

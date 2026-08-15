@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 
 import net.minecraft.client.gui.GuiGraphics;

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

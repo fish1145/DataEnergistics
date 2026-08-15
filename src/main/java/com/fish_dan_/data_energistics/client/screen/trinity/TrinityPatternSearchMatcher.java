@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen.trinity;
 
-import com.fish_dan_.data_energistics.util.PinyinUtil;
+import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 
 import java.util.ArrayList;
 import java.util.List;

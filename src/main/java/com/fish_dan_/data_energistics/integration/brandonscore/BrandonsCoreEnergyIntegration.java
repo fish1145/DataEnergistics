@@ -7,7 +7,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import com.brandon3055.brandonscore.api.power.IOPStorage;
 import com.brandon3055.brandonscore.capability.CapabilityOP;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Type-safe access to BrandonsCore's public long-width Operational Potential capability.

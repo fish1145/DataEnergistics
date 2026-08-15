@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPart;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Runtime contract for a compartment block entity participating in a multiblock.

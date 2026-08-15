@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.client.screen.terminal;
 
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalHostAccessor;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuBridge;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalSelectPayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
-import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -14,7 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.menu.AEBaseMenu;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;

@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternUploadScope;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;

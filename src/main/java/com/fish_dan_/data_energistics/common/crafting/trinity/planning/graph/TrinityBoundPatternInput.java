@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
@@ -29,7 +29,7 @@ import appeng.crafting.CraftingLink;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

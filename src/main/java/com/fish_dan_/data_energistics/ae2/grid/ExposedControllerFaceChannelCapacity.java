@@ -9,7 +9,7 @@ import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.blockentity.networking.ControllerBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.common.multiblock;
 
 import net.minecraft.core.BlockPos;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Shared status contract for multiblock hosts that need to expose runtime state to integrations.

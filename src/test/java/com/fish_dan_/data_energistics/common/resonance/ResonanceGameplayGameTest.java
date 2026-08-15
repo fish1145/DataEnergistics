@@ -19,8 +19,8 @@ import net.minecraft.world.entity.ai.behavior.warden.SonicBoom;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.monster.warden.Warden;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.AmethystClusterBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -190,8 +190,7 @@ public final class ResonanceGameplayGameTest {
                 BuiltInRegistries.BLOCK.get(Data_Energistics.id("digital_storage_depot")));
 
         BlockState baseState = helper.getBlockState(basePos);
-        if (!(baseState.getBlock().getStateDefinition().getProperty("online")
-                instanceof BooleanProperty onlineProperty)) {
+        if (!(baseState.getBlock().getStateDefinition().getProperty("online") instanceof BooleanProperty onlineProperty)) {
             throw new GameTestAssertException("Placed tuning-fork base has no online property");
         }
 

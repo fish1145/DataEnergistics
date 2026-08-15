@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
@@ -16,7 +16,7 @@ import appeng.api.storage.ITerminalHost;
 import appeng.menu.me.crafting.CraftingCPUMenu;
 import appeng.menu.me.crafting.CraftingStatusMenu;
 import com.google.common.collect.ImmutableSet;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -49,8 +49,7 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
     protected abstract CraftingStatusMenu.CraftingCpuList dataEnergistics$invokeCreateCpuList();
 
     @Unique
-    @Nullable
-    private TrinityCraftingStatusSelection.Target dataEnergistics$requestedTarget;
+    private TrinityCraftingStatusSelection.@Nullable Target dataEnergistics$requestedTarget;
 
     @Unique
     private boolean dataEnergistics$targetCpuPinReleased;
@@ -135,7 +134,7 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
     }
 
     @Override
-    public @Nullable TrinityCraftingStatusSelection.Target dataEnergistics$getTrinityTarget() {
+    public TrinityCraftingStatusSelection.@Nullable Target dataEnergistics$getTrinityTarget() {
         return this.dataEnergistics$requestedTarget;
     }
 

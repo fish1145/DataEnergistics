@@ -15,8 +15,6 @@ import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePre
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongPredicate;
@@ -33,11 +31,11 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
     private final BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction;
     private final LongPredicate hostedAutoBuildPending;
 
-    TrinityDataCoreAutoBuildProvider(@NotNull Supplier<MultiblockPreviewSpec> previewSpec,
-                                     @NotNull StructurePreviewUiFactory previewFactory,
-                                     @NotNull BooleanSupplier logicalClient,
-                                     @NotNull BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
-                                     @NotNull LongPredicate hostedAutoBuildPending) {
+    TrinityDataCoreAutoBuildProvider(Supplier<MultiblockPreviewSpec> previewSpec,
+                                     StructurePreviewUiFactory previewFactory,
+                                     BooleanSupplier logicalClient,
+                                     BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
+                                     LongPredicate hostedAutoBuildPending) {
         this.previewSpec = previewSpec;
         this.previewFactory = previewFactory;
         this.logicalClient = logicalClient;
@@ -51,7 +49,7 @@ final class TrinityDataCoreAutoBuildProvider implements HostSubUiProvider {
     }
 
     @Override
-    public HostSubUi create(@NotNull HostSubUiContext context) {
+    public HostSubUi create(HostSubUiContext context) {
         if (!key().equals(context.key())) {
             throw new IllegalArgumentException("Trinity automatic-build provider received the wrong host context");
         }

@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Creates independent XEI compositions without exposing JEI, EMI, or REI types to shared preview logic.

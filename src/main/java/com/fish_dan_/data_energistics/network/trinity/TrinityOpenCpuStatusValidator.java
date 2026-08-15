@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.network.trinity;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;

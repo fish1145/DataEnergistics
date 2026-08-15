@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.advancedae;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.client.screen.AePatternProviderSlotStylePatch;
 import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatch;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;

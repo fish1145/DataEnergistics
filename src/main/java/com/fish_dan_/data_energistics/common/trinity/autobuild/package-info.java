@@ -1,7 +1,7 @@
 /**
  * Trinity multiblock auto-build requests, server-side validation, and unloaded-world tracking.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.common.trinity.autobuild;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

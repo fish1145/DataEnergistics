@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
-import com.fish_dan_.data_energistics.client.DataReassemblerLayout.SlotPos;
+import com.fish_dan_.data_energistics.client.recipe.DataReassemblerLayout.SlotPos;
 import com.fish_dan_.data_energistics.client.ui.DataReassemblerProgressElement;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 

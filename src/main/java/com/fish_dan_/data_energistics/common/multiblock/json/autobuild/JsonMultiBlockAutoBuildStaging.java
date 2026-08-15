@@ -15,7 +15,7 @@ import appeng.api.parts.IPartItem;
 import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver.StringArrayDefinition;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

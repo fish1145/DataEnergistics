@@ -7,7 +7,6 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.Multiblo
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -26,13 +25,9 @@ import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
 /**
  * JEI adapter for the shared live Trinity multiblock composition.
  */
-@MethodsReturnNonnullByDefault
-@ParametersAreNonnullByDefault
 public final class TrinityMultiblockJeiCategory extends ModularUIRecipeCategory<MultiblockXeiRecipe> {
 
     /**

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;

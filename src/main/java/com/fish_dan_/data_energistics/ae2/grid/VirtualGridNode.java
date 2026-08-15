@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
 import appeng.api.networking.IGrid;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Exposes the runtime virtual-membership state injected into an AE grid node.

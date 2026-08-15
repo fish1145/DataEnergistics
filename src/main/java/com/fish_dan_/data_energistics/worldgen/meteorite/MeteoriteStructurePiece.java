@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import com.fish_dan_.data_energistics.world.DataMeteoriteSavedData;
+import com.fish_dan_.data_energistics.world.meteorite.DataMeteoriteSavedData;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 
 import net.minecraft.core.BlockPos;

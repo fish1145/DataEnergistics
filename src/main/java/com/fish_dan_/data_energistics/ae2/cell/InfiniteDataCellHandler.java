@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.storage.cells.ICellHandler;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.storage.cells.StorageCell;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class InfiniteDataCellHandler implements ICellHandler {
 

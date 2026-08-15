@@ -25,7 +25,7 @@ import appeng.api.storage.StorageHelper;
 import appeng.parts.automation.StackWorldBehaviors;
 import appeng.util.CowMap;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;

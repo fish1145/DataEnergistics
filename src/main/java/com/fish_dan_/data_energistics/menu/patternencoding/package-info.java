@@ -1,7 +1,7 @@
 /**
  * Shared menu contracts and state for pattern encoding workflows.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

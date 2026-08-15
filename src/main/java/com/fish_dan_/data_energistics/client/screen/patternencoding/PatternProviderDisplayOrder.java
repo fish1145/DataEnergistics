@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
+import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.resources.ResourceLocation;
 

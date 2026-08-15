@@ -7,7 +7,7 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, IUpgradeableObject {
 

@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable legacy values captured before a menu starts applying client preference synchronization.

@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import org.jetbrains.annotations.NotNullByDefault;
-
 import java.util.List;
 
 /**
@@ -11,7 +9,6 @@ import java.util.List;
  * The fixed selector accepts an integer basis-point roll so generation probabilities remain exact and deterministic.
  * </p>
  */
-@NotNullByDefault
 public final class FixedMeteoriteMotherRockDistribution {
 
     /** Number of mutually exclusive integer rolls in the complete probability space. */

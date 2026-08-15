@@ -86,7 +86,7 @@ public class TuningForkBlock extends Block implements EntityBlock {
 
     @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
-                                            CollisionContext context) {
+                                           CollisionContext context) {
         return getShape(state, level, pos, context);
     }
 

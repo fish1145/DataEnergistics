@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataMimeticFieldOutputRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataMimeticFieldMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

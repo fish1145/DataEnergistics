@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
-import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;

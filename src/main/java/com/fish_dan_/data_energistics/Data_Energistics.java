@@ -16,6 +16,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 @Mod(Data_Energistics.MODID)
 public class Data_Energistics {
@@ -51,6 +52,7 @@ public class Data_Energistics {
         return DatagenModLoader.isRunningDataGen();
     }
 
+    @Nullable
     public static MinecraftServer getMinecraftServer() {
         return ServerLifecycleHooks.getCurrentServer();
     }
@@ -70,6 +72,7 @@ public class Data_Energistics {
         return FMLEnvironment.dist.isClient();
     }
 
+    @Nullable
     public static ResourceLocation id(String path) {
         if (path.isBlank()) {
             return ResourceLocation.fromNamespaceAndPath(MODID, "");

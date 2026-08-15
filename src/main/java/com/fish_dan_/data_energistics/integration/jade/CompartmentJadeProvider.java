@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.CompartmentBlock;
-import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.block.storage.CompartmentBlock;
+import com.fish_dan_.data_energistics.blockentity.storage.CompartmentBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompositeWarehouseBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;

@@ -9,7 +9,7 @@ import net.minecraft.core.HolderLookup;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;

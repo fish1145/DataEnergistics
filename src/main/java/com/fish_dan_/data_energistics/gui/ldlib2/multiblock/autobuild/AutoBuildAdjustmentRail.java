@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.UnaryOperator;

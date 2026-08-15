@@ -7,7 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.menu.guisync.PacketWritable;
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

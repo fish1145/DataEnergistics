@@ -7,7 +7,6 @@ import net.neoforged.fml.loading.FMLEnvironment;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 
@@ -34,7 +33,7 @@ public final class TrinityUiXmlLayouts {
     /**
      * Loads one complete LDLib2 UI document and rejects malformed or missing resources immediately.
      */
-    public static UI load(@NotNull String name) {
+    public static UI load(String name) {
         if (name.isBlank()) {
             throw new IllegalArgumentException("Trinity XML layout name must not be blank");
         }

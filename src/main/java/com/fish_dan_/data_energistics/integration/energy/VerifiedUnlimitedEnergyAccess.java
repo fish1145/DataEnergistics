@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.integration.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.mixin.core.accessor.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.neoforge.NeoForgeEnergyStorageAccessor;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 

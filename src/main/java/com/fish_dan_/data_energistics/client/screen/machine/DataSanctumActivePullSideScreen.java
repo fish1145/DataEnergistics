@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
-import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

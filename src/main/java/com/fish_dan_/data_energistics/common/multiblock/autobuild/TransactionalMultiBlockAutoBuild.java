@@ -32,7 +32,7 @@ import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
