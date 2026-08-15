@@ -12,7 +12,7 @@ import appeng.core.localization.Tooltips;
 import appeng.menu.slot.AppEngSlot;
 import appeng.util.ConfigMenuInventory;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;

@@ -6,7 +6,7 @@ import net.minecraft.world.item.ItemStack;
 import mezz.jei.api.ingredients.IIngredientHelper;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.subtypes.UidContext;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Supplies JEI search, identity, amount, and cheat-in behavior for Data Energistics resources.

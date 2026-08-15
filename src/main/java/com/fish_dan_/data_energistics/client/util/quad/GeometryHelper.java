@@ -25,8 +25,8 @@ import net.minecraft.util.Mth;
 
 import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static routines of general utility for renderer implementations.

@@ -9,7 +9,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 
 import appeng.integration.modules.itemlists.EncodingHelper;
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Builds a viewer context from the stable recipe type supplied by a recipe viewer.

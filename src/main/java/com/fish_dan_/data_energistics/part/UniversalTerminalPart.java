@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
@@ -45,7 +45,7 @@ import appeng.util.InteractionUtil;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;

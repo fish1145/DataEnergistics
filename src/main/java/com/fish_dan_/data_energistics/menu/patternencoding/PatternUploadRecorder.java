@@ -1,17 +1,17 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Publishes one authoritative history update after a provider inventory has actually accepted a pattern.

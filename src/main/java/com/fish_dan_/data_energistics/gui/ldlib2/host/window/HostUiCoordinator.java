@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiRequest;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponse;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 

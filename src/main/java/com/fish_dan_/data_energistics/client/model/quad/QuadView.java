@@ -28,10 +28,9 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 import static com.fish_dan_.data_energistics.client.model.quad.EncodingFormat.*;
 
@@ -81,7 +80,7 @@ public class QuadView {
      * Reference to underlying array. Use with caution. Meant for fast renderer access
      */
     @Getter
-    protected int @UnknownNullability [] data;
+    protected int @Nullable [] data;
 
     /** Beginning of the quad. Also the header index. */
     protected int baseIndex = 0;

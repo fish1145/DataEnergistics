@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Resolves the physical and effective-service identities of one Trinity crafting node.

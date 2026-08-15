@@ -4,7 +4,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Creates a typed JEI recipe-transfer handler after JEI has opened its registration lifecycle.
@@ -21,6 +20,5 @@ public interface JeiRecipeTransferHandlerFactory<T extends AbstractContainerMenu
      * @param transferHelper JEI helper that creates user-facing transfer errors
      * @return non-null handler matching the menu and recipe types declared to the registry
      */
-    @NotNull
-    IRecipeTransferHandler<T, R> create(@NotNull IRecipeTransferHandlerHelper transferHelper);
+    IRecipeTransferHandler<T, R> create(IRecipeTransferHandlerHelper transferHelper);
 }

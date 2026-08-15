@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataExtractorBlock;
-import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;

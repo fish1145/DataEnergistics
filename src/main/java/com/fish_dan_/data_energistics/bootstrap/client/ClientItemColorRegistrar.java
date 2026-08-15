@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.DEItemColors;
+import com.fish_dan_.data_energistics.client.registry.DEItemColors;
 
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 

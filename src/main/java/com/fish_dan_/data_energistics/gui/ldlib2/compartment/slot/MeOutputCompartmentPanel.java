@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
-import com.fish_dan_.data_energistics.menu.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 

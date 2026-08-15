@@ -7,8 +7,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
 import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,9 +88,9 @@ final class EmiPluginRegistrationAccumulator {
 
         @Override
         public <T extends AbstractContainerMenu> void registerRecipeHandler(
-                                                                            @NotNull ResourceLocation registrationId,
-                                                                            @NotNull MenuType<T> menuType,
-                                                                            @NotNull EmiRecipeHandler<T> handler) {
+                                                                            ResourceLocation registrationId,
+                                                                            MenuType<T> menuType,
+                                                                            EmiRecipeHandler<T> handler) {
             requireOpen();
             ResourceLocation stagedId = requireStagedValue(registrationId, "EMI recipe-handler registration ID");
             MenuType<T> stagedMenuType = requireStagedValue(menuType, "EMI recipe-handler menu type");

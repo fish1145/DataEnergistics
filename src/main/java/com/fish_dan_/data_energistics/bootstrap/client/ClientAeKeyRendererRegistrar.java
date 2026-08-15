@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
+import com.fish_dan_.data_energistics.client.key.ClientAeKeyRenderers;
 
 final class ClientAeKeyRendererRegistrar {
 

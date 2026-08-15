@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Bounded wire codec shared by the preference and upload-success payloads.

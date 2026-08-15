@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 import net.minecraft.resources.ResourceLocation;
 
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Exposes the state woven into AE2's base pattern menu to subclasses that maintain a specialized synchronized view.

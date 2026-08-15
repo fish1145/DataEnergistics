@@ -13,7 +13,6 @@ import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.UITemplate;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
 import java.io.FileNotFoundException;
@@ -32,14 +31,14 @@ public final class TrinityUiNbtLayouts {
     /**
      * Loads one uncompressed editor-generated UI template and preserves its decoding failure.
      */
-    public static UI load(@NotNull String name) {
+    public static UI load(String name) {
         return loadTemplate(name).createUI();
     }
 
     /**
      * Applies one editor-generated template to a lifecycle-owned root supplied by the hosted UI framework.
      */
-    public static void init(@NotNull String name, @NotNull UIElement root) {
+    public static void init(String name, UIElement root) {
         loadTemplate(name).initUI(root);
     }
 

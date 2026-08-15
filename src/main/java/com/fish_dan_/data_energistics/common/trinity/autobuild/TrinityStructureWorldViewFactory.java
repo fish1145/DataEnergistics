@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Creates structure world views that retain the first unloaded position observed during one match attempt. */
 public interface TrinityStructureWorldViewFactory {

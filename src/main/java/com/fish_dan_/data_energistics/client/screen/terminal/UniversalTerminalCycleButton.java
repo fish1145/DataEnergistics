@@ -8,7 +8,7 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ITooltip;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;

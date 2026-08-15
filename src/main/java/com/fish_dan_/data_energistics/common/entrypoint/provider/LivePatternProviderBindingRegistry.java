@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.entrypoint.provider;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
@@ -15,8 +15,7 @@ import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -197,7 +196,7 @@ final class LivePatternProviderBindingRegistry {
      * Enforces the public non-null factory contract at the untrusted plugin callback boundary.
      */
     private static CountedCraftingProviderAdapter requireFactoryResult(
-                                                                       @UnknownNullability CountedCraftingProviderAdapter adapter) {
+                                                                       @Nullable CountedCraftingProviderAdapter adapter) {
         return Objects.requireNonNull(adapter, "Provider adapter factory returned null");
     }
 

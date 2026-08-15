@@ -9,7 +9,7 @@ import net.minecraft.world.item.Items;
 
 import appeng.helpers.patternprovider.PatternContainer;
 import com.mojang.serialization.JsonOps;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 

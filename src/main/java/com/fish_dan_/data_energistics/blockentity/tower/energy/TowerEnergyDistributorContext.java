@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 import appeng.blockentity.grid.AENetworkedBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Supplies block-entity-owned state required by {@link TowerEnergyTransferEngine}.

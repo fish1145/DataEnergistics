@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.timeshift;
 
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.resources.ResourceLocation;
@@ -14,7 +14,7 @@ import net.neoforged.neoforge.event.entity.item.ItemExpireEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 import appeng.api.stacks.AEItemKey;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;

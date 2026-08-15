@@ -8,7 +8,7 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.fml.loading.FMLPaths;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.time.Clock;

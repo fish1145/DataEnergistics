@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Physical-side-neutral host for a structure preview scene.

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.base;
 
 import com.fish_dan_.data_energistics.client.screen.Ldlib2AeProtocolScreen;
-import com.fish_dan_.data_energistics.menu.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

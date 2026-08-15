@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen.base;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotOutputTypeCycleButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
 

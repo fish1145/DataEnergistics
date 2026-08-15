@@ -6,7 +6,7 @@ import net.minecraft.world.entity.player.Player;
 
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 

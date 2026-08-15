@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 import appeng.api.integrations.emi.EmiStackConverter;
 import appeng.api.stacks.GenericStack;
 import dev.emi.emi.api.stack.EmiStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Converts the native EMI identities to and from AE2 custom keys without using wrapped item stacks.

@@ -19,7 +19,7 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

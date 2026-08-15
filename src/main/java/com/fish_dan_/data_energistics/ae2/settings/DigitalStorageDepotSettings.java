@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.settings;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorAutoExportMode;
 
 import appeng.api.config.Setting;
 import appeng.api.config.Settings;

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.condenser;
 
-import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
-import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.condenser.CondenserBlockEntityAccessor;
+import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 
 import net.minecraft.world.entity.player.Inventory;

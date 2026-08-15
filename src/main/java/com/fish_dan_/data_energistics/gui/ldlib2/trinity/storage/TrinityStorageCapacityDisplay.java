@@ -15,8 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -52,12 +51,12 @@ final class TrinityStorageCapacityDisplay extends BindableUIElement<TrinityDataC
     }
 
     @Override
-    public @NotNull TrinityDataCoreStorageView getValue() {
+    public TrinityDataCoreStorageView getValue() {
         return this.value;
     }
 
     @Override
-    public @NotNull TrinityStorageCapacityDisplay setValue(@Nullable TrinityDataCoreStorageView value, boolean notify) {
+    public TrinityStorageCapacityDisplay setValue(@Nullable TrinityDataCoreStorageView value, boolean notify) {
         TrinityDataCoreStorageView next = value == null ? TrinityDataCoreStorageView.EMPTY : value;
         if (this.value.equals(next)) {
             return this;
@@ -79,7 +78,7 @@ final class TrinityStorageCapacityDisplay extends BindableUIElement<TrinityDataC
 
     @Override
     @OnlyIn(Dist.CLIENT)
-    public void drawBackgroundAdditional(@NotNull GUIContext guiContext) {
+    public void drawBackgroundAdditional(GUIContext guiContext) {
         SegmentHeights heights = SegmentHeights.calculate(this.value.status());
         int bottom = (int) (getContentY() + BAR_HEIGHT);
         bottom = drawSegment(guiContext, ITEM_FILL, bottom, heights.itemHeight());

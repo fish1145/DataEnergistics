@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
-import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataExtractorMenu;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

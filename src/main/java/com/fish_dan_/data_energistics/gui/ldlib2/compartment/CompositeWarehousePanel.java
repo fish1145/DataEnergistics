@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot.CompartmentSlotPanel;
-import com.fish_dan_.data_energistics.menu.CompartmentMenu;
-import com.fish_dan_.data_energistics.menu.CompartmentSlotLabel;
+import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.storage.CompartmentSlotLabel;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;

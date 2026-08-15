@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.ae2cs;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
-import com.fish_dan_.data_energistics.mixin.core.accessor.PatternProviderLogicFieldAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.PatternProviderLogicFieldAccessor;
 
 import net.minecraft.server.level.ServerLevel;
 

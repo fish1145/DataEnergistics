@@ -10,7 +10,7 @@ import net.neoforged.neoforgespi.language.IModInfo;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
 import dev.emi.emi.api.EmiRegistry;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Constructor;
@@ -51,8 +51,7 @@ public final class DataEnergisticsEmiEntrypointLoader {
         List<EntrypointCandidate> candidates = discoverCandidates();
         int loaded = 0;
         for (EntrypointCandidate candidate : candidates) {
-            @Nullable
-            EmiPluginRegistrationAccumulator.PluginStaging staging = null;
+            EmiPluginRegistrationAccumulator.@Nullable PluginStaging staging = null;
             try {
                 DataEnergisticsEmiPlugin plugin = instantiate(candidate);
                 staging = accumulator.createStaging(candidate.owningModId(), candidate.className());

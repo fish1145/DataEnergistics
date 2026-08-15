@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
 import appeng.client.gui.Icon;

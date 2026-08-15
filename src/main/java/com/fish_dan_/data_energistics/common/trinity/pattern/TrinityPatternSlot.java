@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -119,8 +119,7 @@ public final class TrinityPatternSlot {
      * Immutable union consumed by the core's sparse per-host work index.
      */
     private Set<UUID> workHostIds = Set.of();
-    @Nullable
-    private TrinityPatternSlot.ExclusivePendingOutputCursor activePendingOutputCursor;
+    private TrinityPatternSlot.@Nullable ExclusivePendingOutputCursor activePendingOutputCursor;
 
     /**
      * Creates an empty physical slot.

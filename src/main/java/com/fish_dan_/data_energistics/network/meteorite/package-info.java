@@ -1,7 +1,7 @@
 /**
  * Data meteorite compass request and response protocol.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.network.meteorite;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

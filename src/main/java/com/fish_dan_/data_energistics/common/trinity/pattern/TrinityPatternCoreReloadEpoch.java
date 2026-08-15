@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
-import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 
 /**
  * Compatibility view of the shared recipe reload epoch used by retained Trinity pattern state.

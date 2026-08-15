@@ -8,9 +8,9 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorage
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreCraftingStatus;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenuHost;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -20,7 +20,7 @@ import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;

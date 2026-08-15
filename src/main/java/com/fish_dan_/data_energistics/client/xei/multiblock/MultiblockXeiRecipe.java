@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import net.minecraft.resources.ResourceLocation;
 
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.BiConsumer;
 

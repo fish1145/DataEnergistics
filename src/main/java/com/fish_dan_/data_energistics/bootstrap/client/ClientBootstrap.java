@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
-import com.fish_dan_.data_energistics.client.ClientRuntimeBridge;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsTextureEditorResources;
+import com.fish_dan_.data_energistics.client.runtime.ClientRuntimeBridge;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
