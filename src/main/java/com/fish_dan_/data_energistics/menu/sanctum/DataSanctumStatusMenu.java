@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.sanctum;
 
-import com.fish_dan_.data_energistics.block.DataSanctumBlock;
+import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
