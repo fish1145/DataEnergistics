@@ -11,7 +11,6 @@ import net.minecraft.network.chat.Component;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Shared geometry and controls for the draggable Trinity automatic-build window.
@@ -28,7 +27,7 @@ final class TrinityHostedWindowChrome {
     /**
      * Binds the localized title and close behavior without letting the label intercept root dragging.
      */
-    static void bindExisting(@NotNull HostSubUiRoot root, @NotNull HostSubUiContext context) {
+    static void bindExisting(HostSubUiRoot root, HostSubUiContext context) {
         requireKnownKey(context.key());
         if (!WINDOW_ID.equals(root.getId())) {
             throw new IllegalStateException("Trinity automatic-build NBT root has unexpected id " + root.getId());

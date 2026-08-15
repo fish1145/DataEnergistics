@@ -20,7 +20,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -45,7 +44,7 @@ final class TrinityStorageContentsList extends BindableUIElement<TrinityDataCore
     private TrinityDataCoreStorageView value = TrinityDataCoreStorageView.EMPTY;
     private int requestedFirstEntry;
 
-    TrinityStorageContentsList(@NotNull String id, @NotNull IntConsumer pageRequest) {
+    TrinityStorageContentsList(String id, IntConsumer pageRequest) {
         this.pageRequest = pageRequest;
         setId(id);
         setOverflowVisible(false);
@@ -66,12 +65,12 @@ final class TrinityStorageContentsList extends BindableUIElement<TrinityDataCore
     }
 
     @Override
-    public @NotNull TrinityDataCoreStorageView getValue() {
+    public TrinityDataCoreStorageView getValue() {
         return this.value;
     }
 
     @Override
-    public @NotNull TrinityStorageContentsList setValue(@Nullable TrinityDataCoreStorageView value, boolean notify) {
+    public TrinityStorageContentsList setValue(@Nullable TrinityDataCoreStorageView value, boolean notify) {
         TrinityDataCoreStorageView next = value == null ? TrinityDataCoreStorageView.EMPTY : value;
         if (this.value.equals(next)) {
             return this;
@@ -268,7 +267,7 @@ final class TrinityStorageContentsList extends BindableUIElement<TrinityDataCore
 
         @Override
         @OnlyIn(Dist.CLIENT)
-        public void drawBackgroundAdditional(@NotNull GUIContext guiContext) {
+        public void drawBackgroundAdditional(GUIContext guiContext) {
             if (this.key == null) {
                 return;
             }

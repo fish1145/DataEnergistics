@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.api.registry.search;
 
 import net.minecraft.world.item.ItemStack;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
 
 /**
@@ -24,6 +22,5 @@ public interface TrinityPatternSearchTermContributor {
      * @param encodedPattern encoded pattern displayed by the Trinity information exchange depot
      * @return non-null independent candidate names in declaration order
      */
-    @NotNull
-    List<@NotNull String> searchTerms(@NotNull ItemStack encodedPattern);
+    List<String> searchTerms(ItemStack encodedPattern);
 }

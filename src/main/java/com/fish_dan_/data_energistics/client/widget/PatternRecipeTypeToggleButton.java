@@ -8,7 +8,6 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 
 import appeng.client.gui.widgets.ITooltip;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -18,7 +17,7 @@ public class PatternRecipeTypeToggleButton extends Button implements ITooltip {
     private boolean enabledState = true;
     private Component detailLine = Component.empty();
 
-    public PatternRecipeTypeToggleButton(@NotNull StateChangeHandler onChange) {
+    public PatternRecipeTypeToggleButton(StateChangeHandler onChange) {
         super(0, 0, 8, 8, Component.empty(), btn -> {}, DEFAULT_NARRATION);
         this.onChange = onChange;
     }
@@ -27,7 +26,7 @@ public class PatternRecipeTypeToggleButton extends Button implements ITooltip {
         this.enabledState = enabled;
     }
 
-    public void setDetailLine(@NotNull Component detailLine) {
+    public void setDetailLine(Component detailLine) {
         this.detailLine = detailLine;
     }
 

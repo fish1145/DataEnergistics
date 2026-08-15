@@ -20,7 +20,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -49,9 +48,9 @@ final class PreviewCandidateColumn extends UIElement {
     private List<CandidateChoice> choices = List.of();
     private int firstVisibleCandidate;
 
-    PreviewCandidateColumn(@NotNull String id,
-                           @NotNull ObjIntConsumer<PreviewPredicateKey> candidateSelectionHandler,
-                           @NotNull ObjIntConsumer<String> tierSelectionHandler) {
+    PreviewCandidateColumn(String id,
+                           ObjIntConsumer<PreviewPredicateKey> candidateSelectionHandler,
+                           ObjIntConsumer<String> tierSelectionHandler) {
         this.candidateSelectionHandler = candidateSelectionHandler;
         this.tierSelectionHandler = tierSelectionHandler;
         setId(id);
@@ -73,8 +72,8 @@ final class PreviewCandidateColumn extends UIElement {
     }
 
     void refresh(@Nullable PreviewCellSnapshot selectedCell,
-                 @NotNull List<PreviewTierDomain> tierDomains,
-                 @NotNull Map<String, Integer> tierSelections) {
+                 List<PreviewTierDomain> tierDomains,
+                 Map<String, Integer> tierSelections) {
         PreviewPredicateKey nextKey = selectedCell == null ? null : selectedCell.predicate().key();
         if (!Objects.equals(this.predicateKey, nextKey)) {
             this.firstVisibleCandidate = 0;

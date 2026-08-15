@@ -8,7 +8,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
 import mezz.jei.api.recipe.RecipeType;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -100,11 +99,11 @@ final class JeiPluginRegistrationAccumulator {
 
         @Override
         public <T extends AbstractContainerMenu, R> void registerRecipeTransferHandler(
-                                                                                       @NotNull ResourceLocation registrationId,
-                                                                                       @NotNull Class<T> menuClass,
-                                                                                       @NotNull MenuType<T> menuType,
-                                                                                       @NotNull RecipeType<R> recipeType,
-                                                                                       @NotNull JeiRecipeTransferHandlerFactory<T, R> factory) {
+                                                                                       ResourceLocation registrationId,
+                                                                                       Class<T> menuClass,
+                                                                                       MenuType<T> menuType,
+                                                                                       RecipeType<R> recipeType,
+                                                                                       JeiRecipeTransferHandlerFactory<T, R> factory) {
             requireOpen();
             ResourceLocation stagedId = requireStagedValue(registrationId, "JEI recipe-transfer registration ID");
             Class<T> stagedMenuClass = requireStagedValue(menuClass, "JEI recipe-transfer menu class");
