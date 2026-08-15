@@ -145,7 +145,7 @@ public final class TrinityDataCoreHostUi {
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(-1)
                 .top(0)
-                .width(TrinityCpuStatusList.DEFAULT_WIDTH + 1)
+                .width(TrinityCpuStatusList.DEFAULT_WIDTH)
                 .height(TrinityCpuStatusList.DEFAULT_HEIGHT));
         panel.addChildAt(cpuList, scrollbarIndex);
         if (cpuList.getParent() != panel) {
