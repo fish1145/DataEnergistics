@@ -9,12 +9,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalHostAccessor;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;

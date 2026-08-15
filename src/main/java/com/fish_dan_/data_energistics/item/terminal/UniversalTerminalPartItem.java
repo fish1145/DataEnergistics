@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.terminal;
 
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;

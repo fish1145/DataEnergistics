@@ -6,8 +6,8 @@ import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalConfigurationProfile;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.world.item.ItemStack;
 

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.common.terminal;
 
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.recipe;
 
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
