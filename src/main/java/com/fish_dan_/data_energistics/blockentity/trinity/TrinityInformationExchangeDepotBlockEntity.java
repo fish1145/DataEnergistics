@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.Finite
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferTarget;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
 import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentBindingHandle;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;

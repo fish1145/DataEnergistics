@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.network.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;

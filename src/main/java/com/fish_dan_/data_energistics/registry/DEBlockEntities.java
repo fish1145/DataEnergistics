@@ -4,9 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
@@ -21,6 +18,9 @@ import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlo
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;

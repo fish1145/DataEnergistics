@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;

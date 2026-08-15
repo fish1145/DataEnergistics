@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;

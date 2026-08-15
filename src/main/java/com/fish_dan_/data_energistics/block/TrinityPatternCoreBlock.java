@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreMetadata;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;

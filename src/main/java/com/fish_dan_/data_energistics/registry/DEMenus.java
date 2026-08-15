@@ -4,8 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataRipperReassemblerBlockEntity;
@@ -16,6 +14,8 @@ import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlo
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;

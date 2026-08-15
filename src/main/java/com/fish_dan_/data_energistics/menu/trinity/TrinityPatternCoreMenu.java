@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.trinity;
 
-import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical.TrinityPatternCoreUi;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 

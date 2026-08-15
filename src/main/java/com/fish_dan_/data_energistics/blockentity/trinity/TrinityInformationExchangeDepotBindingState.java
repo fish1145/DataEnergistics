@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.common.compartment.CompartmentBindingHandle;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
