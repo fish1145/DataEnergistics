@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
+import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils;
+import com.fish_dan_.data_energistics.common.dataripper.DataRipperPowerUtils;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
-import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;

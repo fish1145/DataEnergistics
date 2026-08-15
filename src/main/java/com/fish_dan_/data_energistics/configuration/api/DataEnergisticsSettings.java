@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.configuration.api;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils.MultiplierEntry;
+import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils.MultiplierEntry;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
