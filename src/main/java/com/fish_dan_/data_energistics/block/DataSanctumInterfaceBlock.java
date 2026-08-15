@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;

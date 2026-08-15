@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.sanctum;
 
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumFluidPuller;
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumInterfaceConstants;

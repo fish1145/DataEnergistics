@@ -13,7 +13,6 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
@@ -22,6 +21,7 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockE
 import com.fish_dan_.data_energistics.blockentity.machine.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 

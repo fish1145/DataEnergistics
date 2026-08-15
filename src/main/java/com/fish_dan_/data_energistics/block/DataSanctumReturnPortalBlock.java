@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.DataSanctumReturnPortalBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumReturnPortalBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;

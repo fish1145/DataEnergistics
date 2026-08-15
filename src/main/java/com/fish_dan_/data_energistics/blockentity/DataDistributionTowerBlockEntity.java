@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.grid.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.CachedTowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDistributorContext;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpoint;
