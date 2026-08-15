@@ -44,7 +44,7 @@
 		"core.grid.GridMixin",
 		"core.grid.GridNodeMixin",
 		"core.world.InscriberBlockEntityMixin",
-		"core.world.LivingEntitySonicBoomMixin",
+		"core.world.SonicBoomMixin",
 		"core.grid.IOBusPartWrappedKeyMigrationMixin",
 		"core.accessor.InterfaceLogicTickAccessor",
 		"core.accessor.InterfaceLogicUpgradesAccessor",

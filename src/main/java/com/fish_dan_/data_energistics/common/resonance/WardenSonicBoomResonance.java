@@ -29,8 +29,10 @@ public final class WardenSonicBoomResonance {
 
     /**
      * Reconstructs the vanilla chest-to-eye ray and extends it seven blocks beyond the original target.
+     *
+     * @return {@code true} when a tuning fork no farther than the target accepted Echo and intercepted the attack
      */
-    public static void process(ServerLevel level, Warden warden, LivingEntity target) {
+    public static boolean process(ServerLevel level, Warden warden, LivingEntity target) {
         Vec3 start = warden.position();
         Vec3 end = target.getEyePosition();
         BlockPos fallbackPosition = warden.blockPosition();
@@ -44,8 +46,10 @@ public final class WardenSonicBoomResonance {
             } catch (RuntimeException exception) {
                 visitor.logFailure(visitor.currentPosition, exception);
             }
+            return visitor.attackIntercepted;
         } catch (RuntimeException exception) {
             logFailure(level, warden, target, start, end, fallbackPosition, exception);
+            return false;
         }
     }
 
@@ -71,9 +75,12 @@ public final class WardenSonicBoomResonance {
         private final LivingEntity target;
         private final Vec3 start;
         private final Vec3 end;
+        private final BlockPos targetPosition;
         private BlockPos currentPosition;
         private boolean tuningForkHandled;
         private boolean crystalHandled;
+        private boolean targetReached;
+        private boolean attackIntercepted;
 
         private SonicPathVisitor(ServerLevel level, Warden warden, LivingEntity target, Vec3 start, Vec3 end) {
             this.level = level;
@@ -81,31 +88,36 @@ public final class WardenSonicBoomResonance {
             this.target = target;
             this.start = start;
             this.end = end;
+            this.targetPosition = BlockPos.containing(target.getEyePosition());
             this.currentPosition = BlockPos.containing(start);
         }
 
         @Override
         public boolean test(BlockPos pos) {
             this.currentPosition = pos;
+            boolean beforeOrAtTarget = !this.targetReached;
             try {
                 LevelChunk chunk = this.level.getChunkSource().getChunkNow(
                         SectionPos.blockToSectionCoord(pos.getX()),
                         SectionPos.blockToSectionCoord(pos.getZ()));
-                if (chunk == null) {
-                    return true;
-                }
-
-                BlockState state = chunk.getBlockState(pos);
-                if (!this.tuningForkHandled && state.getBlock() instanceof TuningForkBlock) {
-                    this.tuningForkHandled = true;
-                    TuningForkWaveHit.process(chunk, pos, this.level.getRandom(), true);
-                }
-                if (!this.crystalHandled && ResonanceCrystalWaveTransformation.isWardenChangeable(state)) {
-                    this.crystalHandled = true;
-                    ResonanceCrystalWaveTransformation.transformFromWarden(this.level, pos, state);
+                if (chunk != null) {
+                    BlockState state = chunk.getBlockState(pos);
+                    if (!this.tuningForkHandled && state.getBlock() instanceof TuningForkBlock) {
+                        this.tuningForkHandled = true;
+                        if (TuningForkWaveHit.process(chunk, pos, this.level.getRandom(), true) && beforeOrAtTarget) {
+                            this.attackIntercepted = true;
+                        }
+                    }
+                    if (!this.crystalHandled && ResonanceCrystalWaveTransformation.isWardenChangeable(state)) {
+                        this.crystalHandled = true;
+                        ResonanceCrystalWaveTransformation.transformFromWarden(this.level, pos, state);
+                    }
                 }
             } catch (RuntimeException exception) {
                 logFailure(pos, exception);
+            }
+            if (pos.equals(this.targetPosition)) {
+                this.targetReached = true;
             }
             return !this.tuningForkHandled || !this.crystalHandled;
         }
