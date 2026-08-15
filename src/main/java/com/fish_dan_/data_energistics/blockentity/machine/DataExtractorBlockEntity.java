@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.block.DataExtractorBlock;
-import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
+import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock.Type;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataExtractor;

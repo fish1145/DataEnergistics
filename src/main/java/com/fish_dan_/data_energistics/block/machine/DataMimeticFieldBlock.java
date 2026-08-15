@@ -1,15 +1,18 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.machine;
 
-import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -26,21 +29,19 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 import appeng.block.AEBaseBlock;
+import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
-public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
+public class DataMimeticFieldBlock extends AEBaseBlock implements EntityBlock {
 
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
-    private static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 5.0D, 16.0D);
 
-    public DataSolarPanelBlock(BlockBehaviour.Properties properties) {
+    public DataMimeticFieldBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState()
                 .setValue(LIT, false)
@@ -49,7 +50,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
-        return new DataSolarPanelBlockEntity(blockPos, blockState);
+        return new DataMimeticFieldBlockEntity(blockPos, blockState);
     }
 
     @Override
@@ -77,35 +78,44 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
     }
 
     @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hitResult) {
+        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
+        if (memoryCardResult.consumesAction()) {
+            return memoryCardResult;
+        }
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataSolarPanelBlockEntity solarPanel) {
-            MenuOpener.open(DEMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forBlockEntity(solarPanel));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataMimeticFieldBlockEntity field) {
+            MenuOpener.open(DEMenus.DATA_MIMETIC_FIELD.get(), player, MenuLocators.forBlockEntity(field));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPE;
-    }
-
-    @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPE;
-    }
-
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get()) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+                                                                  BlockEntityType<T> blockEntityType) {
+        if (level.isClientSide() || blockEntityType != DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get()) {
             return null;
         }
 
         return (tickLevel, tickPos, tickState, blockEntity) -> {
-            if (blockEntity instanceof DataSolarPanelBlockEntity solarPanel) {
-                solarPanel.serverTick();
+            if (blockEntity instanceof DataMimeticFieldBlockEntity field) {
+                field.serverTick();
             }
         };
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling() && level.getBlockEntity(pos) instanceof DataMimeticFieldBlockEntity field) {
+            field.dropContents(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
     }
 }

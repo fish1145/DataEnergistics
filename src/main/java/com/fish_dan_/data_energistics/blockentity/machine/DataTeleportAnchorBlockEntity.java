@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
-import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.machine.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.TeleportAnchorSavedData;

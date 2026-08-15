@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataChargerBlock;
+import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;

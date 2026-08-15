@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
+import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
