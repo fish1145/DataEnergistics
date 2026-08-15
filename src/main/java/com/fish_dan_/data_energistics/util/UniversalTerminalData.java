@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalContext;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
@@ -328,11 +329,9 @@ public final class UniversalTerminalData {
 
     public record TerminalEntry(String name, ItemStack stack) {}
 
-    /**
-     * Runtime context shared by public adapters and the legacy concrete-part compatibility bridge.
-     */
+    /** Runtime context passed to public terminal behaviors. */
     private record DefaultUniversalTerminalContext(UniversalTerminalPart part, Player player)
-            implements UniversalTerminalContextBridge {
+            implements UniversalTerminalContext {
 
         @Override
         public <T> @Nullable T resolveDefaultMenuHost(Class<T> hostInterface) {
