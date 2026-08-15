@@ -64,15 +64,15 @@ public final class OrderedBlockPath {
             double nextBoundary = Math.min(nextBoundaryX, Math.min(nextBoundaryY, nextBoundaryZ));
             if (sameBoundary(nextBoundaryX, nextBoundary)) {
                 x += stepX;
-                nextBoundaryX += stepDistanceX;
+                nextBoundaryX = x == endX ? Double.POSITIVE_INFINITY : nextBoundaryX + stepDistanceX;
             }
             if (sameBoundary(nextBoundaryY, nextBoundary)) {
                 y += stepY;
-                nextBoundaryY += stepDistanceY;
+                nextBoundaryY = y == endY ? Double.POSITIVE_INFINITY : nextBoundaryY + stepDistanceY;
             }
             if (sameBoundary(nextBoundaryZ, nextBoundary)) {
                 z += stepZ;
-                nextBoundaryZ += stepDistanceZ;
+                nextBoundaryZ = z == endZ ? Double.POSITIVE_INFINITY : nextBoundaryZ + stepDistanceZ;
             }
 
             boolean atEnd = x == endX && y == endY && z == endZ;
