@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
@@ -20,6 +21,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
@@ -31,6 +35,20 @@ import org.jetbrains.annotations.Nullable;
 public class TuningForkBlock extends Block implements EntityBlock {
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    private static final VoxelShape NORTH_SOUTH_SHAPE = Shapes.or(
+            Block.box(7, 0, 7, 9, 6, 9),
+            Block.box(6, 6, 6, 10, 10, 10),
+            Block.box(4.1502d, 7, 6.998d, 6.7658d, 9.6132d, 9.002d),
+            Block.box(9.2342d, 7, 6.998d, 11.8498d, 9.6132d, 9.002d),
+            Block.box(4.1502d, 7.7633d, 6.998d, 6.1543d, 15.7674d, 9.002d),
+            Block.box(9.8457d, 7.7633d, 6.998d, 11.8498d, 15.7674d, 9.002d));
+    private static final VoxelShape EAST_WEST_SHAPE = Shapes.or(
+            Block.box(7, 0, 7, 9, 6, 9),
+            Block.box(6, 6, 6, 10, 10, 10),
+            Block.box(6.998d, 7, 4.1502d, 9.002d, 9.6132d, 6.7658d),
+            Block.box(6.998d, 7, 9.2342d, 9.002d, 9.6132d, 11.8498d),
+            Block.box(6.998d, 7.7633d, 4.1502d, 9.002d, 15.7674d, 6.1543d),
+            Block.box(6.998d, 7.7633d, 9.8457d, 9.002d, 15.7674d, 11.8498d));
 
     private final TuningForkVariant variant;
 
@@ -59,6 +77,17 @@ public class TuningForkBlock extends Block implements EntityBlock {
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return state.getValue(FACING).getAxis() == Direction.Axis.X ? EAST_WEST_SHAPE : NORTH_SOUTH_SHAPE;
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+                                            CollisionContext context) {
+        return getShape(state, level, pos, context);
     }
 
     @Override
