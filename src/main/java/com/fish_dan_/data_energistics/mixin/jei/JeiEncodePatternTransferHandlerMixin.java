@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.jei;
 
-import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
+import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.world.entity.player.Player;

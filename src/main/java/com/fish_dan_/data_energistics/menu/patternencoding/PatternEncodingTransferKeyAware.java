@@ -6,8 +6,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bridges client recipe-viewer metadata to the server-owned pattern encoding menu state.
  *
- * <p>The methods are called only while a live menu is open. Implementations must serialize client-originated values
- * before they cross the client-action boundary and must not treat them as trusted server state.</p>
+ * <p>
+ * The methods are called only while a live menu is open. Implementations must serialize client-originated values
+ * before they cross the client-action boundary and must not treat them as trusted server state.
+ * </p>
  */
 public interface PatternEncodingTransferKeyAware {
 
