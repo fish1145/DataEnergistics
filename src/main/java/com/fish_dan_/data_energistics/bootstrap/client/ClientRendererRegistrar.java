@@ -1,16 +1,16 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.render.DataNukeRenderer;
-import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
-import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
-import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
-import com.fish_dan_.data_energistics.client.render.ThrownLightSaberRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataMimeticFieldRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataSanctumReturnPortalRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.DataNukeRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.DispersingDataRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.LightBladeChargeRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.MatterConvergingBoltRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.ThrownLightSaberRenderer;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
