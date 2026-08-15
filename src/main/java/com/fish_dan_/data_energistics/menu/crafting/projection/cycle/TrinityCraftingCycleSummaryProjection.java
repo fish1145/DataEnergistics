@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.KeyCounter;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -31,10 +32,11 @@ public final class TrinityCraftingCycleSummaryProjection {
     /**
      * Creates one immutable summary without converting exact plan amounts through primitive numeric types.
      *
-     * @param plan validated executable Trinity plan
-     * @return cycle headers, material contributions and global inventory withdrawals
+     * @param plan               validated executable Trinity plan
+     * @param availableInventory current ME inventory snapshot used as the percentage denominator
+     * @return cycle headers, material contributions and plan-wide inventory usage percentages
      */
-    public static TrinityCraftingCycleSummary create(TrinityCraftingPlan plan) {
+    public static TrinityCraftingCycleSummary create(TrinityCraftingPlan plan, KeyCounter availableInventory) {
         Map<Integer, TrinityPlanStage> stagesByIndex = indexStages(plan.stages());
         ArrayList<TrinityCycleRepeatBlock> blocks = new ArrayList<>(plan.cycleRepeatBlocks());
         blocks.sort(Comparator.comparingInt(TrinityCycleRepeatBlock::index));
@@ -48,7 +50,33 @@ public final class TrinityCraftingCycleSummaryProjection {
             cycles.add(projection.cycle());
             contributions.addAll(projection.contributions());
         }
-        return TrinityCraftingCycleSummary.create(plan.initialExpectedInputs(), cycles, contributions);
+        return TrinityCraftingCycleSummary.create(
+                projectInventoryUsage(plan.initialExpectedInputs(), availableInventory),
+                cycles,
+                contributions);
+    }
+
+    private static Map<AEKey, Integer> projectInventoryUsage(Map<AEKey, BigInteger> inputs,
+                                                             KeyCounter availableInventory) {
+        LinkedHashMap<AEKey, Integer> usage = new LinkedHashMap<>();
+        inputs.forEach((key, consumed) -> usage.put(
+                key,
+                inventoryUsageBasisPoints(consumed, availableInventory.get(key))));
+        return usage;
+    }
+
+    private static int inventoryUsageBasisPoints(BigInteger consumed, long availableAmount) {
+        if (availableAmount <= 0L) {
+            return TrinityCraftingCycleSummary.MAX_INVENTORY_USAGE_BASIS_POINTS;
+        }
+        BigInteger available = BigInteger.valueOf(availableAmount);
+        if (consumed.compareTo(available) >= 0) {
+            return TrinityCraftingCycleSummary.MAX_INVENTORY_USAGE_BASIS_POINTS;
+        }
+        return consumed
+                .multiply(BigInteger.valueOf(TrinityCraftingCycleSummary.MAX_INVENTORY_USAGE_BASIS_POINTS))
+                .divide(available)
+                .intValueExact();
     }
 
     private static Map<Integer, TrinityPlanStage> indexStages(List<TrinityPlanStage> stages) {

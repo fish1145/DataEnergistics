@@ -6,12 +6,11 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Header;
-import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryInput;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryUsage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Material;
 
 import appeng.api.stacks.AEKey;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -47,21 +46,21 @@ public final class TrinityCraftConfirmCycleAssembler {
     private static TrinityCraftingCycleSummary rebuildSummary(List<TrinityCraftConfirmCycleRecord> records) {
         ArrayList<TrinityCraftingCycleHeader> cycles = new ArrayList<>();
         ArrayList<TrinityCraftingCycleMaterialContribution> contributions = new ArrayList<>();
-        LinkedHashMap<AEKey, BigInteger> inventoryInputs = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, Integer> inventoryUsage = new LinkedHashMap<>();
         for (TrinityCraftConfirmCycleRecord record : records) {
             switch (record) {
                 case Header entry -> cycles.add(entry.value());
                 case Material entry -> contributions.add(entry.value());
-                case InventoryInput entry -> {
-                    if (inventoryInputs.containsKey(entry.key())) {
+                case InventoryUsage entry -> {
+                    if (inventoryUsage.containsKey(entry.key())) {
                         throw new IllegalArgumentException(
-                                "Trinity crafting confirmation summary repeats an inventory input");
+                                "Trinity crafting confirmation summary repeats an inventory usage record");
                     }
-                    inventoryInputs.put(entry.key(), entry.amount());
+                    inventoryUsage.put(entry.key(), entry.basisPoints());
                 }
             }
         }
-        return TrinityCraftingCycleSummary.create(inventoryInputs, cycles, contributions);
+        return TrinityCraftingCycleSummary.create(inventoryUsage, cycles, contributions);
     }
 
     /** One complete summary revision ready for delivery to its matching menu. */

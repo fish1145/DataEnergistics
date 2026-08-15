@@ -697,7 +697,7 @@
 	"gui.data_energistics.trinity_planning.ae2_fallback_title": "AE2 fallback · %s · %sB · Calc %s",
 	"gui.data_energistics.trinity_planning.diagnostic_title": "Trinity fast diagnostic · %s · Calc %s",
 	"gui.data_energistics.trinity_planning.cycle.title": "Ring %s",
-	"gui.data_energistics.trinity_planning.cycle.inventory_consumption": "Inventory draw: %s",
+	"gui.data_energistics.trinity_planning.cycle.inventory_usage": "Inventory usage: %s",
 	"gui.data_energistics.trinity_planning.cycle.repetitions": "Cycle repetitions: %s",
 	"gui.data_energistics.trinity_planning.cycle.pattern_executions": "Recipe executions: %s",
 	"gui.data_energistics.trinity_planning.cycle.minimum_seed": "Startup seed: %s",

@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 import com.fish_dan_.data_energistics.network.trinity.crafting.client.TrinityCraftConfirmCycleClientHandler;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Header;
-import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryInput;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryUsage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Material;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -34,7 +34,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
 
     private static final int HEADER_RECORD = 0;
     private static final int MATERIAL_RECORD = 1;
-    private static final int INVENTORY_INPUT_RECORD = 2;
+    private static final int INVENTORY_USAGE_RECORD = 2;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
 
     private final int containerId;
@@ -140,11 +140,11 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
 
     private static List<TrinityCraftConfirmCycleRecord> flatten(TrinityCraftingCycleSummary summary) {
         int totalRecordCount = Math.addExact(
-                Math.addExact(summary.cycles().size(), summary.initialExpectedInputs().size()),
+                Math.addExact(summary.cycles().size(), summary.inventoryUsageBasisPoints().size()),
                 summary.contributions().size());
         ArrayList<TrinityCraftConfirmCycleRecord> records = new ArrayList<>(totalRecordCount);
         summary.cycles().forEach(cycle -> records.add(new Header(cycle)));
-        summary.initialExpectedInputs().forEach((key, amount) -> records.add(new InventoryInput(key, amount)));
+        summary.inventoryUsageBasisPoints().forEach((key, basisPoints) -> records.add(new InventoryUsage(key, basisPoints)));
         summary.contributions().forEach(contribution -> records.add(new Material(contribution)));
         return List.copyOf(records);
     }
@@ -175,7 +175,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
         switch (record) {
             case Header entry -> writeHeader(buffer, entry.value());
             case Material entry -> writeMaterial(buffer, entry.value());
-            case InventoryInput entry -> writeInventoryInput(buffer, entry);
+            case InventoryUsage entry -> writeInventoryUsage(buffer, entry);
         }
     }
 
@@ -183,7 +183,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
         return switch (buffer.readUnsignedByte()) {
             case HEADER_RECORD -> readHeader(buffer);
             case MATERIAL_RECORD -> readMaterial(buffer);
-            case INVENTORY_INPUT_RECORD -> readInventoryInput(buffer);
+            case INVENTORY_USAGE_RECORD -> readInventoryUsage(buffer);
             default -> throw new IllegalArgumentException("Unknown Trinity crafting confirmation record type");
         };
     }
@@ -238,14 +238,14 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
                 readBigInteger(buffer)));
     }
 
-    private static void writeInventoryInput(RegistryFriendlyByteBuf buffer, InventoryInput entry) {
-        buffer.writeByte(INVENTORY_INPUT_RECORD);
+    private static void writeInventoryUsage(RegistryFriendlyByteBuf buffer, InventoryUsage entry) {
+        buffer.writeByte(INVENTORY_USAGE_RECORD);
         AEKey.STREAM_CODEC.encode(buffer, entry.key());
-        writeBigInteger(buffer, entry.amount());
+        buffer.writeVarInt(entry.basisPoints());
     }
 
-    private static InventoryInput readInventoryInput(RegistryFriendlyByteBuf buffer) {
-        return new InventoryInput(AEKey.STREAM_CODEC.decode(buffer), readBigInteger(buffer));
+    private static InventoryUsage readInventoryUsage(RegistryFriendlyByteBuf buffer) {
+        return new InventoryUsage(AEKey.STREAM_CODEC.decode(buffer), buffer.readVarInt());
     }
 
     private static void writeBigInteger(RegistryFriendlyByteBuf buffer, BigInteger value) {

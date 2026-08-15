@@ -9,12 +9,12 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
- * Appends exact Trinity inventory and per-cycle statistics after AE2's native material tooltip.
+ * Appends the capped Trinity inventory usage percentage and per-cycle statistics after AE2's native material tooltip.
  */
 public final class TrinityCraftConfirmCycleTooltip {
 
@@ -33,15 +33,15 @@ public final class TrinityCraftConfirmCycleTooltip {
     public static List<Component> append(List<Component> original,
                                          AEKey key,
                                          TrinityCraftingCycleSummary summary) {
-        BigInteger inventoryConsumption = summary.inventoryConsumption(key);
+        OptionalInt inventoryUsage = summary.inventoryUsage(key);
         List<TrinityCraftingCycleMaterialContribution> contributions = summary.contributionsFor(key);
-        if (inventoryConsumption.signum() == 0 && contributions.isEmpty()) {
+        if (inventoryUsage.isEmpty() && contributions.isEmpty()) {
             return original;
         }
 
         ArrayList<Component> lines = new ArrayList<>(original);
-        if (inventoryConsumption.signum() > 0) {
-            lines.add(detail("inventory_consumption", inventoryConsumption));
+        if (inventoryUsage.isPresent()) {
+            lines.add(detail("inventory_usage", formatPercentage(inventoryUsage.getAsInt())));
         }
         for (TrinityCraftingCycleMaterialContribution contribution : contributions) {
             TrinityCraftingCycleHeader cycle = summary.cycles().get(contribution.displayOrdinal() - 1);
@@ -71,5 +71,20 @@ public final class TrinityCraftConfirmCycleTooltip {
 
     private static Component detail(String suffix, Object value) {
         return Component.translatable(KEY_PREFIX + suffix, value.toString()).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static String formatPercentage(int basisPoints) {
+        if (basisPoints == 0) {
+            return "<0.01%";
+        }
+        int whole = basisPoints / 100;
+        int fraction = basisPoints % 100;
+        if (fraction == 0) {
+            return whole + "%";
+        }
+        if (fraction % 10 == 0) {
+            return whole + "." + fraction / 10 + "%";
+        }
+        return whole + "." + (fraction < 10 ? "0" : "") + fraction + "%";
     }
 }

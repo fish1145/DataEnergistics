@@ -203,7 +203,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                                    Operation<CraftingPlanSummary> original) {
         if (job instanceof TrinityCraftingPlan trinityPlan) {
             CraftingPlanSummary planSummary = TrinityCraftingPlanSummaryProjection.create(trinityPlan);
-            dataEnergistics$syncCycleSummary(trinityPlan);
+            dataEnergistics$syncCycleSummary(grid, trinityPlan);
             return planSummary;
         }
         if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
@@ -215,8 +215,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     }
 
     @Unique
-    private void dataEnergistics$syncCycleSummary(TrinityCraftingPlan plan) {
-        TrinityCraftingCycleSummary summary = TrinityCraftingCycleSummaryProjection.create(plan);
+    private void dataEnergistics$syncCycleSummary(IGrid grid, TrinityCraftingPlan plan) {
+        TrinityCraftingCycleSummary summary = TrinityCraftingCycleSummaryProjection.create(
+                plan,
+                grid.getStorageService().getInventory().getAvailableStacks());
         ServerPlayer player = (ServerPlayer) this.getPlayer();
         for (TrinityCraftConfirmCyclePayload payload : TrinityCraftConfirmCyclePayload.batches(
                 this.containerId,
