@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.tooltip;
 
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotTooltipComponent;
 
 import net.minecraft.client.Minecraft;

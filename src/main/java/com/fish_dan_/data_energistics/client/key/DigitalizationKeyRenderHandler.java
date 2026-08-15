@@ -1,6 +1,8 @@
-package com.fish_dan_.data_energistics.client;
+package com.fish_dan_.data_energistics.client.key;
 
-import com.fish_dan_.data_energistics.ae2.key.DataKey;
+import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.key.DigitalizationKey;
+import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,20 +19,29 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
 
-public final class DataKeyRenderHandler implements AEKeyRenderHandler<DataKey> {
+/**
+ * Renders every resource in the shared Digitalization AE key type.
+ */
+public final class DigitalizationKeyRenderHandler implements AEKeyRenderHandler<DigitalizationKey> {
 
     private static final float FACE_Z_OFFSET = 0.01F;
 
     @Override
-    public void drawInGui(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, DataKey key) {
-        Blitter.sprite(CustomKeyGuiRenderer.dataSprite())
+    public void drawInGui(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, DigitalizationKey key) {
+        Blitter.sprite(sprite(key))
                 .dest(x, y, 16, 16)
                 .blit(guiGraphics);
     }
 
     @Override
-    public void drawOnBlockFace(PoseStack poseStack, MultiBufferSource buffers, DataKey key, float scale, int light, Level level) {
-        TextureAtlasSprite sprite = CustomKeyGuiRenderer.dataSprite();
+    public void drawOnBlockFace(
+                                PoseStack poseStack,
+                                MultiBufferSource buffers,
+                                DigitalizationKey key,
+                                float scale,
+                                int light,
+                                Level level) {
+        TextureAtlasSprite sprite = sprite(key);
         float halfSize = (scale - 0.05F) / 2.0F;
 
         poseStack.pushPose();
@@ -56,8 +67,18 @@ public final class DataKeyRenderHandler implements AEKeyRenderHandler<DataKey> {
     }
 
     @Override
-    public Component getDisplayName(DataKey key) {
+    public Component getDisplayName(DigitalizationKey key) {
         return key.getDisplayName();
+    }
+
+    private static TextureAtlasSprite sprite(DigitalizationKey key) {
+        if (key instanceof DataFlowKey) {
+            return CustomKeyGuiRenderer.dataFlowSprite();
+        }
+        if (key instanceof EchoKey) {
+            return CustomKeyGuiRenderer.echoSprite();
+        }
+        throw new IllegalArgumentException("Unsupported Digitalization key: " + key.getClass().getName());
     }
 
     private static void addFaceQuad(

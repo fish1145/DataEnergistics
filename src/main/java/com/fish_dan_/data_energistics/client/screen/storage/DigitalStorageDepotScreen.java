@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.client.screen.storage;
 
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotAutoExportButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.storage.DigitalStorageDepotMenu;

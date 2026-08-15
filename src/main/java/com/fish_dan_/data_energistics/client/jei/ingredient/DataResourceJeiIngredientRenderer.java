@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei.ingredient;
 
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
