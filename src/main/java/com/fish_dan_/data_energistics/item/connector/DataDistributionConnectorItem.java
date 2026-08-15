@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item.connector;
 
-import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.block.tower.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;

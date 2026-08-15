@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.block.tower.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 
