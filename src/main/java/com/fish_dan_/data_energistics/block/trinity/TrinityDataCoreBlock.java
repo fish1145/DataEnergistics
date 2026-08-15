@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;

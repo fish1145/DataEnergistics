@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
-import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
+import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;

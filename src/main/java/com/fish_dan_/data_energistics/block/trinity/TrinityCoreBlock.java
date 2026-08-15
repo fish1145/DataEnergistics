@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.trinity;
 
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;

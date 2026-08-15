@@ -20,10 +20,10 @@ import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
-import com.fish_dan_.data_energistics.block.TrinityCoreBlock;
-import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
-import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
+import com.fish_dan_.data_energistics.block.trinity.TrinityCoreBlock;
+import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
+import com.fish_dan_.data_energistics.block.trinity.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 
