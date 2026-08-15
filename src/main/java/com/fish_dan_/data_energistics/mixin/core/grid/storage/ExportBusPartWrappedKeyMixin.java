@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core.grid;
+package com.fish_dan_.data_energistics.mixin.core.grid.storage;
 
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 

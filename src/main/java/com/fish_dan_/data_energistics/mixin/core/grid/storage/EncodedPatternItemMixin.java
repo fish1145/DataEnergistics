@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core.grid;
+package com.fish_dan_.data_energistics.mixin.core.grid.storage;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item.TooltipContext;
