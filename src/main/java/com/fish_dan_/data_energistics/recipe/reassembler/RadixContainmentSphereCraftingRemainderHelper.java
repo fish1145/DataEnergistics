@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.registry.DEItems;

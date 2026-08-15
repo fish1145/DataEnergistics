@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
-import com.fish_dan_.data_energistics.util.LongAmountMath;
+import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;

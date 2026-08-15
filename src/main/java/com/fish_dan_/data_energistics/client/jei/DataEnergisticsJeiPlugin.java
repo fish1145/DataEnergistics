@@ -16,11 +16,11 @@ import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
+import com.fish_dan_.data_energistics.recipe.reassembler.RadixContainmentSphereCraftingRemainderHelper;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

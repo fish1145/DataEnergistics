@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin.core.crafting;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
@@ -45,7 +46,6 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPubli
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 import com.fish_dan_.data_energistics.configuration.runtime.TrinityDispatchGovernorState;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;

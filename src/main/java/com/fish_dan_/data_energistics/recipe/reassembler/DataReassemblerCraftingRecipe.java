@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
-import com.fish_dan_.data_energistics.util.RadixContainmentSphereCraftingRemainderHelper;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
