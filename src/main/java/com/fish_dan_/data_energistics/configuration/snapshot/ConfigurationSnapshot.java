@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.configuration.snapshot;
 
+import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
-import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

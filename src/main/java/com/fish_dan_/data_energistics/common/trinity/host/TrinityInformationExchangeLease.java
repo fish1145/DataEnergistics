@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.trinity.host;
 import net.minecraft.core.BlockPos;
 
 import appeng.api.networking.IGrid;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines the persistent information-exchange-depot identity and ephemeral AE grid binding that exclusively expose a

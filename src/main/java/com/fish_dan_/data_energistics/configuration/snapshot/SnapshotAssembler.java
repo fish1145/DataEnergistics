@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.configuration.snapshot;
 
+import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils.MultiplierEntry;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapshot.DataDistributionTowerSettings;
 import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapshot.DataExtractorSettings;
@@ -9,7 +10,6 @@ import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapsh
 import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapshot.FlatteningTntSettings;
 import com.fish_dan_.data_energistics.configuration.snapshot.ConfigurationSnapshot.SolarPanelSettings;
 import com.fish_dan_.data_energistics.configuration.validation.InvalidConfigurationException;
-import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils.MultiplierEntry;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;

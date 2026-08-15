@@ -6,7 +6,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Default tracking world-view factory backed by a Minecraft level. */
 public final class LevelTrackingStructureWorldViewFactory implements TrinityStructureWorldViewFactory {

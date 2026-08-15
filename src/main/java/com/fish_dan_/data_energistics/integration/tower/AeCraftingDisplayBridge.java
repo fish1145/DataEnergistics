@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import appeng.blockentity.crafting.CraftingBlockEntity;
 import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Bridge for identifying AE crafting display components used by the Data Distribution Tower UI.

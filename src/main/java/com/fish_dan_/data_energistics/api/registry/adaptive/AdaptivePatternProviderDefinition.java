@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.api.registry.adaptive;
 
 import net.minecraft.world.item.ItemStack;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Resolves one adaptive pattern-provider profile from an installed provider item.

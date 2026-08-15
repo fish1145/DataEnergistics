@@ -9,7 +9,7 @@ import net.minecraft.world.level.Level;
 import aztech.modern_industrialization.api.energy.EnergyApi;
 import aztech.modern_industrialization.api.energy.MIEnergyStorage;
 import aztech.modern_industrialization.config.MIServerConfig;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Type-safe external-energy access to Modern Industrialization's sided EU storage.

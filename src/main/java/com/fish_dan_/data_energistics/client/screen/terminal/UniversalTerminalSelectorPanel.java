@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.terminal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

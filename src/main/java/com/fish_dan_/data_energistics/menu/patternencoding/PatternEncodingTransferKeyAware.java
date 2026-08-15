@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public interface PatternEncodingTransferKeyAware {
 

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataSanctumModeButton;
-import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

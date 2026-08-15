@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import appeng.api.networking.IGrid;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 

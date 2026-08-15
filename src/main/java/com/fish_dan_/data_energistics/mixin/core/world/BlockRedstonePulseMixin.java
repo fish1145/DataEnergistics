@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.world;
 
-import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
+import com.fish_dan_.data_energistics.accessor.patternprovider.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,7 +17,7 @@ import appeng.api.parts.IPart;
 import appeng.block.crafting.PatternProviderBlock;
 import appeng.block.networking.CableBusBlock;
 import appeng.blockentity.networking.CableBusBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

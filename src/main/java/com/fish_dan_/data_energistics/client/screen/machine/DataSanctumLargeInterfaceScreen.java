@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
-import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu.PageSlotTarget;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu.PageSlotTarget;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.core.Direction;

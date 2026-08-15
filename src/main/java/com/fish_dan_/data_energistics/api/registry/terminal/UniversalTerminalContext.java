@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.api.registry.terminal;
 
 import net.minecraft.world.entity.player.Player;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Menu-opening context supplied to a universal-terminal adapter without exposing the concrete terminal part.

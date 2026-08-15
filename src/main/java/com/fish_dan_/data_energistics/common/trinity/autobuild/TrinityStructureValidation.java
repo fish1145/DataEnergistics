@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.trinity.autobuild;
 import net.minecraft.core.BlockPos;
 
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Predicate;
 

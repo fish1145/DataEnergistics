@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.me.service.helpers.NetworkCraftingProviders;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 

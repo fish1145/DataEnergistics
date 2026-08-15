@@ -26,7 +26,7 @@ import appeng.crafting.CraftingLink;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.AbstractMap;
 import java.util.AbstractSet;
@@ -37,7 +37,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Function;
 
-import static com.fish_dan_.data_energistics.util.LongAmountMath.saturatingMultiplyNonNegative;
+import static com.fish_dan_.data_energistics.common.crafting.LongAmountMath.saturatingMultiplyNonNegative;
 
 /**
  * Persisted job state for one Trinity Data Core virtual CPU.

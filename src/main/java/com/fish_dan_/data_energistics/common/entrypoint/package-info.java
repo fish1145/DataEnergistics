@@ -1,7 +1,7 @@
 /**
  * Plugin discovery, isolated registration transactions, and immutable runtime snapshots.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.common.entrypoint;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

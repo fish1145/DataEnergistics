@@ -6,7 +6,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;

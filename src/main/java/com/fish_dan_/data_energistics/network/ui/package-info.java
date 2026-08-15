@@ -1,7 +1,7 @@
 /**
  * Host-backed UI requests and universal-terminal client synchronization.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.network.ui;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

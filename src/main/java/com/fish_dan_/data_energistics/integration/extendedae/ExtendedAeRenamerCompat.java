@@ -18,7 +18,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.AEBasePart;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class ExtendedAeRenamerCompat {
 

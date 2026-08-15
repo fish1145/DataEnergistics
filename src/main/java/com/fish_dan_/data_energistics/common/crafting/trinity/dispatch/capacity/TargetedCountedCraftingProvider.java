@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Counted provider contract whose preparation is bound to an explicit target from a capacity snapshot.

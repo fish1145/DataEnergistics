@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item.depot;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorAutoExportMode;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;

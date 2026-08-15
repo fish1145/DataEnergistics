@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.powered;
 
-import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
-import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -60,7 +60,7 @@ import appeng.items.misc.PaintBallItem;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.ConfigInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

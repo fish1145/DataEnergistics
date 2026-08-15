@@ -13,7 +13,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEBlockEntities;
 import mekanism.api.chemical.IChemicalHandler;
 import mekanism.common.capabilities.Capabilities;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 

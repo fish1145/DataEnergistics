@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.trinity;
 
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

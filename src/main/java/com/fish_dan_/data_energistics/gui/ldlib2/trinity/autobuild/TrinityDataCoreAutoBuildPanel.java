@@ -18,8 +18,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +69,7 @@ final class TrinityDataCoreAutoBuildPanel {
     private final AutoBuildComposition composition;
     private TrinityAutoBuildDraft draft;
 
-    static Layout requireLayout(@NotNull UIElement root) {
+    static Layout requireLayout(UIElement root) {
         List<UIElement> rootChildren = root.getChildren();
         if (rootChildren.size() != AUTHORED_ROOT_CHILD_COUNT) {
             throw new IllegalStateException("Automatic-build layout expected " + AUTHORED_ROOT_CHILD_COUNT +
@@ -196,13 +195,13 @@ final class TrinityDataCoreAutoBuildPanel {
         return element;
     }
 
-    TrinityDataCoreAutoBuildPanel(@NotNull Layout layout,
-                                  @NotNull StructurePreviewUi preview,
-                                  @NotNull TrinityAutoBuildDraft draft,
-                                  @NotNull HostSubUiContext context,
-                                  @NotNull BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
-                                  @NotNull LongPredicate hostedAutoBuildPending,
-                                  @NotNull AutoBuildComposition composition) {
+    TrinityDataCoreAutoBuildPanel(Layout layout,
+                                  StructurePreviewUi preview,
+                                  TrinityAutoBuildDraft draft,
+                                  HostSubUiContext context,
+                                  BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction,
+                                  LongPredicate hostedAutoBuildPending,
+                                  AutoBuildComposition composition) {
         validateSupportedSelection(draft.spec(), draft.previewSelection());
         if (!preview.session().selection().equals(draft.previewSelection())) {
             throw new IllegalArgumentException("Trinity automatic-build draft and preview must start synchronized");

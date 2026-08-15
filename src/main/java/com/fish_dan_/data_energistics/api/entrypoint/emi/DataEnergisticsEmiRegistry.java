@@ -5,7 +5,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
 import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Registration-stage EMI surface exposed to Data Energistics integration plugins.
@@ -26,7 +25,7 @@ public interface DataEnergisticsEmiRegistry {
      * @param <T>            concrete menu type handled by the recipe handler
      */
     <T extends AbstractContainerMenu> void registerRecipeHandler(
-                                                                 @NotNull ResourceLocation registrationId,
-                                                                 @NotNull MenuType<T> menuType,
-                                                                 @NotNull EmiRecipeHandler<T> handler);
+                                                                 ResourceLocation registrationId,
+                                                                 MenuType<T> menuType,
+                                                                 EmiRecipeHandler<T> handler);
 }

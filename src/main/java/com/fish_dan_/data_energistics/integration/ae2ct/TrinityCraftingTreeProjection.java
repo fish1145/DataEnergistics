@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.integration.ae2ct;
 
+import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
-import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;

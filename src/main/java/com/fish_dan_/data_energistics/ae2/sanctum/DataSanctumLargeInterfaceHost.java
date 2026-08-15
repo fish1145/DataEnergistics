@@ -7,7 +7,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.orientation.RelativeSide;
 import appeng.helpers.InterfaceLogicHost;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 

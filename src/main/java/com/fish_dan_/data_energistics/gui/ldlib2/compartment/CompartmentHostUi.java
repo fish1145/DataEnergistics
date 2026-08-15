@@ -8,11 +8,11 @@ import com.fish_dan_.data_energistics.gui.ldlib2.ae.inventory.AePlayerInventoryP
 import com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot.MeInputCompartmentPanel;
 import com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot.MeOutputCompartmentPanel;
 import com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot.PatternBufferCompartmentPanel;
-import com.fish_dan_.data_energistics.menu.CompartmentMenu;
-import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
-import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
-import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
-import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
+import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.storage.CompositeWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.storage.MeCompositeInputWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.storage.MeCompositeOutputWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.storage.MePatternBufferMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;

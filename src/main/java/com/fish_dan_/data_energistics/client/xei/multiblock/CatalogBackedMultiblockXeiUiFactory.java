@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePre
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Default catalog-backed implementation of the platform-neutral XEI composition factory.

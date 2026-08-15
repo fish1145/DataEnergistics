@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickS
 
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;

@@ -7,11 +7,13 @@ import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncoding
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
@@ -19,8 +21,6 @@ import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSourc
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
@@ -53,7 +53,7 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;

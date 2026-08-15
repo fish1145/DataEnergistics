@@ -31,7 +31,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,8 +97,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final SpriteTexture MACHINE_ICON_TEXTURE = iconTexture("cpu_icon_machine.png");
 
     private final UIElement rows;
-    @Nullable
-    private Scroller.Vertical scrollbar;
+    private Scroller.@Nullable Vertical scrollbar;
     private TrinityCpuListStatus value = TrinityCpuListStatus.EMPTY;
     private IntConsumer cpuSelection = ignored -> {};
     private int firstVisibleIndex;

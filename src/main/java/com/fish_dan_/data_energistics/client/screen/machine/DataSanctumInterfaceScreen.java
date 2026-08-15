@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.menu.DataSanctumInterfaceMenu;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumInterfaceMenu;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;

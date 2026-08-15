@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block.decor;
 
-import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.decor.DollBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

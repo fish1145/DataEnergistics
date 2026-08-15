@@ -14,7 +14,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayo
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate.TrinityAggregatePatternProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.priority.TrinityPriorityProvider;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.storage.TrinityDataCoreStorageProvider;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

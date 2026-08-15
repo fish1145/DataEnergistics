@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.entity.DataNukePrimedEntity;
-import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
-import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
-import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
-import com.fish_dan_.data_energistics.entity.TntConfigurablePrimedEntity;
+import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
+import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEntity;
+import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
+import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;

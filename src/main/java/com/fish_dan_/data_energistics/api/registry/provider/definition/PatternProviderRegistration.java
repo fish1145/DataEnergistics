@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProv
 import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One atomic provider extension declaration.

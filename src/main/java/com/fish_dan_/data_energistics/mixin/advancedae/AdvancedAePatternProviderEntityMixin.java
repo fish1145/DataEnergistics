@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.advancedae;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
-import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderHostAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 

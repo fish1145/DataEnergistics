@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.guideme;
 
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -23,7 +23,7 @@ import guideme.document.interaction.InteractiveElement;
 import guideme.layout.LayoutContext;
 import guideme.render.RenderContext;
 import guideme.siteexport.ResourceExporter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.integration.energy;
 
-import com.fish_dan_.data_energistics.mixin.core.accessor.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.mixin.core.accessor.neoforge.NeoForgeEnergyStorageAccessor;
 
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;

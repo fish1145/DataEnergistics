@@ -1,20 +1,20 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.ConnectionMode;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferInfo;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
-import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
+import com.fish_dan_.data_energistics.client.render.overlay.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
+import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
-import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -35,7 +35,7 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import appeng.client.gui.widgets.Scrollbar;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
