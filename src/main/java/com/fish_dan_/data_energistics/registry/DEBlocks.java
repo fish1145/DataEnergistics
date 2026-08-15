@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataNukeBlock;
@@ -15,6 +14,7 @@ import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.machine.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumReturnPortalBlock;

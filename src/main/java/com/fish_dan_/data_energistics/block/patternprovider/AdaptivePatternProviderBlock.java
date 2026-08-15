@@ -1,7 +1,7 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.patternprovider.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
