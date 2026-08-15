@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core.menu;
+package com.fish_dan_.data_energistics.mixin.core.menu.crafting;
 
 import com.fish_dan_.data_energistics.item.powered.PoweredCraftingEnergyHelper;
 
