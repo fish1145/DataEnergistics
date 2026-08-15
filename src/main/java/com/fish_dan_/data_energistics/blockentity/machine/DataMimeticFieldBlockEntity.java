@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticGeneratedOutput;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
@@ -100,6 +101,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -742,7 +744,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        GeneratedLoot generatedLoot = GeneratedLoot.empty();
+        MimeticGeneratedOutput generatedLoot = MimeticGeneratedOutput.empty();
         int activeSlotCount = getActiveSlotCount();
         for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
@@ -759,7 +761,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        List<ItemStack> generated = new ArrayList<>();
+        MimeticGeneratedOutput.Accumulator generated = MimeticGeneratedOutput.accumulator();
         int activeSlotCount = getActiveSlotCount();
         for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
@@ -768,11 +770,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
 
             for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
-                generated.addAll(generateOreLoot(serverLevel, carrier));
+                generated.addStacks(generateOreLoot(serverLevel, carrier));
             }
         }
 
-        submitGeneratedLoot(generated);
+        submitGeneratedLoot(generated.build());
     }
 
     private void performCropMimeticWork() {
@@ -780,7 +782,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        List<ItemStack> generated = new ArrayList<>();
+        MimeticGeneratedOutput.Accumulator generated = MimeticGeneratedOutput.accumulator();
         int activeSlotCount = getActiveSlotCount();
         for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
@@ -789,11 +791,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
 
             for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
-                generated.addAll(generateCropLoot(serverLevel, carrier));
+                generated.addStacks(generateCropLoot(serverLevel, carrier));
             }
         }
 
-        submitGeneratedLoot(generated);
+        submitGeneratedLoot(generated.build());
     }
 
     private long flushPendingOutput() {
@@ -802,10 +804,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
         if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
             MEStorage networkStorage = getConnectedItemNetwork();
-            return this.pendingOutput.flush(stack -> acceptedAmount(
-                    stack,
-                    insertIntoNetwork(stack, networkStorage),
-                    "AE network"),
+            if (networkStorage == null) {
+                return 0L;
+            }
+            IActionSource actionSource = IActionSource.ofMachine(this);
+            return this.pendingOutput.flushAmounts(
+                    (key, amount) -> insertIntoNetwork(key, amount, networkStorage, actionSource),
                     PENDING_OUTPUT_OFFER_BUDGET);
         }
 
@@ -951,32 +955,20 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return remaining != null && (remaining.isEmpty() || ItemStack.isSameItemSameComponents(offered, remaining) && remaining.getCount() <= offered.getCount());
     }
 
-    private ItemStack insertIntoNetwork(ItemStack stack, @Nullable MEStorage networkStorage) {
-        if (stack.isEmpty() || networkStorage == null) {
-            return stack;
-        }
-
-        AEItemKey key = AEItemKey.of(stack);
-        long inserted;
+    private long insertIntoNetwork(AEItemKey key, long amount, MEStorage networkStorage, IActionSource actionSource) {
         try {
-            inserted = requireValidAcceptedAmount(
-                    networkStorage.insert(key, stack.getCount(), Actionable.MODULATE, IActionSource.ofMachine(this)),
-                    stack.getCount(),
+            return requireValidAcceptedAmount(
+                    networkStorage.insert(key, amount, Actionable.MODULATE, actionSource),
+                    amount,
                     "AE network insertion");
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Failed to insert data mimetic field output {} into the connected AE network; retaining it for retry",
-                    stack,
+                    "Failed to insert data mimetic field output {} x{} into the connected AE network; retaining it for retry",
+                    key,
+                    amount,
                     exception);
-            return stack;
+            return 0L;
         }
-        if (inserted <= 0) {
-            return stack;
-        }
-
-        ItemStack remaining = stack.copy();
-        remaining.shrink((int) inserted);
-        return remaining;
     }
 
     static long requireValidAcceptedAmount(long accepted, long offered, String destination) {
@@ -1014,10 +1006,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return storageService == null ? null : storageService.getInventory();
     }
 
-    private GeneratedLoot generateBiologyLoot(ServerLevel serverLevel, ItemStack carrier) {
+    private MimeticGeneratedOutput generateBiologyLoot(ServerLevel serverLevel, ItemStack carrier) {
         ResourceLocation entityId = BiologyDataCarrierData.getEntityTypeId(carrier);
         if (entityId == null) {
-            return GeneratedLoot.empty();
+            return MimeticGeneratedOutput.empty();
         }
 
         List<ItemStack> fixedOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.MOB, entityId);
@@ -1025,24 +1017,28 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             fixedOutputs = getBuiltInBiologyMimeticOutputs(serverLevel, entityId);
         }
         if (!fixedOutputs.isEmpty() && !hasOverflowDestructionCard()) {
-            return new GeneratedLoot(repeatStacks(fixedOutputs, getBiologyLootRollsPerCycle()), 0);
+            return MimeticGeneratedOutput.accumulator()
+                    .addRepeatedStacks(fixedOutputs, getBiologyLootRollsPerCycle())
+                    .build();
         }
 
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
         if (entityType == null) {
-            return new GeneratedLoot(repeatStacks(fixedOutputs, getBiologyLootRollsPerCycle()), 0);
+            return MimeticGeneratedOutput.accumulator()
+                    .addRepeatedStacks(fixedOutputs, getBiologyLootRollsPerCycle())
+                    .build();
         }
 
         int targetRolls = getBiologyLootRollsPerCycle();
-        List<GeneratedLoot> samples = getBiologyLootSamples(serverLevel, entityId, entityType, fixedOutputs);
+        List<MimeticGeneratedOutput> samples = getBiologyLootSamples(serverLevel, entityId, entityType, fixedOutputs);
         return scaleGeneratedLoot(samples, targetRolls);
     }
 
-    private List<GeneratedLoot> getBiologyLootSamples(
-                                                      ServerLevel serverLevel,
-                                                      ResourceLocation entityId,
-                                                      EntityType<?> entityType,
-                                                      List<ItemStack> fixedOutputs) {
+    private List<MimeticGeneratedOutput> getBiologyLootSamples(
+                                                               ServerLevel serverLevel,
+                                                               ResourceLocation entityId,
+                                                               EntityType<?> entityType,
+                                                               List<ItemStack> fixedOutputs) {
         BiologyLootSampleKey cacheKey = new BiologyLootSampleKey(entityId, !fixedOutputs.isEmpty());
         long gameTime = serverLevel.getGameTime();
         BiologyLootSamples cached = this.biologyLootSamples.get(cacheKey);
@@ -1059,9 +1055,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 fakePlayer.getXRot());
 
         int sampleRolls = Math.min(BIOLOGY_LOOT_SAMPLE_ROLLS, getBiologyLootRollsPerCycle());
-        List<GeneratedLoot> samples = new ArrayList<>(sampleRolls);
+        List<MimeticGeneratedOutput> samples = new ArrayList<>(sampleRolls);
         for (int roll = 0; roll < sampleRolls; roll++) {
-            GeneratedLoot rollLoot = GeneratedLoot.empty();
+            MimeticGeneratedOutput rollLoot = MimeticGeneratedOutput.empty();
             Entity entity = entityType.create(serverLevel);
             if (!(entity instanceof LivingEntity livingEntity)) {
                 samples.add(rollLoot);
@@ -1085,7 +1081,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                     rollLoot = rollLoot.merge(simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer));
                 }
             } else {
-                rollLoot = new GeneratedLoot(List.copyOf(fixedOutputs), 0L);
+                rollLoot = MimeticGeneratedOutput.fromStacks(fixedOutputs);
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     rollLoot = rollLoot.merge(simulateEntityExperience(serverLevel, simulatedEntity, fakePlayer));
                 }
@@ -1095,7 +1091,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
             samples.add(rollLoot);
         }
-        List<GeneratedLoot> refreshed = List.copyOf(samples);
+        List<MimeticGeneratedOutput> refreshed = List.copyOf(samples);
         this.biologyLootSamples.put(cacheKey, new BiologyLootSamples(refreshed, gameTime));
         return refreshed;
     }
@@ -1124,26 +1120,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return List.copyOf(outputs);
     }
 
-    private static List<ItemStack> repeatStacks(List<ItemStack> stacks, int repetitions) {
-        if (stacks.isEmpty() || repetitions <= 0) {
-            return List.of();
-        }
-
-        List<ItemStack> copies = new ArrayList<>(stacks.size() * repetitions);
-        for (int i = 0; i < repetitions; i++) {
-            addCopies(copies, stacks);
-        }
-        return List.copyOf(copies);
-    }
-
-    private static void addCopies(List<ItemStack> target, List<ItemStack> stacks) {
-        for (ItemStack stack : stacks) {
-            if (!stack.isEmpty()) {
-                target.add(stack.copy());
-            }
-        }
-    }
-
     /**
      * Scales sampled biology rolls to the configured work-cycle count while retaining each sample's output shape.
      *
@@ -1151,19 +1127,19 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
      * @param targetRolls configured number of logical rolls in the work cycle
      * @return scaled item and experience output
      */
-    private static GeneratedLoot scaleGeneratedLoot(List<GeneratedLoot> samples, int targetRolls) {
+    private static MimeticGeneratedOutput scaleGeneratedLoot(List<MimeticGeneratedOutput> samples, int targetRolls) {
         if (samples.isEmpty() || targetRolls <= 0) {
-            return GeneratedLoot.empty();
+            return MimeticGeneratedOutput.empty();
         }
 
         int baseRepetitions = targetRolls / samples.size();
         int remainder = targetRolls % samples.size();
-        GeneratedLoot scaled = GeneratedLoot.empty();
+        MimeticGeneratedOutput.Accumulator scaled = MimeticGeneratedOutput.accumulator();
         for (int sample = 0; sample < samples.size(); sample++) {
             int repetitions = baseRepetitions + (sample < remainder ? 1 : 0);
-            scaled = scaled.merge(samples.get(sample).repeat(repetitions));
+            scaled.add(samples.get(sample).repeat(repetitions));
         }
-        return scaled;
+        return scaled.build();
     }
 
     private List<LivingEntity> collectSimulatedLivingEntities(LivingEntity rootEntity) {
@@ -1190,7 +1166,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    static GeneratedLoot simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
+    static MimeticGeneratedOutput simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
         int experience = Math.max(0, livingEntity.getExperienceReward(serverLevel, fakePlayer));
         SimulatedDeathDrops captured = new SimulatedDeathDrops(livingEntity);
         SIMULATED_DEATH_DROPS.set(captured);
@@ -1203,7 +1179,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         if (livingEntity instanceof Witch) {
             captured.stacks().add(new ItemStack(Items.GLOWSTONE_DUST));
         }
-        return new GeneratedLoot(List.copyOf(captured.stacks()), experience);
+        return MimeticGeneratedOutput.fromStacks(captured.stacks(), experience);
     }
 
     public static void captureSimulatedDeathDrops(LivingDropsEvent event) {
@@ -1233,9 +1209,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         event.setCanceled(true);
     }
 
-    private GeneratedLoot simulateEntityExperience(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
+    private MimeticGeneratedOutput simulateEntityExperience(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
         int experience = Math.max(0, livingEntity.getExperienceReward(serverLevel, fakePlayer));
-        return new GeneratedLoot(List.of(), experience);
+        return MimeticGeneratedOutput.fromStacks(List.of(), experience);
     }
 
     private List<ItemStack> generateOreLoot(ServerLevel serverLevel, ItemStack carrier) {
@@ -1390,20 +1366,16 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return block.defaultBlockState();
     }
 
-    private void submitGeneratedLoot(List<ItemStack> generated) {
-        submitGeneratedLoot(new GeneratedLoot(generated, 0));
-    }
-
-    private void submitGeneratedLoot(GeneratedLoot generated) {
+    private void submitGeneratedLoot(MimeticGeneratedOutput generated) {
         if (hasOverflowDestructionCard()) {
             convertGeneratedLootToDataFlow(generated);
             return;
         }
 
-        submitGeneratedItems(generated.stacks());
+        submitGeneratedItems(generated.items());
     }
 
-    private void submitGeneratedItems(List<ItemStack> generated) {
+    private void submitGeneratedItems(Map<AEItemKey, Long> generated) {
         if (generated.isEmpty()) {
             return;
         }
@@ -1414,45 +1386,39 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         appendPendingOutput(generated);
     }
 
-    private void submitGeneratedItemsToNetwork(List<ItemStack> generated) {
+    private void submitGeneratedItemsToNetwork(Map<AEItemKey, Long> generated) {
         MEStorage networkStorage = getConnectedItemNetwork();
         if (networkStorage == null) {
             appendPendingOutput(generated);
             return;
         }
+        IActionSource actionSource = IActionSource.ofMachine(this);
 
-        if (!canNetworkAcceptAll(generated, networkStorage)) {
+        if (!canNetworkAcceptAll(generated, networkStorage, actionSource)) {
             appendPendingOutput(generated);
             return;
         }
 
-        List<ItemStack> remaining = getNetworkInsertRemainders(generated, networkStorage);
+        Map<AEItemKey, Long> remaining = getNetworkInsertRemainders(generated, networkStorage, actionSource);
         if (!remaining.isEmpty()) {
             appendPendingOutput(remaining);
         }
     }
 
-    private void appendPendingOutput(List<ItemStack> stacks) {
-        this.pendingOutput.append(stacks);
+    private void appendPendingOutput(Map<AEItemKey, Long> amounts) {
+        this.pendingOutput.appendAmounts(amounts);
         this.pendingOutputFlushCooldown = 0;
     }
 
-    private boolean canNetworkAcceptAll(List<ItemStack> stacks, MEStorage networkStorage) {
-        Map<AEItemKey, Long> requiredAmounts = new HashMap<>();
-        for (ItemStack stack : stacks) {
-            if (stack.isEmpty()) {
-                continue;
-            }
-
-            AEItemKey key = AEItemKey.of(stack);
-            requiredAmounts.merge(key, (long) stack.getCount(), DataMimeticFieldBlockEntity::saturatedAdd);
-        }
-
-        for (Map.Entry<AEItemKey, Long> entry : requiredAmounts.entrySet()) {
+    private boolean canNetworkAcceptAll(
+                                        Map<AEItemKey, Long> amounts,
+                                        MEStorage networkStorage,
+                                        IActionSource actionSource) {
+        for (Map.Entry<AEItemKey, Long> entry : amounts.entrySet()) {
             long accepted;
             try {
                 accepted = requireValidAcceptedAmount(
-                        networkStorage.insert(entry.getKey(), entry.getValue(), Actionable.SIMULATE, IActionSource.ofMachine(this)),
+                        networkStorage.insert(entry.getKey(), entry.getValue(), Actionable.SIMULATE, actionSource),
                         entry.getValue(),
                         "AE network simulation");
             } catch (RuntimeException exception) {
@@ -1470,24 +1436,24 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         return true;
     }
 
-    private List<ItemStack> getNetworkInsertRemainders(List<ItemStack> stacks, @Nullable MEStorage networkStorage) {
-        List<ItemStack> remaining = new ArrayList<>();
-        for (ItemStack stack : stacks) {
-            if (stack.isEmpty()) {
-                continue;
-            }
-
-            ItemStack networkRemaining = insertIntoNetwork(stack, networkStorage);
-            if (!networkRemaining.isEmpty()) {
-                remaining.add(networkRemaining);
+    private Map<AEItemKey, Long> getNetworkInsertRemainders(
+                                                            Map<AEItemKey, Long> amounts,
+                                                            MEStorage networkStorage,
+                                                            IActionSource actionSource) {
+        LinkedHashMap<AEItemKey, Long> remaining = new LinkedHashMap<>();
+        for (Map.Entry<AEItemKey, Long> entry : amounts.entrySet()) {
+            long accepted = insertIntoNetwork(entry.getKey(), entry.getValue(), networkStorage, actionSource);
+            long remainder = entry.getValue() - accepted;
+            if (remainder > 0L) {
+                remaining.put(entry.getKey(), remainder);
             }
         }
         return remaining;
     }
 
-    private void convertGeneratedLootToDataFlow(GeneratedLoot generated) {
+    private void convertGeneratedLootToDataFlow(MimeticGeneratedOutput generated) {
         long amount = saturatedAdd(
-                getConvertedItemDataFlow(generated.stacks()),
+                saturatedMultiply(generated.itemAmount(), DATA_FLOW_PER_CONVERTED_ITEM),
                 saturatedMultiply(Math.max(0L, generated.experience()), DATA_FLOW_PER_CONVERTED_EXPERIENCE));
         if (amount <= 0) {
             return;
@@ -1498,17 +1464,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         if (remaining > 0) {
             insertDataFlowIntoKeyInput(remaining);
         }
-    }
-
-    private long getConvertedItemDataFlow(List<ItemStack> stacks) {
-        long amount = 0L;
-        for (ItemStack stack : stacks) {
-            if (stack.isEmpty()) {
-                continue;
-            }
-            amount = saturatedAdd(amount, saturatedMultiply(stack.getCount(), DATA_FLOW_PER_CONVERTED_ITEM));
-        }
-        return amount;
     }
 
     private long insertDataFlowIntoNetwork(long amount) {
@@ -1970,38 +1925,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     /**
      * Caches sampled biology results until the next refresh timestamp.
      */
-    private record BiologyLootSamples(List<GeneratedLoot> samples, long refreshedAt) {}
-
-    /**
-     * Captures the item and experience output of one or more simulated loot rolls.
-     *
-     * @param stacks     generated item stacks
-     * @param experience generated experience amount
-     */
-    record GeneratedLoot(List<ItemStack> stacks, long experience) {
-
-        private static GeneratedLoot empty() {
-            return new GeneratedLoot(List.of(), 0L);
-        }
-
-        private GeneratedLoot merge(GeneratedLoot other) {
-            if (this.stacks.isEmpty() && other.stacks.isEmpty()) {
-                return new GeneratedLoot(List.of(), saturatedAdd(this.experience, other.experience));
-            }
-
-            ArrayList<ItemStack> mergedStacks = new ArrayList<>(this.stacks.size() + other.stacks.size());
-            mergedStacks.addAll(this.stacks);
-            mergedStacks.addAll(other.stacks);
-            return new GeneratedLoot(mergedStacks, saturatedAdd(this.experience, other.experience));
-        }
-
-        private GeneratedLoot repeat(int repetitions) {
-            if (repetitions <= 0) {
-                return empty();
-            }
-            return new GeneratedLoot(repeatStacks(this.stacks, repetitions), saturatedMultiply(this.experience, repetitions));
-        }
-    }
+    private record BiologyLootSamples(List<MimeticGeneratedOutput> samples, long refreshedAt) {}
 
     private static final class SimulatedDeathDrops {
 
