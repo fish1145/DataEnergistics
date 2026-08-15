@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.world;
+package com.fish_dan_.data_energistics.world.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;

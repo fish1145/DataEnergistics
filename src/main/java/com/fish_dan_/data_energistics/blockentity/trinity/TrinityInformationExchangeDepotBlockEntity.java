@@ -40,7 +40,7 @@ import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
-import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
+import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

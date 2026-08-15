@@ -72,7 +72,7 @@ import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
-import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
+import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
