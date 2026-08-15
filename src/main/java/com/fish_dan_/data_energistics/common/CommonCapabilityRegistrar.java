@@ -41,6 +41,10 @@ final class CommonCapabilityRegistrar {
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.TUNING_FORK_BASE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
