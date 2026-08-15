@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
 import net.minecraft.client.Minecraft;

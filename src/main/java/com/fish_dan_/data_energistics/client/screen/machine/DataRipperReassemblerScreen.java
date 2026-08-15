@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;

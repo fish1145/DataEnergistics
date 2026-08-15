@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.emi.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.xei.ingredient.DataResourceKey;
 
