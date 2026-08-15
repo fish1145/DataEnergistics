@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.entity;
+package com.fish_dan_.data_energistics.entity.explosive;
 
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.FlatteningTnt;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;

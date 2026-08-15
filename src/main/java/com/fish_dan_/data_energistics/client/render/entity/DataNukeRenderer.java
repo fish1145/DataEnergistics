@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
-import com.fish_dan_.data_energistics.entity.DataNukePrimedEntity;
+import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;

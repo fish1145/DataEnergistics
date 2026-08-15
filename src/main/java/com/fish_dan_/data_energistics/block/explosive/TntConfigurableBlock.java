@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block.explosive;
 
-import com.fish_dan_.data_energistics.entity.TntConfigurablePrimedEntity;
+import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
