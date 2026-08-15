@@ -42,11 +42,10 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String INPUT_MODE_LABEL_ID = INPUT_MODE_ID + "_label";
     private static final String STORAGE_MODE_LABEL_ID = STORAGE_MODE_ID + "_label";
     private static final String OUTPUT_MODE_LABEL_ID = OUTPUT_MODE_ID + "_label";
-    private static final String MIGRATION_PANEL_ID = "trinity_information_exchange_depot_migration";
-    private static final String MIGRATION_TITLE_ID = MIGRATION_PANEL_ID + "_title";
-    private static final String MIGRATION_STATE_ID = MIGRATION_PANEL_ID + "_state";
-    private static final String MIGRATION_PROGRESS_ID = MIGRATION_PANEL_ID + "_progress";
-    private static final String MIGRATION_PROGRESS_TRACK_ID = MIGRATION_PANEL_ID + "_track";
+    private static final String MIGRATION_ID = "trinity_information_exchange_depot_migration";
+    private static final String MIGRATION_TITLE_ID = MIGRATION_ID + "_title";
+    private static final String MIGRATION_STATE_ID = MIGRATION_ID + "_state";
+    private static final String MIGRATION_PROGRESS_TRACK_ID = MIGRATION_ID + "_track";
     private static final String PERFORMANCE_PANEL_ID = "trinity_information_exchange_depot_performance";
     private static final String PERFORMANCE_TITLE_ID = PERFORMANCE_PANEL_ID + "_title";
     private static final String EXCHANGE_TICK_ID = PERFORMANCE_PANEL_ID + "_exchange_tick";
@@ -244,8 +243,8 @@ public final class TrinityInformationExchangeDepotUi {
     private static final class TelemetryArea {
 
         private final TrinityPatternProgressBar progressBar;
+        private final UIElement progressHost;
         private final Label state;
-        private final Label progress;
         private final Label exchangeTick;
         private final Label coreTick;
         private final Label migrationTick;
@@ -260,27 +259,26 @@ public final class TrinityInformationExchangeDepotUi {
 
         private TelemetryArea(
                               TrinityPatternProgressBar progressBar,
+                              UIElement progressHost,
                               Label state,
-                              Label progress,
                               Label exchangeTick,
                               Label coreTick,
                               Label migrationTick) {
             this.progressBar = progressBar;
+            this.progressHost = progressHost;
             this.state = state;
-            this.progress = progress;
             this.exchangeTick = exchangeTick;
             this.coreTick = coreTick;
             this.migrationTick = migrationTick;
         }
 
         private static TelemetryArea bind(UIElement content) {
-            UIElement migrationPanel = Layout.requireChild(
-                    content, MIGRATION_PANEL_ID, UIElement.class, "migration panel");
-            Layout.requireChild(migrationPanel, MIGRATION_TITLE_ID, Label.class, "migration title");
-            Label state = Layout.requireChild(migrationPanel, MIGRATION_STATE_ID, Label.class, "migration state");
-            Label progress = Layout.requireChild(migrationPanel, MIGRATION_PROGRESS_ID, Label.class, "migration progress");
+            Layout.requireChild(content, MIGRATION_TITLE_ID, Label.class, "migration title");
+            Label state = Layout.requireChild(content, MIGRATION_STATE_ID, Label.class, "migration state");
             UIElement progressHost = Layout.requireChild(
-                    migrationPanel, MIGRATION_PROGRESS_TRACK_ID, UIElement.class, "migration progress track");
+                    content, MIGRATION_PROGRESS_TRACK_ID, UIElement.class, "migration progress track");
+            progressHost.setAllowHitTest(true);
+            progressHost.setOverflowVisible(false);
             progressHost.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
             TrinityPatternProgressBar progressBar = TrinityPatternProgressBar.horizontal(
                     MIGRATION_PROGRESS_TRACK_ID + "_live");
@@ -299,7 +297,7 @@ public final class TrinityInformationExchangeDepotUi {
                     performancePanel, CORE_TICK_ID + "_value", Label.class, "core tick value");
             Label migrationTick = Layout.requireChild(
                     performancePanel, MIGRATION_TICK_ID + "_value", Label.class, "migration tick value");
-            return new TelemetryArea(progressBar, state, progress, exchangeTick, coreTick, migrationTick);
+            return new TelemetryArea(progressBar, progressHost, state, exchangeTick, coreTick, migrationTick);
         }
 
         private void bind(TrinityInformationExchangeDepotMenu menu, UIElement tickSource) {
@@ -319,7 +317,8 @@ public final class TrinityInformationExchangeDepotUi {
                 this.completed = nextCompleted;
                 this.total = nextTotal;
                 this.state.setText(maintenanceState(operation, stage));
-                this.progress.setText(maintenanceProgress(stage, nextCompleted, nextTotal));
+                Component progressTooltip = maintenanceProgress(stage, nextCompleted, nextTotal);
+                this.progressHost.style(style -> style.tooltips(progressTooltip));
                 if (operation == Operation.IDLE) {
                     this.progressBar.clearProgress();
                 } else {
