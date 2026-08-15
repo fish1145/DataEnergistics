@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.accessor;
+package com.fish_dan_.data_energistics.accessor.crafting;
 
 /**
  * Exposes the elapsed time captured while AE2 calculates a native crafting plan.
