@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.render.DataMeteoriteCompassBakedModel;
-import com.fish_dan_.data_energistics.client.render.MeVacuumBakedModel;
-import com.fish_dan_.data_energistics.client.render.OrderPackageBakedModel;
-import com.fish_dan_.data_energistics.client.render.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataSanctumRenderer;
+import com.fish_dan_.data_energistics.client.render.item.DataMeteoriteCompassBakedModel;
+import com.fish_dan_.data_energistics.client.render.item.MeVacuumBakedModel;
+import com.fish_dan_.data_energistics.client.render.item.OrderPackageBakedModel;
+import com.fish_dan_.data_energistics.client.render.item.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.registry.DEStorageCells;
 
 import net.minecraft.client.resources.model.BakedModel;

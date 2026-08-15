@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.render;
+package com.fish_dan_.data_energistics.client.render.item;
 
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.item.ItemDisplayContext;
