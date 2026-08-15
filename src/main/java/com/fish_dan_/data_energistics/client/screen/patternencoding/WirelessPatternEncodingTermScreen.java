@@ -172,6 +172,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     @Override
     public void containerTick() {
         super.containerTick();
+        PatternEncodingPreferencesClient.flushDeferredSnapshot(this.menu);
         this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
