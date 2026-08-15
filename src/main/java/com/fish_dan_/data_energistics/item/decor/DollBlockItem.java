@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.item;
+package com.fish_dan_.data_energistics.item.decor;
 
 import com.fish_dan_.data_energistics.block.decor.DollVariant;
 
