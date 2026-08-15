@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.TrinityServerTickMetrics;
+import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
-import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.world.DataMeteoriteCompassTargetInvalidation;
 import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 

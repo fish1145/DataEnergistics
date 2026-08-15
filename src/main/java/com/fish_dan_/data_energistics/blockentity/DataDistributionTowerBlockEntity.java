@@ -32,6 +32,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateG
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetDisplayResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerTargetSummaryResolver;
 import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper;
+import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
@@ -48,7 +49,6 @@ import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorSe
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
