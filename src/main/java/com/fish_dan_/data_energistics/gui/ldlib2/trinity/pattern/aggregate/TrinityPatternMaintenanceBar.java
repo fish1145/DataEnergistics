@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-/** Displays capacity or server-authoritative maintenance progress without changing the authored window geometry. */
+/** Displays capacity or server-authoritative maintenance progress inside the authored status-track host. */
 final class TrinityPatternMaintenanceBar extends BindableUIElement<TrinityPatternMaintenanceSnapshot> {
 
     private static final int WIDTH = 10;
@@ -28,8 +28,8 @@ final class TrinityPatternMaintenanceBar extends BindableUIElement<TrinityPatter
         setId(id);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(3)
-                .top(15)
+                .left(0)
+                .top(0)
                 .width(WIDTH)
                 .height(HEIGHT));
 

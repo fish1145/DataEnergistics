@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 
@@ -24,8 +25,9 @@ final class TrinityAggregatePatternLayout {
     static final String REFUND_RETAINED_ID = WINDOW_ID + "_refund_retained";
     static final String TITLE_ID = WINDOW_ID + "_title";
     static final String MAINTENANCE_ID = WINDOW_ID + "_maintenance";
+    static final String MAINTENANCE_HOST_ID = MAINTENANCE_ID + "_host";
 
-    private static final int AUTHORED_CHILD_COUNT = 8;
+    private static final int AUTHORED_CHILD_COUNT = 10;
 
     private TrinityAggregatePatternLayout() {}
 
@@ -51,6 +53,10 @@ final class TrinityAggregatePatternLayout {
         Button refundPatterns = wrappedButton(children, 5, REFUND_PATTERNS_ID, "refund patterns");
         Button migrate = wrappedButton(children, 6, MIGRATE_ID, "migrate");
         Button refundRetained = wrappedButton(children, 7, REFUND_RETAINED_ID, "refund retained materials");
+        Label title = child(children, 8, Label.class, "title");
+        title.setId(TITLE_ID);
+        UIElement maintenanceHost = child(children, 9, UIElement.class, "maintenance host");
+        maintenanceHost.setId(MAINTENANCE_HOST_ID);
         return new Controls(
                 content,
                 scrollbar,
@@ -60,7 +66,9 @@ final class TrinityAggregatePatternLayout {
                 priority,
                 refundPatterns,
                 migrate,
-                refundRetained);
+                refundRetained,
+                title,
+                maintenanceHost);
     }
 
     private static Button wrappedButton(List<UIElement> rootChildren, int index, String id, String role) {
@@ -93,5 +101,7 @@ final class TrinityAggregatePatternLayout {
                     Button priority,
                     Button refundPatterns,
                     Button migrate,
-                    Button refundRetained) {}
+                    Button refundRetained,
+                    Label title,
+                    UIElement maintenanceHost) {}
 }

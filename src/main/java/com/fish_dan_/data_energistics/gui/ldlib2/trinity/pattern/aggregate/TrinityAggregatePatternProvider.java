@@ -14,9 +14,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
@@ -72,7 +71,8 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
         HostSubUiRoot root = context.createRoot();
         TrinityUiNbtLayouts.init("pattern", root);
         TrinityAggregatePatternLayout.Controls controls = TrinityAggregatePatternLayout.bind(root);
-        root.addChild(createTitle());
+        controls.title().setText(Component.translatable("screen.data_energistics.trinity_data_core.pattern.title"));
+        controls.title().setAllowHitTest(false);
 
         TrinityAggregatePatternSlots patterns = new TrinityAggregatePatternSlots(
                 TrinityAggregatePatternLayout.WINDOW_ID + "_slots",
@@ -89,7 +89,8 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                 TrinityAggregatePatternLayout.MAINTENANCE_ID,
                 active -> setMaintenanceActive(controls, patterns, active));
         maintenanceBar.bindDataSource(this.maintenance);
-        root.addChild(maintenanceBar);
+        controls.maintenanceHost().style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        controls.maintenanceHost().addChild(maintenanceBar);
 
         bindButton(controls.close(), Component.translatable("gui.close"), context::requestClose);
         bindButton(
@@ -110,20 +111,6 @@ public final class TrinityAggregatePatternProvider implements HostSubUiProvider 
                 Component.translatable("button.data_energistics.trinity_data_core.pattern_migrate"),
                 () -> this.migratePatterns.accept(context.generation()));
         return new HostSubUi(root, root);
-    }
-
-    private static Label createTitle() {
-        Label title = new Label();
-        title.setId(TrinityAggregatePatternLayout.TITLE_ID);
-        title.setText(Component.translatable("screen.data_energistics.trinity_data_core.pattern.title"));
-        title.setAllowHitTest(false);
-        title.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(12)
-                .top(3)
-                .width(64)
-                .height(8));
-        return title;
     }
 
     private static void bindButton(Button button, Component tooltip, Runnable action) {
