@@ -763,6 +763,13 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public void dataEnergistics$sendDataRipperTransferMetadataAction(@Nullable String serializedMetadata) {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_DATA_RIPPER_TRANSFER_METADATA, serializedMetadata);
+        }
+    }
+
+    @Override
     public void dataEnergistics$sendTransferFluidInputsAction(@Nullable String serializedFluidInputs) {
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_INPUTS, serializedFluidInputs);
@@ -848,6 +855,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_OUTPUT, String.class,
                 serializedKeyOutput -> PatternEncodingSourceHelper.applyTransferKeyOutputAction(
                         (PatternEncodingTermMenu) (Object) this, serializedKeyOutput));
+        registerClientAction(PatternEncodingSourceHelper.ACTION_SET_DATA_RIPPER_TRANSFER_METADATA, String.class,
+                serializedMetadata -> PatternEncodingSourceHelper.applyDataRipperTransferMetadataAction(
+                        (PatternEncodingTermMenu) (Object) this, serializedMetadata));
         registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_INPUTS, String.class,
                 serializedFluidInputs -> PatternEncodingSourceHelper.applyTransferFluidInputsAction(
                         (PatternEncodingTermMenu) (Object) this, serializedFluidInputs));
@@ -1124,28 +1134,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     @Nullable
     private IGridNode dataEnergistics$tryResolveGridNode() {
-        try {
-            IGridNode hostNode = this.getGridNode();
-            if (hostNode != null) {
-                return hostNode;
-            }
-        } catch (NullPointerException exception) {
-            Data_Energistics.LOGGER.debug(
-                    "Pattern terminal grid node is not initialized yet; wireless hosts initialize after the base menu",
-                    exception);
+        if (this.getHost() instanceof IActionHost actionHost) {
+            return actionHost.getActionableNode();
         }
 
-        try {
-            if (this.getHost() instanceof IActionHost actionHost) {
-                return actionHost.getActionableNode();
-            }
-        } catch (NullPointerException exception) {
-            Data_Energistics.LOGGER.debug(
-                    "Pattern terminal action host is not initialized yet; provider sync will retry after construction",
-                    exception);
-        }
-
-        return null;
+        return this.getGridNode();
     }
 
     @Unique

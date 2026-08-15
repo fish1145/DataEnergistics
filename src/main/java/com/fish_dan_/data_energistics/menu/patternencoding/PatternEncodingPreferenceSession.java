@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import net.minecraft.resources.ResourceLocation;
 
+import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 import java.util.IdentityHashMap;
@@ -31,6 +32,9 @@ public final class PatternEncodingPreferenceSession {
     private List<ResourceLocation> viewerWorkstationIds = List.of();
     @Nullable
     private ResourceLocation confirmedWorkstation;
+    @Nullable
+    private EncodingMode deferredSnapshotMode;
+    private boolean deferredSnapshotWaitsForTick;
     private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
 
     private PatternEncodingPreferenceSession() {}
@@ -50,7 +54,10 @@ public final class PatternEncodingPreferenceSession {
     public static void clearForMenu(@Nullable Object menu) {
         if (menu != null) {
             synchronized (SESSIONS) {
-                SESSIONS.remove(menu);
+                PatternEncodingPreferenceSession session = SESSIONS.remove(menu);
+                if (session != null) {
+                    session.clear();
+                }
             }
         }
     }
@@ -133,6 +140,33 @@ public final class PatternEncodingPreferenceSession {
         this.rankingContext = context;
         this.viewerWorkstationIds = canonicalWorkstations;
         incrementRevision();
+    }
+
+    /**
+     * Defers a transfer-generated client snapshot until the menu has synchronized to the transfer's target mode.
+     */
+    public void deferSnapshotUntil(EncodingMode expectedMode) {
+        this.deferredSnapshotMode = Objects.requireNonNull(expectedMode, "Expected menu mode cannot be null");
+        this.deferredSnapshotWaitsForTick = true;
+    }
+
+    /**
+     * Consumes one deferred snapshot after at least one client tick and only when the menu reached its expected mode.
+     */
+    public boolean consumeDeferredSnapshotIfReady(EncodingMode currentMode) {
+        Objects.requireNonNull(currentMode, "Current menu mode cannot be null");
+        if (this.deferredSnapshotMode == null) {
+            return false;
+        }
+        if (this.deferredSnapshotWaitsForTick) {
+            this.deferredSnapshotWaitsForTick = false;
+            return false;
+        }
+        if (this.deferredSnapshotMode != currentMode) {
+            return false;
+        }
+        this.deferredSnapshotMode = null;
+        return true;
     }
 
     /**
@@ -229,6 +263,8 @@ public final class PatternEncodingPreferenceSession {
         this.rankingContext = null;
         this.viewerWorkstationIds = List.of();
         this.confirmedWorkstation = null;
+        this.deferredSnapshotMode = null;
+        this.deferredSnapshotWaitsForTick = false;
         this.leafCountsByContext.clear();
         this.nextOutgoingSequence = 0L;
         this.lastAcknowledgedSequence = 0L;

@@ -136,6 +136,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
+    private boolean suppressAe2DefaultInventorySerialization;
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     @Getter
@@ -384,7 +385,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public InternalInventory getInternalInventory() {
-        return this.storage;
+        return this.suppressAe2DefaultInventorySerialization ? InternalInventory.empty() : this.storage;
     }
 
     @Override
@@ -440,7 +441,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
+        boolean previousSuppression = this.suppressAe2DefaultInventorySerialization;
+        this.suppressAe2DefaultInventorySerialization = true;
+        try {
+            super.saveAdditional(data, registries);
+        } finally {
+            this.suppressAe2DefaultInventorySerialization = previousSuppression;
+        }
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.put(FLUID_INPUT_A_TAG, this.fluidInputTankA.writeToNBT(registries, new CompoundTag()));

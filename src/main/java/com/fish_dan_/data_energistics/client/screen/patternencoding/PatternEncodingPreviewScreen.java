@@ -591,6 +591,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void containerTick() {
         super.containerTick();
+        PatternEncodingPreferencesClient.flushDeferredSnapshot(this.menu);
         this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
