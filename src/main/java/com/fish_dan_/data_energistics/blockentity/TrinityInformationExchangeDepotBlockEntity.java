@@ -34,9 +34,9 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;

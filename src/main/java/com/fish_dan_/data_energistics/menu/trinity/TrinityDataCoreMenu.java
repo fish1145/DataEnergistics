@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;

@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenuHost;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

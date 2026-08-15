@@ -66,8 +66,8 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMigra
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreCraftingStatus;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;

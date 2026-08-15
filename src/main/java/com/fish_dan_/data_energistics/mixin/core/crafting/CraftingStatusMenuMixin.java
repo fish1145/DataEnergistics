@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;

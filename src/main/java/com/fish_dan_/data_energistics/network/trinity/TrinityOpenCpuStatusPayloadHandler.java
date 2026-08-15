@@ -6,8 +6,8 @@ import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepo
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
-import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
