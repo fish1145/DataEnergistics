@@ -11,11 +11,10 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPattern
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -55,11 +54,15 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String MIGRATION_TICK_ID = PERFORMANCE_PANEL_ID + "_migration_tick";
 
     private static final String TRANSLATION_PREFIX = "gui.data_energistics.trinity_information_exchange_depot.";
+    private static final ResourceLocation PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            Data_Energistics.MODID,
+            "textures/guis/trinity/exchange/panel.png");
     private static final int CONTENT_WIDTH = 187;
     private static final int CONTENT_INSET = 8;
     private static final int PANEL_WIDTH = CONTENT_WIDTH - CONTENT_INSET * 2;
-    private static final int PANEL_BACKGROUND_COLOR = 0x284A4C63;
-    private static final int PANEL_BORDER_COLOR = 0xFF85879B;
+    private static final int TELEMETRY_PANEL_LEFT = 6;
+    private static final int TELEMETRY_PANEL_WIDTH = 175;
+    private static final int TELEMETRY_PANEL_HEIGHT = 42;
     private static final int PROGRESS_TEXT_WIDTH = PANEL_WIDTH - 10;
     private static final int PROGRESS_TRACK_LEFT = 6;
     private static final int PROGRESS_TRACK_TOP = 55;
@@ -151,19 +154,19 @@ public final class TrinityInformationExchangeDepotUi {
         return label;
     }
 
-    private static UIElement panel(String id, int top, int height) {
+    private static UIElement panel(String id, int top) {
         UIElement panel = new UIElement();
         panel.setId(id);
         panel.setOverflowVisible(false);
-        panel.style(style -> style.backgroundTexture(GuiTextureGroup.of(
-                new ColorRectTexture(PANEL_BACKGROUND_COLOR),
-                new ColorBorderTexture(1, PANEL_BORDER_COLOR))));
+        panel.style(style -> style.backgroundTexture(SpriteTexture
+                .of(PANEL_TEXTURE)
+                .setSprite(0, 0, TELEMETRY_PANEL_WIDTH, TELEMETRY_PANEL_HEIGHT)));
         panel.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTENT_INSET)
+                .left(TELEMETRY_PANEL_LEFT)
                 .top(top)
-                .width(PANEL_WIDTH)
-                .height(height));
+                .width(TELEMETRY_PANEL_WIDTH)
+                .height(TELEMETRY_PANEL_HEIGHT));
         return panel;
     }
 
@@ -286,7 +289,7 @@ public final class TrinityInformationExchangeDepotUi {
         private void applyGeometry() {
             this.content.removeChild(this.title);
             this.root.addChild(this.title);
-            place(this.title, 8, 1, 160, 9);
+            place(this.title, 8, 0, 160, 12);
 
             Label modeTitle = text(
                     MODE_TITLE_ID,
@@ -363,7 +366,7 @@ public final class TrinityInformationExchangeDepotUi {
         }
 
         private static TelemetryArea create(UIElement content) {
-            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 41, 40);
+            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 41);
             Label migrationTitle = text(
                     MIGRATION_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "migration.title",
@@ -383,7 +386,7 @@ public final class TrinityInformationExchangeDepotUi {
                     PROGRESS_TRACK_WIDTH,
                     PROGRESS_TRACK_HEIGHT);
 
-            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85, 38);
+            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85);
             Label performanceTitle = text(
                     PERFORMANCE_PANEL_ID + "_title",
                     TRANSLATION_PREFIX + "performance.title",
