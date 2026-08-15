@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.render;
+package com.fish_dan_.data_energistics.client.render.tooltip;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotTooltipComponent;
