@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.client;
+package com.fish_dan_.data_energistics.mixin.client.gui;
 
 import com.fish_dan_.data_energistics.client.screen.Ldlib2AeProtocolScreen;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
