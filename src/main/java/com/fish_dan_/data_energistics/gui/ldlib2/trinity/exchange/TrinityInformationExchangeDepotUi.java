@@ -53,7 +53,7 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String MIGRATION_TICK_ID = PERFORMANCE_PANEL_ID + "_migration_tick";
 
     private static final String TRANSLATION_PREFIX = "gui.data_energistics.trinity_information_exchange_depot.";
-    private static final int PROGRESS_TRACK_WIDTH = 169;
+    private static final int PROGRESS_TRACK_WIDTH = 175;
     private static final int PROGRESS_TRACK_HEIGHT = 10;
     private static final double TICK_BUDGET_NANOS = 50_000_000.0D;
 
@@ -273,8 +273,9 @@ public final class TrinityInformationExchangeDepotUi {
         }
 
         private static TelemetryArea bind(UIElement content) {
-            Layout.requireChild(content, MIGRATION_TITLE_ID, Label.class, "migration title");
-            Label state = Layout.requireChild(content, MIGRATION_STATE_ID, Label.class, "migration state");
+            UIElement migrationPanel = Layout.requireChild(content, MIGRATION_ID, UIElement.class, "migration panel");
+            Layout.requireChild(migrationPanel, MIGRATION_TITLE_ID, Label.class, "migration title");
+            Label state = Layout.requireChild(migrationPanel, MIGRATION_STATE_ID, Label.class, "migration state");
             UIElement progressHost = Layout.requireChild(
                     content, MIGRATION_PROGRESS_TRACK_ID, UIElement.class, "migration progress track");
             progressHost.setAllowHitTest(true);

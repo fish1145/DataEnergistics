@@ -14,7 +14,7 @@ public final class TrinityPatternProgressBar extends UIElement {
 
     private static final String TEXTURE_ROOT = "textures/guis/trinity/progress/";
     private static final int HORIZONTAL_TRACK_TEXTURE_WIDTH = 175;
-    private static final Geometry HORIZONTAL = new Geometry(169, 10, 3, 4, 163, 2, 4, 2);
+    private static final Geometry HORIZONTAL = new Geometry(175, 10, 3, 4, 169, 2, 4, 2);
     private static final Geometry VERTICAL = new Geometry(10, 154, 4, 3, 148, 2, 2, 4);
 
     private final Orientation orientation;
