@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.world;
+package com.fish_dan_.data_energistics.world.meteorite;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 

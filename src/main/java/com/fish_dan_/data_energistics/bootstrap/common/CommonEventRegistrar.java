@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
-import com.fish_dan_.data_energistics.world.DataMeteoriteCompassTargetInvalidation;
+import com.fish_dan_.data_energistics.world.meteorite.DataMeteoriteCompassTargetInvalidation;
 import com.fish_dan_.data_energistics.world.sanctum.DataSanctumPortalLogic;
 
 import net.neoforged.bus.api.EventPriority;
