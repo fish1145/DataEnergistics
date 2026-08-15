@@ -1,11 +1,10 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.item.carrier;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.ItemRule;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable.Slot;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierItemData;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 

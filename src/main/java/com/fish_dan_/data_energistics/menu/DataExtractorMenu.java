@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierData;
+import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierData;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
-import com.fish_dan_.data_energistics.util.CropDataCarrierData;
-import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 
 import net.minecraft.core.Direction;
 import net.minecraft.tags.ItemTags;

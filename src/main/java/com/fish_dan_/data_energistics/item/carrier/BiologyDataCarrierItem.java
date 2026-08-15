@@ -1,9 +1,5 @@
 package com.fish_dan_.data_energistics.item.carrier;
 
-import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
-import com.fish_dan_.data_energistics.util.CropDataCarrierData;
-import com.fish_dan_.data_energistics.util.OreDataCarrierData;
-
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;

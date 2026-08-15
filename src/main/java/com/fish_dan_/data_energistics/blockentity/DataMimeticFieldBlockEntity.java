@@ -8,14 +8,14 @@ import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.item.carrier.CropDataCarrierData;
+import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierData;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
-import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
-import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
