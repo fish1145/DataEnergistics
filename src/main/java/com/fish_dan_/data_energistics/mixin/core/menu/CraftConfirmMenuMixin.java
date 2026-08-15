@@ -13,6 +13,9 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.TrinityCraftingCycleSummaryProjection;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
@@ -22,6 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CalculationStrategy;
@@ -39,7 +43,7 @@ import appeng.menu.me.crafting.CraftingPlanSummary;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -119,6 +123,16 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public long dataEnergistics$planningNanos;
 
+    @GuiSync(799)
+    @Unique
+    public long dataEnergistics$planRevision;
+
+    @Unique
+    private long dataEnergistics$cycleSummaryRevision = -1L;
+
+    @Unique
+    private @Nullable TrinityCraftingCycleSummary dataEnergistics$cycleSummary;
+
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -188,7 +202,9 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                                                    ICraftingPlan job,
                                                                    Operation<CraftingPlanSummary> original) {
         if (job instanceof TrinityCraftingPlan trinityPlan) {
-            return TrinityCraftingPlanSummaryProjection.create(trinityPlan);
+            CraftingPlanSummary planSummary = TrinityCraftingPlanSummaryProjection.create(trinityPlan);
+            dataEnergistics$syncCycleSummary(trinityPlan);
+            return planSummary;
         }
         if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             return diagnosed.ae2FallbackEstimate() ?
@@ -198,19 +214,31 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         return original.call(grid, actionSource, job);
     }
 
+    @Unique
+    private void dataEnergistics$syncCycleSummary(TrinityCraftingPlan plan) {
+        TrinityCraftingCycleSummary summary = TrinityCraftingCycleSummaryProjection.create(plan);
+        ServerPlayer player = (ServerPlayer) this.getPlayer();
+        for (TrinityCraftConfirmCyclePayload payload : TrinityCraftConfirmCyclePayload.batches(
+                this.containerId,
+                this.dataEnergistics$planRevision,
+                summary)) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
+    }
+
     @Inject(method = "planJob", at = @At("HEAD"))
     private void dataEnergistics$beginPlanning(AEKey what,
                                                int amount,
                                                CalculationStrategy strategy,
                                                CallbackInfoReturnable<Boolean> cir) {
         this.dataEnergistics$requestedAmount = amount;
-        dataEnergistics$clearPlanReadiness();
+        dataEnergistics$beginPlanRevision();
     }
 
     @Inject(method = "replan", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$beginReplanning(CallbackInfo ci) {
-        dataEnergistics$clearPlanReadiness();
         if (!this.isServerSide()) {
+            dataEnergistics$clearPlanReadiness();
             return;
         }
 
@@ -222,6 +250,14 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             self.goBack();
         }
         ci.cancel();
+    }
+
+    @Unique
+    private void dataEnergistics$beginPlanRevision() {
+        if (this.isServerSide()) {
+            this.dataEnergistics$planRevision = Math.incrementExact(this.dataEnergistics$planRevision);
+        }
+        dataEnergistics$clearPlanReadiness();
     }
 
     @Inject(method = "startJob", at = @At("HEAD"), cancellable = true)
@@ -249,6 +285,8 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     private void dataEnergistics$clearPlanReadiness() {
         this.dataEnergistics$planReady = false;
         this.dataEnergistics$planningNanos = 0L;
+        this.dataEnergistics$cycleSummaryRevision = -1L;
+        this.dataEnergistics$cycleSummary = null;
         ((CraftConfirmMenu) (Object) this).setPlan(null);
     }
 
@@ -337,7 +375,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
 
         this.result = null;
         ((CraftConfirmMenu) (Object) this).clearError();
-        dataEnergistics$clearPlanReadiness();
+        dataEnergistics$beginPlanRevision();
         this.whatToCraft = what;
         this.dataEnergistics$requestedAmount = amount;
 
@@ -361,6 +399,25 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public boolean data_energistics$isPlanReady() {
         return this.dataEnergistics$planReady;
+    }
+
+    @Override
+    public long data_energistics$planRevision() {
+        return this.dataEnergistics$planRevision;
+    }
+
+    @Override
+    public void data_energistics$receiveCycleSummary(long revision, TrinityCraftingCycleSummary summary) {
+        if (revision != this.dataEnergistics$planRevision) {
+            throw new IllegalArgumentException("Trinity crafting cycle summary revision does not match this menu");
+        }
+        this.dataEnergistics$cycleSummaryRevision = revision;
+        this.dataEnergistics$cycleSummary = summary;
+    }
+
+    @Override
+    public @Nullable TrinityCraftingCycleSummary data_energistics$cycleSummary() {
+        return this.dataEnergistics$cycleSummaryRevision == this.dataEnergistics$planRevision ? this.dataEnergistics$cycleSummary : null;
     }
 
     @Override
