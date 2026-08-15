@@ -1,5 +1,23 @@
 # ChangeLog
 
+## Version [v3.1.1](https://github.com/fish1145/DataEnergistics/compare/v3.1.0-1.21...v3.1.1-1.21)
+### Added
+
+- 更新 1.21.1 开发与模组依赖 by @QiuYe-123 in [#199](https://github.com/fish1145/DataEnergistics/pull/199)
+- 支持编码样板产物动态回收与下游发配 by @QiuYe-123 in [#200](https://github.com/fish1145/DataEnergistics/pull/200)
+
+### Fixed
+
+- 修复数据拟生场动态加速卡进度越界崩溃 by @QiuYe-123 in [#205](https://github.com/fish1145/DataEnergistics/pull/205)
+- 修复编码终端传输与数据重组器持久化 by @QiuYe-123 in [#206](https://github.com/fish1145/DataEnergistics/pull/206)
+- 避免分配塔无效FE快照导致崩溃 by @QiuYe-123 in [#207](https://github.com/fish1145/DataEnergistics/pull/207)
+
+### Changed
+
+- 移除 Universal Terminal 旧兼容 API by @QiuYe-123 in [#203](https://github.com/fish1145/DataEnergistics/pull/203)
+- 分类内部包结构并统一 JSpecify 空性契约 by @QiuYe-123 in [#204](https://github.com/fish1145/DataEnergistics/pull/204)
+
+ 
 ## Version [v3.1.0](https://github.com/fish1145/DataEnergistics/compare/v3.0.3-1.21...v3.1.0-1.21)
 ### Added
 
