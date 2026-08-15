@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.machine;
 
 import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils;

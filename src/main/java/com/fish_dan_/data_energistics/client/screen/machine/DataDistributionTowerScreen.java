@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
 
 import net.minecraft.client.Minecraft;

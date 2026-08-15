@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorSelector;
-import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 

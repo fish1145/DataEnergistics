@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.client.screen.base.TypedOutputSideScreen;
-import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataRipperReassemblerMenu;
 
 /** Data reassembler output configuration backed by the same AE2 sub-screen as the digital storage depot. */
 public final class DataRipperReassemblerOutputSideScreen

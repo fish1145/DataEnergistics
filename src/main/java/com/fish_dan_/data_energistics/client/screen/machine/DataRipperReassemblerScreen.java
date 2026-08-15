@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataRipperReassemblerMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

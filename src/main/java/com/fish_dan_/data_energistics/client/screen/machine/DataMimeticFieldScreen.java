@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataMimeticFieldOutputRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataMimeticFieldMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

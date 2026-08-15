@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
+import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 

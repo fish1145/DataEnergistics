@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
+import com.fish_dan_.data_energistics.menu.machine.DataTeleportAnchorMenu;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
