@@ -1,7 +1,7 @@
 /**
  * Shared Data Energistics utility functions.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.util;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

@@ -1,7 +1,7 @@
 /**
  * Immutable preview materials and strategies that aggregate projected structure cells into item inputs.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.common.multiblock.preview.material;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

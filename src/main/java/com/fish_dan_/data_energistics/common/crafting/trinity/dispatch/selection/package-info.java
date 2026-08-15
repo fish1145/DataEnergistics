@@ -1,7 +1,7 @@
 /**
  * Trinity crafting CPU selection.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

@@ -1,7 +1,7 @@
 /**
  * Direct player-action payloads for tools, depot controls, and the ME vacuum.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.network.action;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

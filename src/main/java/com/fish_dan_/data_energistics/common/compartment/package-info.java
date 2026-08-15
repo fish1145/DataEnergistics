@@ -1,7 +1,7 @@
 /**
  * Compartment storage, filtering, grouping, and multiblock binding contracts.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.common.compartment;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;

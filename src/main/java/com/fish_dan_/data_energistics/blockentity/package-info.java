@@ -1,7 +1,7 @@
 /**
  * Data Energistics block-entity implementations and shared runtime behavior.
  */
-@NotNullByDefault
+@NullMarked
 package com.fish_dan_.data_energistics.blockentity;
 
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jspecify.annotations.NullMarked;
