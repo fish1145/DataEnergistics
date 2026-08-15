@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotAutoExportButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
+import com.fish_dan_.data_energistics.menu.storage.DigitalStorageDepotMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

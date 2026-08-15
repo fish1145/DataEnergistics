@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.storage;
 
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;

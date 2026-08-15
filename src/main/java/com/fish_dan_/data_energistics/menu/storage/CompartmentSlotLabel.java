@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.storage;
 
 /**
  * Marker for optional compartment slots that need a semantic background drawn over their AE2 slot background.

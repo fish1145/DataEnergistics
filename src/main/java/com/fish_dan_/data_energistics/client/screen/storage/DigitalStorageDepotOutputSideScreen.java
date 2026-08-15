@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.storage;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.client.screen.base.TypedOutputSideScreen;
-import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
+import com.fish_dan_.data_energistics.menu.storage.DigitalStorageDepotMenu;
 
 import appeng.blockentity.AEBaseBlockEntity;
 
