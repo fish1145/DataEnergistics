@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.discovery;
 
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 

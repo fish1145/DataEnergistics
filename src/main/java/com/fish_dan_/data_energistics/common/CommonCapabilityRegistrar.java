@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower.topology;
 
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.BoundTargetSummary;
+import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
