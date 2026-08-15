@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticCarrierPlan;
+import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticExternalIoBudget;
 import com.fish_dan_.data_energistics.blockentity.machine.mimetic.MimeticGeneratedOutput;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
@@ -139,6 +140,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private static final int BIOLOGY_LOOT_SAMPLE_REFRESH_INTERVAL_TICKS = 200;
     private static final int PENDING_OUTPUT_FLUSH_INTERVAL_TICKS = 5;
     private static final int PENDING_OUTPUT_OFFER_BUDGET = 64;
+    private static final int MAX_EXTERNAL_IO_OPERATIONS_PER_TICK = 64;
+    private static final long MAX_EXTERNAL_IO_NANOS_PER_TICK = 2_000_000L;
     private static final int UPGRADE_SLOTS = 6;
     private static final long DATA_FLOW_PER_CONVERTED_ITEM = 1L;
     private static final long DATA_FLOW_PER_CONVERTED_EXPERIENCE = 1L;
@@ -174,7 +177,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
-    private final MimeticPendingOutputLedger pendingOutput = new MimeticPendingOutputLedger(this::setChanged);
+    private final MimeticPendingOutputLedger pendingOutput = new MimeticPendingOutputLedger(this::markRuntimePersistenceDirty);
+    private final MimeticExternalIoBudget externalIoBudget = new MimeticExternalIoBudget(MAX_EXTERNAL_IO_OPERATIONS_PER_TICK, MAX_EXTERNAL_IO_NANOS_PER_TICK);
     /**
      * Keeps each component-sensitive item moving independently through bounded container slot attempts.
      */
@@ -193,6 +197,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private int clientActiveSlotCount = BASE_ACTIVE_SLOTS;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
     private boolean syncingKeyMenu;
+    private int runtimeBatchDepth;
+    private boolean runtimePersistenceDirty;
+    private boolean runtimeKeyMenuDirty;
     private GenericStack keyInputStack;
     private int cachedSpeedCardCount = -1;
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
@@ -413,77 +420,84 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private void advanceServerTicks(int tickBudget) {
-        if (this.level == null || this.level.isClientSide()) {
+        Level currentLevel = this.level;
+        if (currentLevel == null || currentLevel.isClientSide()) {
             return;
         }
 
-        updatePowerUsageIfNeeded();
-        int remainingTicks = tickBudget;
-        while (remainingTicks > 0) {
-            if (!this.pendingOutput.isEmpty()) {
-                if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+        this.externalIoBudget.begin(currentLevel.getGameTime());
+        beginRuntimeBatch();
+        try {
+            updatePowerUsageIfNeeded();
+            refillInputsForWork();
+            int remainingTicks = tickBudget;
+            while (remainingTicks > 0) {
+                if (!this.pendingOutput.isEmpty()) {
+                    if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+                        this.pendingOutputFlushCooldown = 0;
+                        resetWorkProgress();
+                        break;
+                    }
+                    if (this.pendingOutputFlushCooldown > 0) {
+                        int pausedTicks = Math.min(remainingTicks, this.pendingOutputFlushCooldown);
+                        this.pendingOutputFlushCooldown -= pausedTicks;
+                        remainingTicks -= pausedTicks;
+                        resetWorkProgress();
+                        continue;
+                    }
+
+                    this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1;
+                    long accepted = flushPendingOutput();
+                    if (!this.pendingOutput.isEmpty()) {
+                        remainingTicks--;
+                        resetWorkProgress();
+                        if (accepted == 0L && remainingTicks > 0) {
+                            skipStalledPendingOutputTicks(remainingTicks);
+                            remainingTicks = 0;
+                        }
+                        continue;
+                    }
+                } else {
                     this.pendingOutputFlushCooldown = 0;
-                    refillInputsForWork();
+                }
+
+                if (this.redstoneControlled && !isReceivingRedstonePower()) {
                     resetWorkProgress();
                     break;
                 }
-                if (this.pendingOutputFlushCooldown > 0) {
-                    int pausedTicks = Math.min(remainingTicks, this.pendingOutputFlushCooldown);
-                    this.pendingOutputFlushCooldown -= pausedTicks;
-                    remainingTicks -= pausedTicks;
-                    refillInputsForWork();
+                if (getActiveCarrierCount() <= 0) {
                     resetWorkProgress();
-                    continue;
+                    break;
+                }
+                if (!hasEnoughDataFlowForWorkCycle()) {
+                    resetWorkProgress();
+                    break;
                 }
 
-                this.pendingOutputFlushCooldown = PENDING_OUTPUT_FLUSH_INTERVAL_TICKS - 1;
-                long accepted = flushPendingOutput();
-                refillInputsForWork();
-                if (!this.pendingOutput.isEmpty()) {
-                    remainingTicks--;
-                    resetWorkProgress();
-                    if (accepted == 0L && remainingTicks > 0) {
-                        skipStalledPendingOutputTicks(remainingTicks);
-                        remainingTicks = 0;
-                    }
-                    continue;
+                int workInterval = computeWorkIntervalTicks();
+                BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
+                        this.workTicks,
+                        workInterval,
+                        remainingTicks);
+                this.workTicks = segment.progress();
+                remainingTicks -= segment.elapsedTicks();
+                if (segment.elapsedTicks() > 0) {
+                    markRuntimePersistenceDirty();
                 }
-            } else {
-                this.pendingOutputFlushCooldown = 0;
-                refillInputsForWork();
-            }
+                if (!segment.reachedBoundary()) {
+                    break;
+                }
+                if (!consumeDataFlowPerWorkCycle()) {
+                    resetWorkProgress();
+                    break;
+                }
 
-            if (this.redstoneControlled && !isReceivingRedstonePower()) {
-                resetWorkProgress();
-                break;
+                performMimeticWork();
             }
-            if (getActiveCarrierCount() <= 0) {
-                resetWorkProgress();
-                break;
-            }
-            if (!hasEnoughDataFlowForWorkCycle()) {
-                resetWorkProgress();
-                break;
-            }
-
-            int workInterval = computeWorkIntervalTicks();
-            BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
-                    this.workTicks,
-                    workInterval,
-                    remainingTicks);
-            this.workTicks = segment.progress();
-            remainingTicks -= segment.elapsedTicks();
-            if (!segment.reachedBoundary()) {
-                break;
-            }
-            if (!consumeDataFlowPerWorkCycle()) {
-                resetWorkProgress();
-                break;
-            }
-
-            performMimeticWork();
+            updateOnlineState();
+        } finally {
+            endRuntimeBatch();
         }
-        updateOnlineState();
     }
 
     private void skipStalledPendingOutputTicks(int skippedTicks) {
@@ -890,7 +904,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 this.pendingOutput,
                 getAdjacentItemHandlers(),
                 this.adjacentInsertionCursors,
-                PENDING_OUTPUT_OFFER_BUDGET);
+                PENDING_OUTPUT_OFFER_BUDGET,
+                this.externalIoBudget);
     }
 
     /**
@@ -900,13 +915,15 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
      * @param adjacentHandlers current handlers keyed by stable block direction
      * @param insertionCursors per-item scan positions retained across ticks
      * @param offerBudget      positive maximum number of real slot attempts
+     * @param externalIoBudget shared real-tick external call allowance
      * @return exact number of items accepted by adjacent handlers
      */
     static long flushIntoAdjacentContainers(
                                             MimeticPendingOutputLedger pendingOutput,
                                             Map<Direction, IItemHandler> adjacentHandlers,
                                             Map<AEItemKey, AdjacentContainerInsertionCursor> insertionCursors,
-                                            int offerBudget) {
+                                            int offerBudget,
+                                            MimeticExternalIoBudget externalIoBudget) {
         if (offerBudget <= 0) {
             throw new IllegalArgumentException("offerBudget must be positive");
         }
@@ -925,7 +942,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 AdjacentContainerInsertionCursor cursor = insertionCursors.computeIfAbsent(key, ignored -> new AdjacentContainerInsertionCursor());
                 return acceptedAmount(
                         stack,
-                        insertIntoNextAdjacentContainerSlot(stack, adjacentHandlers, cursor),
+                        insertIntoNextAdjacentContainerSlot(stack, adjacentHandlers, cursor, externalIoBudget),
                         "adjacent container");
             }, 1);
             totalAccepted = Math.addExact(totalAccepted, accepted);
@@ -945,12 +962,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
      * @param stack            offered component-preserving stack
      * @param adjacentHandlers current handlers keyed by stable block direction
      * @param cursor           per-item scan position
+     * @param externalIoBudget shared real-tick external call allowance
      * @return unconfirmed remainder after the one bounded attempt
      */
     static ItemStack insertIntoNextAdjacentContainerSlot(
                                                          ItemStack stack,
                                                          Map<Direction, IItemHandler> adjacentHandlers,
-                                                         AdjacentContainerInsertionCursor cursor) {
+                                                         AdjacentContainerInsertionCursor cursor,
+                                                         MimeticExternalIoBudget externalIoBudget) {
         if (stack.isEmpty()) {
             return ItemStack.EMPTY;
         }
@@ -964,6 +983,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
 
             int slotCount;
+            if (!externalIoBudget.tryAcquire()) {
+                return stack;
+            }
             try {
                 slotCount = handler.getSlots();
             } catch (RuntimeException exception) {
@@ -988,6 +1010,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             cursor.nextSlots.put(direction, slot == slotCount - 1 ? 0 : slot + 1);
             ItemStack offeredToSlot = stack.copy();
             ItemStack slotRemainder;
+            if (!externalIoBudget.tryAcquire()) {
+                return stack;
+            }
             try {
                 slotRemainder = handler.insertItem(slot, offeredToSlot.copy(), false);
             } catch (RuntimeException exception) {
@@ -1029,6 +1054,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private long insertIntoNetwork(AEItemKey key, long amount, MEStorage networkStorage, IActionSource actionSource) {
+        if (!this.externalIoBudget.tryAcquire()) {
+            return 0L;
+        }
         try {
             return requireValidAcceptedAmount(
                     networkStorage.insert(key, amount, Actionable.MODULATE, actionSource),
@@ -1416,6 +1444,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                                         MEStorage networkStorage,
                                         IActionSource actionSource) {
         for (Map.Entry<AEItemKey, Long> entry : amounts.entrySet()) {
+            if (!this.externalIoBudget.tryAcquire()) {
+                return false;
+            }
             long accepted;
             try {
                 accepted = requireValidAcceptedAmount(
@@ -1473,7 +1504,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         MEStorage networkStorage = getConnectedItemNetwork();
-        if (networkStorage == null) {
+        if (networkStorage == null || !this.externalIoBudget.tryAcquire()) {
             return 0L;
         }
 
@@ -1492,9 +1523,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         this.keyInputStack = new GenericStack(DataFlowKey.of(), stored + accepted);
-        syncKeyMenuFromStack();
-        setChanged();
-        markForClientUpdate();
+        markKeyInputChanged();
         return accepted;
     }
 
@@ -1590,9 +1619,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         long remaining = this.keyInputStack.amount() - required;
         this.keyInputStack = remaining > 0 ? new GenericStack(DataFlowKey.of(), remaining) : null;
-        syncKeyMenuFromStack();
-        setChanged();
-        markForClientUpdate();
+        markKeyInputChanged();
         return true;
     }
 
@@ -1618,6 +1645,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
+        if (!this.externalIoBudget.tryAcquire()) {
+            return;
+        }
         double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
         if (extracted > 0.0D) {
             this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
@@ -1641,6 +1671,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
+        if (!this.externalIoBudget.tryAcquire()) {
+            return;
+        }
         long extracted = inventory.extract(DataFlowKey.of(), missing, Actionable.MODULATE, IActionSource.ofMachine(this));
         if (extracted <= 0) {
             return;
@@ -1648,9 +1681,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
         long updated = stored + extracted;
         this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, updated));
-        syncKeyMenuFromStack();
-        setChanged();
-        markForClientUpdate();
+        markKeyInputChanged();
     }
 
     private GenericStackInv createKeyMenuInventory() {
@@ -1690,8 +1721,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             } else {
                 this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, stack.amount()));
             }
-            saveChanges();
-            markForClientUpdate();
+            markRuntimePersistenceDirty();
         } finally {
             this.syncingKeyMenu = false;
         }
@@ -1730,9 +1760,49 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private void resetWorkProgress() {
         if (this.workTicks != 0) {
             this.workTicks = 0;
-            setChanged();
-            markForClientUpdate();
+            markRuntimePersistenceDirty();
         }
+    }
+
+    private void beginRuntimeBatch() {
+        this.runtimeBatchDepth++;
+    }
+
+    private void endRuntimeBatch() {
+        if (this.runtimeBatchDepth <= 0) {
+            throw new IllegalStateException("Data mimetic field runtime batch was not started");
+        }
+        this.runtimeBatchDepth--;
+        if (this.runtimeBatchDepth > 0) {
+            return;
+        }
+
+        if (this.runtimeKeyMenuDirty) {
+            syncKeyMenuFromStack();
+            this.runtimeKeyMenuDirty = false;
+        }
+        if (this.runtimePersistenceDirty) {
+            saveChanges();
+            this.runtimePersistenceDirty = false;
+        }
+    }
+
+    private void markRuntimePersistenceDirty() {
+        if (this.runtimeBatchDepth > 0) {
+            this.runtimePersistenceDirty = true;
+            return;
+        }
+        saveChanges();
+    }
+
+    private void markKeyInputChanged() {
+        if (this.runtimeBatchDepth > 0) {
+            this.runtimeKeyMenuDirty = true;
+            this.runtimePersistenceDirty = true;
+            return;
+        }
+        syncKeyMenuFromStack();
+        saveChanges();
     }
 
     private final class DataFlowExternalInventory implements GenericInternalInventory {
@@ -1862,9 +1932,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             }
             if (this.batchDepth == 0 && this.batchDirty) {
                 this.batchDirty = false;
-                syncKeyMenuFromStack();
-                setChanged();
-                markForClientUpdate();
+                markKeyInputChanged();
             }
         }
 
@@ -1885,9 +1953,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
                 return;
             }
 
-            syncKeyMenuFromStack();
-            setChanged();
-            markForClientUpdate();
+            markKeyInputChanged();
         }
 
         private boolean isValidSlot(int slot) {
