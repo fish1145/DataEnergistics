@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.menu.patternprovider;
 
 import com.fish_dan_.data_energistics.mixin.core.accessor.AEBaseBlockEntityNameAccessor;
 import com.fish_dan_.data_energistics.mixin.core.accessor.AEBasePartNameAccessor;

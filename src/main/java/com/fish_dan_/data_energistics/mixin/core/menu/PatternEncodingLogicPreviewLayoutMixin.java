@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.menu;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
-import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutHelper;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
