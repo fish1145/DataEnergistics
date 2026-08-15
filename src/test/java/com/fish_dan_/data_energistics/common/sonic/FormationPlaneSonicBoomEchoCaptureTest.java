@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common;
+package com.fish_dan_.data_energistics.common.sonic;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

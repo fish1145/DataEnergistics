@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.util;
+package com.fish_dan_.data_energistics.common.dataripper;
 
 import org.junit.jupiter.api.Test;
 

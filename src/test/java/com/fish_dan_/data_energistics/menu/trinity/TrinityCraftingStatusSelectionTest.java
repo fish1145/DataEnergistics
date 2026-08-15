@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.menu;
+package com.fish_dan_.data_energistics.menu.trinity;
 
 import org.junit.jupiter.api.Test;
 
@@ -6,9 +6,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import static com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState.CURRENT_CPU;
-import static com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState.RETIRED_WORKER;
-import static com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState.STALE_ROUTE;
+import static com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState.CURRENT_CPU;
+import static com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState.RETIRED_WORKER;
+import static com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState.STALE_ROUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;

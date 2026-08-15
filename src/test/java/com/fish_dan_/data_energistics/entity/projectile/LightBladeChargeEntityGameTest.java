@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.entity;
+package com.fish_dan_.data_energistics.entity.projectile;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.DEEntities;
