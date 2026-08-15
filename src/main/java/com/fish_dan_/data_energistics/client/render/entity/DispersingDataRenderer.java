@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
+import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
