@@ -50,6 +50,7 @@ import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorSe
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -154,6 +155,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             AE_TICK_MIN_INTERVAL_TICKS, AE_TICK_MAX_INTERVAL_TICKS, false);
     private static final int CLUSTER_CACHE_TICKS = 10;
     private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
+    private static final int TARGET_ENERGY_SNAPSHOT_FAILURE_LOG_INTERVAL_TICKS = 100;
     private static final int CACHE_CLEANUP_INTERVAL_TICKS = 6000;
     private static final int MAX_ENERGY_STORAGE_VIEWS = 256;
     private static final double BASE_IDLE_POWER_USAGE = 4.0;
@@ -169,6 +171,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final TowerEnergyTransferEngine energyDistributor;
     private final TowerTargetSummaryResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
+    private final Map<TargetEnergyFailureKey, Long> targetEnergySnapshotFailureLogTicks = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long bufferedTransferEnergy;
@@ -874,25 +877,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean canReceive = false;
         boolean hasEnergy = false;
 
-        for (var direction : Direction.values()) {
-            IEnergyStorage storage = getEnergyStorageAt(normalizedPos, direction);
-            if (storage == null) {
+        for (Direction direction : Direction.values()) {
+            TargetEnergySnapshot snapshot = readTargetEnergySnapshot(normalizedPos, direction);
+            if (snapshot == null) {
                 continue;
             }
             hasEnergy = true;
-            stored = saturatingAdd(stored, storage.getEnergyStored());
-            capacity = saturatingAdd(capacity, storage.getMaxEnergyStored());
-            canExtract |= storage.canExtract();
-            canReceive |= canReceiveEnergy(storage);
+            stored = saturatingAdd(stored, snapshot.stored());
+            capacity = saturatingAdd(capacity, snapshot.capacity());
+            canExtract |= snapshot.canExtract();
+            canReceive |= snapshot.canReceive();
         }
 
-        IEnergyStorage internal = getEnergyStorageAt(normalizedPos, null);
-        if (internal != null) {
+        TargetEnergySnapshot internalSnapshot = readTargetEnergySnapshot(normalizedPos, null);
+        if (internalSnapshot != null) {
             hasEnergy = true;
-            stored = saturatingAdd(stored, internal.getEnergyStored());
-            capacity = saturatingAdd(capacity, internal.getMaxEnergyStored());
-            canExtract |= internal.canExtract();
-            canReceive |= canReceiveEnergy(internal);
+            stored = saturatingAdd(stored, internalSnapshot.stored());
+            capacity = saturatingAdd(capacity, internalSnapshot.capacity());
+            canExtract |= internalSnapshot.canExtract();
+            canReceive |= internalSnapshot.canReceive();
         }
 
         boolean hasAeTarget = hasExposedAeNode(normalizedPos);
@@ -910,6 +913,98 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 this.level.dimension().location(),
                 normalizedPos,
                 null);
+    }
+
+    /**
+     * Reads one external FE capability for a display-only target snapshot.
+     *
+     * <p>An invalid or failing third-party capability is omitted from this one display update. Transfer code keeps its
+     * own endpoint resolution and is not affected.</p>
+     */
+    @Nullable
+    private TargetEnergySnapshot readTargetEnergySnapshot(BlockPos targetPos, @Nullable Direction side) {
+        TargetEnergyFailureKey failureKey = new TargetEnergyFailureKey(targetPos, side);
+        IEnergyStorage storage;
+        try {
+            storage = getEnergyStorageAt(targetPos, side);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            logTargetEnergySnapshotFailure(failureKey, "<capability lookup>", "looking up the FE capability", exception);
+            return null;
+        }
+
+        if (storage == null) {
+            this.targetEnergySnapshotFailureLogTicks.remove(failureKey);
+            return null;
+        }
+
+        String storageType = storage.getClass().getName();
+        try {
+            int stored = storage.getEnergyStored();
+            int capacity = storage.getMaxEnergyStored();
+            if (stored < 0 || capacity < stored) {
+                logInvalidTargetEnergySnapshot(failureKey, storageType, stored, capacity);
+                return null;
+            }
+
+            TargetEnergySnapshot snapshot = new TargetEnergySnapshot(
+                    stored, capacity, storage.canExtract(), canReceiveEnergy(storage));
+            this.targetEnergySnapshotFailureLogTicks.remove(failureKey);
+            return snapshot;
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            logTargetEnergySnapshotFailure(failureKey, storageType, "reading the FE snapshot", exception);
+            return null;
+        }
+    }
+
+    private void logInvalidTargetEnergySnapshot(TargetEnergyFailureKey failureKey, String storageType,
+                                                 int stored, int capacity) {
+        ServerLevel level = claimTargetEnergySnapshotFailureLog(failureKey);
+        if (level == null) {
+            return;
+        }
+        LOGGER.error(
+                "Data Distribution Tower at {} in {} skipped invalid FE display snapshot for target {} side {} storage {}: stored={} capacity={}",
+                this.worldPosition,
+                level.dimension().location(),
+                failureKey.targetPos(),
+                failureKey.side(),
+                storageType,
+                stored,
+                capacity);
+    }
+
+    private void logTargetEnergySnapshotFailure(TargetEnergyFailureKey failureKey, String storageType,
+                                                 String operation, Throwable exception) {
+        ServerLevel level = claimTargetEnergySnapshotFailureLog(failureKey);
+        if (level == null) {
+            return;
+        }
+        LOGGER.error(
+                "Data Distribution Tower at {} in {} skipped FE display snapshot for target {} side {} storage {} while {}",
+                this.worldPosition,
+                level.dimension().location(),
+                failureKey.targetPos(),
+                failureKey.side(),
+                storageType,
+                operation,
+                exception);
+    }
+
+    @Nullable
+    private ServerLevel claimTargetEnergySnapshotFailureLog(TargetEnergyFailureKey failureKey) {
+        if (!(this.level instanceof ServerLevel level)) {
+            return null;
+        }
+
+        long gameTime = level.getGameTime();
+        Long lastLogTick = this.targetEnergySnapshotFailureLogTicks.get(failureKey);
+        if (lastLogTick != null && gameTime - lastLogTick < TARGET_ENERGY_SNAPSHOT_FAILURE_LOG_INTERVAL_TICKS) {
+            return null;
+        }
+        this.targetEnergySnapshotFailureLogTicks.put(failureKey, gameTime);
+        return level;
     }
 
     public boolean isNetworkNodeOnline() {
@@ -2789,6 +2884,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
      * Item and label resolved without loading the target chunk.
      */
     private record DeviceDisplay(ResourceLocation itemId, String displayName) {}
+
+    private record TargetEnergySnapshot(int stored, int capacity, boolean canExtract, boolean canReceive) {}
+
+    private record TargetEnergyFailureKey(BlockPos targetPos, @Nullable Direction side) {
+
+        private TargetEnergyFailureKey {
+            targetPos = targetPos.immutable();
+        }
+    }
 
     private record ChunkKey(Object dimension, int x, int z) {
 
