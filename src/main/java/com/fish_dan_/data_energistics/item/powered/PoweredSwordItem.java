@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.effect.RadixLossEffectLogic;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

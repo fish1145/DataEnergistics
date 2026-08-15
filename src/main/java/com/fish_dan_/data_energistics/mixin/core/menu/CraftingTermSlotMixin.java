@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core.menu;
 
-import com.fish_dan_.data_energistics.util.PoweredCraftingEnergyHelper;
+import com.fish_dan_.data_energistics.item.powered.PoweredCraftingEnergyHelper;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;

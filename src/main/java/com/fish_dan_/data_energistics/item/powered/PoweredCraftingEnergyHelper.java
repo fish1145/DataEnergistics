@@ -1,6 +1,4 @@
-package com.fish_dan_.data_energistics.util;
-
-import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
+package com.fish_dan_.data_energistics.item.powered;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
