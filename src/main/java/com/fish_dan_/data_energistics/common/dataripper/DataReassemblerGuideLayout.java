@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common;
+package com.fish_dan_.data_energistics.common.dataripper;
 
 public final class DataReassemblerGuideLayout {
 
