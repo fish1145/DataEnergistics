@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.Finite
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.block.storage.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
-import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
+import com.fish_dan_.data_energistics.bootstrap.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentBindingHandle;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;

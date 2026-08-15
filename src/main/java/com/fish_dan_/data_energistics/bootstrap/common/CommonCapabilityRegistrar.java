@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common;
+package com.fish_dan_.data_energistics.bootstrap.common;
 
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.tower.DataDistributionTowerBlock;
