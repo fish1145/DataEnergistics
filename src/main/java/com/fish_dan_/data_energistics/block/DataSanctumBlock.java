@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
-import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
+import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
 import net.minecraft.core.BlockPos;
