@@ -284,6 +284,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
             this.outputSides.addAll(EnumSet.allOf(Direction.class));
         }
         this.workTicks = Math.max(0, data.getInt(WORK_TICKS_TAG));
+        clampWorkProgressToCurrentInterval();
         this.pendingOutputFlushCooldown = 0;
         this.powerUsageDirty = true;
         this.cachedActiveCarrierCount = 0;
@@ -660,6 +661,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void onUpgradesChanged() {
         this.cachedSpeedCardCount = -1;
+        clampWorkProgressToCurrentInterval();
         markPowerUsageDirty();
         this.saveChanges();
         this.markForClientUpdate();
@@ -1603,6 +1605,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
 
     private int computeWorkIntervalTicks() {
         return Math.max(1, BASE_WORK_INTERVAL_TICKS - getInstalledSpeedCardCount() * 40);
+    }
+
+    private void clampWorkProgressToCurrentInterval() {
+        this.workTicks = Math.min(this.workTicks, computeWorkIntervalTicks() - 1);
     }
 
     private boolean hasEnoughDataFlowForWorkCycle() {
