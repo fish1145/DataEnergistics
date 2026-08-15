@@ -1,10 +1,13 @@
-package com.fish_dan_.data_energistics.mixin.client;
+package com.fish_dan_.data_energistics.mixin.client.crafting;
 
+import com.fish_dan_.data_energistics.client.crafting.confirm.table.TrinityCraftConfirmCycleBarRenderer;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -12,7 +15,9 @@ import net.minecraft.world.entity.player.Inventory;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.me.crafting.CraftConfirmScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.Scrollbar;
 import appeng.menu.me.crafting.CraftConfirmMenu;
+import appeng.menu.me.crafting.CraftingPlanSummary;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Places synchronized Trinity ownership and fallback diagnostics in the confirmation dialog's native text slots.
+ * Places synchronized Trinity metadata in the native dialog and draws cycle membership beneath its material cells.
  */
 @Mixin(CraftConfirmScreen.class)
 public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmMenu> {
@@ -30,12 +35,36 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
     @Final
     private Button start;
 
+    @Shadow
+    @Final
+    private Scrollbar scrollbar;
+
     protected CraftConfirmScreenMixin(
                                       CraftConfirmMenu menu,
                                       Inventory playerInventory,
                                       Component title,
                                       ScreenStyle style) {
         super(menu, playerInventory, title, style);
+    }
+
+    @Inject(method = "drawFG", at = @At("HEAD"))
+    private void dataEnergistics$drawCycleMembershipBars(GuiGraphics guiGraphics,
+                                                         int offsetX,
+                                                         int offsetY,
+                                                         int mouseX,
+                                                         int mouseY,
+                                                         CallbackInfo ci) {
+        TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        CraftingPlanSummary plan = this.menu.getPlan();
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        if (!state.data_energistics$isPlanReady() || plan == null || summary == null) {
+            return;
+        }
+        TrinityCraftConfirmCycleBarRenderer.render(
+                guiGraphics,
+                plan,
+                this.scrollbar.getCurrentScroll(),
+                summary);
     }
 
     @Inject(method = "updateBeforeRender", at = @At("TAIL"))
