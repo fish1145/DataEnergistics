@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
-import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
+import com.fish_dan_.data_energistics.client.render.overlay.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
