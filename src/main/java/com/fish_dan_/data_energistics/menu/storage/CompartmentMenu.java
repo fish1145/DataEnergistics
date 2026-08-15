@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.menu.storage;
 
-import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompartmentBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeInputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageDisplayInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 

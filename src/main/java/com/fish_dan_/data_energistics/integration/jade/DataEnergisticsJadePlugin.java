@@ -12,7 +12,6 @@ import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
-import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
@@ -21,9 +20,10 @@ import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompartmentBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;

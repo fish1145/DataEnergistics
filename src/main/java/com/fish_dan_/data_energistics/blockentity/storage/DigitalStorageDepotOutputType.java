@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.storage;
 
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;

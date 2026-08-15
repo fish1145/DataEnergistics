@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.menu.storage;
 
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.Direction;

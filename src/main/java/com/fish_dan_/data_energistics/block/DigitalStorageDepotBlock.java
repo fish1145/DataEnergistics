@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;

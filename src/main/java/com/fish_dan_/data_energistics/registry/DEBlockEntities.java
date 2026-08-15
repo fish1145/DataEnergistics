@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
@@ -13,14 +12,15 @@ import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntit
 import com.fish_dan_.data_energistics.blockentity.DataSanctumReturnPortalBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeInputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;

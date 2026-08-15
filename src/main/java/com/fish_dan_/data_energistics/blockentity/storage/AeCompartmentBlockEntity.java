@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.storage;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

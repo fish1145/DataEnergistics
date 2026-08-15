@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;

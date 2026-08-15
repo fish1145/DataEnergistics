@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.storage;
 
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentKeyNormalizer;

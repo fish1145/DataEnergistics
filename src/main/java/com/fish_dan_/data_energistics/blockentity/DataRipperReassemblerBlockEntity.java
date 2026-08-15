@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.common.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.common.acceleration.BatchTickProgression;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;

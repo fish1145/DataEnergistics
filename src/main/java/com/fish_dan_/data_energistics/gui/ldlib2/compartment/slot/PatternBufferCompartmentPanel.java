@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;

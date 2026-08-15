@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item.depot;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 

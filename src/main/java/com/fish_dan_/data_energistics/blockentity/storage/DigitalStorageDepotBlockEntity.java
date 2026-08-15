@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.blockentity.storage;
 
 import com.fish_dan_.data_energistics.ae2.settings.DigitalStorageDepotSettings;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
