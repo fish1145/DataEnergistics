@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core.accessor;
+package com.fish_dan_.data_energistics.mixin.core.accessor.ae2;
 
 import appeng.helpers.InterfaceLogic;
 import org.spongepowered.asm.mixin.Mixin;

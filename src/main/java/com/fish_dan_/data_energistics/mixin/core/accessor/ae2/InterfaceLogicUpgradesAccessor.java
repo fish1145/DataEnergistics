@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.core.accessor;
+package com.fish_dan_.data_energistics.mixin.core.accessor.ae2;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.helpers.InterfaceLogic;
