@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client;
+package com.fish_dan_.data_energistics.client.runtime;
 
 import net.minecraft.client.Minecraft;
 
