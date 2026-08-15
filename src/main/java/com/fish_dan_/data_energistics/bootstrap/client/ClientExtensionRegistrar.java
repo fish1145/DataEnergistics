@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.DEFluidClientExtensions;
+import com.fish_dan_.data_energistics.client.registry.DEFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.render.item.MeVacuumItemRenderer;
 import com.fish_dan_.data_energistics.client.render.item.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.registry.DEItems;

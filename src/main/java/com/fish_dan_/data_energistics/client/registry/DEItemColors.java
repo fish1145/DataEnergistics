@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client;
+package com.fish_dan_.data_energistics.client.registry;
 
 import com.fish_dan_.data_energistics.registry.DEFluids;
 import com.fish_dan_.data_energistics.registry.DEItems;
