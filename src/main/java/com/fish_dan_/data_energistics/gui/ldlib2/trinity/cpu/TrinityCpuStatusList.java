@@ -49,7 +49,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
 
     private static final int ROW_SPRITE_WIDTH = 67;
     private static final int VIEWPORT_LEFT = 4;
-    public static final int ROW_WIDTH = 69;
+    public static final int ROW_WIDTH = 68;
     public static final int ROW_HEIGHT = 22;
     public static final int VISIBLE_ROW_COUNT = 10;
     public static final int DEFAULT_WIDTH = VIEWPORT_LEFT + ROW_WIDTH;
