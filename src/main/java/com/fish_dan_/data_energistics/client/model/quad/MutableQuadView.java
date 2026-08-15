@@ -25,9 +25,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.client.model.QuadTransformers;
 
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2fc;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 import static com.fish_dan_.data_energistics.client.model.quad.EncodingFormat.*;
 

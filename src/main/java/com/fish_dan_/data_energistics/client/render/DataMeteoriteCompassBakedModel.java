@@ -23,8 +23,8 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 
 import appeng.client.render.model.MeteoriteCompassBakedModel;
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 

@@ -12,7 +12,7 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.PartHelper;
 import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.locator.MenuLocators;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public record UniversalTerminalMenuLocator(BlockPos pos, @Nullable Direction side, String terminalName)
         implements MenuHostLocator {

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Snapshot of the crafting CPU work visible to the Trinity Data Core GUI.

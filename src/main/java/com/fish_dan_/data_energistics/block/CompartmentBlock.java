@@ -39,7 +39,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import appeng.block.AEBaseBlock;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Block shell for a compartment part that only works when bound to a valid multiblock.

@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Bridge for explicitly invoking AE2's ordinary external-inventory counted dispatch from approved subclasses.

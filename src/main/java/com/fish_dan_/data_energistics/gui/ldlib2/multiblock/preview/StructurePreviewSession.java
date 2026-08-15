@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Struc
 
 import net.minecraft.core.BlockPos;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 

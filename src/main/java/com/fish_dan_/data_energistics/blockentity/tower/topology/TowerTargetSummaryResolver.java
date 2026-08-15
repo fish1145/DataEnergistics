@@ -28,7 +28,7 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.parts.CableBusContainer;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

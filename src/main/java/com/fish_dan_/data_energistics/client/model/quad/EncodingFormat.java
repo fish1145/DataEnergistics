@@ -22,7 +22,7 @@ import net.minecraft.util.Mth;
 import net.neoforged.neoforge.client.model.IQuadTransformer;
 
 import lombok.experimental.UtilityClass;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Holds all the array offsets and bit-wise encoders/decoders for packing/unpacking quad data in an array of integers.

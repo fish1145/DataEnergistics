@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public interface GenericStackLookupScreen {
 

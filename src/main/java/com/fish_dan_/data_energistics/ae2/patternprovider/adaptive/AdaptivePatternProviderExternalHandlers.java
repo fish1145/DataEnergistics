@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 

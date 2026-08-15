@@ -80,7 +80,7 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -516,7 +516,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return this.upgrades.getInstalledUpgrades(AEItems.FUZZY_CARD) > 0;
     }
 
-    public static int computeDamagePerCycle(ItemStack sword, @Nullable HolderLookup.Provider registries) {
+    public static int computeDamagePerCycle(ItemStack sword, HolderLookup.@Nullable Provider registries) {
         return Math.round(extractorSettings().baseDamage() +
                 getSwordInheritedDamage(sword) +
                 getStaticSwordEnchantmentDamage(sword, registries));
@@ -1706,7 +1706,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     public static float getStaticSwordEnchantmentDamage(
                                                         ItemStack sword,
-                                                        @Nullable HolderLookup.Provider registries) {
+                                                        HolderLookup.@Nullable Provider registries) {
         if (!sword.is(ItemTags.SWORDS) || sword.isEmpty() || registries == null) {
             return 0.0F;
         }

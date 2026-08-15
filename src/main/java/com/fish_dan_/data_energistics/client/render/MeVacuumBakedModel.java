@@ -27,7 +27,7 @@ import net.neoforged.neoforge.common.util.TriState;
 
 import appeng.api.client.StorageCellModels;
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -152,8 +152,7 @@ public final class MeVacuumBakedModel implements BakedModel {
         return List.of(this);
     }
 
-    @Nullable
-    private static HolderLookup.Provider getRegistries() {
+    private static HolderLookup.@Nullable Provider getRegistries() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             return minecraft.level.registryAccess();

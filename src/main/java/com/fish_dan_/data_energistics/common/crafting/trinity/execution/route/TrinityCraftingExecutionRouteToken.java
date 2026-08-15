@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.route;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Thread-safe scalar identity of a Trinity execution route.

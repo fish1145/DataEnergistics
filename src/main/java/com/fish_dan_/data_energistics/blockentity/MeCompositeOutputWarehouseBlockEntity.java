@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Persistent state and ME storage exposure for ME output compartments.

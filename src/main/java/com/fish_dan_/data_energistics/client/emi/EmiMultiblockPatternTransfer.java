@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.util.ConfigInventory;
 import dev.emi.emi.api.recipe.EmiRecipe;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Resolves one live typed EMI recipe and checks it against the exact open AE2 encoding inventories.

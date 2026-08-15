@@ -13,7 +13,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +32,7 @@ final class AutoBuildMaterialGrid extends UIElement {
     private final List<MaterialEntry> entries = new ArrayList<>(VISIBLE_ENTRY_COUNT);
     private final LongFunction<String> amountFormatter;
     private List<PreviewMaterial> materials = List.of();
-    @Nullable
-    private Scroller.Vertical scrollbar;
+    private Scroller.@Nullable Vertical scrollbar;
     private int firstVisibleRow;
     private boolean overflowing;
 

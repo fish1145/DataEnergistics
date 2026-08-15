@@ -59,7 +59,7 @@ import appeng.blockentity.AEBaseBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.util.InteractionUtil;
 import appeng.util.SettingsFrom;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

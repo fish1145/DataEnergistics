@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

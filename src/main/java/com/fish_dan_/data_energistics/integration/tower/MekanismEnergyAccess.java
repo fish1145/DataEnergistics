@@ -22,7 +22,7 @@ import mekanism.common.tile.component.TileComponentConfig;
 import mekanism.common.tile.component.config.slot.ISlotInfo;
 import mekanism.common.tile.interfaces.ISideConfiguration;
 import mekanism.common.util.UnitDisplayUtils.EnergyUnit;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;

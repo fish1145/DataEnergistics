@@ -16,7 +16,7 @@ import appeng.blockentity.AEBaseBlockEntity;
 import appeng.items.tools.MemoryCardItem;
 import appeng.util.InteractionUtil;
 import appeng.util.SettingsFrom;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class BlockMemoryCardInteractionHelper {
 

@@ -45,7 +45,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;

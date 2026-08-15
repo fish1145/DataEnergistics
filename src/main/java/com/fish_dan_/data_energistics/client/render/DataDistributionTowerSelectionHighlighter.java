@@ -16,7 +16,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public class DataDistributionTowerSelectionHighlighter {

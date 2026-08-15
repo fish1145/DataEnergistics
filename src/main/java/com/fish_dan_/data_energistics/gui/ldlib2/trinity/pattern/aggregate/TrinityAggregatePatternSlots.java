@@ -23,7 +23,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,7 +67,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private TrinityPatternSearchMode searchMode = TrinityPatternSearchMode.INPUT_OUTPUT;
     private String query = "";
     private Language language = Language.getInstance();
-    private @Nullable Scroller.Vertical scrollbar;
+    private Scroller.@Nullable Vertical scrollbar;
     private @Nullable Button searchModeButton;
     private int physicalFirstGlobalSlot;
     private int requestedFirstGlobalSlot = -1;

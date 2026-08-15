@@ -32,7 +32,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import appeng.block.AEBaseBlock;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
 

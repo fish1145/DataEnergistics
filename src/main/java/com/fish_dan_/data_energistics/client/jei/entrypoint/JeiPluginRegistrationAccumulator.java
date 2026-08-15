@@ -9,7 +9,7 @@ import net.minecraft.world.inventory.MenuType;
 
 import mezz.jei.api.recipe.RecipeType;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.List;

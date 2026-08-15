@@ -111,7 +111,7 @@ import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import lombok.Getter;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -3087,9 +3087,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         releasePatternCoreBindings(layout, null);
     }
 
-    @Nullable
-    private TrinityPatternCatalog.CoreMount bindPatternCoreBindings(
-                                                                    TrinityPatternCatalog.LayoutSnapshot layout) {
+    private TrinityPatternCatalog.@Nullable CoreMount bindPatternCoreBindings(
+                                                                              TrinityPatternCatalog.LayoutSnapshot layout) {
         for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
             TrinityPatternCatalog.CoreMount mount = range.mount();
             if (!(mount.core() instanceof TrinityPatternCoreBlockEntity core) ||

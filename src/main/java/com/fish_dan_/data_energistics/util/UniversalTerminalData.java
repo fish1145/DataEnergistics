@@ -19,7 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.IConfigManager;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -219,7 +219,7 @@ public final class UniversalTerminalData {
         return entries;
     }
 
-    public static UniversalTerminalItemData getData(ItemStack stack, @Nullable HolderLookup.Provider registries) {
+    public static UniversalTerminalItemData getData(ItemStack stack, HolderLookup.@Nullable Provider registries) {
         UniversalTerminalItemData data = stack.get(DEDataComponents.UNIVERSAL_TERMINAL.get());
         if (data != null) {
             return data;

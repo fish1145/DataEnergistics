@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection;
 
 import appeng.api.config.CpuSelectionMode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable crafting CPU facts collected on the server thread without retaining a mutable CPU or grid reference.

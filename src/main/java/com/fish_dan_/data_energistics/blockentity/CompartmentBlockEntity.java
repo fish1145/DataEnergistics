@@ -30,7 +30,7 @@ import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.AEBaseBlockEntity;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 

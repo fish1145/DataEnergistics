@@ -31,8 +31,8 @@ import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.StorageCell;
 import appeng.client.render.tesr.CellLedRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
+import org.jspecify.annotations.Nullable;
 
 public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer {
 
@@ -111,8 +111,7 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
         }
     }
 
-    @Nullable
-    private static HolderLookup.Provider getRegistries() {
+    private static HolderLookup.@Nullable Provider getRegistries() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             return minecraft.level.registryAccess();

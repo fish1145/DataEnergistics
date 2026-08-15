@@ -60,7 +60,7 @@ import appeng.items.misc.PaintBallItem;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.ConfigInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

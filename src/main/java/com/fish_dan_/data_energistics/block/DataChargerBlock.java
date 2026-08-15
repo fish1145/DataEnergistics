@@ -37,7 +37,7 @@ import appeng.api.orientation.OrientationStrategies;
 import appeng.api.orientation.RelativeSide;
 import appeng.block.AEBaseBlock;
 import appeng.hooks.WrenchHook;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
 

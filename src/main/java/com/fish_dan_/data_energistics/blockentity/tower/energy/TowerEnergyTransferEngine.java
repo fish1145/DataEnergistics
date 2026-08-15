@@ -15,7 +15,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import appeng.blockentity.grid.AENetworkedBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;

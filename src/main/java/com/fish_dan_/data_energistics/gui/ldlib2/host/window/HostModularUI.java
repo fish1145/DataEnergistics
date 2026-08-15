@@ -6,7 +6,7 @@ import net.minecraft.world.entity.player.Player;
 
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ModularUI variant that closes hosted windows before LDLib2 recursively releases the root tree.

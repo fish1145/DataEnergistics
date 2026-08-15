@@ -20,7 +20,7 @@ import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicateTypes;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.List;

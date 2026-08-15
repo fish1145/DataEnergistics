@@ -23,7 +23,7 @@ import guideme.document.interaction.InteractiveElement;
 import guideme.layout.LayoutContext;
 import guideme.render.RenderContext;
 import guideme.siteexport.ResourceExporter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

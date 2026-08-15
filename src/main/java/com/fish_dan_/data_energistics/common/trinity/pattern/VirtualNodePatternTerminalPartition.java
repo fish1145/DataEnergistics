@@ -14,7 +14,7 @@ import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -303,8 +303,7 @@ public final class VirtualNodePatternTerminalPartition implements TrinityPattern
      * @param localSlot zero-based terminal inventory slot
      * @return current exact global slot, or {@code null} after any topology invalidation or replacement
      */
-    @Nullable
-    private TrinityPatternCatalog.GlobalSlot resolveLocalSlot(int localSlot) {
+    private TrinityPatternCatalog.@Nullable GlobalSlot resolveLocalSlot(int localSlot) {
         if (localSlot < 0 || localSlot >= this.slotCount) {
             throw new IllegalArgumentException("Trinity terminal partition slot out of range: " + localSlot);
         }

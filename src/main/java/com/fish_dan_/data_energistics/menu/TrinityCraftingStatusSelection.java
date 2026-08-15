@@ -9,7 +9,7 @@ import net.minecraft.world.entity.player.Player;
 
 import appeng.api.storage.ITerminalHost;
 import appeng.menu.me.crafting.CraftingStatusMenu;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;

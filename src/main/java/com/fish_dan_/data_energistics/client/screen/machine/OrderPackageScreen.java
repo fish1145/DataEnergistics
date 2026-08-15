@@ -17,7 +17,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.style.ScreenStyle;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Configures and displays the raw generic target of an order package.

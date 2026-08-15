@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 public enum DigitalStorageDepotOutputType {

@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import appeng.api.stacks.AEKey;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Identifies every Data Energistics custom AE resource shared by recipe viewer adapters.

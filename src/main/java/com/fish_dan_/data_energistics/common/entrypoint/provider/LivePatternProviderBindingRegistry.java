@@ -15,8 +15,8 @@ import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;

@@ -33,7 +33,7 @@ import appeng.menu.guisync.GuiSync;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Set;

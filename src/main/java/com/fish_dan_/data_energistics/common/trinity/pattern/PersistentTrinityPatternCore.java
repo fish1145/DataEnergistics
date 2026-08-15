@@ -13,7 +13,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import appeng.util.inv.AppEngInternalInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -131,8 +131,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private List<Integer> occupiedPatternSlotSnapshot = List.of();
     @Nullable
     private CoreRefundTransaction activeRefundTransaction;
-    @Nullable
-    private PersistentTrinityPatternCore.ReversiblePatternRefundTransaction activePatternRefundTransaction;
+    private PersistentTrinityPatternCore.@Nullable ReversiblePatternRefundTransaction activePatternRefundTransaction;
 
     /**
      * Creates a fresh pattern core with explicit identity resolution and typed changes.

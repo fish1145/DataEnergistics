@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class DataSanctumStatusMenu extends AEBaseMenu {
 

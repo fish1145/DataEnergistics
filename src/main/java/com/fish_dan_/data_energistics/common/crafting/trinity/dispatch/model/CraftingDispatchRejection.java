@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One explicit preparation rejection and its optional provider-local target.

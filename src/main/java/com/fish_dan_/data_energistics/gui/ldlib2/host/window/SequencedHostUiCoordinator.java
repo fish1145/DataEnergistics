@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiRequest;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponse;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiResponseStatus;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Consumer;

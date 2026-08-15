@@ -14,7 +14,7 @@ import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import com.mojang.serialization.JsonOps;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;

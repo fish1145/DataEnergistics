@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverter;
 import tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverters;
 
@@ -12,7 +12,7 @@ final class Ae2JeiGenericStackIngredientResolver {
 
     private Ae2JeiGenericStackIngredientResolver() {}
 
-    static @Nullable JeiGenericStackIngredientResolver.ResolvedIngredient<?> resolve(
+    static JeiGenericStackIngredientResolver.@Nullable ResolvedIngredient<?> resolve(
                                                                                      GenericStack stack) {
         for (IngredientConverter<?> converter : IngredientConverters.getConverters()) {
             JeiGenericStackIngredientResolver.ResolvedIngredient<?> resolved = resolve(converter, stack);
@@ -23,7 +23,7 @@ final class Ae2JeiGenericStackIngredientResolver {
         return null;
     }
 
-    private static <T> @Nullable JeiGenericStackIngredientResolver.ResolvedIngredient<T> resolve(
+    private static <T> JeiGenericStackIngredientResolver.@Nullable ResolvedIngredient<T> resolve(
                                                                                                  IngredientConverter<T> converter,
                                                                                                  GenericStack stack) {
         T ingredient = converter.getIngredientFromStack(stack);

@@ -31,7 +31,7 @@ import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

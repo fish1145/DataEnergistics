@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Persistable identity of one virtual AE device.

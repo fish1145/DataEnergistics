@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.me.cells.BasicCellHandler;
 import appeng.me.cells.BasicCellInventory;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

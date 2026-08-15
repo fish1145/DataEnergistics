@@ -43,7 +43,7 @@ import appeng.block.AEBaseBlock;
 import appeng.items.tools.powered.ColorApplicatorItem;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 

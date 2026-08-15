@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.blockentity.AEBaseBlockEntity;
 import appeng.parts.AEBasePart;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class PatternProviderNameHelper {
 

@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Owns the bounded planning gateway and its isolated execution lanes for one logical server lifetime.

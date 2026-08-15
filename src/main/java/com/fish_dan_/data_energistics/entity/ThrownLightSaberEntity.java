@@ -37,7 +37,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
 import appeng.api.upgrades.UpgradeInventories;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplier {
 

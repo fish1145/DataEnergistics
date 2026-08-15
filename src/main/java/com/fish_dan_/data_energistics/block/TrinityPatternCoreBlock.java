@@ -26,7 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 

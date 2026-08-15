@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Opt-in crafting provider contract for combining identical logical crafts into one physical submission.

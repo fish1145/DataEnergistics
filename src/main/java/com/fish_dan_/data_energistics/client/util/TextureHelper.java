@@ -21,7 +21,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 
 import lombok.experimental.UtilityClass;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static com.fish_dan_.data_energistics.client.model.quad.MutableQuadView.*;
 

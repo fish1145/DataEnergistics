@@ -12,7 +12,7 @@ import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.AEColor;
 import appeng.items.tools.powered.ColorApplicatorItem;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class LightSaberColorData {
 

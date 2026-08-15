@@ -15,7 +15,7 @@ import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.CPUSelectionList;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.menu.me.crafting.CraftingStatusMenu;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -69,8 +69,7 @@ public abstract class CPUSelectionListMixin {
     private GuiGraphics dataEnergistics$guiGraphics;
 
     @Unique
-    @Nullable
-    private CraftingStatusMenu.CraftingCpuListEntry dataEnergistics$currentCpu;
+    private CraftingStatusMenu.@Nullable CraftingCpuListEntry dataEnergistics$currentCpu;
 
     @Unique
     private int dataEnergistics$screenX;

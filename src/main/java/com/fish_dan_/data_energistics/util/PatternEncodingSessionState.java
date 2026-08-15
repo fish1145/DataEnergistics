@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.util;
 import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;

@@ -45,7 +45,7 @@ import appeng.util.InteractionUtil;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;

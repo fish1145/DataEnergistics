@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.integration.tower;
 
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 

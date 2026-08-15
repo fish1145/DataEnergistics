@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.parts.encoding.EncodingMode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Publishes one authoritative history update after a provider inventory has actually accepted a pattern.

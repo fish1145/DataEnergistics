@@ -18,7 +18,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Subst
 import net.minecraft.core.BlockPos;
 
 import com.modularmc.mdl.api.multiblock.RepeatRange;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashSet;
 import java.util.List;

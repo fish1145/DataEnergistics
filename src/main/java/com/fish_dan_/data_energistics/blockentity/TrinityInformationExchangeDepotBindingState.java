@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Atomic identity and lifecycle state for one Trinity information exchange depot compartment binding.

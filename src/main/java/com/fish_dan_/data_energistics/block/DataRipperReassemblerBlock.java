@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import appeng.api.orientation.IOrientationStrategy;
 import appeng.api.orientation.OrientationStrategies;
 import appeng.block.AEBaseBlock;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class DataRipperReassemblerBlock extends AEBaseBlock {
 

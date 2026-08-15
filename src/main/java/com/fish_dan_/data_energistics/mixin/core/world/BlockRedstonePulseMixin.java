@@ -17,7 +17,7 @@ import appeng.api.parts.IPart;
 import appeng.block.crafting.PatternProviderBlock;
 import appeng.block.networking.CableBusBlock;
 import appeng.blockentity.networking.CableBusBlockEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
