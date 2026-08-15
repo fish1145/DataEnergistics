@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.ae2cs;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderHostAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
 import net.minecraft.world.entity.player.Inventory;

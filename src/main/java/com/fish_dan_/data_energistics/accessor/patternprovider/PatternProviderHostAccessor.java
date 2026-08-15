@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.accessor;
+package com.fish_dan_.data_energistics.accessor.patternprovider;
 
 import appeng.api.upgrades.IUpgradeInventory;
 

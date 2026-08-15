@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core.accessor.ae2;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 
 import net.minecraft.core.Direction;
 

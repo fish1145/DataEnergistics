@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.accessor;
+package com.fish_dan_.data_energistics.accessor.patternprovider;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;

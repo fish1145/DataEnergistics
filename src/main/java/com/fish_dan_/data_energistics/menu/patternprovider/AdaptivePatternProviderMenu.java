@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu.patternprovider;
 
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
-import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.patternprovider.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderLogic;
