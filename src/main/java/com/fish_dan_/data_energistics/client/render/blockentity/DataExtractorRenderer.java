@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.client.render;
+package com.fish_dan_.data_energistics.client.render.blockentity;
 
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 
