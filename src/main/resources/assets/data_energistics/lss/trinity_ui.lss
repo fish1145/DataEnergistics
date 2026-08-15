@@ -161,6 +161,7 @@
 }
 
 .trinity-information-exchange-title,
+.trinity-information-exchange-mode-title,
 .trinity-information-exchange-section-title,
 .trinity-information-exchange-label,
 .trinity-information-exchange-value,
@@ -175,8 +176,15 @@
 .trinity-information-exchange-title {
     font-size: 7.5;
     text-color: #FF343548;
-    horizontal-align: left;
+    horizontal-align: center;
     text-wrap: hover_roll;
+}
+
+.trinity-information-exchange-mode-title {
+    font-size: 6.5;
+    text-color: #FF343548;
+    horizontal-align: center;
+    text-wrap: none;
 }
 
 .trinity-information-exchange-section-title {
