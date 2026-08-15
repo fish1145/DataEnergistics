@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
-import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
@@ -8,9 +7,10 @@ import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumInterfaceBlock;
+import com.fish_dan_.data_energistics.block.storage.CompartmentBlock;
+import com.fish_dan_.data_energistics.block.storage.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;

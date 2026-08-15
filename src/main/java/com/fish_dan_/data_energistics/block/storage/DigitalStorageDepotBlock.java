@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.block;
+package com.fish_dan_.data_energistics.block.storage;
 
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
