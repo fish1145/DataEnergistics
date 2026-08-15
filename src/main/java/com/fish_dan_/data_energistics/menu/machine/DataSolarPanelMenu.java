@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.menu.machine;
 
-import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.world.entity.player.Inventory;

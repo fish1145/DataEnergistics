@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.render;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;

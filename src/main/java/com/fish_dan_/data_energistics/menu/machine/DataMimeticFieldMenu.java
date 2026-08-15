@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu.machine;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
-import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorDropRoutingMode;
+import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 

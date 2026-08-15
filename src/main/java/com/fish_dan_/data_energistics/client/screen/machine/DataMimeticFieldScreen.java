@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
+import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
