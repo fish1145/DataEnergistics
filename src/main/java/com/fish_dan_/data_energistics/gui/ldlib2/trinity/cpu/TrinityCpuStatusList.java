@@ -423,9 +423,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         }
         lines.add(Component.translatable(
                 "gui.tooltips.ae2.CpuStatusStorage",
-                cpu.storage() == Long.MAX_VALUE ?
-                        formatStorage(cpu.storage()) :
-                        TrinityAmountFormatter.format(cpu.storage()))
+                formatStorage(cpu.storage()))
                 .withStyle(ChatFormatting.GRAY));
         if (cpu.mode() != CpuSelectionMode.ANY) {
             lines.add(modeText(cpu.mode()).copy().withStyle(ChatFormatting.GRAY));
@@ -463,10 +461,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         if (storage == Long.MAX_VALUE) {
             return Component.translatable(UNLIMITED_KEY);
         }
-        if (storage >= 1024L * 1024L) {
-            return Component.literal(storage / (1024L * 1024L) + "M");
-        }
-        return Component.literal(storage / 1024L + "k");
+        return Component.literal(TrinityAmountFormatter.format(storage));
     }
 
     private static Component formatCoProcessors(int coProcessors) {

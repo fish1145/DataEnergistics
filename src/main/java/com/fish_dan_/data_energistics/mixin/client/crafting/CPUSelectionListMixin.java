@@ -14,10 +14,15 @@ import net.minecraft.util.Mth;
 import appeng.client.Point;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.CPUSelectionList;
+import appeng.client.gui.widgets.InfoBar;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.core.localization.Tooltips;
 import appeng.menu.me.crafting.CraftingStatusMenu;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import org.jspecify.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,7 +37,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-@Mixin(CPUSelectionList.class)
+/**
+ * Keeps Trinity CPU rows and tooltips consistent across AE2's CPU list and compatible list-formatting mixins.
+ *
+ * <p>
+ * The elevated priority places the co-processor wrapper inside default-priority wrappers. The inner wrapper can then
+ * enforce the Trinity unlimited label immediately before the real {@link InfoBar} call.
+ */
+@Mixin(value = CPUSelectionList.class, priority = 1100)
 public abstract class CPUSelectionListMixin {
 
     @Unique
@@ -72,9 +84,6 @@ public abstract class CPUSelectionListMixin {
     private GuiGraphics dataEnergistics$guiGraphics;
 
     @Unique
-    private CraftingStatusMenu.@Nullable CraftingCpuListEntry dataEnergistics$currentCpu;
-
-    @Unique
     private CraftingStatusMenu.@Nullable CraftingCpuListEntry dataEnergistics$tooltipCpu;
 
     @Unique
@@ -93,7 +102,6 @@ public abstract class CPUSelectionListMixin {
         this.dataEnergistics$screenX = bounds.getX();
         this.dataEnergistics$screenY = bounds.getY();
         this.dataEnergistics$renderRow = 0;
-        this.dataEnergistics$currentCpu = null;
     }
 
     @ModifyArg(
@@ -103,7 +111,6 @@ public abstract class CPUSelectionListMixin {
                         target = "Lappeng/client/gui/widgets/CPUSelectionList;getCpuName(Lappeng/menu/me/crafting/CraftingStatusMenu$CraftingCpuListEntry;)Lnet/minecraft/network/chat/Component;"))
     private CraftingStatusMenu.CraftingCpuListEntry dataEnergistics$drawTrinityCpuBackground(
                                                                                              CraftingStatusMenu.CraftingCpuListEntry cpu) {
-        this.dataEnergistics$currentCpu = cpu;
         if (this.dataEnergistics$guiGraphics != null && dataEnergistics$isTrinityCpu(cpu)) {
             DATA_ENERGISTICS_CPU_IDLE.copy()
                     .dest(
@@ -127,23 +134,32 @@ public abstract class CPUSelectionListMixin {
         }
     }
 
-    @ModifyArg(
-               method = "drawBackgroundLayer",
-               at = @At(
-                        value = "INVOKE",
-                        target = "Lappeng/client/gui/widgets/InfoBar;add(Ljava/lang/String;IFII)V"),
-               slice = @Slice(
-                              from = @At(
-                                         value = "FIELD",
-                                         target = "Lappeng/client/gui/Icon;S_PROCESSOR:Lappeng/client/gui/Icon;")),
-               index = 0)
-    private String dataEnergistics$formatTrinityCpuCoProcessors(String formattedAmount) {
-        if (this.dataEnergistics$currentCpu != null && dataEnergistics$isTrinityCpu(this.dataEnergistics$currentCpu)) {
-            return this.dataEnergistics$currentCpu.coProcessors() == Integer.MAX_VALUE ?
-                    dataEnergistics$unlimited().getString() :
-                    TrinityAmountFormatter.format(this.dataEnergistics$currentCpu.coProcessors());
-        }
-        return formattedAmount;
+    @WrapOperation(
+                   method = "drawBackgroundLayer",
+                   at = @At(
+                            value = "INVOKE",
+                            target = "Lappeng/client/gui/widgets/InfoBar;add(Ljava/lang/String;IFII)V"),
+                   slice = @Slice(
+                                  from = @At(
+                                             value = "FIELD",
+                                             target = "Lappeng/client/gui/Icon;S_PROCESSOR:Lappeng/client/gui/Icon;",
+                                             opcode = Opcodes.GETSTATIC)),
+                   require = 1)
+    private void dataEnergistics$formatTrinityCpuCoProcessors(InfoBar instance,
+                                                              String text,
+                                                              int color,
+                                                              float scale,
+                                                              int xPos,
+                                                              int yPos,
+                                                              Operation<Void> original,
+                                                              @Local(name = "cpu") CraftingStatusMenu.CraftingCpuListEntry cpu) {
+        original.call(
+                instance,
+                dataEnergistics$isTrinityCpu(cpu) ? dataEnergistics$unlimited().getString() : text,
+                color,
+                scale,
+                xPos,
+                yPos);
     }
 
     @Inject(method = "getTooltip", at = @At("HEAD"))
@@ -159,8 +175,7 @@ public abstract class CPUSelectionListMixin {
                        target = "Lappeng/core/localization/Tooltips;ofNumber(J)Lnet/minecraft/network/chat/MutableComponent;"))
     private MutableComponent dataEnergistics$formatTrinityCpuTooltipCoProcessors(long amount) {
         if (this.dataEnergistics$tooltipCpu != null &&
-                dataEnergistics$isTrinityCpu(this.dataEnergistics$tooltipCpu) &&
-                amount == Integer.MAX_VALUE) {
+                dataEnergistics$isTrinityCpu(this.dataEnergistics$tooltipCpu)) {
             return dataEnergistics$unlimited();
         }
         return Tooltips.ofNumber(amount);
@@ -205,7 +220,6 @@ public abstract class CPUSelectionListMixin {
             y += this.buttonBg.getSrcHeight() + 1;
         }
         this.dataEnergistics$guiGraphics = null;
-        this.dataEnergistics$currentCpu = null;
     }
 
     @Unique

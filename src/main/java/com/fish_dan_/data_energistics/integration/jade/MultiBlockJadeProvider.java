@@ -154,7 +154,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                 serverData.getLong(TAG_CPU_STORAGE_BYTES)));
         tooltip.add(Component.translatable(
                 "jade.data_energistics.multiblock.cpu_coprocessors",
-                serverData.getInt(TAG_CPU_CO_PROCESSORS)));
+                formatCpuCoProcessors(serverData.getInt(TAG_CPU_CO_PROCESSORS))));
     }
 
     private static void appendCpuFailureTooltip(ITooltip tooltip, CompoundTag serverData) {
@@ -170,6 +170,12 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                     serverData.getInt(TAG_CPU_FAILURE_Y),
                     serverData.getInt(TAG_CPU_FAILURE_Z)));
         }
+    }
+
+    private static Component formatCpuCoProcessors(int coProcessors) {
+        return coProcessors == Integer.MAX_VALUE ?
+                Component.translatable("gui.data_energistics.trinity.unlimited") :
+                Component.literal(Integer.toString(coProcessors));
     }
 
     private static void appendCraftingFailureTooltip(ITooltip tooltip, CompoundTag serverData) {

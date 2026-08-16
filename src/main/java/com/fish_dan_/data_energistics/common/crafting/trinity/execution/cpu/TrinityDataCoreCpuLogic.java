@@ -15,7 +15,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mod
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerProposalCoordinator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
-import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.WorkerOperationBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchCapacityPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.DispatchCapacitySlicePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityCapture;
@@ -36,6 +35,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.WorkerOperationTracker;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
@@ -121,6 +121,8 @@ final class TrinityDataCoreCpuLogic {
     private static final String NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG = "no_output_virtual_completions";
     private static final String JOB_TAG = "job";
     private static final double ENERGY_TOLERANCE = 0.01D;
+    /** The shared dispatch window, rather than structure co-processors, owns the physical-operation limit. */
+    private static final int UNLIMITED_WORKER_OPERATIONS = Integer.MAX_VALUE;
 
     private final TrinityDataCoreVirtualCpu cpu;
     private final CraftingDispatchCommitter dispatchCommitter = CraftingDispatchCommitter.create();
@@ -138,7 +140,7 @@ final class TrinityDataCoreCpuLogic {
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
     private final ListCraftingInventory pendingVirtualCompletions;
     private final ListCraftingInventory pendingNoOutputCompletions;
-    private final WorkerOperationBudget operationBudget = WorkerOperationBudget.create();
+    private final WorkerOperationTracker operationTracker = WorkerOperationTracker.create();
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
     private CraftingDispatchCursor capacitySliceCursor = CraftingDispatchCursor.initial();
@@ -266,7 +268,7 @@ final class TrinityDataCoreCpuLogic {
             if (physicalAttempts > 1) {
                 throw new IllegalStateException("A Trinity worker dispatch step attempted more than one provider call");
             }
-            this.operationBudget.recordTickUsage(currentTick, physicalAttempts);
+            this.operationTracker.recordTickUsage(currentTick, physicalAttempts);
         } finally {
             if (execution != null && execution.durableRevision() != durableRevision) {
                 this.cpu.markDirty();
@@ -292,7 +294,7 @@ final class TrinityDataCoreCpuLogic {
         if (currentJob == null) {
             return;
         }
-        int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick);
+        int remainingOperations = UNLIMITED_WORKER_OPERATIONS;
         int started = remainingOperations;
         TrinityPlanExecution execution = currentJob.isTrinityPlan() ? currentJob.trinityExecution() : null;
         long durableRevision = execution == null ? 0L : execution.durableRevision();
@@ -320,7 +322,7 @@ final class TrinityDataCoreCpuLogic {
                     break;
                 }
             }
-            this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
+            this.operationTracker.recordTickUsage(currentTick, started - remainingOperations);
         } finally {
             if (execution != null && execution.durableRevision() != durableRevision) {
                 this.cpu.markDirty();
@@ -388,7 +390,7 @@ final class TrinityDataCoreCpuLogic {
         if (this.job.link.isCanceled() || this.proposalRetryAt > currentTick) {
             return false;
         }
-        return this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick) > 0;
+        return true;
     }
 
     private CraftingDispatchStepResult stepResult(WorkerProgressSnapshot before,
@@ -397,8 +399,7 @@ final class TrinityDataCoreCpuLogic {
                                                   CraftingDispatchWindow dispatchWindow) {
         WorkerProgressSnapshot after = progressSnapshot(currentTick);
         boolean hasReadyWork = !dispatchWindow.isExhausted() &&
-                after.schedulingHint().kind() == TrinityWorkerSchedulingHint.Kind.READY &&
-                this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick) > 0;
+                after.schedulingHint().kind() == TrinityWorkerSchedulingHint.Kind.READY;
         return new CraftingDispatchStepResult(
                 physicalAttempts == 1,
                 !before.equals(after),
@@ -3309,11 +3310,9 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    /**
-     * Returns this worker's recent physical-operation load without exposing its mutable budget window.
-     */
+    /** Returns this worker's recent physical-operation load without exposing its mutable tracking window. */
     long recentOperationLoad() {
-        return this.operationBudget.recentOperations(TickHandler.instance().getCurrentTick());
+        return this.operationTracker.recentOperations(TickHandler.instance().getCurrentTick());
     }
 
     private void notifyJobOwner(TrinityDataCoreExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {
