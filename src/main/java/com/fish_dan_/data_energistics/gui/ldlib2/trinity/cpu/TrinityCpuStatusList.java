@@ -49,10 +49,11 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
 
     private static final int ROW_SPRITE_WIDTH = 67;
     private static final int VIEWPORT_LEFT = 4;
-    public static final int ROW_WIDTH = 68;
+    private static final int VIEWPORT_RIGHT = 1;
+    public static final int ROW_WIDTH = ROW_SPRITE_WIDTH;
     public static final int ROW_HEIGHT = 22;
     public static final int VISIBLE_ROW_COUNT = 10;
-    public static final int DEFAULT_WIDTH = VIEWPORT_LEFT + ROW_WIDTH;
+    public static final int DEFAULT_WIDTH = VIEWPORT_LEFT + ROW_WIDTH + VIEWPORT_RIGHT;
     public static final int DEFAULT_HEIGHT = 234;
     public static final String ELEMENT_ID = "trinity_data_core_cpu_entries";
     public static final String SCROLLER_ID = "trinity_data_core_cpu_list";
@@ -126,7 +127,9 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         internalSetup();
     }
 
-    /** Binds the editor-authored scrollbar without replacing its layout or textures. */
+    /**
+     * Binds the editor-authored scrollbar without replacing its layout or textures.
+     */
     public TrinityCpuStatusList bindScrollbar(Scroller.Vertical scrollbar) {
         if (this.scrollbar != null) {
             throw new IllegalStateException("Trinity CPU list already has an editor-authored scrollbar");
@@ -415,11 +418,15 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
             String key = cpu.coProcessors() == 1 ?
                     "gui.tooltips.ae2.CpuStatusCoProcessor" :
                     "gui.tooltips.ae2.CpuStatusCoProcessors";
-            lines.add(Component.translatable(key, Integer.toString(cpu.coProcessors())).withStyle(ChatFormatting.GRAY));
+            lines.add(Component.translatable(key, formatCoProcessors(cpu.coProcessors()))
+                    .withStyle(ChatFormatting.GRAY));
         }
         lines.add(Component.translatable(
                 "gui.tooltips.ae2.CpuStatusStorage",
-                TrinityAmountFormatter.format(cpu.storage())).withStyle(ChatFormatting.GRAY));
+                cpu.storage() == Long.MAX_VALUE ?
+                        formatStorage(cpu.storage()) :
+                        TrinityAmountFormatter.format(cpu.storage()))
+                .withStyle(ChatFormatting.GRAY));
         if (cpu.mode() != CpuSelectionMode.ANY) {
             lines.add(modeText(cpu.mode()).copy().withStyle(ChatFormatting.GRAY));
         }
