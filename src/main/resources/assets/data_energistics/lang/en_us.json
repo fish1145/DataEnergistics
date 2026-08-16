@@ -793,6 +793,7 @@
 	"screen.data_energistics.trinity_data_core.pattern.priority.scope_hint": "Applies to the complete Trinity pattern provider",
 	"screen.data_energistics.trinity_data_core.pattern.priority.selection_hint": "Higher values are selected first during planning",
 	"screen.data_energistics.trinity_data_core.pattern.priority.title": "Pattern Priority",
+	"screen.data_energistics.trinity_data_core.pattern.search_hint": "Enter text...",
 	"screen.data_energistics.trinity_data_core.pattern.title": "Pattern Management",
 	"screen.data_energistics.trinity_data_core.section.crafting": "Crafting Resources",
 	"screen.data_energistics.trinity_data_core.section.storage": "Data Storage",

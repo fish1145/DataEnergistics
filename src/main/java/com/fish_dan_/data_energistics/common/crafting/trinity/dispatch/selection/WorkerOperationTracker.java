@@ -1,25 +1,24 @@
-package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget;
+package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection;
 
 import java.util.Arrays;
 
 /**
- * Owns the rolling physical-operation allowance for one Trinity crafting worker.
+ * Tracks the rolling physical-operation history for one Trinity crafting worker.
  *
  * <p>
- * A separate instance is attached to every worker so one worker's recent submissions cannot consume another worker's
- * co-processor allowance.
- * <p>
- * Default rolling-window implementation used by each Trinity crafting worker.
+ * A separate instance is attached to every worker so load-aware CPU selection observes that worker's own recent
+ * submissions. Dispatch authorization remains exclusively owned by the configured grid, provider and server-time
+ * windows.
  */
-public final class WorkerOperationBudget {
+public final class WorkerOperationTracker {
 
     /**
-     * Creates an empty three-tick operation window for one worker.
+     * Creates an empty three-tick operation history for one worker.
      *
-     * @return independent worker operation budget
+     * @return independent worker operation tracker
      */
-    public static WorkerOperationBudget create() {
-        return new WorkerOperationBudget();
+    public static WorkerOperationTracker create() {
+        return new WorkerOperationTracker();
     }
 
     private static final int WINDOW_TICKS = 3;
@@ -33,22 +32,6 @@ public final class WorkerOperationBudget {
      * Tick represented by index zero, or {@link Long#MIN_VALUE} before the first observation.
      */
     private long currentTick = Long.MIN_VALUE;
-
-    /**
-     * Calculates how many physical pattern submissions the worker may start in the current tick.
-     *
-     * @param coProcessors complete co-processor count owned by this worker
-     * @param currentTick  current monotonic server tick
-     * @return available physical submissions
-     */
-    public int availableOperations(int coProcessors, long currentTick) {
-        if (coProcessors < 0) {
-            throw new IllegalArgumentException("coProcessors must not be negative");
-        }
-        advanceTo(currentTick);
-        long available = (long) coProcessors + 1L - sumRecentOperations();
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, available));
-    }
 
     /**
      * Returns the physical submissions retained in this worker's time-aware rolling window for load-aware CPU

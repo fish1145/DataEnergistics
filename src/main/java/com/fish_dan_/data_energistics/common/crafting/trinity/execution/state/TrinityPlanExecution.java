@@ -737,6 +737,18 @@ public final class TrinityPlanExecution {
         return Collections.unmodifiableMap(outputs);
     }
 
+    /**
+     * Reports whether every retained firing has the output metadata required to reconstruct a complete pending
+     * projection. Legacy schema 2/3 snapshots may not have this metadata.
+     *
+     * @return true when {@link #pendingOutputs()} is complete
+     */
+    public boolean hasExactPendingOutputProjection() {
+        return this.stages.values().stream()
+                .flatMap(stage -> stage.firings.stream())
+                .noneMatch(firing -> firing.outputs.isEmpty());
+    }
+
     private static void addDagPendingOutputs(Map<AEKey, Long> outputs, StageState stage) {
         if (stage.completed) {
             return;
