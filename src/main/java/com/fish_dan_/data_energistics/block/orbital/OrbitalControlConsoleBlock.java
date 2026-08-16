@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.block.orbital;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.provisioning.ConsoleWeaponProvisioner;
@@ -91,6 +92,10 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
                     player.getUUID(),
                     location);
             console.bindTo(weapon.weaponId());
+        } catch (OrbitalEndpointLimitException exception) {
+            player.displayClientMessage(
+                    Component.translatable("message.data_energistics.orbital_control_console.endpoint_limit_reached"),
+                    true);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to bind orbital control console at {} for player {}",

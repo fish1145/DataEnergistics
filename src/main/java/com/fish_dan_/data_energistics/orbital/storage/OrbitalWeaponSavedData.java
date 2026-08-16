@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.orbital.storage;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
@@ -99,6 +102,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (current.endpoints().containsKey(location)) {
             throw new IllegalStateException("Endpoint index is inconsistent at " + location);
         }
+        requireEndpointCapacity(current, location);
         OrbitalEndpointRecord endpoint = new OrbitalEndpointRecord(
                 location,
                 kind,
@@ -306,6 +310,23 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.ownerId(),
                 weapon.delegatedRoles(),
                 acceptedEndpoints);
+    }
+
+    private static void requireEndpointCapacity(
+                                                OrbitalWeaponRecord weapon,
+                                                OrbitalEndpointLocation location) {
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        if (weapon.endpoints().size() >= settings.maxEndpointsPerWeapon()) {
+            throw new OrbitalEndpointLimitException(
+                    "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit");
+        }
+        long dimensionEndpointCount = weapon.endpoints().keySet().stream()
+                .filter(existing -> existing.dimensionId().equals(location.dimensionId()))
+                .count();
+        if (dimensionEndpointCount >= settings.maxEndpointsPerDimension()) {
+            throw new OrbitalEndpointLimitException(
+                    "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit in " + location.dimensionId());
+        }
     }
 
     private UUID newWeaponId() {

@@ -585,6 +585,7 @@
 	"message.data_energistics.digital_storage_depot.bucket_mode_off": "数位化存储仓已切换为方块模式",
 	"message.data_energistics.digital_storage_depot.bucket_mode_on": "数位化存储仓已切换为桶模式",
 	"message.data_energistics.orbital_control_console.binding_failed": "轨道武器控制终端绑定失败",
+	"message.data_energistics.orbital_control_console.endpoint_limit_reached": "该轨道武器无法继续在此处添加端点",
 	"message.data_energistics.pattern_provider.context_unknown": "所选样板供应器未声明当前配方类别与工作站上下文",
 	"message.data_energistics.pattern_provider.duplicate_cleared": "[此设备已有相同样板，已清空样板并返回网络]",
 	"message.data_energistics.pattern_provider.target_unavailable": "所选样板供应器的上传目标不可用",

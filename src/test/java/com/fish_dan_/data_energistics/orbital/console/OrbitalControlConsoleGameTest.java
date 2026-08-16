@@ -10,6 +10,8 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,6 +35,16 @@ public final class OrbitalControlConsoleGameTest {
     private static final BlockPos FIRST_CONSOLE = new BlockPos(1, 2, 1);
     private static final BlockPos SECOND_CONSOLE = new BlockPos(2, 2, 1);
     private static final BlockPos DELEGATED_CONSOLE = new BlockPos(3, 2, 1);
+    private static final List<BlockPos> DIMENSION_LIMIT_CONSOLES = List.of(
+            new BlockPos(1, 2, 1),
+            new BlockPos(2, 2, 1),
+            new BlockPos(3, 2, 1),
+            new BlockPos(4, 2, 1),
+            new BlockPos(1, 2, 2),
+            new BlockPos(2, 2, 2),
+            new BlockPos(3, 2, 2),
+            new BlockPos(4, 2, 2));
+    private static final BlockPos REJECTED_CONSOLE = new BlockPos(1, 2, 3);
 
     private OrbitalControlConsoleGameTest() {}
 
@@ -96,6 +108,47 @@ public final class OrbitalControlConsoleGameTest {
         helper.succeed();
     }
 
+    @TestHolder("orbital_control_console_dimension_limit_rejects_then_releases_capacity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void dimensionLimitRejectsThenReleasesCapacity(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        ServerPlayer owner = createPlayer(level, "console-limit");
+
+        UUID weaponId = null;
+        for (BlockPos consolePos : DIMENSION_LIMIT_CONSOLES) {
+            placeConsole(helper, consolePos, owner);
+            UUID boundWeaponId = data.weaponAt(location(helper, consolePos)).orElseThrow().weaponId();
+            if (weaponId == null) {
+                weaponId = boundWeaponId;
+            } else {
+                helper.assertValueEqual(
+                        boundWeaponId,
+                        weaponId,
+                        "Every accepted console below the dimension limit must bind the same owned weapon");
+            }
+        }
+
+        placeConsole(helper, REJECTED_CONSOLE, owner);
+        helper.assertTrue(
+                data.weaponAt(location(helper, REJECTED_CONSOLE)).isEmpty(),
+                "The ninth endpoint in one dimension must be rejected before it mutates weapon state");
+
+        helper.assertTrue(
+                level.destroyBlock(helper.absolutePos(DIMENSION_LIMIT_CONSOLES.getFirst()), false),
+                "An accepted endpoint must be removable to release capacity");
+        helper.assertTrue(
+                level.destroyBlock(helper.absolutePos(REJECTED_CONSOLE), false),
+                "The rejected console block must remain removable");
+        placeConsole(helper, REJECTED_CONSOLE, owner);
+        helper.assertValueEqual(
+                data.weaponAt(location(helper, REJECTED_CONSOLE)).orElseThrow().weaponId(),
+                weaponId,
+                "After one endpoint is removed, a replacement console must bind the same weapon");
+        helper.succeed();
+    }
+
     private static void placeConsole(GameTestHelper helper, BlockPos relativePos, ServerPlayer placer) {
         ServerLevel level = helper.getLevel();
         BlockPos absolutePos = helper.absolutePos(relativePos);
@@ -107,7 +160,7 @@ public final class OrbitalControlConsoleGameTest {
     }
 
     private static ServerPlayer createPlayer(ServerLevel level, String name) {
-        return new ServerPlayer(
+        return new TestServerPlayer(
                 level.getServer(),
                 level,
                 new GameProfile(UUID.randomUUID(), name),
@@ -117,5 +170,19 @@ public final class OrbitalControlConsoleGameTest {
     private static OrbitalEndpointLocation location(GameTestHelper helper, BlockPos relativePos) {
         ServerLevel level = helper.getLevel();
         return new OrbitalEndpointLocation(level.dimension().location(), helper.absolutePos(relativePos));
+    }
+
+    private static final class TestServerPlayer extends ServerPlayer {
+
+        private TestServerPlayer(
+                                 MinecraftServer server,
+                                 ServerLevel level,
+                                 GameProfile profile,
+                                 ClientInformation clientInformation) {
+            super(server, level, profile, clientInformation);
+        }
+
+        @Override
+        public void displayClientMessage(Component chatComponent, boolean actionBar) {}
     }
 }
