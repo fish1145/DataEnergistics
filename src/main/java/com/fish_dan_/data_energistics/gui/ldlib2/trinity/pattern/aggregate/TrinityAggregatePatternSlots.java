@@ -46,6 +46,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private static final IGuiTexture SEARCH_INPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input.png");
     private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
     private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
+    private static final Component SEARCH_PLACEHOLDER = Component.translatable(
+            "screen.data_energistics.trinity_data_core.pattern.search_hint");
 
     private final long generation;
     private final Level level;
@@ -145,6 +147,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         this.searchModeButton = searchModeButton;
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
         search.setTextResponder(this::setQuery);
+        updateSearchPlaceholder(search, false);
+        search.addEventListener(UIEvents.FOCUS, event -> updateSearchPlaceholder(search, true));
+        search.addEventListener(UIEvents.BLUR, event -> updateSearchPlaceholder(search, false));
         search.addEventListener(UIEvents.MOUSE_DOWN, event -> {
             if (event.button == 1) {
                 search.setText("");
@@ -154,6 +159,13 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         searchModeButton.setOnClick(event -> cycleSearchMode());
         updateSearchModePresentation();
         updateScrollbar(0, 0);
+    }
+
+    private static void updateSearchPlaceholder(TextField search, boolean focused) {
+        search.textFieldStyle(style -> style.placeholder(focused ? Component.empty() : SEARCH_PLACEHOLDER));
+        if (search.getRawText().isEmpty()) {
+            search.setText("", false);
+        }
     }
 
     void setMaintenanceActive(boolean maintenanceActive) {
