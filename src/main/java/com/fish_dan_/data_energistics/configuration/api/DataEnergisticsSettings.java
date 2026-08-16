@@ -37,6 +37,11 @@ public interface DataEnergisticsSettings {
 
     SolarPanel solarPanel();
 
+    /**
+     * Returns the orbital weapon settings captured by this immutable configuration revision.
+     */
+    OrbitalWeapon orbitalWeapon();
+
     TrinityCrafting trinityCrafting();
 
     TrinityDispatch trinityDispatch();
@@ -157,6 +162,52 @@ public interface DataEnergisticsSettings {
         double speedCardBonusRatio();
 
         double energyCardCapacityBonusAE();
+    }
+
+    /**
+     * Read-only orbital reserve, deployment and endpoint settings.
+     *
+     * <p>
+     * Implementations belong to one immutable configuration snapshot and may be retained for the lifetime of that
+     * snapshot. Gameplay code may read them from any thread but must never treat them as mutable schema objects.
+     * Every value has already passed finite, range and cross-field validation; no member is nullable and reading has no
+     * side effects.
+     * </p>
+     */
+    interface OrbitalWeapon {
+
+        /** Returns the maximum stored Celestial Energy, independent from the AE energy reserve. */
+        long celestialEnergyCapacity();
+
+        /** Returns the independent maximum stored AE energy measured in AE units. */
+        long aeEnergyCapacity();
+
+        /** Returns Celestial Energy consumed per deployed server tick. */
+        long celestialEnergyUpkeepPerTick();
+
+        /** Returns AE energy consumed per deployed server tick. */
+        long aeEnergyUpkeepPerTick();
+
+        /** Returns the maximum Celestial Energy one selected endpoint may transfer per server tick. */
+        long celestialEnergyChargePerTick();
+
+        /** Returns the maximum AE energy one selected endpoint may transfer per server tick. */
+        long aeEnergyChargePerTick();
+
+        /** Returns the zero-reserve grace period in server ticks before the projection returns to dormancy. */
+        int reserveGraceTicks();
+
+        /** Returns the fraction of both capacities required to begin or resume deployment. */
+        double deploymentThreshold();
+
+        /** Returns the combined control-console and uplink-beacon limit for one weapon. */
+        int maxEndpointsPerWeapon();
+
+        /** Returns the combined endpoint limit for one weapon within a single dimension. */
+        int maxEndpointsPerDimension();
+
+        /** Returns whether bound endpoints should keep their own chunks loaded. */
+        boolean endpointChunkLoadingEnabled();
     }
 
     /**

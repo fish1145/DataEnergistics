@@ -99,6 +99,10 @@ public final class DataEnergisticsConfiguration {
     public SolarPanelSchema solarPanel = new SolarPanelSchema();
 
     @Configurable(key = Configurable.LocalizationKey.FULL)
+    @Configurable.Comment({ "Orbital weapon reserves, deployment and endpoint limits.", "轨道武器储备、部署与端点限制。" })
+    public OrbitalWeaponSchema orbitalWeapon = new OrbitalWeaponSchema();
+
+    @Configurable(key = Configurable.LocalizationKey.FULL)
     @Configurable.Comment({ "Trinity planning limits and quantity semantics.", "三位一体规划限制与数量语义设置。" })
     public TrinityCraftingSchema trinityCrafting = new TrinityCraftingSchema();
 
@@ -380,6 +384,63 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Additional AE storage per energy card.", "每张能量卡提供的额外 AE 存储容量。" })
         @Configurable.DecimalRange(min = 0.0, max = Double.MAX_VALUE)
         public double energyCardCapacityBonusAE = 80000.0D;
+    }
+
+    public static final class OrbitalWeaponSchema {
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum orbital Celestial Energy reserve.", "轨道星体能量储备上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long celestialEnergyCapacity = 500_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum orbital AE energy reserve, separate from Celestial Energy.", "轨道 AE 能量储备上限，与星体能量相互独立。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long aeEnergyCapacity = 500_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Celestial Energy consumed per deployed tick.", "部署状态每 tick 消耗的星体能量。" })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long celestialEnergyUpkeepPerTick = 100L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy consumed per deployed tick.", "部署状态每 tick 消耗的 AE 能量。" })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long aeEnergyUpkeepPerTick = 250_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum Celestial Energy transferred by one endpoint per tick.", "单个端点每 tick 可传输的星体能量上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long celestialEnergyChargePerTick = 20_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum AE energy transferred by one endpoint per tick.", "单个端点每 tick 可传输的 AE 能量上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long aeEnergyChargePerTick = 10_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Ticks at zero reserve before returning to dormancy.", "储备归零后返回休眠状态前的宽限 tick 数。" })
+        @Configurable.Range(min = 0, max = Integer.MAX_VALUE)
+        public int reserveGraceTicks = 12_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fraction of both reserve capacities required to deploy.", "开始部署所需的两种储备容量比例。" })
+        @Configurable.DecimalRange(min = Double.MIN_NORMAL, max = 1.0D)
+        public double deploymentThreshold = 0.10D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum control consoles and uplink beacons bound to one weapon.", "单件武器可绑定的控制终端与上行信标总上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxEndpointsPerWeapon = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum endpoints for one weapon in a single dimension.", "单件武器在同一维度内的端点上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxEndpointsPerDimension = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Keep each bound endpoint chunk loaded.", "让每个已绑定端点强制加载自身区块。" })
+        public boolean endpointChunkLoadingEnabled = true;
     }
 
     public static final class TrinityCraftingSchema {

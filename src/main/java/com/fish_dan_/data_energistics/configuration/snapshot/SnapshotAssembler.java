@@ -61,6 +61,7 @@ public final class SnapshotAssembler {
         FlatteningTntSettings tnt = tnt(schema, source);
         DataNukeSettings dataNuke = dataNuke(schema, source);
         SolarPanelSettings solar = solar(schema, source);
+        OrbitalWeaponSettings orbitalWeapon = orbitalWeapon(schema, source);
         TrinityCraftingSettings crafting = crafting(
                 schema,
                 source,
@@ -78,6 +79,7 @@ public final class SnapshotAssembler {
                 tnt,
                 dataNuke,
                 solar,
+                orbitalWeapon,
                 crafting,
                 dispatch);
     }
@@ -338,6 +340,83 @@ public final class SnapshotAssembler {
                         Double.MAX_VALUE));
     }
 
+    private static OrbitalWeaponSettings orbitalWeapon(
+                                                       DataEnergisticsConfiguration schema,
+                                                       Path source) throws InvalidConfigurationException {
+        DataEnergisticsConfiguration.OrbitalWeaponSchema orbitalWeapon = schema.orbitalWeapon;
+        int maxEndpointsPerWeapon = integer(
+                source,
+                "orbitalWeapon.maxEndpointsPerWeapon",
+                orbitalWeapon.maxEndpointsPerWeapon,
+                1,
+                1024);
+        int maxEndpointsPerDimension = integer(
+                source,
+                "orbitalWeapon.maxEndpointsPerDimension",
+                orbitalWeapon.maxEndpointsPerDimension,
+                1,
+                1024);
+        if (maxEndpointsPerDimension > maxEndpointsPerWeapon) {
+            throw invalid(
+                    source,
+                    "orbitalWeapon.maxEndpointsPerDimension",
+                    "per-dimension endpoint limit must not exceed maxEndpointsPerWeapon=" + maxEndpointsPerWeapon,
+                    Integer.toString(maxEndpointsPerDimension));
+        }
+        return new OrbitalWeaponSettings(
+                longInteger(
+                        source,
+                        "orbitalWeapon.celestialEnergyCapacity",
+                        orbitalWeapon.celestialEnergyCapacity,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.aeEnergyCapacity",
+                        orbitalWeapon.aeEnergyCapacity,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.celestialEnergyUpkeepPerTick",
+                        orbitalWeapon.celestialEnergyUpkeepPerTick,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.aeEnergyUpkeepPerTick",
+                        orbitalWeapon.aeEnergyUpkeepPerTick,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.celestialEnergyChargePerTick",
+                        orbitalWeapon.celestialEnergyChargePerTick,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.aeEnergyChargePerTick",
+                        orbitalWeapon.aeEnergyChargePerTick,
+                        1L,
+                        Long.MAX_VALUE),
+                integer(
+                        source,
+                        "orbitalWeapon.reserveGraceTicks",
+                        orbitalWeapon.reserveGraceTicks,
+                        0,
+                        Integer.MAX_VALUE),
+                finiteRange(
+                        source,
+                        "orbitalWeapon.deploymentThreshold",
+                        orbitalWeapon.deploymentThreshold,
+                        Double.MIN_NORMAL,
+                        1.0D),
+                maxEndpointsPerWeapon,
+                maxEndpointsPerDimension,
+                orbitalWeapon.endpointChunkLoadingEnabled);
+    }
+
     private static TrinityCraftingSettings crafting(
                                                     DataEnergisticsConfiguration schema,
                                                     Path source,
@@ -553,6 +632,14 @@ public final class SnapshotAssembler {
                                                                                       throws InvalidConfigurationException {
         if (value < min || value > max) {
             throw invalid(source, path, "integer must be in [" + min + ", " + max + "]", Integer.toString(value));
+        }
+        return value;
+    }
+
+    private static long longInteger(Path source, String path, long value, long min, long max)
+                                                                                              throws InvalidConfigurationException {
+        if (value < min || value > max) {
+            throw invalid(source, path, "integer must be in [" + min + ", " + max + "]", Long.toString(value));
         }
         return value;
     }

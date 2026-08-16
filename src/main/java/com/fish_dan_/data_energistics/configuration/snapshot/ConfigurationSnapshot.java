@@ -24,6 +24,7 @@ public record ConfigurationSnapshot(
                                     FlatteningTntSettings flatteningTnt,
                                     DataNukeSettings dataNuke,
                                     SolarPanelSettings solarPanel,
+                                    OrbitalWeaponSettings orbitalWeapon,
                                     TrinityCraftingSettings trinityCrafting,
                                     TrinityDispatchSettings trinityDispatch)
         implements DataEnergisticsSettings {
