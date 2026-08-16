@@ -360,12 +360,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return;
         }
         TargetMode nextMode = row.mode() == TargetMode.DISABLED ? TargetMode.AUTO : TargetMode.DISABLED;
-        this.menu.sendSetTargetTransferMode(
-                row.dimension().location().toString(),
-                row.pos().getX(),
-                row.pos().getY(),
-                row.pos().getZ(),
-                TargetTransferMode.fromOrdinal(nextMode.ordinal()));
+        if (transferInfo != null) {
+            this.menu.sendSetTargetTransferMode(
+                    transferInfo,
+                    TargetTransferMode.fromOrdinal(nextMode.ordinal()));
+        }
     }
 
     private String getEmptyStateText() {

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.network.tower;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 
@@ -45,6 +46,9 @@ public final class DataDistributionTowerTargetsPayloadTest {
                         24,
                         TowerVirtualDeviceState.WAITING_CHANNEL,
                         "CHANNEL_UNAVAILABLE",
+                        new TowerRuntimeKey(
+                                ResourceLocation.parse("minecraft:overworld"),
+                                new BlockPos(1, 64, 2)),
                         ResourceLocation.parse("minecraft:overworld"),
                         new BlockPos(4, 65, 9),
                         new TowerDeviceKey(
