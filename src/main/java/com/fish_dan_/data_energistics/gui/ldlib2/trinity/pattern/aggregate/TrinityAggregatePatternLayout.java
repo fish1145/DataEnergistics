@@ -2,10 +2,12 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.aggregate;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Assigns stable business identities to the single verified child order authored in {@code pattern.ui.nbt}.
@@ -24,12 +26,13 @@ final class TrinityAggregatePatternLayout {
     static final String REFUND_RETAINED_ID = WINDOW_ID + "_refund_retained";
     static final String TITLE_ID = WINDOW_ID + "_title";
     static final String MAINTENANCE_ID = WINDOW_ID + "_maintenance";
+    static final String MAINTENANCE_HOST_ID = MAINTENANCE_ID + "_host";
 
-    private static final int AUTHORED_CHILD_COUNT = 8;
+    private static final int AUTHORED_CHILD_COUNT = 10;
 
     private TrinityAggregatePatternLayout() {}
 
-    static Controls bind(UIElement root) {
+    static Controls bind(UIElement root, boolean clientSide) {
         List<UIElement> children = root.getChildren();
         if (children.size() != AUTHORED_CHILD_COUNT) {
             throw new IllegalStateException("Pattern layout expected " + AUTHORED_CHILD_COUNT +
@@ -39,7 +42,12 @@ final class TrinityAggregatePatternLayout {
         root.setId(WINDOW_ID);
         UIElement content = child(children, 0, UIElement.class, "content");
         content.setId(CONTENT_ID);
-        Scroller.Vertical scrollbar = child(content.getChildren(), 0, Scroller.Vertical.class, "scrollbar");
+        Scroller.Vertical scrollbar = nestedControl(
+                content,
+                clientSide,
+                Scroller.Vertical.class,
+                Scroller.Vertical::new,
+                "scrollbar");
         scrollbar.setId(SCROLLER_ID);
         Button close = child(children, 1, Button.class, "close");
         close.setId(CLOSE_ID);
@@ -47,10 +55,19 @@ final class TrinityAggregatePatternLayout {
         search.setId(SEARCH_ID);
         Button searchMode = child(children, 3, Button.class, "search mode");
         searchMode.setId(SEARCH_MODE_ID);
-        Button priority = wrappedButton(children, 4, PRIORITY_ID, "priority");
-        Button refundPatterns = wrappedButton(children, 5, REFUND_PATTERNS_ID, "refund patterns");
-        Button migrate = wrappedButton(children, 6, MIGRATE_ID, "migrate");
-        Button refundRetained = wrappedButton(children, 7, REFUND_RETAINED_ID, "refund retained materials");
+        Button priority = wrappedButton(children, 4, clientSide, PRIORITY_ID, "priority");
+        Button refundPatterns = wrappedButton(children, 5, clientSide, REFUND_PATTERNS_ID, "refund patterns");
+        Button migrate = wrappedButton(children, 6, clientSide, MIGRATE_ID, "migrate");
+        Button refundRetained = wrappedButton(
+                children,
+                7,
+                clientSide,
+                REFUND_RETAINED_ID,
+                "refund retained materials");
+        Label title = child(children, 8, Label.class, "title");
+        title.setId(TITLE_ID);
+        UIElement maintenanceHost = child(children, 9, UIElement.class, "maintenance host");
+        maintenanceHost.setId(MAINTENANCE_HOST_ID);
         return new Controls(
                 content,
                 scrollbar,
@@ -60,17 +77,38 @@ final class TrinityAggregatePatternLayout {
                 priority,
                 refundPatterns,
                 migrate,
-                refundRetained);
+                refundRetained,
+                title,
+                maintenanceHost);
     }
 
-    private static Button wrappedButton(List<UIElement> rootChildren, int index, String id, String role) {
+    private static Button wrappedButton(List<UIElement> rootChildren,
+                                        int index,
+                                        boolean clientSide,
+                                        String id,
+                                        String role) {
         UIElement wrapper = child(rootChildren, index, UIElement.class, role + " wrapper");
-        if (wrapper.getChildren().size() != 1) {
-            throw new IllegalStateException("Pattern layout " + role + " wrapper must contain exactly one child");
-        }
-        Button button = child(wrapper.getChildren(), 0, Button.class, role);
+        Button button = nestedControl(wrapper, clientSide, Button.class, Button::new, role);
         button.setId(id);
         return button;
+    }
+
+    /**
+     * LDLib2 retains plain authored containers on the logical server without their nested rendered controls. Rebuilds
+     * the non-rendering server structure while keeping the client bound to the authored NBT hierarchy.
+     */
+    private static <T extends UIElement> T nestedControl(UIElement container,
+                                                         boolean clientSide,
+                                                         Class<T> type,
+                                                         Supplier<T> serverFactory,
+                                                         String role) {
+        if (!clientSide && container.getChildren().isEmpty()) {
+            container.addChild(serverFactory.get());
+        }
+        if (container.getChildren().size() != 1) {
+            throw new IllegalStateException("Pattern layout " + role + " container must contain exactly one child");
+        }
+        return child(container.getChildren(), 0, type, role);
     }
 
     private static <T extends UIElement> T child(List<UIElement> children,
@@ -93,5 +131,7 @@ final class TrinityAggregatePatternLayout {
                     Button priority,
                     Button refundPatterns,
                     Button migrate,
-                    Button refundRetained) {}
+                    Button refundRetained,
+                    Label title,
+                    UIElement maintenanceHost) {}
 }

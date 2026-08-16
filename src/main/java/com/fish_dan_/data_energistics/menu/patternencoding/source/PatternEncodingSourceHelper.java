@@ -9,12 +9,14 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
+import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSessionState.DataRipperTransferMetadata;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -50,6 +52,7 @@ public final class PatternEncodingSourceHelper {
     private static final int DATA_RIPPER_KEY_OUTPUT_SLOT = DATA_RIPPER_ITEM_OUTPUT_SLOT_BASE + DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS;
     private static final int DATA_RIPPER_FLUID_OUTPUT_SLOT_BASE = DATA_RIPPER_KEY_OUTPUT_SLOT + DataRipperReassemblerRecipe.KEY_OUTPUT_SLOTS;
     public static final String ACTION_SET_PATTERN_SOURCE = "dataEnergisticsSetPatternSource";
+    public static final String ACTION_SET_DATA_RIPPER_TRANSFER_METADATA = "dataEnergisticsSetDataRipperTransferMetadata";
     public static final String ACTION_SET_TRANSFER_KEY_INPUT = "dataEnergisticsSetTransferKeyInput";
     public static final String ACTION_SET_TRANSFER_KEY_OUTPUT = "dataEnergisticsSetTransferKeyOutput";
     public static final String ACTION_SET_TRANSFER_FLUID_INPUTS = "dataEnergisticsSetTransferFluidInputs";
@@ -58,6 +61,10 @@ public final class PatternEncodingSourceHelper {
     public static final String CLEAR_TRANSFER_KEY_INPUT = "";
     public static final String CLEAR_TRANSFER_KEY_OUTPUT = "";
     public static final String CLEAR_TRANSFER_FLUID_STACKS = "";
+    private static final String TRANSFER_METADATA_KEY_INPUT_TAG = "key_input";
+    private static final String TRANSFER_METADATA_KEY_OUTPUT_TAG = "key_output";
+    private static final String TRANSFER_METADATA_FLUID_INPUTS_TAG = "fluid_inputs";
+    private static final String TRANSFER_METADATA_FLUID_OUTPUTS_TAG = "fluid_outputs";
     private static final String PLAYER_PATTERN_SOURCE_ROOT = "data_energistics_pattern_source";
     private static final String TAG_PENDING = "pending";
     private static final String TAG_LAST = "last";
@@ -250,10 +257,7 @@ public final class PatternEncodingSourceHelper {
         }
 
         sourceAware.data_energistics$setPendingPatternSource(null);
-        syncPendingTransferKeyInput(menu, null);
-        syncPendingTransferKeyOutput(menu, null);
-        syncPendingTransferFluidInputs(menu, List.of());
-        syncPendingTransferFluidOutputs(menu, List.of());
+        syncDataRipperTransferMetadata(menu, null);
 
         EncodingMode mode = menu.getMode();
         ResourceLocation fixedWorkstation = resolveFallbackWorkstationForMode(mode);
@@ -272,6 +276,46 @@ public final class PatternEncodingSourceHelper {
         if (dataRipperRecipe != null) {
             syncPendingTransferKeyInput(menu, dataRipperRecipe.getKeyInput());
         }
+    }
+
+    /**
+     * Records all Data Ripper-only metadata as one transfer snapshot so a later encode cannot mix it with a prior
+     * viewer transfer.
+     */
+    public static void rememberDataRipperTransferMetadata(PatternEncodingTermMenu menu, EncodingMode transferMode,
+                                                          @Nullable Object recipe, @Nullable Object transferContext) {
+        if (transferMode != EncodingMode.PROCESSING) {
+            syncDataRipperTransferMetadata(menu, null);
+            return;
+        }
+
+        DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
+        if (dataRipperRecipe == null) {
+            syncDataRipperTransferMetadata(menu, null);
+            return;
+        }
+
+        rememberDataRipperTransferMetadata(menu,
+                dataRipperRecipe.getKeyInput(),
+                dataRipperRecipe.getKeyOutput(),
+                dataRipperRecipe.getFluidInputs(),
+                dataRipperRecipe.getFluidOutputs());
+    }
+
+    /**
+     * Records validated viewer metadata without requiring server-side code to load the client-only recipe view type.
+     */
+    public static void rememberDataRipperTransferMetadata(PatternEncodingTermMenu menu,
+                                                          @Nullable GenericStack keyInput,
+                                                          @Nullable GenericStack keyOutput,
+                                                          List<GenericStack> fluidInputs,
+                                                          List<GenericStack> fluidOutputs) {
+        syncDataRipperTransferMetadata(menu, new DataRipperTransferMetadata(
+                menu.containerId,
+                copyGenericStack(keyInput),
+                copyGenericStack(keyOutput),
+                copyGenericStacks(fluidInputs),
+                copyGenericStacks(fluidOutputs)));
     }
 
     public static void rememberTransferFluidInputs(PatternEncodingTermMenu menu, EncodingMode transferMode,
@@ -379,26 +423,20 @@ public final class PatternEncodingSourceHelper {
      * Applies all recipe metadata retained while a processing transfer waited for its network-resolved workstation.
      */
     public static void applyPendingTransferRecipeMetadata(PatternEncodingTermMenu menu) {
-        resolveAndApplyDataRipperRecipeKeyInput(menu);
-        applyPendingTransferKeyInput(menu);
-        applyPendingTransferKeyOutput(menu);
         if (menu.getMode() != EncodingMode.PROCESSING ||
                 !DATA_RIPPER_REASSEMBLER_ID.equals(readPendingPatternSource(menu.getPlayer())) ||
                 !(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
             return;
         }
 
+        DataRipperTransferMetadata metadata = PatternEncodingSessionState
+                .getPendingDataRipperTransfer(menu.getPlayer().getUUID(), menu.containerId);
+        if (metadata == null) {
+            return;
+        }
         PatternEncodingLogic logic = host.getLogic();
-        applyTransferFluidStacksServer(
-                logic.getEncodedInputInv(),
-                DATA_RIPPER_FLUID_INPUT_SLOT_BASE,
-                DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS,
-                readPendingTransferFluidInputs(menu.getPlayer()));
-        applyTransferFluidStacksServer(
-                logic.getEncodedOutputInv(),
-                DATA_RIPPER_FLUID_OUTPUT_SLOT_BASE,
-                DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS,
-                readPendingTransferFluidOutputs(menu.getPlayer()));
+        repackDataRipperInputs(logic.getEncodedInputInv(), metadata.keyInput(), metadata.fluidInputs());
+        repackDataRipperOutputs(logic.getEncodedOutputInv(), metadata.keyOutput(), metadata.fluidOutputs());
     }
 
     public static void sanitizeActiveDataRipperTransferLayout(PatternEncodingTermMenu menu) {
@@ -613,7 +651,9 @@ public final class PatternEncodingSourceHelper {
         GenericStack keyInput = overrideKeyInput != null ? copyGenericStack(overrideKeyInput) : extractDataRipperKeyStack(encodedInputsInv);
         List<GenericStack> fluidInputs = overrideFluidInputs != null ? copyGenericStacks(overrideFluidInputs) : extractFluidStacks(encodedInputsInv);
 
-        rewriteStacks(encodedInputsInv, plainItems, keyInput, fluidInputs);
+        rewriteStacks(encodedInputsInv, plainItems, keyInput, fluidInputs,
+                DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS + DataRipperReassemblerRecipe.KEY_INPUT_SLOTS +
+                        DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS);
     }
 
     private static void repackDataRipperOutputs(ConfigInventory encodedOutputsInv,
@@ -623,11 +663,14 @@ public final class PatternEncodingSourceHelper {
         GenericStack keyOutput = overrideKeyOutput != null ? copyGenericStack(overrideKeyOutput) : extractDataRipperKeyStack(encodedOutputsInv);
         List<GenericStack> fluidOutputs = overrideFluidOutputs != null ? copyGenericStacks(overrideFluidOutputs) : extractFluidStacks(encodedOutputsInv);
 
-        rewriteStacks(encodedOutputsInv, plainItems, keyOutput, fluidOutputs);
+        rewriteStacks(encodedOutputsInv, plainItems, keyOutput, fluidOutputs,
+                DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS + DataRipperReassemblerRecipe.KEY_OUTPUT_SLOTS +
+                        DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS);
     }
 
     private static void rewriteStacks(ConfigInventory inventory, List<GenericStack> plainItems,
-                                      @Nullable GenericStack keyStack, List<GenericStack> fluidStacks) {
+                                      @Nullable GenericStack keyStack, List<GenericStack> fluidStacks,
+                                      int layoutSlots) {
         List<GenericStack> reordered = new ArrayList<>(plainItems.size() + fluidStacks.size() + 1);
         reordered.addAll(plainItems);
         if (isMeaningfulGenericStack(keyStack)) {
@@ -635,7 +678,7 @@ public final class PatternEncodingSourceHelper {
         }
         reordered.addAll(copyGenericStacks(fluidStacks));
 
-        int rewriteLimit = Math.min(inventory.size(), Math.max(reordered.size(), DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS));
+        int rewriteLimit = Math.min(inventory.size(), layoutSlots);
         for (int i = 0; i < rewriteLimit; i++) {
             GenericStack stack = i < reordered.size() ? reordered.get(i) : null;
             inventory.setStack(i, stack == null ? null : new GenericStack(stack.what(), stack.amount()));
@@ -746,6 +789,26 @@ public final class PatternEncodingSourceHelper {
         return !recipeOutputs.isEmpty() || isMeaningfulGenericStack(recipe.getKeyOutput()) || !recipeFluidOutputs.isEmpty();
     }
 
+    /**
+     * Applies one complete client-originated Data Ripper transfer snapshot on the server.
+     */
+    public static void applyDataRipperTransferMetadataAction(PatternEncodingTermMenu menu,
+                                                             @Nullable String serializedMetadata) {
+        if (serializedMetadata == null || serializedMetadata.isEmpty()) {
+            clearDataRipperTransferMetadata(menu.getPlayer());
+            return;
+        }
+
+        DataRipperTransferMetadata metadata = deserializeDataRipperTransferMetadata(
+                menu, serializedMetadata);
+        if (metadata == null) {
+            return;
+        }
+
+        writeDataRipperTransferMetadata(menu.getPlayer(), metadata);
+        applyDataRipperTransferMetadata(menu, metadata);
+    }
+
     public static void applyTransferKeyInputAction(PatternEncodingTermMenu menu, @Nullable String serializedKeyInput) {
         GenericStack keyInput = deserializeTransferKey(menu, serializedKeyInput);
         if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
@@ -854,6 +917,25 @@ public final class PatternEncodingSourceHelper {
         writePendingTransferKeyInput(menu.getPlayer(), keyInput);
     }
 
+    private static void syncDataRipperTransferMetadata(PatternEncodingTermMenu menu,
+                                                       @Nullable DataRipperTransferMetadata metadata) {
+        if (menu.isClientSide()) {
+            if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
+                transferKeyAware.dataEnergistics$sendDataRipperTransferMetadataAction(
+                        serializeDataRipperTransferMetadata(menu, metadata));
+            }
+            return;
+        }
+
+        if (metadata == null) {
+            clearDataRipperTransferMetadata(menu.getPlayer());
+            return;
+        }
+
+        writeDataRipperTransferMetadata(menu.getPlayer(), metadata);
+        applyDataRipperTransferMetadata(menu, metadata);
+    }
+
     private static void syncPendingTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
         if (menu.isClientSide()) {
             if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
@@ -887,6 +969,132 @@ public final class PatternEncodingSourceHelper {
         }
 
         writePendingTransferFluidOutputs(menu.getPlayer(), fluidOutputs);
+    }
+
+    private static void writeDataRipperTransferMetadata(Player player,
+                                                        DataRipperTransferMetadata metadata) {
+        writePendingTransferKeyInput(player, metadata.keyInput());
+        writePendingTransferKeyOutput(player, metadata.keyOutput());
+        writePendingTransferFluidInputs(player, metadata.fluidInputs());
+        writePendingTransferFluidOutputs(player, metadata.fluidOutputs());
+        PatternEncodingSessionState.setPendingDataRipperTransfer(player.getUUID(), metadata);
+    }
+
+    private static void clearDataRipperTransferMetadata(Player player) {
+        writePendingTransferKeyInput(player, null);
+        writePendingTransferKeyOutput(player, null);
+        writePendingTransferFluidInputs(player, List.of());
+        writePendingTransferFluidOutputs(player, List.of());
+        PatternEncodingSessionState.clearPendingDataRipperTransfer(player.getUUID());
+    }
+
+    private static void applyDataRipperTransferMetadata(PatternEncodingTermMenu menu,
+                                                        DataRipperTransferMetadata metadata) {
+        if (menu.getMode() != EncodingMode.PROCESSING ||
+                !DATA_RIPPER_REASSEMBLER_ID.equals(readPendingPatternSource(menu.getPlayer())) ||
+                !(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        repackDataRipperInputs(logic.getEncodedInputInv(), metadata.keyInput(), metadata.fluidInputs());
+        repackDataRipperOutputs(logic.getEncodedOutputInv(), metadata.keyOutput(), metadata.fluidOutputs());
+    }
+
+    private static String serializeDataRipperTransferMetadata(PatternEncodingTermMenu menu,
+                                                              @Nullable DataRipperTransferMetadata metadata) {
+        if (metadata == null) {
+            return CLEAR_TRANSFER_FLUID_STACKS;
+        }
+
+        CompoundTag root = new CompoundTag();
+        root.putString(TRANSFER_METADATA_KEY_INPUT_TAG, serializeTransferKeyInput(menu, metadata.keyInput()));
+        root.putString(TRANSFER_METADATA_KEY_OUTPUT_TAG, serializeTransferKeyOutput(menu, metadata.keyOutput()));
+        root.putString(TRANSFER_METADATA_FLUID_INPUTS_TAG, serializeTransferFluidStacks(menu, metadata.fluidInputs()));
+        root.putString(TRANSFER_METADATA_FLUID_OUTPUTS_TAG, serializeTransferFluidStacks(menu, metadata.fluidOutputs()));
+        return root.toString();
+    }
+
+    @Nullable
+    private static DataRipperTransferMetadata deserializeDataRipperTransferMetadata(
+                                                                                    PatternEncodingTermMenu menu, String serializedMetadata) {
+        try {
+            CompoundTag root = TagParser.parseTag(serializedMetadata);
+            String serializedKeyInput = readRequiredMetadataString(root, TRANSFER_METADATA_KEY_INPUT_TAG);
+            String serializedKeyOutput = readRequiredMetadataString(root, TRANSFER_METADATA_KEY_OUTPUT_TAG);
+            String serializedFluidInputs = readRequiredMetadataString(root, TRANSFER_METADATA_FLUID_INPUTS_TAG);
+            String serializedFluidOutputs = readRequiredMetadataString(root, TRANSFER_METADATA_FLUID_OUTPUTS_TAG);
+            return new DataRipperTransferMetadata(
+                    menu.containerId,
+                    deserializeDataRipperTransferKey(menu, serializedKeyInput, "input"),
+                    deserializeDataRipperTransferKey(menu, serializedKeyOutput, "output"),
+                    deserializeDataRipperTransferFluids(menu, serializedFluidInputs,
+                            DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS, "input"),
+                    deserializeDataRipperTransferFluids(menu, serializedFluidOutputs,
+                            DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS, "output"));
+        } catch (CommandSyntaxException | IllegalArgumentException exception) {
+            LOGGER.warn("Rejected malformed Data Ripper pattern transfer metadata", exception);
+            return null;
+        }
+    }
+
+    private static String readRequiredMetadataString(CompoundTag root, String key) {
+        if (!root.contains(key, Tag.TAG_STRING)) {
+            throw new IllegalArgumentException("Data Ripper transfer metadata is missing " + key);
+        }
+        return root.getString(key);
+    }
+
+    @Nullable
+    private static GenericStack deserializeDataRipperTransferKey(PatternEncodingTermMenu menu, String serializedKey,
+                                                                 String description) throws CommandSyntaxException {
+        if (serializedKey.isEmpty()) {
+            return null;
+        }
+
+        GenericStack stack = GenericStack.readTag(menu.getPlayer().registryAccess(), TagParser.parseTag(serializedKey));
+        if (stack == null || stack.amount() <= 0L || stack.what() == null ||
+                stack.what() instanceof AEItemKey || stack.what() instanceof AEFluidKey) {
+            throw new IllegalArgumentException("Data Ripper " + description + " key is invalid");
+        }
+        return new GenericStack(stack.what(), stack.amount());
+    }
+
+    private static List<GenericStack> deserializeDataRipperTransferFluids(PatternEncodingTermMenu menu,
+                                                                          String serializedFluids,
+                                                                          int maximumSlots,
+                                                                          String description) throws CommandSyntaxException {
+        if (serializedFluids.isEmpty()) {
+            return List.of();
+        }
+
+        CompoundTag root = TagParser.parseTag(serializedFluids);
+        for (String key : root.getAllKeys()) {
+            int slot;
+            try {
+                slot = Integer.parseInt(key);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("Data Ripper " + description + " fluid slot is invalid: " + key,
+                        exception);
+            }
+            if (slot < 0 || slot >= maximumSlots || !root.contains(key, Tag.TAG_COMPOUND)) {
+                throw new IllegalArgumentException("Data Ripper " + description + " fluid slot is outside the allowed range: " + key);
+            }
+        }
+
+        List<GenericStack> fluids = new ArrayList<>(maximumSlots);
+        for (int slot = 0; slot < maximumSlots; slot++) {
+            String key = Integer.toString(slot);
+            if (!root.contains(key, Tag.TAG_COMPOUND)) {
+                continue;
+            }
+            GenericStack stack = GenericStack.readTag(menu.getPlayer().registryAccess(), root.getCompound(key));
+            if (stack == null || stack.amount() <= 0L || !(stack.what() instanceof AEFluidKey)) {
+                throw new IllegalArgumentException("Data Ripper " + description + " fluid is invalid in slot " + slot);
+            }
+            fluids.add(new GenericStack(stack.what(), stack.amount()));
+        }
+        return List.copyOf(fluids);
     }
 
     private static String serializeTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {

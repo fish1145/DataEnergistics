@@ -143,7 +143,7 @@ public final class TrinityDataCoreHostUi {
         cpuList.bindScrollbar(scrollbar);
         cpuList.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
+                .left(-1)
                 .top(0)
                 .width(TrinityCpuStatusList.DEFAULT_WIDTH)
                 .height(TrinityCpuStatusList.DEFAULT_HEIGHT));

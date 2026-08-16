@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.jei;
 
+import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
@@ -35,14 +36,17 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
             Recipe<?> transferredRecipe = recipe instanceof RecipeHolder<?> holder ? holder.value() :
                     recipe instanceof Recipe<?> value ? value : null;
             EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(transferredRecipe, false);
-            PatternEncodingSourceHelper.rememberTransferKeyInput(
-                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferKeyOutput(
-                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferFluidInputs(
-                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
-            PatternEncodingSourceHelper.rememberTransferFluidOutputs(
-                    patternEncodingTermMenu, transferMode, recipe, recipeSlots);
+            if (transferMode == EncodingMode.PROCESSING && recipe instanceof DataRipperReassemblerRecipeView view) {
+                PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(
+                        patternEncodingTermMenu,
+                        view.keyInput(),
+                        view.keyOutput(),
+                        view.fluidInputs(),
+                        view.fluidOutputs());
+            } else {
+                PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(
+                        patternEncodingTermMenu, transferMode, recipe, recipeSlots);
+            }
         }
     }
 }
