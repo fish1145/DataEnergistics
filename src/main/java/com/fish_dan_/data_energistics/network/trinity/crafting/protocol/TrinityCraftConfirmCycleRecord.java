@@ -1,0 +1,31 @@
+package com.fish_dan_.data_energistics.network.trinity.crafting.protocol;
+
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+
+import appeng.api.stacks.AEKey;
+
+/**
+ * Closed classification of the three record families carried by the cycle-summary protocol.
+ */
+public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfirmCycleRecord.Header,
+                                                       TrinityCraftConfirmCycleRecord.Material, TrinityCraftConfirmCycleRecord.InventoryUsage {
+
+    /** Carries one validated repeat-block header. */
+    record Header(TrinityCraftingCycleHeader value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries one validated material-to-cycle contribution. */
+    record Material(TrinityCraftingCycleMaterialContribution value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries one capped ME inventory-usage percentage without assigning it to an individual cycle. */
+    record InventoryUsage(AEKey key, int basisPoints) implements TrinityCraftConfirmCycleRecord {
+
+        /** Rejects percentages outside [0%, 100%] at construction and decode boundaries. */
+        public InventoryUsage {
+            if (basisPoints < 0 || basisPoints > TrinityCraftingCycleSummary.MAX_INVENTORY_USAGE_BASIS_POINTS) {
+                throw new IllegalArgumentException("Trinity crafting confirmation inventory usage is out of range");
+            }
+        }
+    }
+}

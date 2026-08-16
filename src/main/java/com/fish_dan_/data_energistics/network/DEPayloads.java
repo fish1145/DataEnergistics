@@ -20,6 +20,7 @@ import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPaylo
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiResponsePayload;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
@@ -34,7 +35,7 @@ public final class DEPayloads {
     private DEPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("4");
+        PayloadRegistrar registrar = event.registrar("5");
         registrar.playToServer(
                 PatternEncodingPreferencesSyncPayload.TYPE,
                 PatternEncodingPreferencesSyncPayload.STREAM_CODEC,
@@ -51,6 +52,10 @@ public final class DEPayloads {
                 DataDistributionTowerTargetsPayload.TYPE,
                 DataDistributionTowerTargetsPayload.STREAM_CODEC,
                 DataDistributionTowerTargetsPayload::handle);
+        registrar.playToClient(
+                TrinityCraftConfirmCyclePayload.TYPE,
+                TrinityCraftConfirmCyclePayload.STREAM_CODEC,
+                TrinityCraftConfirmCyclePayload::handle);
         registrar.playToClient(
                 UniversalTerminalStateSyncPayload.TYPE,
                 UniversalTerminalStateSyncPayload.STREAM_CODEC,

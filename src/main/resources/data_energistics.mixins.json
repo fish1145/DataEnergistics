@@ -80,6 +80,7 @@
 		"client.crafting.CPUSelectionListMixin",
 		"client.crafting.CraftAmountScreenMixin",
 		"client.crafting.CraftConfirmScreenMixin",
+		"client.crafting.CraftConfirmTableRendererMixin",
 		"client.crafting.NumberEntryWidgetAccessor",
 		"client.gui.AEBaseScreenSlotHighlightMixin",
 		"client.gui.Ae2CustomKeyGuiMixin",
