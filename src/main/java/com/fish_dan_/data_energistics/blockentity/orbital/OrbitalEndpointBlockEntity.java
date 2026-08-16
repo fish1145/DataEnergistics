@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.networking.GridFlags;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
@@ -41,6 +42,7 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
                                          Block visualRepresentation) {
         super(type, pos, state);
         getMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setVisualRepresentation(visualRepresentation)
                 .setIdlePowerUsage(0.0D);
     }

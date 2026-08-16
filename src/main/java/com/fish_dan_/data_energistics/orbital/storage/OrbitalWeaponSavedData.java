@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.orbital.storage;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailability;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
@@ -13,6 +14,7 @@ import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
@@ -144,6 +146,24 @@ public final class OrbitalWeaponSavedData extends SavedData {
      */
     public Map<OrbitalEndpointLocation, UUID> endpointBindings() {
         return Map.copyOf(this.endpointIndex);
+    }
+
+    /**
+     * Returns whether the weapon has a valid, powered AE endpoint in the requested dimension.
+     *
+     * <p>
+     * This server-thread query is the authoritative dimension-unlock boundary used by attack preview and confirmation.
+     * </p>
+     */
+    public boolean hasOnlineEndpoint(
+                                     MinecraftServer server,
+                                     UUID weaponId,
+                                     ResourceLocation dimensionId) {
+        requireServerThread(server);
+        OrbitalWeaponRecord weapon = requireWeapon(weaponId);
+        return weapon.endpoints().values().stream()
+                .filter(endpoint -> endpoint.location().dimensionId().equals(dimensionId))
+                .anyMatch(endpoint -> OrbitalEndpointAvailability.isOnline(server, weaponId, endpoint));
     }
 
     /**

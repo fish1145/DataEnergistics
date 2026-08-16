@@ -5,9 +5,11 @@ import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
@@ -15,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -33,6 +36,9 @@ public final class OrbitalUplinkBeaconGameTest {
     private static final BlockPos CONTROL_CONSOLE = new BlockPos(2, 2, 1);
     private static final BlockPos BOUND_BEACON = new BlockPos(3, 2, 1);
     private static final BlockPos DISTANT_BEACON = new BlockPos(160 * 16, 2, 64 * 16);
+    private static final ResourceLocation CREATIVE_ENERGY_CELL_ID = ResourceLocation.fromNamespaceAndPath(
+            "ae2",
+            "creative_energy_cell");
 
     private OrbitalUplinkBeaconGameTest() {}
 
@@ -84,16 +90,18 @@ public final class OrbitalUplinkBeaconGameTest {
         helper.succeed();
     }
 
-    @TestHolder("orbital_uplink_beacon_force_ticks_its_chunk_until_destroyed")
+    @TestHolder("orbital_uplink_beacon_stays_loaded_and_recovers_after_power_cycle")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void forceTicksItsChunkUntilDestroyed(GameTestHelper helper) {
+    public static void staysLoadedAndRecoversAfterPowerCycle(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "uplink-ticket-owner");
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        UUID weaponId = data.ownedBy(owner.getUUID()).orElseThrow().weaponId();
 
         BlockPos beaconPos = helper.absolutePos(DISTANT_BEACON);
+        BlockPos energyCellPos = beaconPos.below();
         level.getChunkAt(beaconPos);
         ChunkPos beaconChunk = new ChunkPos(beaconPos);
         OrbitalEndpointLocation beaconLocation = new OrbitalEndpointLocation(level.dimension().location(), beaconPos);
@@ -113,7 +121,31 @@ public final class OrbitalUplinkBeaconGameTest {
                     helper.assertTrue(
                             level.getChunkSource().isPositionTicking(beaconChunk.toLong()),
                             "The uplink beacon's chunk must receive full server ticks without a nearby player");
+                    helper.assertFalse(
+                            data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                            "A bound endpoint without AE power must remain offline");
                 })
+                .thenExecute(() -> placeCreativeEnergyCell(level, energyCellPos))
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                        "Supplying a booted AE grid must bring the endpoint online"))
+                .thenExecute(() -> helper.assertTrue(
+                        level.destroyBlock(energyCellPos, false),
+                        "The endpoint's AE power source must be removable"))
+                .thenWaitUntil(() -> {
+                    helper.assertFalse(
+                            data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                            "Removing AE power must take the endpoint offline");
+                    helper.assertTrue(
+                            isForceTicked(level, beaconChunk),
+                            "An offline endpoint must retain its chunk ticket so it can detect restored power");
+                })
+                .thenExecute(() -> placeCreativeEnergyCell(level, energyCellPos))
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                        "Restoring AE power must recover the existing endpoint without replacing it"))
                 .thenExecute(() -> helper.assertTrue(
                         level.destroyBlock(beaconPos, false),
                         "The force-loaded uplink beacon must be removable"))
@@ -125,6 +157,7 @@ public final class OrbitalUplinkBeaconGameTest {
                             data.weaponAt(beaconLocation).isEmpty(),
                             "Destroying the uplink beacon must also release its endpoint binding");
                 })
+                .thenExecute(() -> level.destroyBlock(energyCellPos, false))
                 .thenSucceed();
     }
 
@@ -157,6 +190,13 @@ public final class OrbitalUplinkBeaconGameTest {
 
     private static boolean isForceTicked(ServerLevel level, ChunkPos chunkPos) {
         return level.getChunkSource().chunkMap.getDistanceManager().shouldForceTicks(chunkPos.toLong());
+    }
+
+    private static void placeCreativeEnergyCell(ServerLevel level, BlockPos pos) {
+        Block energyCell = BuiltInRegistries.BLOCK.get(CREATIVE_ENERGY_CELL_ID);
+        if (energyCell == Blocks.AIR || !level.setBlock(pos, energyCell.defaultBlockState(), Block.UPDATE_ALL)) {
+            throw new IllegalStateException("Failed to place the AE creative energy cell at " + pos);
+        }
     }
 
     private static final class TestServerPlayer extends ServerPlayer {
