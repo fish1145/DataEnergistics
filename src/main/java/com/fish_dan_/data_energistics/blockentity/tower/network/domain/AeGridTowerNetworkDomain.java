@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.grid.ExposedControllerFaceChannelCapacity;
+import com.fish_dan_.data_energistics.ae2.grid.ControllerChannelCapacity;
 import com.fish_dan_.data_energistics.ae2.grid.TowerChannelCapacity;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridgeException;
@@ -102,7 +102,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
     private final CompensatingTowerEnergyTransaction energyTransaction = new CompensatingTowerEnergyTransaction();
     private final SharedTowerEnergyPort energyPort;
-    private final TowerChannelCapacity capacityCalculator = new ExposedControllerFaceChannelCapacity();
+    private final TowerChannelCapacity capacityCalculator = new ControllerChannelCapacity();
     private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
     private TowerEnergyTransactionResult lastEnergyResult = EMPTY_ENERGY_RESULT;
