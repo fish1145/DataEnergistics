@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.machine.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.orbital.OrbitalControlConsoleBlock;
 import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumInterfaceBlock;
@@ -86,6 +87,12 @@ public final class DEBlocks {
             "data_teleport_anchor",
             DataTeleportAnchorBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> ORBITAL_CONTROL_CONSOLE = BLOCKS.registerBlock(
+            "orbital_control_console",
+            OrbitalControlConsoleBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> DATA_SANCTUM = BLOCKS.registerBlock(
             "data_sanctum",
