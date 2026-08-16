@@ -16,26 +16,26 @@ item_ids:
 - data_energistics:data_storage_component_64m
 - data_energistics:data_storage_component_256m
 - data_energistics:data_flow_component_housing
-- data_energistics:data_flow_cell_1k
-- data_energistics:data_flow_cell_4k
-- data_energistics:data_flow_cell_16k
-- data_energistics:data_flow_cell_64k
-- data_energistics:data_flow_cell_256k
-- data_energistics:data_flow_cell_1m
-- data_energistics:data_flow_cell_4m
-- data_energistics:data_flow_cell_16m
-- data_energistics:data_flow_cell_64m
-- data_energistics:data_flow_cell_256m
-- data_energistics:portable_data_flow_cell_1k
-- data_energistics:portable_data_flow_cell_4k
-- data_energistics:portable_data_flow_cell_16k
-- data_energistics:portable_data_flow_cell_64k
-- data_energistics:portable_data_flow_cell_256k
-- data_energistics:portable_data_flow_cell_1m
-- data_energistics:portable_data_flow_cell_4m
-- data_energistics:portable_data_flow_cell_16m
-- data_energistics:portable_data_flow_cell_64m
-- data_energistics:portable_data_flow_cell_256m
+- data_energistics:digital_storage_cell_1k
+- data_energistics:digital_storage_cell_4k
+- data_energistics:digital_storage_cell_16k
+- data_energistics:digital_storage_cell_64k
+- data_energistics:digital_storage_cell_256k
+- data_energistics:digital_storage_cell_1m
+- data_energistics:digital_storage_cell_4m
+- data_energistics:digital_storage_cell_16m
+- data_energistics:digital_storage_cell_64m
+- data_energistics:digital_storage_cell_256m
+- data_energistics:portable_digital_storage_cell_1k
+- data_energistics:portable_digital_storage_cell_4k
+- data_energistics:portable_digital_storage_cell_16k
+- data_energistics:portable_digital_storage_cell_64k
+- data_energistics:portable_digital_storage_cell_256k
+- data_energistics:portable_digital_storage_cell_1m
+- data_energistics:portable_digital_storage_cell_4m
+- data_energistics:portable_digital_storage_cell_16m
+- data_energistics:portable_digital_storage_cell_64m
+- data_energistics:portable_digital_storage_cell_256m
 - data_energistics:data_cell_infinity
 ---
 
@@ -99,19 +99,19 @@ Data Flow Component Housing is used to encapsulate storage components into usabl
 
 ---
 
-## Data Flow Storage Cells
+## Digital Storage Cells
 
-After assembly, you can obtain Data Flow storage components of the corresponding grade.
+After assembly, you can obtain a Digital Storage Cell of the corresponding tier.
 
-Each Data Flow cell stores both Data Flow and Echo. The two resources share one byte pool and both use 8 units per byte.
+Each Digital Storage Cell stores both Data Flow and Echo. The two resources share one byte pool and both use 8 units per byte.
 
 <Column>
   <Row>
-    <RecipeFor id="data_flow_cell_1k" />
+    <RecipeFor id="digital_storage_cell_1k" />
   </Row>
 
   <Row>
-    <Recipe id="data_energistics:data_energistics/crafting/cell/data_flow_cell_1k_1" />
+    <Recipe id="data_energistics:data_energistics/crafting/cell/digital_storage_cell_1k_1" />
   </Row>
 </Column>
 
@@ -120,13 +120,13 @@ When it holds neither Data Flow nor Echo, you can use Shift + right-click to dis
 
 ---
 
-## Portable Data Flow Cells
+## Portable Digital Storage Cells
 
 Other portable storage components also follow the same formula
 
 <Column>
   <Row>
-    <RecipeFor id="portable_data_flow_cell_1k" />
+    <RecipeFor id="portable_digital_storage_cell_1k" />
   </Row>
 </Column>
 

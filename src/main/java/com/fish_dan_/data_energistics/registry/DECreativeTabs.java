@@ -26,28 +26,28 @@ public final class DECreativeTabs {
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID))
                     .icon(DEItems.DATA_CRYSTAL::toStack)
                     .displayItems((parameters, output) -> {
-                        output.accept(DEItems.DATA_FLOW_CELL_1K);
-                        output.accept(DEItems.DATA_FLOW_CELL_4K);
-                        output.accept(DEItems.DATA_FLOW_CELL_16K);
-                        output.accept(DEItems.DATA_FLOW_CELL_64K);
-                        output.accept(DEItems.DATA_FLOW_CELL_256K);
-                        output.accept(DEItems.DATA_FLOW_CELL_1M);
-                        output.accept(DEItems.DATA_FLOW_CELL_4M);
-                        output.accept(DEItems.DATA_FLOW_CELL_16M);
-                        output.accept(DEItems.DATA_FLOW_CELL_64M);
-                        output.accept(DEItems.DATA_FLOW_CELL_256M);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_1K);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_4K);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_16K);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_64K);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_256K);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_1M);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_4M);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_16M);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_64M);
+                        output.accept(DEItems.DIGITAL_STORAGE_CELL_256M);
                         output.accept(DEItems.DATA_CELL_INFINITY);
 
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_1K);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_4K);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_16K);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_64K);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_256K);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_1M);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_4M);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_16M);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_64M);
-                        output.accept(DEItems.PORTABLE_DATA_FLOW_CELL_256M);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1K);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4K);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16K);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64K);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256K);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1M);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4M);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16M);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64M);
+                        output.accept(DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256M);
 
                         output.accept(DEItems.DATA_STORAGE_COMPONENT_1K);
                         output.accept(DEItems.DATA_STORAGE_COMPONENT_4K);
