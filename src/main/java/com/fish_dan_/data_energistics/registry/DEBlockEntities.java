@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataRipperReassemblerB
 import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalUplinkBeaconBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.patternprovider.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumInterfaceBlockEntity;
@@ -68,6 +69,10 @@ public final class DEBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OrbitalControlConsoleBlockEntity>> ORBITAL_CONTROL_CONSOLE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "orbital_control_console",
             () -> BlockEntityType.Builder.of(OrbitalControlConsoleBlockEntity::new, DEBlocks.ORBITAL_CONTROL_CONSOLE.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OrbitalUplinkBeaconBlockEntity>> ORBITAL_UPLINK_BEACON_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "orbital_uplink_beacon",
+            () -> BlockEntityType.Builder.of(OrbitalUplinkBeaconBlockEntity::new, DEBlocks.ORBITAL_UPLINK_BEACON.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSanctumBlockEntity>> DATA_SANCTUM_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_sanctum",

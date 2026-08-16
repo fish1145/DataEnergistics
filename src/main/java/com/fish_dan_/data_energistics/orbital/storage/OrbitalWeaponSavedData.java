@@ -83,40 +83,45 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                  OrbitalEndpointLocation location,
                                                  OrbitalEndpointKind kind) {
         requireServerThread(server);
-        UUID boundWeaponId = this.endpointIndex.get(location);
-        if (boundWeaponId != null) {
-            OrbitalWeaponRecord boundWeapon = requireWeapon(boundWeaponId);
-            OrbitalEndpointRecord boundEndpoint = boundWeapon.endpoints().get(location);
-            if (boundEndpoint == null) {
-                throw new IllegalStateException("Endpoint index is inconsistent at " + location);
-            }
-            if (!boundWeapon.ownerId().equals(ownerId) || boundEndpoint.kind() != kind) {
-                throw new IllegalStateException("Endpoint location is already bound to another orbital weapon");
-            }
+        Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
+        if (boundWeapon.isPresent()) {
+            return boundWeapon.orElseThrow();
+        }
+
+        UUID ownedWeaponId = this.ownerIndex.get(ownerId);
+        if (ownedWeaponId != null) {
+            return addEndpoint(requireWeapon(ownedWeaponId), location, kind);
+        }
+
+        OrbitalWeaponRecord current = OrbitalWeaponRecord.create(newWeaponId(), ownerId);
+        OrbitalEndpointRecord endpoint = createEndpoint(current, location, kind);
+        OrbitalWeaponRecord updated = current.withEndpoint(endpoint);
+        putRecord(updated);
+        setDirty();
+        return updated;
+    }
+
+    /**
+     * Binds a physical endpoint to the placing player's existing owned weapon without creating a weapon record.
+     *
+     * @return the bound weapon, or an empty result when the player does not own a weapon
+     */
+    public Optional<OrbitalWeaponRecord> bindExistingForOwner(
+                                                              MinecraftServer server,
+                                                              UUID ownerId,
+                                                              OrbitalEndpointLocation location,
+                                                              OrbitalEndpointKind kind) {
+        requireServerThread(server);
+        Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
+        if (boundWeapon.isPresent()) {
             return boundWeapon;
         }
 
         UUID ownedWeaponId = this.ownerIndex.get(ownerId);
-        boolean creatingWeapon = ownedWeaponId == null;
-        OrbitalWeaponRecord current = creatingWeapon ? OrbitalWeaponRecord.create(newWeaponId(), ownerId) : requireWeapon(ownedWeaponId);
-        if (current.endpoints().containsKey(location)) {
-            throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+        if (ownedWeaponId == null) {
+            return Optional.empty();
         }
-        requireEndpointCapacity(current, location);
-        OrbitalEndpointRecord endpoint = new OrbitalEndpointRecord(
-                location,
-                kind,
-                current.nextEndpointPriority());
-        OrbitalWeaponRecord updated = current.withEndpoint(endpoint);
-
-        if (creatingWeapon) {
-            putRecord(updated);
-        } else {
-            this.weapons.put(updated.weaponId(), updated);
-            this.endpointIndex.put(location, updated.weaponId());
-        }
-        setDirty();
-        return updated;
+        return Optional.of(addEndpoint(requireWeapon(ownedWeaponId), location, kind));
     }
 
     /**
@@ -310,6 +315,52 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.ownerId(),
                 weapon.delegatedRoles(),
                 acceptedEndpoints);
+    }
+
+    private Optional<OrbitalWeaponRecord> findCompatibleBoundEndpoint(
+                                                                      UUID ownerId,
+                                                                      OrbitalEndpointLocation location,
+                                                                      OrbitalEndpointKind kind) {
+        UUID boundWeaponId = this.endpointIndex.get(location);
+        if (boundWeaponId == null) {
+            return Optional.empty();
+        }
+
+        OrbitalWeaponRecord boundWeapon = requireWeapon(boundWeaponId);
+        OrbitalEndpointRecord boundEndpoint = boundWeapon.endpoints().get(location);
+        if (boundEndpoint == null) {
+            throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+        }
+        if (!boundWeapon.ownerId().equals(ownerId) || boundEndpoint.kind() != kind) {
+            throw new IllegalStateException("Endpoint location is already bound to another orbital weapon");
+        }
+        return Optional.of(boundWeapon);
+    }
+
+    private OrbitalWeaponRecord addEndpoint(
+                                            OrbitalWeaponRecord current,
+                                            OrbitalEndpointLocation location,
+                                            OrbitalEndpointKind kind) {
+        if (current.endpoints().containsKey(location)) {
+            throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+        }
+
+        OrbitalWeaponRecord updated = current.withEndpoint(createEndpoint(current, location, kind));
+        this.weapons.put(updated.weaponId(), updated);
+        this.endpointIndex.put(location, updated.weaponId());
+        setDirty();
+        return updated;
+    }
+
+    private static OrbitalEndpointRecord createEndpoint(
+                                                        OrbitalWeaponRecord weapon,
+                                                        OrbitalEndpointLocation location,
+                                                        OrbitalEndpointKind kind) {
+        requireEndpointCapacity(weapon, location);
+        return new OrbitalEndpointRecord(
+                location,
+                kind,
+                weapon.nextEndpointPriority());
     }
 
     private static void requireEndpointCapacity(

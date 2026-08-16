@@ -100,6 +100,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ORBITAL_CONTROL_CONSOLE = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_CONTROL_CONSOLE);
+    public static final DeferredItem<BlockItem> ORBITAL_UPLINK_BEACON = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_UPLINK_BEACON);
     public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM);
     public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM_INTERFACE);
     public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);

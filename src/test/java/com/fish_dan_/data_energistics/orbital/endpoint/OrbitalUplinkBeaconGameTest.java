@@ -1,0 +1,125 @@
+package com.fish_dan_.data_energistics.orbital.endpoint;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
+
+import com.mojang.authlib.GameProfile;
+
+import java.util.UUID;
+
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class OrbitalUplinkBeaconGameTest {
+
+    private static final BlockPos UNBOUND_BEACON = new BlockPos(1, 2, 1);
+    private static final BlockPos CONTROL_CONSOLE = new BlockPos(2, 2, 1);
+    private static final BlockPos BOUND_BEACON = new BlockPos(3, 2, 1);
+
+    private OrbitalUplinkBeaconGameTest() {}
+
+    @TestHolder("orbital_uplink_beacon_requires_existing_weapon_and_releases_binding")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void requiresExistingWeaponAndReleasesBinding(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        ServerPlayer owner = createPlayer(level, "uplink-owner");
+
+        placeBlock(helper, UNBOUND_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner);
+        OrbitalEndpointLocation unboundLocation = location(helper, UNBOUND_BEACON);
+        helper.assertTrue(
+                data.ownedBy(owner.getUUID()).isEmpty(),
+                "Placing an uplink beacon must not create an orbital weapon");
+        helper.assertTrue(
+                data.weaponAt(unboundLocation).isEmpty(),
+                "An uplink beacon must remain unbound until its player owns a weapon");
+
+        helper.assertTrue(
+                level.destroyBlock(helper.absolutePos(UNBOUND_BEACON), false),
+                "The rejected uplink beacon must remain removable");
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        OrbitalEndpointLocation consoleLocation = location(helper, CONTROL_CONSOLE);
+        UUID weaponId = data.weaponAt(consoleLocation).orElseThrow().weaponId();
+
+        placeBlock(helper, BOUND_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner);
+        OrbitalEndpointLocation beaconLocation = location(helper, BOUND_BEACON);
+        helper.assertValueEqual(
+                data.weaponAt(beaconLocation).orElseThrow().weaponId(),
+                weaponId,
+                "After console provisioning, an uplink beacon must bind the same owned weapon");
+        helper.assertValueEqual(
+                data.weaponAt(beaconLocation).orElseThrow().endpoints().get(beaconLocation).kind(),
+                OrbitalEndpointKind.UPLINK_BEACON,
+                "The physical beacon must be persisted as an uplink endpoint");
+
+        helper.assertTrue(
+                level.destroyBlock(helper.absolutePos(BOUND_BEACON), false),
+                "A bound uplink beacon must be removable");
+        helper.assertTrue(
+                data.weaponAt(beaconLocation).isEmpty(),
+                "Destroying the beacon must release its endpoint binding");
+        helper.assertValueEqual(
+                data.weaponAt(consoleLocation).orElseThrow().weaponId(),
+                weaponId,
+                "Destroying the beacon must preserve the weapon's control-console endpoint");
+        helper.succeed();
+    }
+
+    private static void placeBlock(
+                                   GameTestHelper helper,
+                                   BlockPos relativePos,
+                                   Block block,
+                                   ServerPlayer placer) {
+        ServerLevel level = helper.getLevel();
+        BlockPos absolutePos = helper.absolutePos(relativePos);
+        BlockState state = block.defaultBlockState();
+        if (!level.setBlock(absolutePos, state, Block.UPDATE_ALL)) {
+            throw new IllegalStateException("Failed to place orbital endpoint at " + absolutePos);
+        }
+        state.getBlock().setPlacedBy(level, absolutePos, state, placer, ItemStack.EMPTY);
+    }
+
+    private static ServerPlayer createPlayer(ServerLevel level, String name) {
+        return new TestServerPlayer(
+                level.getServer(),
+                level,
+                new GameProfile(UUID.randomUUID(), name),
+                ClientInformation.createDefault());
+    }
+
+    private static OrbitalEndpointLocation location(GameTestHelper helper, BlockPos relativePos) {
+        ServerLevel level = helper.getLevel();
+        return new OrbitalEndpointLocation(level.dimension().location(), helper.absolutePos(relativePos));
+    }
+
+    private static final class TestServerPlayer extends ServerPlayer {
+
+        private TestServerPlayer(
+                                 MinecraftServer server,
+                                 ServerLevel level,
+                                 GameProfile profile,
+                                 ClientInformation clientInformation) {
+            super(server, level, profile, clientInformation);
+        }
+
+        @Override
+        public void displayClientMessage(Component chatComponent, boolean actionBar) {}
+    }
+}

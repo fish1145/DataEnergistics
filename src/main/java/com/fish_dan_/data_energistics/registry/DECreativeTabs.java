@@ -68,6 +68,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_MIMETIC_FIELD);
                         output.accept(DEItems.DATA_TELEPORT_ANCHOR);
                         output.accept(DEItems.ORBITAL_CONTROL_CONSOLE);
+                        output.accept(DEItems.ORBITAL_UPLINK_BEACON);
                         output.accept(DEItems.DATA_SANCTUM);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE);
                         output.accept(DEItems.DATA_CHARGER);
