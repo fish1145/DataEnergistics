@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.orbital;
 
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
@@ -17,5 +18,10 @@ public final class OrbitalControlConsoleBlockEntity extends OrbitalEndpointBlock
                 pos,
                 state,
                 DEBlocks.ORBITAL_CONTROL_CONSOLE.get());
+    }
+
+    @Override
+    public OrbitalEndpointKind endpointKind() {
+        return OrbitalEndpointKind.CONTROL_CONSOLE;
     }
 }

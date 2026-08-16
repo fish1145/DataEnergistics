@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DECreativeTabs;
@@ -67,6 +68,7 @@ public class CommonProxy {
         modEventBus.addListener(CommonCapabilityRegistrar::registerPartCapabilities);
         modEventBus.addListener(CommonPayloadRegistrar::register);
         modEventBus.addListener(BuiltinDataPackRegistrar::register);
+        modEventBus.addListener(OrbitalEndpointChunkTickets::registerController);
 
         CommonEventRegistrar.register(configurationReload);
     }

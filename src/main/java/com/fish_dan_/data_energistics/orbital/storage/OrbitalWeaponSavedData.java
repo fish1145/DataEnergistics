@@ -140,6 +140,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /**
+     * Returns an immutable location-to-weapon snapshot for startup endpoint reconciliation.
+     */
+    public Map<OrbitalEndpointLocation, UUID> endpointBindings() {
+        return Map.copyOf(this.endpointIndex);
+    }
+
+    /**
      * Removes a physical endpoint after its bound block has been destroyed or explicitly unbound.
      */
     public boolean removeEndpoint(

@@ -13,6 +13,7 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -31,6 +32,7 @@ public final class OrbitalUplinkBeaconGameTest {
     private static final BlockPos UNBOUND_BEACON = new BlockPos(1, 2, 1);
     private static final BlockPos CONTROL_CONSOLE = new BlockPos(2, 2, 1);
     private static final BlockPos BOUND_BEACON = new BlockPos(3, 2, 1);
+    private static final BlockPos DISTANT_BEACON = new BlockPos(160 * 16, 2, 64 * 16);
 
     private OrbitalUplinkBeaconGameTest() {}
 
@@ -82,6 +84,50 @@ public final class OrbitalUplinkBeaconGameTest {
         helper.succeed();
     }
 
+    @TestHolder("orbital_uplink_beacon_force_ticks_its_chunk_until_destroyed")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 400)
+    public static void forceTicksItsChunkUntilDestroyed(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        ServerPlayer owner = createPlayer(level, "uplink-ticket-owner");
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+
+        BlockPos beaconPos = helper.absolutePos(DISTANT_BEACON);
+        level.getChunkAt(beaconPos);
+        ChunkPos beaconChunk = new ChunkPos(beaconPos);
+        OrbitalEndpointLocation beaconLocation = new OrbitalEndpointLocation(level.dimension().location(), beaconPos);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertFalse(
+                        isForceTicked(level, beaconChunk),
+                        "The distant chunk must not be force-ticked before an uplink beacon is bound"))
+                .thenExecute(() -> placeBlock(helper, DISTANT_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            data.weaponAt(beaconLocation).isPresent(),
+                            "The distant uplink beacon must be bound before it owns a chunk ticket");
+                    helper.assertTrue(
+                            isForceTicked(level, beaconChunk),
+                            "A bound uplink beacon must force-tick its own distant chunk");
+                    helper.assertTrue(
+                            level.getChunkSource().isPositionTicking(beaconChunk.toLong()),
+                            "The uplink beacon's chunk must receive full server ticks without a nearby player");
+                })
+                .thenExecute(() -> helper.assertTrue(
+                        level.destroyBlock(beaconPos, false),
+                        "The force-loaded uplink beacon must be removable"))
+                .thenWaitUntil(() -> {
+                    helper.assertFalse(
+                            isForceTicked(level, beaconChunk),
+                            "Destroying the uplink beacon must release its chunk ticket");
+                    helper.assertTrue(
+                            data.weaponAt(beaconLocation).isEmpty(),
+                            "Destroying the uplink beacon must also release its endpoint binding");
+                })
+                .thenSucceed();
+    }
+
     private static void placeBlock(
                                    GameTestHelper helper,
                                    BlockPos relativePos,
@@ -107,6 +153,10 @@ public final class OrbitalUplinkBeaconGameTest {
     private static OrbitalEndpointLocation location(GameTestHelper helper, BlockPos relativePos) {
         ServerLevel level = helper.getLevel();
         return new OrbitalEndpointLocation(level.dimension().location(), helper.absolutePos(relativePos));
+    }
+
+    private static boolean isForceTicked(ServerLevel level, ChunkPos chunkPos) {
+        return level.getChunkSource().chunkMap.getDistanceManager().shouldForceTicks(chunkPos.toLong());
     }
 
     private static final class TestServerPlayer extends ServerPlayer {

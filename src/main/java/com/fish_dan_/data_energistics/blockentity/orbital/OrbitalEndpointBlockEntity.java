@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.orbital;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
@@ -61,11 +63,17 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
     }
 
     /**
+     * Identifies the persisted endpoint kind represented by this physical block entity.
+     */
+    public abstract OrbitalEndpointKind endpointKind();
+
+    /**
      * Completes initial placement binding without permitting an endpoint to be rebound to another weapon.
      */
     public final void bindTo(UUID weaponId) {
         if (this.weaponId != null) {
             if (this.weaponId.equals(weaponId)) {
+                retainChunkTicket();
                 return;
             }
             throw new IllegalStateException("Orbital endpoint is already bound to " + this.weaponId);
@@ -73,18 +81,20 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
         this.weaponId = weaponId;
         saveChanges();
         markForClientUpdate();
+        retainChunkTicket();
     }
 
     /**
      * Removes this endpoint from authoritative SavedData when its block permanently leaves the world.
      */
     public final void releaseBinding(ServerLevel level) {
+        OrbitalEndpointLocation location = new OrbitalEndpointLocation(level.dimension().location(), this.worldPosition);
         UUID boundWeaponId = this.weaponId;
         if (boundWeaponId == null) {
+            OrbitalEndpointChunkTickets.release(level, location);
             return;
         }
 
-        OrbitalEndpointLocation location = new OrbitalEndpointLocation(level.dimension().location(), this.worldPosition);
         try {
             boolean removed = OrbitalWeaponSavedData.get(level.getServer())
                     .removeEndpoint(level.getServer(), boundWeaponId, location);
@@ -100,6 +110,8 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
                     location,
                     boundWeaponId,
                     exception);
+        } finally {
+            OrbitalEndpointChunkTickets.release(level, location);
         }
         this.weaponId = null;
         saveChanges();
@@ -117,6 +129,14 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
         super.saveAdditional(data, registries);
         if (this.weaponId != null) {
             data.putUUID(WEAPON_ID_TAG, this.weaponId);
+        }
+    }
+
+    private void retainChunkTicket() {
+        if (this.level instanceof ServerLevel serverLevel) {
+            OrbitalEndpointChunkTickets.retain(
+                    serverLevel,
+                    new OrbitalEndpointLocation(serverLevel.dimension().location(), this.worldPosition));
         }
     }
 }
