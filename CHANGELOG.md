@@ -1,5 +1,16 @@
 # ChangeLog
 
+## Version [v3.1.3](https://github.com/fish1145/DataEnergistics/compare/v3.1.2-1.21...v3.1.3-1.21)
+### Fixed
+
+- 修复数据均分塔互联与共享状态 by @QiuYe-123 in [#215](https://github.com/fish1145/DataEnergistics/pull/215)
+- 修复样板管理子界面打开失败 by @QiuYe-123 in [#216](https://github.com/fish1145/DataEnergistics/pull/216)
+
+### Changed
+
+- 简化 JEI 配方转移方法选择器 by @QiuYe-123 in [#217](https://github.com/fish1145/DataEnergistics/pull/217)
+
+ 
 ## Version [v3.1.2](https://github.com/fish1145/DataEnergistics/compare/v3.1.1-1.21...v3.1.2-1.21)
 ### Added
 
