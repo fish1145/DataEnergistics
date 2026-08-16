@@ -36,7 +36,9 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
     /** Moves the initial camera closer than the rotation-invariant sphere fit while retaining manual scaling. */
-    private static final double DEFAULT_CAMERA_DISTANCE_SCALE = 0.8;
+    private static final double DEFAULT_CAMERA_DISTANCE_SCALE = 0.7;
+    /** Looks slightly below the geometric center so the structure is framed higher in the preview. */
+    private static final double DEFAULT_CAMERA_TARGET_LOWERING_SCALE = 0.1;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
@@ -237,7 +239,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
 
         /**
          * Starts from a complete-volume fit instead of LDLib2's largest-axis heuristic, then applies the
-         * authored close-up needed by this compact preview cavity.
+         * authored close-up and upward framing needed by this compact preview cavity.
          */
         private void fitConstrainedCamera(List<BlockPos> renderedCore) {
             int minX = Integer.MAX_VALUE;
@@ -265,9 +267,10 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
                     Math.tan(verticalHalfFov) * this.viewportWidth / this.viewportHeight);
             double limitingAngle = Math.min(verticalHalfFov, horizontalFitAngle);
             float cameraDistance = (float) (radius / Math.sin(limitingAngle) * DEFAULT_CAMERA_DISTANCE_SCALE);
+            float targetLowering = (float) (radius * DEFAULT_CAMERA_TARGET_LOWERING_SCALE);
             Vector3f center = new Vector3f(
                     (minX + maxX) / 2.0f + 0.5f,
-                    (minY + maxY) / 2.0f + 0.5f,
+                    (minY + maxY) / 2.0f + 0.5f - targetLowering,
                     (minZ + maxZ) / 2.0f + 0.5f);
             this.scene.setCenter(center);
             this.scene.setZoom(cameraDistance);
