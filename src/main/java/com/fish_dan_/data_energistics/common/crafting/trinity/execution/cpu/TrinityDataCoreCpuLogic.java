@@ -831,8 +831,14 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         reservation.orElseThrow().retain();
-        HashSet<AEKey> changedOutputKeys = new HashSet<>(execution.pendingOutputs().keySet());
+        Map<AEKey, Long> previousPendingOutputs = execution.pendingOutputs();
+        HashSet<AEKey> changedOutputKeys = new HashSet<>(previousPendingOutputs.keySet());
         execution.replaceRemainingPlan(ready.plan(), currentTick);
+        if (currentJob.timeTracker.hasPlanBaseline()) {
+            currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
+        } else {
+            currentJob.timeTracker.installReplacementAfterLegacyRestore(ready.plan().plannedOutputs());
+        }
         changedOutputKeys.addAll(execution.pendingOutputs().keySet());
         this.remainingPlanCalculation.acceptRevision(ready.revision());
         this.cpu.markDirty();
@@ -2191,8 +2197,10 @@ final class TrinityDataCoreCpuLogic {
         addWaiting(currentJob, commit.expectedContainerItems());
         currentJob.dynamicOutputs.register(commit.dynamicOutputs());
         execution.recordAccepted(work, commit.count());
-        for (GenericStack output : commit.expectedOutputs()) {
-            currentJob.timeTracker.addMaxItems(output.amount(), output.what().getType());
+        if (!currentJob.timeTracker.hasPlanBaseline()) {
+            for (GenericStack output : commit.expectedOutputs()) {
+                currentJob.timeTracker.addMaxItems(output.amount(), output.what().getType());
+            }
         }
         for (GenericStack containerItem : commit.expectedContainerItems()) {
             currentJob.timeTracker.addMaxItems(containerItem.amount(), containerItem.what().getType());
