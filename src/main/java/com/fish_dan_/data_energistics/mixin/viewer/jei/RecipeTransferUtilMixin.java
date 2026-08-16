@@ -22,7 +22,6 @@ import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
 import mezz.jei.common.transfer.RecipeTransferErrorInternal;
 import mezz.jei.common.transfer.RecipeTransferUtil;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 
 import java.util.Optional;
 
@@ -32,10 +31,7 @@ import java.util.Optional;
 @Mixin(value = RecipeTransferUtil.class, remap = false)
 public abstract class RecipeTransferUtilMixin {
 
-    @Unique
-    private static final String TRANSFER_METHOD = "transferRecipe(Lmezz/jei/api/recipe/transfer/IRecipeTransferManager;" + "Lnet/minecraft/world/inventory/AbstractContainerMenu;" + "Lmezz/jei/api/gui/IRecipeLayoutDrawable;" + "Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;";
-
-    @WrapMethod(method = TRANSFER_METHOD)
+    @WrapMethod(method = "transferRecipe(Lmezz/jei/api/recipe/transfer/IRecipeTransferManager;Lnet/minecraft/world/inventory/AbstractContainerMenu;Lmezz/jei/api/gui/IRecipeLayoutDrawable;Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;")
     private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
                                                                                          IRecipeTransferManager recipeTransferManager,
                                                                                          AbstractContainerMenu container,
