@@ -35,8 +35,8 @@ import java.util.function.BiConsumer;
 public final class LdlibStructurePreviewSceneBinder implements StructurePreviewSceneBinder {
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
-    /** Keeps a small projection tolerance without reserving a fixed inset inside compact preview cavities. */
-    private static final double CAMERA_FIT_PADDING = 1.02;
+    /** Moves the initial camera closer than the rotation-invariant sphere fit while retaining manual scaling. */
+    private static final double DEFAULT_CAMERA_DISTANCE_SCALE = 0.8;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
@@ -236,8 +236,8 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
         }
 
         /**
-         * Fits the complete block volume closely inside the authored preview cavity instead of relying on
-         * LDLib2's largest-axis heuristic, which can clip diagonal structures at the separator.
+         * Starts from a complete-volume fit instead of LDLib2's largest-axis heuristic, then applies the
+         * authored close-up needed by this compact preview cavity.
          */
         private void fitConstrainedCamera(List<BlockPos> renderedCore) {
             int minX = Integer.MAX_VALUE;
@@ -264,7 +264,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             double horizontalFitAngle = Math.atan(
                     Math.tan(verticalHalfFov) * this.viewportWidth / this.viewportHeight);
             double limitingAngle = Math.min(verticalHalfFov, horizontalFitAngle);
-            float cameraDistance = (float) (radius / Math.sin(limitingAngle) * CAMERA_FIT_PADDING);
+            float cameraDistance = (float) (radius / Math.sin(limitingAngle) * DEFAULT_CAMERA_DISTANCE_SCALE);
             Vector3f center = new Vector3f(
                     (minX + maxX) / 2.0f + 0.5f,
                     (minY + maxY) / 2.0f + 0.5f,
