@@ -12,7 +12,7 @@ import appeng.api.networking.pathing.ControllerState;
 public interface TowerChannelCapacity {
 
     /**
-     * Calculates the capacity from the current controller state, channel mode and controller geometry of a grid.
+     * Calculates the capacity from the current controller state, channel mode and controllers of a grid.
      *
      * @param grid physical primary grid whose budget is requested
      * @return total channel capacity
@@ -20,8 +20,8 @@ public interface TowerChannelCapacity {
     int calculate(IGrid grid);
 
     /**
-     * Calculates capacity from an explicit controller snapshot so geometry rules can be verified independently from AE
-     * runtime objects.
+     * Calculates capacity from an explicit controller snapshot so controller-count rules can be verified independently
+     * from AE runtime objects.
      *
      * @param controllerState     controller validation result
      * @param channelMode         active AE channel multiplier

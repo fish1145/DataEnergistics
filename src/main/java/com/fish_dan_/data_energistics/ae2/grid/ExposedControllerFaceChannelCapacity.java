@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -15,15 +14,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Counts geometrically exposed controller faces and converts them to the total domain capacity available after native
- * physical pathing runs.
+ * Counts every face of every controller and converts them to the total domain capacity available after native physical
+ * pathing runs.
  */
 public final class ExposedControllerFaceChannelCapacity implements TowerChannelCapacity {
 
-    /**
-     * Number of base channels supplied by one exposed controller face.
-     */
-    private static final int CHANNELS_PER_EXPOSED_FACE = 32;
+    private static final int FACES_PER_CONTROLLER = 6;
+    private static final int CHANNELS_PER_CONTROLLER_FACE = 32;
 
     /**
      * The calculator is owned by one tower domain, so one scalar entry is sufficient and does not retain a global Grid
@@ -80,7 +77,7 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
     /**
      * Computes one snapshot without touching the revision cache.
      *
-     * @param grid            grid whose controller geometry is requested
+     * @param grid            grid whose controllers are requested
      * @param controllerState current controller state
      * @param channelMode     current channel mode
      * @return total channel capacity
@@ -105,7 +102,7 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
     }
 
     /**
-     * Applies controller-state and geometry rules to an explicit snapshot.
+     * Applies controller-state and controller-count rules to an explicit snapshot.
      *
      * @param controllerState     controller validation result
      * @param channelMode         active AE channel multiplier
@@ -123,7 +120,7 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
             return Integer.MAX_VALUE;
         }
         if (controllerState == ControllerState.NO_CONTROLLER) {
-            return Math.multiplyExact(CHANNELS_PER_EXPOSED_FACE, channelMode.getCableCapacityFactor());
+            return Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
         }
 
         Set<BlockPos> positions = immutablePositionSet(controllerPositions);
@@ -131,24 +128,16 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
             throw new IllegalArgumentException("An online controller grid must contain at least one controller position");
         }
 
-        int exposedFaces = 0;
-        for (BlockPos position : positions) {
-            for (Direction direction : Direction.values()) {
-                if (!positions.contains(position.relative(direction))) {
-                    exposedFaces = Math.addExact(exposedFaces, 1);
-                }
-            }
-        }
-
-        int baseCapacity = Math.multiplyExact(exposedFaces, CHANNELS_PER_EXPOSED_FACE);
+        int controllerFaces = Math.multiplyExact(positions.size(), FACES_PER_CONTROLLER);
+        int baseCapacity = Math.multiplyExact(controllerFaces, CHANNELS_PER_CONTROLLER_FACE);
         return Math.multiplyExact(baseCapacity, channelMode.getCableCapacityFactor());
     }
 
     /**
-     * Normalizes mutable or repeated position inputs before adjacency checks.
+     * Normalizes mutable or repeated position inputs before controller counting.
      *
      * @param controllerPositions positions supplied by the caller
-     * @return immutable-position set used by the geometry calculation
+     * @return immutable-position set used by the controller calculation
      */
     private static Set<BlockPos> immutablePositionSet(Iterable<BlockPos> controllerPositions) {
         Set<BlockPos> positions = new HashSet<>();
