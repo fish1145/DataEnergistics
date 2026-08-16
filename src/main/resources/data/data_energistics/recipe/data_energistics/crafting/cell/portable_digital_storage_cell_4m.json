@@ -1,0 +1,10 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{ "item": "ae2:chest" },
+		{ "item": "data_energistics:data_storage_component_4m" },
+		{ "item": "ae2:energy_cell" },
+		{ "item": "data_energistics:data_flow_component_housing" }
+	],
+	"result": { "id": "data_energistics:portable_digital_storage_cell_4m", "count": 1 }
+}

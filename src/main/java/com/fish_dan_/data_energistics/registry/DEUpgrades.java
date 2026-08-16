@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowBusStrategies;
-import com.fish_dan_.data_energistics.ae2.dataflow.DataFlowCellHandler;
+import com.fish_dan_.data_energistics.ae2.dataflow.DigitalStorageCellHandler;
 import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
@@ -57,26 +57,26 @@ public final class DEUpgrades {
         Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.INVERTER_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_1k");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_4k");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_16k");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_64K.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_64k");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_256K.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_256k");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_1M.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_1m");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_4M.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_4m");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_16M.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_16m");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_64M.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_64m");
-        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DATA_FLOW_CELL_256M.get(), 3,
-                "item.data_energistics.portable_data_flow_cell_256m");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1K.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_1k");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4K.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_4k");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16K.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_16k");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64K.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_64k");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256K.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_256k");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1M.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_1m");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4M.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_4m");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16M.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_16m");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64M.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_64m");
+        Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256M.get(), 3,
+                "item.data_energistics.portable_digital_storage_cell_256m");
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.RADIX_CONTAINMENT_SPHERE.get(), 3,
                 "item.data_energistics.radix_containment_sphere");
         Upgrades.add(AEItems.FUZZY_CARD, DEItems.RADIX_CONTAINMENT_SPHERE.get(), 1,
@@ -174,7 +174,7 @@ public final class DEUpgrades {
         registerExternalDataSanctumInterfaceCompat();
         registerAppliedFluxAdaptivePatternProviderCompat();
         registerAe2CrystalScienceAdaptivePatternProviderCompat();
-        StorageCells.addCellHandler(DataFlowCellHandler.INSTANCE);
+        StorageCells.addCellHandler(DigitalStorageCellHandler.INSTANCE);
         StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
     }
 

@@ -3,8 +3,8 @@
 	"credit": "Generated for Data Energistics",
 	"ambientocclusion": false,
 	"textures": {
-		"particle": "data_energistics:block/drive/data_flow_cells",
-		"cell": "data_energistics:block/drive/data_flow_cells"
+		"particle": "data_energistics:block/drive/digital_storage_cells",
+		"cell": "data_energistics:block/drive/digital_storage_cells"
 	},
 	"elements": [
 		{
