@@ -19,32 +19,32 @@ public final class TrinityAutoBuildRequestTest {
 
     @Test
     void storageCategoryMapsEveryTierToItsExplicitCoreId() {
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 1, "me_digital_storage_core_1m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 2, "me_digital_storage_core_4m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 3, "me_digital_storage_core_16m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 4, "me_digital_storage_core_64m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 5, "me_digital_storage_core_256m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 6, "me_digital_storage_core_1g");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 7, "me_digital_storage_core_4g");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 8, "me_digital_storage_core_16g");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 9, "me_digital_storage_core_64g");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 10, "me_digital_storage_core_256g");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 1, "me_digital_storage_core_1k");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 2, "me_digital_storage_core_4k");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 3, "me_digital_storage_core_16k");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 4, "me_digital_storage_core_64k");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 5, "me_digital_storage_core_256k");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 6, "me_digital_storage_core_1m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 7, "me_digital_storage_core_4m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 8, "me_digital_storage_core_16m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 9, "me_digital_storage_core_64m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 10, "me_digital_storage_core_256m");
         assertEquals(TrinityCoreKind.STORAGE_TYPES,
                 TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.STORAGE_CORE));
     }
 
     @Test
     void parallelCpuCategoryMapsEveryTierToItsExplicitCoreId() {
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1, "me_digital_merged_storage_core_1m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 2, "me_digital_merged_storage_core_4m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 3, "me_digital_merged_storage_core_16m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 4, "me_digital_merged_storage_core_64m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 5, "me_digital_merged_storage_core_256m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 6, "me_digital_merged_storage_core_1g");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 7, "me_digital_merged_storage_core_4g");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 8, "me_digital_merged_storage_core_16g");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 9, "me_digital_merged_storage_core_64g");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 10, "me_digital_merged_storage_core_256g");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1, "me_digital_merged_storage_core_1k");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 2, "me_digital_merged_storage_core_4k");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 3, "me_digital_merged_storage_core_16k");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 4, "me_digital_merged_storage_core_64k");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 5, "me_digital_merged_storage_core_256k");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 6, "me_digital_merged_storage_core_1m");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 7, "me_digital_merged_storage_core_4m");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 8, "me_digital_merged_storage_core_16m");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 9, "me_digital_merged_storage_core_64m");
+        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 10, "me_digital_merged_storage_core_256m");
         assertEquals(TrinityCoreKind.PARALLEL_CPU,
                 TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE));
     }

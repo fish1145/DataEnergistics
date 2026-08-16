@@ -1,45 +1,38 @@
 package com.fish_dan_.data_energistics.common.trinity.core;
 
 /**
- * Defines the M/G capacity tiers used by trinity storage and parallel CPU cores.
+ * Defines the K/M capacity tiers used by Trinity storage and merged CPU cores.
  */
 public enum TrinityCoreTier {
 
-    /** The first M-tier core, equivalent to 1M and 2 capability units. */
-    SIZE_1M("1m", "1M", 1),
-    /** The 4M core, equivalent to 8 capability units. */
-    SIZE_4M("4m", "4M", 4),
-    /** The 16M core, equivalent to 32 capability units. */
-    SIZE_16M("16m", "16M", 16),
-    /** The 64M core, equivalent to 128 capability units. */
-    SIZE_64M("64m", "64M", 64),
-    /** The 256M core, equivalent to 512 capability units. */
-    SIZE_256M("256m", "256M", 256),
-    /** The first G-tier core, equivalent to 1024M and 2048 capability units. */
-    SIZE_1G("1g", "1G", 1024),
-    /** The 4G core, equivalent to 4096M and 8192 capability units. */
-    SIZE_4G("4g", "4G", 4096),
-    /** The 16G core, equivalent to 16384M and 32768 capability units. */
-    SIZE_16G("16g", "16G", 16384),
-    /** The 64G core, equivalent to 65536M and 131072 capability units. */
-    SIZE_64G("64g", "64G", 65536),
-    /** The 256G core, equivalent to 262144M and 524288 capability units. */
-    SIZE_256G("256g", "256G", 262144);
+    SIZE_1K("1k", "1K", 1),
+    SIZE_4K("4k", "4K", 4),
+    SIZE_16K("16k", "16K", 16),
+    SIZE_64K("64k", "64K", 64),
+    SIZE_256K("256k", "256K", 256),
+    SIZE_1M("1m", "1M", 1_024),
+    SIZE_4M("4m", "4M", 4_096),
+    SIZE_16M("16m", "16M", 16_384),
+    SIZE_64M("64m", "64M", 65_536),
+    SIZE_256M("256m", "256M", 262_144);
 
     /** Resource suffix used by block ids and generated resource filenames. */
     private final String idSuffix;
     /** Display label used by lang entries and tests. */
     private final String displayName;
-    /** Capacity normalized to M so G tiers can share the same calculation rule. */
-    private final int mUnits;
-    /** Type or parallel value contributed by the core. */
+    /** Exact capacity normalized to KiB. */
+    private final int kibibytes;
+    /** Exact item or crafting storage capacity contributed by the core, in bytes. */
+    private final long byteCapacity;
+    /** Storage type capacity contributed by a storage core of this tier. */
     private final int capacityValue;
 
-    TrinityCoreTier(String idSuffix, String displayName, int mUnits) {
+    TrinityCoreTier(String idSuffix, String displayName, int kibibytes) {
         this.idSuffix = idSuffix;
         this.displayName = displayName;
-        this.mUnits = mUnits;
-        this.capacityValue = mUnits * 2;
+        this.kibibytes = kibibytes;
+        this.byteCapacity = Math.multiplyExact(kibibytes, 1_024L);
+        this.capacityValue = Math.max(1, Math.floorDiv(kibibytes, 512));
     }
 
     /**
@@ -57,14 +50,21 @@ public enum TrinityCoreTier {
     }
 
     /**
-     * Returns this tier after conversion to M units.
+     * Returns this tier in KiB.
      */
-    public int mUnits() {
-        return this.mUnits;
+    public int kibibytes() {
+        return this.kibibytes;
     }
 
     /**
-     * Returns the number of storage types or parallel jobs contributed by this tier.
+     * Returns the exact item or crafting storage capacity contributed by this tier, in bytes.
+     */
+    public long byteCapacity() {
+        return this.byteCapacity;
+    }
+
+    /**
+     * Returns the number of storage types contributed by this tier.
      */
     public int capacityValue() {
         return this.capacityValue;

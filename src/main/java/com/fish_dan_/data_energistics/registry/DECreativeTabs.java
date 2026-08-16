@@ -160,27 +160,27 @@ public final class DECreativeTabs {
         output.accept(DEItems.ME_PATTERN_BUFFER);
         output.accept(DEItems.TRINITY_INFORMATION_EXCHANGE_DEPOT);
 
+        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_1K);
+        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_4K);
+        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_16K);
+        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_64K);
+        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_256K);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_1M);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_4M);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_16M);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_64M);
         output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_256M);
-        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_1G);
-        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_4G);
-        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_16G);
-        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_64G);
-        output.accept(DEItems.ME_DIGITAL_STORAGE_CORE_256G);
 
+        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_1K);
+        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_4K);
+        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_16K);
+        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_64K);
+        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_256K);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
-        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
-        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
-        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
-        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
-        output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
 
         output.accept(DEItems.ME_DIGITAL_PATTERN_PROCESSING_CORE);
         output.accept(DEItems.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
