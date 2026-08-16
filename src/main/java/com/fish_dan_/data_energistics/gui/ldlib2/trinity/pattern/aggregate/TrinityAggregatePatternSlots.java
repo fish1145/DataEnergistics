@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import appeng.crafting.pattern.EncodedPatternItem;
+import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
@@ -39,6 +40,7 @@ import java.util.function.IntConsumer;
 final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatternCatalogView> {
 
     private static final int SLOT_SIZE = 18;
+    private static final float SEARCH_FONT_SIZE = 8F;
     private static final int MAX_CACHED_PAGES = 16;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
     private static final IGuiTexture OCCUPIED_PATTERN_SLOT_OVERLAY = SpriteTexture.of(
@@ -47,7 +49,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
     private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
     private static final Component SEARCH_PLACEHOLDER = Component.translatable(
-            "screen.data_energistics.trinity_data_core.pattern.search_hint");
+            "screen.data_energistics.trinity_data_core.pattern.search_hint")
+            .withStyle(style -> style.withColor(ColorPattern.WHITE.color));
 
     private final long generation;
     private final Level level;
@@ -146,6 +149,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         this.scrollbar = scrollbar;
         this.searchModeButton = searchModeButton;
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
+        search.textFieldStyle(style -> style.fontSize(SEARCH_FONT_SIZE));
         search.setTextResponder(this::setQuery);
         updateSearchPlaceholder(search, false);
         search.addEventListener(UIEvents.FOCUS, event -> updateSearchPlaceholder(search, true));
