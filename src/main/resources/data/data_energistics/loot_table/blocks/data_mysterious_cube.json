@@ -26,37 +26,17 @@
 									}
 								}
 							],
-							"name": "ae2:mysterious_cube"
+							"name": "data_energistics:data_mysterious_cube"
 						},
 						{
-							"type": "minecraft:group",
+							"type": "minecraft:tag",
 							"conditions": [
 								{
 									"condition": "minecraft:survives_explosion"
 								}
 							],
-							"children": [
-								{
-									"type": "minecraft:item",
-									"name": "ae2:calculation_processor_press"
-								},
-								{
-									"type": "minecraft:item",
-									"name": "ae2:engineering_processor_press"
-								},
-								{
-									"type": "minecraft:item",
-									"name": "ae2:logic_processor_press"
-								},
-								{
-									"type": "minecraft:item",
-									"name": "ae2:silicon_press"
-								},
-								{
-									"type": "minecraft:item",
-									"name": "data_energistics:data_inscriber_template"
-								}
-							]
+							"expand": false,
+							"name": "data_energistics:data_meteorite_presses"
 						}
 					]
 				}
@@ -94,5 +74,5 @@
 			"rolls": 1.0
 		}
 	],
-	"random_sequence": "ae2:blocks/mysterious_cube"
+	"random_sequence": "data_energistics:blocks/data_mysterious_cube"
 }

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.meteorite.DataMeteoriteSavedData;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 
@@ -72,10 +73,15 @@ public class MeteoriteStructurePiece extends StructurePiece {
         if (bounds.isInside(center)) {
             ServerLevel serverLevel = level.getLevel();
             MinecraftServer server = serverLevel.getServer();
+            Runnable recordCenter = () -> {
+                if (serverLevel.getBlockState(center).is(DEBlocks.DATA_MYSTERIOUS_CUBE.get())) {
+                    DataMeteoriteSavedData.get(serverLevel).add(center);
+                }
+            };
             if (server.isSameThread()) {
-                DataMeteoriteSavedData.get(serverLevel).add(center);
+                recordCenter.run();
             } else {
-                server.execute(() -> DataMeteoriteSavedData.get(serverLevel).add(center));
+                server.execute(recordCenter);
             }
         }
     }

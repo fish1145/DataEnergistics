@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.block.trinity.TrinityCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.worldgen.DataCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.worldgen.DataMysteriousCubeBlock;
 import com.fish_dan_.data_energistics.block.worldgen.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
@@ -30,7 +31,9 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -167,6 +170,16 @@ public final class DEBlocks {
             properties -> new EnderCohesionMeteoriteBlock(properties, 0.15F, 0.25F, 0.15F, 0.15F),
             BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> DATA_MYSTERIOUS_CUBE = BLOCKS.registerBlock(
+            "data_mysterious_cube",
+            DataMysteriousCubeBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL)
+                    .forceSolidOn()
+                    .strength(10.0F, 1000.0F)
+                    .isRedstoneConductor((state, blockGetter, pos) -> false));
 
     public static final DeferredBlock<Block> DATA_CRYSTAL_BLOCK = BLOCKS.registerBlock(
             "data_crystal_block",
