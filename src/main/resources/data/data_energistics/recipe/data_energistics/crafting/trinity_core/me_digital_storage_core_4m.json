@@ -3,7 +3,7 @@
 	"pattern": ["ABA", "CDC", "ABA"],
 	"key": {
 		"A": {
-			"tag": "c:dusts/fluix"
+			"tag": "c:dusts/data_dust"
 		},
 		"B": {
 			"item": "data_energistics:data_processor"

@@ -31,7 +31,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     /**
-     * Creates storage type metadata from the shared M/G tier table.
+     * Creates storage type metadata from the shared K/M tier table.
      */
     public static TrinityCoreMetadata storageCore(TrinityCoreTier tier) {
         return new TrinityCoreMetadata(
@@ -42,7 +42,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     /**
-     * Creates parallel CPU metadata from the shared M/G tier table.
+     * Creates merged CPU storage metadata from the shared K/M tier table.
      */
     public static TrinityCoreMetadata parallelCpuCore(TrinityCoreTier tier) {
         return new TrinityCoreMetadata(

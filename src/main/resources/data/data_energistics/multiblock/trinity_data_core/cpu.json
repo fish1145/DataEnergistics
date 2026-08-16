@@ -260,16 +260,16 @@
 		"C": {
 			"type": "mdlib:blocks",
 			"blocks": [
+				"data_energistics:me_digital_merged_storage_core_1k",
+				"data_energistics:me_digital_merged_storage_core_4k",
+				"data_energistics:me_digital_merged_storage_core_16k",
+				"data_energistics:me_digital_merged_storage_core_64k",
+				"data_energistics:me_digital_merged_storage_core_256k",
 				"data_energistics:me_digital_merged_storage_core_1m",
 				"data_energistics:me_digital_merged_storage_core_4m",
 				"data_energistics:me_digital_merged_storage_core_16m",
 				"data_energistics:me_digital_merged_storage_core_64m",
-				"data_energistics:me_digital_merged_storage_core_256m",
-				"data_energistics:me_digital_merged_storage_core_1g",
-				"data_energistics:me_digital_merged_storage_core_4g",
-				"data_energistics:me_digital_merged_storage_core_16g",
-				"data_energistics:me_digital_merged_storage_core_64g",
-				"data_energistics:me_digital_merged_storage_core_256g"
+				"data_energistics:me_digital_merged_storage_core_256m"
 			]
 		},
 		"E": {

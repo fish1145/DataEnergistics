@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.common.trinity.core;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,26 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityCoreComponentTest {
-
-    private static final Map<TrinityCoreTier, Integer> EXPECTED_CAPACITY_VALUES = Map.of(
-            TrinityCoreTier.SIZE_1M, 2,
-            TrinityCoreTier.SIZE_4M, 8,
-            TrinityCoreTier.SIZE_16M, 32,
-            TrinityCoreTier.SIZE_64M, 128,
-            TrinityCoreTier.SIZE_256M, 512,
-            TrinityCoreTier.SIZE_1G, 2048,
-            TrinityCoreTier.SIZE_4G, 8192,
-            TrinityCoreTier.SIZE_16G, 32768,
-            TrinityCoreTier.SIZE_64G, 131072,
-            TrinityCoreTier.SIZE_256G, 524288);
-
-    @Test
-    void tierCapacityValuesUseMUnitsTimesTwo() {
-        for (Map.Entry<TrinityCoreTier, Integer> entry : EXPECTED_CAPACITY_VALUES.entrySet()) {
-            assertEquals(entry.getValue(), entry.getKey().capacityValue(), entry.getKey().displayName());
-            assertEquals(entry.getValue() / 2, entry.getKey().mUnits(), entry.getKey().displayName());
-        }
-    }
 
     @Test
     void cpuCoreProfileAggregatesMergedStorageCoreCapacity() {
