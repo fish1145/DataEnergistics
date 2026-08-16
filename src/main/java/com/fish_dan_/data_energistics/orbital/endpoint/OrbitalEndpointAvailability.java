@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -30,15 +31,43 @@ public final class OrbitalEndpointAvailability {
                                    MinecraftServer server,
                                    UUID weaponId,
                                    OrbitalEndpointRecord endpoint) {
+        return findBoundBlockEntity(server, weaponId, endpoint)
+                .map(blockEntity -> blockEntity.getMainNode().isPowered())
+                .orElse(false);
+    }
+
+    /**
+     * Finds the matching endpoint only when its AE node is fully active for network I/O.
+     *
+     * <p>
+     * The lookup never loads a missing chunk. An empty result therefore allows reserve charging to try the next
+     * endpoint without changing world-loading state.
+     * </p>
+     */
+    public static Optional<OrbitalEndpointBlockEntity> findOperationalBlockEntity(
+                                                                                  MinecraftServer server,
+                                                                                  UUID weaponId,
+                                                                                  OrbitalEndpointRecord endpoint) {
+        return findBoundBlockEntity(server, weaponId, endpoint)
+                .filter(blockEntity -> blockEntity.getMainNode().isActive());
+    }
+
+    private static Optional<OrbitalEndpointBlockEntity> findBoundBlockEntity(
+                                                                             MinecraftServer server,
+                                                                             UUID weaponId,
+                                                                             OrbitalEndpointRecord endpoint) {
         OrbitalEndpointLocation location = endpoint.location();
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, location.dimensionId());
         ServerLevel level = server.getLevel(dimension);
         if (level == null || !level.hasChunkAt(location.pos())) {
-            return false;
+            return Optional.empty();
         }
         if (!(level.getBlockEntity(location.pos()) instanceof OrbitalEndpointBlockEntity blockEntity)) {
-            return false;
+            return Optional.empty();
         }
-        return blockEntity.endpointKind() == endpoint.kind() && blockEntity.getWeaponId().filter(weaponId::equals).isPresent() && blockEntity.getMainNode().isPowered();
+        if (blockEntity.endpointKind() != endpoint.kind() || blockEntity.getWeaponId().filter(weaponId::equals).isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(blockEntity);
     }
 }

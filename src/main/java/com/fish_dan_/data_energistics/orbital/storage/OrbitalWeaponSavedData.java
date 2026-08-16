@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveCharging;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -50,6 +51,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private final Map<UUID, UUID> ownerIndex = new HashMap<>();
     private final Map<UUID, Set<UUID>> accessIndex = new HashMap<>();
     private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
+    private final Set<UUID> reserveChargeFaults = new HashSet<>();
 
     private OrbitalWeaponSavedData() {}
 
@@ -164,6 +166,42 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return weapon.endpoints().values().stream()
                 .filter(endpoint -> endpoint.location().dimensionId().equals(dimensionId))
                 .anyMatch(endpoint -> OrbitalEndpointAvailability.isOnline(server, weaponId, endpoint));
+    }
+
+    /**
+     * Charges every weapon from at most one priority-selected AE endpoint for this server tick.
+     *
+     * <p>
+     * A failure is isolated to its weapon and logged once until a later tick succeeds. Successful transfers replace
+     * immutable records and mark this SavedData dirty for persistence.
+     * </p>
+     */
+    public void chargeReserves(MinecraftServer server) {
+        requireServerThread(server);
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        boolean changed = false;
+        for (Map.Entry<UUID, OrbitalWeaponRecord> entry : this.weapons.entrySet()) {
+            UUID weaponId = entry.getKey();
+            OrbitalWeaponRecord updated;
+            try {
+                updated = OrbitalReserveCharging.charge(server, entry.getValue(), settings);
+            } catch (RuntimeException exception) {
+                if (this.reserveChargeFaults.add(weaponId)) {
+                    LOGGER.error("Failed to charge orbital weapon {} from its AE endpoints", weaponId, exception);
+                }
+                continue;
+            }
+            if (this.reserveChargeFaults.remove(weaponId)) {
+                LOGGER.info("Recovered reserve charging for orbital weapon {}", weaponId);
+            }
+            if (updated != entry.getValue()) {
+                entry.setValue(updated);
+                changed = true;
+            }
+        }
+        if (changed) {
+            setDirty();
+        }
     }
 
     /**
@@ -341,7 +379,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.weaponId(),
                 weapon.ownerId(),
                 weapon.delegatedRoles(),
-                acceptedEndpoints);
+                acceptedEndpoints,
+                weapon.reserve());
     }
 
     private Optional<OrbitalWeaponRecord> findCompatibleBoundEndpoint(

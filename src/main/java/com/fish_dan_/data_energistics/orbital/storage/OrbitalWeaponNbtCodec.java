@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -32,7 +33,8 @@ final class OrbitalWeaponNbtCodec {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final String WEAPONS_TAG = "weapons";
     private static final String WEAPON_ID_TAG = "weapon_id";
     private static final String OWNER_ID_TAG = "owner_id";
@@ -44,6 +46,9 @@ final class OrbitalWeaponNbtCodec {
     private static final String POSITION_TAG = "pos";
     private static final String KIND_TAG = "kind";
     private static final String PRIORITY_TAG = "priority";
+    private static final String RESERVE_TAG = "reserve";
+    private static final String CELESTIAL_ENERGY_TAG = "celestial_energy";
+    private static final String AE_ENERGY_TAG = "ae_energy";
     private static final Comparator<OrbitalEndpointRecord> ENDPOINT_ORDER = Comparator
             .comparingInt(OrbitalEndpointRecord::priority)
             .thenComparing(endpoint -> endpoint.location().dimensionId().toString())
@@ -70,10 +75,11 @@ final class OrbitalWeaponNbtCodec {
             return List.of();
         }
         int schemaVersion = tag.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion < OLDEST_SUPPORTED_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
             LOGGER.warn(
-                    "Ignoring orbital weapon SavedData schema version {}; expected {}",
+                    "Ignoring orbital weapon SavedData schema version {}; supported range is {}-{}",
                     schemaVersion,
+                    OLDEST_SUPPORTED_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return List.of();
         }
@@ -86,7 +92,7 @@ final class OrbitalWeaponNbtCodec {
         ArrayList<OrbitalWeaponRecord> weapons = new ArrayList<>();
         for (Tag weaponTag : weaponList) {
             if (weaponTag instanceof CompoundTag weaponEntry) {
-                OrbitalWeaponRecord weapon = readWeapon(weaponEntry);
+                OrbitalWeaponRecord weapon = readWeapon(weaponEntry, schemaVersion);
                 if (weapon != null) {
                     weapons.add(weapon);
                 }
@@ -113,6 +119,11 @@ final class OrbitalWeaponNbtCodec {
                 .map(OrbitalWeaponNbtCodec::writeEndpoint)
                 .forEach(endpointList::add);
         weaponTag.put(ENDPOINTS_TAG, endpointList);
+
+        CompoundTag reserveTag = new CompoundTag();
+        reserveTag.putLong(CELESTIAL_ENERGY_TAG, weapon.reserve().celestialEnergy());
+        reserveTag.putLong(AE_ENERGY_TAG, weapon.reserve().aeEnergy());
+        weaponTag.put(RESERVE_TAG, reserveTag);
         return weaponTag;
     }
 
@@ -132,7 +143,7 @@ final class OrbitalWeaponNbtCodec {
         return endpointTag;
     }
 
-    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag) {
+    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag, int schemaVersion) {
         UUID weaponId = readUuid(weaponTag, WEAPON_ID_TAG, "weapon id");
         UUID ownerId = readUuid(weaponTag, OWNER_ID_TAG, "owner id");
         if (weaponId == null || ownerId == null) {
@@ -150,7 +161,27 @@ final class OrbitalWeaponNbtCodec {
         if (endpointsTag instanceof ListTag endpointList) {
             readEndpoints(weaponId, endpointList, endpoints);
         }
-        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints);
+        OrbitalEnergyReserve reserve = schemaVersion >= 2 ? readReserve(weaponId, weaponTag) : OrbitalEnergyReserve.empty();
+        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve);
+    }
+
+    private static OrbitalEnergyReserve readReserve(UUID weaponId, CompoundTag weaponTag) {
+        Tag rawReserve = weaponTag.get(RESERVE_TAG);
+        if (!(rawReserve instanceof CompoundTag reserveTag)) {
+            LOGGER.warn("Resetting missing or invalid reserve on orbital weapon {}", weaponId);
+            return OrbitalEnergyReserve.empty();
+        }
+        return new OrbitalEnergyReserve(
+                readReserveAmount(weaponId, reserveTag, CELESTIAL_ENERGY_TAG),
+                readReserveAmount(weaponId, reserveTag, AE_ENERGY_TAG));
+    }
+
+    private static long readReserveAmount(UUID weaponId, CompoundTag reserveTag, String key) {
+        if (!reserveTag.contains(key, Tag.TAG_LONG) || reserveTag.getLong(key) < 0L) {
+            LOGGER.warn("Resetting invalid reserve field '{}' on orbital weapon {}", key, weaponId);
+            return 0L;
+        }
+        return reserveTag.getLong(key);
     }
 
     private static void readRoles(

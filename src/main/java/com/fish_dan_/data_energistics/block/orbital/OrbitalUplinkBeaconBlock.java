@@ -87,6 +87,7 @@ public final class OrbitalUplinkBeaconBlock extends AEBaseBlock implements Entit
             Data_Energistics.LOGGER.error("Orbital uplink beacon at {} was placed without its block entity", pos);
             return;
         }
+        beacon.setOwner(player);
 
         OrbitalEndpointLocation location = new OrbitalEndpointLocation(serverLevel.dimension().location(), pos);
         try {

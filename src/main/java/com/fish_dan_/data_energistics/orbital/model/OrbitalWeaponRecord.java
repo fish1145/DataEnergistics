@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.orbital.model;
 
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +21,8 @@ public record OrbitalWeaponRecord(
                                   UUID weaponId,
                                   UUID ownerId,
                                   Map<UUID, OrbitalAccessRole> delegatedRoles,
-                                  Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints) {
+                                  Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
+                                  OrbitalEnergyReserve reserve) {
 
     public OrbitalWeaponRecord {
         delegatedRoles = Map.copyOf(delegatedRoles);
@@ -39,7 +41,7 @@ public record OrbitalWeaponRecord(
      * Creates an unshared weapon record with a stable weapon identity.
      */
     public static OrbitalWeaponRecord create(UUID weaponId, UUID ownerId) {
-        return new OrbitalWeaponRecord(weaponId, ownerId, Map.of(), Map.of());
+        return new OrbitalWeaponRecord(weaponId, ownerId, Map.of(), Map.of(), OrbitalEnergyReserve.empty());
     }
 
     /**
@@ -69,7 +71,7 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.put(playerId, role);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints, this.reserve);
     }
 
     /**
@@ -85,7 +87,7 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.remove(playerId);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints, this.reserve);
     }
 
     /**
@@ -113,7 +115,7 @@ public record OrbitalWeaponRecord(
 
         HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
         updatedEndpoints.put(endpoint.location(), endpoint);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints, this.reserve);
     }
 
     /**
@@ -126,6 +128,16 @@ public record OrbitalWeaponRecord(
 
         HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
         updatedEndpoints.remove(location);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints, this.reserve);
+    }
+
+    /**
+     * Returns a new record containing the supplied persistent energy reserve.
+     */
+    public OrbitalWeaponRecord withReserve(OrbitalEnergyReserve reserve) {
+        if (this.reserve.equals(reserve)) {
+            return this;
+        }
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, this.endpoints, reserve);
     }
 }

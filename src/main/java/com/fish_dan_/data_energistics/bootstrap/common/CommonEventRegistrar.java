@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveTicker;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.world.meteorite.DataMeteoriteCompassTargetInvalidation;
@@ -26,6 +27,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(configurationReload);
         NeoForge.EVENT_BUS.register(new ServerLifecycleEventHandler());
         NeoForge.EVENT_BUS.register(new OrbitalEndpointChunkTickets());
+        NeoForge.EVENT_BUS.register(new OrbitalReserveTicker());
         NeoForge.EVENT_BUS.register(new PoweredToolAttributeModifierHandler());
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
         NeoForge.EVENT_BUS.register(new RadixContainmentSphereRightClickRecipeLogic());

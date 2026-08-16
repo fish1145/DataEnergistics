@@ -84,6 +84,7 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
             Data_Energistics.LOGGER.error("Orbital control console at {} was placed without its block entity", pos);
             return;
         }
+        console.setOwner(player);
 
         OrbitalEndpointLocation location = new OrbitalEndpointLocation(serverLevel.dimension().location(), pos);
         try {

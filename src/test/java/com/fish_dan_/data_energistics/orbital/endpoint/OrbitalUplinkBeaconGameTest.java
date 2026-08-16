@@ -27,6 +27,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import com.mojang.authlib.GameProfile;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -105,6 +106,7 @@ public final class OrbitalUplinkBeaconGameTest {
         level.getChunkAt(beaconPos);
         ChunkPos beaconChunk = new ChunkPos(beaconPos);
         OrbitalEndpointLocation beaconLocation = new OrbitalEndpointLocation(level.dimension().location(), beaconPos);
+        AtomicLong reserveAtPowerLoss = new AtomicLong();
 
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertFalse(
@@ -127,9 +129,14 @@ public final class OrbitalUplinkBeaconGameTest {
                 })
                 .thenExecute(() -> placeCreativeEnergyCell(level, energyCellPos))
                 .thenIdle(40)
-                .thenWaitUntil(() -> helper.assertTrue(
-                        data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
-                        "Supplying a booted AE grid must bring the endpoint online"))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                            "Supplying a booted AE grid must bring the endpoint online");
+                    helper.assertTrue(
+                            data.find(weaponId).orElseThrow().reserve().aeEnergy() > 0L,
+                            "The online beacon must charge its weapon from the real AE grid");
+                })
                 .thenExecute(() -> helper.assertTrue(
                         level.destroyBlock(energyCellPos, false),
                         "The endpoint's AE power source must be removable"))
@@ -141,11 +148,23 @@ public final class OrbitalUplinkBeaconGameTest {
                             isForceTicked(level, beaconChunk),
                             "An offline endpoint must retain its chunk ticket so it can detect restored power");
                 })
+                .thenExecute(() -> reserveAtPowerLoss.set(
+                        data.find(weaponId).orElseThrow().reserve().aeEnergy()))
+                .thenIdle(5)
+                .thenExecute(() -> helper.assertValueEqual(
+                        data.find(weaponId).orElseThrow().reserve().aeEnergy(),
+                        reserveAtPowerLoss.get(),
+                        "An offline endpoint must stop drawing AE energy into the orbital reserve"))
                 .thenExecute(() -> placeCreativeEnergyCell(level, energyCellPos))
                 .thenIdle(40)
-                .thenWaitUntil(() -> helper.assertTrue(
-                        data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
-                        "Restoring AE power must recover the existing endpoint without replacing it"))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            data.hasOnlineEndpoint(level.getServer(), weaponId, level.dimension().location()),
+                            "Restoring AE power must recover the existing endpoint without replacing it");
+                    helper.assertTrue(
+                            data.find(weaponId).orElseThrow().reserve().aeEnergy() > reserveAtPowerLoss.get(),
+                            "The recovered endpoint must resume charging the same weapon reserve");
+                })
                 .thenExecute(() -> helper.assertTrue(
                         level.destroyBlock(beaconPos, false),
                         "The force-loaded uplink beacon must be removable"))
