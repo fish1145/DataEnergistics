@@ -41,8 +41,8 @@ import java.util.List;
  * Keeps Trinity CPU rows and tooltips consistent across AE2's CPU list and compatible list-formatting mixins.
  *
  * <p>
- * The co-processor wrapper uses a later injector order than default-order compatibility wrappers. This makes it the
- * innermost operation wrapper so it can enforce the Trinity unlimited label immediately before the real
+ * The co-processor wrapper uses an earlier injector order than default-order compatibility wrappers. This keeps it as
+ * the innermost operation wrapper so it can enforce the Trinity unlimited label immediately before the real
  * {@link InfoBar} call.
  */
 @Mixin(value = CPUSelectionList.class, priority = 1100)
@@ -146,7 +146,7 @@ public abstract class CPUSelectionListMixin {
                                              target = "Lappeng/client/gui/Icon;S_PROCESSOR:Lappeng/client/gui/Icon;",
                                              opcode = Opcodes.GETSTATIC)),
                    require = 1,
-                   order = 1100)
+                   order = 900)
     private void dataEnergistics$formatTrinityCpuCoProcessors(InfoBar instance,
                                                               String text,
                                                               int color,
