@@ -22,6 +22,8 @@ import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodin
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
+import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyConfig;
+import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyConfig.Option;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 
@@ -132,7 +134,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @GuiSync(793)
     @Unique
     @Nullable
-    private ResourceLocation dataEnergistics$lastEncodedPatternSource;
+    public ResourceLocation dataEnergistics$lastEncodedPatternSource;
     @Unique
     @Nullable
     private String dataEnergistics$displayTransferKeyInputSerialized;
@@ -142,6 +144,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @GuiSync(797)
     @Unique
     public boolean dataEnergistics$processingOutputSameItem;
+    @GuiSync(798)
+    @Unique
+    public boolean dataEnergistics$networkBackedBlankPatternSlot = DataEnergisticsEarlyConfig.get().isEnabled(Option.PATTERN_ENCODING_NETWORK_BACKED_BLANK_PATTERN_SLOT);
     @Unique
     @Nullable
     private AEItemKey dataEnergistics$observedEncodedPattern;
@@ -362,6 +367,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public long data_energistics$getNetworkBlankPatternCount() {
+        if (!data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            return 0;
+        }
         if (!this.canInteractWithGrid()) {
             return 0;
         }
@@ -375,7 +383,15 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public boolean data_energistics$usesNetworkBackedBlankPatternSlot() {
+        return this.dataEnergistics$networkBackedBlankPatternSlot;
+    }
+
+    @Override
     public void data_energistics$depositCarriedBlankPatterns(boolean single) {
+        if (!data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            return;
+        }
         if (this.isClientSide()) {
             sendClientAction(DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS, single);
             return;
@@ -410,6 +426,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public void data_energistics$pickupBlankPatterns(boolean single) {
+        if (!data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            return;
+        }
         if (this.isClientSide()) {
             sendClientAction(DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS, single);
             return;
@@ -504,7 +523,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 return;
             }
 
-            if (encodeOutput.isEmpty() && !dataEnergistics$consumeOneBlankPatternFromNetwork()) {
+            if (encodeOutput.isEmpty() && !dataEnergistics$consumeOneBlankPattern()) {
                 PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
                 PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
                 ci.cancel();
@@ -576,7 +595,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
         if (transferResult.duplicateFound()) {
-            dataEnergistics$returnEncodedPatternAsBlankToNetwork();
+            dataEnergistics$returnEncodedPatternAsBlank();
             this.getPlayer().sendSystemMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.duplicate_cleared"));
             dataEnergistics$syncPatternProvidersFromNetwork();
@@ -886,7 +905,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$depositCarriedBlankPatternsFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS, Boolean.class,
                 this::dataEnergistics$pickupBlankPatternsFromClient);
-        this.blankPatternSlot.setHideAmount(true);
+        if (data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            this.blankPatternSlot.setHideAmount(true);
+        }
         if (this.isServerSide()) {
             PatternEncodingPreviewLayoutAware legacyLayout = dataEnergistics$getLogicLayout();
             LegacyPatternEncodingPreferences legacyPreferences = LegacyPatternEncodingPreferences.capture(
@@ -904,7 +925,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                     this.dataEnergistics$lastEncodedPatternSource);
             this.dataEnergistics$previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
             this.dataEnergistics$previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
-            dataEnergistics$flushBlankPatternSlotToNetwork();
+            if (data_energistics$usesNetworkBackedBlankPatternSlot()) {
+                dataEnergistics$flushBlankPatternSlotToNetwork();
+            }
             dataEnergistics$syncPatternProvidersFromNetwork();
         }
     }
@@ -913,7 +936,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private void dataEnergistics$syncPreviewDataBeforeBroadcast(CallbackInfo ci) {
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.sanitizeActiveDataRipperTransferLayout((PatternEncodingTermMenu) (Object) this);
-            dataEnergistics$flushBlankPatternSlotToNetwork();
+            if (data_energistics$usesNetworkBackedBlankPatternSlot()) {
+                dataEnergistics$flushBlankPatternSlotToNetwork();
+            }
             dataEnergistics$syncPatternProvidersIfNeeded();
             dataEnergistics$refreshProcessingOutputMatchFromEncodedPattern();
         }
@@ -1142,7 +1167,19 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private boolean dataEnergistics$consumeOneBlankPatternFromNetwork() {
+    private boolean dataEnergistics$consumeOneBlankPattern() {
+        if (!data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            ItemStack localBlankPattern = this.blankPatternSlot.getItem();
+            if (!AEItems.BLANK_PATTERN.is(localBlankPattern) || localBlankPattern.isEmpty()) {
+                return false;
+            }
+
+            ItemStack reduced = localBlankPattern.copy();
+            reduced.shrink(1);
+            this.blankPatternSlot.set(reduced.isEmpty() ? ItemStack.EMPTY : reduced);
+            return true;
+        }
+
         if (!this.canInteractWithGrid()) {
             return false;
         }
@@ -1186,9 +1223,18 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$returnEncodedPatternAsBlankToNetwork() {
+    private void dataEnergistics$returnEncodedPatternAsBlank() {
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
-        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty() || !this.canInteractWithGrid()) {
+        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty()) {
+            return;
+        }
+
+        if (!data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            this.encodedPatternSlot.set(AEItems.BLANK_PATTERN.stack(encodedPattern.getCount()));
+            return;
+        }
+
+        if (!this.canInteractWithGrid()) {
             return;
         }
 

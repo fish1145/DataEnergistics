@@ -13,7 +13,7 @@
 				}
 			],
 			"structure_overrides": [
-				"data_energistics:meteorite",
+				"data_energistics:meteorite_cluster",
 				"data_energistics:ae2_meteorite"
 			]
 		}

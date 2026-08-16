@@ -1,11 +1,13 @@
 package com.fish_dan_.data_energistics.menu.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Synchronized Trinity planning metadata shared by the confirmation menu and its client screen.
@@ -31,6 +33,25 @@ public interface TrinityCraftConfirmMenuState {
      * @return whether a Grid was available and the calculation was started
      */
     boolean data_energistics$planJob(AEKey what, long amount, CalculationStrategy strategy);
+
+    /**
+     * @return synchronized revision identifying the current initial plan or replan attempt
+     */
+    long data_energistics$planRevision();
+
+    /**
+     * Atomically publishes a complete cycle summary assembled for the current revision.
+     *
+     * @param revision summary revision validated by the client payload boundary
+     * @param summary  complete immutable cycle summary
+     */
+    void data_energistics$receiveCycleSummary(long revision, TrinityCraftingCycleSummary summary);
+
+    /**
+     * @return complete cycle summary for the synchronized revision, or {@code null} while unavailable
+     */
+    @Nullable
+    TrinityCraftingCycleSummary data_energistics$cycleSummary();
 
     /**
      * @return whether the displayed plan and the server-side CPU eligibility pass belong to the same result

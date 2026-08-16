@@ -24,7 +24,7 @@ import java.util.Set;
 public final class VersionedTowerBindingCodec {
 
     /** Current persistent binding schema. */
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     /** Version tag used to distinguish current data from legacy linked positions. */
     public static final String VERSION_TAG = "tower_bindings_version";
@@ -48,10 +48,10 @@ public final class VersionedTowerBindingCodec {
                                    Map<BlockPos, Boolean> legacyDisabledStates) {
         if (root.contains(VERSION_TAG, Tag.TAG_INT)) {
             int version = root.getInt(VERSION_TAG);
-            if (version != CURRENT_VERSION) {
+            if (version < 1 || version > CURRENT_VERSION) {
                 throw new IllegalArgumentException("Unsupported tower binding version: " + version);
             }
-            return readCurrent(root);
+            return readVersioned(root, version);
         }
         if (towerDimensionId == null) {
             throw new IllegalStateException("Legacy tower bindings require the tower dimension");
@@ -74,6 +74,7 @@ public final class VersionedTowerBindingCodec {
             CompoundTag bindingTag = new CompoundTag();
             bindingTag.putString("dimension", binding.dimensionId().toString());
             bindingTag.put("anchor", NbtUtils.writeBlockPos(binding.anchor()));
+            bindingTag.putString("kind", binding.kind().name());
             bindingTag.putString("source", binding.source().name());
             bindingTag.putLong("fifo", binding.fifoSequence());
             bindingTag.putBoolean("enabled", binding.enabled());
@@ -100,7 +101,7 @@ public final class VersionedTowerBindingCodec {
         root.remove(LEGACY_LINKED_POSITIONS_TAG);
     }
 
-    private static List<TowerBinding> readCurrent(CompoundTag root) {
+    private static List<TowerBinding> readVersioned(CompoundTag root, int version) {
         if (!root.contains(BINDINGS_TAG, Tag.TAG_LIST)) {
             throw new IllegalArgumentException("Versioned tower data is missing its binding list");
         }
@@ -112,6 +113,7 @@ public final class VersionedTowerBindingCodec {
             ResourceLocation dimensionId = parseId(bindingTag.getString("dimension"), "binding dimension");
             BlockPos anchor = NbtUtils.readBlockPos(bindingTag, "anchor")
                     .orElseThrow(() -> new IllegalArgumentException("Tower binding is missing its anchor"));
+            TowerBindingKind kind = version == 1 ? TowerBindingKind.TARGET : readBindingKind(bindingTag);
             TowerBindingSource source;
             try {
                 source = TowerBindingSource.valueOf(bindingTag.getString("source"));
@@ -125,10 +127,18 @@ public final class VersionedTowerBindingCodec {
             boolean enabled = !bindingTag.contains("enabled") || bindingTag.getBoolean("enabled");
             Set<TowerDeviceKey> disabledDeviceKeys = readDeviceKeys(bindingTag);
             bindings.add(new TowerBinding(
-                    dimensionId, anchor, source, fifoSequence, enabled, disabledDeviceKeys));
+                    dimensionId, anchor, kind, source, fifoSequence, enabled, disabledDeviceKeys));
         }
         bindings.sort(Comparator.comparingLong(TowerBinding::fifoSequence));
         return List.copyOf(bindings);
+    }
+
+    private static TowerBindingKind readBindingKind(CompoundTag bindingTag) {
+        try {
+            return TowerBindingKind.valueOf(bindingTag.getString("kind"));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Tower binding has an invalid kind", exception);
+        }
     }
 
     private static Set<TowerDeviceKey> readDeviceKeys(CompoundTag bindingTag) {
@@ -179,6 +189,7 @@ public final class VersionedTowerBindingCodec {
             bindings.add(new TowerBinding(
                     towerDimensionId,
                     position,
+                    TowerBindingKind.TARGET,
                     TowerBindingSource.MANUAL,
                     bindings.size(),
                     enabled,

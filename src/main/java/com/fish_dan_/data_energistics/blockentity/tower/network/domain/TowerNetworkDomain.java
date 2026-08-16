@@ -1,10 +1,14 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyAccessSnapshot;
+
+import net.minecraft.core.BlockPos;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -77,4 +81,41 @@ public interface TowerNetworkDomain extends IGridService {
      * @return latest snapshot when reconciled
      */
     Optional<TowerNetworkTowerSnapshot> towerSnapshot(TowerRuntimeKey towerKey);
+
+    /**
+     * Returns the shared FE capability state visible through one active tower on this primary Grid.
+     *
+     * @param towerKey         requesting tower identity
+     * @param excludedPosition adjacent capability owner that must not feed itself, or {@code null}
+     * @return shared energy state, or an empty state when the requesting tower is inactive
+     */
+    TowerEnergyAccessSnapshot energySnapshot(TowerRuntimeKey towerKey, @Nullable BlockPos excludedPosition);
+
+    /**
+     * Inserts FE through one active tower into this primary Grid's shared cross-dimensional endpoint topology.
+     *
+     * @param towerKey         requesting tower identity
+     * @param amount           requested non-negative FE
+     * @param simulate         whether to simulate without mutation
+     * @param excludedPosition adjacent capability owner that must not feed itself, or {@code null}
+     * @return accepted FE in {@code [0, amount]}
+     */
+    long insertEnergy(TowerRuntimeKey towerKey,
+                      long amount,
+                      boolean simulate,
+                      @Nullable BlockPos excludedPosition);
+
+    /**
+     * Extracts FE through one active tower from this primary Grid's shared cross-dimensional endpoint topology.
+     *
+     * @param towerKey         requesting tower identity
+     * @param amount           requested non-negative FE
+     * @param simulate         whether to simulate without mutation
+     * @param excludedPosition adjacent capability owner that must not feed itself, or {@code null}
+     * @return extracted FE in {@code [0, amount]}
+     */
+    long extractEnergy(TowerRuntimeKey towerKey,
+                       long amount,
+                       boolean simulate,
+                       @Nullable BlockPos excludedPosition);
 }

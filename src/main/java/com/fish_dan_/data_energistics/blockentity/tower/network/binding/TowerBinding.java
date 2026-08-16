@@ -9,10 +9,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Persistent request to claim every legal AE subnet exposed at one connector anchor.
+ * Persistent tower link that either claims an ordinary transfer target or joins one peer tower to a logical tower
+ * network.
  *
  * @param dimensionId        anchor dimension
  * @param anchor             clicked or automatically discovered anchor
+ * @param kind               ordinary transfer target or peer-tower membership edge
  * @param source             manual or automatic provenance
  * @param fifoSequence       first-application sequence within the tower
  * @param enabled            binding-wide state retained for legacy target disabling
@@ -20,6 +22,7 @@ import java.util.Set;
  */
 public record TowerBinding(ResourceLocation dimensionId,
                            BlockPos anchor,
+                           TowerBindingKind kind,
                            TowerBindingSource source,
                            long fifoSequence,
                            boolean enabled,
@@ -46,6 +49,7 @@ public record TowerBinding(ResourceLocation dimensionId,
         return new TowerBinding(
                 this.dimensionId,
                 this.anchor,
+                this.kind,
                 this.source,
                 this.fifoSequence,
                 nextEnabled,
@@ -69,9 +73,27 @@ public record TowerBinding(ResourceLocation dimensionId,
         return new TowerBinding(
                 this.dimensionId,
                 this.anchor,
+                this.kind,
                 this.source,
                 this.fifoSequence,
                 this.enabled,
                 nextKeys);
+    }
+
+    /**
+     * Returns a copy with the binding classified as an ordinary target or peer tower.
+     *
+     * @param nextKind new binding kind
+     * @return updated binding
+     */
+    public TowerBinding withKind(TowerBindingKind nextKind) {
+        return new TowerBinding(
+                this.dimensionId,
+                this.anchor,
+                nextKind,
+                this.source,
+                this.fifoSequence,
+                this.enabled,
+                this.disabledDeviceKeys);
     }
 }
