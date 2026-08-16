@@ -1,5 +1,21 @@
 # ChangeLog
 
+## Version [v3.1.2](https://github.com/fish1145/DataEnergistics/compare/v3.1.1-1.21...v3.1.2-1.21)
+### Added
+
+- 完善三位一体进度条与管理界面布局 by @QiuYe-123 in [#209](https://github.com/fish1145/DataEnergistics/pull/209)
+- 区分主世界与陨石集群生成密度 by @QiuYe-123 in [#212](https://github.com/fish1145/DataEnergistics/pull/212)
+- 支持切换样板编码终端槽位逻辑 by @QiuYe-123 in [#213](https://github.com/fish1145/DataEnergistics/pull/213)
+
+### Fixed
+
+- 修复样板编码终端同步字段访问 by @QiuYe-123 in [#211](https://github.com/fish1145/DataEnergistics/pull/211)
+
+### Changed
+
+- 优化数据拟生场运行时性能 by @QiuYe-123 in [#210](https://github.com/fish1145/DataEnergistics/pull/210)
+
+ 
 ## Version [v3.1.1](https://github.com/fish1145/DataEnergistics/compare/v3.1.0-1.21...v3.1.1-1.21)
 ### Added
 
