@@ -50,11 +50,24 @@ public final class AstronomyDimensionRules {
     public static long celestialEnergyPerTick(
                                               ServerLevel level,
                                               DataEnergisticsSettings.Astronomy settings) {
+        return celestialEnergyPerTick(level, settings, settings.lowTierCelestialEnergyPerTick());
+    }
+
+    /**
+     * Applies this dimension's configured multiplier and current rain multiplier to a caller-provided base output.
+     */
+    public static long celestialEnergyPerTick(
+                                              ServerLevel level,
+                                              DataEnergisticsSettings.Astronomy settings,
+                                              long baseOutput) {
+        if (baseOutput < 0L) {
+            throw new IllegalArgumentException("Base Celestial Energy output must be non-negative: " + baseOutput);
+        }
         ResourceLocation dimensionId = level.dimension().location();
         double dimensionMultiplier = settings.dimensionMultipliers()
                 .getOrDefault(dimensionId, settings.defaultDimensionMultiplier());
         double weatherMultiplier = level.isRaining() ? settings.rainOutputMultiplier() : 1.0D;
-        double scaledOutput = settings.lowTierCelestialEnergyPerTick() * dimensionMultiplier * weatherMultiplier;
+        double scaledOutput = baseOutput * dimensionMultiplier * weatherMultiplier;
         if (scaledOutput >= Long.MAX_VALUE) {
             return Long.MAX_VALUE;
         }

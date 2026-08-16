@@ -102,6 +102,10 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> ORBITAL_CONTROL_CONSOLE = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_CONTROL_CONSOLE);
     public static final DeferredItem<BlockItem> ORBITAL_UPLINK_BEACON = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_UPLINK_BEACON);
     public static final DeferredItem<BlockItem> ASTRONOMICAL_OBSERVATORY = ITEMS.registerSimpleBlockItem(DEBlocks.ASTRONOMICAL_OBSERVATORY);
+    public static final DeferredItem<BlockItem> INTERFERENCE_ARRAY_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.INTERFERENCE_ARRAY_CORE);
+    public static final DeferredItem<BlockItem> ASTRONOMICAL_MIRROR = ITEMS.registerSimpleBlockItem(DEBlocks.ASTRONOMICAL_MIRROR);
+    public static final DeferredItem<BlockItem> ASTRONOMICAL_MIRROR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.ASTRONOMICAL_MIRROR_PANEL);
+    public static final DeferredItem<BlockItem> CELESTIAL_WAVEGUIDE = ITEMS.registerSimpleBlockItem(DEBlocks.CELESTIAL_WAVEGUIDE);
     public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM);
     public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM_INTERFACE);
     public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);

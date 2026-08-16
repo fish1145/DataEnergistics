@@ -368,6 +368,26 @@ public final class SnapshotAssembler {
                     Integer.toString(windowEnd));
         }
 
+        int minimumMirrors = integer(
+                source,
+                "astronomy.highTierMinimumMirrors",
+                astronomy.highTierMinimumMirrors,
+                1,
+                16);
+        int maximumMirrors = integer(
+                source,
+                "astronomy.highTierMaximumMirrors",
+                astronomy.highTierMaximumMirrors,
+                1,
+                16);
+        if (minimumMirrors > maximumMirrors) {
+            throw invalid(
+                    source,
+                    "astronomy.highTierMinimumMirrors",
+                    "minimum mirror count must not exceed maximum=" + maximumMirrors,
+                    Integer.toString(minimumMirrors));
+        }
+
         List<String> dimensionIds = copyExternalArray(
                 source,
                 "astronomy.dimensionIds",
@@ -412,6 +432,62 @@ public final class SnapshotAssembler {
                         astronomy.lowTierAeEnergyPerTick,
                         0L,
                         Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierMirrorCelestialEnergyPerTick1To4",
+                        astronomy.highTierMirrorCelestialEnergyPerTick1To4,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierMirrorCelestialEnergyPerTick5To8",
+                        astronomy.highTierMirrorCelestialEnergyPerTick5To8,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierMirrorCelestialEnergyPerTick9To12",
+                        astronomy.highTierMirrorCelestialEnergyPerTick9To12,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierMirrorCelestialEnergyPerTick13To16",
+                        astronomy.highTierMirrorCelestialEnergyPerTick13To16,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierCoreAeEnergyPerTick",
+                        astronomy.highTierCoreAeEnergyPerTick,
+                        0L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.highTierMirrorAeEnergyPerTick",
+                        astronomy.highTierMirrorAeEnergyPerTick,
+                        0L,
+                        Long.MAX_VALUE),
+                minimumMirrors,
+                maximumMirrors,
+                integer(
+                        source,
+                        "astronomy.highTierMirrorHorizontalRange",
+                        astronomy.highTierMirrorHorizontalRange,
+                        1,
+                        64),
+                integer(
+                        source,
+                        "astronomy.highTierMirrorVerticalRange",
+                        astronomy.highTierMirrorVerticalRange,
+                        0,
+                        32),
+                integer(
+                        source,
+                        "astronomy.highTierWaveguidePathLength",
+                        astronomy.highTierWaveguidePathLength,
+                        1,
+                        64),
                 finiteRange(
                         source,
                         "astronomy.rainOutputMultiplier",

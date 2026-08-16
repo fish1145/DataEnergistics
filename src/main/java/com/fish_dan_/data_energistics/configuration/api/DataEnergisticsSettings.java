@@ -187,6 +187,39 @@ public interface DataEnergisticsSettings {
         /** Returns the AE energy consumed by one successful low-tier observation tick. */
         long lowTierAeEnergyPerTick();
 
+        /** Returns the per-mirror output for valid mirrors 1 through 4 in a high-tier array. */
+        long highTierMirrorCelestialEnergyPerTick1To4();
+
+        /** Returns the per-mirror output for valid mirrors 5 through 8 in a high-tier array. */
+        long highTierMirrorCelestialEnergyPerTick5To8();
+
+        /** Returns the per-mirror output for valid mirrors 9 through 12 in a high-tier array. */
+        long highTierMirrorCelestialEnergyPerTick9To12();
+
+        /** Returns the per-mirror output for valid mirrors 13 through 16 in a high-tier array. */
+        long highTierMirrorCelestialEnergyPerTick13To16();
+
+        /** Returns the fixed AE energy cost of an operating high-tier array core per server tick. */
+        long highTierCoreAeEnergyPerTick();
+
+        /** Returns the additional AE energy cost of each valid high-tier mirror per server tick. */
+        long highTierMirrorAeEnergyPerTick();
+
+        /** Returns the minimum valid mirror count required for a high-tier array to operate. */
+        int highTierMinimumMirrors();
+
+        /** Returns the maximum mirror count that one high-tier array may claim and use. */
+        int highTierMaximumMirrors();
+
+        /** Returns the maximum horizontal Euclidean distance from the core to a mirror center. */
+        int highTierMirrorHorizontalRange();
+
+        /** Returns the maximum absolute height difference from the core to a mirror center. */
+        int highTierMirrorVerticalRange();
+
+        /** Returns the maximum connected waveguide path length from a core port to a mirror. */
+        int highTierWaveguidePathLength();
+
         /** Returns the output multiplier applied while it is raining. */
         double rainOutputMultiplier();
 

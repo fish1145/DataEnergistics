@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.blockentity.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalObservatoryBlock;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
+import com.fish_dan_.data_energistics.orbital.astronomy.CelestialEnergyGridTransaction;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
@@ -15,14 +15,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
-import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
@@ -33,8 +29,6 @@ import java.util.Set;
  * Performs the low-tier observatory's server-authoritative AE energy-to-Celestial Energy transaction.
  */
 public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEntity {
-
-    private static final double ENERGY_TOLERANCE = 0.0001D;
 
     private boolean runtimeFaultLogged;
     private boolean insertionMismatchLogged;
@@ -102,66 +96,13 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
             throw new IllegalStateException("Active astronomical observatory lost its AE grid");
         }
 
-        MEStorage storage = grid.getStorageService().getInventory();
-        IActionSource actionSource = IActionSource.ofMachine(this);
-        long insertable = storage.insert(
-                CelestialEnergyKey.of(),
+        long inserted = CelestialEnergyGridTransaction.commit(
+                grid,
+                IActionSource.ofMachine(this),
                 celestialEnergy,
-                Actionable.SIMULATE,
-                actionSource);
-        requireValidInsertion(insertable, celestialEnergy, "simulated");
-        if (insertable < celestialEnergy) {
-            return false;
-        }
-
-        IEnergyService energyService = grid.getEnergyService();
-        double requiredEnergy = settings.lowTierAeEnergyPerTick();
-        double simulatedEnergy = energyService.extractAEPower(
-                requiredEnergy,
-                Actionable.SIMULATE,
-                PowerMultiplier.ONE);
-        if (!containsRequiredEnergy(simulatedEnergy, requiredEnergy)) {
-            return false;
-        }
-
-        double extractedEnergy = energyService.extractAEPower(
-                requiredEnergy,
-                Actionable.MODULATE,
-                PowerMultiplier.ONE);
-        if (!containsRequiredEnergy(extractedEnergy, requiredEnergy)) {
-            refundEnergy(energyService, extractedEnergy);
-            return false;
-        }
-
-        long inserted;
-        try {
-            inserted = storage.insert(
-                    CelestialEnergyKey.of(),
-                    celestialEnergy,
-                    Actionable.MODULATE,
-                    actionSource);
-        } catch (RuntimeException insertionFailure) {
-            try {
-                refundEnergy(energyService, extractedEnergy);
-            } catch (RuntimeException refundFailure) {
-                insertionFailure.addSuppressed(refundFailure);
-            }
-            throw insertionFailure;
-        }
-        try {
-            requireValidInsertion(inserted, celestialEnergy, "actual");
-        } catch (RuntimeException invalidInsertion) {
-            try {
-                refundEnergy(energyService, extractedEnergy);
-            } catch (RuntimeException refundFailure) {
-                invalidInsertion.addSuppressed(refundFailure);
-            }
-            throw invalidInsertion;
-        }
+                settings.lowTierAeEnergyPerTick());
         if (inserted < celestialEnergy) {
-            double consumedFraction = (double) inserted / celestialEnergy;
-            refundEnergy(energyService, extractedEnergy * (1.0D - consumedFraction));
-            if (!this.insertionMismatchLogged) {
+            if (inserted > 0L && !this.insertionMismatchLogged) {
                 Data_Energistics.LOGGER.warn(
                         "Astronomical observatory at {} accepted only {} of {} simulated Celestial Energy",
                         this.worldPosition,
@@ -178,30 +119,6 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
             this.insertionMismatchLogged = false;
         }
         return true;
-    }
-
-    private static boolean containsRequiredEnergy(double extracted, double required) {
-        if (!Double.isFinite(extracted) || extracted < 0.0D) {
-            throw new IllegalStateException("AE grid returned an invalid extracted energy amount: " + extracted);
-        }
-        return extracted + ENERGY_TOLERANCE >= required;
-    }
-
-    private static void requireValidInsertion(long inserted, long offered, String phase) {
-        if (inserted < 0L || inserted > offered) {
-            throw new IllegalStateException(
-                    "AE storage returned an invalid " + phase + " Celestial Energy insertion: " + inserted);
-        }
-    }
-
-    private static void refundEnergy(IEnergyService energyService, double energy) {
-        if (energy <= ENERGY_TOLERANCE) {
-            return;
-        }
-        double overflow = energyService.injectPower(energy, Actionable.MODULATE);
-        if (!Double.isFinite(overflow) || overflow > ENERGY_TOLERANCE) {
-            throw new IllegalStateException("AE grid rejected an observation energy refund of " + energy);
-        }
     }
 
     private void updateBlockState(boolean producing) {

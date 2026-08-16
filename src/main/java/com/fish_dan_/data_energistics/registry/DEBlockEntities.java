@@ -10,7 +10,9 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEnt
 import com.fish_dan_.data_energistics.blockentity.machine.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalUplinkBeaconBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.orbital.astronomy.AstronomicalMirrorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.orbital.astronomy.AstronomicalObservatoryBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.orbital.astronomy.InterferenceArrayCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.patternprovider.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumInterfaceBlockEntity;
@@ -78,6 +80,14 @@ public final class DEBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AstronomicalObservatoryBlockEntity>> ASTRONOMICAL_OBSERVATORY_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "astronomical_observatory",
             () -> BlockEntityType.Builder.of(AstronomicalObservatoryBlockEntity::new, DEBlocks.ASTRONOMICAL_OBSERVATORY.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<InterferenceArrayCoreBlockEntity>> INTERFERENCE_ARRAY_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "interference_array_core",
+            () -> BlockEntityType.Builder.of(InterferenceArrayCoreBlockEntity::new, DEBlocks.INTERFERENCE_ARRAY_CORE.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AstronomicalMirrorBlockEntity>> ASTRONOMICAL_MIRROR_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "astronomical_mirror",
+            () -> BlockEntityType.Builder.of(AstronomicalMirrorBlockEntity::new, DEBlocks.ASTRONOMICAL_MIRROR.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSanctumBlockEntity>> DATA_SANCTUM_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_sanctum",

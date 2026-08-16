@@ -409,6 +409,88 @@ public final class DataEnergisticsConfiguration {
         public long lowTierAeEnergyPerTick = 4_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 1 through 4.",
+                "高阶阵列第 1 至 4 个有效镜单元各自每 tick 产出的星体能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorCelestialEnergyPerTick1To4 = 40L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 5 through 8.",
+                "高阶阵列第 5 至 8 个有效镜单元各自每 tick 产出的星体能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorCelestialEnergyPerTick5To8 = 30L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 9 through 12.",
+                "高阶阵列第 9 至 12 个有效镜单元各自每 tick 产出的星体能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorCelestialEnergyPerTick9To12 = 20L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 13 through 16.",
+                "高阶阵列第 13 至 16 个有效镜单元各自每 tick 产出的星体能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorCelestialEnergyPerTick13To16 = 10L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Fixed AE energy consumed per successful high-tier array tick.",
+                "高阶阵列每次成功工作 tick 固定消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierCoreAeEnergyPerTick = 25_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Additional AE energy consumed per valid high-tier mirror and successful tick.",
+                "高阶阵列每个有效镜单元在每次成功工作 tick 额外消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorAeEnergyPerTick = 10_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Minimum valid mirrors required to operate.", "高阶阵列开始工作所需的最少有效镜单元数。" })
+        @Configurable.Range(min = 1, max = 16)
+        public int highTierMinimumMirrors = 4;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum mirrors claimed and used by one core.", "单个高阶阵列核心可绑定并使用的最大镜单元数。" })
+        @Configurable.Range(min = 1, max = 16)
+        public int highTierMaximumMirrors = 16;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum horizontal distance from a high-tier core to a mirror center.",
+                "高阶阵列核心到镜单元中心的最大水平距离。"
+        })
+        @Configurable.Range(min = 1, max = 64)
+        public int highTierMirrorHorizontalRange = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum absolute height difference from a high-tier core to a mirror center.",
+                "高阶阵列核心到镜单元中心允许的最大高度差。"
+        })
+        @Configurable.Range(min = 0, max = 32)
+        public int highTierMirrorVerticalRange = 4;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum waveguide path length from a high-tier core port to a mirror.",
+                "高阶阵列核心端口到镜单元的最大星能波导路径长度。"
+        })
+        @Configurable.Range(min = 1, max = 64)
+        public int highTierWaveguidePathLength = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Output multiplier while raining.", "降雨时的产出倍率。" })
         @Configurable.DecimalRange(min = 0.0D, max = 1.0D)
         public double rainOutputMultiplier = 0.25D;
