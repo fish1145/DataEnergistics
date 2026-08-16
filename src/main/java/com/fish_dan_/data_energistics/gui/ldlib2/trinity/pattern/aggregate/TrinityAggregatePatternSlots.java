@@ -41,6 +41,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private static final int SLOT_SIZE = 18;
     private static final int MAX_CACHED_PAGES = 16;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
+    private static final IGuiTexture OCCUPIED_PATTERN_SLOT_OVERLAY = SpriteTexture.of(
+            "data_energistics:textures/guis/inventory_slot.png");
     private static final IGuiTexture SEARCH_INPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input.png");
     private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
     private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
@@ -118,6 +120,10 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             ItemSlot itemSlot = new PatternDisplaySlot(localSlot, index);
             itemSlot.setId(id + "_" + index);
             itemSlot.getStyle().backgroundTexture(IGuiTexture.EMPTY);
+            itemSlot.slotStyle(style -> style
+                    .slotOverlay(IGuiTexture.dynamic(() -> localSlot.getItem().isEmpty() ?
+                            IGuiTexture.EMPTY : OCCUPIED_PATTERN_SLOT_OVERLAY))
+                    .showSlotOverlayOnlyEmpty(false));
             int column = index % TrinityPatternCatalogView.COLUMN_COUNT;
             int row = index / TrinityPatternCatalogView.COLUMN_COUNT;
             itemSlot.layout(slotLayout -> slotLayout
