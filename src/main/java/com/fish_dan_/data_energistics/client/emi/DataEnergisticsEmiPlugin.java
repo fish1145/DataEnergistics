@@ -84,6 +84,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.CELESTIAL_ENERGY, 1L));
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
         registry.addDragDropHandler(OrderPackageScreen.class, new OrderPackageEmiDragDropHandler());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());

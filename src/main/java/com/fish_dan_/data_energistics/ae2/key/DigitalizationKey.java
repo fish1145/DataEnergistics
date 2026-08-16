@@ -14,9 +14,9 @@ import appeng.api.stacks.GenericStack;
 import java.util.List;
 
 /**
- * Common AE key space for the Data Flow and Echo resources exposed as Digitalization.
+ * Common AE key space for the Data Flow, Echo and Celestial Energy resources exposed as Digitalization.
  */
-public abstract sealed class DigitalizationKey extends AEKey permits DataFlowKey, EchoKey {
+public abstract sealed class DigitalizationKey extends AEKey permits CelestialEnergyKey, DataFlowKey, EchoKey {
 
     @Override
     public final AEKeyType getType() {

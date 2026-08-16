@@ -554,6 +554,7 @@
 	"key.data_energistics.data": "数据",
 	"key.data_energistics.data_flow": "数据流",
 	"key.data_energistics.echo": "回响",
+	"key.data_energistics.celestial_energy": "星体能量",
 	"key.data_energistics.open_pattern_provider": "打开样板供应器界面",
 	"key.data_energistics.rename_pattern_provider": "重命名样板供应器",
 	"key.data_energistics.toggle_digital_storage_depot_bucket_mode": "切换数位化存储仓桶模式",

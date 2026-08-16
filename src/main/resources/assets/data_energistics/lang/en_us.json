@@ -554,6 +554,7 @@
 	"key.data_energistics.data": "Data",
 	"key.data_energistics.data_flow": "Data Flow",
 	"key.data_energistics.echo": "Echo",
+	"key.data_energistics.celestial_energy": "Celestial Energy",
 	"key.data_energistics.open_pattern_provider": "Open Pattern Provider GUI",
 	"key.data_energistics.rename_pattern_provider": "Rename Pattern Provider",
 	"key.data_energistics.toggle_digital_storage_depot_bucket_mode": "Toggle Digital Storage Depot Bucket Mode",

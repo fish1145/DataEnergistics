@@ -37,7 +37,8 @@ public record DataResourceJeiIngredient(DataResourceKey key, long amount) {
     public static final List<DataResourceJeiIngredient> ALL_INGREDIENTS = List.of(
             new DataResourceJeiIngredient(DataResourceKey.DATA, 1L),
             new DataResourceJeiIngredient(DataResourceKey.DATA_FLOW, 1L),
-            new DataResourceJeiIngredient(DataResourceKey.ECHO, 1L));
+            new DataResourceJeiIngredient(DataResourceKey.ECHO, 1L),
+            new DataResourceJeiIngredient(DataResourceKey.CELESTIAL_ENERGY, 1L));
 
     /**
      * Rejects invalid amounts before JEI can cache or serialize them.
