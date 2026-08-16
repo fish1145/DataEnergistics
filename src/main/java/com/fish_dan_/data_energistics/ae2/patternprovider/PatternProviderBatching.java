@@ -31,6 +31,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -50,8 +51,9 @@ public final class PatternProviderBatching {
      * Prepares the standard AE2 target selected by the current round-robin cursor.
      *
      * <p>
-     * Blocking mode, result/pulse locking and dedicated crafting machines deliberately retain AE2's one-craft
-     * {@link ICraftingProvider#pushPattern} behavior.
+     * Result/pulse locking and dedicated crafting machines deliberately retain AE2's one-craft
+     * {@link ICraftingProvider#pushPattern} behavior. Blocking targets remain eligible for one capacity-sized batch
+     * while they contain no published pattern input.
      * </p>
      */
     @Nullable
@@ -114,6 +116,14 @@ public final class PatternProviderBatching {
         }
 
         var lockMode = logic.getConfigManager().getSetting(Settings.LOCK_CRAFTING_MODE);
+        if (requiresSingleCraftPath(lockMode, false)) {
+            return prepareSingle(
+                    logic,
+                    patternDetails,
+                    prototype,
+                    requestedCount,
+                    targetAvailability);
+        }
         var blockEntity = access.dataEnergistics$getHost().getBlockEntity();
         var level = blockEntity.getLevel();
         if (level == null) {
@@ -126,7 +136,7 @@ public final class PatternProviderBatching {
             var adjacentSide = direction.getOpposite();
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
             boolean dedicatedCraftingMachine = craftingMachine != null && craftingMachine.acceptsPlans();
-            if (selectsSingleCraftPath(false, LockCraftingMode.NONE, dedicatedCraftingMachine)) {
+            if (requiresSingleCraftPath(LockCraftingMode.NONE, dedicatedCraftingMachine)) {
                 return prepareSingle(
                         logic,
                         patternDetails,
@@ -145,7 +155,6 @@ public final class PatternProviderBatching {
             return rejected(CraftingDispatchStatus.REJECTED);
         }
 
-        boolean singleCraft = selectsSingleCraftPath(logic.isBlocking(), lockMode, false);
         List<CraftingDispatchRejection> rejections = new ArrayList<>();
         int normalizedRoundRobin = rearrangeRoundRobin(
                 possibleTargets,
@@ -156,20 +165,17 @@ public final class PatternProviderBatching {
             if (!targetAvailability.canAttempt(dispatchTarget)) {
                 continue;
             }
-            if (logic.isBlocking() &&
-                    possibleTarget.target().containsPatternInput(access.dataEnergistics$getPatternInputs())) {
+            if (isBlockedByTargetContents(
+                    logic.isBlocking(),
+                    possibleTarget.target(),
+                    access.dataEnergistics$getPatternInputs())) {
                 rejections.add(CraftingDispatchRejection.targeted(
                         CraftingDispatchStatus.BLOCKED,
                         dispatchTarget));
                 continue;
             }
 
-            long count;
-            if (singleCraft) {
-                count = acceptsSingleCraft(possibleTarget.target(), prototype) ? 1L : 0L;
-            } else {
-                count = simulateCapacity(possibleTarget.target(), prototype, requestedCount);
-            }
+            long count = simulateCapacity(possibleTarget.target(), prototype, requestedCount);
             if (count <= 0L) {
                 rejections.add(CraftingDispatchRejection.targeted(
                         CraftingDispatchStatus.NO_CAPACITY,
@@ -206,8 +212,10 @@ public final class PatternProviderBatching {
      * Captures every ordinary AE2 side target without advancing the provider's round-robin cursor.
      *
      * <p>
-     * Routes whose blocking, lock or dedicated-machine semantics cannot be represented by a counted side target
-     * are exposed as one conservative provider-level route. Offline, busy and unpublished patterns expose no route.
+     * Lock and dedicated-machine semantics that cannot be represented by a counted side target are exposed as one
+     * conservative provider-level route. Blocking is represented per side: a target containing a published pattern
+     * input reports zero capacity, while an eligible target reports the complete currently simulated batch capacity.
+     * Offline, busy and unpublished patterns expose no route.
      * </p>
      */
     public static List<ProviderCapacitySnapshot> snapshotStandardCapacity(
@@ -245,7 +253,7 @@ public final class PatternProviderBatching {
             return List.of();
         }
         var lockMode = logic.getConfigManager().getSetting(Settings.LOCK_CRAFTING_MODE);
-        if (selectsSingleCraftPath(logic.isBlocking(), lockMode, false)) {
+        if (requiresSingleCraftPath(lockMode, false)) {
             return List.of(singleRouteSnapshot(
                     providerId,
                     patternIdentity,
@@ -272,7 +280,12 @@ public final class PatternProviderBatching {
             if (target == null) {
                 continue;
             }
-            long capacity = simulateCapacity(target, prototype, requestedCount);
+            long capacity = isBlockedByTargetContents(
+                    logic.isBlocking(),
+                    target,
+                    access.dataEnergistics$getPatternInputs()) ?
+                            0L :
+                            simulateCapacity(target, prototype, requestedCount);
             snapshots.add(new ProviderCapacitySnapshot(
                     providerId,
                     targetFor(direction),
@@ -315,18 +328,28 @@ public final class PatternProviderBatching {
     }
 
     /**
-     * Selects the original one-craft provider path whenever batching could change AE2 blocking or lock semantics.
+     * Selects the original one-craft provider path whenever batching could change lock or dedicated-machine semantics.
      */
-    static boolean selectsSingleCraftPath(boolean blocking,
-                                          LockCraftingMode lockMode,
-                                          boolean dedicatedCraftingMachine) {
+    private static boolean requiresSingleCraftPath(LockCraftingMode lockMode, boolean dedicatedCraftingMachine) {
         if (lockMode == null) {
             throw new IllegalArgumentException("Pattern-provider lock mode must not be null");
         }
-        return blocking ||
-                lockMode == LockCraftingMode.LOCK_UNTIL_RESULT ||
+        return lockMode == LockCraftingMode.LOCK_UNTIL_RESULT ||
                 lockMode == LockCraftingMode.LOCK_UNTIL_PULSE ||
                 dedicatedCraftingMachine;
+    }
+
+    /**
+     * Applies AE2 Blocking semantics to one concrete external-inventory target.
+     */
+    private static boolean isBlockedByTargetContents(
+                                                     boolean blocking,
+                                                     PatternProviderTarget target,
+                                                     Set<AEKey> patternInputs) {
+        if (target == null || patternInputs == null) {
+            throw new IllegalArgumentException("Pattern-provider Blocking context must not be null");
+        }
+        return blocking && target.containsPatternInput(patternInputs);
     }
 
     /** Creates a one-shot admission that preserves the provider's original single-craft routing. */
@@ -380,38 +403,6 @@ public final class PatternProviderBatching {
 
     private static CraftingDispatchTarget targetFor(Direction direction) {
         return new CraftingDispatchTarget("side:" + direction.getName());
-    }
-
-    private static boolean acceptsSingleCraft(PatternProviderTarget target, KeyCounter[] prototype) {
-        if (target == null || prototype == null) {
-            throw new IllegalArgumentException(
-                    "Pattern provider capacity target and input prototype must not be null");
-        }
-        for (int index = 0; index < prototype.length; index++) {
-            KeyCounter inputs = prototype[index];
-            if (inputs == null) {
-                throw new IllegalArgumentException(
-                        "Pattern-provider input prototype counter at index " + index + " must not be null");
-            }
-            for (var entry : inputs) {
-                long amount = entry.getLongValue();
-                if (amount < 0L) {
-                    throw new IllegalArgumentException("prototype amounts must not be negative");
-                }
-                if (amount == 0L) {
-                    continue;
-                }
-                long inserted = target.insert(entry.getKey(), amount, Actionable.SIMULATE);
-                if (inserted < 0L || inserted > amount) {
-                    throw new IllegalStateException(
-                            "Pattern provider target returned an invalid simulated insertion amount");
-                }
-                if (inserted == 0L) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     static long simulateCapacity(PatternProviderTarget target, KeyCounter[] prototype, long requestedCount) {
