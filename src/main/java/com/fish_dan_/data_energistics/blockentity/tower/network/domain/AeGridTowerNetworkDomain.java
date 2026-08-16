@@ -21,7 +21,9 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.energy.Capabilit
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CapabilityTowerDomainEnergyResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.CompensatingTowerEnergyTransaction;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.MultiRouteEnergyTransferEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.SharedTowerEnergyPort;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerDomainEnergyEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyAccessSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransactionResult;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyTransferEndpoint;
@@ -99,6 +101,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
     private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
     private final CompensatingTowerEnergyTransaction energyTransaction = new CompensatingTowerEnergyTransaction();
+    private final SharedTowerEnergyPort energyPort;
     private final TowerChannelCapacity capacityCalculator = new ExposedControllerFaceChannelCapacity();
     private List<IGridNode> cachedLocalNodes = List.of();
     private List<TowerEnergyTransferEndpoint> energyEndpoints = List.of();
@@ -122,6 +125,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
      */
     public AeGridTowerNetworkDomain(IGrid grid) {
         this.grid = grid;
+        this.energyPort = new SharedTowerEnergyPort(() -> this.grid.getPivot().getLevel().getGameTime());
     }
 
     @Override
@@ -137,6 +141,8 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     @Override
     public void invalidate(TowerNetworkDomainChange reason) {
         this.revision = Math.incrementExact(this.revision);
+        this.energyEndpoints = List.of();
+        this.energyPort.replaceEndpoints(List.of());
     }
 
     @Override
@@ -194,6 +200,33 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     @Override
     public Optional<TowerNetworkTowerSnapshot> towerSnapshot(TowerRuntimeKey towerKey) {
         return Optional.ofNullable(this.towerSnapshots.get(towerKey));
+    }
+
+    @Override
+    public TowerEnergyAccessSnapshot energySnapshot(
+                                                    TowerRuntimeKey towerKey, @Nullable BlockPos excludedPosition) {
+        return canAccessSharedEnergy(towerKey) ? this.energyPort.snapshot(towerKey.dimensionId(), excludedPosition) : TowerEnergyAccessSnapshot.EMPTY;
+    }
+
+    @Override
+    public long insertEnergy(TowerRuntimeKey towerKey,
+                             long amount,
+                             boolean simulate,
+                             @Nullable BlockPos excludedPosition) {
+        return canAccessSharedEnergy(towerKey) ? this.energyPort.insert(amount, simulate, towerKey.dimensionId(), excludedPosition) : 0;
+    }
+
+    @Override
+    public long extractEnergy(TowerRuntimeKey towerKey,
+                              long amount,
+                              boolean simulate,
+                              @Nullable BlockPos excludedPosition) {
+        return canAccessSharedEnergy(towerKey) ? this.energyPort.extract(amount, simulate, towerKey.dimensionId(), excludedPosition) : 0;
+    }
+
+    private boolean canAccessSharedEnergy(TowerRuntimeKey towerKey) {
+        TowerNetworkParticipant tower = this.towers.get(towerKey);
+        return tower != null && tower.isTowerNetworkActive() && tower.towerAllowsFe();
     }
 
     @Override
@@ -376,6 +409,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
                 channelSnapshot.remainingChannelCapacity());
         this.energyEndpoints = dataEnergistics$buildEnergyTopology(
                 towerWorks, devicesByLease, allocations, bridgeFailures);
+        this.energyPort.replaceEndpoints(this.energyEndpoints);
         this.lastEnergyTransactionTick = Long.MIN_VALUE;
         TowerEnergyTransactionResult energyResult = dataEnergistics$executeEnergyTransaction(gameTime);
         dataEnergistics$publishSnapshots(

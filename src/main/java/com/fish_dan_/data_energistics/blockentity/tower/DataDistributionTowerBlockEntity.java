@@ -24,6 +24,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetw
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkTowerSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
+import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyAccessSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerCoverageGeometry;
 import com.fish_dan_.data_energistics.blockentity.tower.topology.TowerLinkStateGraph;
@@ -842,7 +843,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public long getEnergyCapacityForUi() {
-        return this.energyDistributor.getTotalEnergyCapacity(null);
+        TowerEnergyAccessSnapshot sharedSnapshot = sharedEnergySnapshot(null);
+        return sharedSnapshot == null ? this.energyDistributor.getTotalEnergyCapacity(null) : saturatingAdd(
+                this.bufferedTransferEnergy, sharedSnapshot.sourceCapacity());
     }
 
     public TargetTransferInfo getTargetTransferInfo(BlockPos targetPos) {
@@ -2274,7 +2277,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        return this.energyDistributor.distributeEnergyInRange(amount, simulate, excludedPos);
+        TowerNetworkDomain domain = this.registeredTowerDomain;
+        if (domain == null) {
+            return this.energyDistributor.distributeEnergyInRange(amount, simulate, excludedPos);
+        }
+        return domain.insertEnergy(towerKey(), amount, simulate, excludedPos);
     }
 
     private boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
@@ -2282,23 +2289,44 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        return this.energyDistributor.extractEnergyFromRange(amount, simulate, excludedPos);
+        TowerNetworkDomain domain = this.registeredTowerDomain;
+        if (domain == null) {
+            return this.energyDistributor.extractEnergyFromRange(amount, simulate, excludedPos);
+        }
+
+        long bufferedExtracted = Math.min(amount, this.bufferedTransferEnergy);
+        if (!simulate && bufferedExtracted > 0) {
+            setBufferedTransferEnergy(this.bufferedTransferEnergy - bufferedExtracted);
+        }
+        long sharedExtracted = domain.extractEnergy(towerKey(), amount - bufferedExtracted, simulate, excludedPos);
+        return clampStoredAmount(saturatingAdd(bufferedExtracted, sharedExtracted));
     }
 
     private long getTotalExtractableEnergy(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.getTotalExtractableEnergy(excludedPos);
+        TowerEnergyAccessSnapshot sharedSnapshot = sharedEnergySnapshot(excludedPos);
+        return sharedSnapshot == null ? this.energyDistributor.getTotalExtractableEnergy(excludedPos) : saturatingAdd(
+                this.bufferedTransferEnergy, sharedSnapshot.stored());
     }
 
     private long getTotalReceivableEnergy(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.getTotalReceivableEnergy(excludedPos);
+        TowerEnergyAccessSnapshot sharedSnapshot = sharedEnergySnapshot(excludedPos);
+        return sharedSnapshot == null ? this.energyDistributor.getTotalReceivableEnergy(excludedPos) : sharedSnapshot.receivable();
     }
 
     private boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.hasAnyReceiver(excludedPos);
+        TowerEnergyAccessSnapshot sharedSnapshot = sharedEnergySnapshot(excludedPos);
+        return sharedSnapshot == null ? this.energyDistributor.hasAnyReceiver(excludedPos) : sharedSnapshot.canReceive();
     }
 
     private boolean hasAnySource(@Nullable BlockPos excludedPos) {
-        return this.energyDistributor.hasAnySource(excludedPos);
+        TowerEnergyAccessSnapshot sharedSnapshot = sharedEnergySnapshot(excludedPos);
+        return sharedSnapshot == null ? this.energyDistributor.hasAnySource(excludedPos) : this.bufferedTransferEnergy > 0 || sharedSnapshot.canExtract();
+    }
+
+    @Nullable
+    private TowerEnergyAccessSnapshot sharedEnergySnapshot(@Nullable BlockPos excludedPos) {
+        TowerNetworkDomain domain = this.registeredTowerDomain;
+        return domain == null ? null : domain.energySnapshot(towerKey(), excludedPos);
     }
 
     private boolean queueLink(BlockPos targetPos) {
