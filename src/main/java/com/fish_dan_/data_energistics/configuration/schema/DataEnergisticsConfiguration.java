@@ -99,6 +99,10 @@ public final class DataEnergisticsConfiguration {
     public SolarPanelSchema solarPanel = new SolarPanelSchema();
 
     @Configurable(key = Configurable.LocalizationKey.FULL)
+    @Configurable.Comment({ "Astronomy production and dimension multipliers.", "天文观测产出与维度倍率设置。" })
+    public AstronomySchema astronomy = new AstronomySchema();
+
+    @Configurable(key = Configurable.LocalizationKey.FULL)
     @Configurable.Comment({ "Orbital weapon reserves, deployment and endpoint limits.", "轨道武器储备、部署与端点限制。" })
     public OrbitalWeaponSchema orbitalWeapon = new OrbitalWeaponSchema();
 
@@ -384,6 +388,69 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Additional AE storage per energy card.", "每张能量卡提供的额外 AE 存储容量。" })
         @Configurable.DecimalRange(min = 0.0, max = Double.MAX_VALUE)
         public double energyCardCapacityBonusAE = 80000.0D;
+    }
+
+    public static final class AstronomySchema {
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Celestial Energy produced per clear-weather tick by one low-tier observatory.",
+                "单个低阶天文观测台在晴朗天气下每 tick 产出的星体能量。"
+        })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long lowTierCelestialEnergyPerTick = 8L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "AE energy consumed by one successful low-tier observation tick.",
+                "低阶天文观测台每次成功观测 tick 消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long lowTierAeEnergyPerTick = 4_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Output multiplier while raining.", "降雨时的产出倍率。" })
+        @Configurable.DecimalRange(min = 0.0D, max = 1.0D)
+        public double rainOutputMultiplier = 0.25D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Inclusive observation-window start within a 24,000-tick day.",
+                "普通昼夜维度在 24000 tick 周期内的观测窗口起始值（包含）。"
+        })
+        @Configurable.Range(min = 0, max = 23_999)
+        public int observationWindowStartTick = 13_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Exclusive observation-window end within a 24,000-tick day.",
+                "普通昼夜维度在 24000 tick 周期内的观测窗口结束值（不包含）。"
+        })
+        @Configurable.Range(min = 1, max = 24_000)
+        public int observationWindowEndTick = 23_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Output multiplier for tagged observable dimensions without an explicit override.",
+                "未显式覆盖的可观测维度使用的产出倍率。"
+        })
+        @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
+        public double defaultDimensionMultiplier = 1.0D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Dimension ids paired by index with dimensionMultiplierValues.",
+                "与 dimensionMultiplierValues 按索引配对的维度 ID。"
+        })
+        public String[] dimensionIds = { "minecraft:overworld", "minecraft:the_end", "minecraft:the_nether" };
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Per-dimension output multipliers paired by index with dimensionIds.",
+                "与 dimensionIds 按索引配对的维度产出倍率。"
+        })
+        @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
+        public double[] dimensionMultiplierValues = { 1.0D, 2.0D, 0.0D };
     }
 
     public static final class OrbitalWeaponSchema {

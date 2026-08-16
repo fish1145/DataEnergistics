@@ -19,8 +19,10 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -61,6 +63,7 @@ public final class SnapshotAssembler {
         FlatteningTntSettings tnt = tnt(schema, source);
         DataNukeSettings dataNuke = dataNuke(schema, source);
         SolarPanelSettings solar = solar(schema, source);
+        AstronomySettings astronomy = astronomy(schema, source);
         OrbitalWeaponSettings orbitalWeapon = orbitalWeapon(schema, source);
         TrinityCraftingSettings crafting = crafting(
                 schema,
@@ -79,6 +82,7 @@ public final class SnapshotAssembler {
                 tnt,
                 dataNuke,
                 solar,
+                astronomy,
                 orbitalWeapon,
                 crafting,
                 dispatch);
@@ -338,6 +342,91 @@ public final class SnapshotAssembler {
                         solar.energyCardCapacityBonusAE,
                         0.0D,
                         Double.MAX_VALUE));
+    }
+
+    private static AstronomySettings astronomy(
+                                               DataEnergisticsConfiguration schema,
+                                               Path source) throws InvalidConfigurationException {
+        DataEnergisticsConfiguration.AstronomySchema astronomy = schema.astronomy;
+        int windowStart = integer(
+                source,
+                "astronomy.observationWindowStartTick",
+                astronomy.observationWindowStartTick,
+                0,
+                23_999);
+        int windowEnd = integer(
+                source,
+                "astronomy.observationWindowEndTick",
+                astronomy.observationWindowEndTick,
+                1,
+                24_000);
+        if (windowEnd <= windowStart) {
+            throw invalid(
+                    source,
+                    "astronomy.observationWindowEndTick",
+                    "observation window end must be greater than start=" + windowStart,
+                    Integer.toString(windowEnd));
+        }
+
+        List<String> dimensionIds = copyExternalArray(
+                source,
+                "astronomy.dimensionIds",
+                astronomy.dimensionIds);
+        double[] multiplierValues = astronomy.dimensionMultiplierValues.clone();
+        if (dimensionIds.size() != multiplierValues.length) {
+            throw invalid(
+                    source,
+                    "astronomy.dimensionMultipliers",
+                    "dimensionIds and dimensionMultiplierValues must have the same length",
+                    "dimensionIds=" + dimensionIds.size() + ", values=" + multiplierValues.length);
+        }
+        Map<ResourceLocation, Double> dimensionMultipliers = new LinkedHashMap<>();
+        for (int index = 0; index < dimensionIds.size(); index++) {
+            String dimensionText = dimensionIds.get(index).trim();
+            String path = "astronomy.dimensionIds[" + index + "]";
+            if (dimensionText.isEmpty()) {
+                throw invalid(source, path, "dimension id must not be blank", dimensionText);
+            }
+            ResourceLocation dimensionId = resourceLocation(source, path, dimensionText);
+            double multiplier = finiteRange(
+                    source,
+                    "astronomy.dimensionMultiplierValues[" + index + "]",
+                    multiplierValues[index],
+                    0.0D,
+                    1_000_000.0D);
+            if (dimensionMultipliers.putIfAbsent(dimensionId, multiplier) != null) {
+                throw invalid(source, path, "dimension id is duplicated", dimensionText);
+            }
+        }
+
+        return new AstronomySettings(
+                longInteger(
+                        source,
+                        "astronomy.lowTierCelestialEnergyPerTick",
+                        astronomy.lowTierCelestialEnergyPerTick,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "astronomy.lowTierAeEnergyPerTick",
+                        astronomy.lowTierAeEnergyPerTick,
+                        0L,
+                        Long.MAX_VALUE),
+                finiteRange(
+                        source,
+                        "astronomy.rainOutputMultiplier",
+                        astronomy.rainOutputMultiplier,
+                        0.0D,
+                        1.0D),
+                windowStart,
+                windowEnd,
+                finiteRange(
+                        source,
+                        "astronomy.defaultDimensionMultiplier",
+                        astronomy.defaultDimensionMultiplier,
+                        0.0D,
+                        1_000_000.0D),
+                dimensionMultipliers);
     }
 
     private static OrbitalWeaponSettings orbitalWeapon(

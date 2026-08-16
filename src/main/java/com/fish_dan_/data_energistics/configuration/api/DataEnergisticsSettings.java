@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -36,6 +37,11 @@ public interface DataEnergisticsSettings {
     DataNuke dataNuke();
 
     SolarPanel solarPanel();
+
+    /**
+     * Returns the astronomy production settings captured by this immutable configuration revision.
+     */
+    Astronomy astronomy();
 
     /**
      * Returns the orbital weapon settings captured by this immutable configuration revision.
@@ -162,6 +168,39 @@ public interface DataEnergisticsSettings {
         double speedCardBonusRatio();
 
         double energyCardCapacityBonusAE();
+    }
+
+    /**
+     * Read-only astronomy production, observation-window and dimension-multiplier settings.
+     *
+     * <p>
+     * Implementations belong to one immutable configuration snapshot. Gameplay code may retain and read them from
+     * any thread; all values and dimension identifiers have already passed validation, collections are immutable,
+     * no member is nullable and reading has no side effects.
+     * </p>
+     */
+    interface Astronomy {
+
+        /** Returns the clear-weather output of one low-tier observatory per server tick. */
+        long lowTierCelestialEnergyPerTick();
+
+        /** Returns the AE energy consumed by one successful low-tier observation tick. */
+        long lowTierAeEnergyPerTick();
+
+        /** Returns the output multiplier applied while it is raining. */
+        double rainOutputMultiplier();
+
+        /** Returns the inclusive normal-dimension observation-window start within a 24,000-tick day. */
+        int observationWindowStartTick();
+
+        /** Returns the exclusive normal-dimension observation-window end within a 24,000-tick day. */
+        int observationWindowEndTick();
+
+        /** Returns the multiplier used for tagged observable dimensions without an explicit override. */
+        double defaultDimensionMultiplier();
+
+        /** Returns immutable per-dimension output multiplier overrides keyed by dimension id. */
+        Map<ResourceLocation, Double> dimensionMultipliers();
     }
 
     /**

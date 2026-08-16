@@ -24,6 +24,7 @@ public record ConfigurationSnapshot(
                                     FlatteningTntSettings flatteningTnt,
                                     DataNukeSettings dataNuke,
                                     SolarPanelSettings solarPanel,
+                                    AstronomySettings astronomy,
                                     OrbitalWeaponSettings orbitalWeapon,
                                     TrinityCraftingSettings trinityCrafting,
                                     TrinityDispatchSettings trinityDispatch)
