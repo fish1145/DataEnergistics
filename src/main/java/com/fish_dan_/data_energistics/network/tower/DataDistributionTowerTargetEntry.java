@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerVirtualDeviceState;
 
@@ -108,6 +109,9 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
                 buffer.readVarInt(),
                 readEnum(buffer, TowerVirtualDeviceState.values(), "virtual device state"),
                 buffer.readUtf(MAX_RUNTIME_TEXT_LENGTH),
+                new TowerRuntimeKey(
+                        buffer.readResourceLocation(),
+                        BlockPos.STREAM_CODEC.decode(buffer)),
                 buffer.readResourceLocation(),
                 BlockPos.STREAM_CODEC.decode(buffer),
                 readDeviceKey(buffer));
@@ -145,6 +149,8 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
         buffer.writeVarInt(this.transferInfo.requestedChannels());
         buffer.writeVarInt(this.transferInfo.state().ordinal());
         buffer.writeUtf(this.transferInfo.failure(), MAX_RUNTIME_TEXT_LENGTH);
+        buffer.writeResourceLocation(this.transferInfo.ownerTower().dimensionId());
+        BlockPos.STREAM_CODEC.encode(buffer, this.transferInfo.ownerTower().position());
         buffer.writeResourceLocation(this.transferInfo.bindingDimensionId());
         BlockPos.STREAM_CODEC.encode(buffer, this.transferInfo.bindingAnchor());
         writeDeviceKey(buffer, this.transferInfo.deviceKey());

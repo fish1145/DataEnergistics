@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -11,19 +10,20 @@ import appeng.api.networking.pathing.IPathingService;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Set;
 
 /**
- * Counts geometrically exposed controller faces and converts them to the total domain capacity available after native
- * physical pathing runs.
+ * Resolves every controller's total supply and converts it to the domain capacity available after native physical
+ * pathing
+ * runs.
  */
-public final class ExposedControllerFaceChannelCapacity implements TowerChannelCapacity {
+public final class ControllerChannelCapacity implements TowerChannelCapacity {
 
-    /**
-     * Number of base channels supplied by one exposed controller face.
-     */
-    private static final int CHANNELS_PER_EXPOSED_FACE = 32;
+    private static final int FACES_PER_CONTROLLER = 6;
+    private static final int CHANNELS_PER_CONTROLLER_FACE = 32;
 
     /**
      * The calculator is owned by one tower domain, so one scalar entry is sufficient and does not retain a global Grid
@@ -80,7 +80,7 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
     /**
      * Computes one snapshot without touching the revision cache.
      *
-     * @param grid            grid whose controller geometry is requested
+     * @param grid            grid whose controllers are requested
      * @param controllerState current controller state
      * @param channelMode     current channel mode
      * @return total channel capacity
@@ -88,24 +88,32 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
     private int calculateGridSnapshot(IGrid grid,
                                       ControllerState controllerState,
                                       ChannelMode channelMode) {
-        if (controllerState == ControllerState.CONTROLLER_CONFLICT || channelMode == ChannelMode.INFINITE) {
+        if (controllerState == ControllerState.CONTROLLER_CONFLICT || controllerState == ControllerState.NO_CONTROLLER || channelMode == ChannelMode.INFINITE) {
             return calculate(controllerState, channelMode, Set.of());
         }
 
-        Set<BlockPos> controllerPositions = new HashSet<>();
+        Set<Object> controllerOwners = Collections.newSetFromMap(new IdentityHashMap<>());
+        int totalSupply = 0;
         for (IGridNode node : grid.getNodes()) {
-            if (node.getOwner() instanceof ControllerBlockEntity controller) {
-                controllerPositions.add(controller.getBlockPos().immutable());
+            Object owner = node.getOwner();
+            if (!(owner instanceof ControllerChannelSupply) && !(owner instanceof ControllerBlockEntity)) {
+                continue;
             }
+            if (!controllerOwners.add(owner)) {
+                continue;
+            }
+
+            int controllerSupply = owner instanceof ControllerChannelSupply supply ? supply.totalChannelSupply(channelMode) : supplyFromControllerNode(node, channelMode);
+            totalSupply = Math.addExact(totalSupply, requireNonNegativeSupply(owner, controllerSupply));
         }
-        return calculate(
-                controllerState,
-                channelMode,
-                controllerPositions);
+        if (controllerOwners.isEmpty()) {
+            throw new IllegalArgumentException("An online controller grid must contain at least one controller owner");
+        }
+        return totalSupply;
     }
 
     /**
-     * Applies controller-state and geometry rules to an explicit snapshot.
+     * Applies controller-state and controller-count rules to an explicit snapshot.
      *
      * @param controllerState     controller validation result
      * @param channelMode         active AE channel multiplier
@@ -123,7 +131,7 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
             return Integer.MAX_VALUE;
         }
         if (controllerState == ControllerState.NO_CONTROLLER) {
-            return Math.multiplyExact(CHANNELS_PER_EXPOSED_FACE, channelMode.getCableCapacityFactor());
+            return Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
         }
 
         Set<BlockPos> positions = immutablePositionSet(controllerPositions);
@@ -131,24 +139,40 @@ public final class ExposedControllerFaceChannelCapacity implements TowerChannelC
             throw new IllegalArgumentException("An online controller grid must contain at least one controller position");
         }
 
-        int exposedFaces = 0;
-        for (BlockPos position : positions) {
-            for (Direction direction : Direction.values()) {
-                if (!positions.contains(position.relative(direction))) {
-                    exposedFaces = Math.addExact(exposedFaces, 1);
-                }
-            }
-        }
-
-        int baseCapacity = Math.multiplyExact(exposedFaces, CHANNELS_PER_EXPOSED_FACE);
-        return Math.multiplyExact(baseCapacity, channelMode.getCableCapacityFactor());
+        return Math.multiplyExact(positions.size(), nativeControllerSupply(channelMode));
     }
 
     /**
-     * Normalizes mutable or repeated position inputs before adjacency checks.
+     * Uses a positive capacity reported by the controller node as its per-face capacity. Native AE controllers report
+     * zero
+     * because they cannot carry channels themselves, so they use the native dense-controller fallback.
+     */
+    private static int supplyFromControllerNode(IGridNode node, ChannelMode channelMode) {
+        int reportedFaceSupply = node.getMaxChannels();
+        if (reportedFaceSupply < 0) {
+            throw new IllegalStateException("A controller grid node reported a negative channel capacity");
+        }
+        int faceSupply = reportedFaceSupply == 0 ? Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor()) : reportedFaceSupply;
+        return Math.multiplyExact(FACES_PER_CONTROLLER, faceSupply);
+    }
+
+    private static int nativeControllerSupply(ChannelMode channelMode) {
+        int faceSupply = Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
+        return Math.multiplyExact(FACES_PER_CONTROLLER, faceSupply);
+    }
+
+    private static int requireNonNegativeSupply(Object owner, int supply) {
+        if (supply < 0) {
+            throw new IllegalStateException("Controller channel supply must be non-negative: " + owner.getClass().getName());
+        }
+        return supply;
+    }
+
+    /**
+     * Normalizes mutable or repeated position inputs before controller counting.
      *
      * @param controllerPositions positions supplied by the caller
-     * @return immutable-position set used by the geometry calculation
+     * @return immutable-position set used by the controller calculation
      */
     private static Set<BlockPos> immutablePositionSet(Iterable<BlockPos> controllerPositions) {
         Set<BlockPos> positions = new HashSet<>();
