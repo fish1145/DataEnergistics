@@ -126,26 +126,26 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
             () -> new DigitalStorageDepotBlockItem(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256K);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256K);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
     public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);

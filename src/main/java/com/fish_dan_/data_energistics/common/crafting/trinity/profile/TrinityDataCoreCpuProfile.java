@@ -19,6 +19,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
                                         CpuSelectionMode selectionMode) {
 
     public static final int MAX_PARTITION_COUNT = TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT;
+    public static final int DEFAULT_CO_PROCESSORS = Integer.MAX_VALUE;
     public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
 
     public TrinityDataCoreCpuProfile {
@@ -66,7 +67,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
             selectionMode = mergeSelectionMode(selectionMode, contribution.selectionMode(), structureName);
         }
 
-        int coProcessors = partitionCount > 0 ? Integer.MAX_VALUE : 0;
+        int coProcessors = partitionCount > 0 ? DEFAULT_CO_PROCESSORS : 0;
         return new TrinityDataCoreCpuProfile(storageBytes, coProcessors, partitionCount, selectionMode);
     }
 

@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.common.trinity.autobuild;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
-import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 
@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Maps generic auto-build predicate categories to explicit, one-based tiered Trinity core registrations.
@@ -37,56 +36,33 @@ public final class TrinityAutoBuildBlockMap {
     private static final Map<String, List<TierDefinition>> CATEGORIES = Map.of(
             STORAGE_CORE,
             List.of(
-                    tier("me_digital_storage_core_1m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_1M.get()),
-                    tier("me_digital_storage_core_4m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_4M.get()),
-                    tier("me_digital_storage_core_16m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_16M.get()),
-                    tier("me_digital_storage_core_64m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_64M.get()),
-                    tier("me_digital_storage_core_256m", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_256M.get()),
-                    tier("me_digital_storage_core_1g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_1G.get()),
-                    tier("me_digital_storage_core_4g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_4G.get()),
-                    tier("me_digital_storage_core_16g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_16G.get()),
-                    tier("me_digital_storage_core_64g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_64G.get()),
-                    tier("me_digital_storage_core_256g", TrinityCoreKind.STORAGE_TYPES,
-                            () -> DEBlocks.ME_DIGITAL_STORAGE_CORE_256G.get())),
+                    tier("me_digital_storage_core_1k", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_4k", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_16k", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_64k", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_256k", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_1m", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_4m", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_16m", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_64m", TrinityCoreKind.STORAGE_TYPES),
+                    tier("me_digital_storage_core_256m", TrinityCoreKind.STORAGE_TYPES)),
             PARALLEL_CPU_CORE,
             List.of(
-                    tier("me_digital_merged_storage_core_1m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M.get()),
-                    tier("me_digital_merged_storage_core_4m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M.get()),
-                    tier("me_digital_merged_storage_core_16m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M.get()),
-                    tier("me_digital_merged_storage_core_64m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M.get()),
-                    tier("me_digital_merged_storage_core_256m", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get()),
-                    tier("me_digital_merged_storage_core_1g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G.get()),
-                    tier("me_digital_merged_storage_core_4g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G.get()),
-                    tier("me_digital_merged_storage_core_16g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G.get()),
-                    tier("me_digital_merged_storage_core_64g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G.get()),
-                    tier("me_digital_merged_storage_core_256g", TrinityCoreKind.PARALLEL_CPU,
-                            () -> DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G.get())),
+                    tier("me_digital_merged_storage_core_1k", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_4k", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_16k", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_64k", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_256k", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_1m", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_4m", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_16m", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_64m", TrinityCoreKind.PARALLEL_CPU),
+                    tier("me_digital_merged_storage_core_256m", TrinityCoreKind.PARALLEL_CPU)),
             PATTERN_PROCESSING_CORE,
             List.of(
-                    tier("me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
-                    tier("extended_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()),
-                    tier("overlimit_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING,
-                            () -> DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get())));
+                    tier("me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING),
+                    tier("extended_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING),
+                    tier("overlimit_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING)));
 
     private TrinityAutoBuildBlockMap() {}
 
@@ -221,11 +197,8 @@ public final class TrinityAutoBuildBlockMap {
         return Map.copyOf(ranks);
     }
 
-    private static TierDefinition tier(String blockPath,
-                                       TrinityCoreKind coreKind,
-                                       Supplier<? extends Block> blockSupplier) {
-        return new TierDefinition(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, blockPath), coreKind,
-                blockSupplier);
+    private static TierDefinition tier(String blockPath, TrinityCoreKind coreKind) {
+        return new TierDefinition(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, blockPath), coreKind);
     }
 
     private static TierDefinition tierDefinition(String category, int tierIndex) {
@@ -261,7 +234,10 @@ public final class TrinityAutoBuildBlockMap {
     }
 
     private static Block resolveTierBlock(TierDefinition tier) {
-        Block block = tier.blockSupplier().get();
+        Block block = BuiltInRegistries.BLOCK.get(tier.blockId());
+        if (!tier.blockId().equals(BuiltInRegistries.BLOCK.getKey(block))) {
+            throw new IllegalStateException("Trinity auto-build tier is not registered: " + tier.blockId());
+        }
         if (!(block instanceof TrinityCoreComponent component) || component.kind() != tier.coreKind()) {
             throw new IllegalStateException("Trinity auto-build tier " + tier.blockId() + " does not provide " +
                     tier.coreKind());
@@ -272,7 +248,5 @@ public final class TrinityAutoBuildBlockMap {
     /**
      * One registered tier within a generic auto-build predicate category.
      */
-    private record TierDefinition(ResourceLocation blockId,
-                                  TrinityCoreKind coreKind,
-                                  Supplier<? extends Block> blockSupplier) {}
+    private record TierDefinition(ResourceLocation blockId, TrinityCoreKind coreKind) {}
 }

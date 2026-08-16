@@ -21,14 +21,14 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     }
 
     /**
-     * Creates a storage type core from the shared M/G tier table.
+     * Creates a storage type core from the shared K/M tier table.
      */
     public static TrinityCoreBlock storageCore(Properties properties, TrinityCoreTier tier) {
         return new TrinityCoreBlock(properties, TrinityCoreMetadata.storageCore(tier));
     }
 
     /**
-     * Creates a parallel CPU core from the shared M/G tier table.
+     * Creates a merged CPU storage core from the shared K/M tier table.
      */
     public static TrinityCoreBlock parallelCpuCore(Properties properties, TrinityCoreTier tier) {
         return new TrinityCoreBlock(properties, TrinityCoreMetadata.parallelCpuCore(tier));
@@ -49,6 +49,11 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     @Override
     public int capacityValue() {
         return this.metadata.capacityValue();
+    }
+
+    @Override
+    public long byteCapacity() {
+        return this.metadata.byteCapacity();
     }
 
     @Override

@@ -3,13 +3,13 @@
 	"pattern": ["ABA", "CDC", "ABA"],
 	"key": {
 		"A": {
-			"tag": "c:dusts/fluix"
+			"tag": "c:dusts/data_dust"
 		},
 		"B": {
 			"item": "data_energistics:data_processor"
 		},
 		"C": {
-			"item": "data_energistics:data_storage_component_256k"
+			"item": "data_energistics:me_digital_storage_core_256k"
 		},
 		"D": {
 			"item": "data_energistics:data_framework"
