@@ -119,6 +119,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_0);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_1);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_2);
+    public static final DeferredItem<BlockItem> DATA_MYSTERIOUS_CUBE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_MYSTERIOUS_CUBE);
     public static final DeferredItem<DataMeteoriteCompassItem> DATA_METEORITE_COMPASS = ITEMS.register(
             "data_meteorite_compass",
             () -> new DataMeteoriteCompassItem(new Item.Properties().stacksTo(1)));
