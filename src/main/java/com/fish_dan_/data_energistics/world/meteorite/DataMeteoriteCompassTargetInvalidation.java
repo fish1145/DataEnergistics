@@ -79,9 +79,7 @@ public final class DataMeteoriteCompassTargetInvalidation {
     private static void migrateLegacyCenters(ServerLevel level, List<BlockPos> candidates) {
         DataMeteoriteSavedData savedData = DataMeteoriteSavedData.get(level);
         for (BlockPos pos : candidates) {
-            if (level.isLoaded(pos)
-                    && savedData.contains(pos)
-                    && level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block())) {
+            if (level.isLoaded(pos) && savedData.contains(pos) && level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block())) {
                 level.setBlock(pos, DEBlocks.DATA_MYSTERIOUS_CUBE.get().defaultBlockState(), Block.UPDATE_ALL);
             }
         }
