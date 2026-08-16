@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternEncodingHandoff;
+import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
@@ -286,7 +287,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
         if (transferResult.duplicateFound()) {
-            returnEncodedPatternAsBlankToNetwork();
+            returnEncodedPatternAsBlank();
             this.getPlayer().sendSystemMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.duplicate_cleared"));
             syncPatternProvidersFromNetwork();
@@ -489,7 +490,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public boolean isValidForSlot(Slot slot, ItemStack stack) {
-        if (this.getSlotSemantic(slot) == SlotSemantics.BLANK_PATTERN) {
+        if (usesNetworkBackedBlankPatternSlot() &&
+                this.getSlotSemantic(slot) == SlotSemantics.BLANK_PATTERN) {
             return false;
         }
         return super.isValidForSlot(slot, stack);
@@ -502,7 +504,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private void syncBlankPatternCountFromNetwork() {
         this.networkBlankPatternCount = 0;
-        if (getActiveGrid() == null) {
+        if (!usesNetworkBackedBlankPatternSlot() || getActiveGrid() == null) {
             return;
         }
 
@@ -598,9 +600,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     private boolean consumeOneBlankPattern() {
-        var blankPatternInv = this.host.getLogic().getBlankPatternInv();
-        ItemStack localBlankPattern = blankPatternInv.getStackInSlot(0);
-        if (AEItems.BLANK_PATTERN.is(localBlankPattern) && localBlankPattern.getCount() > 0) {
+        if (!usesNetworkBackedBlankPatternSlot()) {
+            var blankPatternInv = this.host.getLogic().getBlankPatternInv();
+            ItemStack localBlankPattern = blankPatternInv.getStackInSlot(0);
+            if (!AEItems.BLANK_PATTERN.is(localBlankPattern) || localBlankPattern.isEmpty()) {
+                return false;
+            }
+
             ItemStack reduced = localBlankPattern.copy();
             reduced.shrink(1);
             blankPatternInv.setItemDirect(0, reduced.isEmpty() ? ItemStack.EMPTY : reduced);
@@ -706,10 +712,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
     }
 
-    private void returnEncodedPatternAsBlankToNetwork() {
+    private void returnEncodedPatternAsBlank() {
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
-        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty() || !this.canInteractWithGrid()) {
+        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty()) {
+            return;
+        }
+
+        if (!usesNetworkBackedBlankPatternSlot()) {
+            encodedPatternInv.setItemDirect(0, AEItems.BLANK_PATTERN.stack(encodedPattern.getCount()));
+            return;
+        }
+
+        if (!this.canInteractWithGrid()) {
             return;
         }
 
@@ -735,6 +750,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         encodedPatternInv.setItemDirect(0, AEItems.BLANK_PATTERN.stack(encodedPattern.getCount() - (int) inserted));
+    }
+
+    private boolean usesNetworkBackedBlankPatternSlot() {
+        return ((BlankPatternProxyMenu) this).data_energistics$usesNetworkBackedBlankPatternSlot();
     }
 
     @Nullable

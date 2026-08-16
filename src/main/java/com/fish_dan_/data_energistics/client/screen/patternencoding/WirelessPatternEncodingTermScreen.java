@@ -412,7 +412,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
+        if (this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN ||
+                !usesNetworkBackedBlankPatternSlot()) {
             super.renderSlot(guiGraphics, slot);
             return;
         }
@@ -1086,6 +1087,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     }
 
     private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
+        if (!usesNetworkBackedBlankPatternSlot()) {
+            return false;
+        }
+
         Slot slot = this.hoveredSlot;
         if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
             return false;
@@ -1104,7 +1109,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     }
 
     private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
-        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu)) {
+        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu) ||
+                !blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot()) {
             return false;
         }
 
@@ -1136,6 +1142,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         }
 
         return false;
+    }
+
+    private boolean usesNetworkBackedBlankPatternSlot() {
+        return this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu &&
+                blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot();
     }
 
     private GridInventoryEntry findBlankPatternEntry() {

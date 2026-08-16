@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetEntry;
@@ -50,7 +51,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
     private List<TargetSnapshotKey> lastTargetSnapshotKeys;
-    private Set<TargetIdentity> targetSnapshotIdentities = Set.of();
+    private Set<TargetBindingIdentity> targetSnapshotIdentities = Set.of();
     private Set<TargetIdentity> focusableTargetSnapshotIdentities = Set.of();
     private long targetSnapshotRevision = -1L;
     private long targetDisplayStateRevision = Long.MIN_VALUE;
@@ -124,7 +125,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             this.remainingChannels = tower.getRemainingChannelCount().orElse(0L);
             this.availableFe = tower.getAvailableFeForUi();
             this.chunkRadius = tower.getConfiguredChunkRadius();
-            this.online = tower.isNetworkNodeOnline();
+            this.online = tower.isTowerNetworkOnlineForUi();
             this.rangeVisible = tower.isRangeDisplayEnabled();
             this.connectionMode = tower.getConnectionMode().ordinal();
             this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
@@ -161,7 +162,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
         }
 
         this.lastTargetSnapshotKeys = snapshotKeys;
-        this.targetSnapshotIdentities = Set.copyOf(summaries.stream().map(TargetIdentity::fromSummary).toList());
+        this.targetSnapshotIdentities = Set.copyOf(summaries.stream()
+                .map(TargetBindingIdentity::fromSummary)
+                .toList());
         this.focusableTargetSnapshotIdentities = Set.copyOf(summaries.stream()
                 .filter(summary -> !summary.transferInfo().logicalDevice())
                 .map(TargetIdentity::fromSummary)
@@ -196,23 +199,41 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
         sendClientAction(ACTION_SET_RANGE_ADJUSTMENT_MODE, scopeMode);
     }
 
-    public void sendSetTargetTransferMode(String dimensionId, int x, int y, int z, TargetTransferMode mode) {
-        sendClientAction(ACTION_SET_TARGET_TRANSFER_MODE,
-                new TargetTransferModeAction(dimensionId, x, y, z,
-                        (mode == null ? TargetTransferMode.AUTO : mode).ordinal()));
+    public void sendSetTargetTransferMode(TargetTransferInfo transferInfo, TargetTransferMode mode) {
+        if (this.targetSnapshotRevision < 0L) {
+            return;
+        }
+        TowerRuntimeKey ownerTower = transferInfo.ownerTower();
+        BlockPos bindingAnchor = transferInfo.bindingAnchor();
+        sendClientAction(ACTION_SET_TARGET_TRANSFER_MODE, new TargetTransferModeAction(
+                this.targetSnapshotRevision,
+                ownerTower.dimensionId().toString(),
+                ownerTower.position().getX(),
+                ownerTower.position().getY(),
+                ownerTower.position().getZ(),
+                transferInfo.bindingDimensionId().toString(),
+                bindingAnchor.getX(),
+                bindingAnchor.getY(),
+                bindingAnchor.getZ(),
+                mode.ordinal()));
     }
 
     /**
      * Sends one per-device disable change using the stable key from the current batched snapshot.
      */
     public void sendSetVirtualDeviceDisabled(TargetTransferInfo transferInfo, boolean disabled) {
-        TowerDeviceKey deviceKey = transferInfo == null ? null : transferInfo.deviceKey();
+        TowerDeviceKey deviceKey = transferInfo.deviceKey();
         if (deviceKey == null || this.targetSnapshotRevision < 0L) {
             return;
         }
+        TowerRuntimeKey ownerTower = transferInfo.ownerTower();
         BlockPos devicePosition = deviceKey.position() == null ? BlockPos.ZERO : deviceKey.position();
         sendClientAction(ACTION_SET_VIRTUAL_DEVICE_DISABLED, new VirtualDeviceDisabledAction(
                 this.targetSnapshotRevision,
+                ownerTower.dimensionId().toString(),
+                ownerTower.position().getX(),
+                ownerTower.position().getY(),
+                ownerTower.position().getZ(),
                 transferInfo.bindingDimensionId().toString(),
                 transferInfo.bindingAnchor().getX(),
                 transferInfo.bindingAnchor().getY(),
@@ -341,18 +362,18 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
 
     private void setTargetTransferMode(TargetTransferModeAction action) {
         DataDistributionTowerBlockEntity tower = this.host;
-        if (action == null || tower == null) {
-            logRejectedTargetTransferModeAction("without a server tower host", action);
-            return;
-        }
-
-        if (action.dimensionId() == null || action.x() == null || action.y() == null || action.z() == null || action.mode() == null) {
+        if (action == null || tower == null || !action.complete()) {
             logRejectedTargetTransferModeAction("with an incomplete target payload", action);
             return;
         }
+        if (action.targetSnapshotRevision() != this.targetSnapshotRevision || this.targetDisplayStateRevision != tower.getTargetDisplayStateRevision()) {
+            logRejectedTargetTransferModeAction("after the target snapshot changed", action);
+            return;
+        }
 
-        ResourceLocation dimensionId = ResourceLocation.tryParse(action.dimensionId());
-        if (dimensionId == null) {
+        ResourceLocation ownerDimensionId = ResourceLocation.tryParse(action.ownerDimensionId());
+        ResourceLocation bindingDimensionId = ResourceLocation.tryParse(action.bindingDimensionId());
+        if (ownerDimensionId == null || bindingDimensionId == null) {
             logRejectedTargetTransferModeAction("with an invalid dimension identifier", action);
             return;
         }
@@ -363,18 +384,17 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             return;
         }
 
-        if (!dimensionId.equals(level.dimension().location())) {
+        if (!ownerDimensionId.equals(level.dimension().location()) || !bindingDimensionId.equals(level.dimension().location())) {
             logRejectedTargetTransferModeAction("for a different dimension", action);
             return;
         }
 
-        BlockPos targetPos = new BlockPos(action.x(), action.y(), action.z()).immutable();
-        if (this.targetDisplayStateRevision != tower.getTargetDisplayStateRevision()) {
-            logRejectedTargetTransferModeAction("after the target display state changed", action);
-            return;
-        }
-
-        if (!this.targetSnapshotIdentities.contains(new TargetIdentity(dimensionId, targetPos))) {
+        TowerRuntimeKey ownerTower = new TowerRuntimeKey(
+                ownerDimensionId,
+                new BlockPos(action.ownerX(), action.ownerY(), action.ownerZ()));
+        BlockPos targetPos = new BlockPos(action.bindingX(), action.bindingY(), action.bindingZ()).immutable();
+        if (!this.targetSnapshotIdentities.contains(new TargetBindingIdentity(
+                ownerTower, bindingDimensionId, targetPos))) {
             logRejectedTargetTransferModeAction("for a target that is not currently bound", action);
             return;
         }
@@ -386,7 +406,11 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             return;
         }
 
-        tower.setTargetTransferMode(targetPos, transferModes[modeOrdinal]);
+        if (!tower.setTowerNetworkTargetTransferMode(
+                ownerTower, bindingDimensionId, targetPos, transferModes[modeOrdinal])) {
+            logRejectedTargetTransferModeAction("for a binding absent from the current tower network", action);
+            return;
+        }
         broadcastChanges();
     }
 
@@ -401,18 +425,27 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             logRejectedVirtualDeviceAction("after the target snapshot changed", action);
             return;
         }
+        ResourceLocation ownerDimension = ResourceLocation.tryParse(action.ownerDimensionId());
         ResourceLocation bindingDimension = ResourceLocation.tryParse(action.bindingDimensionId());
         ResourceLocation deviceDimension = ResourceLocation.tryParse(action.deviceDimensionId());
-        if (bindingDimension == null || deviceDimension == null) {
+        if (ownerDimension == null || bindingDimension == null || deviceDimension == null) {
             logRejectedVirtualDeviceAction("with an invalid dimension identifier", action);
             return;
         }
         var level = tower.getLevel();
-        if (level == null || !bindingDimension.equals(level.dimension().location())) {
+        if (level == null || !ownerDimension.equals(level.dimension().location()) || !bindingDimension.equals(level.dimension().location())) {
             logRejectedVirtualDeviceAction("for a different tower dimension", action);
             return;
         }
+        TowerRuntimeKey ownerTower = new TowerRuntimeKey(
+                ownerDimension,
+                new BlockPos(action.ownerX(), action.ownerY(), action.ownerZ()));
         BlockPos bindingAnchor = new BlockPos(action.bindingX(), action.bindingY(), action.bindingZ()).immutable();
+        if (!this.targetSnapshotIdentities.contains(new TargetBindingIdentity(
+                ownerTower, bindingDimension, bindingAnchor))) {
+            logRejectedVirtualDeviceAction("for a binding absent from the current snapshot", action);
+            return;
+        }
         BlockPos devicePosition = action.devicePositioned() ? new BlockPos(action.deviceX(), action.deviceY(), action.deviceZ()).immutable() : null;
         TowerDeviceKey deviceKey = new TowerDeviceKey(
                 deviceDimension,
@@ -420,7 +453,8 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
                 action.side(),
                 action.nodeType(),
                 action.occurrence());
-        if (!tower.setVirtualDeviceDisabled(bindingAnchor, deviceKey, action.disabled())) {
+        if (!tower.setTowerNetworkVirtualDeviceDisabled(
+                ownerTower, bindingDimension, bindingAnchor, deviceKey, action.disabled())) {
             logRejectedVirtualDeviceAction("for a device absent from the current snapshot", action);
             return;
         }
@@ -433,21 +467,35 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
 
     private void logRejectedTargetTransferModeAction(String reason, @Nullable TargetTransferModeAction action) {
         Data_Energistics.LOGGER.warn(
-                "Rejected Data Distribution Tower target transfer mode action {} at {}: dimension={}, x={}, y={}, z={}, mode={}",
+                "Rejected Data Distribution Tower target transfer mode action {} at {}: action={}",
                 reason,
                 this.host == null ? null : this.host.getBlockPos(),
-                action == null ? null : action.dimensionId(),
-                action == null ? null : action.x(),
-                action == null ? null : action.y(),
-                action == null ? null : action.z(),
-                action == null ? null : action.mode());
+                action);
     }
 
-    private record TargetTransferModeAction(@Nullable String dimensionId, @Nullable Integer x, @Nullable Integer y,
-                                            @Nullable Integer z, @Nullable Integer mode) {}
+    private record TargetTransferModeAction(
+                                            @Nullable Long targetSnapshotRevision,
+                                            @Nullable String ownerDimensionId,
+                                            @Nullable Integer ownerX,
+                                            @Nullable Integer ownerY,
+                                            @Nullable Integer ownerZ,
+                                            @Nullable String bindingDimensionId,
+                                            @Nullable Integer bindingX,
+                                            @Nullable Integer bindingY,
+                                            @Nullable Integer bindingZ,
+                                            @Nullable Integer mode) {
+
+        private boolean complete() {
+            return this.targetSnapshotRevision != null && this.ownerDimensionId != null && this.ownerX != null && this.ownerY != null && this.ownerZ != null && this.bindingDimensionId != null && this.bindingX != null && this.bindingY != null && this.bindingZ != null && this.mode != null;
+        }
+    }
 
     private record VirtualDeviceDisabledAction(
                                                @Nullable Long targetSnapshotRevision,
+                                               @Nullable String ownerDimensionId,
+                                               @Nullable Integer ownerX,
+                                               @Nullable Integer ownerY,
+                                               @Nullable Integer ownerZ,
                                                @Nullable String bindingDimensionId,
                                                @Nullable Integer bindingX,
                                                @Nullable Integer bindingY,
@@ -463,7 +511,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
                                                @Nullable Boolean disabled) {
 
         private boolean complete() {
-            return this.targetSnapshotRevision != null && this.bindingDimensionId != null && this.bindingX != null && this.bindingY != null && this.bindingZ != null && this.deviceDimensionId != null && this.devicePositioned != null && this.deviceX != null && this.deviceY != null && this.deviceZ != null && this.side != null && this.nodeType != null && this.occurrence != null && this.disabled != null;
+            return this.targetSnapshotRevision != null && this.ownerDimensionId != null && this.ownerX != null && this.ownerY != null && this.ownerZ != null && this.bindingDimensionId != null && this.bindingX != null && this.bindingY != null && this.bindingZ != null && this.deviceDimensionId != null && this.devicePositioned != null && this.deviceX != null && this.deviceY != null && this.deviceZ != null && this.side != null && this.nodeType != null && this.occurrence != null && this.disabled != null;
         }
     }
 
@@ -494,6 +542,19 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
 
         private static TargetIdentity fromSummary(BoundTargetSummary summary) {
             return new TargetIdentity(summary.dimensionId(), summary.pos());
+        }
+    }
+
+    private record TargetBindingIdentity(TowerRuntimeKey ownerTower, ResourceLocation dimensionId, BlockPos pos) {
+
+        private TargetBindingIdentity {
+            pos = pos.immutable();
+        }
+
+        private static TargetBindingIdentity fromSummary(BoundTargetSummary summary) {
+            TargetTransferInfo transferInfo = summary.transferInfo();
+            return new TargetBindingIdentity(
+                    transferInfo.ownerTower(), transferInfo.bindingDimensionId(), transferInfo.bindingAnchor());
         }
     }
 }
