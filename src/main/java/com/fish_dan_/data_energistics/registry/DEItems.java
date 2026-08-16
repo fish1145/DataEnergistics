@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.item.TuningForkBlockItem;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
-import com.fish_dan_.data_energistics.item.cell.DataFlowPortableCellItem;
-import com.fish_dan_.data_energistics.item.cell.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.cell.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.item.cell.DigitalStorageCellItem;
 import com.fish_dan_.data_energistics.item.cell.InfiniteDataCellItem;
+import com.fish_dan_.data_energistics.item.cell.PortableDigitalStorageCellItem;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.dataripper.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.decor.DollBlockItem;
@@ -74,25 +74,25 @@ public final class DEItems {
             Tiers.NETHERITE.getEnchantmentValue(),
             () -> Ingredient.EMPTY);
 
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_1K = registerDataFlowCell("data_flow_cell_1k", 0.5, 1);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_4K = registerDataFlowCell("data_flow_cell_4k", 1.0, 4);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16K = registerDataFlowCell("data_flow_cell_16k", 1.5, 16);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64K = registerDataFlowCell("data_flow_cell_64k", 2.5, 64);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256K = registerDataFlowCell("data_flow_cell_256k", 3.0, 256);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_1M = registerDataFlowCell("data_flow_cell_1m", 3.5, 1024);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_4M = registerDataFlowCell("data_flow_cell_4m", 4.0, 4096);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16M = registerDataFlowCell("data_flow_cell_16m", 4.5, 16384);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64M = registerDataFlowCell("data_flow_cell_64m", 5.0, 65536);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256M = registerDataFlowCell("data_flow_cell_256m", 5.5, 262144);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_1K = registerDigitalStorageCell("digital_storage_cell_1k", 0.5, 1);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_4K = registerDigitalStorageCell("digital_storage_cell_4k", 1.0, 4);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_16K = registerDigitalStorageCell("digital_storage_cell_16k", 1.5, 16);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_64K = registerDigitalStorageCell("digital_storage_cell_64k", 2.5, 64);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_256K = registerDigitalStorageCell("digital_storage_cell_256k", 3.0, 256);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_1M = registerDigitalStorageCell("digital_storage_cell_1m", 3.5, 1024);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_4M = registerDigitalStorageCell("digital_storage_cell_4m", 4.0, 4096);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_16M = registerDigitalStorageCell("digital_storage_cell_16m", 4.5, 16384);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_64M = registerDigitalStorageCell("digital_storage_cell_64m", 5.0, 65536);
+    public static final DeferredItem<DigitalStorageCellItem> DIGITAL_STORAGE_CELL_256M = registerDigitalStorageCell("digital_storage_cell_256m", 5.5, 262144);
     public static final DeferredItem<InfiniteDataCellItem> DATA_CELL_INFINITY = ITEMS.register(
             "data_cell_infinity",
             () -> new InfiniteDataCellItem(new Item.Properties()));
 
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_1K = registerPortableDataFlowCell("portable_data_flow_cell_1k", StorageTier.SIZE_1K, 0x4FD8FF);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_4K = registerPortableDataFlowCell("portable_data_flow_cell_4k", StorageTier.SIZE_4K, 0x56F0B5);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_16K = registerPortableDataFlowCell("portable_data_flow_cell_16k", StorageTier.SIZE_16K, 0xA0EE68);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_64K = registerPortableDataFlowCell("portable_data_flow_cell_64k", StorageTier.SIZE_64K, 0xFF9B5C);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256K = registerPortableDataFlowCell("portable_data_flow_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_1K = registerPortableDigitalStorageCell("portable_digital_storage_cell_1k", StorageTier.SIZE_1K, 0x4FD8FF);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_4K = registerPortableDigitalStorageCell("portable_digital_storage_cell_4k", StorageTier.SIZE_4K, 0x56F0B5);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_16K = registerPortableDigitalStorageCell("portable_digital_storage_cell_16k", StorageTier.SIZE_16K, 0xA0EE68);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_64K = registerPortableDigitalStorageCell("portable_digital_storage_cell_64k", StorageTier.SIZE_64K, 0xFF9B5C);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_256K = registerPortableDigitalStorageCell("portable_digital_storage_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
 
     public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SOLAR_PANEL);
     public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_EXTRACTOR);
@@ -122,6 +122,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_0);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_1);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(DEBlocks.ENDER_COHESION_METEORITE_2);
+    public static final DeferredItem<BlockItem> DATA_MYSTERIOUS_CUBE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_MYSTERIOUS_CUBE);
     public static final DeferredItem<DataMeteoriteCompassItem> DATA_METEORITE_COMPASS = ITEMS.register(
             "data_meteorite_compass",
             () -> new DataMeteoriteCompassItem(new Item.Properties().stacksTo(1)));
@@ -144,26 +145,26 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
             () -> new DigitalStorageDepotBlockItem(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256K);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64K);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256K = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256K);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
-    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
     public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
@@ -293,17 +294,17 @@ public final class DEItems {
             "data_storage_component_256m",
             () -> new DataStorageComponentItem(new Item.Properties(), 262144));
 
-    private static final StorageTier DATA_FLOW_SIZE_1M = dataFlowPortableTier(6, "1m", 1_048_576, 3.0);
-    private static final StorageTier DATA_FLOW_SIZE_4M = dataFlowPortableTier(7, "4m", 4_194_304, 3.5);
-    private static final StorageTier DATA_FLOW_SIZE_16M = dataFlowPortableTier(8, "16m", 16_777_216, 4.0);
-    private static final StorageTier DATA_FLOW_SIZE_64M = dataFlowPortableTier(9, "64m", 67_108_864, 4.5);
-    private static final StorageTier DATA_FLOW_SIZE_256M = dataFlowPortableTier(10, "256m", 268_435_456, 5.0);
+    private static final StorageTier DIGITAL_STORAGE_SIZE_1M = portableDigitalStorageTier(6, "1m", 1_048_576, 3.0);
+    private static final StorageTier DIGITAL_STORAGE_SIZE_4M = portableDigitalStorageTier(7, "4m", 4_194_304, 3.5);
+    private static final StorageTier DIGITAL_STORAGE_SIZE_16M = portableDigitalStorageTier(8, "16m", 16_777_216, 4.0);
+    private static final StorageTier DIGITAL_STORAGE_SIZE_64M = portableDigitalStorageTier(9, "64m", 67_108_864, 4.5);
+    private static final StorageTier DIGITAL_STORAGE_SIZE_256M = portableDigitalStorageTier(10, "256m", 268_435_456, 5.0);
 
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_1M = registerPortableDataFlowCell("portable_data_flow_cell_1m", DATA_FLOW_SIZE_1M, 0x68D9FF);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_4M = registerPortableDataFlowCell("portable_data_flow_cell_4m", DATA_FLOW_SIZE_4M, 0x70F0C0);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_16M = registerPortableDataFlowCell("portable_data_flow_cell_16m", DATA_FLOW_SIZE_16M, 0xB0EE78);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_64M = registerPortableDataFlowCell("portable_data_flow_cell_64m", DATA_FLOW_SIZE_64M, 0xFFAB6C);
-    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256M = registerPortableDataFlowCell("portable_data_flow_cell_256m", DATA_FLOW_SIZE_256M, 0xFF82D8);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_1M = registerPortableDigitalStorageCell("portable_digital_storage_cell_1m", DIGITAL_STORAGE_SIZE_1M, 0x68D9FF);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_4M = registerPortableDigitalStorageCell("portable_digital_storage_cell_4m", DIGITAL_STORAGE_SIZE_4M, 0x70F0C0);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_16M = registerPortableDigitalStorageCell("portable_digital_storage_cell_16m", DIGITAL_STORAGE_SIZE_16M, 0xB0EE78);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_64M = registerPortableDigitalStorageCell("portable_digital_storage_cell_64m", DIGITAL_STORAGE_SIZE_64M, 0xFFAB6C);
+    public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_256M = registerPortableDigitalStorageCell("portable_digital_storage_cell_256m", DIGITAL_STORAGE_SIZE_256M, 0xFF82D8);
     public static final DeferredItem<RadixContainmentSphereItem> RADIX_CONTAINMENT_SPHERE = ITEMS.register(
             "radix_containment_sphere",
             () -> new RadixContainmentSphereItem(new Item.Properties().stacksTo(1)));
@@ -328,8 +329,8 @@ public final class DEItems {
         return GenericStack.wrapInItemStack(DataFlowKey.of(), 1);
     }
 
-    private static DeferredItem<DataFlowStorageCellItem> registerDataFlowCell(String id, double idleDrain, int bytes) {
-        return ITEMS.register(id, () -> new DataFlowStorageCellItem(new Item.Properties(), idleDrain, bytes));
+    private static DeferredItem<DigitalStorageCellItem> registerDigitalStorageCell(String id, double idleDrain, int bytes) {
+        return ITEMS.register(id, () -> new DigitalStorageCellItem(new Item.Properties(), idleDrain, bytes));
     }
 
     private static DeferredItem<TuningForkBlockItem> registerTuningFork(
@@ -340,11 +341,11 @@ public final class DEItems {
                 () -> new TuningForkBlockItem(block.get(), new Item.Properties().durability(block.get().getVariant().durability())));
     }
 
-    private static DeferredItem<DataFlowPortableCellItem> registerPortableDataFlowCell(String id, StorageTier tier, int color) {
-        return ITEMS.register(id, () -> new DataFlowPortableCellItem(tier, new Item.Properties(), color));
+    private static DeferredItem<PortableDigitalStorageCellItem> registerPortableDigitalStorageCell(String id, StorageTier tier, int color) {
+        return ITEMS.register(id, () -> new PortableDigitalStorageCellItem(tier, new Item.Properties(), color));
     }
 
-    private static StorageTier dataFlowPortableTier(int index, String namePrefix, int bytes, double idleDrain) {
+    private static StorageTier portableDigitalStorageTier(int index, String namePrefix, int bytes, double idleDrain) {
         return new StorageTier(index, namePrefix, bytes, idleDrain,
                 () -> BuiltInRegistries.ITEM.get(Data_Energistics.id("data_storage_component_" + namePrefix)));
     }

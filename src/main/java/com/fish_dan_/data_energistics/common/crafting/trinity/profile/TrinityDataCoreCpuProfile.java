@@ -10,7 +10,8 @@ import java.util.TreeMap;
  *
  * <p>
  * The profile is built from named structure contributions and resolves them into stable virtual workers. Every worker
- * receives the complete storage and co-processor values; worker resources are not divided by the worker count.
+ * receives the complete storage value; worker resources are not divided by the worker count. Active Trinity CPUs expose
+ * unlimited AE2 co-processor capacity because physical dispatch is bounded by the configured Trinity dispatch limits.
  */
 public record TrinityDataCoreCpuProfile(long storageBytes,
                                         int coProcessors,
@@ -18,6 +19,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
                                         CpuSelectionMode selectionMode) {
 
     public static final int MAX_PARTITION_COUNT = TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT;
+    public static final int DEFAULT_CO_PROCESSORS = Integer.MAX_VALUE;
     public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
 
     public TrinityDataCoreCpuProfile {
@@ -52,7 +54,6 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         Map<String, TrinityDataCoreCpuContribution> sorted = new TreeMap<>(contributions);
 
         long storageBytes = 0L;
-        int coProcessors = 0;
         int partitionCount = 0;
         CpuSelectionMode selectionMode = CpuSelectionMode.ANY;
         for (Map.Entry<String, TrinityDataCoreCpuContribution> entry : sorted.entrySet()) {
@@ -62,11 +63,11 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
             }
             TrinityDataCoreCpuContribution contribution = entry.getValue();
             storageBytes = Math.addExact(storageBytes, contribution.storageBytes());
-            coProcessors = Math.addExact(coProcessors, contribution.coProcessors());
             partitionCount = Math.addExact(partitionCount, contribution.partitionCount());
             selectionMode = mergeSelectionMode(selectionMode, contribution.selectionMode(), structureName);
         }
 
+        int coProcessors = partitionCount > 0 ? DEFAULT_CO_PROCESSORS : 0;
         return new TrinityDataCoreCpuProfile(storageBytes, coProcessors, partitionCount, selectionMode);
     }
 

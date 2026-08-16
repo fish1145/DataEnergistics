@@ -60,6 +60,10 @@ public class DataMeteoriteSavedData extends SavedData {
         return false;
     }
 
+    public boolean contains(BlockPos pos) {
+        return this.meteoritePositions.contains(pos.asLong());
+    }
+
     @Nullable
     public BlockPos findClosest(ChunkPos originChunkPos) {
         if (this.meteoritePositions.isEmpty()) {

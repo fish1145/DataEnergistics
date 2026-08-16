@@ -12,8 +12,8 @@ categories:
 ![Data Energistics Logo](/assets/logo.png)
 
 <Row>
-  <ItemImage id="data_flow_cell_1k" scale="6" />
-  <ItemImage id="portable_data_flow_cell_1k" scale="6" />
+  <ItemImage id="digital_storage_cell_1k" scale="6" />
+  <ItemImage id="portable_digital_storage_cell_1k" scale="6" />
   <ItemImage id="data_storage_component_1k" scale="6" />
 </Row>
 

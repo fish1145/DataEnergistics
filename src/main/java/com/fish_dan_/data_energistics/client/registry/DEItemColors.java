@@ -18,28 +18,28 @@ public final class DEItemColors {
 
     public static void register(RegisterColorHandlersEvent.Item event) {
         event.register(makeOpaque(DEItemColors::getPortableCellColor),
-                DEItems.PORTABLE_DATA_FLOW_CELL_1K.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_4K.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_16K.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_64K.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_256K.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_1M.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_4M.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_16M.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_64M.get(),
-                DEItems.PORTABLE_DATA_FLOW_CELL_256M.get());
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1K.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4K.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16K.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64K.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256K.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1M.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_4M.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16M.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64M.get(),
+                DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256M.get());
 
         event.register(makeOpaque(BasicStorageCell::getColor),
-                DEItems.DATA_FLOW_CELL_1K.get(),
-                DEItems.DATA_FLOW_CELL_4K.get(),
-                DEItems.DATA_FLOW_CELL_16K.get(),
-                DEItems.DATA_FLOW_CELL_64K.get(),
-                DEItems.DATA_FLOW_CELL_256K.get(),
-                DEItems.DATA_FLOW_CELL_1M.get(),
-                DEItems.DATA_FLOW_CELL_4M.get(),
-                DEItems.DATA_FLOW_CELL_16M.get(),
-                DEItems.DATA_FLOW_CELL_64M.get(),
-                DEItems.DATA_FLOW_CELL_256M.get());
+                DEItems.DIGITAL_STORAGE_CELL_1K.get(),
+                DEItems.DIGITAL_STORAGE_CELL_4K.get(),
+                DEItems.DIGITAL_STORAGE_CELL_16K.get(),
+                DEItems.DIGITAL_STORAGE_CELL_64K.get(),
+                DEItems.DIGITAL_STORAGE_CELL_256K.get(),
+                DEItems.DIGITAL_STORAGE_CELL_1M.get(),
+                DEItems.DIGITAL_STORAGE_CELL_4M.get(),
+                DEItems.DIGITAL_STORAGE_CELL_16M.get(),
+                DEItems.DIGITAL_STORAGE_CELL_64M.get(),
+                DEItems.DIGITAL_STORAGE_CELL_256M.get());
 
         event.register(new DynamicFluidContainerModel.Colors(),
                 DEFluids.ENDER_BUCKET.get(),

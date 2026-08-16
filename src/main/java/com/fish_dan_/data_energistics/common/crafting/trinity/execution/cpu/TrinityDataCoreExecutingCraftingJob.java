@@ -107,6 +107,7 @@ final class TrinityDataCoreExecutingCraftingJob {
             this.planExecution = TrinityPlanExecution.create(
                     trinityPlan,
                     TickHandler.instance().getCurrentTick());
+            this.timeTracker.initializePlanBaseline(trinityPlan.plannedOutputs());
         } else {
             this.planExecution = null;
             for (var entry : plan.emittedItems()) {
@@ -155,6 +156,9 @@ final class TrinityDataCoreExecutingCraftingJob {
                     data.getCompound(PLAN_EXECUTION_TAG),
                     registries,
                     TickHandler.instance().getCurrentTick());
+            if (this.planExecution.hasExactPendingOutputProjection()) {
+                this.timeTracker.restorePlanBaseline(this.planExecution.pendingOutputs());
+            }
             GenericStack executionOutput = this.planExecution.finalOutput();
             if (this.finalOutput == null ||
                     !this.finalOutput.what().equals(executionOutput.what()) ||

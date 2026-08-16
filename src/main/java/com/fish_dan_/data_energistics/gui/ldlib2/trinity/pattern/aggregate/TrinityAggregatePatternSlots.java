@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import appeng.crafting.pattern.EncodedPatternItem;
+import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
@@ -39,11 +40,17 @@ import java.util.function.IntConsumer;
 final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatternCatalogView> {
 
     private static final int SLOT_SIZE = 18;
+    private static final float SEARCH_FONT_SIZE = 8F;
     private static final int MAX_CACHED_PAGES = 16;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
+    private static final IGuiTexture OCCUPIED_PATTERN_SLOT_OVERLAY = SpriteTexture.of(
+            "data_energistics:textures/guis/inventory_slot.png");
     private static final IGuiTexture SEARCH_INPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input.png");
     private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
     private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
+    private static final Component SEARCH_PLACEHOLDER = Component.translatable(
+            "screen.data_energistics.trinity_data_core.pattern.search_hint")
+            .withStyle(style -> style.withColor(ColorPattern.WHITE.color));
 
     private final long generation;
     private final Level level;
@@ -118,6 +125,10 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             ItemSlot itemSlot = new PatternDisplaySlot(localSlot, index);
             itemSlot.setId(id + "_" + index);
             itemSlot.getStyle().backgroundTexture(IGuiTexture.EMPTY);
+            itemSlot.slotStyle(style -> style
+                    .slotOverlay(IGuiTexture.dynamic(() -> localSlot.getItem().isEmpty() ?
+                            IGuiTexture.EMPTY : OCCUPIED_PATTERN_SLOT_OVERLAY))
+                    .showSlotOverlayOnlyEmpty(false));
             int column = index % TrinityPatternCatalogView.COLUMN_COUNT;
             int row = index / TrinityPatternCatalogView.COLUMN_COUNT;
             itemSlot.layout(slotLayout -> slotLayout
@@ -138,7 +149,11 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         this.scrollbar = scrollbar;
         this.searchModeButton = searchModeButton;
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
+        search.textFieldStyle(style -> style.fontSize(SEARCH_FONT_SIZE));
         search.setTextResponder(this::setQuery);
+        updateSearchPlaceholder(search, false);
+        search.addEventListener(UIEvents.FOCUS, event -> updateSearchPlaceholder(search, true));
+        search.addEventListener(UIEvents.BLUR, event -> updateSearchPlaceholder(search, false));
         search.addEventListener(UIEvents.MOUSE_DOWN, event -> {
             if (event.button == 1) {
                 search.setText("");
@@ -148,6 +163,13 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         searchModeButton.setOnClick(event -> cycleSearchMode());
         updateSearchModePresentation();
         updateScrollbar(0, 0);
+    }
+
+    private static void updateSearchPlaceholder(TextField search, boolean focused) {
+        search.textFieldStyle(style -> style.placeholder(focused ? Component.empty() : SEARCH_PLACEHOLDER));
+        if (search.getRawText().isEmpty()) {
+            search.setText("", false);
+        }
     }
 
     void setMaintenanceActive(boolean maintenanceActive) {

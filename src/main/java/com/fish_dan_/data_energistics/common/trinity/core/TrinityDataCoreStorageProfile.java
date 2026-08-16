@@ -15,8 +15,6 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
     public static final TrinityDataCoreStorageProfile EMPTY = new TrinityDataCoreStorageProfile(BigInteger.ZERO, 0, 0, 0, false);
     public static final TrinityDataCoreStorageProfile UNLIMITED = new TrinityDataCoreStorageProfile(BigInteger.ZERO, Integer.MAX_VALUE, 0, 0, true);
 
-    private static final BigInteger TYPE_VALUE_PER_M = BigInteger.valueOf(2L);
-
     public TrinityDataCoreStorageProfile {
         if (totalCapacity.signum() < 0) {
             throw new IllegalArgumentException("Storage total capacity must not be negative");
@@ -46,13 +44,13 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
     }
 
     /**
-     * Converts a storage core's M/G tier value into total stored amount capacity.
+     * Reads a storage core's exact total stored amount capacity.
      */
     public static BigInteger amountCapacity(TrinityCoreComponent component) {
         if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
             throw new IllegalArgumentException("Only storage type cores contribute storage amount capacity");
         }
-        return BigInteger.valueOf(component.capacityValue()).multiply(AMOUNT_PER_M).divide(TYPE_VALUE_PER_M);
+        return BigInteger.valueOf(component.byteCapacity());
     }
 
     /**

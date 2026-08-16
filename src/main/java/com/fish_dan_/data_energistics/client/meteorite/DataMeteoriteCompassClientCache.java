@@ -2,11 +2,13 @@ package com.fish_dan_.data_energistics.client.meteorite;
 
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.core.definitions.AEBlocks;
@@ -98,7 +100,12 @@ public final class DataMeteoriteCompassClientCache {
     }
 
     private static boolean isTargetStillPresent(@Nullable ClientLevel level, @Nullable BlockPos pos) {
-        return pos == null || level == null || !level.hasChunkAt(pos) || level.getBlockState(pos).is(AEBlocks.MYSTERIOUS_CUBE.block());
+        if (pos == null || level == null || !level.isLoaded(pos)) {
+            return true;
+        }
+
+        BlockState state = level.getBlockState(pos);
+        return state.is(DEBlocks.DATA_MYSTERIOUS_CUBE.get()) || state.is(AEBlocks.MYSTERIOUS_CUBE.block());
     }
 
     private record CachedResult(@Nullable BlockPos closestMeteoritePos, long received) {}

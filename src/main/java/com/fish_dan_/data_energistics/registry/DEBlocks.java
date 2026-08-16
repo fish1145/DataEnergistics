@@ -26,6 +26,7 @@ import com.fish_dan_.data_energistics.block.trinity.TrinityCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.trinity.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.worldgen.DataCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.worldgen.DataMysteriousCubeBlock;
 import com.fish_dan_.data_energistics.block.worldgen.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
@@ -35,7 +36,9 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -173,6 +176,16 @@ public final class DEBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<Block> DATA_MYSTERIOUS_CUBE = BLOCKS.registerBlock(
+            "data_mysterious_cube",
+            DataMysteriousCubeBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL)
+                    .forceSolidOn()
+                    .strength(10.0F, 1000.0F)
+                    .isRedstoneConductor((state, blockGetter, pos) -> false));
+
     public static final DeferredBlock<Block> DATA_CRYSTAL_BLOCK = BLOCKS.registerBlock(
             "data_crystal_block",
             Block::new,
@@ -243,27 +256,27 @@ public final class DEBlocks {
                     .isViewBlocking((state, blockGetter, pos) -> false)
                     .requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_1K = registerStorageCore("me_digital_storage_core_1k", TrinityCoreTier.SIZE_1K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_4K = registerStorageCore("me_digital_storage_core_4k", TrinityCoreTier.SIZE_4K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_16K = registerStorageCore("me_digital_storage_core_16k", TrinityCoreTier.SIZE_16K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_64K = registerStorageCore("me_digital_storage_core_64k", TrinityCoreTier.SIZE_64K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_256K = registerStorageCore("me_digital_storage_core_256k", TrinityCoreTier.SIZE_256K);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_1M = registerStorageCore("me_digital_storage_core_1m", TrinityCoreTier.SIZE_1M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_4M = registerStorageCore("me_digital_storage_core_4m", TrinityCoreTier.SIZE_4M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_16M = registerStorageCore("me_digital_storage_core_16m", TrinityCoreTier.SIZE_16M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_64M = registerStorageCore("me_digital_storage_core_64m", TrinityCoreTier.SIZE_64M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_256M = registerStorageCore("me_digital_storage_core_256m", TrinityCoreTier.SIZE_256M);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_1G = registerStorageCore("me_digital_storage_core_1g", TrinityCoreTier.SIZE_1G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_4G = registerStorageCore("me_digital_storage_core_4g", TrinityCoreTier.SIZE_4G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_16G = registerStorageCore("me_digital_storage_core_16g", TrinityCoreTier.SIZE_16G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_64G = registerStorageCore("me_digital_storage_core_64g", TrinityCoreTier.SIZE_64G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_256G = registerStorageCore("me_digital_storage_core_256g", TrinityCoreTier.SIZE_256G);
 
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_1K = registerParallelCore("me_digital_merged_storage_core_1k", TrinityCoreTier.SIZE_1K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_4K = registerParallelCore("me_digital_merged_storage_core_4k", TrinityCoreTier.SIZE_4K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_16K = registerParallelCore("me_digital_merged_storage_core_16k", TrinityCoreTier.SIZE_16K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64K = registerParallelCore("me_digital_merged_storage_core_64k", TrinityCoreTier.SIZE_64K);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256K = registerParallelCore("me_digital_merged_storage_core_256k", TrinityCoreTier.SIZE_256K);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_1M = registerParallelCore("me_digital_merged_storage_core_1m", TrinityCoreTier.SIZE_1M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_4M = registerParallelCore("me_digital_merged_storage_core_4m", TrinityCoreTier.SIZE_4M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_16M = registerParallelCore("me_digital_merged_storage_core_16m", TrinityCoreTier.SIZE_16M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64M = registerParallelCore("me_digital_merged_storage_core_64m", TrinityCoreTier.SIZE_64M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256M = registerParallelCore("me_digital_merged_storage_core_256m", TrinityCoreTier.SIZE_256M);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_1G = registerParallelCore("me_digital_merged_storage_core_1g", TrinityCoreTier.SIZE_1G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_4G = registerParallelCore("me_digital_merged_storage_core_4g", TrinityCoreTier.SIZE_4G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_16G = registerParallelCore("me_digital_merged_storage_core_16g", TrinityCoreTier.SIZE_16G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64G = registerParallelCore("me_digital_merged_storage_core_64g", TrinityCoreTier.SIZE_64G);
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256G = registerParallelCore("me_digital_merged_storage_core_256g", TrinityCoreTier.SIZE_256G);
 
     public static final DeferredBlock<TrinityPatternCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("me_digital_pattern_processing_core", 64);
     public static final DeferredBlock<TrinityPatternCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("extended_me_digital_pattern_processing_core", 128);
