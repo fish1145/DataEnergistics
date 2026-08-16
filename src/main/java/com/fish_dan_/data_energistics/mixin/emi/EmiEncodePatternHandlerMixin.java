@@ -81,10 +81,7 @@ public abstract class EmiEncodePatternHandlerMixin {
                 emiRecipe.getCategory().equals(VanillaEmiRecipeCategories.CRAFTING));
         PatternEncodingViewerRecipeScope recipeScope = EmiPatternTransferContextBridge.requireCurrent(menu);
         PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, recipeScope);
-        PatternEncodingSourceHelper.rememberTransferKeyInput(menu, transferMode, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, transferMode, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, transferMode, holder, emiRecipe);
-        PatternEncodingSourceHelper.rememberTransferFluidOutputs(menu, transferMode, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(menu, transferMode, holder, emiRecipe);
         if (transferMode == EncodingMode.PROCESSING) {
             PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, recipeScope);
         } else {

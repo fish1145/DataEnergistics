@@ -73,7 +73,7 @@ public final class PatternEncodingPreferencesClient {
         interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(
                 PatternEncodingSourceHelper.resolveFixedModeRankingContext(
                         transferMode, fixedWorkstation));
-        sendSnapshot(menu);
+        interfaces.preferenceMenu().data_energistics$getPreferenceSession().deferSnapshotUntil(transferMode);
     }
 
     /**
@@ -89,7 +89,18 @@ public final class PatternEncodingPreferencesClient {
         } else {
             session.setRankingContext(null);
         }
-        sendSnapshot(menu);
+        session.deferSnapshotUntil(EncodingMode.PROCESSING);
+    }
+
+    /**
+     * Publishes one transfer snapshot after the target menu mode has been synchronized for at least one client tick.
+     */
+    public static void flushDeferredSnapshot(AbstractContainerMenu menu) {
+        Interfaces interfaces = Interfaces.require(menu);
+        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        if (session.consumeDeferredSnapshotIfReady(interfaces.previewMenu().data_energistics$getEncodingMode())) {
+            sendSnapshot(menu);
+        }
     }
 
     /**

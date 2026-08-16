@@ -6,13 +6,12 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaint
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaintenanceSnapshot.Stage;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressAppearance;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressBar;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
@@ -43,28 +42,19 @@ public final class TrinityInformationExchangeDepotUi {
     private static final String INPUT_MODE_LABEL_ID = INPUT_MODE_ID + "_label";
     private static final String STORAGE_MODE_LABEL_ID = STORAGE_MODE_ID + "_label";
     private static final String OUTPUT_MODE_LABEL_ID = OUTPUT_MODE_ID + "_label";
-    private static final String MIGRATION_PANEL_ID = "trinity_information_exchange_depot_migration";
-    private static final String MIGRATION_STATE_ID = MIGRATION_PANEL_ID + "_state";
-    private static final String MIGRATION_PROGRESS_ID = MIGRATION_PANEL_ID + "_progress";
-    private static final String MIGRATION_PROGRESS_TRACK_ID = MIGRATION_PANEL_ID + "_track";
-    private static final String MIGRATION_PROGRESS_FILL_ID = MIGRATION_PANEL_ID + "_fill";
+    private static final String MIGRATION_ID = "trinity_information_exchange_depot_migration";
+    private static final String MIGRATION_TITLE_ID = MIGRATION_ID + "_title";
+    private static final String MIGRATION_STATE_ID = MIGRATION_ID + "_state";
+    private static final String MIGRATION_PROGRESS_TRACK_ID = MIGRATION_ID + "_track";
     private static final String PERFORMANCE_PANEL_ID = "trinity_information_exchange_depot_performance";
+    private static final String PERFORMANCE_TITLE_ID = PERFORMANCE_PANEL_ID + "_title";
     private static final String EXCHANGE_TICK_ID = PERFORMANCE_PANEL_ID + "_exchange_tick";
     private static final String CORE_TICK_ID = PERFORMANCE_PANEL_ID + "_core_tick";
     private static final String MIGRATION_TICK_ID = PERFORMANCE_PANEL_ID + "_migration_tick";
 
     private static final String TRANSLATION_PREFIX = "gui.data_energistics.trinity_information_exchange_depot.";
-    private static final int CONTENT_WIDTH = 187;
-    private static final int CONTENT_INSET = 8;
-    private static final int PANEL_WIDTH = CONTENT_WIDTH - CONTENT_INSET * 2;
-    private static final int PANEL_BACKGROUND_COLOR = 0x284A4C63;
-    private static final int PANEL_BORDER_COLOR = 0xFF85879B;
-    private static final int PROGRESS_BACKGROUND_COLOR = 0xFF4A4C62;
-    private static final int PROGRESS_ACTIVE_COLOR = 0xFF4D8DFF;
-    private static final int PROGRESS_COMPLETED_COLOR = 0xFF45C46A;
-    private static final int PROGRESS_FAILED_COLOR = 0xFFE05252;
-    private static final int PROGRESS_IDLE_COLOR = 0xFF72758A;
-    private static final int PROGRESS_WIDTH = PANEL_WIDTH - 10;
+    private static final int PROGRESS_TRACK_WIDTH = 175;
+    private static final int PROGRESS_TRACK_HEIGHT = 10;
     private static final double TICK_BUDGET_NANOS = 50_000_000.0D;
 
     private TrinityInformationExchangeDepotUi() {}
@@ -73,7 +63,6 @@ public final class TrinityInformationExchangeDepotUi {
         try {
             UI ui = TrinityUiNbtLayouts.load("information_exchange_depot");
             Layout layout = Layout.bind(ui.rootElement);
-            layout.applyGeometry();
             bindText(layout, title);
             bindModes(menu, layout);
             layout.telemetry().bind(menu, layout.root());
@@ -133,47 +122,13 @@ public final class TrinityInformationExchangeDepotUi {
         toggle.toggleButton(button -> button.style(style -> style.tooltips(tooltip)));
     }
 
-    private static Label text(String id, String translationKey, String styleClass) {
-        Label label = new Label();
-        label.setId(id);
-        label.setText(Component.translatable(translationKey));
-        label.setOverflowVisible(false);
-        label.addClass(styleClass);
-        return label;
-    }
-
-    private static Label value(String id) {
-        Label label = new Label();
-        label.setId(id);
-        label.setText(Component.empty());
-        label.setOverflowVisible(false);
-        label.addClass("trinity-information-exchange-value");
-        return label;
-    }
-
-    private static UIElement panel(String id, int top, int height) {
-        UIElement panel = new UIElement();
-        panel.setId(id);
-        panel.setOverflowVisible(false);
-        panel.style(style -> style.backgroundTexture(GuiTextureGroup.of(
-                new ColorRectTexture(PANEL_BACKGROUND_COLOR),
-                new ColorBorderTexture(1, PANEL_BORDER_COLOR))));
-        panel.layout(layout -> layout
+    private static void placeProgressBar(TrinityPatternProgressBar progressBar) {
+        progressBar.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTENT_INSET)
-                .top(top)
-                .width(PANEL_WIDTH)
-                .height(height));
-        return panel;
-    }
-
-    private static void place(UIElement element, int left, int top, int width, int height) {
-        element.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(height));
+                .left(0)
+                .top(0)
+                .width(PROGRESS_TRACK_WIDTH)
+                .height(PROGRESS_TRACK_HEIGHT));
     }
 
     private static Component maintenanceState(Operation operation, Stage stage) {
@@ -223,8 +178,6 @@ public final class TrinityInformationExchangeDepotUi {
 
     private record Layout(
                           UIElement root,
-                          UIElement content,
-                          ToggleGroupElement group,
                           Toggle input,
                           Toggle storage,
                           Toggle output,
@@ -236,42 +189,21 @@ public final class TrinityInformationExchangeDepotUi {
                           TelemetryArea telemetry) {
 
         private static Layout bind(UIElement root) {
-            List<UIElement> rootChildren = authoredChildren(root);
-            if (rootChildren.size() != 2) {
-                throw new IllegalStateException("Information exchange depot layout expected two authored root children");
-            }
-            UIElement content = require(rootChildren, 0, UIElement.class, "content");
-            Button close = require(rootChildren, 1, Button.class, "close");
-            List<UIElement> contentChildren = authoredChildren(content);
-            if (contentChildren.size() != 2) {
-                throw new IllegalStateException("Information exchange depot content expected two authored children");
-            }
-            ToggleGroupElement group = require(contentChildren, 0, ToggleGroupElement.class, "mode group");
-            Label title = require(contentChildren, 1, Label.class, "title");
-            List<UIElement> toggles = authoredChildren(group);
-            if (toggles.size() != 3) {
-                throw new IllegalStateException("Information exchange depot mode group expected three authored toggles");
-            }
-            Toggle storage = require(toggles, 0, Toggle.class, "storage mode");
-            Toggle input = require(toggles, 1, Toggle.class, "input mode");
-            Toggle output = require(toggles, 2, Toggle.class, "output mode");
+            UIElement content = requireChild(root, CONTENT_ID, UIElement.class, "content");
+            Label title = requireChild(root, TITLE_ID, Label.class, "title");
+            Button close = requireChild(root, CLOSE_ID, Button.class, "close");
+            ToggleGroupElement group = requireChild(content, MODE_GROUP_ID, ToggleGroupElement.class, "mode group");
+            requireChild(content, MODE_TITLE_ID, Label.class, "mode title");
+            Label storageLabel = requireChild(content, STORAGE_MODE_LABEL_ID, Label.class, "storage mode label");
+            Label inputLabel = requireChild(content, INPUT_MODE_LABEL_ID, Label.class, "input mode label");
+            Label outputLabel = requireChild(content, OUTPUT_MODE_LABEL_ID, Label.class, "output mode label");
+            Toggle storage = requireChild(group, STORAGE_MODE_ID, Toggle.class, "storage mode");
+            Toggle input = requireChild(group, INPUT_MODE_ID, Toggle.class, "input mode");
+            Toggle output = requireChild(group, OUTPUT_MODE_ID, Toggle.class, "output mode");
 
             root.setId(ROOT_ID);
-            content.setId(CONTENT_ID);
-            group.setId(MODE_GROUP_ID);
-            title.setId(TITLE_ID);
-            close.setId(CLOSE_ID);
-            input.setId(INPUT_MODE_ID);
-            storage.setId(STORAGE_MODE_ID);
-            output.setId(OUTPUT_MODE_ID);
-            Label storageLabel = modeLabel(STORAGE_MODE_LABEL_ID);
-            Label inputLabel = modeLabel(INPUT_MODE_LABEL_ID);
-            Label outputLabel = modeLabel(OUTPUT_MODE_LABEL_ID);
-            content.addChildren(storageLabel, inputLabel, outputLabel);
             return new Layout(
                     root,
-                    content,
-                    group,
                     input,
                     storage,
                     output,
@@ -280,48 +212,26 @@ public final class TrinityInformationExchangeDepotUi {
                     inputLabel,
                     storageLabel,
                     outputLabel,
-                    TelemetryArea.create(content));
-        }
-
-        private void applyGeometry() {
-            this.content.removeChild(this.title);
-            this.root.addChild(this.title);
-            place(this.title, 8, 1, 160, 9);
-
-            Label modeTitle = text(
-                    MODE_TITLE_ID,
-                    TRANSLATION_PREFIX + "mode.title",
-                    "trinity-information-exchange-section-title");
-            place(modeTitle, CONTENT_INSET, 3, PANEL_WIDTH, 8);
-            this.content.addChild(modeTitle);
-
-            place(this.storageLabel, 8, 13, 57, 8);
-            place(this.inputLabel, 65, 13, 57, 8);
-            place(this.outputLabel, 122, 13, 57, 8);
-
-            place(this.group, 8, 22, PANEL_WIDTH, 12);
-            place(this.storage, 17, 0, 22, 12);
-            place(this.input, 74, 0, 22, 12);
-            place(this.output, 131, 0, 22, 12);
-        }
-
-        private static Label modeLabel(String id) {
-            Label label = value(id);
-            label.removeClass("trinity-information-exchange-value");
-            label.addClass("trinity-information-exchange-mode-caption");
-            return label;
+                    TelemetryArea.bind(content));
         }
 
         private static List<UIElement> authoredChildren(UIElement element) {
             return element.getChildren().stream().filter(child -> !child.isInternalUI()).toList();
         }
 
-        private static <T extends UIElement> T require(
-                                                       List<UIElement> children,
-                                                       int index,
-                                                       Class<T> expected,
-                                                       String role) {
-            UIElement child = children.get(index);
+        private static <T extends UIElement> T requireChild(
+                                                            UIElement parent,
+                                                            String id,
+                                                            Class<T> expected,
+                                                            String role) {
+            List<UIElement> matches = authoredChildren(parent).stream()
+                    .filter(child -> id.equals(child.getId()))
+                    .toList();
+            if (matches.size() != 1) {
+                throw new IllegalStateException("Information exchange depot " + role + " expected one authored child '" +
+                        id + "', found " + matches.size());
+            }
+            UIElement child = matches.getFirst();
             if (!expected.isInstance(child)) {
                 throw new IllegalStateException("Information exchange depot " + role + " must be " +
                         expected.getSimpleName() + ", found " + child.getClass().getSimpleName());
@@ -332,9 +242,9 @@ public final class TrinityInformationExchangeDepotUi {
 
     private static final class TelemetryArea {
 
-        private final UIElement progressFill;
+        private final TrinityPatternProgressBar progressBar;
+        private final UIElement progressHost;
         private final Label state;
-        private final Label progress;
         private final Label exchangeTick;
         private final Label coreTick;
         private final Label migrationTick;
@@ -348,85 +258,47 @@ public final class TrinityInformationExchangeDepotUi {
         private long migrationTickWorkUnits = -1L;
 
         private TelemetryArea(
-                              UIElement progressFill,
+                              TrinityPatternProgressBar progressBar,
+                              UIElement progressHost,
                               Label state,
-                              Label progress,
                               Label exchangeTick,
                               Label coreTick,
                               Label migrationTick) {
-            this.progressFill = progressFill;
+            this.progressBar = progressBar;
+            this.progressHost = progressHost;
             this.state = state;
-            this.progress = progress;
             this.exchangeTick = exchangeTick;
             this.coreTick = coreTick;
             this.migrationTick = migrationTick;
         }
 
-        private static TelemetryArea create(UIElement content) {
-            UIElement migrationPanel = panel(MIGRATION_PANEL_ID, 41, 40);
-            Label migrationTitle = text(
-                    MIGRATION_PANEL_ID + "_title",
-                    TRANSLATION_PREFIX + "migration.title",
-                    "trinity-information-exchange-section-title");
-            Label state = value(MIGRATION_STATE_ID);
-            Label progress = value(MIGRATION_PROGRESS_ID);
-            place(migrationTitle, 5, 3, 61, 8);
-            place(state, 67, 3, 99, 8);
-            place(progress, 5, 24, PROGRESS_WIDTH, 9);
+        private static TelemetryArea bind(UIElement content) {
+            UIElement migrationPanel = Layout.requireChild(content, MIGRATION_ID, UIElement.class, "migration panel");
+            Layout.requireChild(migrationPanel, MIGRATION_TITLE_ID, Label.class, "migration title");
+            Label state = Layout.requireChild(migrationPanel, MIGRATION_STATE_ID, Label.class, "migration state");
+            UIElement progressHost = Layout.requireChild(
+                    content, MIGRATION_PROGRESS_TRACK_ID, UIElement.class, "migration progress track");
+            progressHost.setAllowHitTest(true);
+            progressHost.setOverflowVisible(false);
+            progressHost.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+            TrinityPatternProgressBar progressBar = TrinityPatternProgressBar.horizontal(
+                    MIGRATION_PROGRESS_TRACK_ID + "_live");
+            placeProgressBar(progressBar);
+            progressHost.addChild(progressBar);
 
-            UIElement progressTrack = new UIElement();
-            progressTrack.setId(MIGRATION_PROGRESS_TRACK_ID);
-            progressTrack.setAllowHitTest(false);
-            progressTrack.setOverflowVisible(false);
-            progressTrack.style(style -> style.backgroundTexture(new ColorRectTexture(PROGRESS_BACKGROUND_COLOR)));
-            place(progressTrack, 5, 14, PROGRESS_WIDTH, 6);
-
-            UIElement progressFill = new UIElement();
-            progressFill.setId(MIGRATION_PROGRESS_FILL_ID);
-            progressFill.setAllowHitTest(false);
-            progressFill.style(style -> style.backgroundTexture(new ColorRectTexture(PROGRESS_IDLE_COLOR)));
-            place(progressFill, 0, 0, 0, 6);
-            progressTrack.addChild(progressFill);
-            migrationPanel.addChildren(migrationTitle, state, progressTrack, progress);
-
-            UIElement performancePanel = panel(PERFORMANCE_PANEL_ID, 85, 38);
-            Label performanceTitle = text(
-                    PERFORMANCE_PANEL_ID + "_title",
-                    TRANSLATION_PREFIX + "performance.title",
-                    "trinity-information-exchange-section-title");
-            Label exchangeLabel = text(
-                    EXCHANGE_TICK_ID + "_label",
-                    TRANSLATION_PREFIX + "performance.exchange_tick",
-                    "trinity-information-exchange-label");
-            Label coreLabel = text(
-                    CORE_TICK_ID + "_label",
-                    TRANSLATION_PREFIX + "performance.core_tick",
-                    "trinity-information-exchange-label");
-            Label migrationLabel = text(
-                    MIGRATION_TICK_ID + "_label",
-                    TRANSLATION_PREFIX + "performance.migration_tick",
-                    "trinity-information-exchange-label");
-            Label exchangeTick = value(EXCHANGE_TICK_ID + "_value");
-            Label coreTick = value(CORE_TICK_ID + "_value");
-            Label migrationTick = value(MIGRATION_TICK_ID + "_value");
-            place(performanceTitle, 5, 3, 161, 8);
-            place(exchangeLabel, 5, 12, 55, 8);
-            place(exchangeTick, 61, 12, 105, 8);
-            place(coreLabel, 5, 20, 55, 8);
-            place(coreTick, 61, 20, 105, 8);
-            place(migrationLabel, 5, 28, 55, 8);
-            place(migrationTick, 61, 28, 105, 8);
-            performancePanel.addChildren(
-                    performanceTitle,
-                    exchangeLabel,
-                    exchangeTick,
-                    coreLabel,
-                    coreTick,
-                    migrationLabel,
-                    migrationTick);
-
-            content.addChildren(migrationPanel, performancePanel);
-            return new TelemetryArea(progressFill, state, progress, exchangeTick, coreTick, migrationTick);
+            UIElement performancePanel = Layout.requireChild(
+                    content, PERFORMANCE_PANEL_ID, UIElement.class, "performance panel");
+            Layout.requireChild(performancePanel, PERFORMANCE_TITLE_ID, Label.class, "performance title");
+            Layout.requireChild(performancePanel, EXCHANGE_TICK_ID + "_label", Label.class, "exchange tick label");
+            Layout.requireChild(performancePanel, CORE_TICK_ID + "_label", Label.class, "core tick label");
+            Layout.requireChild(performancePanel, MIGRATION_TICK_ID + "_label", Label.class, "migration tick label");
+            Label exchangeTick = Layout.requireChild(
+                    performancePanel, EXCHANGE_TICK_ID + "_value", Label.class, "exchange tick value");
+            Label coreTick = Layout.requireChild(
+                    performancePanel, CORE_TICK_ID + "_value", Label.class, "core tick value");
+            Label migrationTick = Layout.requireChild(
+                    performancePanel, MIGRATION_TICK_ID + "_value", Label.class, "migration tick value");
+            return new TelemetryArea(progressBar, progressHost, state, exchangeTick, coreTick, migrationTick);
         }
 
         private void bind(TrinityInformationExchangeDepotMenu menu, UIElement tickSource) {
@@ -446,10 +318,15 @@ public final class TrinityInformationExchangeDepotUi {
                 this.completed = nextCompleted;
                 this.total = nextTotal;
                 this.state.setText(maintenanceState(operation, stage));
-                this.progress.setText(maintenanceProgress(stage, nextCompleted, nextTotal));
-                int width = (int) Math.round(PROGRESS_WIDTH * maintenanceProgressRatio(stage, nextCompleted, nextTotal));
-                place(this.progressFill, 0, 0, width, 6);
-                this.progressFill.style(style -> style.backgroundTexture(new ColorRectTexture(progressColor(stage))));
+                Component progressTooltip = maintenanceProgress(stage, nextCompleted, nextTotal);
+                this.progressHost.style(style -> style.tooltips(progressTooltip));
+                if (operation == Operation.IDLE) {
+                    this.progressBar.clearProgress();
+                } else {
+                    this.progressBar.setProgress(
+                            (float) maintenanceProgressRatio(stage, nextCompleted, nextTotal),
+                            progressAppearance(operation, stage));
+                }
             }
 
             if (this.exchangeTickNanos != menu.exchangeDepotTickNanos) {
@@ -471,12 +348,15 @@ public final class TrinityInformationExchangeDepotUi {
             }
         }
 
-        private static int progressColor(Stage stage) {
+        private static TrinityPatternProgressAppearance progressAppearance(Operation operation, Stage stage) {
             return switch (stage) {
-                case COMPLETED -> PROGRESS_COMPLETED_COLOR;
-                case FAILED, CANCELLED -> PROGRESS_FAILED_COLOR;
-                case IDLE -> PROGRESS_IDLE_COLOR;
-                default -> PROGRESS_ACTIVE_COLOR;
+                case COMPLETED -> TrinityPatternProgressAppearance.COMPLETED;
+                case FAILED, CANCELLED -> TrinityPatternProgressAppearance.FAILED;
+                default -> switch (operation) {
+                    case MIGRATION -> TrinityPatternProgressAppearance.MIGRATION;
+                    case REFUND_PATTERNS -> TrinityPatternProgressAppearance.REFUND;
+                    case IDLE -> throw new IllegalStateException("Idle maintenance has no progress appearance");
+                };
             };
         }
     }

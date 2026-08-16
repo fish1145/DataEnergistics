@@ -47,17 +47,18 @@ import java.util.function.IntConsumer;
              registry = "ldlib2:ui_element")
 public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuListStatus> {
 
-    public static final int ROW_WIDTH = 67;
+    private static final int ROW_SPRITE_WIDTH = 67;
+    private static final int VIEWPORT_LEFT = 4;
+    public static final int ROW_WIDTH = 68;
     public static final int ROW_HEIGHT = 22;
     public static final int VISIBLE_ROW_COUNT = 10;
-    public static final int DEFAULT_WIDTH = 72;
+    public static final int DEFAULT_WIDTH = VIEWPORT_LEFT + ROW_WIDTH;
     public static final int DEFAULT_HEIGHT = 234;
     public static final String ELEMENT_ID = "trinity_data_core_cpu_entries";
     public static final String SCROLLER_ID = "trinity_data_core_cpu_list";
 
     static final int ROW_STRIDE = ROW_HEIGHT + 1;
     static final int VIEWPORT_HEIGHT = ROW_STRIDE * VISIBLE_ROW_COUNT - 1;
-    private static final int VIEWPORT_LEFT = 4;
     private static final int VIEWPORT_TOP = 3;
     private static final int NAME_LEFT = 3;
     private static final int NAME_TOP = 2;
@@ -86,10 +87,10 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final SpriteTexture ROW_SELECTED_TEXTURE = rowTexture("cpu_entry_selected.png");
     private static final SpriteTexture IDLE_TEXTURE = SpriteTexture.of(
             "data_energistics:textures/guis/trinity_data_core/cpu_idle.png")
-            .setSprite(0, 0, ROW_WIDTH, ROW_HEIGHT);
+            .setSprite(0, 0, ROW_SPRITE_WIDTH, ROW_HEIGHT);
     private static final SpriteTexture TASK_OVERLAY_TEXTURE = SpriteTexture.of(
             "data_energistics:textures/guis/trinity_data_core/cpu_task_overlay.png")
-            .setSprite(0, 0, ROW_WIDTH, ROW_HEIGHT);
+            .setSprite(0, 0, ROW_SPRITE_WIDTH, ROW_HEIGHT);
     private static final SpriteTexture STORAGE_ICON_TEXTURE = iconTexture("cpu_icon_storage.png");
     private static final SpriteTexture PROCESSOR_ICON_TEXTURE = iconTexture("cpu_icon_processor.png");
     private static final SpriteTexture CRAFT_ICON_TEXTURE = iconTexture("cpu_icon_craft.png");
@@ -494,7 +495,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
 
     private static SpriteTexture rowTexture(String fileName) {
         return SpriteTexture.of("data_energistics:textures/guis/trinity_data_core/" + fileName)
-                .setSprite(0, 0, ROW_WIDTH, ROW_HEIGHT);
+                .setSprite(0, 0, ROW_SPRITE_WIDTH, ROW_HEIGHT);
     }
 
     private static SpriteTexture iconTexture(String fileName) {

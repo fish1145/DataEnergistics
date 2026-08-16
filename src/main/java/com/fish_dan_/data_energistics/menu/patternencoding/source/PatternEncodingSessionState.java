@@ -17,6 +17,7 @@ final class PatternEncodingSessionState {
     private static final Map<UUID, GenericStack> PENDING_TRANSFER_KEY_OUTPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_INPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_OUTPUTS = new ConcurrentHashMap<>();
+    private static final Map<UUID, DataRipperTransferMetadata> PENDING_DATA_RIPPER_TRANSFERS = new ConcurrentHashMap<>();
 
     private PatternEncodingSessionState() {}
 
@@ -85,11 +86,42 @@ final class PatternEncodingSessionState {
         PENDING_TRANSFER_FLUID_OUTPUTS.remove(playerId);
     }
 
+    @Nullable
+    static DataRipperTransferMetadata getPendingDataRipperTransfer(UUID playerId, int containerId) {
+        DataRipperTransferMetadata metadata = PENDING_DATA_RIPPER_TRANSFERS.get(playerId);
+        return metadata != null && metadata.containerId() == containerId ? metadata : null;
+    }
+
+    static void setPendingDataRipperTransfer(UUID playerId, DataRipperTransferMetadata metadata) {
+        PENDING_DATA_RIPPER_TRANSFERS.put(playerId, metadata);
+    }
+
+    static void clearPendingDataRipperTransfer(UUID playerId) {
+        PENDING_DATA_RIPPER_TRANSFERS.remove(playerId);
+        clearPendingTransferKeyInput(playerId);
+        clearPendingTransferKeyOutput(playerId);
+        clearPendingTransferFluidInputs(playerId);
+        clearPendingTransferFluidOutputs(playerId);
+    }
+
     static void clear(UUID playerId) {
         LAST_ENCODED_PATTERN_SOURCES.remove(playerId);
         PENDING_TRANSFER_KEY_INPUTS.remove(playerId);
         PENDING_TRANSFER_KEY_OUTPUTS.remove(playerId);
         PENDING_TRANSFER_FLUID_INPUTS.remove(playerId);
         PENDING_TRANSFER_FLUID_OUTPUTS.remove(playerId);
+        PENDING_DATA_RIPPER_TRANSFERS.remove(playerId);
+    }
+
+    record DataRipperTransferMetadata(int containerId,
+                                      @Nullable GenericStack keyInput,
+                                      @Nullable GenericStack keyOutput,
+                                      List<GenericStack> fluidInputs,
+                                      List<GenericStack> fluidOutputs) {
+
+        DataRipperTransferMetadata {
+            fluidInputs = List.copyOf(fluidInputs);
+            fluidOutputs = List.copyOf(fluidOutputs);
+        }
     }
 }

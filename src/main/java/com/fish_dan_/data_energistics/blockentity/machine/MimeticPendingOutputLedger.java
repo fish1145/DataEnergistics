@@ -7,7 +7,6 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -39,6 +38,22 @@ public final class MimeticPendingOutputLedger {
          * @return consumed count between zero and the offered count, inclusive
          */
         int accept(ItemStack stack);
+    }
+
+    /**
+     * Accepts one component-sensitive balance without forcing it through item-stack limits.
+     */
+    @FunctionalInterface
+    public interface AmountSink {
+
+        /**
+         * Attempts to consume an offered balance.
+         *
+         * @param key    component-sensitive item identity
+         * @param amount positive available balance
+         * @return consumed amount between zero and {@code amount}, inclusive
+         */
+        long accept(AEItemKey key, long amount);
     }
 
     /** Largest practical number of elements that an {@link ArrayList} can address. */
@@ -93,22 +108,34 @@ public final class MimeticPendingOutputLedger {
                 continue;
             }
 
-            @Nullable
-            AEItemKey key = AEItemKey.of(stack);
+            var key = AEItemKey.of(stack);
             if (key == null) {
                 throw new IllegalArgumentException("Non-empty generated stack has no AE item key");
             }
             generated.merge(key, (long) stack.getCount(), MimeticPendingOutputLedger::addExact);
         }
-        if (generated.isEmpty()) {
+        appendAmounts(generated);
+    }
+
+    /**
+     * Appends a compact component-sensitive batch without materializing item stacks.
+     *
+     * @param amounts positive generated balances
+     */
+    public void appendAmounts(Map<AEItemKey, Long> amounts) {
+        if (amounts.isEmpty()) {
             return;
         }
 
-        for (Map.Entry<AEItemKey, Long> entry : generated.entrySet()) {
+        LinkedHashMap<AEItemKey, Long> updated = new LinkedHashMap<>(amounts.size());
+        for (Map.Entry<AEItemKey, Long> entry : amounts.entrySet()) {
+            if (entry.getValue() <= 0L) {
+                throw new IllegalArgumentException("Mimetic pending-output amounts must be positive");
+            }
             long current = this.contents.getOrDefault(entry.getKey(), 0L);
-            entry.setValue(addExact(current, entry.getValue()));
+            updated.put(entry.getKey(), addExact(current, entry.getValue()));
         }
-        for (Map.Entry<AEItemKey, Long> entry : generated.entrySet()) {
+        for (Map.Entry<AEItemKey, Long> entry : updated.entrySet()) {
             if (!this.contents.containsKey(entry.getKey())) {
                 this.offerQueue.addLast(entry.getKey());
             }
@@ -136,36 +163,101 @@ public final class MimeticPendingOutputLedger {
 
         long totalAccepted = 0L;
         int consecutiveRejectedOffers = 0;
-        for (int offers = 0; offers < offerBudget && !this.offerQueue.isEmpty(); offers++) {
-            AEItemKey key = this.offerQueue.getFirst();
-            long current = this.contents.get(key);
-            ItemStack offeredStack = createLegalStack(key, current);
-            int offered = offeredStack.getCount();
-            int accepted = sink.accept(offeredStack);
-            if (accepted < 0 || accepted > offered) {
-                throw new IllegalStateException(
-                        "Mimetic output sink accepted " + accepted + " items from an offer of " + offered);
-            }
-
-            this.offerQueue.removeFirst();
-            long remaining = current - accepted;
-            if (remaining > 0L) {
-                this.contents.put(key, remaining);
-                this.offerQueue.addLast(key);
-            } else {
-                this.contents.remove(key);
-            }
-            if (accepted == 0) {
-                consecutiveRejectedOffers++;
-                if (consecutiveRejectedOffers >= this.offerQueue.size()) {
-                    break;
+        boolean changed = false;
+        try {
+            for (int offers = 0; offers < offerBudget && !this.offerQueue.isEmpty(); offers++) {
+                AEItemKey key = this.offerQueue.getFirst();
+                long current = this.contents.get(key);
+                ItemStack offeredStack = createLegalStack(key, current);
+                int offered = offeredStack.getCount();
+                int accepted = sink.accept(offeredStack);
+                if (accepted < 0 || accepted > offered) {
+                    throw new IllegalStateException(
+                            "Mimetic output sink accepted " + accepted + " items from an offer of " + offered);
                 }
-                continue;
-            }
 
-            consecutiveRejectedOffers = 0;
-            totalAccepted = Math.addExact(totalAccepted, accepted);
-            this.changeListener.run();
+                this.offerQueue.removeFirst();
+                long remaining = current - accepted;
+                if (remaining > 0L) {
+                    this.contents.put(key, remaining);
+                    this.offerQueue.addLast(key);
+                } else {
+                    this.contents.remove(key);
+                }
+                if (accepted == 0) {
+                    consecutiveRejectedOffers++;
+                    if (consecutiveRejectedOffers >= this.offerQueue.size()) {
+                        break;
+                    }
+                    continue;
+                }
+
+                consecutiveRejectedOffers = 0;
+                totalAccepted = Math.addExact(totalAccepted, accepted);
+                changed = true;
+            }
+        } finally {
+            if (changed) {
+                this.changeListener.run();
+            }
+        }
+        return totalAccepted;
+    }
+
+    /**
+     * Fairly offers complete per-key balances to a destination that accepts AE-style long amounts.
+     *
+     * <p>
+     * Each budget unit invokes the sink once for one key, irrespective of the amount stored for that key. Runtime
+     * mutations notify the owner once per call, including when a later sink invocation fails.
+     * </p>
+     *
+     * @param sink        destination adapter
+     * @param offerBudget positive maximum number of distinct-key offers
+     * @return exact accepted item count
+     */
+    public long flushAmounts(AmountSink sink, int offerBudget) {
+        if (offerBudget <= 0) {
+            throw new IllegalArgumentException("offerBudget must be positive");
+        }
+
+        long totalAccepted = 0L;
+        int consecutiveRejectedOffers = 0;
+        boolean changed = false;
+        try {
+            for (int offers = 0; offers < offerBudget && !this.offerQueue.isEmpty(); offers++) {
+                AEItemKey key = this.offerQueue.getFirst();
+                long current = this.contents.get(key);
+                long accepted = sink.accept(key, current);
+                if (accepted < 0L || accepted > current) {
+                    throw new IllegalStateException(
+                            "Mimetic output sink accepted " + accepted + " items from an offer of " + current);
+                }
+
+                this.offerQueue.removeFirst();
+                long remaining = current - accepted;
+                if (remaining > 0L) {
+                    this.contents.put(key, remaining);
+                    this.offerQueue.addLast(key);
+                } else {
+                    this.contents.remove(key);
+                }
+                if (accepted == 0L) {
+                    consecutiveRejectedOffers++;
+                    if (consecutiveRejectedOffers >= this.offerQueue.size()) {
+                        break;
+                    }
+                    continue;
+                }
+
+                consecutiveRejectedOffers = 0;
+                totalAccepted = Math.addExact(totalAccepted, accepted);
+                changed = true;
+            }
+        } finally {
+            if (changed) {
+                this.changeListener.run();
+            }
         }
         return totalAccepted;
     }
@@ -194,8 +286,7 @@ public final class MimeticPendingOutputLedger {
         LinkedHashMap<AEItemKey, Long> restored = new LinkedHashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             CompoundTag entryTag = entries.getCompound(index);
-            @Nullable
-            GenericStack stack = GenericStack.readTag(registries, entryTag);
+            var stack = GenericStack.readTag(registries, entryTag);
             if (stack == null || !(stack.what() instanceof AEItemKey itemKey) || stack.amount() <= 0L) {
                 throw new IllegalArgumentException("Invalid mimetic pending-output entry at index " + index);
             }
