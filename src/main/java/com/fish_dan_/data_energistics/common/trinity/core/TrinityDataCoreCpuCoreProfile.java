@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.trinity.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 
-import java.math.BigInteger;
 import java.util.Collection;
 
 /**
@@ -15,8 +14,6 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
                                             int actualRepeatCount,
                                             int maxRepeatCount,
                                             int maxThreads) {
-
-    private static final BigInteger PARALLEL_VALUE_PER_M = BigInteger.valueOf(2L);
 
     public static final int CORE_SLOT_START_Y = 0;
     public static final int CORE_SLOT_END_Y = 16;
@@ -87,16 +84,13 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     }
 
     /**
-     * Converts a merged storage core's M/G tier value into AE2 crafting storage bytes.
+     * Reads a merged storage core's exact AE2 crafting storage capacity.
      */
     public static long craftingStorageBytes(TrinityCoreComponent component) {
         if (component.kind() != TrinityCoreKind.PARALLEL_CPU) {
             throw new IllegalArgumentException("Only merged storage CPU cores contribute crafting storage bytes");
         }
-        BigInteger bytes = BigInteger.valueOf(component.capacityValue())
-                .multiply(TrinityDataCoreStorageProfile.AMOUNT_PER_M)
-                .divide(PARALLEL_VALUE_PER_M);
-        return bytes.longValueExact();
+        return component.byteCapacity();
     }
 
     /**

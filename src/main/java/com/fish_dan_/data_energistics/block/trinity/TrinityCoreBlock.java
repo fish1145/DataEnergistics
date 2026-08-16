@@ -52,6 +52,11 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     }
 
     @Override
+    public long byteCapacity() {
+        return this.metadata.byteCapacity();
+    }
+
+    @Override
     public int patternCapacity() {
         return this.metadata.patternCapacity();
     }

@@ -32,6 +32,8 @@ public enum TrinityCoreTier {
     private final String displayName;
     /** Capacity normalized to M so G tiers can share the same calculation rule. */
     private final int mUnits;
+    /** Exact item or crafting storage capacity contributed by the core, in bytes. */
+    private final long byteCapacity;
     /** Type or parallel value contributed by the core. */
     private final int capacityValue;
 
@@ -39,6 +41,7 @@ public enum TrinityCoreTier {
         this.idSuffix = idSuffix;
         this.displayName = displayName;
         this.mUnits = mUnits;
+        this.byteCapacity = Math.multiplyExact(mUnits, 1_048_576L);
         this.capacityValue = mUnits * 2;
     }
 
@@ -61,6 +64,13 @@ public enum TrinityCoreTier {
      */
     public int mUnits() {
         return this.mUnits;
+    }
+
+    /**
+     * Returns the exact item or crafting storage capacity contributed by this tier, in bytes.
+     */
+    public long byteCapacity() {
+        return this.byteCapacity;
     }
 
     /**
