@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyConfig;
+
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.LoadingModList;
@@ -32,6 +34,10 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         addModCompatMixin("guideme", "guideme.");
         addModCompatMixin("neoecoae", "neoecoae.");
         addModCompatMixin("useless_mod", "useless.");
+    }
+
+    public DataEnergisticsMixinPlugin() {
+        DataEnergisticsEarlyConfig.initialize();
     }
 
     private static void addModCompatMixin(String modId, String packageName) {
