@@ -1,0 +1,22 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ABA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_crystal_block"
+		},
+		"B": {
+			"item": "ae2:quartz_vibrant_glass"
+		},
+		"C": {
+			"item": "ae2:formation_core"
+		},
+		"D": {
+			"item": "data_energistics:data_framework"
+		}
+	},
+	"result": {
+		"id": "data_energistics:astronomical_mirror",
+		"count": 1
+	}
+}

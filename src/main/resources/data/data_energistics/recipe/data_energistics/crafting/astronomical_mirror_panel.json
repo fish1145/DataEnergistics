@@ -1,0 +1,15 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "data_energistics:data_crystal_block"
+		},
+		{
+			"item": "ae2:quartz_glass"
+		}
+	],
+	"result": {
+		"id": "data_energistics:astronomical_mirror_panel",
+		"count": 4
+	}
+}

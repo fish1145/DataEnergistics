@@ -1,0 +1,22 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ABA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_crystal_block"
+		},
+		"B": {
+			"item": "ae2:fluix_crystal"
+		},
+		"C": {
+			"item": "data_energistics:data_framework"
+		},
+		"D": {
+			"item": "ae2:quartz_vibrant_glass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:celestial_waveguide",
+		"count": 4
+	}
+}
