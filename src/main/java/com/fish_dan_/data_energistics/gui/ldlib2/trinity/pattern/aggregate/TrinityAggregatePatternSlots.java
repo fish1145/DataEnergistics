@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import appeng.crafting.pattern.EncodedPatternItem;
+import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
@@ -47,7 +48,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private static final IGuiTexture SEARCH_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/output.png");
     private static final IGuiTexture SEARCH_INPUT_OUTPUT_ICON = SpriteTexture.of("data_energistics:textures/guis/model/input_and_output.png");
     private static final Component SEARCH_PLACEHOLDER = Component.translatable(
-            "screen.data_energistics.trinity_data_core.pattern.search_hint");
+            "screen.data_energistics.trinity_data_core.pattern.search_hint")
+            .withStyle(style -> style.withColor(ColorPattern.WHITE.color));
 
     private final long generation;
     private final Level level;
