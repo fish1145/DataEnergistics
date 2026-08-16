@@ -662,7 +662,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        if (this.worldPosition.equals(normalizedPos) || isTowerBlock(normalizedPos)) {
+        if (this.worldPosition.equals(normalizedPos)) {
             return ConnectorBindResult.fail(ConnectorBindFailure.SELF_TARGET);
         }
         if (!isWithinTowerCoverage(normalizedPos)) {
@@ -2841,10 +2841,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
         if (getTargetTransferMode(normalizedPos) == TargetTransferMode.DISABLED) {
-            return false;
-        }
-
-        if (this.level.getBlockEntity(normalizedPos) instanceof DataDistributionTowerBlockEntity) {
             return false;
         }
 
