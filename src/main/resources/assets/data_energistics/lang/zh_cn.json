@@ -393,7 +393,7 @@
 	"item.data_energistics.data_carrier": "数据载体",
 	"item.data_energistics.data_cell_infinity": "无限数据元件",
 	"item.data_energistics.data_cell_infinity.overload": "你无法承受该庞大数据",
-	"item.data_energistics.data_cell_infinity.tooltip": "拥有无限的数据流、数据与回响",
+	"item.data_energistics.data_cell_infinity.tooltip": "拥有无限的数据流、数据、回响与星体能量",
 	"item.data_energistics.data_charger": "数据充能台",
 	"item.data_energistics.data_circuit_board": "数据电路板",
 	"item.data_energistics.data_corrosion_liquid_bucket": "数蚀液桶",

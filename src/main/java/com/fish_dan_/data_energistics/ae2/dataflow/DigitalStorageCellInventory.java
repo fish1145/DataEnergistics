@@ -184,7 +184,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     /**
-     * Returns the cell byte capacity shared by Data Flow and Echo.
+     * Returns the cell byte capacity shared by all Digitalization resources.
      */
     public long getTotalBytes() {
         return cellItem.getBytes(stack);

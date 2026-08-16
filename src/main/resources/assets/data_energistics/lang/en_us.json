@@ -393,7 +393,7 @@
 	"item.data_energistics.data_carrier": "Data Carrier",
 	"item.data_energistics.data_cell_infinity": "Infinite Data Cell",
 	"item.data_energistics.data_cell_infinity.overload": "You cannot withstand such vast data.",
-	"item.data_energistics.data_cell_infinity.tooltip": "Contains infinite data flow, data, and echo.",
+	"item.data_energistics.data_cell_infinity.tooltip": "Contains infinite data flow, data, echo, and Celestial Energy.",
 	"item.data_energistics.data_charger": "Data Charger",
 	"item.data_energistics.data_circuit_board": "Data Circuit Board",
 	"item.data_energistics.data_corrosion_liquid_bucket": "Data Corrosion Liquid Bucket",
