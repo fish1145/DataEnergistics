@@ -6,5 +6,8 @@
 		{ "item": "ae2:energy_cell" },
 		{ "item": "data_energistics:data_flow_component_housing" }
 	],
-	"result": { "id": "data_energistics:portable_digital_storage_cell_4m", "count": 1 }
+	"result": {
+		"id": "data_energistics:portable_digital_storage_cell_4m",
+		"count": 1
+	}
 }

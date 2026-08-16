@@ -14,7 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Defers digital storage cells to their dedicated dual-resource cell handler before AE2's single-key handler claims them.
+ * Defers digital storage cells to their dedicated dual-resource cell handler before AE2's single-key handler claims
+ * them.
  */
 @Mixin(BasicCellHandler.class)
 public abstract class BasicCellHandlerMixin {
@@ -28,9 +29,9 @@ public abstract class BasicCellHandlerMixin {
 
     @Inject(method = "getCellInventory", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$deferDigitalStorageCellInventories(
-                                                              ItemStack stack,
-                                                              @Nullable ISaveProvider container,
-                                                              CallbackInfoReturnable<BasicCellInventory> cir) {
+                                                                    ItemStack stack,
+                                                                    @Nullable ISaveProvider container,
+                                                                    CallbackInfoReturnable<BasicCellInventory> cir) {
         if (DigitalStorageCellHandler.isDigitalStorageCell(stack)) {
             cir.setReturnValue(null);
         }
