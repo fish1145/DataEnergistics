@@ -132,7 +132,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @GuiSync(793)
     @Unique
     @Nullable
-    private ResourceLocation dataEnergistics$lastEncodedPatternSource;
+    public ResourceLocation dataEnergistics$lastEncodedPatternSource;
     @Unique
     @Nullable
     private String dataEnergistics$displayTransferKeyInputSerialized;
