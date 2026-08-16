@@ -2,12 +2,12 @@
 	"placement": {
 		"type": "minecraft:random_spread",
 		"salt": 124895654,
-		"separation": 16,
-		"spacing": 48
+		"separation": 10,
+		"spacing": 24
 	},
 	"structures": [
 		{
-			"structure": "data_energistics:meteorite",
+			"structure": "data_energistics:meteorite_cluster",
 			"weight": 1
 		}
 	]

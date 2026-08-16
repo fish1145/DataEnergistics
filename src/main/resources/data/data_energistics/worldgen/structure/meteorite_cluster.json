@@ -1,0 +1,6 @@
+{
+	"type": "data_energistics:meteorite",
+	"biomes": "#data_energistics:has_cluster_meteorites",
+	"spawn_overrides": {},
+	"step": "top_layer_modification"
+}
