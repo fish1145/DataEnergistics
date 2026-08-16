@@ -35,7 +35,8 @@ import java.util.function.BiConsumer;
 public final class LdlibStructurePreviewSceneBinder implements StructurePreviewSceneBinder {
 
     private static final BiConsumer<BlockPos, Direction> NO_SELECTION = (position, direction) -> {};
-    private static final int VIEWPORT_MARGIN = 12;
+    /** Keeps a small projection tolerance without reserving a fixed inset inside compact preview cavities. */
+    private static final double CAMERA_FIT_PADDING = 1.02;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
@@ -235,7 +236,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
         }
 
         /**
-         * Fits the complete block volume inside the authored preview cavity instead of relying on
+         * Fits the complete block volume closely inside the authored preview cavity instead of relying on
          * LDLib2's largest-axis heuristic, which can clip diagonal structures at the separator.
          */
         private void fitConstrainedCamera(List<BlockPos> renderedCore) {
@@ -259,13 +260,11 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             double halfDepth = (maxZ - minZ + 1) / 2.0;
             double radius = Math.sqrt(
                     halfWidth * halfWidth + halfHeight * halfHeight + halfDepth * halfDepth);
-            double innerWidth = Math.max(1, this.viewportWidth - VIEWPORT_MARGIN * 2);
-            double innerHeight = Math.max(1, this.viewportHeight - VIEWPORT_MARGIN * 2);
             double verticalHalfFov = Math.toRadians(30);
-            double verticalFitAngle = Math.atan(Math.tan(verticalHalfFov) * innerHeight / this.viewportHeight);
-            double horizontalFitAngle = Math.atan(Math.tan(verticalHalfFov) * innerWidth / this.viewportHeight);
-            double limitingAngle = Math.min(verticalFitAngle, horizontalFitAngle);
-            float cameraDistance = (float) (radius / Math.sin(limitingAngle) * 1.05);
+            double horizontalFitAngle = Math.atan(
+                    Math.tan(verticalHalfFov) * this.viewportWidth / this.viewportHeight);
+            double limitingAngle = Math.min(verticalHalfFov, horizontalFitAngle);
+            float cameraDistance = (float) (radius / Math.sin(limitingAngle) * CAMERA_FIT_PADDING);
             Vector3f center = new Vector3f(
                     (minX + maxX) / 2.0f + 0.5f,
                     (minY + maxY) / 2.0f + 0.5f,
