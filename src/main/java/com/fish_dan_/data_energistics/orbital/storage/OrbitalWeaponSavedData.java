@@ -1,19 +1,19 @@
 package com.fish_dan_.data_energistics.orbital.storage;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import org.apache.logging.log4j.Logger;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -26,25 +26,17 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * World-level source of truth for orbital-weapon ownership and delegated access.
+ * World-level source of truth for orbital-weapon ownership, delegated access and physical endpoint bindings.
  *
  * <p>
- * Mutations are restricted to the server thread. Owner and access indexes are rebuilt from authoritative weapon
- * records during loading so redundant serialized indexes cannot disagree with weapon state.
+ * Mutations are restricted to the server thread. Owner, access and endpoint indexes are rebuilt from authoritative
+ * weapon records during loading so redundant serialized indexes cannot disagree with weapon state.
  * </p>
  */
 public final class OrbitalWeaponSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String DATA_NAME = Data_Energistics.MODID + "_orbital_weapons";
-    private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
-    private static final String WEAPONS_TAG = "weapons";
-    private static final String WEAPON_ID_TAG = "weapon_id";
-    private static final String OWNER_ID_TAG = "owner_id";
-    private static final String DELEGATED_ROLES_TAG = "delegated_roles";
-    private static final String PLAYER_ID_TAG = "player_id";
-    private static final String ROLE_TAG = "role";
     private static final Factory<OrbitalWeaponSavedData> FACTORY = new Factory<>(
             OrbitalWeaponSavedData::new,
             OrbitalWeaponSavedData::load);
@@ -52,6 +44,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private final Map<UUID, OrbitalWeaponRecord> weapons = new LinkedHashMap<>();
     private final Map<UUID, UUID> ownerIndex = new HashMap<>();
     private final Map<UUID, Set<UUID>> accessIndex = new HashMap<>();
+    private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
 
     private OrbitalWeaponSavedData() {}
 
@@ -72,15 +65,54 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return requireWeapon(existingWeaponId);
         }
 
-        UUID weaponId;
-        do {
-            weaponId = UUID.randomUUID();
-        } while (this.weapons.containsKey(weaponId));
-
-        OrbitalWeaponRecord weapon = OrbitalWeaponRecord.create(weaponId, ownerId);
+        OrbitalWeaponRecord weapon = OrbitalWeaponRecord.create(newWeaponId(), ownerId);
         putRecord(weapon);
         setDirty();
         return weapon;
+    }
+
+    /**
+     * Creates or reuses an owned weapon and attaches a physical endpoint in the same SavedData mutation.
+     */
+    public OrbitalWeaponRecord provisionForOwner(
+                                                 MinecraftServer server,
+                                                 UUID ownerId,
+                                                 OrbitalEndpointLocation location,
+                                                 OrbitalEndpointKind kind) {
+        requireServerThread(server);
+        UUID boundWeaponId = this.endpointIndex.get(location);
+        if (boundWeaponId != null) {
+            OrbitalWeaponRecord boundWeapon = requireWeapon(boundWeaponId);
+            OrbitalEndpointRecord boundEndpoint = boundWeapon.endpoints().get(location);
+            if (boundEndpoint == null) {
+                throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+            }
+            if (!boundWeapon.ownerId().equals(ownerId) || boundEndpoint.kind() != kind) {
+                throw new IllegalStateException("Endpoint location is already bound to another orbital weapon");
+            }
+            return boundWeapon;
+        }
+
+        UUID ownedWeaponId = this.ownerIndex.get(ownerId);
+        boolean creatingWeapon = ownedWeaponId == null;
+        OrbitalWeaponRecord current = creatingWeapon ? OrbitalWeaponRecord.create(newWeaponId(), ownerId) : requireWeapon(ownedWeaponId);
+        if (current.endpoints().containsKey(location)) {
+            throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+        }
+        OrbitalEndpointRecord endpoint = new OrbitalEndpointRecord(
+                location,
+                kind,
+                current.nextEndpointPriority());
+        OrbitalWeaponRecord updated = current.withEndpoint(endpoint);
+
+        if (creatingWeapon) {
+            putRecord(updated);
+        } else {
+            this.weapons.put(updated.weaponId(), updated);
+            this.endpointIndex.put(location, updated.weaponId());
+        }
+        setDirty();
+        return updated;
     }
 
     /**
@@ -88,6 +120,39 @@ public final class OrbitalWeaponSavedData extends SavedData {
      */
     public Optional<OrbitalWeaponRecord> find(UUID weaponId) {
         return Optional.ofNullable(this.weapons.get(weaponId));
+    }
+
+    /**
+     * Finds the weapon currently bound to a physical endpoint location.
+     */
+    public Optional<OrbitalWeaponRecord> weaponAt(OrbitalEndpointLocation location) {
+        UUID weaponId = this.endpointIndex.get(location);
+        return weaponId == null ? Optional.empty() : Optional.of(requireWeapon(weaponId));
+    }
+
+    /**
+     * Removes a physical endpoint after its bound block has been destroyed or explicitly unbound.
+     */
+    public boolean removeEndpoint(
+                                  MinecraftServer server,
+                                  UUID weaponId,
+                                  OrbitalEndpointLocation location) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        UUID indexedWeaponId = this.endpointIndex.get(location);
+        boolean recorded = current.endpoints().containsKey(location);
+        if (recorded != weaponId.equals(indexedWeaponId)) {
+            throw new IllegalStateException("Endpoint index is inconsistent at " + location);
+        }
+        if (!recorded) {
+            return false;
+        }
+
+        OrbitalWeaponRecord updated = current.withoutEndpoint(location);
+        this.endpointIndex.remove(location);
+        this.weapons.put(weaponId, updated);
+        setDirty();
+        return true;
     }
 
     /**
@@ -174,43 +239,12 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
-        ListTag weaponList = new ListTag();
-        this.weapons.values().stream()
-                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
-                .map(OrbitalWeaponSavedData::writeWeapon)
-                .forEach(weaponList::add);
-        tag.put(WEAPONS_TAG, weaponList);
-        return tag;
+        return OrbitalWeaponNbtCodec.save(tag, this.weapons.values());
     }
 
     private static OrbitalWeaponSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         OrbitalWeaponSavedData data = new OrbitalWeaponSavedData();
-        if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
-            LOGGER.warn("Ignoring orbital weapon SavedData without a schema version");
-            return data;
-        }
-        int schemaVersion = tag.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
-            LOGGER.warn(
-                    "Ignoring orbital weapon SavedData schema version {}; expected {}",
-                    schemaVersion,
-                    SCHEMA_VERSION);
-            return data;
-        }
-
-        Tag weaponsTag = tag.get(WEAPONS_TAG);
-        if (!(weaponsTag instanceof ListTag weaponList)) {
-            return data;
-        }
-        for (Tag weaponTag : weaponList) {
-            if (!(weaponTag instanceof CompoundTag weaponEntry)) {
-                continue;
-            }
-            OrbitalWeaponRecord weapon = readWeapon(weaponEntry);
-            if (weapon == null) {
-                continue;
-            }
+        for (OrbitalWeaponRecord weapon : OrbitalWeaponNbtCodec.load(tag)) {
             if (data.weapons.containsKey(weapon.weaponId())) {
                 LOGGER.warn("Ignoring duplicate orbital weapon id {}", weapon.weaponId());
                 continue;
@@ -222,95 +256,64 @@ public final class OrbitalWeaponSavedData extends SavedData {
                         weapon.ownerId());
                 continue;
             }
-            data.putRecord(weapon);
+            data.putRecord(data.filterConflictingEndpoints(weapon));
         }
         return data;
     }
 
-    private static CompoundTag writeWeapon(OrbitalWeaponRecord weapon) {
-        CompoundTag weaponTag = new CompoundTag();
-        weaponTag.putUUID(WEAPON_ID_TAG, weapon.weaponId());
-        weaponTag.putUUID(OWNER_ID_TAG, weapon.ownerId());
-        ListTag roleList = new ListTag();
-        weapon.delegatedRoles().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(OrbitalWeaponSavedData::writeRole)
-                .forEach(roleList::add);
-        weaponTag.put(DELEGATED_ROLES_TAG, roleList);
-        return weaponTag;
-    }
-
-    private static CompoundTag writeRole(Map.Entry<UUID, OrbitalAccessRole> entry) {
-        CompoundTag roleTag = new CompoundTag();
-        roleTag.putUUID(PLAYER_ID_TAG, entry.getKey());
-        roleTag.putString(ROLE_TAG, entry.getValue().name());
-        return roleTag;
-    }
-
-    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag) {
-        UUID weaponId = readUuid(weaponTag, WEAPON_ID_TAG, "weapon id");
-        UUID ownerId = readUuid(weaponTag, OWNER_ID_TAG, "owner id");
-        if (weaponId == null || ownerId == null) {
-            return null;
-        }
-
-        LinkedHashMap<UUID, OrbitalAccessRole> roles = new LinkedHashMap<>();
-        Tag rolesTag = weaponTag.get(DELEGATED_ROLES_TAG);
-        if (rolesTag instanceof ListTag roleList) {
-            readRoles(weaponId, ownerId, roleList, roles);
-        }
-        return new OrbitalWeaponRecord(weaponId, ownerId, roles);
-    }
-
-    private static void readRoles(
-                                  UUID weaponId,
-                                  UUID ownerId,
-                                  ListTag roleList,
-                                  Map<UUID, OrbitalAccessRole> roles) {
-        for (Tag roleTag : roleList) {
-            if (!(roleTag instanceof CompoundTag roleEntry)) {
-                continue;
-            }
-            UUID playerId = readUuid(roleEntry, PLAYER_ID_TAG, "delegated player id");
-            if (playerId == null) {
-                continue;
-            }
-            if (ownerId.equals(playerId)) {
-                LOGGER.warn("Ignoring delegated role for owner {} on orbital weapon {}", ownerId, weaponId);
-                continue;
-            }
-
-            OrbitalAccessRole role;
-            try {
-                role = OrbitalAccessRole.valueOf(roleEntry.getString(ROLE_TAG));
-            } catch (IllegalArgumentException exception) {
-                LOGGER.warn(
-                        "Ignoring invalid delegated role '{}' for player {} on orbital weapon {}",
-                        roleEntry.getString(ROLE_TAG),
-                        playerId,
-                        weaponId);
-                continue;
-            }
-            if (roles.putIfAbsent(playerId, role) != null) {
-                LOGGER.warn("Ignoring duplicate delegated player {} on orbital weapon {}", playerId, weaponId);
-            }
-        }
-    }
-
-    private static @Nullable UUID readUuid(CompoundTag tag, String key, String description) {
-        if (!tag.hasUUID(key)) {
-            LOGGER.warn("Ignoring orbital weapon data with missing or invalid {}", description);
-            return null;
-        }
-        return tag.getUUID(key);
-    }
-
     private void putRecord(OrbitalWeaponRecord weapon) {
+        if (this.weapons.containsKey(weapon.weaponId())) {
+            throw new IllegalStateException("Duplicate orbital weapon id " + weapon.weaponId());
+        }
+        if (this.ownerIndex.containsKey(weapon.ownerId())) {
+            throw new IllegalStateException("Owner already has an orbital weapon " + weapon.ownerId());
+        }
+        for (OrbitalEndpointLocation location : weapon.endpoints().keySet()) {
+            if (this.endpointIndex.containsKey(location)) {
+                throw new IllegalStateException("Endpoint location is already bound " + location);
+            }
+        }
+
         this.weapons.put(weapon.weaponId(), weapon);
         this.ownerIndex.put(weapon.ownerId(), weapon.weaponId());
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
             this.accessIndex.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(weapon.weaponId());
         }
+        for (OrbitalEndpointLocation location : weapon.endpoints().keySet()) {
+            this.endpointIndex.put(location, weapon.weaponId());
+        }
+    }
+
+    private OrbitalWeaponRecord filterConflictingEndpoints(OrbitalWeaponRecord weapon) {
+        LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new LinkedHashMap<>();
+        for (OrbitalEndpointRecord endpoint : weapon.endpoints().values()) {
+            UUID indexedWeaponId = this.endpointIndex.get(endpoint.location());
+            if (indexedWeaponId != null) {
+                LOGGER.warn(
+                        "Ignoring endpoint {} on orbital weapon {} because it is already bound to {}",
+                        endpoint.location(),
+                        weapon.weaponId(),
+                        indexedWeaponId);
+                continue;
+            }
+            acceptedEndpoints.put(endpoint.location(), endpoint);
+        }
+        if (acceptedEndpoints.size() == weapon.endpoints().size()) {
+            return weapon;
+        }
+        return new OrbitalWeaponRecord(
+                weapon.weaponId(),
+                weapon.ownerId(),
+                weapon.delegatedRoles(),
+                acceptedEndpoints);
+    }
+
+    private UUID newWeaponId() {
+        UUID weaponId;
+        do {
+            weaponId = UUID.randomUUID();
+        } while (this.weapons.containsKey(weaponId));
+        return weaponId;
     }
 
     private OrbitalWeaponRecord requireAuthorizedOwner(UUID weaponId, UUID actorId) {

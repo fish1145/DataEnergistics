@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.model;
 
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -9,19 +12,26 @@ import java.util.UUID;
  * Immutable authoritative state for one orbital weapon.
  *
  * <p>
- * The record begins with ownership and delegated access. Later feature slices extend the same record with
- * lifecycle, reserve, endpoint and attack state without changing the stable weapon identity.
+ * The record begins with ownership, delegated access and physical endpoints. Later feature slices extend the same
+ * record with lifecycle, reserve and attack state without changing the stable weapon identity.
  * </p>
  */
 public record OrbitalWeaponRecord(
                                   UUID weaponId,
                                   UUID ownerId,
-                                  Map<UUID, OrbitalAccessRole> delegatedRoles) {
+                                  Map<UUID, OrbitalAccessRole> delegatedRoles,
+                                  Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints) {
 
     public OrbitalWeaponRecord {
         delegatedRoles = Map.copyOf(delegatedRoles);
+        endpoints = Map.copyOf(endpoints);
         if (delegatedRoles.containsKey(ownerId)) {
             throw new IllegalArgumentException("The owner must not also have a delegated role");
+        }
+        for (Map.Entry<OrbitalEndpointLocation, OrbitalEndpointRecord> entry : endpoints.entrySet()) {
+            if (!entry.getKey().equals(entry.getValue().location())) {
+                throw new IllegalArgumentException("Endpoint map key must match its record location");
+            }
         }
     }
 
@@ -29,7 +39,7 @@ public record OrbitalWeaponRecord(
      * Creates an unshared weapon record with a stable weapon identity.
      */
     public static OrbitalWeaponRecord create(UUID weaponId, UUID ownerId) {
-        return new OrbitalWeaponRecord(weaponId, ownerId, Map.of());
+        return new OrbitalWeaponRecord(weaponId, ownerId, Map.of(), Map.of());
     }
 
     /**
@@ -59,7 +69,7 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.put(playerId, role);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints);
     }
 
     /**
@@ -75,6 +85,47 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.remove(playerId);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints);
+    }
+
+    /**
+     * Returns the next append-only endpoint priority without rewriting existing ordering.
+     */
+    public int nextEndpointPriority() {
+        int highestPriority = -1;
+        for (OrbitalEndpointRecord endpoint : this.endpoints.values()) {
+            highestPriority = Math.max(highestPriority, endpoint.priority());
+        }
+        if (highestPriority == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Endpoint priority space is exhausted for weapon " + this.weaponId);
+        }
+        return highestPriority + 1;
+    }
+
+    /**
+     * Returns a new record with an endpoint added at its dimension-qualified location.
+     */
+    public OrbitalWeaponRecord withEndpoint(OrbitalEndpointRecord endpoint) {
+        OrbitalEndpointRecord existing = this.endpoints.get(endpoint.location());
+        if (endpoint.equals(existing)) {
+            return this;
+        }
+
+        HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
+        updatedEndpoints.put(endpoint.location(), endpoint);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints);
+    }
+
+    /**
+     * Returns a new record without the endpoint at the supplied location.
+     */
+    public OrbitalWeaponRecord withoutEndpoint(OrbitalEndpointLocation location) {
+        if (!this.endpoints.containsKey(location)) {
+            return this;
+        }
+
+        HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
+        updatedEndpoints.remove(location);
+        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints);
     }
 }
