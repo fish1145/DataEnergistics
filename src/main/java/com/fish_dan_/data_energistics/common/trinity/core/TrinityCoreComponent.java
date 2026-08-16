@@ -11,7 +11,7 @@ public interface TrinityCoreComponent {
     TrinityCoreKind kind();
 
     /**
-     * Returns the storage type count or parallel CPU count; pattern cores return zero.
+     * Returns the storage type count; merged CPU and pattern cores return zero.
      */
     int capacityValue();
 

@@ -7,7 +7,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
 
     /** Capability category that future trinity structure scans will aggregate. */
     private final TrinityCoreKind kind;
-    /** Storage type or parallel CPU count contributed by capacity-based cores. */
+    /** Storage type count contributed by storage cores. */
     private final int capacityValue;
     /** Exact item or crafting storage capacity contributed by capacity-based cores, in bytes. */
     private final long byteCapacity;
@@ -15,7 +15,11 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final int patternCapacity;
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
-        this(kind, capacityValue, Math.multiplyExact(capacityValue, 524_288L), patternCapacity);
+        this(
+                kind,
+                kind == TrinityCoreKind.PARALLEL_CPU ? 0 : capacityValue,
+                Math.multiplyExact(capacityValue, 524_288L),
+                patternCapacity);
     }
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, long byteCapacity, int patternCapacity) {
@@ -43,7 +47,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     public static TrinityCoreMetadata parallelCpuCore(TrinityCoreTier tier) {
         return new TrinityCoreMetadata(
                 TrinityCoreKind.PARALLEL_CPU,
-                tier.capacityValue(),
+                0,
                 tier.byteCapacity(),
                 0);
     }
@@ -81,10 +85,16 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
                                          long byteCapacity,
                                          int patternCapacity) {
         switch (kind) {
-            case STORAGE_TYPES, PARALLEL_CPU -> {
+            case STORAGE_TYPES -> {
                 if (capacityValue <= 0 || byteCapacity <= 0 || patternCapacity != 0) {
                     throw new IllegalArgumentException(
-                            kind + " cores require positive capability and byte capacities, and zero pattern capacity");
+                            "Storage cores require positive type and byte capacities, and zero pattern capacity");
+                }
+            }
+            case PARALLEL_CPU -> {
+                if (capacityValue != 0 || byteCapacity <= 0 || patternCapacity != 0) {
+                    throw new IllegalArgumentException(
+                            "Merged CPU cores require zero type capacity, positive byte capacity, and zero pattern capacity");
                 }
             }
             case PATTERN_PROCESSING -> {

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
 
 import java.util.Collection;
 
@@ -101,7 +102,10 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
             return TrinityDataCoreCpuContribution.EMPTY;
         }
         if (fullCpu()) {
-            return TrinityDataCoreCpuContribution.of(Long.MAX_VALUE, Integer.MAX_VALUE, threadCount());
+            return TrinityDataCoreCpuContribution.of(
+                    Long.MAX_VALUE,
+                    TrinityDataCoreCpuProfile.DEFAULT_CO_PROCESSORS,
+                    threadCount());
         }
         return TrinityDataCoreCpuContribution.of(this.storageBytes, this.coProcessors, threadCount());
     }
@@ -131,7 +135,6 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     public static final class Builder {
 
         private long storageBytes;
-        private int coProcessors;
         private int filledCoreSlots;
         private int actualRepeatCount;
 
@@ -156,7 +159,6 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
                 return;
             }
             this.storageBytes = Math.addExact(this.storageBytes, craftingStorageBytes(component));
-            this.coProcessors = Math.addExact(this.coProcessors, component.capacityValue());
             this.filledCoreSlots = Math.addExact(this.filledCoreSlots, 1);
         }
 
@@ -169,7 +171,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
             }
             return new TrinityDataCoreCpuCoreProfile(
                     this.storageBytes,
-                    this.coProcessors,
+                    TrinityDataCoreCpuProfile.DEFAULT_CO_PROCESSORS,
                     this.filledCoreSlots,
                     FULL_CORE_SLOT_COUNT,
                     this.actualRepeatCount,

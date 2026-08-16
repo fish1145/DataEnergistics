@@ -44,12 +44,10 @@ public final class TrinityCoreComponentTest {
         TrinityDataCoreCpuCoreProfile profile = builder.build();
 
         assertEquals(73_014_444_032L, profile.storageBytes());
-        assertEquals(139_264, profile.coProcessors());
         assertEquals(272, profile.filledCoreSlots());
         assertEquals(256, profile.threadCount());
         assertTrue(profile.fullCpu());
         assertEquals(Long.MAX_VALUE, profile.contribution().storageBytes());
-        assertEquals(Integer.MAX_VALUE, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
@@ -95,7 +93,6 @@ public final class TrinityCoreComponentTest {
 
         assertFalse(profile.fullCpu());
         assertEquals(73_014_444_032L, profile.contribution().storageBytes());
-        assertEquals(139_264, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
@@ -111,7 +108,6 @@ public final class TrinityCoreComponentTest {
 
         assertFalse(profile.fullCpu());
         assertEquals(72_746_008_576L, profile.contribution().storageBytes());
-        assertEquals(138_752, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
