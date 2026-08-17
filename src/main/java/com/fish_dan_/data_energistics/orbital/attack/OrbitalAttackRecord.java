@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,6 +18,7 @@ public record OrbitalAttackRecord(
                                   OrbitalAttackPhase phase,
                                   ResourceLocation dimensionId,
                                   BlockPos target,
+                                  OrbitalAttackGeometry geometry,
                                   long configurationRevision,
                                   int warningTicksRemaining,
                                   long workCursor,
@@ -29,7 +31,11 @@ public record OrbitalAttackRecord(
 
     public OrbitalAttackRecord {
         target = target.immutable();
+        Objects.requireNonNull(geometry, "geometry");
         damageExemptions = Set.copyOf(damageExemptions);
+        if (geometry.mode() != mode) {
+            throw new IllegalArgumentException("Orbital attack geometry does not match its mode");
+        }
         if (configurationRevision < 0L || warningTicksRemaining < 0 || workCursor < 0L || cooldownTicksRemaining < 0 || cooldownDurationTicks <= 0 || celestialEscrow < 0L || aeEscrow < 0L) {
             throw new IllegalArgumentException("Orbital attack state must not contain negative values");
         }
@@ -50,6 +56,7 @@ public record OrbitalAttackRecord(
                                               OrbitalAttackMode mode,
                                               ResourceLocation dimensionId,
                                               BlockPos target,
+                                              OrbitalAttackGeometry geometry,
                                               long configurationRevision,
                                               int warningTicks,
                                               OrbitalAttackCost cost,
@@ -61,6 +68,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.RESERVED_WARNING,
                 dimensionId,
                 target,
+                geometry,
                 configurationRevision,
                 warningTicks,
                 0L,
@@ -80,6 +88,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.RESERVED_WARNING,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 remaining,
                 this.workCursor,
@@ -99,6 +108,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.COMMITTED,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 0,
                 this.workCursor,
@@ -118,6 +128,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.DELIVERY,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 0,
                 nextCursor,
@@ -137,6 +148,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.COOLDOWN,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 0,
                 this.workCursor,
@@ -160,6 +172,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.FAULTED,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 0,
                 this.workCursor,
@@ -179,6 +192,7 @@ public record OrbitalAttackRecord(
                 OrbitalAttackPhase.DELIVERY,
                 this.dimensionId,
                 this.target,
+                this.geometry,
                 this.configurationRevision,
                 0,
                 this.workCursor,

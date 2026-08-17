@@ -25,4 +25,22 @@ public record OrbitalAttackCost(
                 settings.kineticAeEnergyCost(),
                 settings.kineticCooldownTicks());
     }
+
+    /**
+     * Calculates the complete directed-energy escrow, including every scheduled disk coordinate.
+     */
+    public static OrbitalAttackCost directedEnergy(
+                                                   DataEnergisticsSettings.OrbitalWeapon settings,
+                                                   long scheduledCoordinates) {
+        if (scheduledCoordinates <= 0L) {
+            throw new IllegalArgumentException("A directed-energy scan must schedule at least one coordinate");
+        }
+        long celestial = Math.addExact(
+                settings.directedEnergyBaseCelestialEnergyCost(),
+                Math.multiplyExact(settings.directedEnergyCelestialEnergyPerCoordinate(), scheduledCoordinates));
+        long ae = Math.addExact(
+                settings.directedEnergyBaseAeEnergyCost(),
+                Math.multiplyExact(settings.directedEnergyAeEnergyPerCoordinate(), scheduledCoordinates));
+        return new OrbitalAttackCost(celestial, ae, settings.directedEnergyCooldownTicks());
+    }
 }

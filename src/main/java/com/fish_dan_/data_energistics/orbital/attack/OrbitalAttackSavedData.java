@@ -22,6 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,6 +48,9 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String PHASE_TAG = "phase";
     private static final String DIMENSION_TAG = "dimension";
     private static final String TARGET_TAG = "target";
+    private static final String GEOMETRY_RADIUS_TAG = "geometry_radius";
+    private static final String GEOMETRY_DEPTH_TAG = "geometry_depth";
+    private static final String GEOMETRY_DAMAGE_TAG = "geometry_damage";
     private static final String CONFIGURATION_REVISION_TAG = "configuration_revision";
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
@@ -116,7 +120,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
 
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validTarget(targetLevel, target)) {
+        if (targetLevel == null || !validTarget(targetLevel, target, OrbitalKineticStrike.SHOCKWAVE_RADIUS, true)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -131,6 +135,81 @@ public final class OrbitalAttackSavedData extends SavedData {
                 OrbitalAttackMode.KINETIC,
                 dimensionId,
                 target,
+                new OrbitalAttackGeometry.Kinetic(),
+                DataEnergisticsConfiguration.INSTANCE.revision(),
+                settings.attackWarningTicks(),
+                cost,
+                weapon.damageExemptionSnapshot());
+        if (!weapons.tryDebitReserve(
+                server,
+                weaponId,
+                actorId,
+                cost.celestialEnergy(),
+                cost.aeEnergy())) {
+            return Optional.empty();
+        }
+        this.attacks.put(warning.attackId(), warning);
+        setDirty();
+        return Optional.of(warning);
+    }
+
+    /**
+     * Confirms a directed-energy scan after validating its captured radius/depth geometry and complete billing cost.
+     * The current worker intentionally pauses on unloaded target chunks instead of synchronously generating them.
+     */
+    public Optional<OrbitalAttackRecord> tryConfirmDirectedEnergy(
+                                                                  MinecraftServer server,
+                                                                  UUID actorId,
+                                                                  UUID weaponId,
+                                                                  ResourceLocation dimensionId,
+                                                                  BlockPos target,
+                                                                  int radius,
+                                                                  @Nullable OrbitalDirectedEnergyDepth depth) {
+        requireServerThread(server);
+        if (depth == null) {
+            return Optional.empty();
+        }
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
+        if (foundWeapon.isEmpty()) {
+            return Optional.empty();
+        }
+        OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
+        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
+            return Optional.empty();
+        }
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+
+        OrbitalAttackGeometry.DirectedEnergy geometry;
+        try {
+            geometry = new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage());
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
+        ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
+        if (targetLevel == null || !validTarget(targetLevel, target, radius, false)) {
+            return Optional.empty();
+        }
+        if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
+            return Optional.empty();
+        }
+
+        OrbitalAttackCost cost;
+        try {
+            cost = OrbitalAttackCost.directedEnergy(
+                    settings,
+                    OrbitalDirectedEnergyStrike.scheduledCoordinateCount(radius));
+        } catch (ArithmeticException exception) {
+            LOGGER.error("Directed-energy cost overflow for radius {}", radius, exception);
+            return Optional.empty();
+        }
+        OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
+                UUID.randomUUID(),
+                weaponId,
+                OrbitalAttackMode.DIRECTED_ENERGY,
+                dimensionId,
+                target,
+                geometry,
                 DataEnergisticsConfiguration.INSTANCE.revision(),
                 settings.attackWarningTicks(),
                 cost,
@@ -230,6 +309,11 @@ public final class OrbitalAttackSavedData extends SavedData {
         tag.putString(PHASE_TAG, attack.phase().name());
         tag.putString(DIMENSION_TAG, attack.dimensionId().toString());
         tag.put(TARGET_TAG, NbtUtils.writeBlockPos(attack.target()));
+        if (attack.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy directedEnergy) {
+            tag.putInt(GEOMETRY_RADIUS_TAG, directedEnergy.radius());
+            tag.putString(GEOMETRY_DEPTH_TAG, directedEnergy.depth().name());
+            tag.putLong(GEOMETRY_DAMAGE_TAG, directedEnergy.entityDamage());
+        }
         tag.putLong(CONFIGURATION_REVISION_TAG, attack.configurationRevision());
         tag.putInt(WARNING_TICKS_TAG, attack.warningTicksRemaining());
         tag.putLong(WORK_CURSOR_TAG, attack.workCursor());
@@ -248,6 +332,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         return tag;
     }
 
+    @Nullable
     private static OrbitalAttackRecord readAttack(CompoundTag tag) {
         if (!tag.hasUUID(ATTACK_ID_TAG) || !tag.hasUUID(WEAPON_ID_TAG) || !tag.contains(DIMENSION_TAG, Tag.TAG_STRING) || !tag.contains(TARGET_TAG, Tag.TAG_INT_ARRAY)) {
             return null;
@@ -260,6 +345,18 @@ public final class OrbitalAttackSavedData extends SavedData {
             }
             OrbitalAttackMode mode = OrbitalAttackMode.valueOf(tag.getString(MODE_TAG));
             OrbitalAttackPhase phase = OrbitalAttackPhase.valueOf(tag.getString(PHASE_TAG));
+            OrbitalAttackGeometry geometry;
+            switch (mode) {
+                case KINETIC -> geometry = new OrbitalAttackGeometry.Kinetic();
+                case DIRECTED_ENERGY -> geometry = new OrbitalAttackGeometry.DirectedEnergy(
+                        tag.getInt(GEOMETRY_RADIUS_TAG),
+                        OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG)),
+                        tag.getLong(GEOMETRY_DAMAGE_TAG));
+                case DIGITAL_ANNIHILATION -> {
+                    return null;
+                }
+                default -> throw new IllegalArgumentException("Unsupported orbital attack mode");
+            }
             List<UUID> exemptions = new ArrayList<>();
             Tag rawExemptions = tag.get(EXEMPTIONS_TAG);
             if (rawExemptions instanceof ListTag exemptionList) {
@@ -276,6 +373,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     phase,
                     dimensionId,
                     target,
+                    geometry,
                     tag.getLong(CONFIGURATION_REVISION_TAG),
                     tag.getInt(WARNING_TICKS_TAG),
                     tag.getLong(WORK_CURSOR_TAG),
@@ -305,10 +403,18 @@ public final class OrbitalAttackSavedData extends SavedData {
     private void tickDelivery(MinecraftServer server, OrbitalAttackRecord current) {
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, current.dimensionId());
         ServerLevel level = server.getLevel(dimension);
-        if (level == null || current.mode() != OrbitalAttackMode.KINETIC) {
+        if (level == null) {
             fault(current, "Target dimension or attack mode is unavailable");
             return;
         }
+        switch (current.mode()) {
+            case KINETIC -> tickKineticDelivery(level, current);
+            case DIRECTED_ENERGY -> tickDirectedEnergyDelivery(level, current);
+            case DIGITAL_ANNIHILATION -> fault(current, "Digital annihilation delivery is not available yet");
+        }
+    }
+
+    private void tickKineticDelivery(ServerLevel level, OrbitalAttackRecord current) {
         if (!OrbitalKineticStrike.areTerrainChunksLoaded(level, current.target())) {
             // Keep the cursor unchanged; the next tick may resume after the target chunks are loaded by normal world
             // use.
@@ -337,6 +443,38 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
     }
 
+    private void tickDirectedEnergyDelivery(ServerLevel level, OrbitalAttackRecord current) {
+        if (!(current.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry)) {
+            fault(current, "Directed-energy attack has incompatible geometry");
+            return;
+        }
+        if (!OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, current.target(), geometry.radius())) {
+            return;
+        }
+        try {
+            OrbitalDirectedEnergyStrike.WorkSlice slice = OrbitalDirectedEnergyStrike.applyBudget(
+                    level,
+                    current.target(),
+                    geometry,
+                    current.workCursor(),
+                    current.damageExemptions(),
+                    (float) geometry.entityDamage());
+            OrbitalAttackRecord updated = current.withWorkCursor(slice.nextCursor());
+            if (slice.complete()) {
+                updated = updated.cooldown(current.cooldownDurationTicks());
+            }
+            this.attacks.put(current.attackId(), updated);
+            setDirty();
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Orbital attack {} failed during directed-energy delivery at {}",
+                    current.attackId(),
+                    current.target(),
+                    exception);
+            fault(current, "Directed-energy delivery failed");
+        }
+    }
+
     private void tickCooldown(OrbitalAttackRecord current) {
         if (current.cooldownTicksRemaining() <= 1) {
             this.attacks.remove(current.attackId());
@@ -357,18 +495,17 @@ public final class OrbitalAttackSavedData extends SavedData {
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
     }
 
-    private static boolean validTarget(ServerLevel level, BlockPos target) {
+    private static boolean validTarget(ServerLevel level, BlockPos target, int radius, boolean kinetic) {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
             return false;
         }
-        int radius = OrbitalKineticStrike.SHOCKWAVE_RADIUS;
         if (!level.getWorldBorder().isWithinBounds(target) || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius))) {
             return false;
         }
-        if (!OrbitalKineticStrike.areTerrainChunksLoaded(level, target)) {
-            return false;
+        if (kinetic) {
+            return OrbitalKineticStrike.areTerrainChunksLoaded(level, target);
         }
-        return true;
+        return OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, target, radius);
     }
 
     private static void requireServerThread(MinecraftServer server) {

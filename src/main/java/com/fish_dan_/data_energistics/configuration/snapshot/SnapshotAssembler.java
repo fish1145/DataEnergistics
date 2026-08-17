@@ -603,6 +603,42 @@ public final class SnapshotAssembler {
                         "orbitalWeapon.kineticCooldownTicks",
                         orbitalWeapon.kineticCooldownTicks,
                         1,
+                        Integer.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.directedEnergyBaseCelestialEnergyCost",
+                        orbitalWeapon.directedEnergyBaseCelestialEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.directedEnergyBaseAeEnergyCost",
+                        orbitalWeapon.directedEnergyBaseAeEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.directedEnergyCelestialEnergyPerCoordinate",
+                        orbitalWeapon.directedEnergyCelestialEnergyPerCoordinate,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.directedEnergyAeEnergyPerCoordinate",
+                        orbitalWeapon.directedEnergyAeEnergyPerCoordinate,
+                        1L,
+                        Long.MAX_VALUE),
+                integer(
+                        source,
+                        "orbitalWeapon.directedEnergyCooldownTicks",
+                        orbitalWeapon.directedEnergyCooldownTicks,
+                        1,
+                        Integer.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.directedEnergyEntityDamage",
+                        orbitalWeapon.directedEnergyEntityDamage,
+                        1L,
                         Integer.MAX_VALUE));
     }
 

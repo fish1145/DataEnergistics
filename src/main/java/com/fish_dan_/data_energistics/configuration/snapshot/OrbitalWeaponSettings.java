@@ -20,5 +20,11 @@ public record OrbitalWeaponSettings(
                                     long kineticCelestialEnergyCost,
                                     long kineticAeEnergyCost,
                                     int attackWarningTicks,
-                                    int kineticCooldownTicks)
+                                    int kineticCooldownTicks,
+                                    long directedEnergyBaseCelestialEnergyCost,
+                                    long directedEnergyBaseAeEnergyCost,
+                                    long directedEnergyCelestialEnergyPerCoordinate,
+                                    long directedEnergyAeEnergyPerCoordinate,
+                                    int directedEnergyCooldownTicks,
+                                    long directedEnergyEntityDamage)
         implements DataEnergisticsSettings.OrbitalWeapon {}

@@ -292,6 +292,24 @@ public interface DataEnergisticsSettings {
 
         /** Returns the kinetic strike cooldown applied after its world effect completes. */
         int kineticCooldownTicks();
+
+        /** Returns the fixed Celestial Energy base escrow for one directed-energy scan. */
+        long directedEnergyBaseCelestialEnergyCost();
+
+        /** Returns the fixed AE base escrow for one directed-energy scan. */
+        long directedEnergyBaseAeEnergyCost();
+
+        /** Returns the Celestial Energy escrow charged for every scheduled disk coordinate. */
+        long directedEnergyCelestialEnergyPerCoordinate();
+
+        /** Returns the AE escrow charged for every scheduled disk coordinate. */
+        long directedEnergyAeEnergyPerCoordinate();
+
+        /** Returns the directed-energy cooldown applied after its scan completes. */
+        int directedEnergyCooldownTicks();
+
+        /** Returns the damage applied to a living entity each time a beam column covers it. */
+        long directedEnergyEntityDamage();
     }
 
     /**

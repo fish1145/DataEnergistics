@@ -610,6 +610,36 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Kinetic strike cooldown after its effect completes.", "动能攻击效果完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int kineticCooldownTicks = 6_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fixed Celestial Energy base escrow for one directed-energy scan.", "一次定向能扫描固定预留的星体能量基础费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyBaseCelestialEnergyCost = 2_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fixed AE base escrow for one directed-energy scan.", "一次定向能扫描固定预留的 AE 基础费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyBaseAeEnergyCost = 2_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Celestial Energy escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的星体能量费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyCelestialEnergyPerCoordinate = 4L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的 AE 能量费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyAeEnergyPerCoordinate = 2_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Directed-energy cooldown after its scan completes.", "定向能扫描完成后的冷却时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int directedEnergyCooldownTicks = 12_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Damage applied to a living entity each time a directed-energy beam column covers it.", "定向能光束每次覆盖实体时造成的伤害。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyEntityDamage = 500L;
     }
 
     public static final class TrinityCraftingSchema {
