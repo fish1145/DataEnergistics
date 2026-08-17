@@ -1,16 +1,23 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -47,6 +54,7 @@ public record OrbitalControlTerminalSnapshot(
      * @return stable weapon-ID ordered opening snapshot
      */
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         List<OrbitalWeaponRecord> accessibleWeapons = OrbitalWeaponSavedData.get(server)
                 .accessibleTo(playerId)
                 .stream()
@@ -54,7 +62,7 @@ public record OrbitalControlTerminalSnapshot(
         boolean truncated = accessibleWeapons.size() > MAX_WEAPONS;
         List<WeaponEntry> entries = accessibleWeapons.stream()
                 .limit(MAX_WEAPONS)
-                .map(weapon -> WeaponEntry.from(weapon, playerId))
+                .map(weapon -> WeaponEntry.from(weapon, playerId, attacks.forWeapon(weapon.weaponId())))
                 .toList();
         UUID selected = entries.isEmpty() ? null : entries.getFirst().weaponId();
         return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
@@ -83,6 +91,21 @@ public record OrbitalControlTerminalSnapshot(
                             Integer.toString(entry.endpointCount()),
                             Long.toString(entry.celestialEnergy()),
                             Long.toString(entry.aeEnergy())));
+            for (AttackEntry attack : entry.attacks()) {
+                result = result
+                        .append(Component.literal("\n  "))
+                        .append(Component.translatable(
+                                "screen.data_energistics.orbital_control_terminal.attack",
+                                attack.modeComponent(),
+                                attack.phaseComponent(),
+                                Component.literal(attack.dimensionId().toString()),
+                                Integer.toString(attack.target().getX()),
+                                Integer.toString(attack.target().getY()),
+                                Integer.toString(attack.target().getZ()),
+                                Integer.toString(attack.warningTicksRemaining()),
+                                Integer.toString(attack.cooldownTicksRemaining()),
+                                Long.toString(attack.workCursor())));
+            }
         }
         if (this.truncated) {
             result = result
@@ -100,9 +123,11 @@ public record OrbitalControlTerminalSnapshot(
                               @Nullable OrbitalAccessRole delegatedRole,
                               int endpointCount,
                               long celestialEnergy,
-                              long aeEnergy) {
+                              long aeEnergy,
+                              List<AttackEntry> attacks) {
 
         public WeaponEntry {
+            attacks = List.copyOf(attacks);
             if (endpointCount < 0 || celestialEnergy < 0L || aeEnergy < 0L) {
                 throw new IllegalArgumentException("Orbital terminal reserve values must not be negative");
             }
@@ -114,7 +139,10 @@ public record OrbitalControlTerminalSnapshot(
             }
         }
 
-        private static WeaponEntry from(OrbitalWeaponRecord weapon, UUID playerId) {
+        private static WeaponEntry from(
+                                        OrbitalWeaponRecord weapon,
+                                        UUID playerId,
+                                        List<OrbitalAttackRecord> attacks) {
             boolean owner = weapon.ownerId().equals(playerId);
             return new WeaponEntry(
                     weapon.weaponId(),
@@ -123,7 +151,8 @@ public record OrbitalControlTerminalSnapshot(
                     owner ? null : weapon.delegatedRoles().get(playerId),
                     weapon.endpoints().size(),
                     weapon.reserve().celestialEnergy(),
-                    weapon.reserve().aeEnergy());
+                    weapon.reserve().aeEnergy(),
+                    attacks.stream().map(AttackEntry::from).toList());
         }
 
         private Component roleComponent() {
@@ -132,6 +161,47 @@ public record OrbitalControlTerminalSnapshot(
                 case OBSERVER -> "screen.data_energistics.orbital_control_terminal.role.observer";
             };
             return Component.translatable(key);
+        }
+    }
+
+    /** Public attack state needed by the read-only LDLib2 overview and HUD cache. */
+    public record AttackEntry(
+                              UUID attackId,
+                              OrbitalAttackMode mode,
+                              OrbitalAttackPhase phase,
+                              ResourceLocation dimensionId,
+                              BlockPos target,
+                              int warningTicksRemaining,
+                              int cooldownTicksRemaining,
+                              long workCursor) {
+
+        public AttackEntry {
+            target = target.immutable();
+            if (warningTicksRemaining < 0 || cooldownTicksRemaining < 0 || workCursor < 0L) {
+                throw new IllegalArgumentException("Orbital terminal attack progress must not be negative");
+            }
+        }
+
+        private static AttackEntry from(OrbitalAttackRecord attack) {
+            return new AttackEntry(
+                    attack.attackId(),
+                    attack.mode(),
+                    attack.phase(),
+                    attack.dimensionId(),
+                    attack.target(),
+                    attack.warningTicksRemaining(),
+                    attack.cooldownTicksRemaining(),
+                    attack.workCursor());
+        }
+
+        private Component modeComponent() {
+            return Component.translatable(
+                    "screen.data_energistics.orbital_control_terminal.mode." + this.mode.name().toLowerCase(Locale.ROOT));
+        }
+
+        private Component phaseComponent() {
+            return Component.translatable(
+                    "screen.data_energistics.orbital_control_terminal.phase." + this.phase.name().toLowerCase(Locale.ROOT));
         }
     }
 }

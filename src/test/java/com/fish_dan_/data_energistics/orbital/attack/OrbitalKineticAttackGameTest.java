@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -102,6 +103,17 @@ public final class OrbitalKineticAttackGameTest {
                             .orElseThrow(() -> new IllegalStateException("A funded kinetic attack was rejected"));
                     firstAttackId.set(warning.attackId());
                     assertDebited(helper, weapons, weaponId, before, cost);
+                    OrbitalControlTerminalSnapshot warningSnapshot = OrbitalControlTerminalSnapshot.capture(
+                            server,
+                            owner.getUUID());
+                    helper.assertValueEqual(
+                            warningSnapshot.weapons().getFirst().attacks().size(),
+                            1,
+                            "The LDLib2 control snapshot must expose the active warning for its UUID-visible weapon");
+                    helper.assertValueEqual(
+                            warningSnapshot.weapons().getFirst().attacks().getFirst().phase(),
+                            OrbitalAttackPhase.RESERVED_WARNING,
+                            "The control snapshot must expose the server-authoritative warning phase");
                     helper.assertTrue(
                             level.getBlockState(helper.absolutePos(TARGET)).is(Blocks.STONE),
                             "The target block must remain intact throughout the refundable warning");
@@ -125,6 +137,13 @@ public final class OrbitalKineticAttackGameTest {
                     helper.assertTrue(
                             attacks.find(firstAttackId.get()).isEmpty(),
                             "A cancelled warning must leave no active mode slot");
+                    helper.assertTrue(
+                            OrbitalControlTerminalSnapshot.capture(server, owner.getUUID())
+                                    .weapons()
+                                    .getFirst()
+                                    .attacks()
+                                    .isEmpty(),
+                            "Cancelling a warning must remove it from the next LDLib2 control snapshot");
                     helper.assertTrue(
                             level.getBlockState(helper.absolutePos(TARGET)).is(Blocks.STONE),
                             "Cancelling the warning must leave the target world unchanged");

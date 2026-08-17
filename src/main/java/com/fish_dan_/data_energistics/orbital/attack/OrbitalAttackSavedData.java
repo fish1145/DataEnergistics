@@ -24,6 +24,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,21 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public Optional<OrbitalAttackRecord> find(UUID attackId) {
         return Optional.ofNullable(this.attacks.get(attackId));
+    }
+
+    /**
+     * Returns a stable read-only view of active attacks owned by one weapon for server-side UI snapshots.
+     *
+     * <p>
+     * The caller must be on the server thread. Access control is intentionally performed by the caller against the
+     * current {@link OrbitalWeaponRecord}; this method never exposes the complete attack store to a client.
+     * </p>
+     */
+    public List<OrbitalAttackRecord> forWeapon(UUID weaponId) {
+        return this.attacks.values().stream()
+                .filter(attack -> attack.weaponId().equals(weaponId))
+                .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
+                .toList();
     }
 
     /**
