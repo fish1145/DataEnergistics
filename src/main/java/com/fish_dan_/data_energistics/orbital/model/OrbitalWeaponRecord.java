@@ -242,6 +242,6 @@ public record OrbitalWeaponRecord(
 
     /** Returns whether the weapon is deployed and may accept a new attack escrow. */
     public boolean allowsNewAttacks() {
-        return this.lifecycle.allowsNewAttacks();
+        return this.lifecycle.allowsNewAttacks() && this.primaryAnchor != null;
     }
 }
