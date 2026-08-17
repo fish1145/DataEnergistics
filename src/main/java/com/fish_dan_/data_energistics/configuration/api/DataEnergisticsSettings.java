@@ -310,6 +310,15 @@ public interface DataEnergisticsSettings {
 
         /** Returns the damage applied to a living entity each time a beam column covers it. */
         long directedEnergyEntityDamage();
+
+        /** Returns the Celestial Energy escrow required to confirm a digital annihilation payload. */
+        long digitalAnnihilationCelestialEnergyCost();
+
+        /** Returns the AE energy escrow required to confirm a digital annihilation payload. */
+        long digitalAnnihilationAeEnergyCost();
+
+        /** Returns the cooldown applied after a digital annihilation payload completes. */
+        int digitalAnnihilationCooldownTicks();
     }
 
     /**

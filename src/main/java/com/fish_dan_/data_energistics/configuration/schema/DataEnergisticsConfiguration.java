@@ -640,6 +640,21 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Damage applied to a living entity each time a directed-energy beam column covers it.", "定向能光束每次覆盖实体时造成的伤害。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long directedEnergyEntityDamage = 500L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Celestial Energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的星体能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long digitalAnnihilationCelestialEnergyCost = 80_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的 AE 能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long digitalAnnihilationAeEnergyCost = 80_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Digital annihilation cooldown after its payload completes.", "数位湮灭体载荷完成后的冷却时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int digitalAnnihilationCooldownTicks = 72_000;
     }
 
     public static final class TrinityCraftingSchema {

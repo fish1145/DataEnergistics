@@ -639,6 +639,24 @@ public final class SnapshotAssembler {
                         "orbitalWeapon.directedEnergyEntityDamage",
                         orbitalWeapon.directedEnergyEntityDamage,
                         1L,
+                        Integer.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.digitalAnnihilationCelestialEnergyCost",
+                        orbitalWeapon.digitalAnnihilationCelestialEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.digitalAnnihilationAeEnergyCost",
+                        orbitalWeapon.digitalAnnihilationAeEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                integer(
+                        source,
+                        "orbitalWeapon.digitalAnnihilationCooldownTicks",
+                        orbitalWeapon.digitalAnnihilationCooldownTicks,
+                        1,
                         Integer.MAX_VALUE));
     }
 
