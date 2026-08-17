@@ -15,7 +15,6 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
 
 import java.util.Comparator;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -83,9 +82,7 @@ public final class OrbitalReserveCharging {
                                                                    long celestialEnergyRequest,
                                                                    long aeEnergyRequest,
                                                                    DataEnergisticsSettings.OrbitalWeapon settings) {
-        IGrid grid = Objects.requireNonNull(
-                endpoint.getMainNode().getGrid(),
-                "Operational orbital endpoint lost its AE grid");
+        IGrid grid = endpoint.getMainNode().getGrid();
         IActionSource actionSource = IActionSource.ofMachine(endpoint);
         long availableCelestialEnergy = celestialEnergyRequest == 0L ? 0L : grid.getStorageService()
                 .getInventory()

@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.orbital.attack;
 
 import net.minecraft.server.level.ServerLevel;
 
-import java.util.Objects;
-
 /**
  * Immutable geometry captured with an orbital attack.
  *
@@ -32,7 +30,6 @@ public sealed interface OrbitalAttackGeometry
     record DirectedEnergy(int radius, OrbitalDirectedEnergyDepth depth, long entityDamage) implements OrbitalAttackGeometry {
 
         public DirectedEnergy {
-            Objects.requireNonNull(depth, "depth");
             if (radius < OrbitalDirectedEnergyStrike.MIN_RADIUS || radius > OrbitalDirectedEnergyStrike.MAX_RADIUS || radius % OrbitalDirectedEnergyStrike.RADIUS_STEP != 0) {
                 throw new IllegalArgumentException("Directed-energy radius must be a 16-grid value from 16 to 256");
             }
