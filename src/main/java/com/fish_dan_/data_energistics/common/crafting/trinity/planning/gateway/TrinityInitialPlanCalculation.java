@@ -105,7 +105,7 @@ public final class TrinityInitialPlanCalculation {
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
-        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+        if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             TrinityPlanningStatistics statistics = plan.statistics();
             Data_Energistics.LOGGER.info(
                     "Trinity planning selected request={} target={} mode={} revision={} cachePath={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
@@ -147,7 +147,7 @@ public final class TrinityInitialPlanCalculation {
                                    TrinityInitialPlanningRequest request,
                                    TrinityPlanningDiagnostic diagnostic,
                                    PlanningCachePath cachePath) {
-        if (!DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+        if (!DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             return;
         }
         Data_Energistics.LOGGER.info(

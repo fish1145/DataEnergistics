@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataNukeSchema;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork.Settings;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -105,7 +105,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     /** Creates the stationary fuse entity used when an orbital payload reaches its target. */
     public static DataNukePrimedEntity createOrbitalPayload(Level level, BlockPos origin, UUID attackId,
                                                             Set<UUID> damageExemptions) {
-        DataNuke settings = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+        DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         return createOrbitalPayload(
                 level,
                 origin,
@@ -241,7 +241,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
                 tag.getInt(TAG_WORK_SETTINGS_RADIUS),
                 tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;
-        int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
+        int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
         this.expansionRadius = Math.max(0, Math.min(maximumRadius, tag.getInt(TAG_EXPANSION_RADIUS)));
         ListTag exemptionList = tag.getList(TAG_DAMAGE_EXEMPTIONS, Tag.TAG_COMPOUND);
         HashSet<UUID> exemptions = new HashSet<>();
@@ -455,7 +455,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     private static DigitalAnnihilationWork.Settings currentWorkSettings() {
-        DataNuke settings = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+        DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         return new DigitalAnnihilationWork.Settings(
                 settings.workIntervalTicks(),
                 settings.maxRadius(),

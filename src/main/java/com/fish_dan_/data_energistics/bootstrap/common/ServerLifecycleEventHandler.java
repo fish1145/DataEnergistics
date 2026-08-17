@@ -22,7 +22,7 @@ public final class ServerLifecycleEventHandler {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         stoppingServer = null;
-        TrinityPlanningGatewayLifecycle.start(DataEnergisticsConfiguration.INSTANCE.trinityCrafting());
+        TrinityPlanningGatewayLifecycle.start(DataEnergisticsConfiguration.INSTANCE.trinity.crafting);
         try {
             TrinityDispatchProposalLifecycle.start();
         } catch (RuntimeException exception) {

@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
@@ -61,7 +60,7 @@ public final class OrbitalKineticAttackGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "kinetic-owner");
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -257,7 +256,7 @@ public final class OrbitalKineticAttackGameTest {
                                      OrbitalWeaponSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     DataEnergisticsSettings.OrbitalWeapon settings,
+                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
                                      OrbitalAttackCost cost) {
         long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
         long requiredAeEnergy = Math.max(
@@ -274,7 +273,7 @@ public final class OrbitalKineticAttackGameTest {
     }
 
     private static long requiredCelestialEnergy(
-                                                DataEnergisticsSettings.OrbitalWeapon settings,
+                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
                                                 OrbitalAttackCost cost) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), 2L),

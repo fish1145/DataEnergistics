@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
@@ -64,7 +63,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "digital-annihilation-owner");
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -228,7 +227,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "digital-unloaded-target-owner");
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -288,7 +287,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "digital-emergency-abort-owner");
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -423,7 +422,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                                      OrbitalWeaponSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     DataEnergisticsSettings.OrbitalWeapon settings,
+                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
                                      OrbitalAttackCost cost) {
         long requiredCelestialEnergy = Math.max(
                 cost.celestialEnergy(),
@@ -442,7 +441,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
     }
 
     private static long requiredCelestialEnergy(
-                                                DataEnergisticsSettings.OrbitalWeapon settings,
+                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
                                                 OrbitalAttackCost cost) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), 2L),

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
@@ -46,14 +46,14 @@ public record OrbitalAttackPreviewEstimate(
 
     /** Captures a complete estimate from the same immutable configuration snapshot used by the preview revision. */
     public static OrbitalAttackPreviewEstimate capture(
-                                                       DataEnergisticsSettings configuration,
+                                                       DataEnergisticsConfiguration configuration,
                                                        ServerLevel level,
                                                        BlockPos target,
                                                        OrbitalAttackMode mode,
                                                        int directedRadius,
                                                        @Nullable OrbitalDirectedEnergyDepth directedDepth,
                                                        OrbitalEnergyReserve reserve) {
-        DataEnergisticsSettings.OrbitalWeapon settings = configuration.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
         OrbitalAttackCost cost;
         long scheduledCoordinates = 0L;
         long scheduledBlocks;
@@ -89,14 +89,14 @@ public record OrbitalAttackPreviewEstimate(
                 DigitalAnnihilationWork.WorkEstimate work = DigitalAnnihilationWork.estimate(
                         level,
                         target,
-                        configuration.dataNuke());
+                        configuration.explosives.dataNuke);
                 scheduledBlocks = work.scheduledBlocks();
                 workingTicks = Math.addExact(
                         Math.addExact(
                                 OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS,
                                 DataNukePrimedEntity.DEFAULT_FUSE_TICKS),
                         work.minimumTicks());
-                effectRadius = configuration.dataNuke().maxRadius();
+                effectRadius = configuration.explosives.dataNuke.maxRadius();
             }
             default -> throw new IllegalStateException("Unsupported orbital attack mode " + mode);
         }

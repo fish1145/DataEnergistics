@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.astronomy;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -69,7 +69,7 @@ public final class InterferenceArrayPattern {
     public static List<BlockPos> findConnectedMirrors(
                                                       ServerLevel level,
                                                       BlockPos corePos,
-                                                      DataEnergisticsSettings.Astronomy settings) {
+                                                      DataEnergisticsConfiguration.AstronomySchema settings) {
         if (!hasValidCoreBase(level, corePos)) {
             return List.of();
         }
@@ -117,7 +117,7 @@ public final class InterferenceArrayPattern {
                                          ServerLevel level,
                                          BlockPos corePos,
                                          BlockPos mirrorCenter,
-                                         DataEnergisticsSettings.Astronomy settings) {
+                                         DataEnergisticsConfiguration.AstronomySchema settings) {
         int deltaX = mirrorCenter.getX() - corePos.getX();
         int deltaZ = mirrorCenter.getZ() - corePos.getZ();
         long horizontalDistanceSquared = (long) deltaX * deltaX + (long) deltaZ * deltaZ;

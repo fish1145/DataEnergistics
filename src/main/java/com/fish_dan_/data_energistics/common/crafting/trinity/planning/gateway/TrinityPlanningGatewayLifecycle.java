@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import org.jspecify.annotations.Nullable;
 
@@ -23,7 +23,7 @@ public final class TrinityPlanningGatewayLifecycle {
      *
      * @param settings immutable planning budgets for this server lifetime
      */
-    public static synchronized void start(TrinityCrafting settings) {
+    public static synchronized void start(TrinityCraftingSchema settings) {
         if (gateway != null) {
             throw new IllegalStateException("The Trinity planning gateway is already running");
         }

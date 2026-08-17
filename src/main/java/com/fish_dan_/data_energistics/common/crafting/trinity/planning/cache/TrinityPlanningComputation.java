@@ -95,8 +95,8 @@ public final class TrinityPlanningComputation {
         CompiledGraphKey compiledKey = new CompiledGraphKey(
                 input.target(),
                 reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
-                input.settings().maxBindingVariants(),
-                input.settings().maxSccKeys());
+                input.settings().maxBindingVariants,
+                input.settings().maxSccKeys);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCompiledGraph>> compiled = this.cache.computeInline(
                 input.gridScope(),
                 TrinityComputationNamespace.COMPILED_GRAPH,
@@ -105,8 +105,8 @@ public final class TrinityPlanningComputation {
                 () -> cached(this.pipeline.compile(
                         reachable.value(),
                         input.target(),
-                        input.settings().maxBindingVariants(),
-                        input.settings().maxSccKeys(),
+                        input.settings().maxBindingVariants,
+                        input.settings().maxSccKeys,
                         control)));
         if (!compiled.value().successful()) {
             long planningNanos = elapsedSince(startedNanos);
@@ -123,7 +123,7 @@ public final class TrinityPlanningComputation {
                 input.requestedAmount(),
                 input.quantityMode(),
                 projectedInventory,
-                input.settings().maxScheduleStates());
+                input.settings().maxScheduleStates);
         Map<AEKey, BigInteger> projectedMap = projectedInventory.stream()
                 .collect(Collectors.toUnmodifiableMap(InventoryAmount::key, InventoryAmount::amount));
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInline(

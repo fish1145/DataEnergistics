@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.blockentity.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
 import com.fish_dan_.data_energistics.orbital.astronomy.CelestialEnergyGridTransaction;
@@ -128,7 +127,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return false;
         }
-        DataEnergisticsSettings.Astronomy settings = DataEnergisticsConfiguration.INSTANCE.astronomy();
+        DataEnergisticsConfiguration.AstronomySchema settings = DataEnergisticsConfiguration.INSTANCE.astronomy;
         long gameTime = serverLevel.getGameTime();
         if (gameTime >= this.nextStructureScan) {
             refreshMirrorClaims(serverLevel, settings);
@@ -179,7 +178,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
 
     private void refreshMirrorClaims(
                                      ServerLevel level,
-                                     DataEnergisticsSettings.Astronomy settings) {
+                                     DataEnergisticsConfiguration.AstronomySchema settings) {
         List<BlockPos> candidates = InterferenceArrayPattern.findConnectedMirrors(level, this.worldPosition, settings);
         LinkedHashSet<BlockPos> nextClaims = new LinkedHashSet<>();
         for (BlockPos mirrorPos : candidates) {
@@ -209,7 +208,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         }
     }
 
-    private static long baseCelestialEnergy(DataEnergisticsSettings.Astronomy settings, int mirrorCount) {
+    private static long baseCelestialEnergy(DataEnergisticsConfiguration.AstronomySchema settings, int mirrorCount) {
         long output = 0L;
         for (int mirror = 1; mirror <= mirrorCount; mirror++) {
             long mirrorOutput;
@@ -227,7 +226,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         return output;
     }
 
-    private static long requiredAeEnergy(DataEnergisticsSettings.Astronomy settings, int mirrorCount) {
+    private static long requiredAeEnergy(DataEnergisticsConfiguration.AstronomySchema settings, int mirrorCount) {
         long mirrorCost = saturatedMultiply(settings.highTierMirrorAeEnergyPerTick(), mirrorCount);
         return saturatedAdd(settings.highTierCoreAeEnergyPerTick(), mirrorCost);
     }

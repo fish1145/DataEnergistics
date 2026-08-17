@@ -257,19 +257,20 @@ public final class CraftingDispatchWindow {
     }
 
     /**
-     * Checks a counted provider route whose first physical call consumes this provider's complete current-window
-     * allowance. Other provider identities retain their own independent allowance.
+     * Checks a counted provider route using the same provider-wide hard budget as every other provider path.
+     * Pattern and target failures remain scoped to their exact identity, so different counted patterns may share one
+     * dispatch window.
      *
      * @param provider counted provider instance to inspect
      * @param pattern  pattern about to be prepared
      * @param target   stable provider-local target
-     * @return whether this provider has not submitted a counted batch in the current window
+     * @return whether this counted route remains eligible in the current window
      */
     public boolean canAttemptCounted(
                                      ICraftingProvider provider,
                                      IPatternDetails pattern,
                                      CraftingDispatchTarget target) {
-        return canAttempt(provider, pattern, target, 1);
+        return canAttempt(provider, pattern, target);
     }
 
     private boolean canAttempt(
@@ -303,15 +304,14 @@ public final class CraftingDispatchWindow {
     }
 
     /**
-     * Starts a counted provider path whose physical acquisition is limited to one call for this provider identity in
-     * the current window.
+     * Starts a counted provider path using the normal provider/grid physical-attempt budgets.
      *
      * @param provider counted provider instance about to be prepared
      * @param pattern  exact pattern being prepared
      * @return closeable counted submission scope
      */
     public SubmissionScope beginCountedSubmission(ICraftingProvider provider, IPatternDetails pattern) {
-        return beginSubmission(provider, pattern, 1);
+        return beginSubmission(provider, pattern, this.limits.maxAttemptsPerProvider());
     }
 
     private SubmissionScope beginSubmission(

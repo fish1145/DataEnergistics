@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.item.carrier;
 
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -39,7 +40,7 @@ public final class OreDataCarrierData {
 
         stack.set(DEDataComponents.ORE_DATA_CARRIER.get(), new OreDataCarrierItemData(
                 itemId,
-                DataEnergisticsConfiguration.INSTANCE.dataExtractor().oreRequiredAmount(),
+                (float) DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.oreRequiredAmount,
                 0.0F));
         return true;
     }
@@ -139,6 +140,8 @@ public final class OreDataCarrierData {
         if (itemId == null) {
             return false;
         }
-        return !DataEnergisticsConfiguration.INSTANCE.dataExtractor().oreDataBlacklist().contains(itemId);
+        return !DataExtractorRuleTable.containsConfiguredId(
+                DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.oreDataBlacklist,
+                itemId);
     }
 }

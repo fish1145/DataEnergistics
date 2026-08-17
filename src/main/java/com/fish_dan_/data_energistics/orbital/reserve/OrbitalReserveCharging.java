@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.orbital.reserve;
 
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalEndpointBlockEntity;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailability;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
@@ -43,7 +43,7 @@ public final class OrbitalReserveCharging {
     public static OrbitalWeaponRecord charge(
                                              MinecraftServer server,
                                              OrbitalWeaponRecord weapon,
-                                             DataEnergisticsSettings.OrbitalWeapon settings) {
+                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         OrbitalEnergyReserve reserve = weapon.reserve().withinCapacity(settings);
         long celestialEnergyRequest = Math.min(
                 reserve.celestialEnergySpace(settings),
@@ -81,7 +81,7 @@ public final class OrbitalReserveCharging {
                                                                    OrbitalEnergyReserve reserve,
                                                                    long celestialEnergyRequest,
                                                                    long aeEnergyRequest,
-                                                                   DataEnergisticsSettings.OrbitalWeapon settings) {
+                                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         IGrid grid = endpoint.getMainNode().getGrid();
         IActionSource actionSource = IActionSource.ofMachine(endpoint);
         long availableCelestialEnergy = celestialEnergyRequest == 0L ? 0L : grid.getStorageService()

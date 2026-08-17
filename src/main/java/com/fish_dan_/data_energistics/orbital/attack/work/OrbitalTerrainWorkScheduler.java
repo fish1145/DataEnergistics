@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack.work;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -58,7 +58,7 @@ public final class OrbitalTerrainWorkScheduler {
     /**
      * Captures the current limits and opens a fresh global mutation budget for one server tick.
      */
-    public void beginTick(MinecraftServer server, DataEnergisticsSettings.OrbitalWeapon settings) {
+    public void beginTick(MinecraftServer server, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         requireServerThread(server);
         this.maxTicketsPerTask = settings.maxAttackChunkTicketsPerTask();
         this.maxTicketsGlobal = settings.maxAttackChunkTicketsGlobal();

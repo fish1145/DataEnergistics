@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEventHandler;
 import com.fish_dan_.data_energistics.common.sonic.FormationPlaneSonicBoomEchoCapture;
 import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
-import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
@@ -29,8 +28,7 @@ final class CommonEventRegistrar {
 
     private CommonEventRegistrar() {}
 
-    static void register(HolderFingerprintBridge configurationReload) {
-        NeoForge.EVENT_BUS.register(configurationReload);
+    static void register() {
         NeoForge.EVENT_BUS.register(new ServerLifecycleEventHandler());
         NeoForge.EVENT_BUS.register(new OrbitalEndpointChunkTickets());
         NeoForge.EVENT_BUS.register(new OrbitalReserveTicker());

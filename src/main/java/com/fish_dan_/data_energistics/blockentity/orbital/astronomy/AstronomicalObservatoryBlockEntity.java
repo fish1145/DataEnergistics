@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.blockentity.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalObservatoryBlock;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
 import com.fish_dan_.data_energistics.orbital.astronomy.CelestialEnergyGridTransaction;
@@ -79,7 +78,7 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return false;
         }
-        DataEnergisticsSettings.Astronomy settings = DataEnergisticsConfiguration.INSTANCE.astronomy();
+        DataEnergisticsConfiguration.AstronomySchema settings = DataEnergisticsConfiguration.INSTANCE.astronomy;
         if (!AstronomyDimensionRules.isObservable(serverLevel) ||
                 !AstronomyDimensionRules.isObservationWindowOpen(serverLevel, settings) ||
                 serverLevel.isThundering() ||

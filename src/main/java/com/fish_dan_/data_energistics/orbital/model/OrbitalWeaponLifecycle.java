@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.model;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 /**
@@ -66,7 +66,7 @@ public record OrbitalWeaponLifecycle(
      */
     public OrbitalWeaponLifecycle reconcile(
                                             OrbitalEnergyReserve reserve,
-                                            DataEnergisticsSettings.OrbitalWeapon settings) {
+                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         boolean thresholdReached = reserve.meetsDeploymentThreshold(settings);
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
@@ -77,7 +77,7 @@ public record OrbitalWeaponLifecycle(
     }
 
     /** Immediately enters grace when an attack escrow consumes the last unit of either reserve. */
-    public OrbitalWeaponLifecycle afterDebit(OrbitalEnergyReserve reserve, DataEnergisticsSettings.OrbitalWeapon settings) {
+    public OrbitalWeaponLifecycle afterDebit(OrbitalEnergyReserve reserve, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         if (this.state == OrbitalWeaponLifecycleState.DEPLOYED && reserve.hasZeroResource()) {
             return reserveGrace(settings.reserveGraceTicks());
         }

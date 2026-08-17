@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -185,7 +184,7 @@ public final class InterferenceArrayScalingGameTest {
                 })
                 .thenExecute(() -> {
                     UUID secondWeapon = data.ownedBy(secondOwner.getUUID()).orElseThrow().weaponId();
-                    DataEnergisticsSettings.Astronomy settings = DataEnergisticsConfiguration.INSTANCE.astronomy();
+                    DataEnergisticsConfiguration.AstronomySchema settings = DataEnergisticsConfiguration.INSTANCE.astronomy;
                     helper.assertTrue(
                             InterferenceArrayPattern.hasValidCoreBase(
                                     level,
@@ -371,7 +370,7 @@ public final class InterferenceArrayScalingGameTest {
                                             long expected,
                                             String stage) {
         long after = celestialReserve(data, weaponId);
-        long weatherAdjustedExpected = raining.get() ? (long) Math.floor(expected * DataEnergisticsConfiguration.INSTANCE.astronomy().rainOutputMultiplier()) : expected;
+        long weatherAdjustedExpected = raining.get() ? (long) Math.floor(expected * DataEnergisticsConfiguration.INSTANCE.astronomy.rainOutputMultiplier()) : expected;
         helper.assertValueEqual(
                 after - checkpoint.get(),
                 weatherAdjustedExpected,

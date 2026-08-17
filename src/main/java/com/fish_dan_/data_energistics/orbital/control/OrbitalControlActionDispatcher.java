@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
@@ -74,7 +73,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
-        int radius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
+        int radius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
         return beginFireAtTarget(
                 player,
                 mode,
@@ -187,7 +186,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
-        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
+        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
         if (!validTarget(targetLevel, target, boundaryRadius)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),
@@ -216,7 +215,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         try {
-            DataEnergisticsSettings configuration = DataEnergisticsConfiguration.INSTANCE;
+            DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
             OrbitalAttackPreviewEstimate estimate = OrbitalAttackPreviewEstimate.capture(
                     configuration,
                     targetLevel,

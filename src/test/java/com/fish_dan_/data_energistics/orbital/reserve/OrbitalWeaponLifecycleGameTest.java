@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.orbital.reserve;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
@@ -53,7 +52,7 @@ public final class OrbitalWeaponLifecycleGameTest {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         ServerPlayer owner = createPlayer(level, "orbital-lifecycle-owner");
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -172,7 +171,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                                             OrbitalWeaponSavedData weapons,
                                             MinecraftServer server,
                                             UUID weaponId,
-                                            DataEnergisticsSettings.OrbitalWeapon settings) {
+                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         long requiredCalls = Math.max(
                 ceilingDivision(
                         deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()),

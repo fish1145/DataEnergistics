@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -36,7 +36,7 @@ public final class AstronomyDimensionRules {
      */
     public static boolean isObservationWindowOpen(
                                                   ServerLevel level,
-                                                  DataEnergisticsSettings.Astronomy settings) {
+                                                  DataEnergisticsConfiguration.AstronomySchema settings) {
         if (level.dimensionTypeRegistration().is(PERMANENT_OBSERVATION)) {
             return true;
         }
@@ -49,7 +49,7 @@ public final class AstronomyDimensionRules {
      */
     public static long celestialEnergyPerTick(
                                               ServerLevel level,
-                                              DataEnergisticsSettings.Astronomy settings) {
+                                              DataEnergisticsConfiguration.AstronomySchema settings) {
         return celestialEnergyPerTick(level, settings, settings.lowTierCelestialEnergyPerTick());
     }
 
@@ -58,7 +58,7 @@ public final class AstronomyDimensionRules {
      */
     public static long celestialEnergyPerTick(
                                               ServerLevel level,
-                                              DataEnergisticsSettings.Astronomy settings,
+                                              DataEnergisticsConfiguration.AstronomySchema settings,
                                               long baseOutput) {
         if (baseOutput < 0L) {
             throw new IllegalArgumentException("Base Celestial Energy output must be non-negative: " + baseOutput);

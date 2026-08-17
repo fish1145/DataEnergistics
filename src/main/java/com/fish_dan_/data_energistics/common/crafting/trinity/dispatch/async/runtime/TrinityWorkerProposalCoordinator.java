@@ -7,10 +7,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sch
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalTicket;
 
+import org.jspecify.annotations.Nullable;
+
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Server-thread owner of the single outstanding proposal permitted for one Trinity worker.
+ * Server-thread owner of bounded outstanding proposals for one Trinity worker.
  *
  * <p>
  * The coordinator retains an opaque work object only for server-thread identity comparison. The scheduler receives
@@ -121,8 +125,9 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     private final Supplier<DispatchProposalScheduler> scheduler;
-    private DispatchProposalTicket ticket;
-    private Object workIdentity;
+    private final Map<Object, ProposalSlot> slots = new IdentityHashMap<>();
+    @Nullable
+    private Object lastPolledIdentity;
 
     TrinityWorkerProposalCoordinator(Supplier<DispatchProposalScheduler> scheduler) {
         if (scheduler == null) {
@@ -132,7 +137,7 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     /**
-     * Polls the existing proposal and cancels it when any lease or server-thread work identity changed.
+     * Polls the proposal belonging to one work identity and cancels it when its lease changed.
      *
      * @param currentLease current fully recaptured generation lease
      * @param workIdentity exact current legacy task or compact work object
@@ -145,24 +150,30 @@ public final class TrinityWorkerProposalCoordinator {
         if (workIdentity == null) {
             throw new IllegalArgumentException("Current dispatch work identity must not be null");
         }
-        if (this.ticket == null) {
+        ProposalSlot slot = this.slots.get(workIdentity);
+        this.lastPolledIdentity = workIdentity;
+        if (slot == null) {
             return Empty.INSTANCE;
         }
-        if (!this.ticket.lease().equals(currentLease) || this.workIdentity != workIdentity) {
-            discardStale();
+        if (!slot.ticket().lease().equals(currentLease)) {
+            discardStale(workIdentity);
             return Empty.INSTANCE;
         }
-        return switch (this.ticket.state()) {
+        return switch (slot.ticket().state()) {
             case DispatchProposalTicket.Pending ignored -> Pending.INSTANCE;
             case DispatchProposalTicket.Ready ready -> new Ready(ready.proposal());
-            case DispatchProposalTicket.NoCapacity ignored -> terminal(NoCapacity.INSTANCE);
-            case DispatchProposalTicket.Failed ignored -> terminal(new Fallback(FallbackReason.CALCULATION_FAILED));
-            case DispatchProposalTicket.Cancelled ignored -> terminal(new Fallback(FallbackReason.CANCELLED));
+            case DispatchProposalTicket.NoCapacity ignored -> terminal(workIdentity, NoCapacity.INSTANCE);
+            case DispatchProposalTicket.Failed ignored -> terminal(
+                    workIdentity,
+                    new Fallback(FallbackReason.CALCULATION_FAILED));
+            case DispatchProposalTicket.Cancelled ignored -> terminal(
+                    workIdentity,
+                    new Fallback(FallbackReason.CANCELLED));
         };
     }
 
     /**
-     * Attempts to create the worker's only outstanding proposal.
+     * Attempts to create one proposal for the supplied work identity.
      *
      * @param request      immutable pure-planning request
      * @param workIdentity exact server-thread work identity retained for later stale validation
@@ -187,14 +198,13 @@ public final class TrinityWorkerProposalCoordinator {
         if (policy == null) {
             throw new IllegalArgumentException("Dispatch proposal policy must not be null");
         }
-        if (this.ticket != null) {
+        if (this.slots.containsKey(workIdentity)) {
             throw new IllegalStateException("A Trinity worker proposal is already outstanding");
         }
         DispatchProposalScheduler.Submission submission = this.scheduler.get().submit(request, wakeup, policy);
         return switch (submission) {
             case DispatchProposalScheduler.Accepted accepted -> {
-                this.ticket = accepted.ticket();
-                this.workIdentity = workIdentity;
+                this.slots.put(workIdentity, new ProposalSlot(accepted.ticket()));
                 yield Pending.INSTANCE;
             }
             case DispatchProposalScheduler.Rejected rejected -> rejectionDecision(rejected.reason());
@@ -202,52 +212,89 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     /**
-     * @return whether this worker is waiting exclusively for its background proposal completion
+     * @return whether any worker proposal is waiting for background completion
      */
     public boolean pending() {
-        return this.ticket != null && this.ticket.state() instanceof DispatchProposalTicket.Pending;
+        return this.slots.values().stream()
+                .anyMatch(slot -> slot.ticket().state() instanceof DispatchProposalTicket.Pending);
     }
 
     /**
      * @return whether this worker still owns any unconsumed proposal ticket state
      */
     public boolean outstanding() {
-        return this.ticket != null;
+        return !this.slots.isEmpty();
     }
 
     /**
      * Releases the currently consumed ready proposal after server-thread commit or rejection.
      */
     public void release() {
-        cancel();
+        releaseLast();
+    }
+
+    /**
+     * Releases the proposal most recently selected by {@link #poll(CraftingDispatchLease, Object)}.
+     */
+    public void releaseLast() {
+        if (this.lastPolledIdentity != null) {
+            closeSlot(this.lastPolledIdentity);
+            this.lastPolledIdentity = null;
+        }
     }
 
     /**
      * Records and releases a proposal rejected by server-thread generation or route revalidation.
      */
     public void discardStale() {
-        if (this.ticket != null) {
-            this.ticket.recordStale();
+        if (this.lastPolledIdentity != null) {
+            discardStale(this.lastPolledIdentity);
         }
-        cancel();
+    }
+
+    /**
+     * Records and releases a proposal rejected by server-thread generation or route revalidation.
+     *
+     * @param workIdentity identity whose proposal became stale
+     */
+    public void discardStale(Object workIdentity) {
+        if (workIdentity == null) {
+            throw new IllegalArgumentException("Stale proposal work identity must not be null");
+        }
+        ProposalSlot slot = this.slots.get(workIdentity);
+        if (slot != null) {
+            slot.ticket().recordStale();
+            closeSlot(workIdentity);
+        }
+        if (this.lastPolledIdentity == workIdentity) {
+            this.lastPolledIdentity = null;
+        }
     }
 
     /**
      * Cancels any outstanding proposal during job, route, reload or worker lifecycle changes.
      */
     public void cancel() {
-        DispatchProposalTicket closing = this.ticket;
-        this.ticket = null;
-        this.workIdentity = null;
-        if (closing != null) {
-            closing.close();
+        for (ProposalSlot slot : this.slots.values()) {
+            slot.ticket().close();
+        }
+        this.slots.clear();
+        this.lastPolledIdentity = null;
+    }
+
+    private Decision terminal(Object workIdentity, Decision decision) {
+        closeSlot(workIdentity);
+        return decision;
+    }
+
+    private void closeSlot(Object workIdentity) {
+        ProposalSlot slot = this.slots.remove(workIdentity);
+        if (slot != null) {
+            slot.ticket().close();
         }
     }
 
-    private Decision terminal(Decision decision) {
-        release();
-        return decision;
-    }
+    private record ProposalSlot(DispatchProposalTicket ticket) {}
 
     private static Decision rejectionDecision(DispatchProposalScheduler.RejectionReason reason) {
         return switch (reason) {

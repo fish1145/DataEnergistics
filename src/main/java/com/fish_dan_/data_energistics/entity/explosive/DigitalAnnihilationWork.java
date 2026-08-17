@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataNukeSchema;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -98,7 +98,7 @@ public final class DigitalAnnihilationWork {
     }
 
     /** Creates fresh work for a fuse that is about to become active. */
-    public static DigitalAnnihilationWork create(BlockPos origin, UUID ticketOwner, DataNuke settings) {
+    public static DigitalAnnihilationWork create(BlockPos origin, UUID ticketOwner, DataNukeSchema settings) {
         return create(origin, ticketOwner, Settings.from(settings));
     }
 
@@ -106,7 +106,7 @@ public final class DigitalAnnihilationWork {
      * Estimates the complete deterministic candidate volume and the best-case work ticks for a fresh fuse. Chunk
      * waits and the global orbital governor can only increase the returned tick count.
      */
-    public static WorkEstimate estimate(ServerLevel level, BlockPos origin, DataNuke settings) {
+    public static WorkEstimate estimate(ServerLevel level, BlockPos origin, DataNukeSchema settings) {
         return estimate(level, origin, Settings.from(settings));
     }
 
@@ -151,7 +151,7 @@ public final class DigitalAnnihilationWork {
     public static DigitalAnnihilationWork restore(
                                                   BlockPos origin,
                                                   UUID ticketOwner,
-                                                  DataNuke settings,
+                                                  DataNukeSchema settings,
                                                   int legacyWorkTicks,
                                                   int legacyExpansionRadius,
                                                   CompoundTag state) {
@@ -501,7 +501,7 @@ public final class DigitalAnnihilationWork {
             }
         }
 
-        private static Settings from(DataNuke settings) {
+        private static Settings from(DataNukeSchema settings) {
             return new Settings(
                     settings.workIntervalTicks(),
                     settings.maxRadius(),

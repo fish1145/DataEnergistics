@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.storage;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailability;
@@ -223,7 +222,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     public void chargeReserves(MinecraftServer server) {
         requireServerThread(server);
         purgeExpiredTransfers(server);
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         boolean changed = false;
         for (Map.Entry<UUID, OrbitalWeaponRecord> entry : this.weapons.entrySet()) {
             UUID weaponId = entry.getKey();
@@ -278,7 +277,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
         OrbitalEnergyReserve debitedReserve = current.reserve().withDebit(celestialEnergy, aeEnergy);
         OrbitalWeaponRecord updated = current.withReserve(debitedReserve)
-                .withLifecycle(current.lifecycle().afterDebit(debitedReserve, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon()));
+                .withLifecycle(current.lifecycle().afterDebit(debitedReserve, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon));
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -337,7 +336,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         OrbitalWeaponRecord updated = current.withoutEndpoint(location);
         this.endpointIndex.remove(location);
         this.weapons.put(weaponId, updated);
-        updated = reconcilePrimaryAnchor(server, updated, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon());
+        updated = reconcilePrimaryAnchor(server, updated, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -425,7 +424,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return true;
         }
 
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalWeaponLifecycle lifecycle = current.lifecycle();
         if (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());
@@ -858,7 +857,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         OrbitalWeaponRecord updated = reconcilePrimaryAnchor(
                 server,
                 weapon,
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon());
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
         if (updated != weapon) {
             this.weapons.put(updated.weaponId(), updated);
             setDirty();
@@ -874,7 +873,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private static OrbitalWeaponRecord reconcilePrimaryAnchor(
                                                               MinecraftServer server,
                                                               OrbitalWeaponRecord weapon,
-                                                              DataEnergisticsSettings.OrbitalWeapon settings) {
+                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         OrbitalEndpointRecord currentAnchor = weapon.primaryAnchor() == null ? null : weapon.endpoints().get(weapon.primaryAnchor());
         if (currentAnchor != null && currentAnchor.kind() == OrbitalEndpointKind.UPLINK_BEACON && OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), currentAnchor)) {
             return weapon;
@@ -938,7 +937,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /** Applies one deployed-tick maintenance debit without allowing either independent reserve to go negative. */
     private static OrbitalEnergyReserve applyDeploymentMaintenance(
                                                                    OrbitalWeaponRecord weapon,
-                                                                   DataEnergisticsSettings.OrbitalWeapon settings) {
+                                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         if (weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED) {
             return weapon.reserve();
         }
@@ -1001,7 +1000,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private static void requireEndpointCapacity(
                                                 OrbitalWeaponRecord weapon,
                                                 OrbitalEndpointLocation location) {
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (weapon.endpoints().size() >= settings.maxEndpointsPerWeapon()) {
             throw new OrbitalEndpointLimitException(
                     "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit");

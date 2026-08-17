@@ -2,21 +2,24 @@ package com.fish_dan_.data_energistics.configuration.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 
+import net.minecraft.resources.ResourceLocation;
+
+import dev.toma.configuration.Configuration;
 import dev.toma.configuration.config.Config;
 import dev.toma.configuration.config.ConfigHolder;
 import dev.toma.configuration.config.Configurable;
 import dev.toma.configuration.config.UpdateRestrictions;
-import org.jetbrains.annotations.ApiStatus;
+import dev.toma.configuration.config.format.ConfigFormats;
+
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Defines the single localized YAML schema used by Data Energistics.
  *
- * <p>
- * Runtime parsing and cross-field validation remain separate. The public {@link #INSTANCE} follows Configuration and
- * GTPM's direct instance access style while pointing at the last complete immutable settings snapshot.
- * </p>
  */
 @Config(
         id = Data_Energistics.MODID,
@@ -24,95 +27,160 @@ import org.jetbrains.annotations.ApiStatus;
         group = Data_Energistics.MODID)
 public final class DataEnergisticsConfiguration {
 
-    public static volatile DataEnergisticsSettings INSTANCE;
+    /** The holder registered with Configuration and automatically synchronized by its file watcher. */
+    public static final ConfigHolder<DataEnergisticsConfiguration> HOLDER = Configuration.registerConfig(DataEnergisticsConfiguration.class, ConfigFormats.YAML);
 
-    @ApiStatus.Internal
-    public static ConfigHolder<DataEnergisticsConfiguration> INTERNAL_INSTANCE;
+    /** The framework-owned schema instance; its fields are updated by Configuration's Auto-Sync thread. */
+    public static final DataEnergisticsConfiguration INSTANCE = HOLDER.getConfigInstance();
 
-    private static volatile boolean initialized;
+    @Configurable
+    @Configurable.Comment({ "Machine and network component settings.", "机器与网络组件设置。" })
+    public MachineConfigs machines = new MachineConfigs();
 
-    /**
-     * Installs the framework Holder and first complete settings instance exactly once.
-     */
-    public static synchronized void initialize(
-                                               ConfigHolder<DataEnergisticsConfiguration> internal,
-                                               DataEnergisticsSettings initial) {
-        if (initialized) {
-            throw new IllegalStateException("Data Energistics configuration is already initialized");
-        }
-        INTERNAL_INSTANCE = internal;
-        INSTANCE = initial;
-        initialized = true;
-    }
+    @Configurable
+    @Configurable.Comment({ "Explosive and terrain transformation settings.", "爆炸物与地形变换设置。" })
+    public ExplosiveConfigs explosives = new ExplosiveConfigs();
 
-    /**
-     * Atomically exposes a newer complete settings instance to all gameplay consumers.
-     */
-    public static synchronized void publish(DataEnergisticsSettings candidate) {
-        if (!initialized) {
-            throw new IllegalStateException("Data Energistics configuration is not initialized");
-        }
-        if (candidate.revision() <= INSTANCE.revision()) {
-            throw new IllegalStateException(
-                    "Configuration revision must increase: current=" + INSTANCE.revision() +
-                            ", candidate=" + candidate.revision());
-        }
-        INSTANCE = candidate;
-    }
-
-    /**
-     * Reports whether optional high-frequency runtime diagnostics should be emitted.
-     */
-    public static boolean isVerboseRuntimeLoggingEnabled() {
-        return initialized && INSTANCE.verboseRuntimeLogging();
-    }
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({
-            "Logs high-frequency runtime calculations and dispatch decisions. Warnings and errors are unaffected.",
-            "记录高频运行时计算与发配决策。警告和错误不受影响。"
-    })
-    public boolean verboseRuntimeLogging = false;
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Ripper power and target selection.", "数据撕裂器的功耗与目标选择设置。" })
-    public DataRipperSchema dataRipper = new DataRipperSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Distribution Tower chunk coverage.", "数据分配塔的区块覆盖设置。" })
-    public DataDistributionTowerSchema dataDistributionTower = new DataDistributionTowerSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Sanctum Interface stocking capacities.", "数据圣所接口的储备容量设置。" })
-    public DataSanctumInterfaceSchema dataSanctumInterface = new DataSanctumInterfaceSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Extractor work and carrier requirements.", "数据提取器的工作与载体需求设置。" })
-    public DataExtractorSchema dataExtractor = new DataExtractorSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Flattening TNT and Data Nuke behavior.", "平整 TNT 与数据核弹的行为设置。" })
-    public FlatteningTntSchema flatteningTnt = new FlatteningTntSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Solar generation and upgrade bonuses.", "太阳能发电与升级加成设置。" })
-    public SolarPanelSchema solarPanel = new SolarPanelSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
+    @Configurable
     @Configurable.Comment({ "Astronomy production and dimension multipliers.", "天文观测产出与维度倍率设置。" })
     public AstronomySchema astronomy = new AstronomySchema();
 
-    @Configurable(key = Configurable.LocalizationKey.FULL)
+    @Configurable
     @Configurable.Comment({ "Orbital weapon reserves, deployment and endpoint limits.", "轨道武器储备、部署与端点限制。" })
     public OrbitalWeaponSchema orbitalWeapon = new OrbitalWeaponSchema();
 
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Trinity planning limits and quantity semantics.", "三位一体规划限制与数量语义设置。" })
-    public TrinityCraftingSchema trinityCrafting = new TrinityCraftingSchema();
+    @Configurable
+    @Configurable.Comment({ "Trinity planning and dispatch settings.", "三位一体规划与派发设置。" })
+    public TrinityConfigs trinity = new TrinityConfigs();
 
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Trinity dispatch governor tuning.", "三位一体派发调节器设置。" })
-    public TrinityDispatchSchema trinityDispatch = new TrinityDispatchSchema();
+    @Configurable
+    @Configurable.Comment({ "Developer and diagnostic settings.", "开发者与诊断设置。" })
+    public DeveloperConfigs developer = new DeveloperConfigs();
+
+    /**
+     * Returns a deterministic fingerprint of configuration values that affect orbital previews and payloads.
+     *
+     * <p>
+     * The direct Configuration instance is mutable and does not expose the old immutable snapshot revision. A
+     * value fingerprint preserves preview invalidation when a hot-reloaded value changes without reintroducing a
+     * second configuration object graph.
+     * </p>
+     */
+    public long revision() {
+        AstronomySchema astronomySettings = this.astronomy;
+        OrbitalWeaponSchema weaponSettings = this.orbitalWeapon;
+        DataNukeSchema nukeSettings = this.explosives.dataNuke;
+        return Integer.toUnsignedLong(Objects.hash(
+                astronomySettings.lowTierCelestialEnergyPerTick,
+                astronomySettings.lowTierAeEnergyPerTick,
+                astronomySettings.highTierMirrorCelestialEnergyPerTick1To4,
+                astronomySettings.highTierMirrorCelestialEnergyPerTick5To8,
+                astronomySettings.highTierMirrorCelestialEnergyPerTick9To12,
+                astronomySettings.highTierMirrorCelestialEnergyPerTick13To16,
+                astronomySettings.highTierCoreAeEnergyPerTick,
+                astronomySettings.highTierMirrorAeEnergyPerTick,
+                astronomySettings.highTierMinimumMirrors,
+                astronomySettings.highTierMaximumMirrors,
+                astronomySettings.highTierMirrorHorizontalRange,
+                astronomySettings.highTierMirrorVerticalRange,
+                astronomySettings.highTierWaveguidePathLength,
+                astronomySettings.rainOutputMultiplier,
+                astronomySettings.observationWindowStartTick,
+                astronomySettings.observationWindowEndTick,
+                astronomySettings.defaultDimensionMultiplier,
+                Arrays.hashCode(astronomySettings.dimensionIds),
+                Arrays.hashCode(astronomySettings.dimensionMultiplierValues),
+                weaponSettings.celestialEnergyCapacity,
+                weaponSettings.aeEnergyCapacity,
+                weaponSettings.celestialEnergyUpkeepPerTick,
+                weaponSettings.aeEnergyUpkeepPerTick,
+                weaponSettings.celestialEnergyChargePerTick,
+                weaponSettings.aeEnergyChargePerTick,
+                weaponSettings.reserveGraceTicks,
+                weaponSettings.deploymentThreshold,
+                weaponSettings.redeploymentTicks,
+                weaponSettings.maxEndpointsPerWeapon,
+                weaponSettings.maxEndpointsPerDimension,
+                weaponSettings.endpointChunkLoadingEnabled,
+                weaponSettings.maxAttackChunkTicketsPerTask,
+                weaponSettings.maxAttackChunkTicketsGlobal,
+                weaponSettings.maxAttackChunkGenerationPerDimension,
+                weaponSettings.maxAttackChunkGenerationGlobal,
+                weaponSettings.maxAttackBlockMutationsPerTaskTick,
+                weaponSettings.maxAttackBlockMutationsGlobalTick,
+                weaponSettings.maxCommittedAttackTasks,
+                weaponSettings.kineticCelestialEnergyCost,
+                weaponSettings.kineticAeEnergyCost,
+                weaponSettings.attackWarningTicks,
+                weaponSettings.kineticCooldownTicks,
+                weaponSettings.directedEnergyBaseCelestialEnergyCost,
+                weaponSettings.directedEnergyBaseAeEnergyCost,
+                weaponSettings.directedEnergyCelestialEnergyPerCoordinate,
+                weaponSettings.directedEnergyAeEnergyPerCoordinate,
+                weaponSettings.directedEnergyCooldownTicks,
+                weaponSettings.directedEnergyEntityDamage,
+                weaponSettings.digitalAnnihilationCelestialEnergyCost,
+                weaponSettings.digitalAnnihilationAeEnergyCost,
+                weaponSettings.digitalAnnihilationCooldownTicks,
+                nukeSettings.workIntervalTicks,
+                nukeSettings.maxRadius,
+                nukeSettings.centerEntityConsumeRadius));
+    }
+
+    public static final class MachineConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Data Ripper power and target selection.", "数据撕裂器的功耗与目标选择设置。" })
+        public DataRipperSchema dataRipper = new DataRipperSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Distribution Tower chunk coverage.", "数据分配塔的区块覆盖设置。" })
+        public DataDistributionTowerSchema dataDistributionTower = new DataDistributionTowerSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Sanctum Interface stocking capacities.", "数据圣所接口的储备容量设置。" })
+        public DataSanctumInterfaceSchema dataSanctumInterface = new DataSanctumInterfaceSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Extractor work and carrier requirements.", "数据提取器的工作与载体需求设置。" })
+        public DataExtractorSchema dataExtractor = new DataExtractorSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Solar generation and upgrade bonuses.", "太阳能发电与升级加成设置。" })
+        public SolarPanelSchema solarPanel = new SolarPanelSchema();
+    }
+
+    public static final class ExplosiveConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Configurable TNT terrain replacement.", "可配置 TNT 的地形替换设置。" })
+        public ConfigurableTntSchema flatteningTnt = new ConfigurableTntSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Incremental Data Nuke consumption.", "数据核弹的渐进吞噬设置。" })
+        public DataNukeSchema dataNuke = new DataNukeSchema();
+    }
+
+    public static final class TrinityConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Trinity planning limits and quantity semantics.", "三位一体规划限制与数量语义设置。" })
+        public TrinityCraftingSchema crafting = new TrinityCraftingSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Trinity dispatch governor tuning.", "三位一体派发调节器设置。" })
+        public TrinityDispatchSchema dispatch = new TrinityDispatchSchema();
+    }
+
+    public static final class DeveloperConfigs {
+
+        @Configurable
+        @Configurable.Comment({
+                "Logs high-frequency runtime calculations and dispatch decisions. Warnings and errors are unaffected.",
+                "记录高频运行时计算与发配决策。警告和错误不受影响。"
+        })
+        public boolean verboseRuntimeLogging = false;
+    }
 
     public static final class DataRipperSchema {
 
@@ -274,17 +342,6 @@ public final class DataEnergisticsConfiguration {
         public String[] cropDataWhitelist = {};
     }
 
-    public static final class FlatteningTntSchema {
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Configurable TNT terrain replacement.", "可配置 TNT 的地形替换设置。" })
-        public ConfigurableTntSchema tntConfigurable = new ConfigurableTntSchema();
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Incremental Data Nuke consumption.", "数据核弹的渐进吞噬设置。" })
-        public DataNukeSchema dataNuke = new DataNukeSchema();
-    }
-
     public static final class ConfigurableTntSchema {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
@@ -364,6 +421,18 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Entity-devouring radius checked every tick.", "每 tick 检查的实体吞噬半径。" })
         @Configurable.DecimalRange(min = 0.0, max = 128.0)
         public double centerEntityConsumeRadius = 4.0D;
+
+        public int workIntervalTicks() {
+            return this.workIntervalTicks;
+        }
+
+        public int maxRadius() {
+            return this.maxRadius;
+        }
+
+        public double centerEntityConsumeRadius() {
+            return this.centerEntityConsumeRadius;
+        }
     }
 
     public static final class SolarPanelSchema {
@@ -533,6 +602,89 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
         public double[] dimensionMultiplierValues = { 1.0D, 2.0D, 0.0D };
+
+        public long lowTierCelestialEnergyPerTick() {
+            return this.lowTierCelestialEnergyPerTick;
+        }
+
+        public long lowTierAeEnergyPerTick() {
+            return this.lowTierAeEnergyPerTick;
+        }
+
+        public long highTierMirrorCelestialEnergyPerTick1To4() {
+            return this.highTierMirrorCelestialEnergyPerTick1To4;
+        }
+
+        public long highTierMirrorCelestialEnergyPerTick5To8() {
+            return this.highTierMirrorCelestialEnergyPerTick5To8;
+        }
+
+        public long highTierMirrorCelestialEnergyPerTick9To12() {
+            return this.highTierMirrorCelestialEnergyPerTick9To12;
+        }
+
+        public long highTierMirrorCelestialEnergyPerTick13To16() {
+            return this.highTierMirrorCelestialEnergyPerTick13To16;
+        }
+
+        public long highTierCoreAeEnergyPerTick() {
+            return this.highTierCoreAeEnergyPerTick;
+        }
+
+        public long highTierMirrorAeEnergyPerTick() {
+            return this.highTierMirrorAeEnergyPerTick;
+        }
+
+        public int highTierMinimumMirrors() {
+            return this.highTierMinimumMirrors;
+        }
+
+        public int highTierMaximumMirrors() {
+            return this.highTierMaximumMirrors;
+        }
+
+        public int highTierMirrorHorizontalRange() {
+            return this.highTierMirrorHorizontalRange;
+        }
+
+        public int highTierMirrorVerticalRange() {
+            return this.highTierMirrorVerticalRange;
+        }
+
+        public int highTierWaveguidePathLength() {
+            return this.highTierWaveguidePathLength;
+        }
+
+        public double rainOutputMultiplier() {
+            return this.rainOutputMultiplier;
+        }
+
+        public int observationWindowStartTick() {
+            return this.observationWindowStartTick;
+        }
+
+        public int observationWindowEndTick() {
+            return this.observationWindowEndTick;
+        }
+
+        public double defaultDimensionMultiplier() {
+            return this.defaultDimensionMultiplier;
+        }
+
+        public Map<ResourceLocation, Double> dimensionMultipliers() {
+            if (this.dimensionIds == null || this.dimensionMultiplierValues == null) {
+                return Map.of();
+            }
+            LinkedHashMap<ResourceLocation, Double> result = new LinkedHashMap<>();
+            int count = Math.min(this.dimensionIds.length, this.dimensionMultiplierValues.length);
+            for (int index = 0; index < count; index++) {
+                ResourceLocation dimension = ResourceLocation.tryParse(this.dimensionIds[index]);
+                if (dimension != null) {
+                    result.put(dimension, this.dimensionMultiplierValues[index]);
+                }
+            }
+            return Map.copyOf(result);
+        }
     }
 
     public static final class OrbitalWeaponSchema {
@@ -695,6 +847,134 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Digital annihilation cooldown after its payload completes.", "数位湮灭体载荷完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int digitalAnnihilationCooldownTicks = 72_000;
+
+        public long celestialEnergyCapacity() {
+            return this.celestialEnergyCapacity;
+        }
+
+        public long aeEnergyCapacity() {
+            return this.aeEnergyCapacity;
+        }
+
+        public long celestialEnergyUpkeepPerTick() {
+            return this.celestialEnergyUpkeepPerTick;
+        }
+
+        public long aeEnergyUpkeepPerTick() {
+            return this.aeEnergyUpkeepPerTick;
+        }
+
+        public long celestialEnergyChargePerTick() {
+            return this.celestialEnergyChargePerTick;
+        }
+
+        public long aeEnergyChargePerTick() {
+            return this.aeEnergyChargePerTick;
+        }
+
+        public int reserveGraceTicks() {
+            return this.reserveGraceTicks;
+        }
+
+        public double deploymentThreshold() {
+            return this.deploymentThreshold;
+        }
+
+        public int redeploymentTicks() {
+            return this.redeploymentTicks;
+        }
+
+        public int maxEndpointsPerWeapon() {
+            return this.maxEndpointsPerWeapon;
+        }
+
+        public int maxEndpointsPerDimension() {
+            return this.maxEndpointsPerDimension;
+        }
+
+        public boolean endpointChunkLoadingEnabled() {
+            return this.endpointChunkLoadingEnabled;
+        }
+
+        public int maxAttackChunkTicketsPerTask() {
+            return this.maxAttackChunkTicketsPerTask;
+        }
+
+        public int maxAttackChunkTicketsGlobal() {
+            return this.maxAttackChunkTicketsGlobal;
+        }
+
+        public int maxAttackChunkGenerationPerDimension() {
+            return this.maxAttackChunkGenerationPerDimension;
+        }
+
+        public int maxAttackChunkGenerationGlobal() {
+            return this.maxAttackChunkGenerationGlobal;
+        }
+
+        public int maxAttackBlockMutationsPerTaskTick() {
+            return this.maxAttackBlockMutationsPerTaskTick;
+        }
+
+        public int maxAttackBlockMutationsGlobalTick() {
+            return this.maxAttackBlockMutationsGlobalTick;
+        }
+
+        public int maxCommittedAttackTasks() {
+            return this.maxCommittedAttackTasks;
+        }
+
+        public long kineticCelestialEnergyCost() {
+            return this.kineticCelestialEnergyCost;
+        }
+
+        public long kineticAeEnergyCost() {
+            return this.kineticAeEnergyCost;
+        }
+
+        public int attackWarningTicks() {
+            return this.attackWarningTicks;
+        }
+
+        public int kineticCooldownTicks() {
+            return this.kineticCooldownTicks;
+        }
+
+        public long directedEnergyBaseCelestialEnergyCost() {
+            return this.directedEnergyBaseCelestialEnergyCost;
+        }
+
+        public long directedEnergyBaseAeEnergyCost() {
+            return this.directedEnergyBaseAeEnergyCost;
+        }
+
+        public long directedEnergyCelestialEnergyPerCoordinate() {
+            return this.directedEnergyCelestialEnergyPerCoordinate;
+        }
+
+        public long directedEnergyAeEnergyPerCoordinate() {
+            return this.directedEnergyAeEnergyPerCoordinate;
+        }
+
+        public int directedEnergyCooldownTicks() {
+            return this.directedEnergyCooldownTicks;
+        }
+
+        public long directedEnergyEntityDamage() {
+            return this.directedEnergyEntityDamage;
+        }
+
+        public long digitalAnnihilationCelestialEnergyCost() {
+            return this.digitalAnnihilationCelestialEnergyCost;
+        }
+
+        public long digitalAnnihilationAeEnergyCost() {
+            return this.digitalAnnihilationAeEnergyCost;
+        }
+
+        public int digitalAnnihilationCooldownTicks() {
+            return this.digitalAnnihilationCooldownTicks;
+        }
     }
 
     public static final class TrinityCraftingSchema {

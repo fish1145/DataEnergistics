@@ -77,7 +77,7 @@ public final class CropDataCarrierData {
                 itemId,
                 Optional.ofNullable(sourceBlockId),
                 Optional.ofNullable(lootTableId),
-                DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropRequiredAmount(),
+                (float) DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.cropRequiredAmount,
                 0.0F));
         return true;
     }
@@ -213,7 +213,9 @@ public final class CropDataCarrierData {
 
     public static boolean canRecordCrop(ResourceLocation itemId) {
         return isAllowedCropItem(itemId) &&
-                !DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropDataBlacklist().contains(itemId);
+                !DataExtractorRuleTable.containsConfiguredId(
+                        DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.cropDataBlacklist,
+                        itemId);
     }
 
     private static @Nullable CropDataCarrierItemData getData(ItemStack stack) {
@@ -292,7 +294,9 @@ public final class CropDataCarrierData {
             return true;
         }
 
-        if (DataEnergisticsConfiguration.INSTANCE.dataExtractor().cropDataWhitelist().contains(itemId)) {
+        if (DataExtractorRuleTable.containsConfiguredId(
+                DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.cropDataWhitelist,
+                itemId)) {
             return true;
         }
 

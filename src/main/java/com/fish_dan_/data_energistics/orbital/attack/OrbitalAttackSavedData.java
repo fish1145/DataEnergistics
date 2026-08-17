@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
@@ -212,7 +211,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      * included; clients only receive deterministic geometry and coarse progress.
      */
     public List<OrbitalAttackVisualSnapshot> publicVisuals(ServerLevel level, long gameTime) {
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         ArrayList<OrbitalAttackVisualSnapshot> visuals = new ArrayList<>();
         for (OrbitalAttackRecord attack : this.attacks.values()) {
             if (!attack.dimensionId().equals(level.dimension().location()) || (attack.phase() != OrbitalAttackPhase.RESERVED_WARNING && attack.phase() != OrbitalAttackPhase.COMMITTED && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
@@ -282,7 +281,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
 
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -344,7 +343,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
             return Optional.empty();
         }
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -416,8 +415,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
             return Optional.empty();
         }
-        DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.DataNukeSchema dataNuke = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -567,7 +566,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public void tick(MinecraftServer server) {
         requireServerThread(server);
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         long gameTime = server.overworld().getGameTime();
         boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
         for (OrbitalAttackRecord attack : this.attacks.values()) {
@@ -715,7 +714,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                         OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG)),
                         tag.getLong(GEOMETRY_DAMAGE_TAG));
                 case DIGITAL_ANNIHILATION -> {
-                    DataEnergisticsSettings.DataNuke fallback = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+                    DataEnergisticsConfiguration.DataNukeSchema fallback = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
                     geometry = new OrbitalAttackGeometry.DigitalAnnihilation(
                             tag.contains(DIGITAL_WORK_INTERVAL_TAG) ? tag.getInt(DIGITAL_WORK_INTERVAL_TAG) : fallback.workIntervalTicks(),
                             tag.contains(DIGITAL_MAX_RADIUS_TAG) ? tag.getInt(DIGITAL_MAX_RADIUS_TAG) : fallback.maxRadius(),
@@ -1176,7 +1175,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
     }
 
-    private boolean hasAttackCapacity(DataEnergisticsSettings.OrbitalWeapon settings) {
+    private boolean hasAttackCapacity(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         long occupiedTasks = this.attacks.values().stream()
                 .filter(OrbitalAttackSavedData::occupiesWorkSlot)
                 .count();

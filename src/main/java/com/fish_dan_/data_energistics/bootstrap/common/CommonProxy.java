@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOut
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
-import com.fish_dan_.data_energistics.configuration.runtime.HolderFingerprintBridge;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
@@ -40,7 +39,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 public class CommonProxy {
 
-    public static void init(IEventBus modEventBus, HolderFingerprintBridge configurationReload) {
+    public static void init(IEventBus modEventBus) {
         CommonProxy instance = new CommonProxy();
 
         TowerGridServices.init();
@@ -70,7 +69,7 @@ public class CommonProxy {
         modEventBus.addListener(BuiltinDataPackRegistrar::register);
         modEventBus.addListener(OrbitalEndpointChunkTickets::registerController);
 
-        CommonEventRegistrar.register(configurationReload);
+        CommonEventRegistrar.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

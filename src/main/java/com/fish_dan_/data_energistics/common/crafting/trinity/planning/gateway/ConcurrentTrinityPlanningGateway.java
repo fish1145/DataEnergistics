@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import net.minecraft.network.chat.Component;
 
@@ -46,7 +46,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     private final TrinityComputationCache planningCache;
     private final TrinityPlanningComputation planningComputation;
 
-    ConcurrentTrinityPlanningGateway(TrinityCrafting settings) {
+    ConcurrentTrinityPlanningGateway(TrinityCraftingSchema settings) {
         this(createOwnedExecutors(settings));
     }
 
@@ -71,14 +71,14 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                 TrinityGraphPlanner.pipeline());
     }
 
-    private static PlanningExecutors createOwnedExecutors(TrinityCrafting settings) {
+    private static PlanningExecutors createOwnedExecutors(TrinityCraftingSchema settings) {
         ExecutorService initial = createExecutor(
-                settings.plannerThreads(),
-                settings.plannerQueueCapacity(),
+                settings.plannerThreads,
+                settings.plannerQueueCapacity,
                 "DataEnergistics-TrinityInitialPlanner-");
         ExecutorService remaining = createExecutor(
-                settings.cpuPlannerThreads(),
-                settings.plannerQueueCapacity(),
+                settings.cpuPlannerThreads,
+                settings.plannerQueueCapacity,
                 "DataEnergistics-TrinityRemainingPlanner-");
         return new PlanningExecutors(initial, remaining);
     }

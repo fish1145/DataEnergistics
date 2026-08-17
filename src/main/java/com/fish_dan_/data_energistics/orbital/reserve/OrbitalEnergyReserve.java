@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.reserve;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 /**
  * Persistent orbital reserves for Celestial Energy and AE energy, which remain independent resources.
@@ -26,7 +26,7 @@ public record OrbitalEnergyReserve(
      * Returns whether both reserves satisfy the configured deployment threshold.
      * The calculation uses a ceiling so a non-zero fractional threshold cannot deploy with a zero reserve.
      */
-    public boolean meetsDeploymentThreshold(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public boolean meetsDeploymentThreshold(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity(), settings.deploymentThreshold()) && this.aeEnergy >= threshold(settings.aeEnergyCapacity(), settings.deploymentThreshold());
     }
 
@@ -45,14 +45,14 @@ public record OrbitalEnergyReserve(
     /**
      * Returns the remaining Celestial Energy capacity after applying the current configuration.
      */
-    public long celestialEnergySpace(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public long celestialEnergySpace(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return settings.celestialEnergyCapacity() - Math.min(this.celestialEnergy, settings.celestialEnergyCapacity());
     }
 
     /**
      * Returns the remaining AE energy capacity after applying the current configuration.
      */
-    public long aeEnergySpace(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public long aeEnergySpace(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return settings.aeEnergyCapacity() - Math.min(this.aeEnergy, settings.aeEnergyCapacity());
     }
 
@@ -62,7 +62,7 @@ public record OrbitalEnergyReserve(
     public OrbitalEnergyReserve withTransfer(
                                              long transferredCelestialEnergy,
                                              long transferredAeEnergy,
-                                             DataEnergisticsSettings.OrbitalWeapon settings) {
+                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         if (transferredCelestialEnergy < 0L || transferredAeEnergy < 0L) {
             throw new IllegalArgumentException("Transferred orbital energy must not be negative");
         }
@@ -86,7 +86,7 @@ public record OrbitalEnergyReserve(
     /**
      * Clamps reserves after a configuration capacity reduction without creating a new object when unchanged.
      */
-    public OrbitalEnergyReserve withinCapacity(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public OrbitalEnergyReserve withinCapacity(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return withTransfer(0L, 0L, settings);
     }
 

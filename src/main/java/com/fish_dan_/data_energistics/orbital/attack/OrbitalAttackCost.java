@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 /**
  * Immutable resource escrow and cooldown captured when an attack is confirmed.
@@ -19,7 +19,7 @@ public record OrbitalAttackCost(
     /**
      * Reads the kinetic cost from one immutable configuration snapshot.
      */
-    public static OrbitalAttackCost kinetic(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public static OrbitalAttackCost kinetic(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return new OrbitalAttackCost(
                 settings.kineticCelestialEnergyCost(),
                 settings.kineticAeEnergyCost(),
@@ -30,7 +30,7 @@ public record OrbitalAttackCost(
      * Calculates the complete directed-energy escrow, including every scheduled disk coordinate.
      */
     public static OrbitalAttackCost directedEnergy(
-                                                   DataEnergisticsSettings.OrbitalWeapon settings,
+                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
                                                    long scheduledCoordinates) {
         if (scheduledCoordinates <= 0L) {
             throw new IllegalArgumentException("A directed-energy scan must schedule at least one coordinate");
@@ -47,7 +47,7 @@ public record OrbitalAttackCost(
     /**
      * Reads the fixed digital-annihilation payload cost from one immutable configuration snapshot.
      */
-    public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsSettings.OrbitalWeapon settings) {
+    public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return new OrbitalAttackCost(
                 settings.digitalAnnihilationCelestialEnergyCost(),
                 settings.digitalAnnihilationAeEnergyCost(),

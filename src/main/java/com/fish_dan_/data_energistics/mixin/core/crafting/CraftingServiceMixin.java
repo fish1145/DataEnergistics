@@ -43,9 +43,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.cap
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
-import com.fish_dan_.data_energistics.configuration.runtime.TrinityDispatchGovernorState;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -142,11 +141,15 @@ public abstract class CraftingServiceMixin
     private final Map<CraftingCpuSelectionGroup, String> dataEnergistics$nextCpuSubmitByGroup = new HashMap<>();
 
     /**
-     * Configuration revision and runtime-derived Governor are replaced as one server-thread-only value.
+     * Runtime-derived Governor is rebuilt only when the live dispatch schema changes.
      */
     @Unique
-    private TrinityDispatchGovernorState dataEnergistics$dispatchGovernorState = TrinityDispatchGovernorState.capture(
-            DataEnergisticsConfiguration.INSTANCE);
+    private CraftingDispatchGovernor dataEnergistics$dispatchGovernor = CraftingDispatchGovernor.create(
+            DataEnergisticsConfiguration.INSTANCE.trinity.dispatch);
+
+    @Unique
+    private long dataEnergistics$dispatchConfigurationSignature = CraftingDispatchGovernor.configurationSignature(
+            DataEnergisticsConfiguration.INSTANCE.trinity.dispatch);
 
     /**
      * Server-thread-only incremental capture state; published snapshots contain no reference back to this object.
@@ -213,11 +216,11 @@ public abstract class CraftingServiceMixin
             return original.call(level, simRequester, what, amount, strategy);
         }
 
-        TrinityCrafting settings = DataEnergisticsConfiguration.INSTANCE.trinityCrafting();
+        TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
         IActionSource actionSource = simRequester.getActionSource();
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
-                settings.defaultQuantityMode());
+                settings.defaultQuantityMode);
         Optional<TrinityCraftingGraphSnapshot> graph = data_energistics$trinityCraftingGraphSnapshot();
         CraftingProviderPublicationIndex publications = data_energistics$craftingProviderPublicationIndex();
         long publicationRevision = publications.publicationRevision();
@@ -348,13 +351,13 @@ public abstract class CraftingServiceMixin
                                                                                CraftingQuantityMode quantityMode,
                                                                                Map<AEKey, BigInteger> available,
                                                                                long maxTrinityBytes,
-                                                                               TrinityCrafting settings) throws Exception {
+                                                                               TrinityCraftingSchema settings) throws Exception {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
                     Component.translatable("gui.data_energistics.trinity_planning.graph_unavailable"),
                     Map.of("request", Long.toString(requestId)));
-            if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
                 Data_Energistics.LOGGER.info(
                         "Trinity planning fallback request={} target={} mode={} revision=-1 reason={} metadata={}",
                         requestId,
@@ -483,7 +486,7 @@ public abstract class CraftingServiceMixin
             return;
         }
         dataEnergistics$reloadDispatchGovernor();
-        CraftingDispatchGovernor governor = this.dataEnergistics$dispatchGovernorState.governor();
+        CraftingDispatchGovernor governor = this.dataEnergistics$dispatchGovernor;
         MinecraftServer server = this.grid.getPivot().getLevel().getServer();
         long gridGeneration = data_energistics$craftingProviderPublicationIndex().publicationScope();
         List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
@@ -644,12 +647,16 @@ public abstract class CraftingServiceMixin
     }
 
     /**
-     * Replaces observation state atomically when the dedicated COMMON config is reloaded.
+     * Rebuilds the local Governor when Configuration's live dispatch fields changed.
      */
     @Unique
     private void dataEnergistics$reloadDispatchGovernor() {
-        this.dataEnergistics$dispatchGovernorState = this.dataEnergistics$dispatchGovernorState.refresh(
-                DataEnergisticsConfiguration.INSTANCE);
+        var settings = DataEnergisticsConfiguration.INSTANCE.trinity.dispatch;
+        long signature = CraftingDispatchGovernor.configurationSignature(settings);
+        if (signature != this.dataEnergistics$dispatchConfigurationSignature) {
+            this.dataEnergistics$dispatchGovernor = CraftingDispatchGovernor.create(settings);
+            this.dataEnergistics$dispatchConfigurationSignature = signature;
+        }
     }
 
     @Inject(method = "onServerEndTick", at = @At("TAIL"))
@@ -668,7 +675,7 @@ public abstract class CraftingServiceMixin
                         System::nanoTime);
             }
             long budgetNanos = TimeUnit.MILLISECONDS.toNanos(
-                    DataEnergisticsConfiguration.INSTANCE.trinityCrafting().graphRebuildBudgetMs());
+                    DataEnergisticsConfiguration.INSTANCE.trinity.crafting.graphRebuildBudgetMs);
             this.dataEnergistics$trinityCraftingGraphRebuilder.advance(budgetNanos);
         } catch (RuntimeException exception) {
             long revision = ((TrinityCraftingProviderRevision) this.craftingProviders)
