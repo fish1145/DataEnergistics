@@ -581,13 +581,15 @@ public final class TrinityPlanExecution {
     /**
      * Records the exact count accepted by a provider and advances only that firing cursor.
      *
-     * <p>For an unstarted cycle wave, {@code offeredLogicalFirings} is the seed-safe logical offer calculated before
+     * <p>
+     * For an unstarted cycle wave, {@code offeredLogicalFirings} is the seed-safe logical offer calculated before
      * provider capacity slicing. It must not be replaced with {@code acceptedCount}: a provider may accept only a
-     * partial physical slice, but the established wave still has to retain its original logical size.</p>
+     * partial physical slice, but the established wave still has to retain its original logical size.
+     * </p>
      *
-     * @param work                    current leased work
-     * @param acceptedCount           positive accepted logical firing count
-     * @param offeredLogicalFirings   logical offer that established an unstarted cycle wave
+     * @param work                  current leased work
+     * @param acceptedCount         positive accepted logical firing count
+     * @param offeredLogicalFirings logical offer that established an unstarted cycle wave
      */
     public void recordAccepted(Work work, long acceptedCount, long offeredLogicalFirings) {
         if (acceptedCount <= 0L) {
@@ -1383,8 +1385,10 @@ public final class TrinityPlanExecution {
     /**
      * Recomputes the artificial predecessor chain used by older plans while retaining explicit non-chain edges.
      *
-     * <p>Persisted proposals and leases are transient, so restoring a job is the safe point to expose independent
-     * stages. Cycle stages remain ordered; stages with overlapping input/output footprints remain ordered as well.</p>
+     * <p>
+     * Persisted proposals and leases are transient, so restoring a job is the safe point to expose independent
+     * stages. Cycle stages remain ordered; stages with overlapping input/output footprints remain ordered as well.
+     * </p>
      *
      * @return whether at least one persisted dependency set changed
      */

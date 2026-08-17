@@ -294,9 +294,11 @@ public final class TrinityGraphPlanAssembler {
     /**
      * Computes conservative stage dependencies from resource footprints.
      *
-     * <p>Stages that do not share inputs, outputs, pattern identity or a cycle cursor can be leased together. A cycle
+     * <p>
+     * Stages that do not share inputs, outputs, pattern identity or a cycle cursor can be leased together. A cycle
      * stage remains ordered against every earlier stage so its seed and cursor semantics cannot be changed by the
-     * parallel DAG path.</p>
+     * parallel DAG path.
+     * </p>
      */
     private static Set<Integer> dependenciesFor(TrinityPatternVariant variant,
                                                 boolean cycleStage,
