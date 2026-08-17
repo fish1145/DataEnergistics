@@ -132,6 +132,13 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     }
 
     @Override
+    public boolean isAlwaysTicking() {
+        // The payload starts above the normal build-height sections; its ticket and server-authoritative flight must
+        // continue while the target chunk is being generated and before that section becomes normally visible.
+        return true;
+    }
+
+    @Override
     public boolean hurt(DamageSource source, float amount) {
         return false;
     }

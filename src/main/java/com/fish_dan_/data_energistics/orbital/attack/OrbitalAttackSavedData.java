@@ -237,9 +237,9 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     /**
-     * Confirms a digital-annihilation payload after validating the loaded target chunk and freezing the authorization
-     * exemption snapshot. The target chunk is deliberately required to be loaded until the chunk-future governor is
-     * introduced; the attack loop never synchronously generates a chunk.
+     * Confirms a digital-annihilation payload after validating the target boundary and freezing the authorization
+     * exemption and work-settings snapshots. The target chunk may be absent; the delivery entity owns the subsequent
+     * ticket/future lifecycle instead of rejecting a valid future-generation request at confirmation time.
      */
     public Optional<OrbitalAttackRecord> tryConfirmDigitalAnnihilation(
                                                                        MinecraftServer server,
@@ -257,8 +257,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
             return Optional.empty();
         }
+        DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validDigitalTarget(targetLevel, target)) {
+        if (targetLevel == null || !validDigitalTarget(targetLevel, target, dataNuke.maxRadius())) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -266,7 +267,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
 
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
-        DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
                 UUID.randomUUID(),
@@ -561,7 +561,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             fault(current, "Digital-annihilation attack has incompatible geometry");
             return;
         }
-        if (!validDigitalTarget(level, current.target())) {
+        if (!validDigitalTarget(level, current.target(), geometry.maxRadius())) {
             return;
         }
 
@@ -606,6 +606,12 @@ public final class OrbitalAttackSavedData extends SavedData {
             return;
         }
         if (payload == null) {
+            ChunkPos targetChunk = new ChunkPos(current.target());
+            if (level.getChunkSource().getChunkNow(targetChunk.x, targetChunk.z) == null) {
+                // The entity manager keeps a newly spawned payload hidden until its ticket finishes loading the
+                // target chunk. Do not turn that expected asynchronous window into a permanent FAULTED attack.
+                return;
+            }
             fault(current, "Digital-annihilation payload entity disappeared before arrival");
         } else {
             fault(current, "Digital-annihilation payload entity was replaced unexpectedly");
@@ -727,15 +733,13 @@ public final class OrbitalAttackSavedData extends SavedData {
         return OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, target, radius);
     }
 
-    private static boolean validDigitalTarget(ServerLevel level, BlockPos target) {
+    private static boolean validDigitalTarget(ServerLevel level, BlockPos target, int radius) {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
             return false;
         }
-        if (!level.getWorldBorder().isWithinBounds(target)) {
-            return false;
-        }
-        ChunkPos chunk = new ChunkPos(target);
-        return level.hasChunk(chunk.x, chunk.z);
+        return level.getWorldBorder().isWithinBounds(target)
+                && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius))
+                && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
     private static void requireServerThread(MinecraftServer server) {

@@ -25,6 +25,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -218,6 +219,67 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_digital_annihilation_accepts_unloaded_target_chunk")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    public static void acceptsUnloadedTargetChunk(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "digital-unloaded-target-owner");
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+
+        BlockPos absoluteTarget = findUnloadedTarget(level, helper.absolutePos(new BlockPos(25, 20, 25)));
+        ChunkPos targetChunk = new ChunkPos(absoluteTarget);
+        AtomicReference<UUID> attackId = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId(), level.dimension().location()),
+                        "The unloaded-target test must use a real powered endpoint"))
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            level.getChunkSource().getChunkNow(targetChunk.x, targetChunk.z) == null,
+                            "The future-generation target must begin outside the loaded test area");
+                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
+                    UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+                    primeReserve(weapons, server, weaponId, cost);
+                    OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
+                                    server,
+                                    owner.getUUID(),
+                                    weaponId,
+                                    level.dimension().location(),
+                                    absoluteTarget)
+                            .orElseThrow(() -> new IllegalStateException("An unloaded digital target was rejected"));
+                    attackId.set(warning.attackId());
+                    helper.assertValueEqual(
+                            warning.phase(),
+                            OrbitalAttackPhase.RESERVED_WARNING,
+                            "An unloaded target must enter the normal refundable warning phase");
+                })
+                .thenIdle(settings.attackWarningTicks())
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            delivery.phase(),
+                            OrbitalAttackPhase.DELIVERY,
+                            "An unloaded target must advance into payload delivery");
+                    helper.assertTrue(
+                            delivery.payloadEntityId() != null
+                                    && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The payload ticket must materialize the orbital projectile in the previously unloaded chunk");
+                })
+                .thenSucceed();
+    }
+
     @TestHolder("orbital_control_emergency_abort_discards_committed_payload_without_refund")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
@@ -321,6 +383,26 @@ public final class OrbitalDigitalAnnihilationGameTest {
             throw new IllegalStateException("The digital test drive has no block entity");
         }
         drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
+    }
+
+    private static BlockPos findUnloadedTarget(ServerLevel level, BlockPos origin) {
+        for (int distance = 64; distance <= 2_048; distance += 16) {
+            for (BlockPos candidate : new BlockPos[]{
+                    origin.offset(distance, 0, 0),
+                    origin.offset(-distance, 0, 0),
+                    origin.offset(0, 0, distance),
+                    origin.offset(0, 0, -distance),
+                    origin.offset(distance, 0, distance),
+                    origin.offset(-distance, 0, -distance),
+                    origin.offset(distance, 0, -distance),
+                    origin.offset(-distance, 0, distance)}) {
+                ChunkPos chunk = new ChunkPos(candidate);
+                if (level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null) {
+                    return candidate;
+                }
+            }
+        }
+        throw new IllegalStateException("The game test could not find an unloaded target chunk");
     }
 
     private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
