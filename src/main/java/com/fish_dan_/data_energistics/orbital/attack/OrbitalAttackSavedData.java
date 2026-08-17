@@ -33,6 +33,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
     private static final String WORK_STATE_TAG = "work_state";
+    private static final String PHASE_STARTED_AT_TAG = "phase_started_at";
     private static final String FAULT_REASON_TAG = "fault_reason";
     private static final int MAX_FAULT_REASON_LENGTH = 512;
     private static final String PAYLOAD_ENTITY_ID_TAG = "payload_entity_id";
@@ -82,6 +84,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackSavedData::load);
 
     private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
+    private final Map<UUID, Long> phaseStartedAt = new HashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
     private int roundRobinOffset;
 
@@ -130,7 +133,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         discardPayload(server, current);
         this.terrainWorkScheduler.release(server, attackId);
-        this.attacks.put(attackId, current.retryAfterFault());
+        replaceAttack(server, current, current.retryAfterFault());
         setDirty();
         return true;
     }
@@ -147,7 +150,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         discardPayload(server, current);
         this.terrainWorkScheduler.release(server, attackId);
-        this.attacks.put(attackId, current.aborted());
+        replaceAttack(server, current, current.aborted());
         setDirty();
         return true;
     }
@@ -167,6 +170,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 current.aeEscrow());
         this.terrainWorkScheduler.release(server, attackId);
         this.attacks.remove(attackId);
+        this.phaseStartedAt.remove(attackId);
         setDirty();
         return true;
     }
@@ -225,7 +229,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             };
             long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
                     ? Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining())
-                    : Math.max(0L, gameTime);
+                    : Math.max(0L, gameTime - this.phaseStartedAt.getOrDefault(attack.attackId(), gameTime));
             long randomSeed = (attack.attackId().getMostSignificantBits()
                     ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
             visuals.add(new OrbitalAttackVisualSnapshot(
@@ -300,8 +304,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        this.attacks.put(warning.attackId(), warning);
-        setDirty();
+        registerAttack(server, warning);
         return Optional.of(warning);
     }
 
@@ -377,8 +380,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        this.attacks.put(warning.attackId(), warning);
-        setDirty();
+        registerAttack(server, warning);
         return Optional.of(warning);
     }
 
@@ -439,8 +441,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        this.attacks.put(warning.attackId(), warning);
-        setDirty();
+        registerAttack(server, warning);
         return Optional.of(warning);
     }
 
@@ -494,6 +495,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         this.attacks.remove(attackId);
+        this.phaseStartedAt.remove(attackId);
         try {
             weapons.refundWarningReserve(
                     server,
@@ -503,6 +505,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     warning.aeEscrow());
         } catch (RuntimeException exception) {
             this.attacks.put(attackId, warning);
+            this.phaseStartedAt.put(attackId, server.overworld().getGameTime());
             throw exception;
         }
         setDirty();
@@ -525,7 +528,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         discardPayload(server, current);
         this.terrainWorkScheduler.release(server, attackId);
-        this.attacks.put(attackId, current.aborted());
+        replaceAttack(server, current, current.aborted());
         setDirty();
         return true;
     }
@@ -537,6 +540,14 @@ public final class OrbitalAttackSavedData extends SavedData {
     public void tick(MinecraftServer server) {
         requireServerThread(server);
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        long gameTime = server.overworld().getGameTime();
+        for (OrbitalAttackRecord attack : this.attacks.values()) {
+            if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
+                    || attack.phase() == OrbitalAttackPhase.COMMITTED
+                    || attack.phase() == OrbitalAttackPhase.DELIVERY) {
+                this.phaseStartedAt.putIfAbsent(attack.attackId(), gameTime);
+            }
+        }
         this.terrainWorkScheduler.beginTick(server, settings);
         Set<UUID> liveTerrainAttacks = this.attacks.values().stream()
                 .filter(attack -> attack.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION)
@@ -569,7 +580,10 @@ public final class OrbitalAttackSavedData extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag attackList = new ListTag();
-        this.attacks.values().stream().map(OrbitalAttackSavedData::writeAttack).forEach(attackList::add);
+        this.attacks.values()
+                .stream()
+                .map(attack -> writeAttack(attack, this.phaseStartedAt.getOrDefault(attack.attackId(), 0L)))
+                .forEach(attackList::add);
         tag.put(ATTACKS_TAG, attackList);
         return tag;
     }
@@ -587,17 +601,23 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackRecord attack = readAttack(attackTag);
             if (attack == null || data.attacks.putIfAbsent(attack.attackId(), attack) != null) {
                 LOGGER.warn("Ignoring invalid or duplicate orbital attack record");
+            } else if (attackTag.contains(PHASE_STARTED_AT_TAG, Tag.TAG_LONG)) {
+                long phaseStart = attackTag.getLong(PHASE_STARTED_AT_TAG);
+                if (phaseStart >= 0L) {
+                    data.phaseStartedAt.put(attack.attackId(), phaseStart);
+                }
             }
         }
         return data;
     }
 
-    private static CompoundTag writeAttack(OrbitalAttackRecord attack) {
+    private static CompoundTag writeAttack(OrbitalAttackRecord attack, long phaseStartedAt) {
         CompoundTag tag = new CompoundTag();
         tag.putUUID(ATTACK_ID_TAG, attack.attackId());
         tag.putUUID(WEAPON_ID_TAG, attack.weaponId());
         tag.putString(MODE_TAG, attack.mode().name());
         tag.putString(PHASE_TAG, attack.phase().name());
+        tag.putLong(PHASE_STARTED_AT_TAG, Math.max(0L, phaseStartedAt));
         tag.putString(DIMENSION_TAG, attack.dimensionId().toString());
         tag.put(TARGET_TAG, NbtUtils.writeBlockPos(attack.target()));
         if (attack.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy directedEnergy) {
@@ -718,6 +738,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         OrbitalAttackRecord committed = current.committed();
         this.attacks.put(current.attackId(), committed);
+        this.phaseStartedAt.put(current.attackId(), server.overworld().getGameTime());
         setDirty();
         tickDelivery(server, committed);
     }
@@ -772,7 +793,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 return;
             }
             if (payload == null) {
-                this.attacks.put(current.attackId(), current.cooldown(current.cooldownDurationTicks()));
+                replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
                 setDirty();
                 return;
             }
@@ -822,7 +843,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
             int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
             if (mutationBudget <= 0) {
-                updateAttack(delivery, delivery.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
+                updateAttack(server, delivery, delivery.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
                 return;
             }
             long previousCursor = delivery.workCursor();
@@ -845,7 +866,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 this.terrainWorkScheduler.release(server, current.attackId());
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
-            updateAttack(current, updated);
+            updateAttack(server, current, updated);
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Orbital attack {} failed during kinetic delivery at {}",
@@ -869,7 +890,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         try {
             int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
             if (mutationBudget <= 0) {
-                updateAttack(current, current.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
+                updateAttack(server, current, current.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
                 return;
             }
             long previousCursor = current.workCursor();
@@ -895,7 +916,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 this.terrainWorkScheduler.release(server, current.attackId());
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
-            updateAttack(current, updated);
+            updateAttack(server, current, updated);
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Orbital attack {} failed during directed-energy delivery at {}",
@@ -920,6 +941,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         this.terrainWorkScheduler.release(server, current.attackId());
         if (current.cooldownTicksRemaining() <= 1) {
             this.attacks.remove(current.attackId());
+            this.phaseStartedAt.remove(current.attackId());
         } else {
             this.attacks.put(current.attackId(), current.withCooldownTicks(current.cooldownTicksRemaining() - 1));
         }
@@ -928,7 +950,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private void tickAborted(MinecraftServer server, OrbitalAttackRecord current) {
         this.terrainWorkScheduler.release(server, current.attackId());
-        this.attacks.put(current.attackId(), current.cooldown(current.cooldownDurationTicks()));
+        replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
         setDirty();
     }
 
@@ -951,7 +973,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private void fault(MinecraftServer server, OrbitalAttackRecord current, String reason) {
         this.terrainWorkScheduler.release(server, current.attackId());
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
-        this.attacks.put(current.attackId(), current.faulted(reason));
+        replaceAttack(server, current, current.faulted(reason));
         setDirty();
     }
 
@@ -974,6 +996,25 @@ public final class OrbitalAttackSavedData extends SavedData {
         };
     }
 
+    private void registerAttack(MinecraftServer server, OrbitalAttackRecord attack) {
+        this.attacks.put(attack.attackId(), attack);
+        this.phaseStartedAt.put(attack.attackId(), server.overworld().getGameTime());
+        setDirty();
+    }
+
+    private void replaceAttack(
+                              MinecraftServer server,
+                              OrbitalAttackRecord current,
+                              OrbitalAttackRecord updated) {
+        if (!current.attackId().equals(updated.attackId())) {
+            throw new IllegalArgumentException("An orbital attack update cannot change its identity");
+        }
+        this.attacks.put(updated.attackId(), updated);
+        if (current.phase() != updated.phase()) {
+            this.phaseStartedAt.put(updated.attackId(), server.overworld().getGameTime());
+        }
+    }
+
     private void handleTerrainBoundary(
                                        MinecraftServer server,
                                        OrbitalAttackRecord current,
@@ -984,17 +1025,17 @@ public final class OrbitalAttackSavedData extends SavedData {
             fault(server, current, failure == null ? fallbackFailure : failure);
             return;
         }
-        updateAttack(current, current.withWorkState(persistedWorkState(readiness)));
+        updateAttack(server, current, current.withWorkState(persistedWorkState(readiness)));
     }
 
-    private void updateAttack(OrbitalAttackRecord current, OrbitalAttackRecord updated) {
+    private void updateAttack(MinecraftServer server, OrbitalAttackRecord current, OrbitalAttackRecord updated) {
         if (!current.attackId().equals(updated.attackId())) {
             throw new IllegalArgumentException("An orbital attack update cannot change its identity");
         }
         if (current.equals(updated)) {
             return;
         }
-        this.attacks.put(current.attackId(), updated);
+        replaceAttack(server, current, updated);
         setDirty();
     }
 
