@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -88,14 +89,17 @@ public final class OrbitalDigitalAnnihilationGameTest {
                     insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
                     primeReserve(weapons, server, weaponId, cost);
                     OrbitalEnergyReserve before = weapons.find(weaponId).orElseThrow().reserve();
-                    reserveBefore.set(before);
-                    OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
-                            server,
-                            owner.getUUID(),
-                            weaponId,
-                            level.dimension().location(),
-                            absoluteTarget)
+                    owner.setPos(
+                            absoluteTarget.getX() + 0.5D,
+                            absoluteTarget.getY() + 3.0D,
+                            absoluteTarget.getZ() + 0.5D);
+                    owner.setXRot(90.0F);
+                    owner.setYRot(0.0F);
+                    OrbitalAttackRecord warning = OrbitalControlActionDispatcher.fireAtLookTarget(
+                            owner,
+                            OrbitalAttackMode.DIGITAL_ANNIHILATION)
                             .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
+                    reserveBefore.set(before);
                     attackId.set(warning.attackId());
                     OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
