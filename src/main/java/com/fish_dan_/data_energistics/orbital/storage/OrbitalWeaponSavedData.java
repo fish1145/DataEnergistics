@@ -265,6 +265,19 @@ public final class OrbitalWeaponSavedData extends SavedData {
         setDirty();
     }
 
+    /** Credits escrow from an administrator-approved FAULTED attack refund without applying player permissions. */
+    public void refundFaultedReserve(
+                                    MinecraftServer server,
+                                    UUID weaponId,
+                                    long celestialEnergy,
+                                    long aeEnergy) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withCredit(celestialEnergy, aeEnergy));
+        this.weapons.put(weaponId, updated);
+        setDirty();
+    }
+
     /**
      * Removes a physical endpoint after its bound block has been destroyed or explicitly unbound.
      */

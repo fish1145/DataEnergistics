@@ -66,6 +66,8 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
     private static final String WORK_STATE_TAG = "work_state";
+    private static final String FAULT_REASON_TAG = "fault_reason";
+    private static final int MAX_FAULT_REASON_LENGTH = 512;
     private static final String PAYLOAD_ENTITY_ID_TAG = "payload_entity_id";
     private static final String PAYLOAD_ARRIVED_TAG = "payload_arrived";
     private static final String IMPACT_APPLIED_TAG = "impact_applied";
@@ -97,6 +99,76 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public Optional<OrbitalAttackRecord> find(UUID attackId) {
         return Optional.ofNullable(this.attacks.get(attackId));
+    }
+
+    /** Returns the persisted diagnostic text for an attack that entered the fault terminal state. */
+    @Nullable
+    public String faultReason(UUID attackId) {
+        OrbitalAttackRecord attack = this.attacks.get(attackId);
+        return attack == null ? null : attack.faultReason();
+    }
+
+    /**
+     * Returns whether an attack still blocks ownership transfer. Escrow is intentionally considered independently of
+     * the phase so a faulted or cooling task cannot move a partially consumed weapon to another owner.
+     */
+    public boolean hasTransferBlockingState(UUID weaponId) {
+        return this.attacks.values().stream()
+                .filter(attack -> attack.weaponId().equals(weaponId))
+                .anyMatch(attack -> switch (attack.phase()) {
+                    case RESERVED_WARNING, COMMITTED, DELIVERY, ABORTED, COOLDOWN -> true;
+                    case FAULTED -> attack.celestialEscrow() > 0L || attack.aeEscrow() > 0L;
+                });
+    }
+
+    /** Retries one faulted attack from its persisted cursor without refunding its escrow. */
+    public boolean retryFaulted(MinecraftServer server, UUID attackId) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null || current.phase() != OrbitalAttackPhase.FAULTED) {
+            return false;
+        }
+        discardPayload(server, current);
+        this.terrainWorkScheduler.release(server, attackId);
+        this.attacks.put(attackId, current.retryAfterFault());
+        setDirty();
+        return true;
+    }
+
+    /** Aborts an active or faulted attack for an administrator without refunding escrow. */
+    public boolean adminAbort(MinecraftServer server, UUID attackId) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null
+                || (current.phase() != OrbitalAttackPhase.COMMITTED
+                        && current.phase() != OrbitalAttackPhase.DELIVERY
+                        && current.phase() != OrbitalAttackPhase.FAULTED)) {
+            return false;
+        }
+        discardPayload(server, current);
+        this.terrainWorkScheduler.release(server, attackId);
+        this.attacks.put(attackId, current.aborted());
+        setDirty();
+        return true;
+    }
+
+    /** Explicitly refunds a faulted attack's escrow and removes its persisted task. */
+    public boolean refundFaulted(MinecraftServer server, UUID attackId) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null || current.phase() != OrbitalAttackPhase.FAULTED) {
+            return false;
+        }
+        discardPayload(server, current);
+        OrbitalWeaponSavedData.get(server).refundFaultedReserve(
+                server,
+                current.weaponId(),
+                current.celestialEscrow(),
+                current.aeEscrow());
+        this.terrainWorkScheduler.release(server, attackId);
+        this.attacks.remove(attackId);
+        setDirty();
+        return true;
     }
 
     /**
@@ -481,6 +553,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         tag.putInt(WARNING_TICKS_TAG, attack.warningTicksRemaining());
         tag.putLong(WORK_CURSOR_TAG, attack.workCursor());
         tag.putString(WORK_STATE_TAG, attack.workState().name());
+        if (attack.faultReason() != null) {
+            tag.putString(FAULT_REASON_TAG, attack.faultReason());
+        }
         if (attack.payloadEntityId() != null) {
             tag.putUUID(PAYLOAD_ENTITY_ID_TAG, attack.payloadEntityId());
         }
@@ -550,6 +625,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     tag.getInt(WARNING_TICKS_TAG),
                     tag.getLong(WORK_CURSOR_TAG),
                     tag.contains(WORK_STATE_TAG, Tag.TAG_STRING) ? OrbitalAttackWorkState.valueOf(tag.getString(WORK_STATE_TAG)) : OrbitalAttackWorkState.INACTIVE,
+                    readFaultReason(tag),
                     tag.hasUUID(PAYLOAD_ENTITY_ID_TAG) ? tag.getUUID(PAYLOAD_ENTITY_ID_TAG) : null,
                     tag.getBoolean(PAYLOAD_ARRIVED_TAG),
                     tag.getBoolean(IMPACT_APPLIED_TAG),
@@ -561,6 +637,17 @@ public final class OrbitalAttackSavedData extends SavedData {
         } catch (IllegalArgumentException exception) {
             return null;
         }
+    }
+
+    @Nullable
+    private static String readFaultReason(CompoundTag tag) {
+        if (!tag.contains(FAULT_REASON_TAG, Tag.TAG_STRING)) {
+            return null;
+        }
+        String reason = tag.getString(FAULT_REASON_TAG);
+        return reason.length() <= MAX_FAULT_REASON_LENGTH
+                ? reason
+                : reason.substring(0, MAX_FAULT_REASON_LENGTH);
     }
 
     private void tickWarning(MinecraftServer server, OrbitalAttackRecord current) {
@@ -804,7 +891,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private void fault(MinecraftServer server, OrbitalAttackRecord current, String reason) {
         this.terrainWorkScheduler.release(server, current.attackId());
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
-        this.attacks.put(current.attackId(), current.faulted());
+        this.attacks.put(current.attackId(), current.faulted(reason));
         setDirty();
     }
 

@@ -26,6 +26,7 @@ public record OrbitalAttackRecord(
                                   int warningTicksRemaining,
                                   long workCursor,
                                   OrbitalAttackWorkState workState,
+                                  @Nullable String faultReason,
                                   @Nullable UUID payloadEntityId,
                                   boolean payloadArrived,
                                   boolean impactApplied,
@@ -34,6 +35,93 @@ public record OrbitalAttackRecord(
                                   long celestialEscrow,
                                   long aeEscrow,
                                   Set<UUID> damageExemptions) {
+
+    /** Compatibility constructor for records written before the persisted work state was introduced. */
+    public OrbitalAttackRecord(
+                              UUID attackId,
+                              UUID weaponId,
+                              OrbitalAttackMode mode,
+                              OrbitalAttackPhase phase,
+                              ResourceLocation dimensionId,
+                              BlockPos target,
+                              OrbitalAttackGeometry geometry,
+                              long configurationRevision,
+                              int warningTicksRemaining,
+                              long workCursor,
+                              @Nullable UUID payloadEntityId,
+                              boolean payloadArrived,
+                              boolean impactApplied,
+                              int cooldownTicksRemaining,
+                              int cooldownDurationTicks,
+                              long celestialEscrow,
+                              long aeEscrow,
+                              Set<UUID> damageExemptions) {
+        this(
+                attackId,
+                weaponId,
+                mode,
+                phase,
+                dimensionId,
+                target,
+                geometry,
+                configurationRevision,
+                warningTicksRemaining,
+                workCursor,
+                OrbitalAttackWorkState.INACTIVE,
+                null,
+                payloadEntityId,
+                payloadArrived,
+                impactApplied,
+                cooldownTicksRemaining,
+                cooldownDurationTicks,
+                celestialEscrow,
+                aeEscrow,
+                damageExemptions);
+    }
+
+    /** Compatibility constructor for records written before fault diagnostics were persisted. */
+    public OrbitalAttackRecord(
+                              UUID attackId,
+                              UUID weaponId,
+                              OrbitalAttackMode mode,
+                              OrbitalAttackPhase phase,
+                              ResourceLocation dimensionId,
+                              BlockPos target,
+                              OrbitalAttackGeometry geometry,
+                              long configurationRevision,
+                              int warningTicksRemaining,
+                              long workCursor,
+                              OrbitalAttackWorkState workState,
+                              @Nullable UUID payloadEntityId,
+                              boolean payloadArrived,
+                              boolean impactApplied,
+                              int cooldownTicksRemaining,
+                              int cooldownDurationTicks,
+                              long celestialEscrow,
+                              long aeEscrow,
+                              Set<UUID> damageExemptions) {
+        this(
+                attackId,
+                weaponId,
+                mode,
+                phase,
+                dimensionId,
+                target,
+                geometry,
+                configurationRevision,
+                warningTicksRemaining,
+                workCursor,
+                workState,
+                null,
+                payloadEntityId,
+                payloadArrived,
+                impactApplied,
+                cooldownTicksRemaining,
+                cooldownDurationTicks,
+                celestialEscrow,
+                aeEscrow,
+                damageExemptions);
+    }
 
     public OrbitalAttackRecord {
         target = target.immutable();
@@ -82,6 +170,7 @@ public record OrbitalAttackRecord(
                 0L,
                 OrbitalAttackWorkState.INACTIVE,
                 null,
+                null,
                 false,
                 false,
                 0,
@@ -104,6 +193,7 @@ public record OrbitalAttackRecord(
                 remaining,
                 this.workCursor,
                 this.workState,
+                this.faultReason,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -127,6 +217,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 OrbitalAttackWorkState.INACTIVE,
+                null,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -155,6 +246,7 @@ public record OrbitalAttackRecord(
                 0,
                 nextCursor,
                 nextWorkState,
+                this.faultReason,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -182,6 +274,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 OrbitalAttackWorkState.INACTIVE,
+                null,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -197,6 +290,11 @@ public record OrbitalAttackRecord(
     }
 
     public OrbitalAttackRecord faulted() {
+        return faulted(this.faultReason);
+    }
+
+    /** Moves the task into an administrator-visible terminal state with one stable diagnostic reason. */
+    public OrbitalAttackRecord faulted(@Nullable String reason) {
         return new OrbitalAttackRecord(
                 this.attackId,
                 this.weaponId,
@@ -209,6 +307,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 OrbitalAttackWorkState.INACTIVE,
+                reason,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -236,6 +335,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 OrbitalAttackWorkState.INACTIVE,
+                this.faultReason,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -259,6 +359,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 this.workState,
+                this.faultReason,
                 this.payloadEntityId,
                 this.payloadArrived,
                 true,
@@ -283,6 +384,7 @@ public record OrbitalAttackRecord(
                 0,
                 this.workCursor,
                 this.workState,
+                this.faultReason,
                 entityId,
                 arrived,
                 this.impactApplied,
@@ -296,5 +398,32 @@ public record OrbitalAttackRecord(
     /** Returns a delivery record after the orbital payload has materialized as the fuse entity. */
     public OrbitalAttackRecord markDigitalPayloadArrived(UUID entityId) {
         return withPayloadEntity(entityId, true);
+    }
+
+    /** Re-enters delivery after an administrator retry while preserving the deterministic cursor and escrow. */
+    public OrbitalAttackRecord retryAfterFault() {
+        return new OrbitalAttackRecord(
+                this.attackId,
+                this.weaponId,
+                this.mode,
+                OrbitalAttackPhase.DELIVERY,
+                this.dimensionId,
+                this.target,
+                this.geometry,
+                this.configurationRevision,
+                0,
+                this.workCursor,
+                this.mode == OrbitalAttackMode.DIGITAL_ANNIHILATION
+                        ? OrbitalAttackWorkState.INACTIVE
+                        : OrbitalAttackWorkState.WAITING_FOR_CHUNK,
+                null,
+                null,
+                false,
+                this.impactApplied,
+                0,
+                this.cooldownDurationTicks,
+                this.celestialEscrow,
+                this.aeEscrow,
+                this.damageExemptions);
     }
 }
