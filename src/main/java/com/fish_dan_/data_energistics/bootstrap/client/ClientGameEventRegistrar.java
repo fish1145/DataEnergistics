@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPreferencesAccess;
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
+import com.fish_dan_.data_energistics.client.render.orbital.OrbitalAttackVisualClientState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -34,6 +36,8 @@ final class ClientGameEventRegistrar {
             PatternEncodingPreferenceSession.clearForMenu(event.getPlayer().containerMenu);
         }
         PatternUploadSucceededClientHandler.clear();
+        OrbitalTacticalMapClientState.clear();
+        OrbitalAttackVisualClientState.clear();
         PatternEncodingClientPreferencesAccess.deactivateServerProfile();
     }
 }

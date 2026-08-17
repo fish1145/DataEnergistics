@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackTicker;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualTicker;
 import com.fish_dan_.data_energistics.orbital.command.OrbitalAdminCommands;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlHudTicker;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
@@ -33,6 +34,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new OrbitalEndpointChunkTickets());
         NeoForge.EVENT_BUS.register(new OrbitalReserveTicker());
         NeoForge.EVENT_BUS.register(new OrbitalAttackTicker());
+        NeoForge.EVENT_BUS.register(new OrbitalAttackVisualTicker());
         NeoForge.EVENT_BUS.register(new OrbitalAdminCommands());
         NeoForge.EVENT_BUS.register(OrbitalTacticalMapCoordinator.INSTANCE);
         NeoForge.EVENT_BUS.register(new OrbitalControlHudTicker());

@@ -187,6 +187,50 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     /**
+     * Builds the public render baseline for one dimension. No owner, reserve, exemption or delegated-role field is
+     * included; clients only receive deterministic geometry and coarse progress.
+     */
+    public List<OrbitalAttackVisualSnapshot> publicVisuals(ServerLevel level, long gameTime) {
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        ArrayList<OrbitalAttackVisualSnapshot> visuals = new ArrayList<>();
+        for (OrbitalAttackRecord attack : this.attacks.values()) {
+            if (!attack.dimensionId().equals(level.dimension().location())
+                    || (attack.phase() != OrbitalAttackPhase.RESERVED_WARNING
+                            && attack.phase() != OrbitalAttackPhase.COMMITTED
+                            && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
+                continue;
+            }
+            long totalWork = switch (attack.mode()) {
+                case KINETIC -> OrbitalKineticStrike.totalWork(level, attack.target());
+                case DIRECTED_ENERGY -> attack.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry
+                        ? OrbitalDirectedEnergyStrike.totalWork(level, attack.target(), geometry)
+                        : 0L;
+                case DIGITAL_ANNIHILATION -> Math.max(attack.workCursor(), 1L);
+            };
+            long phaseAge = switch (attack.phase()) {
+                case RESERVED_WARNING -> Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining());
+                case COMMITTED, DELIVERY -> Math.max(0L, gameTime);
+                case ABORTED, COOLDOWN, FAULTED -> 0L;
+            };
+            long randomSeed = (attack.attackId().getMostSignificantBits()
+                    ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
+            visuals.add(new OrbitalAttackVisualSnapshot(
+                    attack.attackId(),
+                    attack.mode(),
+                    attack.dimensionId(),
+                    attack.target(),
+                    attack.phase(),
+                    phaseAge,
+                    randomSeed,
+                    attack.workCursor(),
+                    totalWork));
+        }
+        return visuals.stream()
+                .sorted(Comparator.comparing(OrbitalAttackVisualSnapshot::attackId))
+                .toList();
+    }
+
+    /**
      * Confirms a kinetic attack after rechecking permission, target bounds, an online target-dimension endpoint and
      * both reserve balances. The returned warning owns the debited escrow; an empty result leaves every store intact.
      */
