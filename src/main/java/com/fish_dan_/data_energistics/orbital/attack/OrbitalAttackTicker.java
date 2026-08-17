@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
@@ -13,5 +14,10 @@ public final class OrbitalAttackTicker {
     @SubscribeEvent
     public void onServerTickPost(ServerTickEvent.Post event) {
         OrbitalAttackSavedData.get(event.getServer()).tick(event.getServer());
+    }
+
+    @SubscribeEvent
+    public void onServerStopping(ServerStoppingEvent event) {
+        OrbitalAttackSavedData.get(event.getServer()).releaseRuntimeResources(event.getServer());
     }
 }

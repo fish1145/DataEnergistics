@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
+import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler;
+import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler.ChunkReadiness;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -36,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * World-level source of truth for confirmed orbital attacks and their resumable warning, delivery and cooldown work.
@@ -61,6 +65,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String CONFIGURATION_REVISION_TAG = "configuration_revision";
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
+    private static final String WORK_STATE_TAG = "work_state";
     private static final String PAYLOAD_ENTITY_ID_TAG = "payload_entity_id";
     private static final String PAYLOAD_ARRIVED_TAG = "payload_arrived";
     private static final String IMPACT_APPLIED_TAG = "impact_applied";
@@ -75,6 +80,8 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackSavedData::load);
 
     private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
+    private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
+    private int roundRobinOffset;
 
     private OrbitalAttackSavedData() {}
 
@@ -130,15 +137,19 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
 
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        if (!hasAttackCapacity(settings)) {
+            return Optional.empty();
+        }
+
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validTarget(targetLevel, target, OrbitalKineticStrike.SHOCKWAVE_RADIUS, true)) {
+        if (targetLevel == null || !validTarget(targetLevel, target, OrbitalKineticStrike.SHOCKWAVE_RADIUS)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             return Optional.empty();
         }
 
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
                 UUID.randomUUID(),
@@ -166,7 +177,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     /**
      * Confirms a directed-energy scan after validating its captured radius/depth geometry and complete billing cost.
-     * The current worker intentionally pauses on unloaded target chunks instead of synchronously generating them.
+     * Missing target chunks are accepted and later generated through the bounded future-backed terrain scheduler.
      */
     public Optional<OrbitalAttackRecord> tryConfirmDirectedEnergy(
                                                                   MinecraftServer server,
@@ -192,6 +203,9 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        if (!hasAttackCapacity(settings)) {
+            return Optional.empty();
+        }
 
         OrbitalAttackGeometry.DirectedEnergy geometry;
         try {
@@ -200,7 +214,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validTarget(targetLevel, target, radius, false)) {
+        if (targetLevel == null || !validTarget(targetLevel, target, radius)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -264,6 +278,10 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        if (!hasAttackCapacity(settings)) {
+            return Optional.empty();
+        }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
         if (targetLevel == null || !validDigitalTarget(targetLevel, target, dataNuke.maxRadius())) {
             return Optional.empty();
@@ -272,7 +290,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
 
-        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
                 UUID.randomUUID(),
@@ -332,7 +349,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() == OrbitalAttackPhase.COOLDOWN || current.phase() == OrbitalAttackPhase.FAULTED) {
             return false;
         }
-        fault(current, "Digital annihilation payload failed: " + reason);
+        fault(server, current, "Digital annihilation payload failed: " + reason);
         return true;
     }
 
@@ -382,6 +399,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         discardPayload(server, current);
+        this.terrainWorkScheduler.release(server, attackId);
         this.attacks.put(attackId, current.aborted());
         setDirty();
         return true;
@@ -393,12 +411,30 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public void tick(MinecraftServer server) {
         requireServerThread(server);
-        for (OrbitalAttackRecord current : List.copyOf(this.attacks.values())) {
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        this.terrainWorkScheduler.beginTick(server, settings);
+        Set<UUID> liveTerrainAttacks = this.attacks.values().stream()
+                .filter(attack -> attack.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION)
+                .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED
+                        || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                .map(OrbitalAttackRecord::attackId)
+                .collect(Collectors.toUnmodifiableSet());
+        this.terrainWorkScheduler.releaseMissing(server, liveTerrainAttacks);
+
+        List<OrbitalAttackRecord> snapshot = List.copyOf(this.attacks.values());
+        if (snapshot.isEmpty()) {
+            this.roundRobinOffset = 0;
+            return;
+        }
+        int start = Math.floorMod(this.roundRobinOffset, snapshot.size());
+        this.roundRobinOffset = (start + 1) % snapshot.size();
+        for (int index = 0; index < snapshot.size(); index++) {
+            OrbitalAttackRecord current = snapshot.get((start + index) % snapshot.size());
             switch (current.phase()) {
                 case RESERVED_WARNING -> tickWarning(server, current);
                 case COMMITTED, DELIVERY -> tickDelivery(server, current);
-                case ABORTED -> tickAborted(current);
-                case COOLDOWN -> tickCooldown(current);
+                case ABORTED -> tickAborted(server, current);
+                case COOLDOWN -> tickCooldown(server, current);
                 case FAULTED -> {
                     // A faulted attack is retained for administrator diagnostics and is never retried implicitly.
                 }
@@ -452,6 +488,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         tag.putLong(CONFIGURATION_REVISION_TAG, attack.configurationRevision());
         tag.putInt(WARNING_TICKS_TAG, attack.warningTicksRemaining());
         tag.putLong(WORK_CURSOR_TAG, attack.workCursor());
+        tag.putString(WORK_STATE_TAG, attack.workState().name());
         if (attack.payloadEntityId() != null) {
             tag.putUUID(PAYLOAD_ENTITY_ID_TAG, attack.payloadEntityId());
         }
@@ -520,6 +557,9 @@ public final class OrbitalAttackSavedData extends SavedData {
                     tag.getLong(CONFIGURATION_REVISION_TAG),
                     tag.getInt(WARNING_TICKS_TAG),
                     tag.getLong(WORK_CURSOR_TAG),
+                    tag.contains(WORK_STATE_TAG, Tag.TAG_STRING)
+                            ? OrbitalAttackWorkState.valueOf(tag.getString(WORK_STATE_TAG))
+                            : OrbitalAttackWorkState.INACTIVE,
                     tag.hasUUID(PAYLOAD_ENTITY_ID_TAG) ? tag.getUUID(PAYLOAD_ENTITY_ID_TAG) : null,
                     tag.getBoolean(PAYLOAD_ARRIVED_TAG),
                     tag.getBoolean(IMPACT_APPLIED_TAG),
@@ -549,12 +589,12 @@ public final class OrbitalAttackSavedData extends SavedData {
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, current.dimensionId());
         ServerLevel level = server.getLevel(dimension);
         if (level == null) {
-            fault(current, "Target dimension or attack mode is unavailable");
+            fault(server, current, "Target dimension or attack mode is unavailable");
             return;
         }
         switch (current.mode()) {
-            case KINETIC -> tickKineticDelivery(level, current);
-            case DIRECTED_ENERGY -> tickDirectedEnergyDelivery(level, current);
+            case KINETIC -> tickKineticDelivery(server, level, current);
+            case DIRECTED_ENERGY -> tickDirectedEnergyDelivery(server, level, current);
             case DIGITAL_ANNIHILATION -> tickDigitalAnnihilationDelivery(server, level, current);
         }
     }
@@ -564,7 +604,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                  ServerLevel level,
                                                  OrbitalAttackRecord current) {
         if (!(current.geometry() instanceof OrbitalAttackGeometry.DigitalAnnihilation geometry)) {
-            fault(current, "Digital-annihilation attack has incompatible geometry");
+            fault(server, current, "Digital-annihilation attack has incompatible geometry");
             return;
         }
         if (!validDigitalTarget(level, current.target(), geometry.maxRadius())) {
@@ -581,7 +621,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     geometry.maxRadius(),
                     geometry.centerEntityConsumeRadius());
             if (!level.addFreshEntity(projectile)) {
-                fault(current, "Digital-annihilation payload could not be added to the target dimension");
+                fault(server, current, "Digital-annihilation payload could not be added to the target dimension");
                 return;
             }
             this.attacks.put(current.attackId(), current.withPayloadEntity(projectile.getUUID(), false));
@@ -599,7 +639,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 setDirty();
                 return;
             }
-            fault(current, "Digital-annihilation fuse entity was replaced unexpectedly");
+            fault(server, current, "Digital-annihilation fuse entity was replaced unexpectedly");
             return;
         }
 
@@ -618,74 +658,135 @@ public final class OrbitalAttackSavedData extends SavedData {
                 // target chunk. Do not turn that expected asynchronous window into a permanent FAULTED attack.
                 return;
             }
-            fault(current, "Digital-annihilation payload entity disappeared before arrival");
+            fault(server, current, "Digital-annihilation payload entity disappeared before arrival");
         } else {
-            fault(current, "Digital-annihilation payload entity was replaced unexpectedly");
+            fault(server, current, "Digital-annihilation payload entity was replaced unexpectedly");
         }
     }
 
-    private void tickKineticDelivery(ServerLevel level, OrbitalAttackRecord current) {
-        if (!OrbitalKineticStrike.areTerrainChunksLoaded(level, current.target())) {
-            // Keep the cursor unchanged; the next tick may resume after the target chunks are loaded by normal world
-            // use.
-            return;
-        }
+    private void tickKineticDelivery(
+            MinecraftServer server,
+            ServerLevel level,
+            OrbitalAttackRecord current) {
         try {
             OrbitalAttackRecord delivery = current;
             if (!delivery.impactApplied()) {
+                ChunkReadiness impactReadiness = this.terrainWorkScheduler.prepareChunk(
+                        level,
+                        current.attackId(),
+                        new ChunkPos(current.target()));
+                if (impactReadiness != ChunkReadiness.READY) {
+                    handleTerrainBoundary(server, delivery, impactReadiness, "Kinetic impact chunk failed");
+                    return;
+                }
                 OrbitalKineticStrike.applyImpactDamage(level, delivery.target(), delivery.damageExemptions());
                 delivery = delivery.markImpactApplied();
             }
-            OrbitalKineticStrike.WorkSlice slice = OrbitalKineticStrike.applyBudget(level, current.target(), current.workCursor());
-            OrbitalAttackRecord updated = delivery.withWorkCursor(slice.nextCursor());
+
+            int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
+            if (mutationBudget <= 0) {
+                updateAttack(delivery, delivery.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
+                return;
+            }
+            long previousCursor = delivery.workCursor();
+            OrbitalKineticStrike.WorkSlice slice = OrbitalKineticStrike.applyBudget(
+                    level,
+                    delivery.target(),
+                    previousCursor,
+                    mutationBudget,
+                    chunk -> this.terrainWorkScheduler.prepareChunk(level, current.attackId(), chunk)
+                            == ChunkReadiness.READY);
+            int visited = Math.toIntExact(slice.nextCursor() - previousCursor);
+            this.terrainWorkScheduler.settleMutationBudget(current.attackId(), mutationBudget, visited);
+            ChunkReadiness readiness = this.terrainWorkScheduler.lastReadiness(current.attackId());
+            if (slice.waitingForChunk() && readiness == ChunkReadiness.FAULTED) {
+                handleTerrainBoundary(server, delivery, readiness, "Kinetic terrain chunk failed");
+                return;
+            }
+            OrbitalAttackWorkState workState = slice.waitingForChunk()
+                    ? persistedWorkState(readiness)
+                    : OrbitalAttackWorkState.WORKING;
+            OrbitalAttackRecord updated = delivery.withWork(slice.nextCursor(), workState);
             if (slice.complete()) {
+                this.terrainWorkScheduler.release(server, current.attackId());
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
-            this.attacks.put(current.attackId(), updated);
-            setDirty();
+            updateAttack(current, updated);
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Orbital attack {} failed during kinetic delivery at {}",
                     current.attackId(),
                     current.target(),
                     exception);
-            fault(current, "Kinetic delivery failed");
+            fault(server, current, "Kinetic delivery failed");
+        } finally {
+            this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
     }
 
-    private void tickDirectedEnergyDelivery(ServerLevel level, OrbitalAttackRecord current) {
+    private void tickDirectedEnergyDelivery(
+            MinecraftServer server,
+            ServerLevel level,
+            OrbitalAttackRecord current) {
         if (!(current.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry)) {
-            fault(current, "Directed-energy attack has incompatible geometry");
-            return;
-        }
-        if (!OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, current.target(), geometry.radius())) {
+            fault(server, current, "Directed-energy attack has incompatible geometry");
             return;
         }
         try {
+            int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
+            if (mutationBudget <= 0) {
+                updateAttack(current, current.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
+                return;
+            }
+            long previousCursor = current.workCursor();
             OrbitalDirectedEnergyStrike.WorkSlice slice = OrbitalDirectedEnergyStrike.applyBudget(
                     level,
                     current.target(),
                     geometry,
                     current.workCursor(),
                     current.damageExemptions(),
-                    (float) geometry.entityDamage());
-            OrbitalAttackRecord updated = current.withWorkCursor(slice.nextCursor());
+                    (float) geometry.entityDamage(),
+                    mutationBudget,
+                    chunk -> this.terrainWorkScheduler.prepareChunk(level, current.attackId(), chunk)
+                            == ChunkReadiness.READY);
+            int visited = Math.toIntExact(slice.nextCursor() - previousCursor);
+            this.terrainWorkScheduler.settleMutationBudget(current.attackId(), mutationBudget, visited);
+            ChunkReadiness readiness = this.terrainWorkScheduler.lastReadiness(current.attackId());
+            if (slice.waitingForChunk() && readiness == ChunkReadiness.FAULTED) {
+                handleTerrainBoundary(server, current, readiness, "Directed-energy terrain chunk failed");
+                return;
+            }
+            OrbitalAttackWorkState workState = slice.waitingForChunk()
+                    ? persistedWorkState(readiness)
+                    : OrbitalAttackWorkState.WORKING;
+            OrbitalAttackRecord updated = current.withWork(slice.nextCursor(), workState);
             if (slice.complete()) {
+                this.terrainWorkScheduler.release(server, current.attackId());
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
-            this.attacks.put(current.attackId(), updated);
-            setDirty();
+            updateAttack(current, updated);
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Orbital attack {} failed during directed-energy delivery at {}",
                     current.attackId(),
                     current.target(),
                     exception);
-            fault(current, "Directed-energy delivery failed");
+            fault(server, current, "Directed-energy delivery failed");
+        } finally {
+            this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
     }
 
-    private void tickCooldown(OrbitalAttackRecord current) {
+    /**
+     * Releases transient attack tickets and future permits before server dimensions stop.
+     */
+    public void releaseRuntimeResources(MinecraftServer server) {
+        requireServerThread(server);
+        this.terrainWorkScheduler.releaseAll(server);
+    }
+
+    private void tickCooldown(MinecraftServer server, OrbitalAttackRecord current) {
+        this.terrainWorkScheduler.release(server, current.attackId());
         if (current.cooldownTicksRemaining() <= 1) {
             this.attacks.remove(current.attackId());
         } else {
@@ -694,7 +795,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         setDirty();
     }
 
-    private void tickAborted(OrbitalAttackRecord current) {
+    private void tickAborted(MinecraftServer server, OrbitalAttackRecord current) {
+        this.terrainWorkScheduler.release(server, current.attackId());
         this.attacks.put(current.attackId(), current.cooldown(current.cooldownDurationTicks()));
         setDirty();
     }
@@ -715,7 +817,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
     }
 
-    private void fault(OrbitalAttackRecord current, String reason) {
+    private void fault(MinecraftServer server, OrbitalAttackRecord current, String reason) {
+        this.terrainWorkScheduler.release(server, current.attackId());
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
         this.attacks.put(current.attackId(), current.faulted());
         setDirty();
@@ -726,17 +829,60 @@ public final class OrbitalAttackSavedData extends SavedData {
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
     }
 
-    private static boolean validTarget(ServerLevel level, BlockPos target, int radius, boolean kinetic) {
+    private boolean hasAttackCapacity(DataEnergisticsSettings.OrbitalWeapon settings) {
+        long occupiedTasks = this.attacks.values().stream()
+                .filter(OrbitalAttackSavedData::occupiesWorkSlot)
+                .count();
+        return occupiedTasks < settings.maxCommittedAttackTasks();
+    }
+
+    private static boolean occupiesWorkSlot(OrbitalAttackRecord attack) {
+        return switch (attack.phase()) {
+            case RESERVED_WARNING, COMMITTED, DELIVERY -> true;
+            case ABORTED, COOLDOWN, FAULTED -> false;
+        };
+    }
+
+    private void handleTerrainBoundary(
+            MinecraftServer server,
+            OrbitalAttackRecord current,
+            ChunkReadiness readiness,
+            String fallbackFailure) {
+        if (readiness == ChunkReadiness.FAULTED) {
+            String failure = this.terrainWorkScheduler.failure(current.attackId());
+            fault(server, current, failure == null ? fallbackFailure : failure);
+            return;
+        }
+        updateAttack(current, current.withWorkState(persistedWorkState(readiness)));
+    }
+
+    private void updateAttack(OrbitalAttackRecord current, OrbitalAttackRecord updated) {
+        if (!current.attackId().equals(updated.attackId())) {
+            throw new IllegalArgumentException("An orbital attack update cannot change its identity");
+        }
+        if (current.equals(updated)) {
+            return;
+        }
+        this.attacks.put(current.attackId(), updated);
+        setDirty();
+    }
+
+    private static OrbitalAttackWorkState persistedWorkState(ChunkReadiness readiness) {
+        return switch (readiness) {
+            case READY -> OrbitalAttackWorkState.WORKING;
+            case WAITING_FOR_CHUNK -> OrbitalAttackWorkState.WAITING_FOR_CHUNK;
+            case WAITING_FOR_BUDGET -> OrbitalAttackWorkState.WAITING_FOR_BUDGET;
+            case FAULTED -> throw new IllegalArgumentException("A faulted chunk request has no active work state");
+        };
+    }
+
+    private static boolean validTarget(ServerLevel level, BlockPos target, int radius) {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
             return false;
         }
-        if (!level.getWorldBorder().isWithinBounds(target) || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius))) {
-            return false;
-        }
-        if (kinetic) {
-            return OrbitalKineticStrike.areTerrainChunksLoaded(level, target);
-        }
-        return OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, target, radius);
+        return level.getWorldBorder().isWithinBounds(target)
+                && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius))
+                && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
     private static boolean validDigitalTarget(ServerLevel level, BlockPos target, int radius) {

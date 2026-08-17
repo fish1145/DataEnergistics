@@ -592,6 +592,41 @@ public final class DataEnergisticsConfiguration {
         public boolean endpointChunkLoadingEnabled = true;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum attack work chunk tickets held by one task.", "单个攻击任务同时持有的工作区块票据上限。" })
+        @Configurable.Range(min = 1, max = 64)
+        public int maxAttackChunkTicketsPerTask = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum attack work chunk tickets held across the server.", "全服攻击工作区块票据总上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxAttackChunkTicketsGlobal = 64;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum concurrent attack chunk requests per dimension.", "每个维度同时执行的攻击区块请求上限。" })
+        @Configurable.Range(min = 1, max = 64)
+        public int maxAttackChunkGenerationPerDimension = 2;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum concurrent attack chunk requests across the server.", "全服同时执行的攻击区块请求上限。" })
+        @Configurable.Range(min = 1, max = 256)
+        public int maxAttackChunkGenerationGlobal = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum terrain positions visited by one attack per tick.", "单个攻击任务每 tick 访问的地形位置上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int maxAttackBlockMutationsPerTaskTick = 8_192;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum terrain positions visited by all orbital attacks per tick.", "全服轨道攻击每 tick 访问的地形位置总上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int maxAttackBlockMutationsGlobalTick = 32_768;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum warning, committed and delivering orbital attack tasks.", "全服预警、已提交和投送中的轨道攻击任务上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxCommittedAttackTasks = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long kineticCelestialEnergyCost = 5_000_000L;

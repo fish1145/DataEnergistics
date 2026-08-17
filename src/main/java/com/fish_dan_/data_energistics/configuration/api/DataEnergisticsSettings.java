@@ -281,6 +281,27 @@ public interface DataEnergisticsSettings {
         /** Returns whether bound endpoints should keep their own chunks loaded. */
         boolean endpointChunkLoadingEnabled();
 
+        /** Returns the maximum attack work tickets retained by one terrain task. */
+        int maxAttackChunkTicketsPerTask();
+
+        /** Returns the maximum attack work tickets retained across the server. */
+        int maxAttackChunkTicketsGlobal();
+
+        /** Returns the maximum concurrent attack chunk requests in one dimension. */
+        int maxAttackChunkGenerationPerDimension();
+
+        /** Returns the maximum concurrent attack chunk requests across the server. */
+        int maxAttackChunkGenerationGlobal();
+
+        /** Returns the maximum terrain positions visited by one attack in one server tick. */
+        int maxAttackBlockMutationsPerTaskTick();
+
+        /** Returns the maximum terrain positions visited by all orbital attacks in one server tick. */
+        int maxAttackBlockMutationsGlobalTick();
+
+        /** Returns the maximum number of warning, committed and delivering orbital attack tasks. */
+        int maxCommittedAttackTasks();
+
         /** Returns the Celestial Energy escrow required to confirm a kinetic strike. */
         long kineticCelestialEnergyCost();
 

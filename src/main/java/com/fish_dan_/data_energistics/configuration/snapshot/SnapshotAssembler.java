@@ -528,6 +528,42 @@ public final class SnapshotAssembler {
                     "per-dimension endpoint limit must not exceed maxEndpointsPerWeapon=" + maxEndpointsPerWeapon,
                     Integer.toString(maxEndpointsPerDimension));
         }
+        int maxAttackChunkTicketsGlobal = integer(
+                source,
+                "orbitalWeapon.maxAttackChunkTicketsGlobal",
+                orbitalWeapon.maxAttackChunkTicketsGlobal,
+                1,
+                1024);
+        int maxAttackChunkTicketsPerTask = integer(
+                source,
+                "orbitalWeapon.maxAttackChunkTicketsPerTask",
+                orbitalWeapon.maxAttackChunkTicketsPerTask,
+                1,
+                maxAttackChunkTicketsGlobal);
+        int maxAttackChunkGenerationGlobal = integer(
+                source,
+                "orbitalWeapon.maxAttackChunkGenerationGlobal",
+                orbitalWeapon.maxAttackChunkGenerationGlobal,
+                1,
+                256);
+        int maxAttackChunkGenerationPerDimension = integer(
+                source,
+                "orbitalWeapon.maxAttackChunkGenerationPerDimension",
+                orbitalWeapon.maxAttackChunkGenerationPerDimension,
+                1,
+                maxAttackChunkGenerationGlobal);
+        int maxAttackBlockMutationsGlobalTick = integer(
+                source,
+                "orbitalWeapon.maxAttackBlockMutationsGlobalTick",
+                orbitalWeapon.maxAttackBlockMutationsGlobalTick,
+                1,
+                Integer.MAX_VALUE);
+        int maxAttackBlockMutationsPerTaskTick = integer(
+                source,
+                "orbitalWeapon.maxAttackBlockMutationsPerTaskTick",
+                orbitalWeapon.maxAttackBlockMutationsPerTaskTick,
+                1,
+                maxAttackBlockMutationsGlobalTick);
         return new OrbitalWeaponSettings(
                 longInteger(
                         source,
@@ -580,6 +616,18 @@ public final class SnapshotAssembler {
                 maxEndpointsPerWeapon,
                 maxEndpointsPerDimension,
                 orbitalWeapon.endpointChunkLoadingEnabled,
+                maxAttackChunkTicketsPerTask,
+                maxAttackChunkTicketsGlobal,
+                maxAttackChunkGenerationPerDimension,
+                maxAttackChunkGenerationGlobal,
+                maxAttackBlockMutationsPerTaskTick,
+                maxAttackBlockMutationsGlobalTick,
+                integer(
+                        source,
+                        "orbitalWeapon.maxCommittedAttackTasks",
+                        orbitalWeapon.maxCommittedAttackTasks,
+                        1,
+                        1024),
                 longInteger(
                         source,
                         "orbitalWeapon.kineticCelestialEnergyCost",

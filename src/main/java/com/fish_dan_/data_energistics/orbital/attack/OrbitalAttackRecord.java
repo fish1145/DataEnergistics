@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
+import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
 import org.jspecify.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -24,6 +25,7 @@ public record OrbitalAttackRecord(
                                   long configurationRevision,
                                   int warningTicksRemaining,
                                   long workCursor,
+                                  OrbitalAttackWorkState workState,
                                   @Nullable UUID payloadEntityId,
                                   boolean payloadArrived,
                                   boolean impactApplied,
@@ -35,7 +37,6 @@ public record OrbitalAttackRecord(
 
     public OrbitalAttackRecord {
         target = target.immutable();
-        Objects.requireNonNull(geometry, "geometry");
         damageExemptions = Set.copyOf(damageExemptions);
         if (payloadArrived && payloadEntityId == null) {
             throw new IllegalArgumentException("A digital payload cannot arrive without an entity identity");
@@ -79,6 +80,7 @@ public record OrbitalAttackRecord(
                 configurationRevision,
                 warningTicks,
                 0L,
+                OrbitalAttackWorkState.INACTIVE,
                 null,
                 false,
                 false,
@@ -101,6 +103,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 remaining,
                 this.workCursor,
+                this.workState,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -123,6 +126,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                OrbitalAttackWorkState.INACTIVE,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -134,6 +138,11 @@ public record OrbitalAttackRecord(
     }
 
     public OrbitalAttackRecord withWorkCursor(long nextCursor) {
+        return withWork(nextCursor, OrbitalAttackWorkState.WORKING);
+    }
+
+    /** Updates the resumable cursor and its persisted scheduler boundary without altering frozen attack geometry. */
+    public OrbitalAttackRecord withWork(long nextCursor, OrbitalAttackWorkState nextWorkState) {
         return new OrbitalAttackRecord(
                 this.attackId,
                 this.weaponId,
@@ -145,6 +154,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 nextCursor,
+                nextWorkState,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -153,6 +163,10 @@ public record OrbitalAttackRecord(
                 this.celestialEscrow,
                 this.aeEscrow,
                 this.damageExemptions);
+    }
+
+    public OrbitalAttackRecord withWorkState(OrbitalAttackWorkState nextWorkState) {
+        return withWork(this.workCursor, nextWorkState);
     }
 
     public OrbitalAttackRecord cooldown(int remainingTicks) {
@@ -167,6 +181,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                OrbitalAttackWorkState.INACTIVE,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -193,6 +208,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                OrbitalAttackWorkState.INACTIVE,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -219,6 +235,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                OrbitalAttackWorkState.INACTIVE,
                 this.payloadEntityId,
                 this.payloadArrived,
                 this.impactApplied,
@@ -241,6 +258,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.workState,
                 this.payloadEntityId,
                 this.payloadArrived,
                 true,
@@ -264,6 +282,7 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.workState,
                 entityId,
                 arrived,
                 this.impactApplied,

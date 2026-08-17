@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.entity.EntityTypeTest;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * Deterministic, bounded work geometry for the first orbital kinetic strike.
@@ -51,45 +53,48 @@ public final class OrbitalKineticStrike {
      * slot so that the persisted geometry remains deterministic and does not depend on prior attacks.
      */
     public static WorkSlice applyBudget(ServerLevel level, BlockPos target, long cursor) {
+        return applyBudget(
+                level,
+                target,
+                cursor,
+                MUTATION_BUDGET_PER_TICK,
+                chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
+    }
+
+    /**
+     * Processes a caller-governed slice and stops before the first position whose FULL chunk is not ready. The stopped
+     * position does not consume the persisted cursor or mutation allowance.
+     */
+    public static WorkSlice applyBudget(
+                                        ServerLevel level,
+                                        BlockPos target,
+                                        long cursor,
+                                        int mutationBudget,
+                                        Predicate<ChunkPos> chunkReady) {
         long total = totalWork(level, target);
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Kinetic strike cursor is outside its geometry");
         }
-        long next = Math.min(total, cursor + MUTATION_BUDGET_PER_TICK);
-        for (long index = cursor; index < next; index++) {
-            BlockPos position = positionAt(level, target, index);
+        if (mutationBudget <= 0) {
+            throw new IllegalArgumentException("Kinetic strike mutation budget must be positive");
+        }
+        long next = cursor;
+        int visited = 0;
+        while (next < total && visited < mutationBudget) {
+            BlockPos position = positionAt(level, target, next);
+            if (!chunkReady.test(new ChunkPos(position))) {
+                return new WorkSlice(next, total, false, true);
+            }
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
                         Blocks.AIR.defaultBlockState(),
                         Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
             }
+            next++;
+            visited++;
         }
-        return new WorkSlice(next, total, next == total);
-    }
-
-    /**
-     * Returns whether every chunk touched by the bounded terrain geometry is already loaded.
-     *
-     * <p>
-     * The attack worker uses this guard before reading or mutating blocks so a later chunk unload pauses the
-     * persisted cursor instead of causing an implicit synchronous chunk load on the server thread.
-     * </p>
-     */
-    static boolean areTerrainChunksLoaded(ServerLevel level, BlockPos target) {
-        int radius = CRATER_RADIUS;
-        int minChunkX = Math.floorDiv(target.getX() - radius, 16);
-        int maxChunkX = Math.floorDiv(target.getX() + radius, 16);
-        int minChunkZ = Math.floorDiv(target.getZ() - radius, 16);
-        int maxChunkZ = Math.floorDiv(target.getZ() + radius, 16);
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (!level.hasChunk(chunkX, chunkZ)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return new WorkSlice(next, total, next == total, false);
     }
 
     /**
@@ -187,11 +192,14 @@ public final class OrbitalKineticStrike {
     /**
      * Result of one bounded geometry slice.
      */
-    public record WorkSlice(long nextCursor, long totalWork, boolean complete) {
+    public record WorkSlice(long nextCursor, long totalWork, boolean complete, boolean waitingForChunk) {
 
         public WorkSlice {
             if (nextCursor < 0L || totalWork < 0L || nextCursor > totalWork) {
                 throw new IllegalArgumentException("Invalid kinetic work slice");
+            }
+            if (complete && waitingForChunk) {
+                throw new IllegalArgumentException("A complete kinetic slice cannot wait for a chunk");
             }
         }
     }

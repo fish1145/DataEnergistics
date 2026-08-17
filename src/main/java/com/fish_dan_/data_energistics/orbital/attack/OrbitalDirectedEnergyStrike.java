@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.entity.EntityTypeTest;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /**
  * Deterministic, budgeted work geometry for the spiral directed-energy attack.
@@ -23,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * The ordered disk columns are generated once per radius and then addressed by a persisted cursor. A column is
  * visited exactly once, while each Y position in that column consumes one bounded work slot. No block access occurs
- * until the caller has confirmed that every touched chunk is already loaded.
+ * after the caller has acquired the current position's FULL chunk through the asynchronous terrain scheduler.
  * </p>
  */
 public final class OrbitalDirectedEnergyStrike {
@@ -67,6 +69,29 @@ public final class OrbitalDirectedEnergyStrike {
                                         long cursor,
                                         Set<UUID> exemptions,
                                         float entityDamage) {
+        return applyBudget(
+                level,
+                target,
+                geometry,
+                cursor,
+                exemptions,
+                entityDamage,
+                MUTATION_BUDGET_PER_TICK,
+                chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
+    }
+
+    /**
+     * Processes a caller-governed slice and stops before accessing the first disk column whose FULL chunk is pending.
+     */
+    public static WorkSlice applyBudget(
+                                        ServerLevel level,
+                                        BlockPos target,
+                                        OrbitalAttackGeometry.DirectedEnergy geometry,
+                                        long cursor,
+                                        Set<UUID> exemptions,
+                                        float entityDamage,
+                                        int mutationBudget,
+                                        Predicate<ChunkPos> chunkReady) {
         List<Offset> offsets = offsetsFor(geometry.radius());
         int bottomY = geometry.bottomY(level, target.getY());
         int topY = level.getMaxBuildHeight() - 1;
@@ -78,14 +103,21 @@ public final class OrbitalDirectedEnergyStrike {
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Directed-energy work cursor is outside its geometry");
         }
+        if (mutationBudget <= 0) {
+            throw new IllegalArgumentException("Directed-energy mutation budget must be positive");
+        }
 
-        long next = Math.min(total, cursor + MUTATION_BUDGET_PER_TICK);
-        for (long index = cursor; index < next; index++) {
-            int offsetIndex = (int) (index / height);
-            int yOffset = (int) (index % height);
+        long next = cursor;
+        int visited = 0;
+        while (next < total && visited < mutationBudget) {
+            int offsetIndex = (int) (next / height);
+            int yOffset = (int) (next % height);
             Offset offset = offsets.get(offsetIndex);
             int y = topY - yOffset;
             BlockPos position = target.offset(offset.x(), y - target.getY(), offset.z());
+            if (!chunkReady.test(new ChunkPos(position))) {
+                return new WorkSlice(next, total, false, true);
+            }
             if (yOffset == 0) {
                 applyBeamDamage(level, position, bottomY, topY, exemptions, entityDamage);
             }
@@ -95,32 +127,10 @@ public final class OrbitalDirectedEnergyStrike {
                         Blocks.AIR.defaultBlockState(),
                         Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
             }
+            next++;
+            visited++;
         }
-        return new WorkSlice(next, total, next == total);
-    }
-
-    /**
-     * Returns whether every chunk touched by the scan disk is currently loaded.
-     *
-     * <p>
-     * This guard deliberately does not request chunks synchronously. The future-backed generation and ticket
-     * governor will be added around this worker; until then an unloaded target pauses the persisted attack safely.
-     * </p>
-     */
-    public static boolean areTerrainChunksLoaded(ServerLevel level, BlockPos target, int radius) {
-        validateRadius(radius);
-        int minChunkX = Math.floorDiv(target.getX() - radius, 16);
-        int maxChunkX = Math.floorDiv(target.getX() + radius, 16);
-        int minChunkZ = Math.floorDiv(target.getZ() - radius, 16);
-        int maxChunkZ = Math.floorDiv(target.getZ() + radius, 16);
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (!level.hasChunk(chunkX, chunkZ)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return new WorkSlice(next, total, next == total, false);
     }
 
     public static void validateRadius(int radius) {
@@ -198,11 +208,14 @@ public final class OrbitalDirectedEnergyStrike {
     private record Offset(int x, int z) {}
 
     /** Result of one bounded directed-energy geometry slice. */
-    public record WorkSlice(long nextCursor, long totalWork, boolean complete) {
+    public record WorkSlice(long nextCursor, long totalWork, boolean complete, boolean waitingForChunk) {
 
         public WorkSlice {
             if (nextCursor < 0L || totalWork < 0L || nextCursor > totalWork) {
                 throw new IllegalArgumentException("Invalid directed-energy work slice");
+            }
+            if (complete && waitingForChunk) {
+                throw new IllegalArgumentException("A complete directed-energy slice cannot wait for a chunk");
             }
         }
     }
