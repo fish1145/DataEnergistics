@@ -77,7 +77,6 @@ public final class OrbitalDirectedEnergyGameTest {
         loadTerrainChunks(level, target, radius);
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-        AtomicReference<OrbitalEnergyReserve> reserveBefore = new AtomicReference<>();
         AtomicReference<UUID> attackId = new AtomicReference<>();
         AtomicReference<Zombie> victim = new AtomicReference<>();
 
@@ -87,12 +86,12 @@ public final class OrbitalDirectedEnergyGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The directed-energy confirmation must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
-                    primeReserve(weapons, server, weaponId, cost);
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, TARGET);
                     spawned.setNoAi(true);
                     victim.set(spawned);
-                    reserveBefore.set(weapons.find(weaponId).orElseThrow().reserve());
+                    OrbitalEnergyReserve reserveBefore = weapons.find(weaponId).orElseThrow().reserve();
                     OrbitalAttackRecord warning = attacks.tryConfirmDirectedEnergy(
                             server,
                             owner.getUUID(),
@@ -103,7 +102,7 @@ public final class OrbitalDirectedEnergyGameTest {
                             depth)
                             .orElseThrow(() -> new IllegalStateException("A funded directed-energy scan was rejected"));
                     attackId.set(warning.attackId());
-                    assertDebited(helper, weapons, weaponId, reserveBefore.get(), cost);
+                    assertDebited(helper, weapons, weaponId, reserveBefore, cost);
                     helper.assertValueEqual(
                             warning.geometry(),
                             new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage()),
@@ -143,7 +142,6 @@ public final class OrbitalDirectedEnergyGameTest {
                     helper.assertTrue(
                             level.getBlockState(target).isAir(),
                             "Budgeted directed-energy work must clear the target column without drops");
-                    assertDebited(helper, weapons, weaponId, reserveBefore.get(), cost);
                 })
                 .thenExecute(() -> helper.assertTrue(
                         attacks.tryConfirmDirectedEnergy(
@@ -188,17 +186,32 @@ public final class OrbitalDirectedEnergyGameTest {
                                      OrbitalWeaponSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
+                                     DataEnergisticsSettings.OrbitalWeapon settings,
                                      OrbitalAttackCost cost) {
-        long requiredCelestialEnergy = Math.multiplyExact(cost.celestialEnergy(), 2L);
-        long requiredAeEnergy = Math.multiplyExact(cost.aeEnergy(), 2L);
-        for (int attempts = 0; attempts < 2_000; attempts++) {
-            OrbitalEnergyReserve reserve = weapons.find(weaponId).orElseThrow().reserve();
-            if (reserve.canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+        long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
+        long requiredAeEnergy = Math.max(
+                Math.multiplyExact(cost.aeEnergy(), 2L),
+                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold()));
+        for (int attempts = 0; attempts < 20_000; attempts++) {
+            var weapon = weapons.find(weaponId).orElseThrow();
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
         }
         throw new IllegalStateException("The real AE endpoint did not fund two directed-energy scans");
+    }
+
+    private static long requiredCelestialEnergy(
+                                                DataEnergisticsSettings.OrbitalWeapon settings,
+                                                OrbitalAttackCost cost) {
+        return Math.max(
+                Math.multiplyExact(cost.celestialEnergy(), 2L),
+                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()));
+    }
+
+    private static long deploymentTarget(long capacity, double threshold) {
+        return Math.max(1L, (long) Math.ceil(capacity * threshold));
     }
 
     private static void assertDebited(

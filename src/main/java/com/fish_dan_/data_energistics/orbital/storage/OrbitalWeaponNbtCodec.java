@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
@@ -34,7 +36,7 @@ final class OrbitalWeaponNbtCodec {
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
     private static final String WEAPONS_TAG = "weapons";
     private static final String WEAPON_ID_TAG = "weapon_id";
     private static final String OWNER_ID_TAG = "owner_id";
@@ -49,6 +51,8 @@ final class OrbitalWeaponNbtCodec {
     private static final String RESERVE_TAG = "reserve";
     private static final String CELESTIAL_ENERGY_TAG = "celestial_energy";
     private static final String AE_ENERGY_TAG = "ae_energy";
+    private static final String LIFECYCLE_STATE_TAG = "lifecycle_state";
+    private static final String GRACE_TICKS_TAG = "grace_ticks";
     private static final Comparator<OrbitalEndpointRecord> ENDPOINT_ORDER = Comparator
             .comparingInt(OrbitalEndpointRecord::priority)
             .thenComparing(endpoint -> endpoint.location().dimensionId().toString())
@@ -124,6 +128,8 @@ final class OrbitalWeaponNbtCodec {
         reserveTag.putLong(CELESTIAL_ENERGY_TAG, weapon.reserve().celestialEnergy());
         reserveTag.putLong(AE_ENERGY_TAG, weapon.reserve().aeEnergy());
         weaponTag.put(RESERVE_TAG, reserveTag);
+        weaponTag.putString(LIFECYCLE_STATE_TAG, weapon.lifecycle().state().name());
+        weaponTag.putInt(GRACE_TICKS_TAG, weapon.lifecycle().graceTicksRemaining());
         return weaponTag;
     }
 
@@ -162,7 +168,23 @@ final class OrbitalWeaponNbtCodec {
             readEndpoints(weaponId, endpointList, endpoints);
         }
         OrbitalEnergyReserve reserve = schemaVersion >= 2 ? readReserve(weaponId, weaponTag) : OrbitalEnergyReserve.empty();
-        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve);
+        OrbitalWeaponLifecycle lifecycle = schemaVersion >= 3 ? readLifecycle(weaponId, weaponTag) : OrbitalWeaponLifecycle.dormant();
+        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve, lifecycle);
+    }
+
+    private static OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
+        try {
+            OrbitalWeaponLifecycleState state = OrbitalWeaponLifecycleState.valueOf(weaponTag.getString(LIFECYCLE_STATE_TAG));
+            int graceTicks = Math.max(0, weaponTag.getInt(GRACE_TICKS_TAG));
+            return switch (state) {
+                case DORMANT -> OrbitalWeaponLifecycle.dormant();
+                case DEPLOYED -> OrbitalWeaponLifecycle.deployed();
+                case RESERVE_GRACE -> OrbitalWeaponLifecycle.reserveGrace(graceTicks);
+            };
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Resetting invalid lifecycle state on orbital weapon {}", weaponId);
+            return OrbitalWeaponLifecycle.dormant();
+        }
     }
 
     private static OrbitalEnergyReserve readReserve(UUID weaponId, CompoundTag weaponTag) {

@@ -124,7 +124,9 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.KINETIC)) {
+        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE)
+                || !weapon.allowsNewAttacks()
+                || hasAttackForMode(weaponId, OrbitalAttackMode.KINETIC)) {
             return Optional.empty();
         }
 
@@ -184,7 +186,9 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
+        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE)
+                || !weapon.allowsNewAttacks()
+                || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
             return Optional.empty();
         }
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
@@ -254,7 +258,9 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
+        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE)
+                || !weapon.allowsNewAttacks()
+                || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
             return Optional.empty();
         }
         DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();

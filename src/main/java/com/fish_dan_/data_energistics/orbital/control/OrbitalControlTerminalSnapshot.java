@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
@@ -100,6 +101,7 @@ public record OrbitalControlTerminalSnapshot(
                             Component.literal(entry.weaponId().toString()),
                             Component.literal(entry.ownerId().toString()),
                             entry.roleComponent(),
+                            entry.lifecycleComponent(),
                             Integer.toString(entry.endpointCount()),
                             Long.toString(entry.celestialEnergy()),
                             Long.toString(entry.aeEnergy())));
@@ -147,6 +149,7 @@ public record OrbitalControlTerminalSnapshot(
                 "screen.data_energistics.orbital_control_hud.selected",
                 Component.literal(selected.weaponId().toString()),
                 selected.roleComponent(),
+                selected.lifecycleComponent(),
                 Long.toString(selected.celestialEnergy()),
                 Long.toString(selected.aeEnergy()));
         if (selected.attacks().isEmpty()) {
@@ -185,13 +188,15 @@ public record OrbitalControlTerminalSnapshot(
                               boolean owner,
                               @Nullable OrbitalAccessRole delegatedRole,
                               int endpointCount,
+                              OrbitalWeaponLifecycleState lifecycleState,
+                              int graceTicksRemaining,
                               long celestialEnergy,
                               long aeEnergy,
                               List<AttackEntry> attacks) {
 
         public WeaponEntry {
             attacks = List.copyOf(attacks);
-            if (endpointCount < 0 || celestialEnergy < 0L || aeEnergy < 0L) {
+            if (endpointCount < 0 || graceTicksRemaining < 0 || celestialEnergy < 0L || aeEnergy < 0L) {
                 throw new IllegalArgumentException("Orbital terminal reserve values must not be negative");
             }
             if (owner && delegatedRole != null) {
@@ -213,6 +218,8 @@ public record OrbitalControlTerminalSnapshot(
                     owner,
                     owner ? null : weapon.delegatedRoles().get(playerId),
                     weapon.endpoints().size(),
+                    weapon.lifecycle().state(),
+                    weapon.lifecycle().graceTicksRemaining(),
                     weapon.reserve().celestialEnergy(),
                     weapon.reserve().aeEnergy(),
                     attacks.stream().map(AttackEntry::from).toList());
@@ -224,6 +231,14 @@ public record OrbitalControlTerminalSnapshot(
                 case OBSERVER -> "screen.data_energistics.orbital_control_terminal.role.observer";
             };
             return Component.translatable(key);
+        }
+
+        private Component lifecycleComponent() {
+            String key = "screen.data_energistics.orbital_control_terminal.lifecycle."
+                    + this.lifecycleState.name().toLowerCase(Locale.ROOT);
+            return this.lifecycleState == OrbitalWeaponLifecycleState.RESERVE_GRACE
+                    ? Component.translatable(key, Integer.toString(this.graceTicksRemaining))
+                    : Component.translatable(key);
         }
     }
 

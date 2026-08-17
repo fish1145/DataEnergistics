@@ -2,10 +2,14 @@ package com.fish_dan_.data_energistics.orbital.storage;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -13,6 +17,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -82,6 +87,39 @@ public final class OrbitalWeaponSavedDataGameTest {
                 data.ownedBy(ownerId).orElseThrow().weaponId(),
                 sharedWeapon.weaponId(),
                 "Authorization changes must not alter the owner index");
+        helper.succeed();
+    }
+
+    @TestHolder("orbital_weapon_lifecycle_round_trips_and_migrates_legacy_records")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void roundTripsLifecycleAndMigratesLegacyRecords(GameTestHelper helper) {
+        OrbitalWeaponLifecycle grace = OrbitalWeaponLifecycle.reserveGrace(37);
+        OrbitalWeaponRecord source = new OrbitalWeaponRecord(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Map.of(),
+                Map.of(),
+                new OrbitalEnergyReserve(12_345L, 67_890L),
+                grace);
+
+        CompoundTag saved = OrbitalWeaponNbtCodec.save(new CompoundTag(), List.of(source));
+        OrbitalWeaponRecord restored = OrbitalWeaponNbtCodec.load(saved).getFirst();
+        helper.assertValueEqual(
+                restored.lifecycle(),
+                grace,
+                "Saving and loading must preserve the active reserve-grace countdown");
+        helper.assertValueEqual(
+                restored.reserve(),
+                source.reserve(),
+                "Adding lifecycle persistence must not alter the independent reserve values");
+
+        saved.putInt("schema_version", 2);
+        OrbitalWeaponRecord migrated = OrbitalWeaponNbtCodec.load(saved).getFirst();
+        helper.assertValueEqual(
+                migrated.lifecycle().state(),
+                OrbitalWeaponLifecycleState.DORMANT,
+                "A pre-lifecycle weapon record must migrate to the safe dormant state");
         helper.succeed();
     }
 

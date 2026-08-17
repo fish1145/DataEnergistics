@@ -17,6 +17,25 @@ public record OrbitalEnergyReserve(
         }
     }
 
+    /** Returns whether either independent reserve has reached zero. */
+    public boolean hasZeroResource() {
+        return this.celestialEnergy == 0L || this.aeEnergy == 0L;
+    }
+
+    /**
+     * Returns whether both reserves satisfy the configured deployment threshold.
+     * The calculation uses a ceiling so a non-zero fractional threshold cannot deploy with a zero reserve.
+     */
+    public boolean meetsDeploymentThreshold(DataEnergisticsSettings.OrbitalWeapon settings) {
+        return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity(), settings.deploymentThreshold())
+                && this.aeEnergy >= threshold(settings.aeEnergyCapacity(), settings.deploymentThreshold());
+    }
+
+    private static long threshold(long capacity, double fraction) {
+        double required = Math.ceil(capacity * fraction);
+        return required >= capacity ? capacity : Math.max(1L, (long) required);
+    }
+
     /**
      * Returns the shared empty reserve used by newly provisioned weapons and migrated legacy records.
      */

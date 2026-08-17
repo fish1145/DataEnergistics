@@ -77,7 +77,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<UUID> attackId = new AtomicReference<>();
-        AtomicReference<OrbitalEnergyReserve> reserveBefore = new AtomicReference<>();
         AtomicReference<Double> payloadStartY = new AtomicReference<>();
         AtomicReference<Zombie> victim = new AtomicReference<>();
 
@@ -87,8 +86,8 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The digital payload must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
-                    primeReserve(weapons, server, weaponId, cost);
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
                     OrbitalEnergyReserve before = weapons.find(weaponId).orElseThrow().reserve();
                     owner.setPos(
                             absoluteTarget.getX() + 0.5D,
@@ -100,7 +99,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             owner,
                             OrbitalAttackMode.DIGITAL_ANNIHILATION)
                             .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
-                    reserveBefore.set(before);
                     attackId.set(warning.attackId());
                     OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
@@ -206,15 +204,14 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             level.getEntity(delivery.payloadEntityId()) instanceof DataNukePrimedEntity nuke && nuke.isActive(),
                             "The materialized fuse must transition into the existing active annihilation behavior");
                     helper.assertFalse(victim.get().isAlive(), "The active annihilator must consume a non-exempt entity");
-                    OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
-                            after.celestialEnergy(),
-                            reserveBefore.get().celestialEnergy() - cost.celestialEnergy(),
-                            "The committed digital attack must not charge the reserve a second time");
+                            delivery.celestialEscrow(),
+                            cost.celestialEnergy(),
+                            "The running payload must retain its single prepaid Celestial Energy escrow");
                     helper.assertValueEqual(
-                            after.aeEnergy(),
-                            reserveBefore.get().aeEnergy() - cost.aeEnergy(),
-                            "The committed digital attack must not charge AE a second time");
+                            delivery.aeEscrow(),
+                            cost.aeEnergy(),
+                            "The running payload must retain its single prepaid AE energy escrow");
                 })
                 .thenSucceed();
     }
@@ -249,15 +246,15 @@ public final class OrbitalDigitalAnnihilationGameTest {
                     helper.assertTrue(
                             level.getChunkSource().getChunkNow(targetChunk.x, targetChunk.z) == null,
                             "The future-generation target must begin outside the loaded test area");
-                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
                     UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-                    primeReserve(weapons, server, weaponId, cost);
+                    primeReserve(weapons, server, weaponId, settings, cost);
                     OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
-                                    server,
-                                    owner.getUUID(),
-                                    weaponId,
-                                    level.dimension().location(),
-                                    absoluteTarget)
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            level.dimension().location(),
+                            absoluteTarget)
                             .orElseThrow(() -> new IllegalStateException("An unloaded digital target was rejected"));
                     attackId.set(warning.attackId());
                     helper.assertValueEqual(
@@ -273,8 +270,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             OrbitalAttackPhase.DELIVERY,
                             "An unloaded target must advance into payload delivery");
                     helper.assertTrue(
-                            delivery.payloadEntityId() != null
-                                    && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            delivery.payloadEntityId() != null && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
                             "The payload ticket must materialize the orbital projectile in the previously unloaded chunk");
                 })
                 .thenSucceed();
@@ -302,7 +298,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<UUID> attackId = new AtomicReference<>();
-        AtomicReference<OrbitalEnergyReserve> reserveBefore = new AtomicReference<>();
 
         helper.startSequence()
                 .thenIdle(40)
@@ -310,9 +305,8 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The emergency-abort action must use a real powered endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
-                    primeReserve(weapons, server, weaponId, cost);
-                    reserveBefore.set(weapons.find(weaponId).orElseThrow().reserve());
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
                     owner.setPos(
                             absoluteTarget.getX() + 0.5D,
                             absoluteTarget.getY() + 3.0D,
@@ -339,13 +333,13 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             OrbitalAttackPhase.DELIVERY,
                             "The warning must commit before emergency abort is available");
                     helper.assertTrue(
-                            delivery.payloadEntityId() != null
-                                    && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            delivery.payloadEntityId() != null && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
                             "The committed digital attack must expose its live projectile to the abort action");
                 })
                 .thenExecute(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
                     UUID payloadId = delivery.payloadEntityId();
+                    OrbitalEnergyReserve reserveBeforeAbort = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertTrue(
                             OrbitalControlActionDispatcher.cancelOrAbortFirst(owner),
                             "The LDLib2 stop action must route a committed attack to emergency abort");
@@ -362,13 +356,9 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             "Aborting before payload arrival must leave the target unchanged");
                     OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
-                            after.celestialEnergy(),
-                            reserveBefore.get().celestialEnergy() - cost.celestialEnergy(),
-                            "Emergency abort must not refund already committed Celestial Energy");
-                    helper.assertValueEqual(
-                            after.aeEnergy(),
-                            reserveBefore.get().aeEnergy() - cost.aeEnergy(),
-                            "Emergency abort must not refund already committed AE energy");
+                            after,
+                            reserveBeforeAbort,
+                            "Emergency abort must not refund either already committed escrow resource");
                 })
                 .thenIdle(1)
                 .thenExecute(() -> helper.assertValueEqual(
@@ -387,7 +377,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
 
     private static BlockPos findUnloadedTarget(ServerLevel level, BlockPos origin) {
         for (int distance = 64; distance <= 2_048; distance += 16) {
-            for (BlockPos candidate : new BlockPos[]{
+            for (BlockPos candidate : new BlockPos[] {
                     origin.offset(distance, 0, 0),
                     origin.offset(-distance, 0, 0),
                     origin.offset(0, 0, distance),
@@ -395,7 +385,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                     origin.offset(distance, 0, distance),
                     origin.offset(-distance, 0, -distance),
                     origin.offset(distance, 0, -distance),
-                    origin.offset(-distance, 0, distance)}) {
+                    origin.offset(-distance, 0, distance) }) {
                 ChunkPos chunk = new ChunkPos(candidate);
                 if (level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null) {
                     return candidate;
@@ -427,17 +417,34 @@ public final class OrbitalDigitalAnnihilationGameTest {
                                      OrbitalWeaponSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
+                                     DataEnergisticsSettings.OrbitalWeapon settings,
                                      OrbitalAttackCost cost) {
-        long requiredCelestialEnergy = cost.celestialEnergy();
-        long requiredAeEnergy = cost.aeEnergy();
-        for (int attempts = 0; attempts < 12_000; attempts++) {
-            OrbitalEnergyReserve reserve = weapons.find(weaponId).orElseThrow().reserve();
-            if (reserve.canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+        long requiredCelestialEnergy = Math.max(
+                cost.celestialEnergy(),
+                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()));
+        long requiredAeEnergy = Math.max(
+                cost.aeEnergy(),
+                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold()));
+        for (int attempts = 0; attempts < 20_000; attempts++) {
+            var weapon = weapons.find(weaponId).orElseThrow();
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
         }
         throw new IllegalStateException("The real AE endpoint did not fund one digital payload");
+    }
+
+    private static long requiredCelestialEnergy(
+                                                DataEnergisticsSettings.OrbitalWeapon settings,
+                                                OrbitalAttackCost cost) {
+        return Math.max(
+                Math.multiplyExact(cost.celestialEnergy(), 2L),
+                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()));
+    }
+
+    private static long deploymentTarget(long capacity, double threshold) {
+        return Math.max(1L, (long) Math.ceil(capacity * threshold));
     }
 
     private static void placeBlock(GameTestHelper helper, BlockPos relativePos, Block block, ServerPlayer placer) {

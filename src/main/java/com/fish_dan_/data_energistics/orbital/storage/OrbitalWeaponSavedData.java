@@ -10,7 +10,9 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveCharging;
 
 import net.minecraft.core.HolderLookup;
@@ -188,18 +190,22 @@ public final class OrbitalWeaponSavedData extends SavedData {
         boolean changed = false;
         for (Map.Entry<UUID, OrbitalWeaponRecord> entry : this.weapons.entrySet()) {
             UUID weaponId = entry.getKey();
-            OrbitalWeaponRecord updated;
+            OrbitalWeaponRecord updated = entry.getValue();
+            boolean chargeSucceeded = true;
             try {
-                updated = OrbitalReserveCharging.charge(server, entry.getValue(), settings);
+                updated = OrbitalReserveCharging.charge(server, updated, settings);
             } catch (RuntimeException exception) {
+                chargeSucceeded = false;
                 if (this.reserveChargeFaults.add(weaponId)) {
                     LOGGER.error("Failed to charge orbital weapon {} from its AE endpoints", weaponId, exception);
                 }
-                continue;
             }
-            if (this.reserveChargeFaults.remove(weaponId)) {
+            if (chargeSucceeded && this.reserveChargeFaults.remove(weaponId)) {
                 LOGGER.info("Recovered reserve charging for orbital weapon {}", weaponId);
             }
+            OrbitalEnergyReserve maintainedReserve = applyDeploymentMaintenance(updated, settings);
+            updated = updated.withReserve(maintainedReserve);
+            updated = updated.withLifecycle(updated.lifecycle().reconcile(maintainedReserve, settings));
             if (updated != entry.getValue()) {
                 entry.setValue(updated);
                 changed = true;
@@ -226,10 +232,15 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.FIRE)) {
             throw new SecurityException("Player " + actorId + " cannot fire orbital weapon " + weaponId);
         }
+        if (!current.allowsNewAttacks()) {
+            return false;
+        }
         if (!current.reserve().canAfford(celestialEnergy, aeEnergy)) {
             return false;
         }
-        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withDebit(celestialEnergy, aeEnergy));
+        OrbitalEnergyReserve debitedReserve = current.reserve().withDebit(celestialEnergy, aeEnergy);
+        OrbitalWeaponRecord updated = current.withReserve(debitedReserve)
+                .withLifecycle(current.lifecycle().afterDebit(debitedReserve, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon()));
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -505,7 +516,25 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.ownerId(),
                 weapon.delegatedRoles(),
                 acceptedEndpoints,
-                weapon.reserve());
+                weapon.reserve(),
+                weapon.lifecycle());
+    }
+
+    /** Applies one deployed-tick maintenance debit without allowing either independent reserve to go negative. */
+    private static OrbitalEnergyReserve applyDeploymentMaintenance(
+                                                                   OrbitalWeaponRecord weapon,
+                                                                   DataEnergisticsSettings.OrbitalWeapon settings) {
+        if (weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED) {
+            return weapon.reserve();
+        }
+        long celestialDebit = Math.min(weapon.reserve().celestialEnergy(), settings.celestialEnergyUpkeepPerTick());
+        long aeDebit = Math.min(weapon.reserve().aeEnergy(), settings.aeEnergyUpkeepPerTick());
+        if (celestialDebit == 0L && aeDebit == 0L) {
+            return weapon.reserve();
+        }
+        return new OrbitalEnergyReserve(
+                weapon.reserve().celestialEnergy() - celestialDebit,
+                weapon.reserve().aeEnergy() - aeDebit);
     }
 
     private Optional<OrbitalWeaponRecord> findCompatibleBoundEndpoint(

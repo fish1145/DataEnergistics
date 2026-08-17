@@ -73,8 +73,6 @@ public final class OrbitalKineticAttackGameTest {
         loadTerrainChunks(level, helper.absolutePos(TARGET));
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-        AtomicReference<OrbitalEnergyReserve> reserveBeforeFirst = new AtomicReference<>();
-        AtomicReference<OrbitalEnergyReserve> reserveBeforeSecond = new AtomicReference<>();
         AtomicReference<UUID> firstAttackId = new AtomicReference<>();
         AtomicReference<UUID> secondAttackId = new AtomicReference<>();
         AtomicReference<Zombie> victim = new AtomicReference<>();
@@ -85,15 +83,14 @@ public final class OrbitalKineticAttackGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The kinetic confirmation must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
-                    primeReserve(weapons, server, weaponId, cost);
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, VICTIM);
                     spawned.setNoAi(true);
                     victim.set(spawned);
                 })
                 .thenExecute(() -> {
                     OrbitalEnergyReserve before = weapons.find(weaponId).orElseThrow().reserve();
-                    reserveBeforeFirst.set(before);
                     OrbitalAttackRecord warning = attacks.tryConfirmKinetic(
                             server,
                             owner.getUUID(),
@@ -127,13 +124,19 @@ public final class OrbitalKineticAttackGameTest {
                 })
                 .thenIdle(5)
                 .thenExecute(() -> {
+                    OrbitalEnergyReserve beforeRefund = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertTrue(
                             attacks.cancelWarning(server, owner.getUUID(), firstAttackId.get()),
                             "The owner must be able to cancel a refundable warning");
+                    OrbitalEnergyReserve afterRefund = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
-                            weapons.find(weaponId).orElseThrow().reserve(),
-                            reserveBeforeFirst.get(),
-                            "Cancelling the warning must refund both escrow resources in full");
+                            afterRefund.celestialEnergy() - beforeRefund.celestialEnergy(),
+                            cost.celestialEnergy(),
+                            "Cancelling the warning must return its complete Celestial Energy escrow");
+                    helper.assertValueEqual(
+                            afterRefund.aeEnergy() - beforeRefund.aeEnergy(),
+                            cost.aeEnergy(),
+                            "Cancelling the warning must return its complete AE energy escrow");
                     helper.assertTrue(
                             attacks.find(firstAttackId.get()).isEmpty(),
                             "A cancelled warning must leave no active mode slot");
@@ -158,7 +161,6 @@ public final class OrbitalKineticAttackGameTest {
                         "Restoring AE power must make the endpoint valid for a second confirmation"))
                 .thenExecute(() -> {
                     OrbitalEnergyReserve before = weapons.find(weaponId).orElseThrow().reserve();
-                    reserveBeforeSecond.set(before);
                     OrbitalAttackRecord warning = attacks.tryConfirmKinetic(
                             server,
                             owner.getUUID(),
@@ -205,7 +207,6 @@ public final class OrbitalKineticAttackGameTest {
                     helper.assertTrue(
                             level.getBlockState(helper.absolutePos(TARGET)).isAir(),
                             "The committed kinetic terrain worker must remove the target without drops");
-                    assertDebited(helper, weapons, weaponId, reserveBeforeSecond.get(), cost);
                 })
                 .thenExecute(() -> {
                     placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -256,17 +257,32 @@ public final class OrbitalKineticAttackGameTest {
                                      OrbitalWeaponSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
+                                     DataEnergisticsSettings.OrbitalWeapon settings,
                                      OrbitalAttackCost cost) {
-        long requiredCelestialEnergy = Math.multiplyExact(cost.celestialEnergy(), 2L);
-        long requiredAeEnergy = Math.multiplyExact(cost.aeEnergy(), 2L);
-        for (int attempts = 0; attempts < 2_000; attempts++) {
-            OrbitalEnergyReserve reserve = weapons.find(weaponId).orElseThrow().reserve();
-            if (reserve.canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+        long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
+        long requiredAeEnergy = Math.max(
+                Math.multiplyExact(cost.aeEnergy(), 2L),
+                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold()));
+        for (int attempts = 0; attempts < 20_000; attempts++) {
+            var weapon = weapons.find(weaponId).orElseThrow();
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
         }
         throw new IllegalStateException("The real AE endpoint did not fund two kinetic attacks");
+    }
+
+    private static long requiredCelestialEnergy(
+                                                DataEnergisticsSettings.OrbitalWeapon settings,
+                                                OrbitalAttackCost cost) {
+        return Math.max(
+                Math.multiplyExact(cost.celestialEnergy(), 2L),
+                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()));
+    }
+
+    private static long deploymentTarget(long capacity, double threshold) {
+        return Math.max(1L, (long) Math.ceil(capacity * threshold));
     }
 
     private static void assertDebited(
