@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
@@ -28,7 +28,7 @@ public final class TrinityInitialPlanningRequest {
     private final BigInteger requestedAmount;
     private final CraftingQuantityMode quantityMode;
     private final Map<AEKey, BigInteger> available;
-    private final TrinityCrafting settings;
+    private final TrinityCraftingSchema settings;
     private final long maxTrinityBytes;
 
     private TrinityInitialPlanningRequest(Builder builder) {
@@ -96,7 +96,7 @@ public final class TrinityInitialPlanningRequest {
         return this.available;
     }
 
-    public TrinityCrafting settings() {
+    public TrinityCraftingSchema settings() {
         return this.settings;
     }
 
@@ -116,7 +116,7 @@ public final class TrinityInitialPlanningRequest {
         private BigInteger requestedAmount;
         private CraftingQuantityMode quantityMode;
         private Map<AEKey, BigInteger> available;
-        private TrinityCrafting settings;
+        private TrinityCraftingSchema settings;
         private long maxTrinityBytes;
 
         private Builder() {}
@@ -156,7 +156,7 @@ public final class TrinityInitialPlanningRequest {
             return this;
         }
 
-        public Builder settings(TrinityCrafting settings) {
+        public Builder settings(TrinityCraftingSchema settings) {
             this.settings = settings;
             return this;
         }

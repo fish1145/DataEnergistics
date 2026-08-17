@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.FlatteningTnt;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.ConfigurableTntSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -24,7 +24,7 @@ public class TntConfigurablePrimedEntity extends AbstractFlatteningTntPrimedEnti
     }
 
     @Override
-    protected FlatteningTnt getDefinition() {
-        return DataEnergisticsConfiguration.INSTANCE.flatteningTnt();
+    protected ConfigurableTntSchema getDefinition() {
+        return DataEnergisticsConfiguration.INSTANCE.explosives.flatteningTnt;
     }
 }

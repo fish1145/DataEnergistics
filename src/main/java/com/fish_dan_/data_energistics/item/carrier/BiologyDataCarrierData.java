@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.item.carrier;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.rules.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -42,7 +43,7 @@ public final class BiologyDataCarrierData {
 
         stack.set(DEDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
                 entityId,
-                DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobRequiredDamage(),
+                (float) DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.mobRequiredDamage,
                 0.0F));
         return true;
     }
@@ -138,6 +139,8 @@ public final class BiologyDataCarrierData {
         if (entityId == null) {
             return false;
         }
-        return !DataEnergisticsConfiguration.INSTANCE.dataExtractor().mobDataBlacklist().contains(entityId);
+        return !DataExtractorRuleTable.containsConfiguredId(
+                DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.mobDataBlacklist,
+                entityId);
     }
 }

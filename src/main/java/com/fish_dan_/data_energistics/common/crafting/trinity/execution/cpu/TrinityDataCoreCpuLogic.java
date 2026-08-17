@@ -52,7 +52,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.core.HolderLookup;
@@ -536,7 +536,7 @@ final class TrinityDataCoreCpuLogic {
 
         TrinityPlanExecution execution = currentJob.trinityExecution();
         long currentTick = TickHandler.instance().getCurrentTick();
-        TrinityCrafting settings = DataEnergisticsConfiguration.INSTANCE.trinityCrafting();
+        TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
         if (execution.status() == TrinityPlanExecution.Status.PLANNING) {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
@@ -581,7 +581,7 @@ final class TrinityDataCoreCpuLogic {
             execution.deferProvider(
                     work,
                     currentTick,
-                    settings.dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks);
             return CraftingExecutionOutcome.NONE;
         }
         if (!(resolution instanceof TrinityPatternResolver.Matched(IPatternDetails pattern))) {
@@ -595,7 +595,7 @@ final class TrinityDataCoreCpuLogic {
             execution.deferProvider(
                     work,
                     currentTick,
-                    settings.dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks);
             return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
@@ -621,7 +621,7 @@ final class TrinityDataCoreCpuLogic {
                         work,
                         cycleWaveLimit.observedKeys(),
                         currentTick,
-                        settings.dynamicRetryMaxTicks());
+                        settings.dynamicRetryMaxTicks);
                 return CraftingExecutionOutcome.NONE;
             }
         }
@@ -637,7 +637,7 @@ final class TrinityDataCoreCpuLogic {
                         input.what(),
                         input.amount(),
                         this.inventory.list),
-                settings.maxBindingVariants());
+                settings.maxBindingVariants);
         TrinityPatternSelector.Selected selected;
         switch (selection) {
             case TrinityPatternSelector.Selected value -> selected = value;
@@ -647,7 +647,7 @@ final class TrinityDataCoreCpuLogic {
                             work,
                             unavailable.observedKeys(),
                             currentTick,
-                            settings.dynamicRetryMaxTicks());
+                            settings.dynamicRetryMaxTicks);
                 } else {
                     execution.deferInput(work, unavailable.observedKeys());
                 }
@@ -676,7 +676,7 @@ final class TrinityDataCoreCpuLogic {
                     work,
                     selected.observedKeys(),
                     currentTick,
-                    settings.dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks);
             return CraftingExecutionOutcome.NONE;
         }
         TrinityBorrowingTransaction borrowed = borrowing.orElseThrow();
@@ -738,7 +738,7 @@ final class TrinityDataCoreCpuLogic {
         if (dispatchWindow.isExhausted()) {
             execution.markBudgetExhausted(work, currentTick);
         } else {
-            execution.deferProvider(work, currentTick, settings.dynamicRetryMaxTicks());
+            execution.deferProvider(work, currentTick, settings.dynamicRetryMaxTicks);
         }
         return new CraftingExecutionOutcome(outcome.physicalAttempts(), false);
     }
@@ -760,7 +760,7 @@ final class TrinityDataCoreCpuLogic {
         if (activeGrid == null) {
             return;
         }
-        TrinityCrafting settings = DataEnergisticsConfiguration.INSTANCE.trinityCrafting();
+        TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
         MEStorage network = activeGrid.getStorageService().getInventory();
         Optional<TrinityCraftingGraphSnapshot> graphSnapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot();
         TrinityRemainingPlanCalculation.Result result = this.remainingPlanCalculation.advance(
@@ -811,7 +811,7 @@ final class TrinityDataCoreCpuLogic {
             this.remainingPlanCalculation.retrySameRevision(
                     ready.revision(),
                     currentTick,
-                    settings.dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks);
             return;
         }
 
@@ -828,7 +828,7 @@ final class TrinityDataCoreCpuLogic {
             this.remainingPlanCalculation.retrySameRevision(
                     ready.revision(),
                     currentTick,
-                    settings.dynamicRetryMaxTicks());
+                    settings.dynamicRetryMaxTicks);
             return;
         }
         reservation.orElseThrow().retain();

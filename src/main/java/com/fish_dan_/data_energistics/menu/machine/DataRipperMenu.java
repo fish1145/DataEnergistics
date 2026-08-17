@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu.machine;
 import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperPowerUtils;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataRipperSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.patternencoding.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
@@ -20,6 +20,8 @@ import appeng.core.definitions.AEItems;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
+
+import java.util.Arrays;
 
 public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
 
@@ -102,9 +104,15 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
         }
 
         String blockId = BuiltInRegistries.BLOCK.getKey(target.getBlockState().getBlock()).toString();
-        DataRipper settings = DataEnergisticsConfiguration.INSTANCE.dataRipper();
-        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, settings.multipliers());
-        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, settings.blacklist());
+        DataRipperSchema settings = DataEnergisticsConfiguration.INSTANCE.machines.dataRipper;
+        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(
+                blockId,
+                DataRipperConfigParsingUtils.precompileMultipliers(
+                        settings.multipliers.patterns,
+                        settings.multipliers.values));
+        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(
+                blockId,
+                DataRipperConfigParsingUtils.precompilePatterns(Arrays.asList(settings.blacklist)));
     }
 
     private void updateEffectiveSpeed() {

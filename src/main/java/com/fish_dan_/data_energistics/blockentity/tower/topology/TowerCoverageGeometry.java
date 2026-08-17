@@ -33,7 +33,7 @@ public final class TowerCoverageGeometry {
      * @param origin tower base position used as coverage center
      */
     public TowerCoverageGeometry(BlockPos origin) {
-        this(origin, () -> DataEnergisticsConfiguration.INSTANCE.dataDistributionTower().range());
+        this(origin, () -> DataEnergisticsConfiguration.INSTANCE.machines.dataDistributionTower.range);
     }
 
     TowerCoverageGeometry(BlockPos origin, IntSupplier baseRange) {

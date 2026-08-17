@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.sanctum;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataSanctumInterface;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataSanctumInterfaceSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.core.BlockPos;
@@ -154,12 +154,12 @@ public class DataSanctumReturnInventory extends ConfigInventory {
     }
 
     private static long getConfiguredCapacity(AEKey key, int capacityCardCount) {
-        DataSanctumInterface settings = DataEnergisticsConfiguration.INSTANCE.dataSanctumInterface();
+        DataSanctumInterfaceSchema settings = DataEnergisticsConfiguration.INSTANCE.machines.dataSanctumInterface;
         long baseCapacity;
         if (key.getType() == AEKeyType.fluids()) {
-            baseCapacity = safeMultiply(settings.returnFluidBuckets(), AEFluidKey.AMOUNT_BUCKET);
+            baseCapacity = safeMultiply(settings.returnFluidBuckets, AEFluidKey.AMOUNT_BUCKET);
         } else {
-            baseCapacity = settings.returnItemLimit();
+            baseCapacity = settings.returnItemLimit;
         }
         return applyCapacityCards(baseCapacity, capacityCardCount);
     }

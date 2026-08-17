@@ -2,21 +2,17 @@ package com.fish_dan_.data_energistics.configuration.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 
+import dev.toma.configuration.Configuration;
 import dev.toma.configuration.config.Config;
 import dev.toma.configuration.config.ConfigHolder;
 import dev.toma.configuration.config.Configurable;
 import dev.toma.configuration.config.UpdateRestrictions;
-import org.jetbrains.annotations.ApiStatus;
+import dev.toma.configuration.config.format.ConfigFormats;
 
 /**
  * Defines the single localized YAML schema used by Data Energistics.
  *
- * <p>
- * Runtime parsing and cross-field validation remain separate. The public {@link #INSTANCE} follows Configuration and
- * GTPM's direct instance access style while pointing at the last complete immutable settings snapshot.
- * </p>
  */
 @Config(
         id = Data_Energistics.MODID,
@@ -24,87 +20,83 @@ import org.jetbrains.annotations.ApiStatus;
         group = Data_Energistics.MODID)
 public final class DataEnergisticsConfiguration {
 
-    public static volatile DataEnergisticsSettings INSTANCE;
+    /** The holder registered with Configuration and automatically synchronized by its file watcher. */
+    public static final ConfigHolder<DataEnergisticsConfiguration> HOLDER =
+            Configuration.registerConfig(DataEnergisticsConfiguration.class, ConfigFormats.YAML);
 
-    @ApiStatus.Internal
-    public static ConfigHolder<DataEnergisticsConfiguration> INTERNAL_INSTANCE;
+    /** The framework-owned schema instance; its fields are updated by Configuration's Auto-Sync thread. */
+    public static final DataEnergisticsConfiguration INSTANCE = HOLDER.getConfigInstance();
 
-    private static volatile boolean initialized;
+    @Configurable
+    @Configurable.Comment({ "Machine and network component settings.", "机器与网络组件设置。" })
+    public MachineConfigs machines = new MachineConfigs();
 
-    /**
-     * Installs the framework Holder and first complete settings instance exactly once.
-     */
-    public static synchronized void initialize(
-                                               ConfigHolder<DataEnergisticsConfiguration> internal,
-                                               DataEnergisticsSettings initial) {
-        if (initialized) {
-            throw new IllegalStateException("Data Energistics configuration is already initialized");
-        }
-        INTERNAL_INSTANCE = internal;
-        INSTANCE = initial;
-        initialized = true;
+    @Configurable
+    @Configurable.Comment({ "Explosive and terrain transformation settings.", "爆炸物与地形变换设置。" })
+    public ExplosiveConfigs explosives = new ExplosiveConfigs();
+
+    @Configurable
+    @Configurable.Comment({ "Trinity planning and dispatch settings.", "三位一体规划与派发设置。" })
+    public TrinityConfigs trinity = new TrinityConfigs();
+
+    @Configurable
+    @Configurable.Comment({ "Developer and diagnostic settings.", "开发者与诊断设置。" })
+    public DeveloperConfigs developer = new DeveloperConfigs();
+
+    public static final class MachineConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Data Ripper power and target selection.", "数据撕裂器的功耗与目标选择设置。" })
+        public DataRipperSchema dataRipper = new DataRipperSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Distribution Tower chunk coverage.", "数据分配塔的区块覆盖设置。" })
+        public DataDistributionTowerSchema dataDistributionTower = new DataDistributionTowerSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Sanctum Interface stocking capacities.", "数据圣所接口的储备容量设置。" })
+        public DataSanctumInterfaceSchema dataSanctumInterface = new DataSanctumInterfaceSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Data Extractor work and carrier requirements.", "数据提取器的工作与载体需求设置。" })
+        public DataExtractorSchema dataExtractor = new DataExtractorSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Solar generation and upgrade bonuses.", "太阳能发电与升级加成设置。" })
+        public SolarPanelSchema solarPanel = new SolarPanelSchema();
     }
 
-    /**
-     * Atomically exposes a newer complete settings instance to all gameplay consumers.
-     */
-    public static synchronized void publish(DataEnergisticsSettings candidate) {
-        if (!initialized) {
-            throw new IllegalStateException("Data Energistics configuration is not initialized");
-        }
-        if (candidate.revision() <= INSTANCE.revision()) {
-            throw new IllegalStateException(
-                    "Configuration revision must increase: current=" + INSTANCE.revision() +
-                            ", candidate=" + candidate.revision());
-        }
-        INSTANCE = candidate;
+    public static final class ExplosiveConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Configurable TNT terrain replacement.", "可配置 TNT 的地形替换设置。" })
+        public ConfigurableTntSchema flatteningTnt = new ConfigurableTntSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Incremental Data Nuke consumption.", "数据核弹的渐进吞噬设置。" })
+        public DataNukeSchema dataNuke = new DataNukeSchema();
     }
 
-    /**
-     * Reports whether optional high-frequency runtime diagnostics should be emitted.
-     */
-    public static boolean isVerboseRuntimeLoggingEnabled() {
-        return initialized && INSTANCE.verboseRuntimeLogging();
+    public static final class TrinityConfigs {
+
+        @Configurable
+        @Configurable.Comment({ "Trinity planning limits and quantity semantics.", "三位一体规划限制与数量语义设置。" })
+        public TrinityCraftingSchema crafting = new TrinityCraftingSchema();
+
+        @Configurable
+        @Configurable.Comment({ "Trinity dispatch governor tuning.", "三位一体派发调节器设置。" })
+        public TrinityDispatchSchema dispatch = new TrinityDispatchSchema();
     }
 
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({
-            "Logs high-frequency runtime calculations and dispatch decisions. Warnings and errors are unaffected.",
-            "记录高频运行时计算与发配决策。警告和错误不受影响。"
-    })
-    public boolean verboseRuntimeLogging = false;
+    public static final class DeveloperConfigs {
 
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Ripper power and target selection.", "数据撕裂器的功耗与目标选择设置。" })
-    public DataRipperSchema dataRipper = new DataRipperSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Distribution Tower chunk coverage.", "数据分配塔的区块覆盖设置。" })
-    public DataDistributionTowerSchema dataDistributionTower = new DataDistributionTowerSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Sanctum Interface stocking capacities.", "数据圣所接口的储备容量设置。" })
-    public DataSanctumInterfaceSchema dataSanctumInterface = new DataSanctumInterfaceSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Data Extractor work and carrier requirements.", "数据提取器的工作与载体需求设置。" })
-    public DataExtractorSchema dataExtractor = new DataExtractorSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Flattening TNT and Data Nuke behavior.", "平整 TNT 与数据核弹的行为设置。" })
-    public FlatteningTntSchema flatteningTnt = new FlatteningTntSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Solar generation and upgrade bonuses.", "太阳能发电与升级加成设置。" })
-    public SolarPanelSchema solarPanel = new SolarPanelSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Trinity planning limits and quantity semantics.", "三位一体规划限制与数量语义设置。" })
-    public TrinityCraftingSchema trinityCrafting = new TrinityCraftingSchema();
-
-    @Configurable(key = Configurable.LocalizationKey.FULL)
-    @Configurable.Comment({ "Trinity dispatch governor tuning.", "三位一体派发调节器设置。" })
-    public TrinityDispatchSchema trinityDispatch = new TrinityDispatchSchema();
+        @Configurable
+        @Configurable.Comment({
+                "Logs high-frequency runtime calculations and dispatch decisions. Warnings and errors are unaffected.",
+                "记录高频运行时计算与发配决策。警告和错误不受影响。"
+        })
+        public boolean verboseRuntimeLogging = false;
+    }
 
     public static final class DataRipperSchema {
 
@@ -129,6 +121,7 @@ public final class DataEnergisticsConfiguration {
                 "按数组索引配对的功耗倍率。"
         })
         public DataRipperMultiplierSchema multipliers = new DataRipperMultiplierSchema();
+
     }
 
     public static final class DataRipperMultiplierSchema {
@@ -147,6 +140,7 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.DecimalRange(min = Double.MIN_NORMAL, max = Double.MAX_VALUE)
         public double[] values = { 1.5D, 2.0D };
+
     }
 
     public static final class DataDistributionTowerSchema {
@@ -158,6 +152,7 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.Range(min = 1, max = 128)
         public int range = 1;
+
     }
 
     public static final class DataSanctumInterfaceSchema {
@@ -195,6 +190,7 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.Range(min = 1, max = MAX_BASE_CAPACITY)
         public int returnFluidBuckets = 2048;
+
     }
 
     public static final class DataExtractorSchema {
@@ -264,17 +260,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Additional allowed crop item ids. Each array element is one registry id.", "额外允许的农作物品 ID；每个数组元素对应一个注册表 ID。" })
         public String[] cropDataWhitelist = {};
-    }
-
-    public static final class FlatteningTntSchema {
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Configurable TNT terrain replacement.", "可配置 TNT 的地形替换设置。" })
-        public ConfigurableTntSchema tntConfigurable = new ConfigurableTntSchema();
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Incremental Data Nuke consumption.", "数据核弹的渐进吞噬设置。" })
-        public DataNukeSchema dataNuke = new DataNukeSchema();
     }
 
     public static final class ConfigurableTntSchema {

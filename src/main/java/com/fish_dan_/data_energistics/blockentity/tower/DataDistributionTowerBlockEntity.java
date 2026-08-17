@@ -2973,7 +2973,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void emitDiagnosticLogIfNeeded() {
-        boolean enabled = DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled();
+        boolean enabled = DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging;
         if (enabled != this.verboseRuntimeLoggingEnabled) {
             this.verboseRuntimeLoggingEnabled = enabled;
             resetDiagnosticCounters(Long.MIN_VALUE);

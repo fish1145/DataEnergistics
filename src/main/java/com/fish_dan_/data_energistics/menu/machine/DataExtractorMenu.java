@@ -52,11 +52,11 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     @GuiSync(764)
     public int collectionMaxProgress;
     @GuiSync(765)
-    public int workIntervalSeconds = DataEnergisticsConfiguration.INSTANCE.dataExtractor().workIntervalSeconds();
+    public int workIntervalSeconds = DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.workIntervalSeconds;
     @GuiSync(766)
     public int targetCount;
     @GuiSync(767)
-    public int targetLimit = DataEnergisticsConfiguration.INSTANCE.dataExtractor().baseTargetLimit();
+    public int targetLimit = DataEnergisticsConfiguration.INSTANCE.machines.dataExtractor.baseTargetLimit;
     @GuiSync(768)
     public boolean redstoneControlled;
     @GuiSync(769)
