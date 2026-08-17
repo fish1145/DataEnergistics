@@ -55,6 +55,9 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String GEOMETRY_RADIUS_TAG = "geometry_radius";
     private static final String GEOMETRY_DEPTH_TAG = "geometry_depth";
     private static final String GEOMETRY_DAMAGE_TAG = "geometry_damage";
+    private static final String DIGITAL_WORK_INTERVAL_TAG = "digital_work_interval";
+    private static final String DIGITAL_MAX_RADIUS_TAG = "digital_max_radius";
+    private static final String DIGITAL_CENTER_RADIUS_TAG = "digital_center_radius";
     private static final String CONFIGURATION_REVISION_TAG = "configuration_revision";
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
@@ -263,6 +266,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
 
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        DataEnergisticsSettings.DataNuke dataNuke = DataEnergisticsConfiguration.INSTANCE.dataNuke();
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
                 UUID.randomUUID(),
@@ -270,7 +274,10 @@ public final class OrbitalAttackSavedData extends SavedData {
                 OrbitalAttackMode.DIGITAL_ANNIHILATION,
                 dimensionId,
                 target,
-                new OrbitalAttackGeometry.DigitalAnnihilation(),
+                new OrbitalAttackGeometry.DigitalAnnihilation(
+                        dataNuke.workIntervalTicks(),
+                        dataNuke.maxRadius(),
+                        dataNuke.centerEntityConsumeRadius()),
                 DataEnergisticsConfiguration.INSTANCE.revision(),
                 settings.attackWarningTicks(),
                 cost,
@@ -297,6 +304,29 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         this.attacks.put(attackId, current.markDigitalPayloadArrived(nukeEntityId));
         setDirty();
+        return true;
+    }
+
+    /** Persists a coarse digital work cursor without changing the attack phase. */
+    public boolean markDigitalWorkProgress(MinecraftServer server, UUID attackId, long workCursor) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || workCursor < 0L) {
+            return false;
+        }
+        this.attacks.put(attackId, current.withWorkCursor(workCursor));
+        setDirty();
+        return true;
+    }
+
+    /** Moves a digital delivery into FAULTED while retaining its diagnostics and escrow. */
+    public boolean markDigitalPayloadFaulted(MinecraftServer server, UUID attackId, String reason) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() == OrbitalAttackPhase.COOLDOWN || current.phase() == OrbitalAttackPhase.FAULTED) {
+            return false;
+        }
+        fault(current, "Digital annihilation payload failed: " + reason);
         return true;
     }
 
@@ -386,6 +416,10 @@ public final class OrbitalAttackSavedData extends SavedData {
             tag.putInt(GEOMETRY_RADIUS_TAG, directedEnergy.radius());
             tag.putString(GEOMETRY_DEPTH_TAG, directedEnergy.depth().name());
             tag.putLong(GEOMETRY_DAMAGE_TAG, directedEnergy.entityDamage());
+        } else if (attack.geometry() instanceof OrbitalAttackGeometry.DigitalAnnihilation digital) {
+            tag.putInt(DIGITAL_WORK_INTERVAL_TAG, digital.workIntervalTicks());
+            tag.putInt(DIGITAL_MAX_RADIUS_TAG, digital.maxRadius());
+            tag.putDouble(DIGITAL_CENTER_RADIUS_TAG, digital.centerEntityConsumeRadius());
         }
         tag.putLong(CONFIGURATION_REVISION_TAG, attack.configurationRevision());
         tag.putInt(WARNING_TICKS_TAG, attack.warningTicksRemaining());
@@ -429,7 +463,13 @@ public final class OrbitalAttackSavedData extends SavedData {
                         tag.getInt(GEOMETRY_RADIUS_TAG),
                         OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG)),
                         tag.getLong(GEOMETRY_DAMAGE_TAG));
-                case DIGITAL_ANNIHILATION -> geometry = new OrbitalAttackGeometry.DigitalAnnihilation();
+                case DIGITAL_ANNIHILATION -> {
+                    DataEnergisticsSettings.DataNuke fallback = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+                    geometry = new OrbitalAttackGeometry.DigitalAnnihilation(
+                            tag.contains(DIGITAL_WORK_INTERVAL_TAG) ? tag.getInt(DIGITAL_WORK_INTERVAL_TAG) : fallback.workIntervalTicks(),
+                            tag.contains(DIGITAL_MAX_RADIUS_TAG) ? tag.getInt(DIGITAL_MAX_RADIUS_TAG) : fallback.maxRadius(),
+                            tag.contains(DIGITAL_CENTER_RADIUS_TAG) ? tag.getDouble(DIGITAL_CENTER_RADIUS_TAG) : fallback.centerEntityConsumeRadius());
+                }
                 default -> throw new IllegalArgumentException("Unsupported orbital attack mode");
             }
             List<UUID> exemptions = new ArrayList<>();
@@ -495,7 +535,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                  MinecraftServer server,
                                                  ServerLevel level,
                                                  OrbitalAttackRecord current) {
-        if (!(current.geometry() instanceof OrbitalAttackGeometry.DigitalAnnihilation)) {
+        if (!(current.geometry() instanceof OrbitalAttackGeometry.DigitalAnnihilation geometry)) {
             fault(current, "Digital-annihilation attack has incompatible geometry");
             return;
         }
@@ -508,7 +548,10 @@ public final class OrbitalAttackSavedData extends SavedData {
                     level,
                     current.attackId(),
                     current.target(),
-                    current.damageExemptions());
+                    current.damageExemptions(),
+                    geometry.workIntervalTicks(),
+                    geometry.maxRadius(),
+                    geometry.centerEntityConsumeRadius());
             if (!level.addFreshEntity(projectile)) {
                 fault(current, "Digital-annihilation payload could not be added to the target dimension");
                 return;

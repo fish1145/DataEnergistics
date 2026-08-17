@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
+import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
@@ -47,6 +49,9 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     private static final String TAG_FLIGHT_TICKS = "FlightTicks";
     private static final String TAG_EXEMPTIONS = "DamageExemptions";
     private static final String TAG_UUID = "UUID";
+    private static final String TAG_WORK_INTERVAL = "WorkIntervalTicks";
+    private static final String TAG_MAX_RADIUS = "MaxRadius";
+    private static final String TAG_CENTER_RADIUS = "CenterEntityConsumeRadius";
     private static final TicketType<UUID> CHUNK_TICKET_TYPE = TicketType.create(
             Data_Energistics.MODID + ":orbital_annihilator",
             UUID::compareTo);
@@ -56,6 +61,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     private BlockPos target = BlockPos.ZERO;
     private int flightTicks;
     private Set<UUID> damageExemptions = Set.of();
+    private DigitalAnnihilationWork.Settings workSettings;
     @Nullable
     private ChunkPos forcedChunk;
 
@@ -64,14 +70,22 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         super(entityType, level);
         this.noPhysics = true;
         this.setNoGravity(true);
+        this.workSettings = currentWorkSettings();
     }
 
     public OrbitalAnnihilatorProjectileEntity(ServerLevel level, UUID attackId, BlockPos target,
-                                              Set<UUID> damageExemptions) {
+                                              Set<UUID> damageExemptions,
+                                              int workIntervalTicks,
+                                              int maxRadius,
+                                              double centerEntityConsumeRadius) {
         this(DEEntities.ORBITAL_ANNIHILATOR_PROJECTILE.get(), level);
         this.attackId = attackId;
         this.target = target.immutable();
         this.damageExemptions = Set.copyOf(damageExemptions);
+        this.workSettings = new DigitalAnnihilationWork.Settings(
+                workIntervalTicks,
+                maxRadius,
+                centerEntityConsumeRadius);
         this.setPos(this.target.getX() + 0.5D, startY(level), this.target.getZ() + 0.5D);
         this.setDeltaMovement(Vec3.ZERO);
     }
@@ -102,7 +116,8 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 serverLevel,
                 this.target,
                 this.attackId,
-                this.damageExemptions);
+                this.damageExemptions,
+                this.workSettings);
         serverLevel.addFreshEntity(nuke);
         OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadArrived(
                 serverLevel.getServer(),
@@ -160,6 +175,9 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         tag.putUUID(TAG_ATTACK_ID, this.attackId);
         tag.put(TAG_TARGET, NbtUtils.writeBlockPos(this.target));
         tag.putInt(TAG_FLIGHT_TICKS, this.flightTicks);
+        tag.putInt(TAG_WORK_INTERVAL, this.workSettings.workIntervalTicks());
+        tag.putInt(TAG_MAX_RADIUS, this.workSettings.maxRadius());
+        tag.putDouble(TAG_CENTER_RADIUS, this.workSettings.centerEntityConsumeRadius());
         ListTag exemptionList = new ListTag();
         this.damageExemptions.stream().sorted().forEach(uuid -> {
             CompoundTag exemption = new CompoundTag();
@@ -176,6 +194,10 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         }
         this.target = NbtUtils.readBlockPos(tag, TAG_TARGET).orElse(BlockPos.ZERO).immutable();
         this.flightTicks = Math.clamp(tag.getInt(TAG_FLIGHT_TICKS), 0, FLIGHT_TICKS);
+        this.workSettings = tag.contains(TAG_WORK_INTERVAL) && tag.contains(TAG_MAX_RADIUS) && tag.contains(TAG_CENTER_RADIUS) ? new DigitalAnnihilationWork.Settings(
+                tag.getInt(TAG_WORK_INTERVAL),
+                tag.getInt(TAG_MAX_RADIUS),
+                tag.getDouble(TAG_CENTER_RADIUS)) : currentWorkSettings();
         ListTag exemptionList = tag.getList(TAG_EXEMPTIONS, Tag.TAG_COMPOUND);
         HashSet<UUID> exemptions = new HashSet<>();
         for (int index = 0; index < exemptionList.size(); index++) {
@@ -208,8 +230,20 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         return this.damageExemptions;
     }
 
+    public DigitalAnnihilationWork.Settings workSettings() {
+        return this.workSettings;
+    }
+
     public static double startY(ServerLevel level) {
         return level.getMaxBuildHeight() + START_HEIGHT_OFFSET;
+    }
+
+    private static DigitalAnnihilationWork.Settings currentWorkSettings() {
+        var settings = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+        return new DigitalAnnihilationWork.Settings(
+                settings.workIntervalTicks(),
+                settings.maxRadius(),
+                settings.centerEntityConsumeRadius());
     }
 
     private void updateChunkTicket() {

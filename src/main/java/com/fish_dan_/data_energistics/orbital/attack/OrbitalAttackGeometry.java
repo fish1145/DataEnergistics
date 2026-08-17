@@ -51,8 +51,15 @@ public sealed interface OrbitalAttackGeometry
         }
     }
 
-    /** Geometry for the fixed vertical digital-annihilation payload. */
-    record DigitalAnnihilation() implements OrbitalAttackGeometry {
+    /** Geometry and frozen work settings for the vertical digital-annihilation payload. */
+    record DigitalAnnihilation(int workIntervalTicks, int maxRadius, double centerEntityConsumeRadius)
+            implements OrbitalAttackGeometry {
+
+        public DigitalAnnihilation {
+            if (workIntervalTicks < 1 || maxRadius < 1 || !Double.isFinite(centerEntityConsumeRadius) || centerEntityConsumeRadius < 0.0D) {
+                throw new IllegalArgumentException("Invalid digital annihilation geometry settings");
+            }
+        }
 
         @Override
         public OrbitalAttackMode mode() {
