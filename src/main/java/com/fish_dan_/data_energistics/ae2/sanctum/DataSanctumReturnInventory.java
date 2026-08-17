@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.sanctum;
 
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataSanctumInterfaceSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataSanctumInterfaceSchema;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;

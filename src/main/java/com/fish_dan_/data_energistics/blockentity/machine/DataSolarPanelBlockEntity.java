@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.SolarPanelSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.SolarPanelSchema;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;

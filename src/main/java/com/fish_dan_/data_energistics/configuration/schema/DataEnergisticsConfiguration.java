@@ -21,8 +21,7 @@ import dev.toma.configuration.config.format.ConfigFormats;
 public final class DataEnergisticsConfiguration {
 
     /** The holder registered with Configuration and automatically synchronized by its file watcher. */
-    public static final ConfigHolder<DataEnergisticsConfiguration> HOLDER =
-            Configuration.registerConfig(DataEnergisticsConfiguration.class, ConfigFormats.YAML);
+    public static final ConfigHolder<DataEnergisticsConfiguration> HOLDER = Configuration.registerConfig(DataEnergisticsConfiguration.class, ConfigFormats.YAML);
 
     /** The framework-owned schema instance; its fields are updated by Configuration's Auto-Sync thread. */
     public static final DataEnergisticsConfiguration INSTANCE = HOLDER.getConfigInstance();
@@ -121,7 +120,6 @@ public final class DataEnergisticsConfiguration {
                 "按数组索引配对的功耗倍率。"
         })
         public DataRipperMultiplierSchema multipliers = new DataRipperMultiplierSchema();
-
     }
 
     public static final class DataRipperMultiplierSchema {
@@ -140,7 +138,6 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.DecimalRange(min = Double.MIN_NORMAL, max = Double.MAX_VALUE)
         public double[] values = { 1.5D, 2.0D };
-
     }
 
     public static final class DataDistributionTowerSchema {
@@ -152,7 +149,6 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.Range(min = 1, max = 128)
         public int range = 1;
-
     }
 
     public static final class DataSanctumInterfaceSchema {
@@ -190,7 +186,6 @@ public final class DataEnergisticsConfiguration {
         })
         @Configurable.Range(min = 1, max = MAX_BASE_CAPACITY)
         public int returnFluidBuckets = 2048;
-
     }
 
     public static final class DataExtractorSchema {

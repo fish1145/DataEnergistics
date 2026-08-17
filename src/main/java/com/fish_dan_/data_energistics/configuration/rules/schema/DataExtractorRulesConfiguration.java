@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.configuration.rules.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.rules.DefaultRuleValues;
 import com.fish_dan_.data_energistics.configuration.rules.LoadedRules;
 import com.fish_dan_.data_energistics.configuration.rules.RuleFormatException;
-import com.fish_dan_.data_energistics.configuration.rules.DefaultRuleValues;
 import com.fish_dan_.data_energistics.configuration.rules.codec.DataExtractorRuleEntries;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
@@ -24,8 +24,7 @@ public final class DataExtractorRulesConfiguration {
     public static final String CONFIG_ID = Data_Energistics.MODID + "_data_extractor_rules";
     public static final String FILENAME = Data_Energistics.MODID + "/data_extractor_rules";
 
-    public static final ConfigHolder<DataExtractorRulesConfiguration> HOLDER =
-            Configuration.registerConfig(DataExtractorRulesConfiguration.class, ConfigFormats.YAML);
+    public static final ConfigHolder<DataExtractorRulesConfiguration> HOLDER = Configuration.registerConfig(DataExtractorRulesConfiguration.class, ConfigFormats.YAML);
     public static final DataExtractorRulesConfiguration INSTANCE = HOLDER.getConfigInstance();
 
     @Configurable

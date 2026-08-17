@@ -45,7 +45,7 @@ public final class CraftingDispatchGovernor {
     }
 
     private static CraftingDispatchGovernorSettings settingsFrom(
-            DataEnergisticsConfiguration.TrinityDispatchSchema settings) {
+                                                                 DataEnergisticsConfiguration.TrinityDispatchSchema settings) {
         CraftingDispatchBudget hardBudget = new CraftingDispatchBudget(
                 new CraftingDispatchLimits(
                         settings.hardGridAttempts,

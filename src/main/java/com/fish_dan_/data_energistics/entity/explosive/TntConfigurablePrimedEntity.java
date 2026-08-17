@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.ConfigurableTntSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.ConfigurableTntSchema;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 

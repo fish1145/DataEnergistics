@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.sanctum;
 
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataSanctumInterfaceSchema;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataSanctumInterfaceSchema;
 
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEFluidKey;

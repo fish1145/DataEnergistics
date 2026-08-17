@@ -114,5 +114,4 @@ public final class DataExtractorRuleTable {
     }
 
     public record ConfiguredStack(ResourceLocation itemId, int count) {}
-
 }
