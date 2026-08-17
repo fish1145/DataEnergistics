@@ -15,10 +15,10 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,7 +57,7 @@ public final class DigitalAnnihilationWork {
     private final BlockPos origin;
     private final UUID ticketOwner;
     private final Settings settings;
-    private final Set<ChunkPos> heldTickets = new HashSet<>();
+    private final LongSet heldTickets = new LongOpenHashSet();
 
     private int workTicks;
     private int expansionRadius;
@@ -100,6 +100,33 @@ public final class DigitalAnnihilationWork {
     /** Creates fresh work for a fuse that is about to become active. */
     public static DigitalAnnihilationWork create(BlockPos origin, UUID ticketOwner, DataNuke settings) {
         return create(origin, ticketOwner, Settings.from(settings));
+    }
+
+    /**
+     * Estimates the complete deterministic candidate volume and the best-case work ticks for a fresh fuse. Chunk
+     * waits and the global orbital governor can only increase the returned tick count.
+     */
+    public static WorkEstimate estimate(ServerLevel level, BlockPos origin, DataNuke settings) {
+        return estimate(level, origin, Settings.from(settings));
+    }
+
+    private static WorkEstimate estimate(ServerLevel level, BlockPos origin, Settings settings) {
+        long scheduledBlocks = 0L;
+        long minimumTicks = 0L;
+        for (int shellRadius = 1; shellRadius <= settings.maxRadius(); shellRadius++) {
+            int outerRadius = Math.min(settings.maxRadius(), shellRadius + SURFACE_OUTER_MARGIN);
+            long side = (long) outerRadius * 2L + 1L;
+            int minY = Math.max(level.getMinBuildHeight(), origin.getY() - outerRadius);
+            int maxY = Math.min(level.getMaxBuildHeight() - 1, origin.getY() + outerRadius);
+            long candidateCount = Math.multiplyExact(
+                    Math.multiplyExact(side, side),
+                    (long) maxY - minY + 1L);
+            scheduledBlocks = Math.addExact(scheduledBlocks, candidateCount);
+            minimumTicks = Math.addExact(
+                    minimumTicks,
+                    settings.workIntervalTicks() - 1L + divideRoundingUp(candidateCount));
+        }
+        return new WorkEstimate(scheduledBlocks, minimumTicks);
     }
 
     /** Creates fresh work from a configuration snapshot captured at attack confirmation or fuse activation. */
@@ -206,7 +233,8 @@ public final class DigitalAnnihilationWork {
         this.pendingChunk = null;
         this.pendingChunkReady = false;
         this.pendingChunkFailed = false;
-        for (ChunkPos chunk : Set.copyOf(this.heldTickets)) {
+        for (long packedChunk : this.heldTickets) {
+            ChunkPos chunk = new ChunkPos(packedChunk);
             level.getChunkSource().removeRegionTicket(
                     CHUNK_TICKET_TYPE,
                     chunk,
@@ -256,8 +284,8 @@ public final class DigitalAnnihilationWork {
         this.pendingChunk = null;
         this.pendingChunkReady = false;
         this.pendingChunkFailed = false;
-        for (ChunkPos chunk : Set.copyOf(this.heldTickets)) {
-            releaseTicket(level, chunk);
+        for (long packedChunk : this.heldTickets.toLongArray()) {
+            releaseTicket(level, new ChunkPos(packedChunk));
         }
     }
 
@@ -369,7 +397,7 @@ public final class DigitalAnnihilationWork {
     }
 
     private void holdTicket(ServerLevel level, ChunkPos chunk) {
-        if (this.heldTickets.add(chunk)) {
+        if (this.heldTickets.add(chunk.toLong())) {
             level.getChunkSource().addRegionTicket(
                     CHUNK_TICKET_TYPE,
                     chunk,
@@ -380,7 +408,7 @@ public final class DigitalAnnihilationWork {
     }
 
     private void releaseTicket(ServerLevel level, ChunkPos chunk) {
-        if (this.heldTickets.remove(chunk)) {
+        if (this.heldTickets.remove(chunk.toLong())) {
             level.getChunkSource().removeRegionTicket(
                     CHUNK_TICKET_TYPE,
                     chunk,
@@ -439,6 +467,10 @@ public final class DigitalAnnihilationWork {
         }
     }
 
+    private static long divideRoundingUp(long value) {
+        return value == 0L ? 0L : 1L + (value - 1L) / BLOCKS_PER_TICK;
+    }
+
     public enum State {
         WAITING,
         WAITING_FOR_CHUNK,
@@ -449,6 +481,16 @@ public final class DigitalAnnihilationWork {
     }
 
     public record TickResult(State state, int visitedBlocks, int changedBlocks) {}
+
+    /** Best-case work estimate before asynchronous chunk waits and shared-budget contention. */
+    public record WorkEstimate(long scheduledBlocks, long minimumTicks) {
+
+        public WorkEstimate {
+            if (scheduledBlocks < 0L || minimumTicks < 0L) {
+                throw new IllegalArgumentException("Digital annihilation work estimate must not be negative");
+            }
+        }
+    }
 
     /** Persisted cursor values; booleans distinguish absent legacy fields from an explicit zero. */
     public record Settings(int workIntervalTicks, int maxRadius, double centerEntityConsumeRadius) {

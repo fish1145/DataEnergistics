@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
@@ -16,6 +17,7 @@ import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -37,9 +39,9 @@ import java.util.function.BooleanSupplier;
  * Server-side entry point for the small set of actions exposed by the LDLib2 orbital control surface.
  *
  * <p>
- * The client supplies no weapon identity, cost, dimension, or target coordinates. The target is sampled from the
- * server player's current view and every mutation is delegated to the existing SavedData transaction, which performs
- * the final access, endpoint, reserve, and lifecycle checks.
+ * The client supplies only a bounded target intent. The server resolves weapon identity, target height, cost,
+ * configuration/state revisions and endpoint availability, while every mutation is delegated to the existing
+ * SavedData transaction for the final access, reserve, lifecycle and task-capacity checks.
  * </p>
  */
 public final class OrbitalControlActionDispatcher {
@@ -92,21 +94,74 @@ public final class OrbitalControlActionDispatcher {
                 sourceValid);
     }
 
-    /**
-     * Captures a server-side preview for a map-selected target. Surface-relative height is resolved only from an
-     * already loaded chunk; the map intent never causes an unbounded synchronous generation.
-     */
+    /** Captures a map-selected target and immediately starts the legacy one-gesture confirmation hold. */
     public static Optional<OrbitalAttackPreviewSessions.Preview> beginFireAtTarget(
-                                                                                   ServerPlayer player,
+                                                                                    ServerPlayer player,
                                                                                    OrbitalAttackMode mode,
                                                                                    ResourceLocation dimensionId,
                                                                                    int targetX,
                                                                                    int targetZ,
                                                                                    OrbitalTargetYMode targetYMode,
                                                                                    int targetYValue,
-                                                                                   int directedRadius,
-                                                                                   @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                                                                   BooleanSupplier sourceValid) {
+                                                                                    int directedRadius,
+                                                                                    @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                                                                    BooleanSupplier sourceValid) {
+        return captureFireTarget(
+                player,
+                mode,
+                dimensionId,
+                targetX,
+                targetZ,
+                targetYMode,
+                targetYValue,
+                directedRadius,
+                directedDepth,
+                sourceValid,
+                true);
+    }
+
+    /** Captures a server-side preview without starting its independent 60-tick confirmation hold. */
+    public static void previewFireAtTarget(
+                                           ServerPlayer player,
+                                           OrbitalAttackMode mode,
+                                           ResourceLocation dimensionId,
+                                           int targetX,
+                                           int targetZ,
+                                           OrbitalTargetYMode targetYMode,
+                                           int targetYValue,
+                                           int directedRadius,
+                                           @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                           BooleanSupplier sourceValid) {
+        captureFireTarget(
+                player,
+                mode,
+                dimensionId,
+                targetX,
+                targetZ,
+                targetYMode,
+                targetYValue,
+                directedRadius,
+                directedDepth,
+                sourceValid,
+                false);
+    }
+
+    /**
+     * Captures a server-side preview for a map-selected target. Surface-relative height is resolved only from an
+     * already loaded chunk; the map intent never causes an unbounded synchronous generation.
+     */
+    private static Optional<OrbitalAttackPreviewSessions.Preview> captureFireTarget(
+                                                                                      ServerPlayer player,
+                                                                                      OrbitalAttackMode mode,
+                                                                                      ResourceLocation dimensionId,
+                                                                                      int targetX,
+                                                                                      int targetZ,
+                                                                                      OrbitalTargetYMode targetYMode,
+                                                                                      int targetYValue,
+                                                                                      int directedRadius,
+                                                                                      @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                                                                      BooleanSupplier sourceValid,
+                                                                                      boolean startHold) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return Optional.empty();
@@ -167,7 +222,19 @@ public final class OrbitalControlActionDispatcher {
                     true);
             return Optional.empty();
         }
+        if (!PREVIEWS.acceptsBegin(server, player.getUUID())) {
+            return Optional.empty();
+        }
         try {
+            DataEnergisticsSettings configuration = DataEnergisticsConfiguration.INSTANCE;
+            OrbitalAttackPreviewEstimate estimate = OrbitalAttackPreviewEstimate.capture(
+                    configuration,
+                    targetLevel,
+                    target,
+                    mode,
+                    mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : 0,
+                    mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedDepth : null,
+                    weapon.orElseThrow().reserve());
             Optional<OrbitalAttackPreviewSessions.Preview> preview = PREVIEWS.begin(
                     server,
                     player.getUUID(),
@@ -177,11 +244,19 @@ public final class OrbitalControlActionDispatcher {
                     weaponId,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : 0,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedDepth : null,
-                    DataEnergisticsConfiguration.INSTANCE.revision(),
-                    stateRevision(weapon.orElseThrow()));
+                    configuration.revision(),
+                    stateRevision(weapon.orElseThrow()),
+                    estimate);
+            if (startHold && preview.isPresent()
+                    && !PREVIEWS.beginHold(server, player.getUUID(), mode)) {
+                PREVIEWS.cancel(server, player.getUUID());
+                return Optional.empty();
+            }
             preview.ifPresent(ignored -> player.displayClientMessage(
                     Component.translatable(
-                            "message.data_energistics.orbital_control_terminal.preview_started",
+                            startHold
+                                    ? "message.data_energistics.orbital_control_terminal.preview_started"
+                                    : "message.data_energistics.orbital_control_terminal.preview_ready",
                             mode.name()),
                     true));
             return preview;
@@ -210,13 +285,39 @@ public final class OrbitalControlActionDispatcher {
             throw new IllegalArgumentException("Surface-relative target requires a loaded target chunk");
         }
         int surfaceY = chunk.getHeight(
-                Heightmap.Types.WORLD_SURFACE,
+                Heightmap.Types.MOTION_BLOCKING,
                 Math.floorMod(targetX, 16),
                 Math.floorMod(targetZ, 16));
         try {
             return Math.addExact(surfaceY, value);
         } catch (ArithmeticException exception) {
             throw new IllegalArgumentException("Surface-relative target Y overflow", exception);
+        }
+    }
+
+    /** Starts the 60-tick confirmation clock for the player's existing immutable target preview. */
+    public static boolean startFireHold(
+                                        ServerPlayer player,
+                                        OrbitalAttackMode mode,
+                                        BooleanSupplier sourceValid) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
+            return false;
+        }
+        boolean started = PREVIEWS.beginHold(server, player.getUUID(), mode);
+        if (started) {
+            player.displayClientMessage(
+                    Component.translatable("message.data_energistics.orbital_control_terminal.hold_started"),
+                    true);
+        }
+        return started;
+    }
+
+    /** Stops an incomplete confirmation hold while retaining the underlying preview until its normal expiry. */
+    public static void cancelFireHold(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null && server.isSameThread()) {
+            PREVIEWS.cancelHold(server, player.getUUID());
         }
     }
 
@@ -329,6 +430,88 @@ public final class OrbitalControlActionDispatcher {
         if (server.isSameThread()) {
             PREVIEWS.expire(server);
         }
+    }
+
+    /** Returns the live server-owned target and workload preview synchronized into the open LDLib2 control surface. */
+    public static Component currentPreviewStatus(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return Component.empty();
+        }
+        Optional<OrbitalAttackPreviewSessions.Preview> current = PREVIEWS.current(server, player.getUUID());
+        if (current.isEmpty()) {
+            return Component.translatable("screen.data_energistics.orbital_control_terminal.preview.none");
+        }
+        OrbitalAttackPreviewSessions.Preview preview = current.orElseThrow();
+        OrbitalAttackPreviewEstimate estimate = preview.estimate();
+        long now = server.overworld().getGameTime();
+        long remainingTicks = Math.max(0L, preview.expiresAt() - now);
+        long remainingSeconds = remainingTicks == 0L ? 0L : 1L + (remainingTicks - 1L) / 20L;
+        MutableComponent status = Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.target",
+                modeName(preview.mode()),
+                preview.dimensionId(),
+                preview.target().getX(),
+                preview.target().getY(),
+                preview.target().getZ());
+        status.append("\n").append(Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.geometry",
+                estimate.effectRadius(),
+                preview.mode() == OrbitalAttackMode.DIRECTED_ENERGY
+                        ? depthName(preview.directedDepth())
+                        : Component.translatable("screen.data_energistics.orbital_control_terminal.preview.depth.not_applicable")));
+        status.append("\n").append(Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.chunks",
+                estimate.affectedChunks(),
+                estimate.unloadedChunks()));
+        status.append("\n").append(Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.work",
+                estimate.scheduledBlocks(),
+                estimate.minimumExecutionTicks()));
+        if (estimate.scheduledCoordinates() > 0L) {
+            status.append("\n").append(Component.translatable(
+                    "screen.data_energistics.orbital_control_terminal.preview.coordinates",
+                    estimate.scheduledCoordinates()));
+        }
+        status.append("\n").append(Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.cost",
+                estimate.cost().celestialEnergy(),
+                estimate.cost().aeEnergy()));
+        status.append("\n").append(Component.translatable(
+                "screen.data_energistics.orbital_control_terminal.preview.reserve",
+                estimate.availableCelestialEnergy(),
+                estimate.availableAeEnergy(),
+                Component.translatable(estimate.affordable()
+                        ? "screen.data_energistics.orbital_control_terminal.preview.affordable"
+                        : "screen.data_energistics.orbital_control_terminal.preview.unaffordable")));
+        status.append("\n").append(Component.translatable(
+                preview.holdStarted()
+                        ? "screen.data_energistics.orbital_control_terminal.preview.holding"
+                        : "screen.data_energistics.orbital_control_terminal.preview.ready",
+                Math.min(preview.heldTicks(now), OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS),
+                OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
+                remainingSeconds));
+        return status;
+    }
+
+    private static Component modeName(OrbitalAttackMode mode) {
+        return Component.translatable(switch (mode) {
+            case KINETIC -> "screen.data_energistics.orbital_control_terminal.mode.kinetic";
+            case DIRECTED_ENERGY -> "screen.data_energistics.orbital_control_terminal.mode.directed_energy";
+            case DIGITAL_ANNIHILATION -> "screen.data_energistics.orbital_control_terminal.mode.digital_annihilation";
+        });
+    }
+
+    private static Component depthName(@Nullable OrbitalDirectedEnergyDepth depth) {
+        if (depth == null) {
+            throw new IllegalStateException("Directed-energy preview is missing its captured depth");
+        }
+        return Component.translatable(switch (depth) {
+            case DEPTH_32 -> "screen.data_energistics.orbital_control_terminal.depth.32";
+            case DEPTH_128 -> "screen.data_energistics.orbital_control_terminal.depth.128";
+            case DEPTH_512 -> "screen.data_energistics.orbital_control_terminal.depth.512";
+            case THROUGH -> "screen.data_energistics.orbital_control_terminal.depth.through";
+        });
     }
 
     /**

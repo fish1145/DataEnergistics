@@ -22,7 +22,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
- * Builds the shared read-only LDLib2 control surface used by a handheld terminal and its bound console.
+ * Builds the shared LDLib2 control surface used by a handheld terminal and its bound console.
  *
  * <p>
  * The status supplier is server-side only and must resolve the current player UUID against authoritative
@@ -32,13 +32,18 @@ import java.util.function.Supplier;
 public final class OrbitalControlUiFactory {
 
     private static final String STATUS_SYNC_NAME = "orbital_control_terminal_status";
-    private static final int UI_WIDTH = 320;
-    private static final int UI_HEIGHT = 292;
-    private static final int SELECTOR_TOP = 198;
-    private static final int ACTION_TOP = 244;
+    private static final String PREVIEW_SYNC_NAME = "orbital_control_terminal_preview";
+    private static final int UI_WIDTH = 420;
+    private static final int UI_HEIGHT = 312;
+    private static final int PAGE_TOP = 58;
+    private static final int PAGE_HEIGHT = 246;
+    private static final int SELECTOR_TOP = 172;
+    private static final int FIRE_CONTROL_TOP = 0;
+    private static final int PREVIEW_TOP = 152;
+    private static final int ACTION_TOP = 204;
     private static final int ACTION_HEIGHT = 22;
     private static final int ACTION_GAP = 4;
-    private static final int ACTION_WIDTH = 74;
+    private static final int ACTION_WIDTH = 98;
 
     private OrbitalControlUiFactory() {}
 
@@ -75,6 +80,46 @@ public final class OrbitalControlUiFactory {
                 .width(UI_WIDTH - 16)
                 .height(18));
 
+        UIElement overviewPage = new UIElement();
+        overviewPage.setId("orbital_control_terminal_overview_page");
+        overviewPage.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(PAGE_TOP)
+                .width(UI_WIDTH)
+                .height(PAGE_HEIGHT));
+
+        UIElement fireControlPage = new UIElement();
+        fireControlPage.setId("orbital_control_terminal_fire_control_page");
+        fireControlPage.setDisplay(false);
+        fireControlPage.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(PAGE_TOP)
+                .width(UI_WIDTH)
+                .height(PAGE_HEIGHT));
+
+        Button overviewTab = pageButton(
+                "orbital_control_terminal_overview_tab",
+                "screen.data_energistics.orbital_control_terminal.page.overview",
+                8);
+        Button fireControlTab = pageButton(
+                "orbital_control_terminal_fire_control_tab",
+                "screen.data_energistics.orbital_control_terminal.page.fire_control",
+                214);
+        overviewTab.setOnClick(event -> {
+            if (clientSide) {
+                overviewPage.setDisplay(true);
+                fireControlPage.setDisplay(false);
+            }
+        });
+        fireControlTab.setOnClick(event -> {
+            if (clientSide) {
+                overviewPage.setDisplay(false);
+                fireControlPage.setDisplay(true);
+            }
+        });
+
         Label status = new Label();
         status.setId("orbital_control_terminal_status");
         status.setAllowHitTest(false);
@@ -87,9 +132,9 @@ public final class OrbitalControlUiFactory {
         status.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(8)
-                .top(30)
+                .top(0)
                 .width(UI_WIDTH - 16)
-                .height(160));
+                .height(164));
 
         Button previousWeapon = selectionButton(
                 "orbital_control_terminal_previous_weapon",
@@ -103,6 +148,28 @@ public final class OrbitalControlUiFactory {
                 112,
                 player,
                 true);
+
+        UIElement fireControl = OrbitalFireControlPanel.create(root, player, sourceValid, clientSide);
+        fireControl.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(8)
+                .top(FIRE_CONTROL_TOP));
+
+        Label preview = new Label();
+        preview.setId("orbital_control_terminal_preview");
+        preview.setAllowHitTest(false);
+        preview.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.TOP)
+                .textWrap(TextWrap.WRAP));
+        preview.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(8)
+                .top(PREVIEW_TOP)
+                .width(UI_WIDTH - 16)
+                .height(PAGE_HEIGHT - PREVIEW_TOP));
 
         Button kinetic = actionButton(
                 "orbital_control_terminal_kinetic",
@@ -143,7 +210,16 @@ public final class OrbitalControlUiFactory {
                 }
             }
         });
-        root.addChildren(title, status, previousWeapon, nextWeapon, kinetic, directed, digital, cancel);
+        overviewPage.addChildren(
+                status,
+                previousWeapon,
+                nextWeapon,
+                kinetic,
+                directed,
+                digital,
+                cancel);
+        fireControlPage.addChildren(fireControl, preview);
+        root.addChildren(title, overviewTab, fireControlTab, overviewPage, fireControlPage);
 
         SyncValue<Component> statusSync = new SyncValue<>(STATUS_SYNC_NAME, Component.class, Component.empty());
         statusSync.setToSync(!clientSide);
@@ -154,9 +230,33 @@ public final class OrbitalControlUiFactory {
             statusSync.setValue(statusSupplier.get());
         }
 
+        SyncValue<Component> previewSync = new SyncValue<>(PREVIEW_SYNC_NAME, Component.class, Component.empty());
+        previewSync.setToSync(!clientSide);
+        previewSync.setAcceptSync(clientSide);
+        previewSync.addListener(preview::setValue);
+        if (!clientSide) {
+            ServerPlayer serverPlayer = (ServerPlayer) player;
+            previewSync.setValueProvider(() -> OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
+            previewSync.setValue(OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
+        }
+
         ModularUI modularUI = ModularUI.of(UI.of(root), player);
         modularUI.syncManager.registerSyncValue(statusSync);
+        modularUI.syncManager.registerSyncValue(previewSync);
         return modularUI;
+    }
+
+    private static Button pageButton(String id, String translationKey, int left) {
+        Button button = new Button();
+        button.setId(id);
+        button.setText(Component.translatable(translationKey));
+        button.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(left)
+                .top(30)
+                .width(198)
+                .height(ACTION_HEIGHT));
+        return button;
     }
 
     private static Button actionButton(

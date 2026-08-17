@@ -64,7 +64,7 @@ public record OrbitalAttackPreviewRequestPayload(
 
     private OrbitalAttackPreviewRequestPayload(RegistryFriendlyByteBuf buffer) {
         this(
-                readMode(buffer.readVarInt()),
+                OrbitalAttackMode.fromWireCode(buffer.readVarInt()),
                 buffer.readResourceLocation(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
@@ -75,16 +75,14 @@ public record OrbitalAttackPreviewRequestPayload(
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
-        buffer.writeVarInt(this.mode == OrbitalAttackMode.KINETIC
-                ? 0
-                : this.mode == OrbitalAttackMode.DIRECTED_ENERGY ? 1 : 2);
+        buffer.writeVarInt(this.mode.wireCode());
         buffer.writeResourceLocation(this.dimensionId);
         buffer.writeVarInt(this.targetX);
         buffer.writeVarInt(this.targetZ);
         buffer.writeVarInt(this.targetYMode.wireCode());
         buffer.writeVarInt(this.targetYValue);
         buffer.writeVarInt(this.directedRadius);
-        buffer.writeVarInt(this.directedDepth == null ? -1 : depthCode(this.directedDepth));
+        buffer.writeVarInt(this.directedDepth == null ? -1 : this.directedDepth.wireCode());
     }
 
     @Override
@@ -122,33 +120,8 @@ public record OrbitalAttackPreviewRequestPayload(
         });
     }
 
-    private static OrbitalAttackMode readMode(int code) {
-        return switch (code) {
-            case 0 -> OrbitalAttackMode.KINETIC;
-            case 1 -> OrbitalAttackMode.DIRECTED_ENERGY;
-            case 2 -> OrbitalAttackMode.DIGITAL_ANNIHILATION;
-            default -> throw new IllegalArgumentException("Unknown orbital attack mode code: " + code);
-        };
-    }
-
-    private static int depthCode(OrbitalDirectedEnergyDepth depth) {
-        return switch (depth) {
-            case DEPTH_32 -> 0;
-            case DEPTH_128 -> 1;
-            case DEPTH_512 -> 2;
-            case THROUGH -> 3;
-        };
-    }
-
     @Nullable
     private static OrbitalDirectedEnergyDepth readDepth(int code) {
-        return switch (code) {
-            case -1 -> null;
-            case 0 -> OrbitalDirectedEnergyDepth.DEPTH_32;
-            case 1 -> OrbitalDirectedEnergyDepth.DEPTH_128;
-            case 2 -> OrbitalDirectedEnergyDepth.DEPTH_512;
-            case 3 -> OrbitalDirectedEnergyDepth.THROUGH;
-            default -> throw new IllegalArgumentException("Unknown directed-energy depth code: " + code);
-        };
+        return code == -1 ? null : OrbitalDirectedEnergyDepth.fromWireCode(code);
     }
 }

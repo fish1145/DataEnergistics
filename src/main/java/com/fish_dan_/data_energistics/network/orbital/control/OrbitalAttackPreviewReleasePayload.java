@@ -23,13 +23,11 @@ public record OrbitalAttackPreviewReleasePayload(OrbitalAttackMode mode) impleme
             OrbitalAttackPreviewReleasePayload::new);
 
     private OrbitalAttackPreviewReleasePayload(RegistryFriendlyByteBuf buffer) {
-        this(readMode(buffer.readVarInt()));
+        this(OrbitalAttackMode.fromWireCode(buffer.readVarInt()));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
-        buffer.writeVarInt(this.mode == OrbitalAttackMode.KINETIC
-                ? 0
-                : this.mode == OrbitalAttackMode.DIRECTED_ENERGY ? 1 : 2);
+        buffer.writeVarInt(this.mode.wireCode());
     }
 
     @Override
@@ -54,12 +52,4 @@ public record OrbitalAttackPreviewReleasePayload(OrbitalAttackMode mode) impleme
         });
     }
 
-    private static OrbitalAttackMode readMode(int code) {
-        return switch (code) {
-            case 0 -> OrbitalAttackMode.KINETIC;
-            case 1 -> OrbitalAttackMode.DIRECTED_ENERGY;
-            case 2 -> OrbitalAttackMode.DIGITAL_ANNIHILATION;
-            default -> throw new IllegalArgumentException("Unknown orbital attack mode code: " + code);
-        };
-    }
 }

@@ -8,10 +8,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,8 +29,12 @@ public final class OrbitalAttackPreviewSessions {
     public static final long DEFAULT_SESSION_TICKS = 600L;
     /** Required uninterrupted confirmation hold. */
     public static final long DEFAULT_HOLD_TICKS = 60L;
+    /** Maximum accepted preview acquisition rate per player. */
+    public static final long MINIMUM_BEGIN_INTERVAL_TICKS = 5L;
+    private static final long HOLD_NOT_STARTED = -1L;
 
-    private final Map<UUID, Preview> sessions = new HashMap<>();
+    private final Object2ObjectOpenHashMap<UUID, Preview> sessions = new Object2ObjectOpenHashMap<>();
+    private final Object2LongOpenHashMap<UUID> lastBeginAt = new Object2LongOpenHashMap<>();
     private @Nullable MinecraftServer trackedServer;
 
     /**
@@ -47,10 +51,11 @@ public final class OrbitalAttackPreviewSessions {
                                 ResourceLocation dimensionId,
                                 BlockPos target,
                                 UUID weaponId,
-                                int directedRadius,
-                                @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                long configurationRevision,
-                                long stateRevision) {
+                                 int directedRadius,
+                                 @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                 long configurationRevision,
+                                 long stateRevision,
+                                 OrbitalAttackPreviewEstimate estimate) {
         requireServerThread(server);
         trackServer(server);
         if (configurationRevision < 0L || stateRevision < 0L) {
@@ -68,6 +73,10 @@ public final class OrbitalAttackPreviewSessions {
         }
 
         long now = server.overworld().getGameTime();
+        if (!acceptsBeginAt(playerId, now)) {
+            return Optional.empty();
+        }
+        this.lastBeginAt.put(playerId, now);
         Preview preview = new Preview(
                 playerId,
                 weaponId,
@@ -79,11 +88,50 @@ public final class OrbitalAttackPreviewSessions {
                 UUID.randomUUID(),
                 configurationRevision,
                 stateRevision,
+                estimate,
                 now,
                 saturatingAdd(now),
-                now);
+                HOLD_NOT_STARTED);
         this.sessions.put(playerId, preview);
         return Optional.of(preview);
+    }
+
+    /** Returns whether an expensive server-side preview estimate may be captured for this player now. */
+    public boolean acceptsBegin(MinecraftServer server, UUID playerId) {
+        requireServerThread(server);
+        trackServer(server);
+        return acceptsBeginAt(playerId, server.overworld().getGameTime());
+    }
+
+    /** Starts the confirmation clock for an existing target preview without replacing its captured estimate. */
+    public boolean beginHold(MinecraftServer server, UUID playerId, OrbitalAttackMode mode) {
+        requireServerThread(server);
+        trackServer(server);
+        if (!this.sessions.containsKey(playerId)) {
+            return false;
+        }
+        Preview preview = this.sessions.get(playerId);
+        long now = server.overworld().getGameTime();
+        if (preview.expired(now) || preview.mode() != mode) {
+            this.sessions.remove(playerId);
+            return false;
+        }
+        this.sessions.put(playerId, preview.withHoldStartedAt(now));
+        return true;
+    }
+
+    /** Cancels only the active confirmation clock while retaining the still-valid target preview. */
+    public void cancelHold(MinecraftServer server, UUID playerId) {
+        requireServerThread(server);
+        trackServer(server);
+        if (!this.sessions.containsKey(playerId)) {
+            return;
+        }
+        Preview preview = this.sessions.get(playerId);
+        if (!preview.holdStarted()) {
+            return;
+        }
+        this.sessions.put(playerId, preview.withoutHold());
     }
 
     /**
@@ -96,14 +144,24 @@ public final class OrbitalAttackPreviewSessions {
                                   OrbitalAttackMode mode) {
         requireServerThread(server);
         trackServer(server);
-        Preview preview = this.sessions.remove(playerId);
-        if (preview == null || preview.mode() != mode) {
+        if (!this.sessions.containsKey(playerId)) {
+            return Optional.empty();
+        }
+        Preview preview = this.sessions.get(playerId);
+        if (preview.mode() != mode) {
+            this.sessions.remove(playerId);
             return Optional.empty();
         }
         long now = server.overworld().getGameTime();
-        if (preview.expired(now) || preview.heldTicks(now) < DEFAULT_HOLD_TICKS) {
+        if (preview.expired(now)) {
+            this.sessions.remove(playerId);
             return Optional.empty();
         }
+        if (!preview.holdStarted() || preview.heldTicks(now) < DEFAULT_HOLD_TICKS) {
+            this.sessions.put(playerId, preview.withoutHold());
+            return Optional.empty();
+        }
+        this.sessions.remove(playerId);
         return Optional.of(preview);
     }
 
@@ -111,7 +169,11 @@ public final class OrbitalAttackPreviewSessions {
     public boolean cancel(MinecraftServer server, UUID playerId) {
         requireServerThread(server);
         trackServer(server);
-        return this.sessions.remove(playerId) != null;
+        if (!this.sessions.containsKey(playerId)) {
+            return false;
+        }
+        this.sessions.remove(playerId);
+        return true;
     }
 
     /** Removes all previews that have passed their server-clock expiry. */
@@ -120,16 +182,18 @@ public final class OrbitalAttackPreviewSessions {
         trackServer(server);
         long now = server.overworld().getGameTime();
         this.sessions.values().removeIf(preview -> preview.expired(now));
+        this.lastBeginAt.object2LongEntrySet()
+                .removeIf(entry -> now - entry.getLongValue() >= DEFAULT_SESSION_TICKS);
     }
 
     /** Returns the current unexpired preview for one player without extending its lifetime. */
     public Optional<Preview> current(MinecraftServer server, UUID playerId) {
         requireServerThread(server);
         trackServer(server);
-        Preview preview = this.sessions.get(playerId);
-        if (preview == null) {
+        if (!this.sessions.containsKey(playerId)) {
             return Optional.empty();
         }
+        Preview preview = this.sessions.get(playerId);
         if (preview.expired(server.overworld().getGameTime())) {
             this.sessions.remove(playerId);
             return Optional.empty();
@@ -143,6 +207,12 @@ public final class OrbitalAttackPreviewSessions {
         }
         this.trackedServer = server;
         this.sessions.clear();
+        this.lastBeginAt.clear();
+    }
+
+    private boolean acceptsBeginAt(UUID playerId, long now) {
+        return !this.lastBeginAt.containsKey(playerId)
+                || now - this.lastBeginAt.getLong(playerId) >= MINIMUM_BEGIN_INTERVAL_TICKS;
     }
 
     private static long saturatingAdd(long value) {
@@ -170,13 +240,18 @@ public final class OrbitalAttackPreviewSessions {
                          UUID nonce,
                          long configurationRevision,
                          long stateRevision,
+                         OrbitalAttackPreviewEstimate estimate,
                          long createdAt,
                          long expiresAt,
                          long holdStartedAt) {
 
         public Preview {
             target = target.immutable();
-            if (configurationRevision < 0L || stateRevision < 0L || createdAt < 0L || expiresAt <= createdAt || holdStartedAt < createdAt) {
+            if (configurationRevision < 0L
+                    || stateRevision < 0L
+                    || createdAt < 0L
+                    || expiresAt <= createdAt
+                    || (holdStartedAt != HOLD_NOT_STARTED && holdStartedAt < createdAt)) {
                 throw new IllegalArgumentException("Orbital preview timing or revision is invalid");
             }
             if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
@@ -194,7 +269,33 @@ public final class OrbitalAttackPreviewSessions {
         }
 
         public long heldTicks(long gameTime) {
-            return Math.max(0L, gameTime - this.holdStartedAt);
+            return holdStarted() ? Math.max(0L, gameTime - this.holdStartedAt) : 0L;
+        }
+
+        public boolean holdStarted() {
+            return this.holdStartedAt != HOLD_NOT_STARTED;
+        }
+
+        private Preview withHoldStartedAt(long holdStartedAt) {
+            return new Preview(
+                    this.playerId,
+                    this.weaponId,
+                    this.mode,
+                    this.dimensionId,
+                    this.target,
+                    this.directedRadius,
+                    this.directedDepth,
+                    this.nonce,
+                    this.configurationRevision,
+                    this.stateRevision,
+                    this.estimate,
+                    this.createdAt,
+                    this.expiresAt,
+                    holdStartedAt);
+        }
+
+        private Preview withoutHold() {
+            return withHoldStartedAt(HOLD_NOT_STARTED);
         }
     }
 }

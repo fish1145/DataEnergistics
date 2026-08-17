@@ -42,6 +42,7 @@ import java.util.UUID;
 
 public class DataNukePrimedEntity extends PrimedTnt {
 
+    public static final int DEFAULT_FUSE_TICKS = 80;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final EntityDataAccessor<Boolean> DATA_ACTIVE = SynchedEntityData.defineId(DataNukePrimedEntity.class,
             EntityDataSerializers.BOOLEAN);
@@ -94,7 +95,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
         double angle = level.random.nextDouble() * (Math.PI * 2.0D);
         this.setDeltaMovement(-Math.sin(angle) * 0.02D, 0.2D, -Math.cos(angle) * 0.02D);
-        this.setFuse(80);
+        this.setFuse(DEFAULT_FUSE_TICKS);
         this.xo = this.getX();
         this.yo = this.getY();
         this.zo = this.getZ();
@@ -128,7 +129,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         entity.capturedWorkSettings = workSettings;
         entity.setNoGravity(true);
         entity.setDeltaMovement(Vec3.ZERO);
-        entity.setFuse(80);
+        entity.setFuse(DEFAULT_FUSE_TICKS);
         return entity;
     }
 
@@ -270,7 +271,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
 
         this.setActive(true);
-        this.setFuse(80);
+        this.setFuse(DEFAULT_FUSE_TICKS);
         this.setNoGravity(true);
         this.setDeltaMovement(Vec3.ZERO);
         this.setPos(this.origin.getX() + 0.5D, this.origin.getY(), this.origin.getZ() + 0.5D);
