@@ -41,7 +41,7 @@ public final class DataExtractorRulesConfiguration {
     })
     public OutputRuleSchema outputRules = new OutputRuleSchema();
 
-    private DataExtractorRulesConfiguration() {}
+    public DataExtractorRulesConfiguration() {}
 
     /** Compiles the current native arrays directly; Configuration's Auto-Sync updates the source arrays directly. */
     public LoadedRules rules() {
