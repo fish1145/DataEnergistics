@@ -678,7 +678,11 @@ final class OrbitalFireControlPanel {
         return button;
     }
 
-    private static Component modeName(OrbitalAttackMode mode) {
+    private static Component modeName(@Nullable OrbitalAttackMode mode) {
+        // LDLib2 may render a selector once on the server before its selected value is assigned.
+        if (mode == null) {
+            return Component.empty();
+        }
         return Component.translatable(switch (mode) {
             case KINETIC -> "screen.data_energistics.orbital_control_terminal.mode.kinetic";
             case DIRECTED_ENERGY -> "screen.data_energistics.orbital_control_terminal.mode.directed_energy";
@@ -686,14 +690,20 @@ final class OrbitalFireControlPanel {
         });
     }
 
-    private static Component targetYModeName(OrbitalTargetYMode mode) {
+    private static Component targetYModeName(@Nullable OrbitalTargetYMode mode) {
+        if (mode == null) {
+            return Component.empty();
+        }
         return Component.translatable(switch (mode) {
             case ABSOLUTE -> TRANSLATION_PREFIX + "y_mode.absolute";
             case SURFACE_OFFSET -> TRANSLATION_PREFIX + "y_mode.surface_offset";
         });
     }
 
-    private static Component depthName(OrbitalDirectedEnergyDepth depth) {
+    private static Component depthName(@Nullable OrbitalDirectedEnergyDepth depth) {
+        if (depth == null) {
+            return Component.empty();
+        }
         return Component.translatable(switch (depth) {
             case DEPTH_32 -> "screen.data_energistics.orbital_control_terminal.depth.32";
             case DEPTH_128 -> "screen.data_energistics.orbital_control_terminal.depth.128";
