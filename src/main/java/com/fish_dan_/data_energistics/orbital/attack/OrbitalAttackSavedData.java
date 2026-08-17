@@ -361,6 +361,27 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     /**
+     * Aborts a committed or actively delivered attack for an authorized operator. Already debited escrow is retained;
+     * any persisted projectile or fuse entity is discarded before the attack enters its diagnostic ABORTED phase.
+     */
+    public boolean emergencyAbort(MinecraftServer server, UUID actorId, UUID attackId) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null
+                || (current.phase() != OrbitalAttackPhase.COMMITTED && current.phase() != OrbitalAttackPhase.DELIVERY)) {
+            return false;
+        }
+        OrbitalWeaponRecord weapon = OrbitalWeaponSavedData.get(server).find(current.weaponId()).orElse(null);
+        if (weapon == null || !weapon.canPerform(actorId, OrbitalWeaponAction.EMERGENCY_ABORT)) {
+            return false;
+        }
+        discardPayload(server, current);
+        this.attacks.put(attackId, current.aborted());
+        setDirty();
+        return true;
+    }
+
+    /**
      * Advances all persisted attacks once. This is called from the server tick event and never crosses a dimension's
      * thread boundary.
      */
@@ -370,6 +391,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             switch (current.phase()) {
                 case RESERVED_WARNING -> tickWarning(server, current);
                 case COMMITTED, DELIVERY -> tickDelivery(server, current);
+                case ABORTED -> tickAborted(current);
                 case COOLDOWN -> tickCooldown(current);
                 case FAULTED -> {
                     // A faulted attack is retained for administrator diagnostics and is never retried implicitly.
@@ -658,6 +680,27 @@ public final class OrbitalAttackSavedData extends SavedData {
             this.attacks.put(current.attackId(), current.withCooldownTicks(current.cooldownTicksRemaining() - 1));
         }
         setDirty();
+    }
+
+    private void tickAborted(OrbitalAttackRecord current) {
+        this.attacks.put(current.attackId(), current.cooldown(current.cooldownDurationTicks()));
+        setDirty();
+    }
+
+    private static void discardPayload(MinecraftServer server, OrbitalAttackRecord attack) {
+        UUID payloadId = attack.payloadEntityId();
+        if (payloadId == null) {
+            return;
+        }
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, attack.dimensionId());
+        ServerLevel level = server.getLevel(dimension);
+        if (level == null) {
+            return;
+        }
+        Entity payload = level.getEntity(payloadId);
+        if (payload != null) {
+            payload.discard();
+        }
     }
 
     private void fault(OrbitalAttackRecord current, String reason) {

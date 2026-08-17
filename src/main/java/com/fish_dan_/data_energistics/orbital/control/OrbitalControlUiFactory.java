@@ -135,7 +135,7 @@ public final class OrbitalControlUiFactory {
                 OrbitalAttackMode.DIGITAL_ANNIHILATION);
         Button cancel = new Button();
         cancel.setId("orbital_control_terminal_cancel");
-        cancel.setText(Component.translatable("screen.data_energistics.orbital_control_terminal.action.cancel"));
+        cancel.setText(Component.translatable("screen.data_energistics.orbital_control_terminal.action.stop"));
         cancel.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(8 + (ACTION_WIDTH + ACTION_GAP) * 3)
@@ -144,7 +144,7 @@ public final class OrbitalControlUiFactory {
                 .height(ACTION_HEIGHT));
         cancel.setOnServerClick(event -> {
             if (player instanceof ServerPlayer serverPlayer) {
-                if (!OrbitalControlActionDispatcher.cancelFirstWarning(serverPlayer)) {
+                if (!OrbitalControlActionDispatcher.cancelOrAbortFirst(serverPlayer)) {
                     serverPlayer.displayClientMessage(
                             Component.translatable("message.data_energistics.orbital_control_terminal.cancel_rejected"),
                             true);

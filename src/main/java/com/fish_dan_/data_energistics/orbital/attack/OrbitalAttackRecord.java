@@ -203,6 +203,32 @@ public record OrbitalAttackRecord(
                 this.damageExemptions);
     }
 
+    /**
+     * Marks a committed attack as aborted without refunding its already debited escrow.
+     * The scheduler advances this diagnostic phase into the configured cooldown on its next tick.
+     */
+    public OrbitalAttackRecord aborted() {
+        return new OrbitalAttackRecord(
+                this.attackId,
+                this.weaponId,
+                this.mode,
+                OrbitalAttackPhase.ABORTED,
+                this.dimensionId,
+                this.target,
+                this.geometry,
+                this.configurationRevision,
+                0,
+                this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
+                this.impactApplied,
+                0,
+                this.cooldownDurationTicks,
+                this.celestialEscrow,
+                this.aeEscrow,
+                this.damageExemptions);
+    }
+
     public OrbitalAttackRecord markImpactApplied() {
         return new OrbitalAttackRecord(
                 this.attackId,

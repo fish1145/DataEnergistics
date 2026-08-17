@@ -7,6 +7,7 @@ public enum OrbitalAttackPhase {
     RESERVED_WARNING,
     COMMITTED,
     DELIVERY,
+    ABORTED,
     COOLDOWN,
     FAULTED
 }

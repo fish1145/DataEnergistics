@@ -218,6 +218,104 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_control_emergency_abort_discards_committed_payload_without_refund")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    public static void emergencyAbortDiscardsCommittedPayloadWithoutRefund(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "digital-emergency-abort-owner");
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        level.getChunk(absoluteTarget.getX() >> 4, absoluteTarget.getZ() >> 4);
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<UUID> attackId = new AtomicReference<>();
+        AtomicReference<OrbitalEnergyReserve> reserveBefore = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The emergency-abort action must use a real powered endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
+                    primeReserve(weapons, server, weaponId, cost);
+                    reserveBefore.set(weapons.find(weaponId).orElseThrow().reserve());
+                    owner.setPos(
+                            absoluteTarget.getX() + 0.5D,
+                            absoluteTarget.getY() + 3.0D,
+                            absoluteTarget.getZ() + 0.5D);
+                    owner.setXRot(90.0F);
+                    owner.setYRot(0.0F);
+                    OrbitalAttackRecord warning = OrbitalControlActionDispatcher.fireAtLookTarget(
+                            owner,
+                            OrbitalAttackMode.DIGITAL_ANNIHILATION)
+                            .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
+                    attackId.set(warning.attackId());
+                    helper.assertTrue(
+                            level.destroyBlock(helper.absolutePos(CREATIVE_ENERGY_CELL), false),
+                            "The charging source must be removed before the no-refund assertion");
+                    helper.assertTrue(
+                            level.destroyBlock(helper.absolutePos(CONTROL_CONSOLE), false),
+                            "The endpoint must be removed after confirmation without cancelling the payload");
+                })
+                .thenIdle(settings.attackWarningTicks())
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            delivery.phase(),
+                            OrbitalAttackPhase.DELIVERY,
+                            "The warning must commit before emergency abort is available");
+                    helper.assertTrue(
+                            delivery.payloadEntityId() != null
+                                    && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The committed digital attack must expose its live projectile to the abort action");
+                })
+                .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    UUID payloadId = delivery.payloadEntityId();
+                    helper.assertTrue(
+                            OrbitalControlActionDispatcher.cancelOrAbortFirst(owner),
+                            "The LDLib2 stop action must route a committed attack to emergency abort");
+                    OrbitalAttackRecord aborted = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            aborted.phase(),
+                            OrbitalAttackPhase.ABORTED,
+                            "Emergency abort must persist the ABORTED phase");
+                    helper.assertTrue(
+                            level.getEntity(payloadId) == null,
+                            "Emergency abort must discard the in-flight orbital payload");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "Aborting before payload arrival must leave the target unchanged");
+                    OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
+                    helper.assertValueEqual(
+                            after.celestialEnergy(),
+                            reserveBefore.get().celestialEnergy() - cost.celestialEnergy(),
+                            "Emergency abort must not refund already committed Celestial Energy");
+                    helper.assertValueEqual(
+                            after.aeEnergy(),
+                            reserveBefore.get().aeEnergy() - cost.aeEnergy(),
+                            "Emergency abort must not refund already committed AE energy");
+                })
+                .thenIdle(1)
+                .thenExecute(() -> helper.assertValueEqual(
+                        attacks.find(attackId.get()).orElseThrow().phase(),
+                        OrbitalAttackPhase.COOLDOWN,
+                        "An aborted attack must advance into cooldown on the next scheduler tick"))
+                .thenSucceed();
+    }
+
     private static void installInfiniteCell(GameTestHelper helper) {
         if (!(helper.getBlockEntity(DRIVE) instanceof DriveBlockEntity drive)) {
             throw new IllegalStateException("The digital test drive has no block entity");

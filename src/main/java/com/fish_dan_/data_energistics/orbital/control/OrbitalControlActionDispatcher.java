@@ -146,6 +146,45 @@ public final class OrbitalControlActionDispatcher {
         }
     }
 
+    /**
+     * Performs the button's stop action: refunds a warning when one exists, otherwise emergency-aborts the first
+     * committed or delivered attack. The server decides which weapon and attack are eligible.
+     */
+    public static boolean cancelOrAbortFirst(ServerPlayer player) {
+        if (cancelFirstWarning(player)) {
+            return true;
+        }
+        return emergencyAbortFirst(player);
+    }
+
+    /** Aborts the first active attack for which the player has the server-side emergency-abort permission. */
+    public static boolean emergencyAbortFirst(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return false;
+        }
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        try {
+            return OrbitalWeaponSavedData.get(server)
+                    .accessibleTo(player.getUUID())
+                    .stream()
+                    .flatMap(weapon -> attacks.forWeapon(weapon.weaponId()).stream())
+                    .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED
+                            || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                    .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
+                    .map(attack -> attacks.emergencyAbort(server, player.getUUID(), attack.attackId()))
+                    .filter(Boolean::booleanValue)
+                    .findFirst()
+                    .orElse(false);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital emergency abort failed for player {}",
+                    player.getUUID(),
+                    exception);
+            return false;
+        }
+    }
+
     @Nullable
     private static BlockPos blockTarget(ServerPlayer player) {
         HitResult hit = player.pick(TARGET_DISTANCE, TARGET_TICK_DELTA, false);
