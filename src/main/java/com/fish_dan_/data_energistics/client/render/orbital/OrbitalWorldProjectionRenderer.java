@@ -12,6 +12,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
@@ -186,13 +187,14 @@ public final class OrbitalWorldProjectionRenderer {
         double centerX = attack.target().getX() + 0.5D;
         double centerZ = attack.target().getZ() + 0.5D;
         double echoY = attackEchoY(level, attack);
+        double radius = Math.max(72.0D, attack.effectRadius());
         return new AABB(
-                centerX - 72.0D,
-                Math.min(attack.target().getY(), echoY - 72.0D),
-                centerZ - 72.0D,
-                centerX + 72.0D,
+                Math.min(centerX - radius, attack.effectPosition().getX()),
+                Math.min(Math.min(attack.target().getY(), attack.effectPosition().getY()), echoY - 72.0D),
+                Math.min(centerZ - radius, attack.effectPosition().getZ()),
+                Math.max(centerX + radius, attack.effectPosition().getX() + 1.0D),
                 echoY + 72.0D,
-                centerZ + 72.0D);
+                Math.max(centerZ + radius, attack.effectPosition().getZ() + 1.0D));
     }
 
     private static void renderProjection(
@@ -287,17 +289,24 @@ public final class OrbitalWorldProjectionRenderer {
                 ? 0.35F + 0.55F * pulse
                 : 0.82F;
         float[] color = attackColor(attack.mode());
+        BlockPos beamPosition = attack.phase() == OrbitalAttackPhase.DELIVERY
+                ? attack.effectPosition()
+                : attack.target();
+        double beamX = beamPosition.getX() + 0.5D;
+        double beamZ = beamPosition.getZ() + 0.5D;
+        double beamMinY = Math.min(beamPosition.getY(), centerY);
+        double beamMaxY = Math.max(beamPosition.getY(), centerY);
 
         renderBox(
                 poseStack,
                 consumer,
                 new AABB(
-                        centerX - 0.5D,
-                        attack.target().getY(),
-                        centerZ - 0.5D,
-                        centerX + 0.5D,
-                        centerY,
-                        centerZ + 0.5D),
+                        beamX - 0.5D,
+                        beamMinY,
+                        beamZ - 0.5D,
+                        beamX + 0.5D,
+                        beamMaxY,
+                        beamZ + 0.5D),
                 color[0],
                 color[1],
                 color[2],
@@ -309,8 +318,28 @@ public final class OrbitalWorldProjectionRenderer {
 
         switch (attack.mode()) {
             case KINETIC -> renderKineticEcho(poseStack, consumer, centerX, centerY, centerZ, detail, color, alpha);
-            case DIRECTED_ENERGY -> renderDirectedEcho(poseStack, consumer, centerX, centerY, centerZ, detail, color, alpha, pulse);
-            case DIGITAL_ANNIHILATION -> renderDigitalEcho(poseStack, consumer, centerX, centerY, centerZ, detail, color, alpha);
+            case DIRECTED_ENERGY -> renderDirectedEcho(
+                    poseStack,
+                    consumer,
+                    centerX,
+                    centerY,
+                    centerZ,
+                    attack.effectRadius(),
+                    detail,
+                    color,
+                    alpha,
+                    pulse);
+            case DIGITAL_ANNIHILATION -> renderDigitalEcho(
+                    poseStack,
+                    consumer,
+                    centerX,
+                    centerY,
+                    centerZ,
+                    attack.target().getY(),
+                    attack.effectRadius(),
+                    detail,
+                    color,
+                    alpha);
         }
     }
 
@@ -339,13 +368,14 @@ public final class OrbitalWorldProjectionRenderer {
                                            double x,
                                            double y,
                                            double z,
+                                           int effectRadius,
                                            Detail detail,
                                            float[] color,
                                            float alpha,
                                            float pulse) {
         int rings = detail == Detail.FULL ? 5 : 3;
         for (int ring = 0; ring < rings; ring++) {
-            double size = 20.0D + ring * 14.0D;
+            double size = Math.max(32.0D, effectRadius * 2.0D * (ring + 1.0D) / rings);
             renderBox(
                     poseStack,
                     consumer,
@@ -364,12 +394,22 @@ public final class OrbitalWorldProjectionRenderer {
                                           double x,
                                           double y,
                                           double z,
+                                          int targetY,
+                                          int effectRadius,
                                           Detail detail,
                                           float[] color,
                                           float alpha) {
         renderBox(poseStack, consumer, box(x, y, z, 52.0D, 28.0D, 52.0D), color[0], color[1], color[2], alpha);
         renderBox(poseStack, consumer, box(x, y - 26.0D, z, 14.0D, 48.0D, 14.0D), color[0], color[1], color[2], alpha);
         if (detail == Detail.FULL) {
+            renderBox(
+                    poseStack,
+                    consumer,
+                    box(x, targetY, z, effectRadius * 2.0D, 2.0D, effectRadius * 2.0D),
+                    color[0],
+                    color[1],
+                    color[2],
+                    alpha * 0.32F);
             renderBox(poseStack, consumer, box(x - 22.0D, y, z, 5.0D, 44.0D, 44.0D), color[0], color[1], color[2], alpha * 0.75F);
             renderBox(poseStack, consumer, box(x + 22.0D, y, z, 5.0D, 44.0D, 44.0D), color[0], color[1], color[2], alpha * 0.75F);
         }

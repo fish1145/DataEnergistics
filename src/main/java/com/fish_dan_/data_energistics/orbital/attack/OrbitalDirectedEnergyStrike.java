@@ -59,6 +59,24 @@ public final class OrbitalDirectedEnergyStrike {
         return Math.multiplyExact(scheduledCoordinateCount(geometry.radius()), height);
     }
 
+    /** Returns the exact beam block position represented by a persisted public work cursor. */
+    public static BlockPos workPosition(
+                                        ServerLevel level,
+                                        BlockPos target,
+                                        OrbitalAttackGeometry.DirectedEnergy geometry,
+                                        long cursor) {
+        List<Offset> offsets = offsetsFor(geometry.radius());
+        int bottomY = geometry.bottomY(level, target.getY());
+        int topY = level.getMaxBuildHeight() - 1;
+        int height = Math.max(0, topY - bottomY + 1);
+        long total = Math.multiplyExact((long) offsets.size(), height);
+        if (height <= 0 || cursor < 0L || cursor > total) {
+            throw new IllegalArgumentException("Directed-energy work cursor is outside its geometry");
+        }
+        long positionCursor = cursor == total ? total - 1L : cursor;
+        return positionAt(target, offsets, topY, height, positionCursor);
+    }
+
     /**
      * Processes one bounded slice and applies each column's entity damage when its top position is visited.
      */
@@ -110,11 +128,8 @@ public final class OrbitalDirectedEnergyStrike {
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
-            int offsetIndex = (int) (next / height);
             int yOffset = (int) (next % height);
-            Offset offset = offsets.get(offsetIndex);
-            int y = topY - yOffset;
-            BlockPos position = target.offset(offset.x(), y - target.getY(), offset.z());
+            BlockPos position = positionAt(target, offsets, topY, height, next);
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
@@ -131,6 +146,19 @@ public final class OrbitalDirectedEnergyStrike {
             visited++;
         }
         return new WorkSlice(next, total, next == total, false);
+    }
+
+    private static BlockPos positionAt(
+                                       BlockPos target,
+                                       List<Offset> offsets,
+                                       int topY,
+                                       int height,
+                                       long cursor) {
+        int offsetIndex = (int) (cursor / height);
+        int yOffset = (int) (cursor % height);
+        Offset offset = offsets.get(offsetIndex);
+        int y = topY - yOffset;
+        return target.offset(offset.x(), y - target.getY(), offset.z());
     }
 
     public static void validateRadius(int radius) {

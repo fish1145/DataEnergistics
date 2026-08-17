@@ -103,6 +103,8 @@ public record OrbitalAttackVisualsPayload(
             buffer.writeVarInt(attack.mode().ordinal());
             buffer.writeVarInt(attack.phase().ordinal());
             BlockPos.STREAM_CODEC.encode(buffer, attack.target());
+            BlockPos.STREAM_CODEC.encode(buffer, attack.effectPosition());
+            buffer.writeVarInt(attack.effectRadius());
             buffer.writeVarLong(attack.phaseAge());
             buffer.writeVarLong(attack.randomSeed());
             buffer.writeVarLong(attack.workCursor());
@@ -145,6 +147,8 @@ public record OrbitalAttackVisualsPayload(
                     mode,
                     dimensionId,
                     BlockPos.STREAM_CODEC.decode(buffer),
+                    BlockPos.STREAM_CODEC.decode(buffer),
+                    buffer.readVarInt(),
                     phase,
                     buffer.readVarLong(),
                     buffer.readVarLong(),

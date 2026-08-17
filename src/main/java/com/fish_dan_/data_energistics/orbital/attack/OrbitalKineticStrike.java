@@ -48,6 +48,15 @@ public final class OrbitalKineticStrike {
         return segmentSize(columnHeight(level, target), COLUMN_OFFSETS.size()) + segmentSize(craterHeight(level, target), CRATER_OFFSETS.size());
     }
 
+    /** Returns the exact server geometry position represented by a persisted public work cursor. */
+    public static BlockPos workPosition(ServerLevel level, BlockPos target, long cursor) {
+        long total = totalWork(level, target);
+        if (cursor < 0L || cursor > total) {
+            throw new IllegalArgumentException("Kinetic strike cursor is outside its geometry");
+        }
+        return total == 0L ? target.immutable() : positionAt(level, target, cursor == total ? total - 1L : cursor);
+    }
+
     /**
      * Processes one bounded slice and returns the next cursor. Positions that are already air still consume a cursor
      * slot so that the persisted geometry remains deterministic and does not depend on prior attacks.

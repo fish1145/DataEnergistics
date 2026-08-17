@@ -11,6 +11,8 @@ public record OrbitalAttackVisualSnapshot(
                                            OrbitalAttackMode mode,
                                            ResourceLocation dimensionId,
                                            BlockPos target,
+                                           BlockPos effectPosition,
+                                           int effectRadius,
                                            OrbitalAttackPhase phase,
                                            long phaseAge,
                                            long randomSeed,
@@ -19,7 +21,8 @@ public record OrbitalAttackVisualSnapshot(
 
     public OrbitalAttackVisualSnapshot {
         target = target.immutable();
-        if (phaseAge < 0L || randomSeed < 0L || workCursor < 0L || totalWork < 0L || workCursor > totalWork) {
+        effectPosition = effectPosition.immutable();
+        if (effectRadius < 0 || phaseAge < 0L || randomSeed < 0L || workCursor < 0L || totalWork < 0L || workCursor > totalWork) {
             throw new IllegalArgumentException("Orbital visual snapshot progress is outside its bounded range");
         }
     }

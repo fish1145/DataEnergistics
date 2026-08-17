@@ -200,18 +200,32 @@ public final class OrbitalAttackSavedData extends SavedData {
                             && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
                 continue;
             }
-            long totalWork = switch (attack.mode()) {
-                case KINETIC -> OrbitalKineticStrike.totalWork(level, attack.target());
-                case DIRECTED_ENERGY -> attack.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry
-                        ? OrbitalDirectedEnergyStrike.totalWork(level, attack.target(), geometry)
-                        : 0L;
-                case DIGITAL_ANNIHILATION -> Math.max(attack.workCursor(), 1L);
+            VisualEffect visualEffect = switch (attack.mode()) {
+                case KINETIC -> {
+                    long totalWork = OrbitalKineticStrike.totalWork(level, attack.target());
+                    BlockPos effectPosition = OrbitalKineticStrike.workPosition(level, attack.target(), attack.workCursor());
+                    yield new VisualEffect(effectPosition, OrbitalKineticStrike.SHOCKWAVE_RADIUS, totalWork);
+                }
+                case DIRECTED_ENERGY -> {
+                    OrbitalAttackGeometry.DirectedEnergy geometry = (OrbitalAttackGeometry.DirectedEnergy) attack.geometry();
+                    long totalWork = OrbitalDirectedEnergyStrike.totalWork(level, attack.target(), geometry);
+                    BlockPos effectPosition = OrbitalDirectedEnergyStrike.workPosition(
+                            level,
+                            attack.target(),
+                            geometry,
+                            attack.workCursor());
+                    yield new VisualEffect(effectPosition, geometry.radius(), totalWork);
+                }
+                case DIGITAL_ANNIHILATION -> {
+                    OrbitalAttackGeometry.DigitalAnnihilation geometry = (OrbitalAttackGeometry.DigitalAnnihilation) attack.geometry();
+                    Entity payload = attack.payloadEntityId() == null ? null : level.getEntity(attack.payloadEntityId());
+                    BlockPos effectPosition = payload == null ? attack.target() : payload.blockPosition();
+                    yield new VisualEffect(effectPosition, geometry.maxRadius(), Math.max(attack.workCursor(), 1L));
+                }
             };
-            long phaseAge = switch (attack.phase()) {
-                case RESERVED_WARNING -> Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining());
-                case COMMITTED, DELIVERY -> Math.max(0L, gameTime);
-                case ABORTED, COOLDOWN, FAULTED -> 0L;
-            };
+            long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
+                    ? Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining())
+                    : Math.max(0L, gameTime);
             long randomSeed = (attack.attackId().getMostSignificantBits()
                     ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
             visuals.add(new OrbitalAttackVisualSnapshot(
@@ -219,11 +233,13 @@ public final class OrbitalAttackSavedData extends SavedData {
                     attack.mode(),
                     attack.dimensionId(),
                     attack.target(),
+                    visualEffect.position(),
+                    visualEffect.radius(),
                     attack.phase(),
                     phaseAge,
                     randomSeed,
                     attack.workCursor(),
-                    totalWork));
+                    visualEffect.totalWork()));
         }
         return visuals.stream()
                 .sorted(Comparator.comparing(OrbitalAttackVisualSnapshot::attackId))
@@ -1004,6 +1020,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         return level.getWorldBorder().isWithinBounds(target) && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
+
+    private record VisualEffect(BlockPos position, int radius, long totalWork) {}
 
     private static void requireServerThread(MinecraftServer server) {
         if (!server.isSameThread()) {
