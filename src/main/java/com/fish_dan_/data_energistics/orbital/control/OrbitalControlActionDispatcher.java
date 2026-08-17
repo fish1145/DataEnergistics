@@ -54,77 +54,6 @@ public final class OrbitalControlActionDispatcher {
     private OrbitalControlActionDispatcher() {}
 
     /**
-     * Keeps the pre-preview programmatic entry point available for server integrations and existing GameTests.
-     * Interactive control surfaces must use {@link #beginFireAtLookTarget(ServerPlayer, OrbitalAttackMode,
-     * BooleanSupplier)} followed by a server-clock hold and release.
-     */
-    public static Optional<OrbitalAttackRecord> fireAtLookTarget(ServerPlayer player, OrbitalAttackMode mode) {
-        MinecraftServer server = player.getServer();
-        if (server == null || !server.isSameThread()) {
-            return Optional.empty();
-        }
-        BlockPos target = blockTarget(player);
-        if (target == null) {
-            player.displayClientMessage(
-                    Component.translatable(
-                            "message.data_energistics.orbital_control_terminal.no_block_target"),
-                    true);
-            return Optional.empty();
-        }
-
-        Optional<OrbitalWeaponRecord> weapon = OrbitalWeaponSavedData.get(server)
-                .accessibleTo(player.getUUID())
-                .stream()
-                .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE))
-                .findFirst();
-        if (weapon.isEmpty()) {
-            return Optional.empty();
-        }
-
-        ResourceLocation dimensionId = player.level().dimension().location();
-        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        try {
-            UUID weaponId = weapon.orElseThrow().weaponId();
-            Optional<OrbitalAttackRecord> result = switch (mode) {
-                case KINETIC -> attacks.tryConfirmKinetic(
-                        server,
-                        player.getUUID(),
-                        weaponId,
-                        dimensionId,
-                        target);
-                case DIRECTED_ENERGY -> attacks.tryConfirmDirectedEnergy(
-                        server,
-                        player.getUUID(),
-                        weaponId,
-                        dimensionId,
-                        target,
-                        DIRECTED_RADIUS,
-                        OrbitalDirectedEnergyDepth.DEPTH_32);
-                case DIGITAL_ANNIHILATION -> attacks.tryConfirmDigitalAnnihilation(
-                        server,
-                        player.getUUID(),
-                        weaponId,
-                        dimensionId,
-                        target);
-            };
-            result.ifPresent(ignored -> player.displayClientMessage(
-                    Component.translatable(
-                            "message.data_energistics.orbital_control_terminal.warning_reserved",
-                            mode.name()),
-                    true));
-            return result;
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Orbital compatibility action {} failed for player {} at {}",
-                    mode,
-                    player.getUUID(),
-                    target,
-                    exception);
-            return Optional.empty();
-        }
-    }
-
-    /**
      * Captures a server-side target preview. No reserve is debited until the matching release has held for the full
      * confirmation interval.
      */
@@ -144,14 +73,8 @@ public final class OrbitalControlActionDispatcher {
                     true);
             return Optional.empty();
         }
-        OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY
-                ? OrbitalDirectedEnergyDepth.DEPTH_32
-                : null;
-        int radius = mode == OrbitalAttackMode.KINETIC
-                ? OrbitalKineticStrike.SHOCKWAVE_RADIUS
-                : mode == OrbitalAttackMode.DIRECTED_ENERGY
-                ? DIRECTED_RADIUS
-                : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
+        OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
+        int radius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
         return beginFireAtTarget(
                 player,
                 mode,
@@ -167,16 +90,16 @@ public final class OrbitalControlActionDispatcher {
 
     /** Captures a map-selected target and immediately starts the legacy one-gesture confirmation hold. */
     public static Optional<OrbitalAttackPreviewSessions.Preview> beginFireAtTarget(
-                                                                                    ServerPlayer player,
+                                                                                   ServerPlayer player,
                                                                                    OrbitalAttackMode mode,
                                                                                    ResourceLocation dimensionId,
                                                                                    int targetX,
                                                                                    int targetZ,
                                                                                    OrbitalTargetYMode targetYMode,
                                                                                    int targetYValue,
-                                                                                    int directedRadius,
-                                                                                    @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                                                                    BooleanSupplier sourceValid) {
+                                                                                   int directedRadius,
+                                                                                   @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                                                                   BooleanSupplier sourceValid) {
         return captureFireTarget(
                 player,
                 mode,
@@ -222,17 +145,17 @@ public final class OrbitalControlActionDispatcher {
      * already loaded chunk; the map intent never causes an unbounded synchronous generation.
      */
     private static Optional<OrbitalAttackPreviewSessions.Preview> captureFireTarget(
-                                                                                      ServerPlayer player,
-                                                                                      OrbitalAttackMode mode,
-                                                                                      ResourceLocation dimensionId,
-                                                                                      int targetX,
-                                                                                      int targetZ,
-                                                                                      OrbitalTargetYMode targetYMode,
-                                                                                      int targetYValue,
-                                                                                      int directedRadius,
-                                                                                      @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                                                                      BooleanSupplier sourceValid,
-                                                                                      boolean startHold) {
+                                                                                    ServerPlayer player,
+                                                                                    OrbitalAttackMode mode,
+                                                                                    ResourceLocation dimensionId,
+                                                                                    int targetX,
+                                                                                    int targetZ,
+                                                                                    OrbitalTargetYMode targetYMode,
+                                                                                    int targetYValue,
+                                                                                    int directedRadius,
+                                                                                    @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                                                                    BooleanSupplier sourceValid,
+                                                                                    boolean startHold) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return Optional.empty();
@@ -264,11 +187,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
-        int boundaryRadius = mode == OrbitalAttackMode.KINETIC
-                ? OrbitalKineticStrike.SHOCKWAVE_RADIUS
-                : mode == OrbitalAttackMode.DIRECTED_ENERGY
-                ? directedRadius
-                : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
+        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius();
         if (!validTarget(targetLevel, target, boundaryRadius)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),
@@ -318,16 +237,13 @@ public final class OrbitalControlActionDispatcher {
                     configuration.revision(),
                     stateRevision(weapon.orElseThrow()),
                     estimate);
-            if (startHold && preview.isPresent()
-                    && !PREVIEWS.beginHold(server, player.getUUID(), mode)) {
+            if (startHold && preview.isPresent() && !PREVIEWS.beginHold(server, player.getUUID(), mode)) {
                 PREVIEWS.cancel(server, player.getUUID());
                 return Optional.empty();
             }
             preview.ifPresent(ignored -> player.displayClientMessage(
                     Component.translatable(
-                            startHold
-                                    ? "message.data_energistics.orbital_control_terminal.preview_started"
-                                    : "message.data_energistics.orbital_control_terminal.preview_ready",
+                            startHold ? "message.data_energistics.orbital_control_terminal.preview_started" : "message.data_energistics.orbital_control_terminal.preview_ready",
                             mode.name()),
                     true));
             return preview;
@@ -343,11 +259,11 @@ public final class OrbitalControlActionDispatcher {
     }
 
     private static int resolveTargetY(
-                                     ServerLevel level,
-                                     int targetX,
-                                     int targetZ,
-                                     OrbitalTargetYMode mode,
-                                     int value) {
+                                      ServerLevel level,
+                                      int targetX,
+                                      int targetZ,
+                                      OrbitalTargetYMode mode,
+                                      int value) {
         if (mode == OrbitalTargetYMode.ABSOLUTE) {
             return value;
         }
@@ -396,9 +312,9 @@ public final class OrbitalControlActionDispatcher {
      * Commits a previously captured target after the server-clock hold and configuration/state revision checks pass.
      */
     public static Optional<OrbitalAttackRecord> releaseFireAtTarget(
-                                                                         ServerPlayer player,
-                                                                         OrbitalAttackMode mode,
-                                                                         BooleanSupplier sourceValid) {
+                                                                    ServerPlayer player,
+                                                                    OrbitalAttackMode mode,
+                                                                    BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread()) {
             return Optional.empty();
@@ -484,9 +400,9 @@ public final class OrbitalControlActionDispatcher {
 
     /** Compatibility name retained for the handheld look-target buttons. */
     public static Optional<OrbitalAttackRecord> releaseFireAtLookTarget(
-                                                                         ServerPlayer player,
-                                                                         OrbitalAttackMode mode,
-                                                                         BooleanSupplier sourceValid) {
+                                                                        ServerPlayer player,
+                                                                        OrbitalAttackMode mode,
+                                                                        BooleanSupplier sourceValid) {
         return releaseFireAtTarget(player, mode, sourceValid);
     }
 
@@ -528,9 +444,7 @@ public final class OrbitalControlActionDispatcher {
         status.append("\n").append(Component.translatable(
                 "screen.data_energistics.orbital_control_terminal.preview.geometry",
                 estimate.effectRadius(),
-                preview.mode() == OrbitalAttackMode.DIRECTED_ENERGY
-                        ? depthName(preview.directedDepth())
-                        : Component.translatable("screen.data_energistics.orbital_control_terminal.preview.depth.not_applicable")));
+                preview.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? depthName(preview.directedDepth()) : Component.translatable("screen.data_energistics.orbital_control_terminal.preview.depth.not_applicable")));
         status.append("\n").append(Component.translatable(
                 "screen.data_energistics.orbital_control_terminal.preview.chunks",
                 estimate.affectedChunks(),
@@ -552,13 +466,9 @@ public final class OrbitalControlActionDispatcher {
                 "screen.data_energistics.orbital_control_terminal.preview.reserve",
                 estimate.availableCelestialEnergy(),
                 estimate.availableAeEnergy(),
-                Component.translatable(estimate.affordable()
-                        ? "screen.data_energistics.orbital_control_terminal.preview.affordable"
-                        : "screen.data_energistics.orbital_control_terminal.preview.unaffordable")));
+                Component.translatable(estimate.affordable() ? "screen.data_energistics.orbital_control_terminal.preview.affordable" : "screen.data_energistics.orbital_control_terminal.preview.unaffordable")));
         status.append("\n").append(Component.translatable(
-                preview.holdStarted()
-                        ? "screen.data_energistics.orbital_control_terminal.preview.holding"
-                        : "screen.data_energistics.orbital_control_terminal.preview.ready",
+                preview.holdStarted() ? "screen.data_energistics.orbital_control_terminal.preview.holding" : "screen.data_energistics.orbital_control_terminal.preview.ready",
                 Math.min(preview.heldTicks(now), OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS),
                 OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
                 remainingSeconds));
@@ -682,9 +592,7 @@ public final class OrbitalControlActionDispatcher {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
             return false;
         }
-        return level.getWorldBorder().isWithinBounds(target)
-                && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius))
-                && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
+        return level.getWorldBorder().isWithinBounds(target) && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
     private static long stateRevision(OrbitalWeaponRecord weapon) {

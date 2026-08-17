@@ -7,7 +7,6 @@ import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -95,9 +94,12 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             absoluteTarget.getZ() + 0.5D);
                     owner.setXRot(90.0F);
                     owner.setYRot(0.0F);
-                    OrbitalAttackRecord warning = OrbitalControlActionDispatcher.fireAtLookTarget(
-                            owner,
-                            OrbitalAttackMode.DIGITAL_ANNIHILATION)
+                    OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            level.dimension().location(),
+                            absoluteTarget)
                             .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
                     attackId.set(warning.attackId());
                     OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
@@ -313,9 +315,12 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             absoluteTarget.getZ() + 0.5D);
                     owner.setXRot(90.0F);
                     owner.setYRot(0.0F);
-                    OrbitalAttackRecord warning = OrbitalControlActionDispatcher.fireAtLookTarget(
-                            owner,
-                            OrbitalAttackMode.DIGITAL_ANNIHILATION)
+                    OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            level.dimension().location(),
+                            absoluteTarget)
                             .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
                     attackId.set(warning.attackId());
                     helper.assertTrue(
