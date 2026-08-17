@@ -13,7 +13,6 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * Virtual-thread-per-ticket implementation enforcing one proposal per worker plus global and per-grid admission limits.
+ * Virtual-thread-per-ticket implementation enforcing bounded global and per-grid admission limits.
  */
 final class BoundedDispatchProposalScheduler implements DispatchProposalScheduler {
 
@@ -36,7 +35,11 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
     private final DispatchProposalCandidatePlanner candidatePlanner;
     private final ProviderShardDispatcher shardDispatcher;
     private final ExecutorService executor;
-    private final ConcurrentMap<WorkerKey, ScheduledProposalTicket> outstandingWorkers = new ConcurrentHashMap<>();
+    /**
+     * Every ticket is tracked independently so one worker can keep several stage/pattern proposals in flight. The
+     * grid and global limits remain the hard admission boundary.
+     */
+    private final Set<ScheduledProposalTicket> outstandingTickets = ConcurrentHashMap.newKeySet();
     private final ConcurrentMap<Long, GridAdmission> admissionsByGrid = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, MutableMetrics> metricsByGrid = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -74,7 +77,6 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
             throw new IllegalArgumentException("Dispatch proposal policy must not be null");
         }
 
-        WorkerKey workerKey = WorkerKey.from(request.lease());
         long gridGeneration = request.lease().gridGeneration();
         long queuedAtNanos = System.nanoTime();
         GridAdmission gridAdmission = this.admissionsByGrid.computeIfAbsent(
@@ -82,7 +84,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                 GridAdmission::new);
         Admission admission;
         synchronized (this.admissionLock) {
-            admission = gridAdmission.admit(request.lease(), workerKey, wakeup, policy);
+            admission = gridAdmission.admit(request.lease(), wakeup, policy);
             if (admission instanceof AdmissionGranted granted) {
                 ScheduledProposalTicket ticket = granted.ticket();
                 FutureTask<Void> task = new FutureTask<>(() -> {
@@ -233,16 +235,6 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
     }
 
     /**
-     * Stable worker identity used only for outstanding admission.
-     */
-    private record WorkerKey(UUID runtimeId, int workerNumber) {
-
-        private static WorkerKey from(CraftingDispatchLease lease) {
-            return new WorkerKey(lease.runtimeId(), lease.workerNumber());
-        }
-    }
-
-    /**
      * Per-Grid admission state. Only the global outstanding check and executor handoff serialize; asynchronous
      * completion, metrics snapshots, and Grid cleanup stay on their own Grid state.
      */
@@ -261,7 +253,6 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
          */
         private synchronized Admission admit(
                                              CraftingDispatchLease lease,
-                                             WorkerKey workerKey,
                                              Runnable wakeup,
                                              DispatchProposalPolicy policy) {
             MutableMetrics gridMetrics = metrics(this.gridGeneration);
@@ -271,14 +262,11 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
             if (!policy.enabled()) {
                 return new AdmissionRejected(RejectionReason.DISABLED, gridMetrics);
             }
-            if (outstandingWorkers.containsKey(workerKey)) {
-                return new AdmissionRejected(RejectionReason.WORKER_BUSY, gridMetrics);
-            }
             int gridLimit = Math.min(limits.perGridOutstanding(), policy.actorPermits());
             if (this.tickets.size() >= gridLimit) {
                 return new AdmissionRejected(RejectionReason.GRID_LIMIT, gridMetrics);
             }
-            int globalOutstanding = outstandingWorkers.size();
+            int globalOutstanding = outstandingTickets.size();
             if (policy.proposalHighWater() < limits.maxOutstanding() &&
                     globalOutstanding >= policy.proposalHighWater()) {
                 return new AdmissionRejected(RejectionReason.HIGH_WATER, gridMetrics);
@@ -290,17 +278,15 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
             ScheduledProposalTicket ticket = new ScheduledProposalTicket(
                     BoundedDispatchProposalScheduler.this,
                     lease,
-                    workerKey,
                     wakeup,
                     gridMetrics,
                     this);
-            ScheduledProposalTicket previous = outstandingWorkers.putIfAbsent(workerKey, ticket);
-            if (previous != null) {
-                return new AdmissionRejected(RejectionReason.WORKER_BUSY, gridMetrics);
-            }
             if (!this.tickets.add(ticket)) {
-                outstandingWorkers.remove(workerKey, ticket);
                 throw new IllegalStateException("Dispatch proposal ticket was admitted twice");
+            }
+            if (!outstandingTickets.add(ticket)) {
+                this.tickets.remove(ticket);
+                throw new IllegalStateException("Dispatch proposal global admission was duplicated");
             }
             return new AdmissionGranted(ticket, gridMetrics);
         }
@@ -312,8 +298,8 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
             if (!this.tickets.remove(ticket)) {
                 throw new IllegalStateException("Dispatch proposal ticket was not owned by its Grid admission");
             }
-            if (!outstandingWorkers.remove(ticket.workerKey, ticket)) {
-                throw new IllegalStateException("Dispatch proposal worker admission ownership was lost");
+            if (!outstandingTickets.remove(ticket)) {
+                throw new IllegalStateException("Dispatch proposal global admission ownership was lost");
             }
         }
 
@@ -332,7 +318,7 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
         }
 
         private synchronized DispatchProposalMetrics snapshotAndResetMetrics() {
-            int globalOutstanding = outstandingWorkers.size();
+            int globalOutstanding = outstandingTickets.size();
             MutableMetrics gridMetrics = metricsByGrid.get(this.gridGeneration);
             if (gridMetrics == null) {
                 return new DispatchProposalMetrics(
@@ -459,7 +445,6 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
 
         private final BoundedDispatchProposalScheduler owner;
         private final CraftingDispatchLease lease;
-        private final WorkerKey workerKey;
         private final Runnable wakeup;
         private final MutableMetrics metrics;
         private final GridAdmission gridAdmission;
@@ -471,13 +456,11 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
 
         private ScheduledProposalTicket(BoundedDispatchProposalScheduler owner,
                                         CraftingDispatchLease lease,
-                                        WorkerKey workerKey,
                                         Runnable wakeup,
                                         MutableMetrics metrics,
                                         GridAdmission gridAdmission) {
             this.owner = owner;
             this.lease = lease;
-            this.workerKey = workerKey;
             this.wakeup = wakeup;
             this.metrics = metrics;
             this.gridAdmission = gridAdmission;

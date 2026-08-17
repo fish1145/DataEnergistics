@@ -12,7 +12,7 @@ public final class ConfigurationClientRegistrar {
 
     public static void register() {
         ConfigurationClient.setCustomConfigTheme(
-                DataEnergisticsConfiguration.INTERNAL_INSTANCE,
+                DataEnergisticsConfiguration.HOLDER,
                 theme -> theme.registerDisplayAdapter(
                         TypeMatcher.matchEnum(),
                         new CraftingQuantityModeDisplayAdapter()));

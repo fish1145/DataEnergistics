@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.GenericStack;
@@ -24,7 +24,7 @@ public interface TrinityPlanningGateway extends AutoCloseable {
      * @param settings planner worker, queue and timeout budgets
      * @return independently owned gateway
      */
-    static TrinityPlanningGateway create(TrinityCrafting settings) {
+    static TrinityPlanningGateway create(TrinityCraftingSchema settings) {
         return new ConcurrentTrinityPlanningGateway(settings);
     }
 

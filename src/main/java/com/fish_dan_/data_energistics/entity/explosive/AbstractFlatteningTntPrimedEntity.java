@@ -1,13 +1,16 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.FlatteningTnt;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.ConfigurableTntSchema;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
@@ -43,23 +46,33 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
             return;
         }
 
-        FlatteningTnt definition = getDefinition();
+        ConfigurableTntSchema definition = getDefinition();
         Level level = this.level();
-        BlockPos center = this.origin.offset(definition.explosionCenterOffset());
-        int minY = Math.max(level.getMinBuildHeight(), center.getY() + definition.clearStartYOffset());
+        BlockPos center = this.origin.offset(
+                definition.centerOffsetX,
+                definition.centerOffsetY,
+                definition.centerOffsetZ);
+        int minY = Math.max(level.getMinBuildHeight(), center.getY() + definition.clearStartYOffset);
         int maxY = Math.min(level.getMaxBuildHeight() - 1,
-                center.getY() + definition.clearStartYOffset() + definition.clearHeight() - 1);
-        int fillY = center.getY() + definition.fillYOffset();
+                center.getY() + definition.clearStartYOffset + definition.clearHeight - 1);
+        int fillY = center.getY() + definition.fillYOffset;
         int centerChunkX = center.getX() >> 4;
         int centerChunkZ = center.getZ() >> 4;
-        BlockState fillState = definition.fillBlockState();
+        ResourceLocation fillBlockId = ResourceLocation.tryParse(definition.fillBlock);
+        if (fillBlockId == null) {
+            throw new IllegalStateException("Invalid configured TNT fill block: " + definition.fillBlock);
+        }
+        BlockState fillState = BuiltInRegistries.BLOCK.getOptional(fillBlockId)
+                .filter(block -> block != Blocks.AIR)
+                .orElseThrow(() -> new IllegalStateException("Configured TNT fill block is not registered: " + fillBlockId))
+                .defaultBlockState();
 
         if (minY > maxY) {
             return;
         }
 
-        for (int chunkX = centerChunkX - definition.clearChunkRadius(); chunkX <= centerChunkX + definition.clearChunkRadius(); chunkX++) {
-            for (int chunkZ = centerChunkZ - definition.clearChunkRadius(); chunkZ <= centerChunkZ + definition.clearChunkRadius(); chunkZ++) {
+        for (int chunkX = centerChunkX - definition.clearChunkRadius; chunkX <= centerChunkX + definition.clearChunkRadius; chunkX++) {
+            for (int chunkZ = centerChunkZ - definition.clearChunkRadius; chunkZ <= centerChunkZ + definition.clearChunkRadius; chunkZ++) {
                 BlockPos chunkOrigin = new BlockPos(chunkX << 4, center.getY(), chunkZ << 4);
                 if (!level.hasChunkAt(chunkOrigin)) {
                     continue;
@@ -76,10 +89,10 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
                             if (state.isAir()) {
                                 continue;
                             }
-                            if (!definition.replaceUnbreakableBlocks() && state.getDestroySpeed(level, targetPos) < 0.0F) {
+                            if (!definition.replaceUnbreakableBlocks && state.getDestroySpeed(level, targetPos) < 0.0F) {
                                 continue;
                             }
-                            if (definition.preserveFluids() && !fluidState.isEmpty()) {
+                            if (definition.preserveFluids && !fluidState.isEmpty()) {
                                 continue;
                             }
                             if (!state.isAir()) {
@@ -99,8 +112,8 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
             return;
         }
 
-        for (int chunkX = centerChunkX - definition.fillChunkRadius(); chunkX <= centerChunkX + definition.fillChunkRadius(); chunkX++) {
-            for (int chunkZ = centerChunkZ - definition.fillChunkRadius(); chunkZ <= centerChunkZ + definition.fillChunkRadius(); chunkZ++) {
+        for (int chunkX = centerChunkX - definition.fillChunkRadius; chunkX <= centerChunkX + definition.fillChunkRadius; chunkX++) {
+            for (int chunkZ = centerChunkZ - definition.fillChunkRadius; chunkZ <= centerChunkZ + definition.fillChunkRadius; chunkZ++) {
                 BlockPos chunkOrigin = new BlockPos(chunkX << 4, fillY, chunkZ << 4);
                 if (!level.hasChunkAt(chunkOrigin)) {
                     continue;
@@ -113,10 +126,10 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
                         BlockPos targetPos = new BlockPos(x, fillY, z);
                         BlockState existingState = level.getBlockState(targetPos);
                         FluidState existingFluidState = level.getFluidState(targetPos);
-                        if (!definition.replaceUnbreakableBlocks() && existingState.getDestroySpeed(level, targetPos) < 0.0F) {
+                        if (!definition.replaceUnbreakableBlocks && existingState.getDestroySpeed(level, targetPos) < 0.0F) {
                             continue;
                         }
-                        if (definition.preserveFluids() && !existingFluidState.isEmpty()) {
+                        if (definition.preserveFluids && !existingFluidState.isEmpty()) {
                             continue;
                         }
                         level.setBlock(targetPos, fillState, 3);
@@ -140,5 +153,5 @@ public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
         }
     }
 
-    protected abstract FlatteningTnt getDefinition();
+    protected abstract ConfigurableTntSchema getDefinition();
 }

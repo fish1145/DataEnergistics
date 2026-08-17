@@ -216,7 +216,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     private static void logDuplicateOreResult(String result, ServerLevel level, BlockPos pos, BlockState state,
                                               LivingEntity miner, ItemStack tool, List<ItemStack> drops, int dropCount) {
-        if (!DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+        if (!DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             return;
         }
         Data_Energistics.LOGGER.info(

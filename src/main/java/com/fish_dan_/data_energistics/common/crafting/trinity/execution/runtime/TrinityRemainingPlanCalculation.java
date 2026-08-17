@@ -9,8 +9,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
@@ -95,14 +95,14 @@ public final class TrinityRemainingPlanCalculation {
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
-                          TrinityCrafting settings,
+                          TrinityCraftingSchema settings,
                           long currentTick) {
         if (gridScope <= 0L || currentTick < 0L) {
             throw new IllegalArgumentException(
                     "A Trinity remaining-plan calculation requires a positive Grid scope and non-negative tick");
         }
         if (this.pending != null) {
-            return pollPending(currentTick, settings.dynamicRetryMaxTicks());
+            return pollPending(currentTick, settings.dynamicRetryMaxTicks);
         }
         if (snapshot.isEmpty()) {
             return new Waiting();
@@ -219,7 +219,7 @@ public final class TrinityRemainingPlanCalculation {
                                                     BigInteger requestedAmount,
                                                     CraftingQuantityMode quantityMode,
                                                     Map<AEKey, BigInteger> available,
-                                                    TrinityCrafting settings) {
+                                                    TrinityCraftingSchema settings) {
         try {
             TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
                     gridScope,
@@ -229,7 +229,7 @@ public final class TrinityRemainingPlanCalculation {
                     quantityMode,
                     available,
                     settings));
-            if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+            if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
                 Data_Energistics.LOGGER.info(
                         "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
                         target,

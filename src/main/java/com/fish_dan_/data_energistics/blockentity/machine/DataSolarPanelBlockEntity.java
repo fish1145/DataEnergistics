@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.SolarPanel;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.SolarPanelSchema;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -127,8 +127,8 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
             return 0.0D;
         }
 
-        SolarPanel settings = DataEnergisticsConfiguration.INSTANCE.solarPanel();
-        double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? settings.nightGenerationAEPerTick() : settings.dayGenerationAEPerTick();
+        SolarPanelSchema settings = DataEnergisticsConfiguration.INSTANCE.machines.solarPanel;
+        double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? settings.nightGenerationAEPerTick : settings.dayGenerationAEPerTick;
         return applySpeedUpgrades(baseGeneration, this.upgrades, settings);
     }
 
@@ -182,19 +182,19 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public static double computeMaxPower(IUpgradeInventory upgrades) {
-        return computeMaxPower(upgrades, DataEnergisticsConfiguration.INSTANCE.solarPanel());
+        return computeMaxPower(upgrades, DataEnergisticsConfiguration.INSTANCE.machines.solarPanel);
     }
 
-    public static double computeMaxPower(IUpgradeInventory upgrades, SolarPanel settings) {
-        return ENERGY_CAPACITY + getEnergyCardCount(upgrades) * settings.energyCardCapacityBonusAE();
+    public static double computeMaxPower(IUpgradeInventory upgrades, SolarPanelSchema settings) {
+        return ENERGY_CAPACITY + getEnergyCardCount(upgrades) * settings.energyCardCapacityBonusAE;
     }
 
     public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades) {
-        return applySpeedUpgrades(baseGeneration, upgrades, DataEnergisticsConfiguration.INSTANCE.solarPanel());
+        return applySpeedUpgrades(baseGeneration, upgrades, DataEnergisticsConfiguration.INSTANCE.machines.solarPanel);
     }
 
-    public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades, SolarPanel settings) {
-        return baseGeneration * (1.0D + getSpeedCardCount(upgrades) * settings.speedCardBonusRatio());
+    public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades, SolarPanelSchema settings) {
+        return baseGeneration * (1.0D + getSpeedCardCount(upgrades) * settings.speedCardBonusRatio);
     }
 
     public static int getSpeedCardCount(IUpgradeInventory upgrades) {
