@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.orbital.storage;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailability;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
@@ -50,6 +51,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private static final String LAST_SELECTED_WEAPONS_TAG = "last_selected_weapons";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String WEAPON_ID_TAG = "weapon_id";
+    private static final String TRANSFERS_TAG = "ownership_transfers";
+    private static final String TRANSFER_ID_TAG = "transfer_id";
+    private static final String RECIPIENT_ID_TAG = "recipient_id";
+    private static final String EXPIRES_AT_TAG = "expires_at";
+    private static final long TRANSFER_WINDOW_TICKS = 20L * 60L;
     private static final Factory<OrbitalWeaponSavedData> FACTORY = new Factory<>(
             OrbitalWeaponSavedData::new,
             OrbitalWeaponSavedData::load);
@@ -60,6 +66,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
     private final Set<UUID> reserveChargeFaults = new HashSet<>();
     private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new HashMap<>();
+    private final Map<UUID, OrbitalOwnershipTransfer> ownershipTransfers = new LinkedHashMap<>();
 
     private OrbitalWeaponSavedData() {}
 
@@ -186,6 +193,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
      */
     public void chargeReserves(MinecraftServer server) {
         requireServerThread(server);
+        purgeExpiredTransfers(server);
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
         boolean changed = false;
         for (Map.Entry<UUID, OrbitalWeaponRecord> entry : this.weapons.entrySet()) {
@@ -432,6 +440,146 @@ public final class OrbitalWeaponSavedData extends SavedData {
         setDirty();
     }
 
+    /**
+     * Issues a one-shot, server-owned transfer offer to an online player. The offer is valid for exactly sixty seconds
+     * and is invalidated whenever the weapon gains an active attack, escrow or a non-deployed lifecycle state.
+     */
+    public Optional<OrbitalOwnershipTransfer> requestOwnershipTransfer(
+                                                                       MinecraftServer server,
+                                                                       UUID actorId,
+                                                                       UUID weaponId,
+                                                                       UUID recipientId) {
+        requireServerThread(server);
+        purgeExpiredTransfers(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.TRANSFER_OWNERSHIP)) {
+            throw new SecurityException("Player " + actorId + " cannot transfer orbital weapon " + weaponId);
+        }
+        if (recipientId.equals(current.ownerId())
+                || server.getPlayerList().getPlayer(recipientId) == null
+                || this.ownerIndex.containsKey(recipientId)
+                || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED
+                || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
+            return Optional.empty();
+        }
+        this.ownershipTransfers.values().removeIf(offer -> offer.weaponId().equals(weaponId));
+        OrbitalOwnershipTransfer offer = new OrbitalOwnershipTransfer(
+                UUID.randomUUID(),
+                weaponId,
+                current.ownerId(),
+                recipientId,
+                server.overworld().getGameTime() + TRANSFER_WINDOW_TICKS);
+        this.ownershipTransfers.put(offer.transferId(), offer);
+        setDirty();
+        return Optional.of(offer);
+    }
+
+    /** Accepts one unexpired transfer offer while rechecking every ownership and attack precondition on the server. */
+    public boolean acceptOwnershipTransfer(
+                                          MinecraftServer server,
+                                          UUID recipientId,
+                                          UUID transferId) {
+        requireServerThread(server);
+        purgeExpiredTransfers(server);
+        OrbitalOwnershipTransfer offer = this.ownershipTransfers.get(transferId);
+        if (offer == null || !offer.recipientId().equals(recipientId)) {
+            return false;
+        }
+        OrbitalWeaponRecord current = this.weapons.get(offer.weaponId());
+        if (current == null
+                || !current.ownerId().equals(offer.currentOwnerId())
+                || this.ownerIndex.containsKey(recipientId)
+                || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED
+                || OrbitalAttackSavedData.get(server).hasTransferBlockingState(offer.weaponId())) {
+            this.ownershipTransfers.remove(transferId);
+            setDirty();
+            return false;
+        }
+
+        HashMap<UUID, OrbitalAccessRole> roles = new HashMap<>(current.delegatedRoles());
+        roles.remove(recipientId);
+        roles.put(current.ownerId(), OrbitalAccessRole.OPERATOR);
+        OrbitalWeaponRecord updated = new OrbitalWeaponRecord(
+                current.weaponId(),
+                recipientId,
+                roles,
+                current.endpoints(),
+                current.reserve(),
+                current.lifecycle());
+        removeAccessIndex(current);
+        this.ownerIndex.remove(current.ownerId());
+        this.ownerIndex.put(recipientId, updated.weaponId());
+        this.weapons.put(updated.weaponId(), updated);
+        addAccessIndex(updated);
+        this.ownershipTransfers.remove(transferId);
+        setDirty();
+        return true;
+    }
+
+    /** Returns a pending transfer offer for an administrator or server-side UI snapshot. */
+    public Optional<OrbitalOwnershipTransfer> findOwnershipTransfer(UUID transferId) {
+        return Optional.ofNullable(this.ownershipTransfers.get(transferId));
+    }
+
+    /**
+     * Retires an empty dormant weapon. No resource is returned and every endpoint must already have been unbound.
+     */
+    public boolean retire(MinecraftServer server, UUID actorId, UUID weaponId) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.RETIRE)) {
+            throw new SecurityException("Player " + actorId + " cannot retire orbital weapon " + weaponId);
+        }
+        if (current.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT
+                || !current.reserve().equals(OrbitalEnergyReserve.empty())
+                || !current.endpoints().isEmpty()
+                || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
+            return false;
+        }
+        removeAccessIndex(current);
+        this.ownerIndex.remove(current.ownerId());
+        this.weapons.remove(weaponId);
+        this.ownershipTransfers.values().removeIf(offer -> offer.weaponId().equals(weaponId));
+        this.lastSelectedWeaponByPlayer.values().removeIf(weaponId::equals);
+        setDirty();
+        return true;
+    }
+
+    /** Rebuilds owner and delegated-access indexes from the authoritative weapon records after an admin repair. */
+    public int repairIndexes(MinecraftServer server) {
+        requireServerThread(server);
+        List<OrbitalWeaponRecord> ordered = this.weapons.values().stream()
+                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
+                .toList();
+        this.ownerIndex.clear();
+        this.accessIndex.clear();
+        this.endpointIndex.clear();
+        LinkedHashMap<UUID, OrbitalWeaponRecord> repaired = new LinkedHashMap<>();
+        int removed = 0;
+        for (OrbitalWeaponRecord weapon : ordered) {
+            if (this.ownerIndex.containsKey(weapon.ownerId())) {
+                removed++;
+                continue;
+            }
+            OrbitalWeaponRecord normalized = filterConflictingEndpoints(weapon);
+            repaired.put(normalized.weaponId(), normalized);
+            this.ownerIndex.put(normalized.ownerId(), normalized.weaponId());
+            addAccessIndex(normalized);
+            for (OrbitalEndpointLocation location : normalized.endpoints().keySet()) {
+                this.endpointIndex.put(location, normalized.weaponId());
+            }
+        }
+        this.weapons.clear();
+        this.weapons.putAll(repaired);
+        this.ownershipTransfers.entrySet().removeIf(entry -> {
+            OrbitalOwnershipTransfer offer = entry.getValue();
+            OrbitalWeaponRecord weapon = this.weapons.get(offer.weaponId());
+            return weapon == null || !weapon.ownerId().equals(offer.currentOwnerId());
+        });
+        setDirty();
+        return removed;
+    }
+
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         OrbitalWeaponNbtCodec.save(tag, this.weapons.values());
@@ -443,8 +591,21 @@ public final class OrbitalWeaponSavedData extends SavedData {
                     selection.putUUID(PLAYER_ID_TAG, entry.getKey());
                     selection.putUUID(WEAPON_ID_TAG, entry.getValue());
                     selections.add(selection);
-                });
+        });
         tag.put(LAST_SELECTED_WEAPONS_TAG, selections);
+        ListTag transfers = new ListTag();
+        this.ownershipTransfers.values().stream()
+                .sorted(Comparator.comparing(OrbitalOwnershipTransfer::transferId))
+                .forEach(offer -> {
+                    CompoundTag transfer = new CompoundTag();
+                    transfer.putUUID(TRANSFER_ID_TAG, offer.transferId());
+                    transfer.putUUID(WEAPON_ID_TAG, offer.weaponId());
+                    transfer.putUUID(PLAYER_ID_TAG, offer.currentOwnerId());
+                    transfer.putUUID(RECIPIENT_ID_TAG, offer.recipientId());
+                    transfer.putLong(EXPIRES_AT_TAG, offer.expiresAtGameTime());
+                    transfers.add(transfer);
+                });
+        tag.put(TRANSFERS_TAG, transfers);
         return tag;
     }
 
@@ -478,6 +639,33 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 }
             }
         }
+        Tag transferTag = tag.get(TRANSFERS_TAG);
+        if (transferTag instanceof ListTag transfers) {
+            for (Tag rawTransfer : transfers) {
+                if (!(rawTransfer instanceof CompoundTag transfer)
+                        || !transfer.hasUUID(TRANSFER_ID_TAG)
+                        || !transfer.hasUUID(WEAPON_ID_TAG)
+                        || !transfer.hasUUID(PLAYER_ID_TAG)
+                        || !transfer.hasUUID(RECIPIENT_ID_TAG)
+                        || !transfer.contains(EXPIRES_AT_TAG, Tag.TAG_LONG)) {
+                    continue;
+                }
+                try {
+                    OrbitalOwnershipTransfer offer = new OrbitalOwnershipTransfer(
+                            transfer.getUUID(TRANSFER_ID_TAG),
+                            transfer.getUUID(WEAPON_ID_TAG),
+                            transfer.getUUID(PLAYER_ID_TAG),
+                            transfer.getUUID(RECIPIENT_ID_TAG),
+                            transfer.getLong(EXPIRES_AT_TAG));
+                    OrbitalWeaponRecord weapon = data.weapons.get(offer.weaponId());
+                    if (weapon != null && weapon.ownerId().equals(offer.currentOwnerId())) {
+                        data.ownershipTransfers.putIfAbsent(offer.transferId(), offer);
+                    }
+                } catch (IllegalArgumentException exception) {
+                    LOGGER.warn("Ignoring invalid orbital ownership transfer", exception);
+                }
+            }
+        }
         return data;
     }
 
@@ -501,6 +689,32 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
         for (OrbitalEndpointLocation location : weapon.endpoints().keySet()) {
             this.endpointIndex.put(location, weapon.weaponId());
+        }
+    }
+
+    private void addAccessIndex(OrbitalWeaponRecord weapon) {
+        for (UUID playerId : weapon.delegatedRoles().keySet()) {
+            this.accessIndex.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(weapon.weaponId());
+        }
+    }
+
+    private void removeAccessIndex(OrbitalWeaponRecord weapon) {
+        for (UUID playerId : weapon.delegatedRoles().keySet()) {
+            Set<UUID> weaponIds = this.accessIndex.get(playerId);
+            if (weaponIds == null) {
+                continue;
+            }
+            weaponIds.remove(weapon.weaponId());
+            if (weaponIds.isEmpty()) {
+                this.accessIndex.remove(playerId);
+            }
+        }
+    }
+
+    private void purgeExpiredTransfers(MinecraftServer server) {
+        long gameTime = server.overworld().getGameTime();
+        if (this.ownershipTransfers.values().removeIf(offer -> offer.expired(gameTime))) {
+            setDirty();
         }
     }
 
