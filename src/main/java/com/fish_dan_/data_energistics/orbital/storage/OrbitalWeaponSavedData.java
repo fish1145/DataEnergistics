@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveCharging;
 
@@ -23,6 +24,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import org.apache.logging.log4j.Logger;
@@ -191,6 +193,25 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return weapon.endpoints().values().stream()
                 .filter(endpoint -> endpoint.location().dimensionId().equals(dimensionId))
                 .anyMatch(endpoint -> OrbitalEndpointAvailability.isOnline(server, weaponId, endpoint));
+    }
+
+    /**
+     * Captures the public primary-projection baseline for one dimension without exposing private weapon state. The
+     * server tick that reconciles endpoint failover runs before the visual ticker, so this view never resurrects a
+     * failed anchor on the client.
+     */
+    public List<OrbitalProjectionVisualSnapshot> publicVisualProjections(ServerLevel level, long gameTime) {
+        requireServerThread(level.getServer());
+        ResourceLocation dimensionId = level.dimension().location();
+        int projectionY = level.getMaxBuildHeight() + 320;
+        return this.weapons.values().stream()
+                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
+                .filter(weapon -> weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT)
+                .filter(weapon -> weapon.primaryAnchor() != null
+                        && weapon.primaryAnchor().dimensionId().equals(dimensionId))
+                .map(weapon -> projectionSnapshot(level, gameTime, projectionY, weapon))
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     /**
@@ -826,6 +847,34 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (this.ownershipTransfers.values().removeIf(offer -> offer.expired(gameTime))) {
             setDirty();
         }
+    }
+
+    private static Optional<OrbitalProjectionVisualSnapshot> projectionSnapshot(
+                                                                                ServerLevel level,
+                                                                                long gameTime,
+                                                                                int projectionY,
+                                                                                OrbitalWeaponRecord weapon) {
+        OrbitalEndpointLocation anchor = weapon.primaryAnchor();
+        if (anchor == null) {
+            return Optional.empty();
+        }
+        OrbitalEndpointRecord endpoint = weapon.endpoints().get(anchor);
+        if (endpoint == null
+                || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON
+                || !OrbitalEndpointAvailability.isOnline(level.getServer(), weapon.weaponId(), endpoint)) {
+            return Optional.empty();
+        }
+        long randomSeed = (weapon.weaponId().getMostSignificantBits() ^ weapon.weaponId().getLeastSignificantBits())
+                & Long.MAX_VALUE;
+        return Optional.of(new OrbitalProjectionVisualSnapshot(
+                weapon.weaponId(),
+                anchor.dimensionId(),
+                anchor.pos(),
+                projectionY,
+                weapon.lifecycle().state(),
+                weapon.lifecycle().redeploymentTicksRemaining(),
+                gameTime,
+                randomSeed));
     }
 
     /** Applies the first online beacon when a newly bound endpoint has not got an anchor yet. */

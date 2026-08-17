@@ -1,4 +1,4 @@
-/** Client-side cache and future render surface for server-authoritative orbital attack visuals. */
+/** Client-side caches and render surfaces for server-authoritative orbital projections and attack visuals. */
 @NullMarked
 package com.fish_dan_.data_energistics.client.render.orbital;
 

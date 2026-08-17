@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResp
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
+import com.fish_dan_.data_energistics.network.orbital.projection.OrbitalProjectionVisualsPayload;
 import com.fish_dan_.data_energistics.network.orbital.visual.OrbitalAttackVisualsPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
@@ -160,5 +161,9 @@ public final class DEPayloads {
                 OrbitalAttackVisualsPayload.TYPE,
                 OrbitalAttackVisualsPayload.STREAM_CODEC,
                 OrbitalAttackVisualsPayload::handle);
+        registrar.playToClient(
+                OrbitalProjectionVisualsPayload.TYPE,
+                OrbitalProjectionVisualsPayload.STREAM_CODEC,
+                OrbitalProjectionVisualsPayload::handle);
     }
 }
