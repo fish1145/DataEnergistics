@@ -541,12 +541,19 @@ public final class OrbitalAttackSavedData extends SavedData {
         requireServerThread(server);
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
         long gameTime = server.overworld().getGameTime();
+        boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
         for (OrbitalAttackRecord attack : this.attacks.values()) {
             if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
                     || attack.phase() == OrbitalAttackPhase.COMMITTED
                     || attack.phase() == OrbitalAttackPhase.DELIVERY) {
-                this.phaseStartedAt.putIfAbsent(attack.attackId(), gameTime);
+                if (!this.phaseStartedAt.containsKey(attack.attackId())) {
+                    this.phaseStartedAt.put(attack.attackId(), gameTime);
+                    phaseTimesChanged = true;
+                }
             }
+        }
+        if (phaseTimesChanged) {
+            setDirty();
         }
         this.terrainWorkScheduler.beginTick(server, settings);
         Set<UUID> liveTerrainAttacks = this.attacks.values().stream()

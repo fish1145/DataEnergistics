@@ -24,6 +24,13 @@ public final class OrbitalControlHudClientState {
         status = payload.status();
     }
 
+    /** Clears the server-scoped HUD baseline when the client leaves a server. */
+    public static void clear() {
+        revision = -1L;
+        visible = false;
+        status = Component.empty();
+    }
+
     public static boolean visible() {
         return visible;
     }
