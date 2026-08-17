@@ -1,14 +1,21 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
+import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
+import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
+
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEventBuilder;
@@ -24,10 +31,15 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Shared LDLib2 coordinate fire-control panel for both the held terminal and the bound console.
@@ -39,12 +51,16 @@ import java.util.function.Function;
 final class OrbitalFireControlPanel {
 
     static final int WIDTH = 404;
-    static final int HEIGHT = 146;
+    static final int HEIGHT = 310;
 
     private static final int NO_MODE = -1;
     private static final int NO_DEPTH = -1;
     private static final int FIELD_HEIGHT = 18;
     private static final int BUTTON_HEIGHT = 22;
+    private static final int MAP_TOP = 146;
+    private static final int MAP_GRID_TOP = 164;
+    private static final int MAP_CELL_SIZE = 20;
+    private static final int MAP_RADIUS = 3;
     private static final String TRANSLATION_PREFIX = "screen.data_energistics.orbital_control_terminal.fire_control.";
 
     private OrbitalFireControlPanel() {}
@@ -255,6 +271,65 @@ final class OrbitalFireControlPanel {
                 32);
         hint.textStyle(style -> style.textAlignVertical(Vertical.TOP).textWrap(TextWrap.WRAP));
 
+        Label mapTitle = label(
+                "orbital_fire_control_map_title",
+                TRANSLATION_PREFIX + "map.title",
+                0,
+                MAP_TOP,
+                154,
+                FIELD_HEIGHT);
+        Label mapStatus = label(
+                "orbital_fire_control_map_status",
+                TRANSLATION_PREFIX + "map.status",
+                168,
+                MAP_GRID_TOP,
+                WIDTH - 168,
+                118);
+        mapStatus.textStyle(style -> style.textAlignVertical(Vertical.TOP).textWrap(TextWrap.WRAP));
+
+        Button mapRefresh = new Button();
+        mapRefresh.setId("orbital_fire_control_map_refresh");
+        mapRefresh.setText(Component.translatable(TRANSLATION_PREFIX + "map.refresh"));
+        mapRefresh.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(168)
+                .top(MAP_TOP)
+                .width(WIDTH - 168)
+                .height(BUTTON_HEIGHT));
+        mapRefresh.setOnClick(event -> {
+            if (clientSide) {
+                requestMap(dimension, targetX, targetZ);
+            }
+        });
+
+        ObjectArrayList<Button> mapCells = new ObjectArrayList<>((MAP_RADIUS * 2 + 1) * (MAP_RADIUS * 2 + 1));
+        for (int offsetZ = -MAP_RADIUS; offsetZ <= MAP_RADIUS; offsetZ++) {
+            for (int offsetX = -MAP_RADIUS; offsetX <= MAP_RADIUS; offsetX++) {
+                int cellOffsetX = offsetX;
+                int cellOffsetZ = offsetZ;
+                Button cell = new Button();
+                cell.setId("orbital_fire_control_map_cell_" + (cellOffsetX + MAP_RADIUS) + "_" + (cellOffsetZ + MAP_RADIUS));
+                cell.setText(Component.literal("?"));
+                cell.layout(layout -> layout
+                        .positionType(TaffyPosition.ABSOLUTE)
+                        .left((cellOffsetX + MAP_RADIUS) * MAP_CELL_SIZE)
+                        .top(MAP_GRID_TOP + (cellOffsetZ + MAP_RADIUS) * MAP_CELL_SIZE)
+                        .width(MAP_CELL_SIZE - 1)
+                        .height(MAP_CELL_SIZE - 1));
+                cell.setOnClick(event -> {
+                    if (clientSide) {
+                        selectMapCell(state, dimension, targetX, targetZ, targetYMode, targetYValue, cellOffsetX, cellOffsetZ);
+                    }
+                });
+                mapCells.add(cell);
+            }
+        }
+        panel.addEventListener(UIEvents.TICK, event -> {
+            if (clientSide) {
+                updateMapCells(mapCells, mapStatus);
+            }
+        });
+
         panel.addChildren(
                 title,
                 dimensionLabel,
@@ -276,6 +351,10 @@ final class OrbitalFireControlPanel {
                 refreshPreview,
                 confirm,
                 hint);
+        panel.addChildren(mapTitle, mapStatus, mapRefresh);
+        for (Button mapCell : mapCells) {
+            panel.addChildren(mapCell);
+        }
         return panel;
     }
 
@@ -428,6 +507,100 @@ final class OrbitalFireControlPanel {
         }
         state.clearHold();
         cancelEmitter.send(0);
+    }
+
+    private static void requestMap(TextField dimension, TextField targetX, TextField targetZ) {
+        UUID weaponId = OrbitalControlHudClientState.selectedWeaponId();
+        if (weaponId == null || dimension.isError() || targetX.isError() || targetZ.isError()) {
+            return;
+        }
+        ResourceLocation dimensionId = ResourceLocation.tryParse(dimension.getRawText());
+        if (dimensionId == null) {
+            return;
+        }
+        int x;
+        int z;
+        try {
+            x = Integer.parseInt(targetX.getRawText());
+            z = Integer.parseInt(targetZ.getRawText());
+        } catch (NumberFormatException exception) {
+            return;
+        }
+        if (Math.abs((long) x) > 30_000_000L || Math.abs((long) z) > 30_000_000L) {
+            return;
+        }
+        ChunkPos center = new ChunkPos(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
+        UUID sessionToken = OrbitalTacticalMapClientState.sessionTokenFor(weaponId, dimensionId);
+        PacketDistributor.sendToServer(new OrbitalTacticalMapRequestPayload(
+                weaponId,
+                sessionToken,
+                dimensionId,
+                center.x,
+                center.z,
+                MAP_RADIUS,
+                OrbitalTacticalMapClientState.nextRequestNonce()));
+    }
+
+    private static void selectMapCell(
+                                      ClientPanelState state,
+                                      TextField dimension,
+                                      TextField targetX,
+                                      TextField targetZ,
+                                      Selector<OrbitalTargetYMode> targetYMode,
+                                      TextField targetYValue,
+                                      int offsetX,
+                                      int offsetZ) {
+        int chunkX = OrbitalTacticalMapClientState.centerChunkX() + offsetX;
+        int chunkZ = OrbitalTacticalMapClientState.centerChunkZ() + offsetZ;
+        OrbitalMapTile tile = OrbitalTacticalMapClientState.tileAt(chunkX, chunkZ);
+        if (tile == null) {
+            return;
+        }
+        dimension.setText(OrbitalTacticalMapClientState.dimensionId().toString(), false);
+        targetX.setText(Integer.toString(chunkX * 16 + 8), false);
+        targetZ.setText(Integer.toString(chunkZ * 16 + 8), false);
+        if (tile.known()) {
+            state.selectTargetYMode(OrbitalTargetYMode.ABSOLUTE);
+            targetYMode.setSelected(OrbitalTargetYMode.ABSOLUTE, false);
+            targetYValue.setText(Integer.toString(tile.surfaceY()), false);
+        }
+    }
+
+    private static void updateMapCells(ObjectArrayList<Button> cells, Label status) {
+        int centerX = OrbitalTacticalMapClientState.centerChunkX();
+        int centerZ = OrbitalTacticalMapClientState.centerChunkZ();
+        int index = 0;
+        for (int offsetZ = -MAP_RADIUS; offsetZ <= MAP_RADIUS; offsetZ++) {
+            for (int offsetX = -MAP_RADIUS; offsetX <= MAP_RADIUS; offsetX++) {
+                cells.get(index++).setText(mapCellText(
+                        OrbitalTacticalMapClientState.tileAt(centerX + offsetX, centerZ + offsetZ)));
+            }
+        }
+        status.setValue(OrbitalTacticalMapClientState.revision() < 0L
+                ? Component.translatable(TRANSLATION_PREFIX + "map.status")
+                : OrbitalTacticalMapClientState.summary());
+    }
+
+    private static Component mapCellText(@Nullable OrbitalMapTile tile) {
+        if (tile == null) {
+            return Component.literal("?").withStyle(style -> style.withColor(0x777777));
+        }
+        char marker = tileMarker(tile);
+        int color = tile.known() ? tile.biomeColor() : 0x777777;
+        return Component.literal(Character.toString(marker)).withStyle(style -> style.withColor(color));
+    }
+
+    private static char tileMarker(OrbitalMapTile tile) {
+        if ((tile.markerFlags() & OrbitalMapTile.MARKER_ACTIVE_PUBLIC_ATTACK) != 0) {
+            return 'A';
+        }
+        if ((tile.markerFlags() & OrbitalMapTile.MARKER_PRIMARY_ANCHOR) != 0) {
+            return 'P';
+        }
+        if ((tile.markerFlags() & OrbitalMapTile.MARKER_UPLINK_BEACON) != 0) {
+            return 'B';
+        }
+        return tile.known() ? '.' : '?';
     }
 
     private static TextField textField(String id, String initialValue, int left, int top, int width) {

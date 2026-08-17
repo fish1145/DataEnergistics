@@ -34,12 +34,12 @@ public final class OrbitalControlUiFactory {
     private static final String STATUS_SYNC_NAME = "orbital_control_terminal_status";
     private static final String PREVIEW_SYNC_NAME = "orbital_control_terminal_preview";
     private static final int UI_WIDTH = 420;
-    private static final int UI_HEIGHT = 312;
+    private static final int UI_HEIGHT = 480;
     private static final int PAGE_TOP = 58;
-    private static final int PAGE_HEIGHT = 246;
+    private static final int PAGE_HEIGHT = 412;
     private static final int SELECTOR_TOP = 172;
     private static final int FIRE_CONTROL_TOP = 0;
-    private static final int PREVIEW_TOP = 152;
+    private static final int PREVIEW_TOP = OrbitalFireControlPanel.HEIGHT + 6;
     private static final int ACTION_TOP = 204;
     private static final int ACTION_HEIGHT = 22;
     private static final int ACTION_GAP = 4;

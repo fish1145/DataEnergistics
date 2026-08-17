@@ -8,21 +8,27 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
-import java.util.HashMap;
-import java.util.Map;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
 import java.util.UUID;
+
+import org.jspecify.annotations.Nullable;
 
 /** Client LRU-like bounded cache for the latest server tactical-map revision. */
 public final class OrbitalTacticalMapClientState {
 
     private static final int MAX_CACHED_TILES = 256;
-    private static final Map<Long, OrbitalMapTile> TILES = new HashMap<>();
+    private static final UUID BOOTSTRAP_TOKEN = new UUID(0L, 0L);
+    private static final Long2ObjectOpenHashMap<OrbitalMapTile> TILES = new Long2ObjectOpenHashMap<>();
     private static long revision = -1L;
     private static UUID sessionToken = new UUID(0L, 0L);
     private static ResourceLocation dimensionId = Level.OVERWORLD.location();
     private static int centerChunkX;
     private static int centerChunkZ;
     private static int radius;
+    private static long requestNonce;
+    private static @Nullable UUID requestedWeaponId;
+    private static @Nullable ResourceLocation requestedDimension;
 
     private OrbitalTacticalMapClientState() {}
 
@@ -31,12 +37,15 @@ public final class OrbitalTacticalMapClientState {
         if (payload.revision() <= revision) {
             return;
         }
+        if (requestedDimension != null && !requestedDimension.equals(payload.dimensionId())) {
+            return;
+        }
         TILES.clear();
         for (OrbitalMapTile tile : payload.tiles()) {
             TILES.put(ChunkPos.asLong(tile.chunkX(), tile.chunkZ()), tile);
         }
         while (TILES.size() > MAX_CACHED_TILES) {
-            TILES.remove(TILES.keySet().iterator().next());
+            TILES.remove(TILES.keySet().iterator().nextLong());
         }
         revision = payload.revision();
         sessionToken = payload.sessionToken();
@@ -55,22 +64,56 @@ public final class OrbitalTacticalMapClientState {
         centerChunkX = 0;
         centerChunkZ = 0;
         radius = 0;
+        requestedWeaponId = null;
+        requestedDimension = null;
     }
 
     public static long revision() {
         return revision;
     }
 
-    public static UUID sessionToken() {
-        return sessionToken;
+    /** Selects the local request context and returns its current session token or the bootstrap token. */
+    public static UUID sessionTokenFor(UUID weaponId, ResourceLocation dimensionId) {
+        boolean sameContext = weaponId.equals(requestedWeaponId)
+                && dimensionId.equals(requestedDimension)
+                && dimensionId.equals(OrbitalTacticalMapClientState.dimensionId);
+        requestedWeaponId = weaponId;
+        requestedDimension = dimensionId;
+        return sameContext ? sessionToken : BOOTSTRAP_TOKEN;
     }
 
     public static ResourceLocation dimensionId() {
         return dimensionId;
     }
 
-    public static Map<Long, OrbitalMapTile> tiles() {
-        return Map.copyOf(TILES);
+    /** Returns the current viewport center on the client thread. */
+    public static int centerChunkX() {
+        return centerChunkX;
+    }
+
+    /** Returns the current viewport center on the client thread. */
+    public static int centerChunkZ() {
+        return centerChunkZ;
+    }
+
+    /** Returns the current viewport radius on the client thread. */
+    public static int radius() {
+        return radius;
+    }
+
+    /** Allocates a process-local positive nonce for a fresh map request. */
+    public static long nextRequestNonce() {
+        requestNonce++;
+        if (requestNonce <= 0L) {
+            requestNonce = 1L;
+        }
+        return requestNonce;
+    }
+
+    /** Returns one cached cell without allocating a copy of the complete viewport. */
+    public static @Nullable OrbitalMapTile tileAt(int chunkX, int chunkZ) {
+        long key = ChunkPos.asLong(chunkX, chunkZ);
+        return TILES.containsKey(key) ? TILES.get(key) : null;
     }
 
     /** Returns a compact textual viewport used by the LDLib2 HUD until a larger map panel is opened. */
@@ -87,7 +130,7 @@ public final class OrbitalTacticalMapClientState {
                 .append('\n');
         for (int z = -radius; z <= radius; z++) {
             for (int x = -radius; x <= radius; x++) {
-                OrbitalMapTile tile = TILES.get(ChunkPos.asLong(centerChunkX + x, centerChunkZ + z));
+                OrbitalMapTile tile = tileAt(centerChunkX + x, centerChunkZ + z);
                 result.append(tile == null ? '?' : tileMarker(tile));
             }
             if (z < radius) {

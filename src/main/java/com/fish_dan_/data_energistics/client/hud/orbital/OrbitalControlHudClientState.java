@@ -45,8 +45,8 @@ public final class OrbitalControlHudClientState {
         return visible ? status : null;
     }
 
-    /** Returns the server-selected weapon identity exposed to client map requests. */
+    /** Returns the server-selected weapon identity exposed to client map requests, even when the HUD is hidden. */
     public static @Nullable UUID selectedWeaponId() {
-        return visible ? selectedWeaponId : null;
+        return selectedWeaponId;
     }
 }

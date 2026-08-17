@@ -21,15 +21,15 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Server-thread tactical-map coordinator. It never calls a chunk-loading API: a missing chunk becomes an UNKNOWN
@@ -105,12 +105,12 @@ public final class OrbitalTacticalMapCoordinator {
         session.requestCount++;
         session.nonces.add(nonce);
         while (session.nonces.size() > MAX_REQUESTS_PER_WINDOW) {
-            session.nonces.remove(session.nonces.iterator().next());
+            session.nonces.remove(session.nonces.iterator().nextLong());
         }
 
         int side = radius * 2 + 1;
-        Set<Long> seenChunks = new HashSet<>(side * side);
-        Set<Long> publicAttackChunks = publicAttackChunks(level);
+        LongSet seenChunks = new LongOpenHashSet(side * side);
+        LongSet publicAttackChunks = publicAttackChunks(level);
         ArrayList<OrbitalMapTile> tiles = new ArrayList<>(side * side);
         for (int offsetX = -radius; offsetX <= radius; offsetX++) {
             for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
@@ -182,7 +182,7 @@ public final class OrbitalTacticalMapCoordinator {
                                    OrbitalWeaponRecord weapon,
                                    int chunkX,
                                    int chunkZ,
-                                   Set<Long> publicAttackChunks) {
+                                   LongSet publicAttackChunks) {
         int markers = 0;
         for (var endpoint : weapon.endpoints().values()) {
             OrbitalEndpointLocation location = endpoint.location();
@@ -204,17 +204,19 @@ public final class OrbitalTacticalMapCoordinator {
         return markers;
     }
 
-    private static Set<Long> publicAttackChunks(ServerLevel level) {
-        return OrbitalAttackSavedData.get(level.getServer())
-                .publicForDimension(level.dimension().location())
-                .stream()
-                .map(attack -> ChunkPos.asLong(new ChunkPos(attack.target()).x, new ChunkPos(attack.target()).z))
-                .collect(Collectors.toUnmodifiableSet());
+    private static LongSet publicAttackChunks(ServerLevel level) {
+        LongSet chunks = new LongOpenHashSet();
+        for (var attack : OrbitalAttackSavedData.get(level.getServer())
+                .publicForDimension(level.dimension().location())) {
+            ChunkPos targetChunk = new ChunkPos(attack.target());
+            chunks.add(ChunkPos.asLong(targetChunk.x, targetChunk.z));
+        }
+        return chunks;
     }
 
     private static final class ServerState {
 
-        private final Map<UUID, Session> sessions = new HashMap<>();
+        private final Map<UUID, Session> sessions = new Object2ObjectOpenHashMap<>();
         private long revision;
     }
 
@@ -223,7 +225,7 @@ public final class OrbitalTacticalMapCoordinator {
         private final UUID weaponId;
         private final UUID token;
         private final long expiresAt;
-        private final Set<Long> nonces = new HashSet<>();
+        private final LongSet nonces = new LongOpenHashSet();
         private long windowStart;
         private int requestCount;
 

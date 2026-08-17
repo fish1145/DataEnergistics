@@ -27,7 +27,6 @@ public final class OrbitalTacticalMapClientTicker {
     private static final long REFRESH_INTERVAL = 100L;
     private static final long SESSION_REFRESH_INTERVAL = 900L;
 
-    private static long nonce;
     private static long lastRequestAt = Long.MIN_VALUE;
     private static long contextStartedAt = Long.MIN_VALUE;
     private static int lastRequestedChunkX;
@@ -82,7 +81,7 @@ public final class OrbitalTacticalMapClientTicker {
             return;
         }
 
-        UUID sessionToken = OrbitalTacticalMapClientState.sessionToken();
+        UUID sessionToken = OrbitalTacticalMapClientState.sessionTokenFor(weaponId, dimensionId);
         PacketDistributor.sendToServer(new OrbitalTacticalMapRequestPayload(
                 weaponId,
                 sessionToken,
@@ -90,17 +89,9 @@ public final class OrbitalTacticalMapClientTicker {
                 center.x,
                 center.z,
                 VIEWPORT_RADIUS,
-                nextNonce()));
+                OrbitalTacticalMapClientState.nextRequestNonce()));
         lastRequestedChunkX = center.x;
         lastRequestedChunkZ = center.z;
         lastRequestAt = gameTime;
-    }
-
-    private static long nextNonce() {
-        nonce++;
-        if (nonce <= 0L) {
-            nonce = 1L;
-        }
-        return nonce;
     }
 }
