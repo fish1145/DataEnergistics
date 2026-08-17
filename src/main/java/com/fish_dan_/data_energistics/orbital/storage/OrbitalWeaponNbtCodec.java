@@ -36,7 +36,7 @@ final class OrbitalWeaponNbtCodec {
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
-    private static final int SCHEMA_VERSION = 3;
+    private static final int SCHEMA_VERSION = 4;
     private static final String WEAPONS_TAG = "weapons";
     private static final String WEAPON_ID_TAG = "weapon_id";
     private static final String OWNER_ID_TAG = "owner_id";
@@ -53,6 +53,8 @@ final class OrbitalWeaponNbtCodec {
     private static final String AE_ENERGY_TAG = "ae_energy";
     private static final String LIFECYCLE_STATE_TAG = "lifecycle_state";
     private static final String GRACE_TICKS_TAG = "grace_ticks";
+    private static final String REDEPLOY_TICKS_TAG = "redeployment_ticks";
+    private static final String PRIMARY_ANCHOR_TAG = "primary_anchor";
     private static final Comparator<OrbitalEndpointRecord> ENDPOINT_ORDER = Comparator
             .comparingInt(OrbitalEndpointRecord::priority)
             .thenComparing(endpoint -> endpoint.location().dimensionId().toString())
@@ -130,6 +132,13 @@ final class OrbitalWeaponNbtCodec {
         weaponTag.put(RESERVE_TAG, reserveTag);
         weaponTag.putString(LIFECYCLE_STATE_TAG, weapon.lifecycle().state().name());
         weaponTag.putInt(GRACE_TICKS_TAG, weapon.lifecycle().graceTicksRemaining());
+        weaponTag.putInt(REDEPLOY_TICKS_TAG, weapon.lifecycle().redeploymentTicksRemaining());
+        if (weapon.primaryAnchor() != null) {
+            CompoundTag anchorTag = new CompoundTag();
+            anchorTag.putString(DIMENSION_TAG, weapon.primaryAnchor().dimensionId().toString());
+            anchorTag.put(POSITION_TAG, NbtUtils.writeBlockPos(weapon.primaryAnchor().pos()));
+            weaponTag.put(PRIMARY_ANCHOR_TAG, anchorTag);
+        }
         return weaponTag;
     }
 
@@ -169,22 +178,45 @@ final class OrbitalWeaponNbtCodec {
         }
         OrbitalEnergyReserve reserve = schemaVersion >= 2 ? readReserve(weaponId, weaponTag) : OrbitalEnergyReserve.empty();
         OrbitalWeaponLifecycle lifecycle = schemaVersion >= 3 ? readLifecycle(weaponId, weaponTag) : OrbitalWeaponLifecycle.dormant();
-        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve, lifecycle);
+        OrbitalEndpointLocation primaryAnchor = schemaVersion >= 4 ? readPrimaryAnchor(weaponId, weaponTag, endpoints) : null;
+        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve, lifecycle, primaryAnchor);
     }
 
     private static OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
         try {
             OrbitalWeaponLifecycleState state = OrbitalWeaponLifecycleState.valueOf(weaponTag.getString(LIFECYCLE_STATE_TAG));
             int graceTicks = Math.max(0, weaponTag.getInt(GRACE_TICKS_TAG));
+            int redeploymentTicks = Math.max(0, weaponTag.getInt(REDEPLOY_TICKS_TAG));
             return switch (state) {
                 case DORMANT -> OrbitalWeaponLifecycle.dormant();
                 case DEPLOYED -> OrbitalWeaponLifecycle.deployed();
                 case RESERVE_GRACE -> OrbitalWeaponLifecycle.reserveGrace(graceTicks);
+                case REDEPLOYING -> OrbitalWeaponLifecycle.redeploying(redeploymentTicks);
             };
         } catch (IllegalArgumentException exception) {
             LOGGER.warn("Resetting invalid lifecycle state on orbital weapon {}", weaponId);
             return OrbitalWeaponLifecycle.dormant();
         }
+    }
+
+    private static @Nullable OrbitalEndpointLocation readPrimaryAnchor(
+                                                                     UUID weaponId,
+                                                                     CompoundTag weaponTag,
+                                                                     Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints) {
+        Tag rawAnchor = weaponTag.get(PRIMARY_ANCHOR_TAG);
+        if (!(rawAnchor instanceof CompoundTag anchorTag)) {
+            return null;
+        }
+        OrbitalEndpointLocation location = readLocation(weaponId, anchorTag, "primary anchor");
+        if (location == null) {
+            return null;
+        }
+        OrbitalEndpointRecord endpoint = endpoints.get(location);
+        if (endpoint == null || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON) {
+            LOGGER.warn("Ignoring primary anchor {} because it is not a bound uplink beacon on orbital weapon {}", location, weaponId);
+            return null;
+        }
+        return location;
     }
 
     private static OrbitalEnergyReserve readReserve(UUID weaponId, CompoundTag weaponTag) {
@@ -263,20 +295,8 @@ final class OrbitalWeaponNbtCodec {
     }
 
     private static @Nullable OrbitalEndpointRecord readEndpoint(UUID weaponId, CompoundTag endpointTag) {
-        ResourceLocation dimensionId;
-        try {
-            dimensionId = ResourceLocation.parse(endpointTag.getString(DIMENSION_TAG));
-        } catch (IllegalArgumentException exception) {
-            LOGGER.warn(
-                    "Ignoring endpoint with invalid dimension '{}' on orbital weapon {}",
-                    endpointTag.getString(DIMENSION_TAG),
-                    weaponId);
-            return null;
-        }
-
-        BlockPos pos = NbtUtils.readBlockPos(endpointTag, POSITION_TAG).orElse(null);
-        if (pos == null) {
-            LOGGER.warn("Ignoring endpoint without a valid position on orbital weapon {}", weaponId);
+        OrbitalEndpointLocation location = readLocation(weaponId, endpointTag, "endpoint");
+        if (location == null) {
             return null;
         }
 
@@ -296,9 +316,33 @@ final class OrbitalWeaponNbtCodec {
             return null;
         }
         return new OrbitalEndpointRecord(
-                new OrbitalEndpointLocation(dimensionId, pos),
+                location,
                 kind,
                 endpointTag.getInt(PRIORITY_TAG));
+    }
+
+    private static @Nullable OrbitalEndpointLocation readLocation(
+                                                                  UUID weaponId,
+                                                                  CompoundTag locationTag,
+                                                                  String description) {
+        ResourceLocation dimensionId;
+        try {
+            dimensionId = ResourceLocation.parse(locationTag.getString(DIMENSION_TAG));
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn(
+                    "Ignoring {} with invalid dimension '{}' on orbital weapon {}",
+                    description,
+                    locationTag.getString(DIMENSION_TAG),
+                    weaponId);
+            return null;
+        }
+
+        BlockPos pos = NbtUtils.readBlockPos(locationTag, POSITION_TAG).orElse(null);
+        if (pos == null) {
+            LOGGER.warn("Ignoring {} without a valid position on orbital weapon {}", description, weaponId);
+            return null;
+        }
+        return new OrbitalEndpointLocation(dimensionId, pos);
     }
 
     private static @Nullable UUID readUuid(CompoundTag tag, String key, String description) {

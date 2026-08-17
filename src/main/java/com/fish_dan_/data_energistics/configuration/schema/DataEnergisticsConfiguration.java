@@ -578,6 +578,11 @@ public final class DataEnergisticsConfiguration {
         public double deploymentThreshold = 0.10D;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Ticks spent tearing down and rebuilding after changing the primary uplink beacon.", "切换主上行信标后拆解并重组投影所需的 tick 数。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int redeploymentTicks = 1_200;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum control consoles and uplink beacons bound to one weapon.", "单件武器可绑定的控制终端与上行信标总上限。" })
         @Configurable.Range(min = 1, max = 1024)
         public int maxEndpointsPerWeapon = 32;

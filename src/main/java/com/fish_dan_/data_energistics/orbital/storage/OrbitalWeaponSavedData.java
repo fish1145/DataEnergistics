@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
@@ -26,6 +27,9 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 import org.apache.logging.log4j.Logger;
 
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -56,6 +60,12 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private static final String RECIPIENT_ID_TAG = "recipient_id";
     private static final String EXPIRES_AT_TAG = "expires_at";
     private static final long TRANSFER_WINDOW_TICKS = 20L * 60L;
+    private static final Comparator<OrbitalEndpointRecord> ENDPOINT_PRIORITY_ORDER = Comparator
+            .comparingInt(OrbitalEndpointRecord::priority)
+            .thenComparing(endpoint -> endpoint.location().dimensionId().toString())
+            .thenComparingInt(endpoint -> endpoint.location().pos().getX())
+            .thenComparingInt(endpoint -> endpoint.location().pos().getY())
+            .thenComparingInt(endpoint -> endpoint.location().pos().getZ());
     private static final Factory<OrbitalWeaponSavedData> FACTORY = new Factory<>(
             OrbitalWeaponSavedData::new,
             OrbitalWeaponSavedData::load);
@@ -104,12 +114,12 @@ public final class OrbitalWeaponSavedData extends SavedData {
         requireServerThread(server);
         Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
-            return boundWeapon.orElseThrow();
+            return ensurePrimaryAnchor(server, boundWeapon.orElseThrow());
         }
 
         UUID ownedWeaponId = this.ownerIndex.get(ownerId);
         if (ownedWeaponId != null) {
-            return addEndpoint(requireWeapon(ownedWeaponId), location, kind);
+            return ensurePrimaryAnchor(server, addEndpoint(requireWeapon(ownedWeaponId), location, kind));
         }
 
         OrbitalWeaponRecord current = OrbitalWeaponRecord.create(newWeaponId(), ownerId);
@@ -117,7 +127,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         OrbitalWeaponRecord updated = current.withEndpoint(endpoint);
         putRecord(updated);
         setDirty();
-        return updated;
+        return ensurePrimaryAnchor(server, updated);
     }
 
     /**
@@ -133,14 +143,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
         requireServerThread(server);
         Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
-            return boundWeapon;
+            return Optional.of(ensurePrimaryAnchor(server, boundWeapon.orElseThrow()));
         }
 
         UUID ownedWeaponId = this.ownerIndex.get(ownerId);
         if (ownedWeaponId == null) {
             return Optional.empty();
         }
-        return Optional.of(addEndpoint(requireWeapon(ownedWeaponId), location, kind));
+        return Optional.of(ensurePrimaryAnchor(server, addEndpoint(requireWeapon(ownedWeaponId), location, kind)));
     }
 
     /**
@@ -201,6 +211,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             OrbitalWeaponRecord updated = entry.getValue();
             boolean chargeSucceeded = true;
             try {
+                updated = reconcilePrimaryAnchor(server, updated, settings);
                 updated = OrbitalReserveCharging.charge(server, updated, settings);
             } catch (RuntimeException exception) {
                 chargeSucceeded = false;
@@ -306,6 +317,104 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
         OrbitalWeaponRecord updated = current.withoutEndpoint(location);
         this.endpointIndex.remove(location);
+        this.weapons.put(weaponId, updated);
+        updated = reconcilePrimaryAnchor(server, updated, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon());
+        this.weapons.put(weaponId, updated);
+        setDirty();
+        return true;
+    }
+
+    /**
+     * Changes the owner-controlled endpoint priority and shifts the other endpoints instead of creating duplicate
+     * ranks. The resulting order is persisted as a dense sequence so reserve charging and anchor failover agree.
+     */
+    public boolean setEndpointPriority(
+                                      MinecraftServer server,
+                                      UUID actorId,
+                                      UUID weaponId,
+                                      OrbitalEndpointLocation location,
+                                      int priority) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.ORDER_ENDPOINTS)) {
+            throw new SecurityException("Player " + actorId + " cannot order endpoints for orbital weapon " + weaponId);
+        }
+        if (priority < 0 || priority >= current.endpoints().size()) {
+            throw new IllegalArgumentException("Endpoint priority is outside the weapon endpoint range");
+        }
+        OrbitalEndpointRecord selected = current.endpoints().get(location);
+        if (selected == null) {
+            return false;
+        }
+
+        ArrayList<OrbitalEndpointRecord> ordered = new ArrayList<>(current.endpoints().values());
+        ordered.sort(ENDPOINT_PRIORITY_ORDER);
+        int oldIndex = ordered.indexOf(selected);
+        if (oldIndex < 0) {
+            throw new IllegalStateException("Endpoint map is inconsistent for " + location);
+        }
+        ordered.remove(oldIndex);
+        ordered.add(priority, selected);
+
+        LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> reordered = new LinkedHashMap<>();
+        boolean changed = false;
+        for (int index = 0; index < ordered.size(); index++) {
+            OrbitalEndpointRecord endpoint = ordered.get(index);
+            OrbitalEndpointRecord normalized = endpoint.priority() == index
+                    ? endpoint
+                    : new OrbitalEndpointRecord(endpoint.location(), endpoint.kind(), index);
+            reordered.put(normalized.location(), normalized);
+            changed |= normalized != endpoint;
+        }
+        if (!changed) {
+            return false;
+        }
+
+        OrbitalWeaponRecord updated = new OrbitalWeaponRecord(
+                current.weaponId(),
+                current.ownerId(),
+                current.delegatedRoles(),
+                reordered,
+                current.reserve(),
+                current.lifecycle(),
+                current.primaryAnchor());
+        this.weapons.put(weaponId, updated);
+        setDirty();
+        return true;
+    }
+
+    /**
+     * Selects an online uplink beacon as the owner-controlled primary projection anchor. Changing an active anchor
+     * enters the configured teardown/rebuild state while committed attacks continue in the attack SavedData.
+     */
+    public boolean selectPrimaryAnchor(
+                                      MinecraftServer server,
+                                      UUID actorId,
+                                      UUID weaponId,
+                                      OrbitalEndpointLocation location) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.SELECT_PRIMARY_ANCHOR)) {
+            throw new SecurityException("Player " + actorId + " cannot select the primary anchor for orbital weapon " + weaponId);
+        }
+        OrbitalEndpointRecord endpoint = current.endpoints().get(location);
+        if (endpoint == null || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON) {
+            return false;
+        }
+        if (!OrbitalEndpointAvailability.isOnline(server, weaponId, endpoint)) {
+            return false;
+        }
+        if (location.equals(current.primaryAnchor())) {
+            return true;
+        }
+
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        OrbitalWeaponLifecycle lifecycle = current.lifecycle();
+        if (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED
+                || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING) {
+            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());
+        }
+        OrbitalWeaponRecord updated = current.withPrimaryAnchor(location).withLifecycle(lifecycle);
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -505,7 +614,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 roles,
                 current.endpoints(),
                 current.reserve(),
-                current.lifecycle());
+                current.lifecycle(),
+                current.primaryAnchor());
         removeAccessIndex(current);
         this.ownerIndex.remove(current.ownerId());
         this.ownerIndex.put(recipientId, updated.weaponId());
@@ -718,6 +828,64 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
     }
 
+    /** Applies the first online beacon when a newly bound endpoint has not got an anchor yet. */
+    private OrbitalWeaponRecord ensurePrimaryAnchor(MinecraftServer server, OrbitalWeaponRecord weapon) {
+        OrbitalWeaponRecord updated = reconcilePrimaryAnchor(
+                server,
+                weapon,
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon());
+        if (updated != weapon) {
+            this.weapons.put(updated.weaponId(), updated);
+            setDirty();
+        }
+        return updated;
+    }
+
+    /**
+     * Keeps an online primary beacon stable, and fails over once to the next online priority beacon when it becomes
+     * unusable. A recovered old beacon is deliberately not selected again because the record now points at the new
+     * owner-approved failover location.
+     */
+    private static OrbitalWeaponRecord reconcilePrimaryAnchor(
+                                                               MinecraftServer server,
+                                                               OrbitalWeaponRecord weapon,
+                                                               DataEnergisticsSettings.OrbitalWeapon settings) {
+        OrbitalEndpointRecord currentAnchor = weapon.primaryAnchor() == null
+                ? null
+                : weapon.endpoints().get(weapon.primaryAnchor());
+        if (currentAnchor != null
+                && currentAnchor.kind() == OrbitalEndpointKind.UPLINK_BEACON
+                && OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), currentAnchor)) {
+            return weapon;
+        }
+
+        OrbitalEndpointLocation fallback = findOnlineBeacon(server, weapon);
+        OrbitalEndpointLocation oldAnchor = weapon.primaryAnchor();
+        if (fallback == oldAnchor || (fallback != null && fallback.equals(oldAnchor))) {
+            return weapon;
+        }
+
+        OrbitalWeaponLifecycle lifecycle = weapon.lifecycle();
+        if (fallback != null
+                && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED
+                || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
+            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());
+        }
+        return weapon.withPrimaryAnchor(fallback).withLifecycle(lifecycle);
+    }
+
+    private static @Nullable OrbitalEndpointLocation findOnlineBeacon(
+                                                                      MinecraftServer server,
+                                                                      OrbitalWeaponRecord weapon) {
+        return weapon.endpoints().values().stream()
+                .filter(endpoint -> endpoint.kind() == OrbitalEndpointKind.UPLINK_BEACON)
+                .sorted(ENDPOINT_PRIORITY_ORDER)
+                .filter(endpoint -> OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), endpoint))
+                .map(endpoint -> endpoint.location())
+                .findFirst()
+                .orElse(null);
+    }
+
     private OrbitalWeaponRecord filterConflictingEndpoints(OrbitalWeaponRecord weapon) {
         LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new LinkedHashMap<>();
         for (OrbitalEndpointRecord endpoint : weapon.endpoints().values()) {
@@ -741,7 +909,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.delegatedRoles(),
                 acceptedEndpoints,
                 weapon.reserve(),
-                weapon.lifecycle());
+                weapon.lifecycle(),
+                acceptedEndpoints.containsKey(weapon.primaryAnchor()) ? weapon.primaryAnchor() : null);
     }
 
     /** Applies one deployed-tick maintenance debit without allowing either independent reserve to go negative. */

@@ -272,6 +272,9 @@ public interface DataEnergisticsSettings {
         /** Returns the fraction of both capacities required to begin or resume deployment. */
         double deploymentThreshold();
 
+        /** Returns the teardown/rebuild window in server ticks after changing the primary anchor. */
+        int redeploymentTicks();
+
         /** Returns the combined control-console and uplink-beacon limit for one weapon. */
         int maxEndpointsPerWeapon();
 

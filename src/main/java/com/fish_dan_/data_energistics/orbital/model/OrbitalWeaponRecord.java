@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.orbital.model;
 
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +26,8 @@ public record OrbitalWeaponRecord(
                                   Map<UUID, OrbitalAccessRole> delegatedRoles,
                                   Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
                                   OrbitalEnergyReserve reserve,
-                                  OrbitalWeaponLifecycle lifecycle) {
+                                  OrbitalWeaponLifecycle lifecycle,
+                                  @Nullable OrbitalEndpointLocation primaryAnchor) {
 
     /** Compatibility constructor for records written before lifecycle state was persisted. */
     public OrbitalWeaponRecord(
@@ -32,7 +36,18 @@ public record OrbitalWeaponRecord(
                                Map<UUID, OrbitalAccessRole> delegatedRoles,
                                Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
                                OrbitalEnergyReserve reserve) {
-        this(weaponId, ownerId, delegatedRoles, endpoints, reserve, OrbitalWeaponLifecycle.dormant());
+        this(weaponId, ownerId, delegatedRoles, endpoints, reserve, OrbitalWeaponLifecycle.dormant(), null);
+    }
+
+    /** Compatibility constructor for records created before the primary anchor was persisted. */
+    public OrbitalWeaponRecord(
+                               UUID weaponId,
+                               UUID ownerId,
+                               Map<UUID, OrbitalAccessRole> delegatedRoles,
+                               Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
+                               OrbitalEnergyReserve reserve,
+                               OrbitalWeaponLifecycle lifecycle) {
+        this(weaponId, ownerId, delegatedRoles, endpoints, reserve, lifecycle, null);
     }
 
     public OrbitalWeaponRecord {
@@ -44,6 +59,12 @@ public record OrbitalWeaponRecord(
         for (Map.Entry<OrbitalEndpointLocation, OrbitalEndpointRecord> entry : endpoints.entrySet()) {
             if (!entry.getKey().equals(entry.getValue().location())) {
                 throw new IllegalArgumentException("Endpoint map key must match its record location");
+            }
+        }
+        if (primaryAnchor != null) {
+            OrbitalEndpointRecord anchor = endpoints.get(primaryAnchor);
+            if (anchor == null || anchor.kind() != OrbitalEndpointKind.UPLINK_BEACON) {
+                throw new IllegalArgumentException("Primary anchor must reference a bound uplink beacon");
             }
         }
     }
@@ -82,7 +103,14 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.put(playerId, role);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints, this.reserve, this.lifecycle);
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                updatedRoles,
+                this.endpoints,
+                this.reserve,
+                this.lifecycle,
+                this.primaryAnchor);
     }
 
     /**
@@ -98,7 +126,14 @@ public record OrbitalWeaponRecord(
 
         HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
         updatedRoles.remove(playerId);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, updatedRoles, this.endpoints, this.reserve, this.lifecycle);
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                updatedRoles,
+                this.endpoints,
+                this.reserve,
+                this.lifecycle,
+                this.primaryAnchor);
     }
 
     /**
@@ -126,7 +161,14 @@ public record OrbitalWeaponRecord(
 
         HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
         updatedEndpoints.put(endpoint.location(), endpoint);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints, this.reserve, this.lifecycle);
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                this.delegatedRoles,
+                updatedEndpoints,
+                this.reserve,
+                this.lifecycle,
+                this.primaryAnchor);
     }
 
     /**
@@ -139,7 +181,15 @@ public record OrbitalWeaponRecord(
 
         HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
         updatedEndpoints.remove(location);
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, updatedEndpoints, this.reserve, this.lifecycle);
+        OrbitalEndpointLocation updatedAnchor = location.equals(this.primaryAnchor) ? null : this.primaryAnchor;
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                this.delegatedRoles,
+                updatedEndpoints,
+                this.reserve,
+                this.lifecycle,
+                updatedAnchor);
     }
 
     /**
@@ -149,7 +199,14 @@ public record OrbitalWeaponRecord(
         if (this.reserve.equals(reserve)) {
             return this;
         }
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, this.endpoints, reserve, this.lifecycle);
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                this.delegatedRoles,
+                this.endpoints,
+                reserve,
+                this.lifecycle,
+                this.primaryAnchor);
     }
 
     /** Returns a new record with the supplied deployment state. */
@@ -157,7 +214,30 @@ public record OrbitalWeaponRecord(
         if (this.lifecycle.equals(lifecycle)) {
             return this;
         }
-        return new OrbitalWeaponRecord(this.weaponId, this.ownerId, this.delegatedRoles, this.endpoints, this.reserve, lifecycle);
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                this.delegatedRoles,
+                this.endpoints,
+                this.reserve,
+                lifecycle,
+                this.primaryAnchor);
+    }
+
+    /** Returns a new record with the owner-selected uplink beacon as the projection anchor. */
+    public OrbitalWeaponRecord withPrimaryAnchor(@Nullable OrbitalEndpointLocation primaryAnchor) {
+        if (this.primaryAnchor == primaryAnchor
+                || (this.primaryAnchor != null && this.primaryAnchor.equals(primaryAnchor))) {
+            return this;
+        }
+        return new OrbitalWeaponRecord(
+                this.weaponId,
+                this.ownerId,
+                this.delegatedRoles,
+                this.endpoints,
+                this.reserve,
+                this.lifecycle,
+                primaryAnchor);
     }
 
     /** Returns whether the weapon is deployed and may accept a new attack escrow. */

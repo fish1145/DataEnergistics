@@ -700,6 +700,7 @@
 	"screen.data_energistics.orbital_control_terminal.lifecycle.deployed": "Deployed",
 	"screen.data_energistics.orbital_control_terminal.lifecycle.dormant": "Dormant",
 	"screen.data_energistics.orbital_control_terminal.lifecycle.reserve_grace": "Reserve grace (%s ticks)",
+	"screen.data_energistics.orbital_control_terminal.lifecycle.redeploying": "Redeploying",
 	"screen.data_energistics.orbital_control_terminal.mode.digital_annihilation": "Digital Annihilation",
 	"screen.data_energistics.orbital_control_terminal.mode.directed_energy": "Directed Energy",
 	"screen.data_energistics.orbital_control_terminal.mode.kinetic": "Kinetic",

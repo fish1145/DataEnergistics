@@ -613,6 +613,12 @@ public final class SnapshotAssembler {
                         orbitalWeapon.deploymentThreshold,
                         Double.MIN_NORMAL,
                         1.0D),
+                integer(
+                        source,
+                        "orbitalWeapon.redeploymentTicks",
+                        orbitalWeapon.redeploymentTicks,
+                        1,
+                        Integer.MAX_VALUE),
                 maxEndpointsPerWeapon,
                 maxEndpointsPerDimension,
                 orbitalWeapon.endpointChunkLoadingEnabled,

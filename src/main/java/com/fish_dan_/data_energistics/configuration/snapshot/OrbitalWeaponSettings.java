@@ -14,6 +14,7 @@ public record OrbitalWeaponSettings(
                                     long aeEnergyChargePerTick,
                                     int reserveGraceTicks,
                                     double deploymentThreshold,
+                                    int redeploymentTicks,
                                     int maxEndpointsPerWeapon,
                                     int maxEndpointsPerDimension,
                                     boolean endpointChunkLoadingEnabled,

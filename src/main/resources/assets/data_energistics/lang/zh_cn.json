@@ -700,6 +700,7 @@
 	"screen.data_energistics.orbital_control_terminal.lifecycle.deployed": "已部署",
 	"screen.data_energistics.orbital_control_terminal.lifecycle.dormant": "休眠",
 	"screen.data_energistics.orbital_control_terminal.lifecycle.reserve_grace": "储备宽限（剩余 %s tick）",
+	"screen.data_energistics.orbital_control_terminal.lifecycle.redeploying": "重部署中",
 	"screen.data_energistics.orbital_control_terminal.mode.digital_annihilation": "数位湮灭体",
 	"screen.data_energistics.orbital_control_terminal.mode.directed_energy": "定向能",
 	"screen.data_energistics.orbital_control_terminal.mode.kinetic": "动能",
