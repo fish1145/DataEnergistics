@@ -244,9 +244,6 @@ public final class OrbitalWeaponSavedData extends SavedData {
             OrbitalEnergyReserve maintainedReserve = applyDeploymentMaintenance(updated, settings);
             updated = updated.withReserve(maintainedReserve);
             updated = updated.withLifecycle(updated.lifecycle().reconcile(maintainedReserve, settings));
-            if (updated.primaryAnchor() == null && updated.lifecycle().state() == OrbitalWeaponLifecycleState.DEPLOYED) {
-                updated = updated.withLifecycle(OrbitalWeaponLifecycle.dormant());
-            }
             if (updated != entry.getValue()) {
                 entry.setValue(updated);
                 changed = true;
@@ -891,7 +888,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
 
         OrbitalWeaponLifecycle lifecycle = weapon.lifecycle();
-        if (fallback == null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
+        if (fallback == null && oldAnchor != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
             lifecycle = OrbitalWeaponLifecycle.dormant();
         } else if (fallback != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());

@@ -239,8 +239,15 @@ public record OrbitalWeaponRecord(
                 primaryAnchor);
     }
 
-    /** Returns whether the weapon is deployed and may accept a new attack escrow. */
+    /**
+     * Returns whether the weapon is deployed and may accept a new attack escrow.
+     *
+     * <p>
+     * The primary anchor controls the public projection location; a control console remains a valid operational
+     * endpoint even before an uplink beacon has been selected.
+     * </p>
+     */
     public boolean allowsNewAttacks() {
-        return this.lifecycle.allowsNewAttacks() && this.primaryAnchor != null;
+        return this.lifecycle.allowsNewAttacks();
     }
 }
