@@ -54,6 +54,77 @@ public final class OrbitalControlActionDispatcher {
     private OrbitalControlActionDispatcher() {}
 
     /**
+     * Keeps the pre-preview programmatic entry point available for server integrations and existing GameTests.
+     * Interactive control surfaces must use {@link #beginFireAtLookTarget(ServerPlayer, OrbitalAttackMode,
+     * BooleanSupplier)} followed by a server-clock hold and release.
+     */
+    public static Optional<OrbitalAttackRecord> fireAtLookTarget(ServerPlayer player, OrbitalAttackMode mode) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return Optional.empty();
+        }
+        BlockPos target = blockTarget(player);
+        if (target == null) {
+            player.displayClientMessage(
+                    Component.translatable(
+                            "message.data_energistics.orbital_control_terminal.no_block_target"),
+                    true);
+            return Optional.empty();
+        }
+
+        Optional<OrbitalWeaponRecord> weapon = OrbitalWeaponSavedData.get(server)
+                .accessibleTo(player.getUUID())
+                .stream()
+                .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE))
+                .findFirst();
+        if (weapon.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ResourceLocation dimensionId = player.level().dimension().location();
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        try {
+            UUID weaponId = weapon.orElseThrow().weaponId();
+            Optional<OrbitalAttackRecord> result = switch (mode) {
+                case KINETIC -> attacks.tryConfirmKinetic(
+                        server,
+                        player.getUUID(),
+                        weaponId,
+                        dimensionId,
+                        target);
+                case DIRECTED_ENERGY -> attacks.tryConfirmDirectedEnergy(
+                        server,
+                        player.getUUID(),
+                        weaponId,
+                        dimensionId,
+                        target,
+                        DIRECTED_RADIUS,
+                        OrbitalDirectedEnergyDepth.DEPTH_32);
+                case DIGITAL_ANNIHILATION -> attacks.tryConfirmDigitalAnnihilation(
+                        server,
+                        player.getUUID(),
+                        weaponId,
+                        dimensionId,
+                        target);
+            };
+            result.ifPresent(ignored -> player.displayClientMessage(
+                    Component.translatable(
+                            "message.data_energistics.orbital_control_terminal.warning_reserved",
+                            mode.name()),
+                    true));
+            return result;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital compatibility action {} failed for player {} at {}",
+                    mode,
+                    player.getUUID(),
+                    target,
+                    exception);
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Captures a server-side target preview. No reserve is debited until the matching release has held for the full
      * confirmation interval.
      */
