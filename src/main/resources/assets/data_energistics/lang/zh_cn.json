@@ -948,5 +948,16 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.scanning": "扫描来源",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "处理 ME 存储",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "等待玩家上线",
-	"workstation.data_energistics.data_reassembler": "数据重组器"
+	"workstation.data_energistics.data_reassembler": "数据重组器",
+	"commands.data_energistics.orbital.attack_missing": "找不到轨道攻击：%s",
+	"commands.data_energistics.orbital.attack_inspect": "攻击 %s / 武器 %s：模式=%s，阶段=%s，维度=%s，目标=(%s,%s,%s)，游标=%s，工作=%s，星体 escrow=%s，AE escrow=%s，故障=%s",
+	"commands.data_energistics.orbital.retry_rejected": "无法重试轨道攻击：%s",
+	"commands.data_energistics.orbital.retry_success": "已重试轨道攻击：%s",
+	"commands.data_energistics.orbital.abort_rejected": "无法中止轨道攻击：%s",
+	"commands.data_energistics.orbital.abort_success": "已中止轨道攻击：%s",
+	"commands.data_energistics.orbital.refund_rejected": "无法退款轨道攻击：%s（必须是 FAULTED）",
+	"commands.data_energistics.orbital.refund_success": "已退回故障轨道攻击 escrow：%s",
+	"commands.data_energistics.orbital.repair_success": "已重建轨道武器索引，移除记录：%s",
+	"commands.data_energistics.orbital.reconcile_success": "已重新校验轨道端点与区块票据",
+	"commands.data_energistics.orbital.command_failed": "轨道管理员操作失败，详情见服务端日志"
 }

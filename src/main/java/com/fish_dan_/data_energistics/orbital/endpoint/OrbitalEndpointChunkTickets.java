@@ -77,6 +77,11 @@ public final class OrbitalEndpointChunkTickets {
         CONTROLLER.forceChunk(level, location.pos(), chunk.x, chunk.z, false, false);
     }
 
+    /** Re-runs startup binding validation after an administrator repairs world or SavedData state. */
+    public static void reconcilePersistedBindings(MinecraftServer server) {
+        reconcile(server);
+    }
+
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         reconcile(event.getServer());

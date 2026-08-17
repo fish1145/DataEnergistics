@@ -948,5 +948,16 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.scanning": "Scanning sources",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "Processing ME storage",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "Waiting for player",
-	"workstation.data_energistics.data_reassembler": "Data Reassembler"
+	"workstation.data_energistics.data_reassembler": "Data Reassembler",
+	"commands.data_energistics.orbital.attack_missing": "Orbital attack not found: %s",
+	"commands.data_energistics.orbital.attack_inspect": "Attack %s / weapon %s: mode=%s, phase=%s, dimension=%s, target=(%s,%s,%s), cursor=%s, work=%s, Celestial escrow=%s, AE escrow=%s, fault=%s",
+	"commands.data_energistics.orbital.retry_rejected": "Orbital attack cannot be retried: %s",
+	"commands.data_energistics.orbital.retry_success": "Orbital attack retried: %s",
+	"commands.data_energistics.orbital.abort_rejected": "Orbital attack cannot be aborted: %s",
+	"commands.data_energistics.orbital.abort_success": "Orbital attack aborted: %s",
+	"commands.data_energistics.orbital.refund_rejected": "Orbital attack cannot be refunded: %s (must be FAULTED)",
+	"commands.data_energistics.orbital.refund_success": "Faulted orbital attack escrow refunded: %s",
+	"commands.data_energistics.orbital.repair_success": "Orbital weapon indexes rebuilt; records removed: %s",
+	"commands.data_energistics.orbital.reconcile_success": "Orbital endpoint bindings and chunk tickets reconciled",
+	"commands.data_energistics.orbital.command_failed": "Orbital administrator operation failed; see the server log"
 }
