@@ -319,6 +319,12 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 consumeExpandedEntities(level, this.annihilationWork.expansionRadius());
             }
             if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
+                if (this.orbitalAttackId != null) {
+                    OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadCompleted(
+                            serverLevel.getServer(),
+                            this.orbitalAttackId,
+                            this.getUUID());
+                }
                 LOGGER.info("Data nuke finished at {} in dimension {}.", this.origin, level.dimension().location());
                 this.discard();
             } else if (result.state() == DigitalAnnihilationWork.State.FAULTED) {
