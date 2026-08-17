@@ -17,6 +17,7 @@ dependencies {
 
     // AE2
     accessCompileOnly(forge.ae2)
+    testCompileOnly(forge.ae2)
     compileOnly(forge.guideme)
     compileOnly(forge.ae2wt)
     compileOnly(forge.ae2wt.api)

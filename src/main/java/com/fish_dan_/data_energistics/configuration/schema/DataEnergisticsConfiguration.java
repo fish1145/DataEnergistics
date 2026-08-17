@@ -590,6 +590,26 @@ public final class DataEnergisticsConfiguration {
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Keep each bound endpoint chunk loaded.", "让每个已绑定端点强制加载自身区块。" })
         public boolean endpointChunkLoadingEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long kineticCelestialEnergyCost = 5_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy reserved by one kinetic strike.", "一次动能攻击预留的 AE 能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long kineticAeEnergyCost = 5_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Public warning duration before an attack commits.", "攻击提交前的公开预警时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int attackWarningTicks = 300;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Kinetic strike cooldown after its effect completes.", "动能攻击效果完成后的冷却时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int kineticCooldownTicks = 6_000;
     }
 
     public static final class TrinityCraftingSchema {

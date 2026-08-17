@@ -579,7 +579,31 @@ public final class SnapshotAssembler {
                         1.0D),
                 maxEndpointsPerWeapon,
                 maxEndpointsPerDimension,
-                orbitalWeapon.endpointChunkLoadingEnabled);
+                orbitalWeapon.endpointChunkLoadingEnabled,
+                longInteger(
+                        source,
+                        "orbitalWeapon.kineticCelestialEnergyCost",
+                        orbitalWeapon.kineticCelestialEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                longInteger(
+                        source,
+                        "orbitalWeapon.kineticAeEnergyCost",
+                        orbitalWeapon.kineticAeEnergyCost,
+                        1L,
+                        Long.MAX_VALUE),
+                integer(
+                        source,
+                        "orbitalWeapon.attackWarningTicks",
+                        orbitalWeapon.attackWarningTicks,
+                        1,
+                        Integer.MAX_VALUE),
+                integer(
+                        source,
+                        "orbitalWeapon.kineticCooldownTicks",
+                        orbitalWeapon.kineticCooldownTicks,
+                        1,
+                        Integer.MAX_VALUE));
     }
 
     private static TrinityCraftingSettings crafting(

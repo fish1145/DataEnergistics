@@ -16,5 +16,9 @@ public record OrbitalWeaponSettings(
                                     double deploymentThreshold,
                                     int maxEndpointsPerWeapon,
                                     int maxEndpointsPerDimension,
-                                    boolean endpointChunkLoadingEnabled)
+                                    boolean endpointChunkLoadingEnabled,
+                                    long kineticCelestialEnergyCost,
+                                    long kineticAeEnergyCost,
+                                    int attackWarningTicks,
+                                    int kineticCooldownTicks)
         implements DataEnergisticsSettings.OrbitalWeapon {}

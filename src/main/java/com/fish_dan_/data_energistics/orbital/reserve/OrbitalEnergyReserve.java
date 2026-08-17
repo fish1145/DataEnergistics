@@ -71,4 +71,48 @@ public record OrbitalEnergyReserve(
     public OrbitalEnergyReserve withinCapacity(DataEnergisticsSettings.OrbitalWeapon settings) {
         return withTransfer(0L, 0L, settings);
     }
+
+    /**
+     * Returns whether both resources can be atomically reserved for an attack.
+     */
+    public boolean canAfford(long requiredCelestialEnergy, long requiredAeEnergy) {
+        if (requiredCelestialEnergy < 0L || requiredAeEnergy < 0L) {
+            throw new IllegalArgumentException("Required orbital energy must not be negative");
+        }
+        return this.celestialEnergy >= requiredCelestialEnergy && this.aeEnergy >= requiredAeEnergy;
+    }
+
+    /**
+     * Removes an already validated escrow amount without applying capacity normalization.
+     */
+    public OrbitalEnergyReserve withDebit(long debitedCelestialEnergy, long debitedAeEnergy) {
+        if (!canAfford(debitedCelestialEnergy, debitedAeEnergy)) {
+            throw new IllegalArgumentException("Orbital energy reserve cannot cover the debit");
+        }
+        if (debitedCelestialEnergy == 0L && debitedAeEnergy == 0L) {
+            return this;
+        }
+        return new OrbitalEnergyReserve(
+                this.celestialEnergy - debitedCelestialEnergy,
+                this.aeEnergy - debitedAeEnergy);
+    }
+
+    /**
+     * Returns escrow to the reserve while failing loudly on a numeric overflow.
+     */
+    public OrbitalEnergyReserve withCredit(long creditedCelestialEnergy, long creditedAeEnergy) {
+        if (creditedCelestialEnergy < 0L || creditedAeEnergy < 0L) {
+            throw new IllegalArgumentException("Credited orbital energy must not be negative");
+        }
+        if (creditedCelestialEnergy == 0L && creditedAeEnergy == 0L) {
+            return this;
+        }
+        try {
+            return new OrbitalEnergyReserve(
+                    Math.addExact(this.celestialEnergy, creditedCelestialEnergy),
+                    Math.addExact(this.aeEnergy, creditedAeEnergy));
+        } catch (ArithmeticException exception) {
+            throw new IllegalStateException("Orbital energy reserve overflow while refunding escrow", exception);
+        }
+    }
 }

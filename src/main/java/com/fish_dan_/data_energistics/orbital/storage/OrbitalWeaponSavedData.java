@@ -205,6 +205,50 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /**
+     * Atomically moves an attack cost out of a weapon reserve after checking the actor's FIRE permission.
+     *
+     * @return {@code true} when both resources were available and debited, otherwise {@code false} without mutation
+     */
+    public boolean tryDebitReserve(
+                                   MinecraftServer server,
+                                   UUID weaponId,
+                                   UUID actorId,
+                                   long celestialEnergy,
+                                   long aeEnergy) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.FIRE)) {
+            throw new SecurityException("Player " + actorId + " cannot fire orbital weapon " + weaponId);
+        }
+        if (!current.reserve().canAfford(celestialEnergy, aeEnergy)) {
+            return false;
+        }
+        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withDebit(celestialEnergy, aeEnergy));
+        this.weapons.put(weaponId, updated);
+        setDirty();
+        return true;
+    }
+
+    /**
+     * Returns a cancelled warning escrow to the reserve after rechecking the cancelling actor's permission.
+     */
+    public void refundWarningReserve(
+                                     MinecraftServer server,
+                                     UUID weaponId,
+                                     UUID actorId,
+                                     long celestialEnergy,
+                                     long aeEnergy) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, OrbitalWeaponAction.CANCEL_WARNING_ATTACK)) {
+            throw new SecurityException("Player " + actorId + " cannot cancel orbital weapon " + weaponId);
+        }
+        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withCredit(celestialEnergy, aeEnergy));
+        this.weapons.put(weaponId, updated);
+        setDirty();
+    }
+
+    /**
      * Removes a physical endpoint after its bound block has been destroyed or explicitly unbound.
      */
     public boolean removeEndpoint(

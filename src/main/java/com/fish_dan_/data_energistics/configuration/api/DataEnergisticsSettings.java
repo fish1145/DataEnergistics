@@ -280,6 +280,18 @@ public interface DataEnergisticsSettings {
 
         /** Returns whether bound endpoints should keep their own chunks loaded. */
         boolean endpointChunkLoadingEnabled();
+
+        /** Returns the Celestial Energy escrow required to confirm a kinetic strike. */
+        long kineticCelestialEnergyCost();
+
+        /** Returns the AE energy escrow required to confirm a kinetic strike. */
+        long kineticAeEnergyCost();
+
+        /** Returns the public warning duration applied before a confirmed attack commits. */
+        int attackWarningTicks();
+
+        /** Returns the kinetic strike cooldown applied after its world effect completes. */
+        int kineticCooldownTicks();
     }
 
     /**
