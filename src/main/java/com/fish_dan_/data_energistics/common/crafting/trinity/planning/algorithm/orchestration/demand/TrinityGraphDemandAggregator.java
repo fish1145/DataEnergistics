@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.TrinityCrafting;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import net.minecraft.network.chat.Component;
 
@@ -68,7 +68,7 @@ public final class TrinityGraphDemandAggregator {
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
                                                                         Map<AEKey, BigInteger> available,
-                                                                        TrinityCrafting settings,
+                                                                        TrinityCraftingSchema settings,
                                                                         TrinityPlanningControl control) {
         if (topology == null || target == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || quantityMode == null || available == null || settings == null ||
@@ -94,7 +94,7 @@ public final class TrinityGraphDemandAggregator {
         private final AEKey target;
         private final CraftingQuantityMode quantityMode;
         private final LinkedHashMap<AEKey, BigInteger> inventory;
-        private final TrinityCrafting settings;
+        private final TrinityCraftingSchema settings;
         private final TrinityPlanningControl control;
         private final Map<Integer, Integer> topologicalPositions;
         private final RouteSearchBudget routeSearchBudget;
@@ -113,7 +113,7 @@ public final class TrinityGraphDemandAggregator {
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
                                     Map<AEKey, BigInteger> available,
-                                    TrinityCrafting settings,
+                                    TrinityCraftingSchema settings,
                                     TrinityPlanningControl control) {
             this.topology = topology;
             this.target = target;
@@ -122,7 +122,7 @@ public final class TrinityGraphDemandAggregator {
             this.settings = settings;
             this.control = control;
             this.topologicalPositions = topologicalPositions(topology);
-            this.routeSearchBudget = new RouteSearchBudget(settings.maxScheduleStates());
+            this.routeSearchBudget = new RouteSearchBudget(settings.maxScheduleStates);
             this.demand.put(target, requestedAmount);
         }
 
@@ -344,7 +344,7 @@ public final class TrinityGraphDemandAggregator {
                     cycleDemand,
                     this.inventory,
                     producibleInputs,
-                    this.settings.maxScheduleStates(),
+                    this.settings.maxScheduleStates,
                     this.control);
             if (!solved.successful()) {
                 return failedNested(solved.diagnostic());

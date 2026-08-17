@@ -42,6 +42,25 @@ public final class DataRipperConfigParsingUtils {
         return List.copyOf(entries);
     }
 
+    public static List<MultiplierEntry> precompileMultipliers(String[] patterns, double[] values) {
+        if (patterns.length != values.length) {
+            throw new IllegalArgumentException("Data Ripper multiplier patterns and values must have equal lengths");
+        }
+        List<MultiplierEntry> entries = new ArrayList<>(patterns.length);
+        for (int index = 0; index < patterns.length; index++) {
+            String patternText = patterns[index];
+            if (patternText == null || patternText.isBlank()) {
+                throw new IllegalArgumentException("Data Ripper multiplier pattern must not be blank");
+            }
+            double value = values[index];
+            if (!Double.isFinite(value) || value <= 0.0D) {
+                throw new IllegalArgumentException("Data Ripper multiplier must be finite and positive");
+            }
+            entries.add(new MultiplierEntry(Pattern.compile(patternText), value));
+        }
+        return List.copyOf(entries);
+    }
+
     public static boolean isBlockBlacklisted(String blockId, List<Pattern> blacklist) {
         for (Pattern pattern : blacklist) {
             if (pattern.matcher(blockId).matches()) {

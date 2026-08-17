@@ -6,9 +6,8 @@ import com.fish_dan_.data_energistics.ae2.settings.DataRipperSettings;
 import com.fish_dan_.data_energistics.common.acceleration.DataRipperBatchTickable;
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperPowerUtils;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataRipper;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataRipperSchema;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
@@ -50,6 +49,8 @@ import appeng.parts.automation.UpgradeablePart;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+
 public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
@@ -73,9 +74,6 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     private int cachedSaberSpeedCards = -1;
     private int cachedSpeedProduct = -1;
     private int cachedEnergyCards = -1;
-    private long cachedConfigurationRevision = Long.MIN_VALUE;
-    @Nullable
-    private TickContext cachedTickContext;
 
     public DataRipperPart(IPartItem<?> partItem) {
         super(partItem);
@@ -261,24 +259,20 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private TickContext getTickContext(Level level, BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
-        DataEnergisticsSettings configuration = DataEnergisticsConfiguration.INSTANCE;
-        if (configuration.revision() != this.cachedConfigurationRevision) {
-            this.cachedConfigurationRevision = configuration.revision();
-            this.cachedTickContext = null;
-        }
-        TickContext tickContext = this.cachedTickContext;
-        if (tickContext != null && tickContext.matches(level, targetPos, targetState, targetBlockEntity)) {
-            return tickContext;
-        }
-
         String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
-        DataRipper settings = configuration.dataRipper();
-        boolean blacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, settings.blacklist());
-        double powerMultiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, settings.multipliers());
+        DataRipperSchema settings = DataEnergisticsConfiguration.INSTANCE.machines.dataRipper;
+        boolean blacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(
+                blockId,
+                DataRipperConfigParsingUtils.precompilePatterns(Arrays.asList(settings.blacklist)));
+        double powerMultiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(
+                blockId,
+                DataRipperConfigParsingUtils.precompileMultipliers(
+                        settings.multipliers.patterns,
+                        settings.multipliers.values));
         RandomTickTarget randomTickTarget = this.getRandomTickTarget(level, targetPos, targetState);
         BlockEntityTicker<BlockEntity> ticker = targetBlockEntity != null ? this.getTicker(level, targetState, targetBlockEntity) : null;
         GridTickTarget gridTickTarget = targetBlockEntity != null ? this.getGridTickTarget(targetBlockEntity) : null;
-        tickContext = new TickContext(
+        return new TickContext(
                 level,
                 targetPos,
                 targetState,
@@ -288,8 +282,6 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                 ticker,
                 gridTickTarget,
                 randomTickTarget);
-        this.cachedTickContext = tickContext;
-        return tickContext;
     }
 
     private boolean isValidForTicking() {
@@ -517,8 +509,5 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                                @Nullable GridTickTarget gridTickTarget,
                                @Nullable RandomTickTarget randomTickTarget) {
 
-        private boolean matches(Level level, BlockPos pos, BlockState state, @Nullable BlockEntity blockEntity) {
-            return this.level == level && this.pos.equals(pos) && this.state == state && this.blockEntity == blockEntity;
-        }
     }
 }

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.entity.explosive;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataNukeSchema;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
@@ -162,7 +162,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
         this.expansionRadius = Math.max(0, Math.min(
-                DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius(),
+                DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius,
                 tag.getInt(TAG_EXPANSION_RADIUS)));
     }
 
@@ -197,10 +197,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
         try {
             Level level = this.level();
-            DataNuke settings = DataEnergisticsConfiguration.INSTANCE.dataNuke();
+            DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
             consumeCenterEntities(level, settings);
             this.workTicks++;
-            if (this.workTicks < settings.workIntervalTicks()) {
+            if (this.workTicks < settings.workIntervalTicks) {
                 return;
             }
 
@@ -222,22 +222,22 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
     }
 
-    private boolean isFinished(DataNuke settings) {
-        return this.expansionRadius >= settings.maxRadius();
+    private boolean isFinished(DataNukeSchema settings) {
+        return this.expansionRadius >= settings.maxRadius;
     }
 
-    private int getNextExpansionRadius(DataNuke settings) {
-        int maxRadius = settings.maxRadius();
+    private int getNextExpansionRadius(DataNukeSchema settings) {
+        int maxRadius = settings.maxRadius;
         return this.expansionRadius < maxRadius ? this.expansionRadius + 1 : maxRadius;
     }
 
-    private boolean consumeSurfaceBlocks(Level level, int radius, DataNuke settings) {
+    private boolean consumeSurfaceBlocks(Level level, int radius, DataNukeSchema settings) {
         if (radius <= 0) {
             return true;
         }
 
         int innerRadius = Math.max(0, radius - SURFACE_INNER_MARGIN);
-        int outerRadius = Math.min(settings.maxRadius(), radius + SURFACE_OUTER_MARGIN);
+        int outerRadius = Math.min(settings.maxRadius, radius + SURFACE_OUTER_MARGIN);
         double innerRadiusSqr = innerRadius * innerRadius;
         double outerRadiusSqr = outerRadius * outerRadius;
         int minOffsetY = Math.max(level.getMinBuildHeight() - this.origin.getY(),
@@ -294,8 +294,8 @@ public class DataNukePrimedEntity extends PrimedTnt {
         return true;
     }
 
-    private int consumeCenterEntities(Level level, DataNuke settings) {
-        return consumeEntities(level, settings.centerEntityConsumeRadius());
+    private int consumeCenterEntities(Level level, DataNukeSchema settings) {
+        return consumeEntities(level, settings.centerEntityConsumeRadius);
     }
 
     private int consumeExpandedEntities(Level level, int radius) {

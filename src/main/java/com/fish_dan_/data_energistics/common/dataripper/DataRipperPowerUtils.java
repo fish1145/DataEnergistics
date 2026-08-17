@@ -32,7 +32,7 @@ public final class DataRipperPowerUtils {
             return 0.0D;
         }
 
-        int configuredBaseCost = DataEnergisticsConfiguration.INSTANCE.dataRipper().baseCost();
+        int configuredBaseCost = DataEnergisticsConfiguration.INSTANCE.machines.dataRipper.baseCost;
         return (basePower / 4.0D) * getRemainingRatio(energyCardCount) *
                 ((double) configuredBaseCost / DEFAULT_BASE_COST) * DATA_FLOW_COST_RATIO;
     }

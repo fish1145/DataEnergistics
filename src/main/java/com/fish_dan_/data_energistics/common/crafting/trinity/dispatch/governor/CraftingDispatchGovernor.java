@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.budget.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -18,6 +20,61 @@ public final class CraftingDispatchGovernor {
      */
     public static CraftingDispatchGovernor create(CraftingDispatchGovernorSettings settings) {
         return new CraftingDispatchGovernor(settings);
+    }
+
+    public static CraftingDispatchGovernor create(DataEnergisticsConfiguration.TrinityDispatchSchema settings) {
+        return new CraftingDispatchGovernor(settingsFrom(settings));
+    }
+
+    public static long configurationSignature(DataEnergisticsConfiguration.TrinityDispatchSchema settings) {
+        return Objects.hash(
+                settings.hardGridAttempts,
+                settings.hardProviderAttempts,
+                settings.hardCommitBudgetMs,
+                settings.safeGridAttempts,
+                settings.safeProviderAttempts,
+                settings.safeCommitBudgetMs,
+                settings.safeActorPermits,
+                settings.safeRetryBackoffTicks,
+                settings.warmupTicks,
+                settings.metricsWindowTicks,
+                settings.ewmaAlpha,
+                settings.transitionWindows,
+                settings.cooldownTicks,
+                settings.safeHoldTicks);
+    }
+
+    private static CraftingDispatchGovernorSettings settingsFrom(
+                                                                 DataEnergisticsConfiguration.TrinityDispatchSchema settings) {
+        CraftingDispatchBudget hardBudget = new CraftingDispatchBudget(
+                new CraftingDispatchLimits(
+                        settings.hardGridAttempts,
+                        settings.hardProviderAttempts,
+                        TimeUnit.MILLISECONDS.toNanos(settings.hardCommitBudgetMs)),
+                CraftingDispatchBudget.actorPermitsFor(settings.hardGridAttempts),
+                settings.hardProviderAttempts,
+                DispatchProposalLimits.DEFAULT_MAX_OUTSTANDING,
+                1,
+                true);
+        CraftingDispatchBudget safeBudget = new CraftingDispatchBudget(
+                new CraftingDispatchLimits(
+                        settings.safeGridAttempts,
+                        settings.safeProviderAttempts,
+                        TimeUnit.MILLISECONDS.toNanos(settings.safeCommitBudgetMs)),
+                settings.safeActorPermits,
+                settings.safeProviderAttempts,
+                settings.safeActorPermits,
+                settings.safeRetryBackoffTicks,
+                false);
+        return CraftingDispatchGovernorSettings.defaults(
+                hardBudget,
+                safeBudget,
+                settings.warmupTicks,
+                settings.metricsWindowTicks,
+                settings.ewmaAlpha,
+                settings.transitionWindows,
+                settings.cooldownTicks,
+                settings.safeHoldTicks);
     }
 
     private static final long COMMIT_RECOVERY_STEP_NANOS = TimeUnit.MILLISECONDS.toNanos(1L);
@@ -156,7 +213,7 @@ public final class CraftingDispatchGovernor {
                 this.state = CraftingDispatchGovernorState.ADAPTIVE;
                 this.stateTicks = 0;
                 resetDecisionCounters();
-                if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+                if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
                     Data_Energistics.LOGGER.info(
                             "Trinity dispatch Governor completed observation and entered ADAPTIVE mode");
                 }
@@ -228,7 +285,7 @@ public final class CraftingDispatchGovernor {
         }
         this.budget = adjusted;
         this.cooldownRemainingTicks = this.settings.cooldownTicks();
-        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+        if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             Data_Energistics.LOGGER.info(
                     "Trinity dispatch Governor {} its ADAPTIVE physical budget to {}",
                     action,
@@ -300,7 +357,7 @@ public final class CraftingDispatchGovernor {
         this.tickEwmaNanos = 0.0D;
         this.window.reset();
         resetDecisionCounters();
-        if (DataEnergisticsConfiguration.isVerboseRuntimeLoggingEnabled()) {
+        if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             Data_Energistics.LOGGER.info(
                     "Trinity dispatch Governor completed SAFE hold and re-entered OBSERVING mode");
         }
