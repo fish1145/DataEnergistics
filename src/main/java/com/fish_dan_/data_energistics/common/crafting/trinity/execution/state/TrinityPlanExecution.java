@@ -1399,12 +1399,17 @@ public final class TrinityPlanExecution {
             StageState stage = requireStage(stageIndex);
             LinkedHashSet<Integer> original = new LinkedHashSet<>(stage.dependencies);
             LinkedHashSet<Integer> recomputed = new LinkedHashSet<>();
+            ExecutionFootprint current = ExecutionFootprint.from(stage);
             for (ExecutionFootprint candidate : previous) {
-                if (stage.cycle || candidate.cycleStage() || candidate.conflictsWith(stage)) {
+                if (stage.cycle || candidate.cycleStage() || candidate.conflictsWith(current)) {
                     recomputed.add(candidate.index());
                 }
             }
-            if (original.size() != 1 || !original.contains(candidatePredecessor(stageIndex))) {
+            boolean artificialPredecessor = original.size() == 1 &&
+                    original.contains(candidatePredecessor(stageIndex));
+            boolean completeFootprints = current.outputComplete() &&
+                    previous.stream().allMatch(ExecutionFootprint::outputComplete);
+            if (!artificialPredecessor || !completeFootprints) {
                 recomputed.addAll(original);
             }
             if (!original.equals(recomputed)) {
@@ -1412,7 +1417,7 @@ public final class TrinityPlanExecution {
                 stage.dependencies.addAll(recomputed);
                 changed = true;
             }
-            previous.add(ExecutionFootprint.from(stage));
+            previous.add(current);
         }
         return changed;
     }
@@ -1741,45 +1746,38 @@ public final class TrinityPlanExecution {
                                       boolean cycleStage,
                                       Set<AEKey> inputs,
                                       Set<AEKey> outputs,
-                                      Set<TrinityPatternIdentity> patternIdentities) {
+                                      Set<TrinityPatternIdentity> patternIdentities,
+                                      boolean outputComplete) {
 
         private static ExecutionFootprint from(StageState stage) {
             LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(stage.inputKeys);
             inputs.addAll(stage.requiredAtStart.keySet());
             LinkedHashSet<AEKey> outputs = new LinkedHashSet<>();
             LinkedHashSet<TrinityPatternIdentity> identities = new LinkedHashSet<>();
+            boolean outputComplete = true;
             for (FiringState firing : stage.firings) {
                 outputs.addAll(firing.outputs.keySet());
                 identities.add(firing.patternIdentity);
+                outputComplete &= !firing.outputs.isEmpty();
             }
             return new ExecutionFootprint(
                     stage.index,
                     stage.cycle,
                     Set.copyOf(inputs),
                     Set.copyOf(outputs),
-                    Set.copyOf(identities));
+                    Set.copyOf(identities),
+                    outputComplete);
         }
 
-        private boolean conflictsWith(StageState stage) {
-            for (FiringState firing : stage.firings) {
-                if (this.patternIdentities.contains(firing.patternIdentity)) {
-                    return true;
-                }
+        private boolean conflictsWith(ExecutionFootprint stage) {
+            if (!this.outputComplete || !stage.outputComplete) {
+                return true;
             }
-            return intersects(this.inputs, stage.inputKeys) ||
-                    intersects(this.inputs, stage.requiredAtStart.keySet()) ||
-                    intersects(this.outputs, stage.inputKeys) ||
-                    intersects(this.outputs, stage.requiredAtStart.keySet()) ||
-                    intersects(this.inputs, firingOutputKeys(stage)) ||
-                    intersects(this.outputs, firingOutputKeys(stage));
-        }
-
-        private static Set<AEKey> firingOutputKeys(StageState stage) {
-            LinkedHashSet<AEKey> outputs = new LinkedHashSet<>();
-            for (FiringState firing : stage.firings) {
-                outputs.addAll(firing.outputs.keySet());
-            }
-            return outputs;
+            return !Collections.disjoint(this.patternIdentities, stage.patternIdentities) ||
+                    intersects(this.inputs, stage.inputs) ||
+                    intersects(this.outputs, stage.inputs) ||
+                    intersects(this.inputs, stage.outputs) ||
+                    intersects(this.outputs, stage.outputs);
         }
 
         private static boolean intersects(Set<AEKey> left, Set<AEKey> right) {

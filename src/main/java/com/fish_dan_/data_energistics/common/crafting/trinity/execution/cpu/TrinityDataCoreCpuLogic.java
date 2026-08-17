@@ -1123,6 +1123,7 @@ final class TrinityDataCoreCpuLogic {
                 !dispatchWindow.canCaptureProviderCapacity()) {
             return ProviderDispatchOutcome.NONE;
         }
+        long remainingLogicalCrafts = remainingCrafts;
         CraftingDispatchLease dispatchLease = captureDispatchLease(
                 currentJob,
                 publications,
@@ -1161,7 +1162,7 @@ final class TrinityDataCoreCpuLogic {
             }
 
             double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
-            maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingCrafts);
+            maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingLogicalCrafts);
             maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
             maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
             if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
@@ -1302,7 +1303,7 @@ final class TrinityDataCoreCpuLogic {
                     }
                     ExtractedPatternInputs inputs = inputTransaction.inputs();
                     double powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
-                    long currentMaximum = limitByInputAvailability(inputs.inputsPerCraft(), remainingCrafts);
+                    long currentMaximum = limitByInputAvailability(inputs.inputsPerCraft(), remainingLogicalCrafts);
                     currentMaximum = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), currentMaximum);
                     currentMaximum = limitByEnergy(powerPerCraft, currentMaximum, energyService);
                     if (currentMaximum <= 0L || dispatchWindow.isExhausted()) {
@@ -1411,7 +1412,7 @@ final class TrinityDataCoreCpuLogic {
                     PreparedPatternCommit commit = preparePatternCommit(
                             currentJob,
                             details,
-                            remainingCrafts,
+                            remainingLogicalCrafts,
                             inputs,
                             count,
                             validateScheduledOutputs);
@@ -1497,8 +1498,9 @@ final class TrinityDataCoreCpuLogic {
                                     asynchronousSelection,
                                     new ProviderDispatchOutcome(physicalAttempts, true));
                         }
-                        maximumCount = Math.subtractExact(maximumCount, count);
-                        if (maximumCount <= 0L) {
+                        remainingLogicalCrafts = Math.subtractExact(remainingLogicalCrafts, count);
+                        maximumCount = Math.min(maximumCount - count, remainingLogicalCrafts);
+                        if (remainingLogicalCrafts <= 0L || maximumCount <= 0L) {
                             return settleProposal(
                                     asynchronousSelection,
                                     new ProviderDispatchOutcome(physicalAttempts, true));
