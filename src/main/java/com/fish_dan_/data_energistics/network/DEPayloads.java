@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
+import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
+import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
@@ -145,5 +147,13 @@ public final class DEPayloads {
                 OrbitalControlHudSnapshotPayload.TYPE,
                 OrbitalControlHudSnapshotPayload.STREAM_CODEC,
                 OrbitalControlHudSnapshotPayload::handle);
+        registrar.playToServer(
+                OrbitalTacticalMapRequestPayload.TYPE,
+                OrbitalTacticalMapRequestPayload.STREAM_CODEC,
+                OrbitalTacticalMapRequestPayload::handle);
+        registrar.playToClient(
+                OrbitalTacticalMapResponsePayload.TYPE,
+                OrbitalTacticalMapResponsePayload.STREAM_CODEC,
+                OrbitalTacticalMapResponsePayload::handle);
     }
 }
