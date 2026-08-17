@@ -12,9 +12,11 @@ import java.util.UUID;
 /**
  * Server-thread entry points for owner-controlled endpoint, anchor and delegated-access mutations.
  *
- * <p>The acting UUID always comes from the authenticated {@link ServerPlayer}. Payloads and commands may identify a
+ * <p>
+ * The acting UUID always comes from the authenticated {@link ServerPlayer}. Payloads and commands may identify a
  * weapon, endpoint or delegated player, but the authoritative SavedData action matrix decides whether the mutation is
- * allowed.</p>
+ * allowed.
+ * </p>
  */
 public final class OrbitalWeaponAdministrationDispatcher {
 
@@ -22,10 +24,10 @@ public final class OrbitalWeaponAdministrationDispatcher {
 
     /** Moves one endpoint to a dense owner-selected failover rank. */
     public static boolean setEndpointPriority(
-                                               ServerPlayer actor,
-                                               UUID weaponId,
-                                               OrbitalEndpointLocation location,
-                                               int priority) {
+                                              ServerPlayer actor,
+                                              UUID weaponId,
+                                              OrbitalEndpointLocation location,
+                                              int priority) {
         MinecraftServer server = actor.getServer();
         if (server == null || !server.isSameThread()) {
             return false;
@@ -40,9 +42,9 @@ public final class OrbitalWeaponAdministrationDispatcher {
 
     /** Selects one online uplink beacon as the primary projection anchor. */
     public static boolean selectPrimaryAnchor(
-                                               ServerPlayer actor,
-                                               UUID weaponId,
-                                               OrbitalEndpointLocation location) {
+                                              ServerPlayer actor,
+                                              UUID weaponId,
+                                              OrbitalEndpointLocation location) {
         MinecraftServer server = actor.getServer();
         if (server == null || !server.isSameThread()) {
             return false;

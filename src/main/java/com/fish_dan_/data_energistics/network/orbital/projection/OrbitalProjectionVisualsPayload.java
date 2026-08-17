@@ -18,12 +18,12 @@ import java.util.UUID;
 
 /** Public primary-projection baseline for one dimension; no owner, reserve or authorization fields are transmitted. */
 public record OrbitalProjectionVisualsPayload(
-                                               long revision,
-                                               ResourceLocation dimensionId,
-                                               int batchIndex,
-                                               int batchCount,
-                                               int totalCount,
-                                               List<OrbitalProjectionVisualSnapshot> projections)
+                                              long revision,
+                                              ResourceLocation dimensionId,
+                                              int batchIndex,
+                                              int batchCount,
+                                              int totalCount,
+                                              List<OrbitalProjectionVisualSnapshot> projections)
         implements CustomPacketPayload {
 
     public static final int MAX_PROJECTIONS = 64;
@@ -35,8 +35,7 @@ public record OrbitalProjectionVisualsPayload(
 
     public OrbitalProjectionVisualsPayload {
         projections = List.copyOf(projections);
-        if (revision < 0L || batchCount <= 0 || batchIndex < 0 || batchIndex >= batchCount
-                || totalCount < 0 || projections.size() > MAX_PROJECTIONS) {
+        if (revision < 0L || batchCount <= 0 || batchIndex < 0 || batchIndex >= batchCount || totalCount < 0 || projections.size() > MAX_PROJECTIONS) {
             throw new IllegalArgumentException("Orbital projection batch metadata is outside its bounded range");
         }
         int minimumBatchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_PROJECTIONS) + 1;
@@ -56,9 +55,9 @@ public record OrbitalProjectionVisualsPayload(
 
     /** Splits a complete dimension baseline into protocol-sized batches. */
     public static List<OrbitalProjectionVisualsPayload> batches(
-                                                                 long revision,
-                                                                 ResourceLocation dimensionId,
-                                                                 List<OrbitalProjectionVisualSnapshot> projections) {
+                                                                long revision,
+                                                                ResourceLocation dimensionId,
+                                                                List<OrbitalProjectionVisualSnapshot> projections) {
         List<OrbitalProjectionVisualSnapshot> immutable = List.copyOf(projections);
         int totalCount = immutable.size();
         int batchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_PROJECTIONS) + 1;

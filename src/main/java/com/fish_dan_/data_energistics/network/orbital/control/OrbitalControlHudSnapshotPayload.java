@@ -16,10 +16,10 @@ import java.util.UUID;
 
 /** Server-authoritative status pushed to the LDLib2 orbital HUD while its terminal is held. */
 public record OrbitalControlHudSnapshotPayload(
-        long revision,
-        boolean visible,
-        Component status,
-        @Nullable UUID selectedWeaponId)
+                                               long revision,
+                                               boolean visible,
+                                               Component status,
+                                               @Nullable UUID selectedWeaponId)
         implements CustomPacketPayload {
 
     public static final Type<OrbitalControlHudSnapshotPayload> TYPE = new Type<>(

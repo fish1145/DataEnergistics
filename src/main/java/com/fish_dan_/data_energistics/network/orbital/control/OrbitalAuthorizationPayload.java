@@ -17,7 +17,8 @@ import java.util.UUID;
 public record OrbitalAuthorizationPayload(
                                           UUID weaponId,
                                           UUID playerId,
-                                          OrbitalAccessRole role) implements CustomPacketPayload {
+                                          OrbitalAccessRole role)
+        implements CustomPacketPayload {
 
     public static final Type<OrbitalAuthorizationPayload> TYPE = new Type<>(
             Data_Energistics.id("orbital_authorization"));
@@ -52,9 +53,7 @@ public record OrbitalAuthorizationPayload(
                         payload.playerId(),
                         payload.role());
                 player.displayClientMessage(
-                        Component.translatable(updated
-                                ? "message.data_energistics.orbital.authorization_updated"
-                                : "message.data_energistics.orbital.authorization_rejected"),
+                        Component.translatable(updated ? "message.data_energistics.orbital.authorization_updated" : "message.data_energistics.orbital.authorization_rejected"),
                         true);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.warn(

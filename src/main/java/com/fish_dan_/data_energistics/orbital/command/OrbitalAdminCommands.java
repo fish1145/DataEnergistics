@@ -11,13 +11,10 @@ import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalOwnershipTransfer;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-
-import net.minecraft.core.BlockPos;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.UuidArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -25,6 +22,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
@@ -284,10 +283,10 @@ public final class OrbitalAdminCommands {
     }
 
     private static OrbitalEndpointLocation endpointLocation(
-                                                             String dimensionId,
-                                                             int x,
-                                                             int y,
-                                                             int z) {
+                                                            String dimensionId,
+                                                            int x,
+                                                            int y,
+                                                            int z) {
         return new OrbitalEndpointLocation(ResourceLocation.parse(dimensionId), new BlockPos(x, y, z));
     }
 
@@ -321,9 +320,7 @@ public final class OrbitalAdminCommands {
                             transfer.recipientId()),
                     false);
             MinecraftServer server = owner.getServer();
-            ServerPlayer recipient = server == null
-                    ? null
-                    : server.getPlayerList().getPlayer(transfer.recipientId());
+            ServerPlayer recipient = server == null ? null : server.getPlayerList().getPlayer(transfer.recipientId());
             if (recipient != null) {
                 recipient.displayClientMessage(
                         Component.translatable(
@@ -509,10 +506,10 @@ public final class OrbitalAdminCommands {
     }
 
     private static int reportFailure(
-                                  CommandSourceStack source,
-                                  String action,
-                                  UUID attackId,
-                                  RuntimeException exception) {
+                                     CommandSourceStack source,
+                                     String action,
+                                     UUID attackId,
+                                     RuntimeException exception) {
         Data_Energistics.LOGGER.error("Orbital admin {} failed for attack {}", action, attackId, exception);
         source.sendFailure(Component.translatable("commands.data_energistics.orbital.command_failed"));
         return 0;

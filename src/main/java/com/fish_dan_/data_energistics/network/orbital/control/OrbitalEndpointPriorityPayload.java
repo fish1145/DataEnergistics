@@ -20,7 +20,8 @@ public record OrbitalEndpointPriorityPayload(
                                              UUID weaponId,
                                              ResourceLocation dimensionId,
                                              BlockPos endpointPos,
-                                             int priority) implements CustomPacketPayload {
+                                             int priority)
+        implements CustomPacketPayload {
 
     private static final int MAX_ENDPOINT_PRIORITY = 31;
     private static final int HORIZONTAL_COORDINATE_LIMIT = 30_000_000;
@@ -71,9 +72,7 @@ public record OrbitalEndpointPriorityPayload(
                         new OrbitalEndpointLocation(payload.dimensionId(), payload.endpointPos()),
                         payload.priority());
                 player.displayClientMessage(
-                        Component.translatable(changed
-                                ? "message.data_energistics.orbital.endpoint_priority_updated"
-                                : "message.data_energistics.orbital.endpoint_priority_rejected"),
+                        Component.translatable(changed ? "message.data_energistics.orbital.endpoint_priority_updated" : "message.data_energistics.orbital.endpoint_priority_rejected"),
                         true);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.warn(
@@ -89,8 +88,6 @@ public record OrbitalEndpointPriorityPayload(
     }
 
     private static boolean bounded(BlockPos pos) {
-        return Math.abs((long) pos.getX()) <= HORIZONTAL_COORDINATE_LIMIT
-                && Math.abs((long) pos.getZ()) <= HORIZONTAL_COORDINATE_LIMIT
-                && Math.abs((long) pos.getY()) <= VERTICAL_COORDINATE_LIMIT;
+        return Math.abs((long) pos.getX()) <= HORIZONTAL_COORDINATE_LIMIT && Math.abs((long) pos.getZ()) <= HORIZONTAL_COORDINATE_LIMIT && Math.abs((long) pos.getY()) <= VERTICAL_COORDINATE_LIMIT;
     }
 }

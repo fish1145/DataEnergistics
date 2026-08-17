@@ -97,8 +97,7 @@ public final class OrbitalWorldProjectionRenderer {
             }
 
             Detail detail;
-            if (distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED
-                    && fullDetailCount < MAX_FULL_DETAIL_PROJECTIONS) {
+            if (distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED && fullDetailCount < MAX_FULL_DETAIL_PROJECTIONS) {
                 detail = Detail.FULL;
                 fullDetailCount++;
             } else if (distanceSquared <= REDUCED_DETAIL_DISTANCE_SQUARED) {
@@ -126,9 +125,7 @@ public final class OrbitalWorldProjectionRenderer {
             if (!event.getFrustum().isVisible(bounds)) {
                 continue;
             }
-            Detail detail = distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED
-                    ? Detail.FULL
-                    : (distanceSquared <= REDUCED_DETAIL_DISTANCE_SQUARED ? Detail.REDUCED : Detail.IMPOSTOR);
+            Detail detail = distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED ? Detail.FULL : (distanceSquared <= REDUCED_DETAIL_DISTANCE_SQUARED ? Detail.REDUCED : Detail.IMPOSTOR);
             renderAttackEcho(poseStack, consumer, level, attack, detail, partialTick);
             visibleAttackCount++;
             rendered = true;
@@ -207,9 +204,7 @@ public final class OrbitalWorldProjectionRenderer {
         double centerY = projection.projectionY();
         double centerZ = projection.anchor().getZ() + 0.5D;
         float pulse = pulse(projection.animationTime(), projection.randomSeed(), partialTick, 0.08F);
-        float alpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING
-                ? 0.25F + 0.45F * pulse
-                : (projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.42F : 0.78F);
+        float alpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING ? 0.25F + 0.45F * pulse : (projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.42F : 0.78F);
         float red = projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.90F : 0.20F;
         float green = projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.45F : 0.78F;
         float blue = 1.0F;
@@ -246,10 +241,7 @@ public final class OrbitalWorldProjectionRenderer {
         }
 
         for (int offset = -224; offset <= 224; offset += 32) {
-            float segmentAlpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING
-                    && Math.floorMod(offset / 32 + (int) projection.animationTime() / 4, 3) == 0
-                            ? alpha * 0.18F
-                            : alpha;
+            float segmentAlpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING && Math.floorMod(offset / 32 + (int) projection.animationTime() / 4, 3) == 0 ? alpha * 0.18F : alpha;
             renderBox(
                     poseStack,
                     consumer,
@@ -285,13 +277,9 @@ public final class OrbitalWorldProjectionRenderer {
         double centerY = attackEchoY(level, attack);
         double centerZ = attack.target().getZ() + 0.5D;
         float pulse = pulse(attack.phaseAge(), attack.randomSeed(), partialTick, 0.12F);
-        float alpha = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
-                ? 0.35F + 0.55F * pulse
-                : 0.82F;
+        float alpha = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ? 0.35F + 0.55F * pulse : 0.82F;
         float[] color = attackColor(attack.mode());
-        BlockPos beamPosition = attack.phase() == OrbitalAttackPhase.DELIVERY
-                ? attack.effectPosition()
-                : attack.target();
+        BlockPos beamPosition = attack.phase() == OrbitalAttackPhase.DELIVERY ? attack.effectPosition() : attack.target();
         double beamX = beamPosition.getX() + 0.5D;
         double beamZ = beamPosition.getZ() + 0.5D;
         double beamMinY = Math.min(beamPosition.getY(), centerY);

@@ -19,12 +19,13 @@ import java.util.UUID;
 
 /** Public render baseline for one dimension; it never carries ownership, reserve or authorization data. */
 public record OrbitalAttackVisualsPayload(
-                                           long revision,
-                                           ResourceLocation dimensionId,
-                                           int batchIndex,
-                                           int batchCount,
-                                           int totalCount,
-                                           List<OrbitalAttackVisualSnapshot> attacks) implements CustomPacketPayload {
+                                          long revision,
+                                          ResourceLocation dimensionId,
+                                          int batchIndex,
+                                          int batchCount,
+                                          int totalCount,
+                                          List<OrbitalAttackVisualSnapshot> attacks)
+        implements CustomPacketPayload {
 
     public static final int MAX_ATTACKS = 64;
     public static final Type<OrbitalAttackVisualsPayload> TYPE = new Type<>(
@@ -35,8 +36,7 @@ public record OrbitalAttackVisualsPayload(
 
     public OrbitalAttackVisualsPayload {
         attacks = List.copyOf(attacks);
-        if (revision < 0L || batchCount <= 0 || batchIndex < 0 || batchIndex >= batchCount
-                || totalCount < 0 || attacks.size() > MAX_ATTACKS) {
+        if (revision < 0L || batchCount <= 0 || batchIndex < 0 || batchIndex >= batchCount || totalCount < 0 || attacks.size() > MAX_ATTACKS) {
             throw new IllegalArgumentException("Orbital visual baseline exceeds its bounded attack count");
         }
         int minimumBatchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_ATTACKS) + 1;
@@ -136,8 +136,7 @@ public record OrbitalAttackVisualsPayload(
             UUID attackId = buffer.readUUID();
             int modeOrdinal = buffer.readVarInt();
             int phaseOrdinal = buffer.readVarInt();
-            if (modeOrdinal < 0 || modeOrdinal >= OrbitalAttackMode.values().length
-                    || phaseOrdinal < 0 || phaseOrdinal >= OrbitalAttackPhase.values().length) {
+            if (modeOrdinal < 0 || modeOrdinal >= OrbitalAttackMode.values().length || phaseOrdinal < 0 || phaseOrdinal >= OrbitalAttackPhase.values().length) {
                 throw new IllegalArgumentException("Orbital visual enum ordinal is invalid");
             }
             OrbitalAttackMode mode = OrbitalAttackMode.values()[modeOrdinal];

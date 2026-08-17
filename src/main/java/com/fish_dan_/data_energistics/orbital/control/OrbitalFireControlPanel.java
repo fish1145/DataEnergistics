@@ -14,7 +14,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
-
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
@@ -30,8 +29,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import dev.vfyjxf.taffy.style.TaffyPosition;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,14 +38,14 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * Shared LDLib2 coordinate fire-control panel for both the held terminal and the bound console.
  *
- * <p>The panel sends only a bounded target intent through its current menu RPC route. The server-side executor keeps
+ * <p>
+ * The panel sends only a bounded target intent through its current menu RPC route. The server-side executor keeps
  * the exact source-validity predicate captured by that menu, resolves every enum from an explicit wire code, and then
- * delegates preview and confirmation to the authoritative orbital SavedData path.</p>
+ * delegates preview and confirmation to the authoritative orbital SavedData path.
+ * </p>
  */
 final class OrbitalFireControlPanel {
 
@@ -390,9 +389,7 @@ final class OrbitalFireControlPanel {
                                 targetYMode,
                                 (Integer) arguments[5],
                                 (Integer) arguments[6],
-                                depthCode == NO_DEPTH
-                                        ? null
-                                        : OrbitalDirectedEnergyDepth.fromWireCode(depthCode),
+                                depthCode == NO_DEPTH ? null : OrbitalDirectedEnergyDepth.fromWireCode(depthCode),
                                 sourceValid);
                     });
                     return null;
@@ -404,33 +401,29 @@ final class OrbitalFireControlPanel {
                                                UIElement root,
                                                Player player,
                                                BooleanSupplier sourceValid) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode ->
-                runServerRpc(player, "start confirmation hold", serverPlayer -> {
-                    OrbitalAttackMode mode = OrbitalAttackMode.fromWireCode(modeCode);
-                    if (!OrbitalControlActionDispatcher.startFireHold(serverPlayer, mode, sourceValid)) {
-                        serverPlayer.displayClientMessage(
-                                Component.translatable(
-                                        "message.data_energistics.orbital_control_terminal.preview_expired"),
-                                true);
-                    }
-                })));
+        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode -> runServerRpc(player, "start confirmation hold", serverPlayer -> {
+            OrbitalAttackMode mode = OrbitalAttackMode.fromWireCode(modeCode);
+            if (!OrbitalControlActionDispatcher.startFireHold(serverPlayer, mode, sourceValid)) {
+                serverPlayer.displayClientMessage(
+                        Component.translatable(
+                                "message.data_energistics.orbital_control_terminal.preview_expired"),
+                        true);
+            }
+        })));
     }
 
     private static RPCEmitter releaseEmitter(
                                              UIElement root,
                                              Player player,
                                              BooleanSupplier sourceValid) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode ->
-                runServerRpc(player, "release confirmation hold", serverPlayer ->
-                        OrbitalControlActionDispatcher.releaseFireAtTarget(
-                                serverPlayer,
-                                OrbitalAttackMode.fromWireCode(modeCode),
-                                sourceValid))));
+        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode -> runServerRpc(player, "release confirmation hold", serverPlayer -> OrbitalControlActionDispatcher.releaseFireAtTarget(
+                serverPlayer,
+                OrbitalAttackMode.fromWireCode(modeCode),
+                sourceValid))));
     }
 
     private static RPCEmitter cancelHoldEmitter(UIElement root, Player player) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, ignored ->
-                runServerRpc(player, "cancel confirmation hold", OrbitalControlActionDispatcher::cancelFireHold)));
+        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, ignored -> runServerRpc(player, "cancel confirmation hold", OrbitalControlActionDispatcher::cancelFireHold)));
     }
 
     private static void runServerRpc(
@@ -465,11 +458,7 @@ final class OrbitalFireControlPanel {
                                          TextField targetZ,
                                          TextField targetY,
                                          TextField radius) {
-        if (dimension.isError()
-                || targetX.isError()
-                || targetZ.isError()
-                || targetY.isError()
-                || (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY && radius.isError())) {
+        if (dimension.isError() || targetX.isError() || targetZ.isError() || targetY.isError() || (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY && radius.isError())) {
             throw new IllegalArgumentException("Orbital target form contains an invalid value");
         }
         int directedRadius = 0;
@@ -576,9 +565,7 @@ final class OrbitalFireControlPanel {
                         OrbitalTacticalMapClientState.tileAt(centerX + offsetX, centerZ + offsetZ)));
             }
         }
-        status.setValue(OrbitalTacticalMapClientState.revision() < 0L
-                ? Component.translatable(TRANSLATION_PREFIX + "map.status")
-                : OrbitalTacticalMapClientState.summary());
+        status.setValue(OrbitalTacticalMapClientState.revision() < 0L ? Component.translatable(TRANSLATION_PREFIX + "map.status") : OrbitalTacticalMapClientState.summary());
     }
 
     private static Component mapCellText(@Nullable OrbitalMapTile tile) {
@@ -716,14 +703,14 @@ final class OrbitalFireControlPanel {
     }
 
     private record TargetDraft(
-            OrbitalAttackMode mode,
-            String dimension,
-            int targetX,
-            int targetZ,
-            OrbitalTargetYMode targetYMode,
-            int targetYValue,
-            int directedRadius,
-            int depthCode) {}
+                               OrbitalAttackMode mode,
+                               String dimension,
+                               int targetX,
+                               int targetZ,
+                               OrbitalTargetYMode targetYMode,
+                               int targetYValue,
+                               int directedRadius,
+                               int depthCode) {}
 
     private static final class ClientPanelState {
 

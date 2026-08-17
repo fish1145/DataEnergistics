@@ -5,6 +5,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
  * slices without changing the saved attack identity model.
  */
 public enum OrbitalAttackMode {
+
     KINETIC(0),
     DIRECTED_ENERGY(1),
     DIGITAL_ANNIHILATION(2);

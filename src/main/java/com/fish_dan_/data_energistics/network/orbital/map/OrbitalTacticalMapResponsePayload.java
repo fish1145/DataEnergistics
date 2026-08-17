@@ -17,13 +17,14 @@ import java.util.UUID;
 
 /** S2C revisioned tactical-map viewport; at most 64 cells travel in one packet. */
 public record OrbitalTacticalMapResponsePayload(
-                                                 UUID sessionToken,
-                                                 long revision,
-                                                 ResourceLocation dimensionId,
-                                                 int centerChunkX,
-                                                 int centerChunkZ,
-                                                 int radius,
-                                                 List<OrbitalMapTile> tiles) implements CustomPacketPayload {
+                                                UUID sessionToken,
+                                                long revision,
+                                                ResourceLocation dimensionId,
+                                                int centerChunkX,
+                                                int centerChunkZ,
+                                                int radius,
+                                                List<OrbitalMapTile> tiles)
+        implements CustomPacketPayload {
 
     public static final Type<OrbitalTacticalMapResponsePayload> TYPE = new Type<>(
             Data_Energistics.id("orbital_tactical_map_response"));
@@ -108,9 +109,7 @@ public record OrbitalTacticalMapResponsePayload(
                 biomeColor = buffer.readVarInt();
             }
             int markerFlags = buffer.readVarInt();
-            tiles.add(known
-                    ? new OrbitalMapTile(chunkX, chunkZ, true, surfaceY, biomeColor, markerFlags)
-                    : OrbitalMapTile.unknown(chunkX, chunkZ, markerFlags));
+            tiles.add(known ? new OrbitalMapTile(chunkX, chunkZ, true, surfaceY, biomeColor, markerFlags) : OrbitalMapTile.unknown(chunkX, chunkZ, markerFlags));
         }
         return List.copyOf(tiles);
     }

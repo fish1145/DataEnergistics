@@ -32,8 +32,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
 
     /** Returns whether the player is holding the authoritative handheld control source in either hand. */
     public static boolean isHeldBy(ServerPlayer player) {
-        return player.getMainHandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get())
-                || player.getOffhandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get());
+        return player.getMainHandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get()) || player.getOffhandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get());
     }
 
     @Override

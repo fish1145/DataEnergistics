@@ -151,10 +151,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     public boolean adminAbort(MinecraftServer server, UUID attackId) {
         requireServerThread(server);
         OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null
-                || (current.phase() != OrbitalAttackPhase.COMMITTED
-                        && current.phase() != OrbitalAttackPhase.DELIVERY
-                        && current.phase() != OrbitalAttackPhase.FAULTED)) {
+        if (current == null || (current.phase() != OrbitalAttackPhase.COMMITTED && current.phase() != OrbitalAttackPhase.DELIVERY && current.phase() != OrbitalAttackPhase.FAULTED)) {
             return false;
         }
         discardPayload(server, current);
@@ -205,9 +202,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     public List<OrbitalAttackRecord> publicForDimension(ResourceLocation dimensionId) {
         return this.attacks.values().stream()
                 .filter(attack -> attack.dimensionId().equals(dimensionId))
-                .filter(attack -> attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
-                        || attack.phase() == OrbitalAttackPhase.COMMITTED
-                        || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                .filter(attack -> attack.phase() == OrbitalAttackPhase.RESERVED_WARNING || attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
                 .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
                 .toList();
     }
@@ -220,10 +215,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
         ArrayList<OrbitalAttackVisualSnapshot> visuals = new ArrayList<>();
         for (OrbitalAttackRecord attack : this.attacks.values()) {
-            if (!attack.dimensionId().equals(level.dimension().location())
-                    || (attack.phase() != OrbitalAttackPhase.RESERVED_WARNING
-                            && attack.phase() != OrbitalAttackPhase.COMMITTED
-                            && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
+            if (!attack.dimensionId().equals(level.dimension().location()) || (attack.phase() != OrbitalAttackPhase.RESERVED_WARNING && attack.phase() != OrbitalAttackPhase.COMMITTED && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
                 continue;
             }
             VisualEffect visualEffect = switch (attack.mode()) {
@@ -249,11 +241,8 @@ public final class OrbitalAttackSavedData extends SavedData {
                     yield new VisualEffect(effectPosition, geometry.maxRadius(), Math.max(attack.workCursor(), 1L));
                 }
             };
-            long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
-                    ? Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining())
-                    : Math.max(0L, gameTime - this.phaseStartedAt.getOrDefault(attack.attackId(), gameTime));
-            long randomSeed = (attack.attackId().getMostSignificantBits()
-                    ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
+            long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ? Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining()) : Math.max(0L, gameTime - this.phaseStartedAt.getOrDefault(attack.attackId(), gameTime));
+            long randomSeed = (attack.attackId().getMostSignificantBits() ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
             visuals.add(new OrbitalAttackVisualSnapshot(
                     attack.attackId(),
                     attack.mode(),
@@ -487,11 +476,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     public boolean markDigitalPayloadCompleted(MinecraftServer server, UUID attackId, UUID nukeEntityId) {
         requireServerThread(server);
         OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null
-                || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION
-                || current.phase() != OrbitalAttackPhase.DELIVERY
-                || !current.payloadArrived()
-                || !nukeEntityId.equals(current.payloadEntityId())) {
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || !current.payloadArrived() || !nukeEntityId.equals(current.payloadEntityId())) {
             return false;
         }
         releaseDigitalRecoveryTicket(server, attackId);
@@ -586,9 +571,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         long gameTime = server.overworld().getGameTime();
         boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
         for (OrbitalAttackRecord attack : this.attacks.values()) {
-            if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
-                    || attack.phase() == OrbitalAttackPhase.COMMITTED
-                    || attack.phase() == OrbitalAttackPhase.DELIVERY) {
+            if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING || attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY) {
                 if (!this.phaseStartedAt.containsKey(attack.attackId())) {
                     this.phaseStartedAt.put(attack.attackId(), gameTime);
                     phaseTimesChanged = true;
@@ -781,9 +764,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return null;
         }
         String reason = tag.getString(FAULT_REASON_TAG);
-        return reason.length() <= MAX_FAULT_REASON_LENGTH
-                ? reason
-                : reason.substring(0, MAX_FAULT_REASON_LENGTH);
+        return reason.length() <= MAX_FAULT_REASON_LENGTH ? reason : reason.substring(0, MAX_FAULT_REASON_LENGTH);
     }
 
     private void tickWarning(MinecraftServer server, OrbitalAttackRecord current) {
@@ -877,10 +858,10 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private void spawnDigitalProjectile(
-                                       MinecraftServer server,
-                                       ServerLevel level,
-                                       OrbitalAttackRecord current,
-                                       OrbitalAttackGeometry.DigitalAnnihilation geometry) {
+                                        MinecraftServer server,
+                                        ServerLevel level,
+                                        OrbitalAttackRecord current,
+                                        OrbitalAttackGeometry.DigitalAnnihilation geometry) {
         OrbitalAnnihilatorProjectileEntity projectile = new OrbitalAnnihilatorProjectileEntity(
                 level,
                 current.attackId(),
@@ -899,10 +880,10 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private void spawnDigitalFuse(
-                                MinecraftServer server,
-                                ServerLevel level,
-                                OrbitalAttackRecord current,
-                                OrbitalAttackGeometry.DigitalAnnihilation geometry) {
+                                  MinecraftServer server,
+                                  ServerLevel level,
+                                  OrbitalAttackRecord current,
+                                  OrbitalAttackGeometry.DigitalAnnihilation geometry) {
         DataNukePrimedEntity nuke = DataNukePrimedEntity.createOrbitalPayload(
                 level,
                 current.target(),
@@ -1216,9 +1197,9 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private void replaceAttack(
-                              MinecraftServer server,
-                              OrbitalAttackRecord current,
-                              OrbitalAttackRecord updated) {
+                               MinecraftServer server,
+                               OrbitalAttackRecord current,
+                               OrbitalAttackRecord updated) {
         if (!current.attackId().equals(updated.attackId())) {
             throw new IllegalArgumentException("An orbital attack update cannot change its identity");
         }

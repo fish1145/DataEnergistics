@@ -2,21 +2,19 @@ package com.fish_dan_.data_energistics.orbital.map;
 
 /** One chunk-sized tactical-map cell; unknown cells deliberately carry no generated terrain data. */
 public record OrbitalMapTile(
-                              int chunkX,
-                              int chunkZ,
-                              boolean known,
-                              int surfaceY,
-                              int biomeColor,
-                              int markerFlags) {
+                             int chunkX,
+                             int chunkZ,
+                             boolean known,
+                             int surfaceY,
+                             int biomeColor,
+                             int markerFlags) {
 
     public static final int UNKNOWN_SURFACE = Integer.MIN_VALUE;
     public static final int UNKNOWN_BIOME_COLOR = 0;
     public static final int MARKER_UPLINK_BEACON = 1;
     public static final int MARKER_PRIMARY_ANCHOR = 1 << 1;
     public static final int MARKER_ACTIVE_PUBLIC_ATTACK = 1 << 2;
-    public static final int KNOWN_MARKERS = MARKER_UPLINK_BEACON
-            | MARKER_PRIMARY_ANCHOR
-            | MARKER_ACTIVE_PUBLIC_ATTACK;
+    public static final int KNOWN_MARKERS = MARKER_UPLINK_BEACON | MARKER_PRIMARY_ANCHOR | MARKER_ACTIVE_PUBLIC_ATTACK;
 
     /** Compatibility constructor for the original four-field map tile. */
     public OrbitalMapTile(int chunkX, int chunkZ, boolean known, int surfaceY) {

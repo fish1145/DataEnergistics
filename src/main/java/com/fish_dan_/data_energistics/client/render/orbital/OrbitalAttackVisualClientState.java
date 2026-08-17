@@ -6,9 +6,9 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
-import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Client cache for the latest public orbital visual baseline; renderer code can consume it without server access. */
@@ -37,10 +37,7 @@ public final class OrbitalAttackVisualClientState {
             pendingTotalCount = payload.totalCount();
             pendingBatches.clear();
         }
-        if (payload.revision() != pendingRevision
-                || !payload.dimensionId().equals(pendingDimension)
-                || payload.batchCount() != pendingBatchCount
-                || payload.totalCount() != pendingTotalCount) {
+        if (payload.revision() != pendingRevision || !payload.dimensionId().equals(pendingDimension) || payload.batchCount() != pendingBatchCount || payload.totalCount() != pendingTotalCount) {
             return;
         }
         pendingBatches.putIfAbsent(payload.batchIndex(), payload.attacks());

@@ -52,9 +52,7 @@ public record OrbitalWeaponLifecycle(
     }
 
     public static OrbitalWeaponLifecycle redeploying(int redeploymentTicks) {
-        return redeploymentTicks <= 0
-                ? dormant()
-                : new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.REDEPLOYING, 0, redeploymentTicks);
+        return redeploymentTicks <= 0 ? dormant() : new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.REDEPLOYING, 0, redeploymentTicks);
     }
 
     /** Returns whether this record may confirm a new attack. */
@@ -73,12 +71,8 @@ public record OrbitalWeaponLifecycle(
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
             case DEPLOYED -> reserve.hasZeroResource() ? reserveGrace(settings.reserveGraceTicks()) : this;
-            case RESERVE_GRACE -> thresholdReached
-                    ? deployed()
-                    : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
-            case REDEPLOYING -> this.redeploymentTicksRemaining <= 1
-                    ? (thresholdReached ? deployed() : dormant())
-                    : redeploying(this.redeploymentTicksRemaining - 1);
+            case RESERVE_GRACE -> thresholdReached ? deployed() : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
+            case REDEPLOYING -> this.redeploymentTicksRemaining <= 1 ? (thresholdReached ? deployed() : dormant()) : redeploying(this.redeploymentTicksRemaining - 1);
         };
     }
 

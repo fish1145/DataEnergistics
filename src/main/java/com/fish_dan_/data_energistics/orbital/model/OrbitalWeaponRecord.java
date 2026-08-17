@@ -226,8 +226,7 @@ public record OrbitalWeaponRecord(
 
     /** Returns a new record with the owner-selected uplink beacon as the projection anchor. */
     public OrbitalWeaponRecord withPrimaryAnchor(@Nullable OrbitalEndpointLocation primaryAnchor) {
-        if (this.primaryAnchor == primaryAnchor
-                || (this.primaryAnchor != null && this.primaryAnchor.equals(primaryAnchor))) {
+        if (this.primaryAnchor == primaryAnchor || (this.primaryAnchor != null && this.primaryAnchor.equals(primaryAnchor))) {
             return this;
         }
         return new OrbitalWeaponRecord(

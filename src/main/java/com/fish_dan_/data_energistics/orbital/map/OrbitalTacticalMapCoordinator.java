@@ -49,28 +49,24 @@ public final class OrbitalTacticalMapCoordinator {
 
     /** Handles one validated viewport intent on the server thread. */
     public Optional<OrbitalTacticalMapSnapshot> request(
-                                                         ServerPlayer player,
-                                                         UUID weaponId,
-                                                         UUID sessionToken,
-                                                         ResourceLocation dimensionId,
-                                                         int centerChunkX,
-                                                         int centerChunkZ,
-                                                         int radius,
-                                                         long nonce) {
+                                                        ServerPlayer player,
+                                                        UUID weaponId,
+                                                        UUID sessionToken,
+                                                        ResourceLocation dimensionId,
+                                                        int centerChunkX,
+                                                        int centerChunkZ,
+                                                        int radius,
+                                                        long nonce) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread()) {
             return Optional.empty();
         }
-        if (radius < 0 || radius > 3 || nonce <= 0L
-                || Math.abs((long) centerChunkX) > 2_000_000L
-                || Math.abs((long) centerChunkZ) > 2_000_000L) {
+        if (radius < 0 || radius > 3 || nonce <= 0L || Math.abs((long) centerChunkX) > 2_000_000L || Math.abs((long) centerChunkZ) > 2_000_000L) {
             return Optional.empty();
         }
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalWeaponRecord weapon = weapons.find(weaponId).orElse(null);
-        if (weapon == null
-                || !weapon.canPerform(player.getUUID(), OrbitalWeaponAction.AIM)
-                || !weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
+        if (weapon == null || !weapon.canPerform(player.getUUID(), OrbitalWeaponAction.AIM) || !weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             return Optional.empty();
         }
 
@@ -83,8 +79,7 @@ public final class OrbitalTacticalMapCoordinator {
         long gameTime = server.overworld().getGameTime();
         ServerState state = this.serverStates.computeIfAbsent(server, ignored -> new ServerState());
         Session session = state.sessions.get(player.getUUID());
-        if (session == null || session.expiresAt <= gameTime
-                || !session.weaponId.equals(weaponId) || !session.token.equals(sessionToken)) {
+        if (session == null || session.expiresAt <= gameTime || !session.weaponId.equals(weaponId) || !session.token.equals(sessionToken)) {
             if (!BOOTSTRAP_TOKEN.equals(sessionToken)) {
                 return Optional.empty();
             }
@@ -154,8 +149,7 @@ public final class OrbitalTacticalMapCoordinator {
         long minZ = ((long) centerChunkZ - radius) * 16L;
         long maxZ = ((long) centerChunkZ + radius) * 16L + 15L;
         int y = level.getMinBuildHeight();
-        return level.getWorldBorder().isWithinBounds(new BlockPos((int) minX, y, (int) minZ))
-                && level.getWorldBorder().isWithinBounds(new BlockPos((int) maxX, y, (int) maxZ));
+        return level.getWorldBorder().isWithinBounds(new BlockPos((int) minX, y, (int) minZ)) && level.getWorldBorder().isWithinBounds(new BlockPos((int) maxX, y, (int) maxZ));
     }
 
     /** Samples sixteen fixed points so a loaded tile reports a stable mean rather than one noisy column. */
@@ -186,9 +180,7 @@ public final class OrbitalTacticalMapCoordinator {
         int markers = 0;
         for (var endpoint : weapon.endpoints().values()) {
             OrbitalEndpointLocation location = endpoint.location();
-            if (!location.dimensionId().equals(level.dimension().location())
-                    || location.pos().getX() >> 4 != chunkX
-                    || location.pos().getZ() >> 4 != chunkZ) {
+            if (!location.dimensionId().equals(level.dimension().location()) || location.pos().getX() >> 4 != chunkX || location.pos().getZ() >> 4 != chunkZ) {
                 continue;
             }
             if (endpoint.kind() == OrbitalEndpointKind.UPLINK_BEACON) {

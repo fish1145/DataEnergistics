@@ -9,9 +9,8 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
-
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** C2S release of a map-fire preview after the server-clock confirmation hold. */
 public record OrbitalAttackPreviewReleasePayload(OrbitalAttackMode mode) implements CustomPacketPayload {
@@ -51,5 +50,4 @@ public record OrbitalAttackPreviewReleasePayload(OrbitalAttackMode mode) impleme
             }
         });
     }
-
 }

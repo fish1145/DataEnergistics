@@ -200,9 +200,9 @@ final class OrbitalWeaponNbtCodec {
     }
 
     private static @Nullable OrbitalEndpointLocation readPrimaryAnchor(
-                                                                     UUID weaponId,
-                                                                     CompoundTag weaponTag,
-                                                                     Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints) {
+                                                                       UUID weaponId,
+                                                                       CompoundTag weaponTag,
+                                                                       Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints) {
         Tag rawAnchor = weaponTag.get(PRIMARY_ANCHOR_TAG);
         if (!(rawAnchor instanceof CompoundTag anchorTag)) {
             return null;

@@ -21,44 +21,38 @@ import org.jspecify.annotations.Nullable;
 /**
  * Server-authoritative cost and workload estimate captured with one attack preview.
  *
- * <p>The execution time is a best-case lower bound. Asynchronous chunk generation and contention for the shared
+ * <p>
+ * The execution time is a best-case lower bound. Asynchronous chunk generation and contention for the shared
  * terrain budget can extend it. The unloaded count is an upper bound for newly generated chunks because an existing
- * on-disk chunk may currently be unloaded; calculating that distinction would require blocking chunk-storage I/O.</p>
+ * on-disk chunk may currently be unloaded; calculating that distinction would require blocking chunk-storage I/O.
+ * </p>
  */
 public record OrbitalAttackPreviewEstimate(
-        OrbitalAttackCost cost,
-        long availableCelestialEnergy,
-        long availableAeEnergy,
-        long scheduledCoordinates,
-        long scheduledBlocks,
-        int effectRadius,
-        int affectedChunks,
-        int unloadedChunks,
-        long minimumExecutionTicks) {
+                                           OrbitalAttackCost cost,
+                                           long availableCelestialEnergy,
+                                           long availableAeEnergy,
+                                           long scheduledCoordinates,
+                                           long scheduledBlocks,
+                                           int effectRadius,
+                                           int affectedChunks,
+                                           int unloadedChunks,
+                                           long minimumExecutionTicks) {
 
     public OrbitalAttackPreviewEstimate {
-        if (availableCelestialEnergy < 0L
-                || availableAeEnergy < 0L
-                || scheduledCoordinates < 0L
-                || scheduledBlocks < 0L
-                || effectRadius < 1
-                || affectedChunks < 1
-                || unloadedChunks < 0
-                || unloadedChunks > affectedChunks
-                || minimumExecutionTicks < 1L) {
+        if (availableCelestialEnergy < 0L || availableAeEnergy < 0L || scheduledCoordinates < 0L || scheduledBlocks < 0L || effectRadius < 1 || affectedChunks < 1 || unloadedChunks < 0 || unloadedChunks > affectedChunks || minimumExecutionTicks < 1L) {
             throw new IllegalArgumentException("Invalid orbital attack preview estimate");
         }
     }
 
     /** Captures a complete estimate from the same immutable configuration snapshot used by the preview revision. */
     public static OrbitalAttackPreviewEstimate capture(
-            DataEnergisticsSettings configuration,
-            ServerLevel level,
-            BlockPos target,
-            OrbitalAttackMode mode,
-            int directedRadius,
-            @Nullable OrbitalDirectedEnergyDepth directedDepth,
-            OrbitalEnergyReserve reserve) {
+                                                       DataEnergisticsSettings configuration,
+                                                       ServerLevel level,
+                                                       BlockPos target,
+                                                       OrbitalAttackMode mode,
+                                                       int directedRadius,
+                                                       @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                                       OrbitalEnergyReserve reserve) {
         DataEnergisticsSettings.OrbitalWeapon settings = configuration.orbitalWeapon();
         OrbitalAttackCost cost;
         long scheduledCoordinates = 0L;
@@ -123,8 +117,7 @@ public record OrbitalAttackPreviewEstimate(
 
     /** Returns whether the reserve snapshot shown in this preview can cover both independent escrow resources. */
     public boolean affordable() {
-        return this.availableCelestialEnergy >= this.cost.celestialEnergy()
-                && this.availableAeEnergy >= this.cost.aeEnergy();
+        return this.availableCelestialEnergy >= this.cost.celestialEnergy() && this.availableAeEnergy >= this.cost.aeEnergy();
     }
 
     private static ChunkEstimate countChunks(ServerLevel level, BlockPos target, int radius) {

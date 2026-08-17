@@ -7,13 +7,13 @@ import java.util.UUID;
 
 /** Bounded, revisioned server result for one tactical-map viewport request. */
 public record OrbitalTacticalMapSnapshot(
-                                          UUID sessionToken,
-                                          long revision,
-                                          ResourceLocation dimensionId,
-                                          int centerChunkX,
-                                          int centerChunkZ,
-                                          int radius,
-                                          List<OrbitalMapTile> tiles) {
+                                         UUID sessionToken,
+                                         long revision,
+                                         ResourceLocation dimensionId,
+                                         int centerChunkX,
+                                         int centerChunkZ,
+                                         int radius,
+                                         List<OrbitalMapTile> tiles) {
 
     public static final int MAX_TILES = 64;
 

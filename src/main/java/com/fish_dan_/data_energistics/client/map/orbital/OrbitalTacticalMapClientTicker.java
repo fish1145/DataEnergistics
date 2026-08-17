@@ -66,8 +66,7 @@ public final class OrbitalTacticalMapClientTicker {
 
         ChunkPos center = minecraft.player.chunkPosition();
         long gameTime = minecraft.level.getGameTime();
-        if (contextStartedAt != Long.MIN_VALUE
-                && gameTime - contextStartedAt >= SESSION_REFRESH_INTERVAL) {
+        if (contextStartedAt != Long.MIN_VALUE && gameTime - contextStartedAt >= SESSION_REFRESH_INTERVAL) {
             contextStartedAt = gameTime;
             lastRequestAt = Long.MIN_VALUE;
             OrbitalTacticalMapClientState.clear();

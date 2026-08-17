@@ -37,10 +37,7 @@ public final class OrbitalProjectionVisualClientState {
             pendingTotalCount = payload.totalCount();
             pendingBatches.clear();
         }
-        if (payload.revision() != pendingRevision
-                || !payload.dimensionId().equals(pendingDimension)
-                || payload.batchCount() != pendingBatchCount
-                || payload.totalCount() != pendingTotalCount) {
+        if (payload.revision() != pendingRevision || !payload.dimensionId().equals(pendingDimension) || payload.batchCount() != pendingBatchCount || payload.totalCount() != pendingTotalCount) {
             return;
         }
         pendingBatches.putIfAbsent(payload.batchIndex(), payload.projections());

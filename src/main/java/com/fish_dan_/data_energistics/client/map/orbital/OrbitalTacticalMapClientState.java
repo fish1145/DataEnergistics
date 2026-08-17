@@ -3,16 +3,15 @@ package com.fish_dan_.data_energistics.client.map.orbital;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
-
-import org.jspecify.annotations.Nullable;
 
 /** Client LRU-like bounded cache for the latest server tactical-map revision. */
 public final class OrbitalTacticalMapClientState {
@@ -74,9 +73,7 @@ public final class OrbitalTacticalMapClientState {
 
     /** Selects the local request context and returns its current session token or the bootstrap token. */
     public static UUID sessionTokenFor(UUID weaponId, ResourceLocation dimensionId) {
-        boolean sameContext = weaponId.equals(requestedWeaponId)
-                && dimensionId.equals(requestedDimension)
-                && dimensionId.equals(OrbitalTacticalMapClientState.dimensionId);
+        boolean sameContext = weaponId.equals(requestedWeaponId) && dimensionId.equals(requestedDimension) && dimensionId.equals(OrbitalTacticalMapClientState.dimensionId);
         requestedWeaponId = weaponId;
         requestedDimension = dimensionId;
         return sameContext ? sessionToken : BOOTSTRAP_TOKEN;

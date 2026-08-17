@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalAttackPreviewSessions;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -25,14 +25,14 @@ import java.util.Optional;
  * endpoint, cost and all revisions before creating a preview session.
  */
 public record OrbitalAttackPreviewRequestPayload(
-        OrbitalAttackMode mode,
-        ResourceLocation dimensionId,
-        int targetX,
-        int targetZ,
-        OrbitalTargetYMode targetYMode,
-        int targetYValue,
-        int directedRadius,
-        @Nullable OrbitalDirectedEnergyDepth directedDepth)
+                                                 OrbitalAttackMode mode,
+                                                 ResourceLocation dimensionId,
+                                                 int targetX,
+                                                 int targetZ,
+                                                 OrbitalTargetYMode targetYMode,
+                                                 int targetYValue,
+                                                 int directedRadius,
+                                                 @Nullable OrbitalDirectedEnergyDepth directedDepth)
         implements CustomPacketPayload {
 
     private static final int COORDINATE_LIMIT = 30_000_000;
@@ -45,9 +45,7 @@ public record OrbitalAttackPreviewRequestPayload(
             OrbitalAttackPreviewRequestPayload::new);
 
     public OrbitalAttackPreviewRequestPayload {
-        if (Math.abs((long) targetX) > COORDINATE_LIMIT
-                || Math.abs((long) targetZ) > COORDINATE_LIMIT
-                || Math.abs((long) targetYValue) > Y_VALUE_LIMIT) {
+        if (Math.abs((long) targetX) > COORDINATE_LIMIT || Math.abs((long) targetZ) > COORDINATE_LIMIT || Math.abs((long) targetYValue) > Y_VALUE_LIMIT) {
             throw new IllegalArgumentException("Orbital preview coordinates are outside the bounded map intent");
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {

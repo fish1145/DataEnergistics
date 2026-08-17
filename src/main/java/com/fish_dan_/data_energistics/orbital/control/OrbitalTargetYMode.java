@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.orbital.control;
 
 /** Server-resolved target-height strategies accepted by the orbital map preview intent. */
 public enum OrbitalTargetYMode {
+
     ABSOLUTE(0),
     SURFACE_OFFSET(1);
 

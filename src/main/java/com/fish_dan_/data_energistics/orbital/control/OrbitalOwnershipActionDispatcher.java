@@ -18,9 +18,11 @@ import java.util.UUID;
 /**
  * Server-thread entry points for ownership transfer and controlled retirement.
  *
- * <p>The dispatcher owns the short-lived retirement confirmation capability. A client never chooses the acting
+ * <p>
+ * The dispatcher owns the short-lived retirement confirmation capability. A client never chooses the acting
  * player, bypasses the one-shot transfer offer, or calls the destructive retirement mutation without first receiving
- * a server-generated confirmation token.</p>
+ * a server-generated confirmation token.
+ * </p>
  */
 public final class OrbitalOwnershipActionDispatcher {
 
@@ -72,41 +74,33 @@ public final class OrbitalOwnershipActionDispatcher {
         trackServer(server);
         OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
         Optional<OrbitalWeaponRecord> weapon = data.find(weaponId);
-        if (weapon.isEmpty()
-                || !weapon.orElseThrow().canPerform(actor.getUUID(), OrbitalWeaponAction.RETIRE)) {
+        if (weapon.isEmpty() || !weapon.orElseThrow().canPerform(actor.getUUID(), OrbitalWeaponAction.RETIRE)) {
             return Optional.empty();
         }
         long now = server.overworld().getGameTime();
-        RETIREMENT_CONFIRMATIONS.values().removeIf(confirmation ->
-                confirmation.playerId().equals(actor.getUUID())
-                        && confirmation.weaponId().equals(weaponId));
+        RETIREMENT_CONFIRMATIONS.values().removeIf(confirmation -> confirmation.playerId().equals(actor.getUUID()) && confirmation.weaponId().equals(weaponId));
         UUID token = UUID.randomUUID();
         RETIREMENT_CONFIRMATIONS.put(
                 token,
                 new RetirementConfirmation(
                         actor.getUUID(),
                         weaponId,
-                        now >= Long.MAX_VALUE - RETIRE_CONFIRMATION_TICKS
-                                ? Long.MAX_VALUE
-                                : now + RETIRE_CONFIRMATION_TICKS));
+                        now >= Long.MAX_VALUE - RETIRE_CONFIRMATION_TICKS ? Long.MAX_VALUE : now + RETIRE_CONFIRMATION_TICKS));
         return Optional.of(token);
     }
 
     /** Consumes a retirement token and performs the final authoritative state check and removal. */
     public static boolean confirmRetirement(
-                                             ServerPlayer actor,
-                                             UUID weaponId,
-                                             UUID token) {
+                                            ServerPlayer actor,
+                                            UUID weaponId,
+                                            UUID token) {
         MinecraftServer server = actor.getServer();
         if (server == null || !server.isSameThread()) {
             return false;
         }
         trackServer(server);
         RetirementConfirmation confirmation = RETIREMENT_CONFIRMATIONS.remove(token);
-        if (confirmation == null
-                || !confirmation.playerId().equals(actor.getUUID())
-                || !confirmation.weaponId().equals(weaponId)
-                || confirmation.expired(server.overworld().getGameTime())) {
+        if (confirmation == null || !confirmation.playerId().equals(actor.getUUID()) || !confirmation.weaponId().equals(weaponId) || confirmation.expired(server.overworld().getGameTime())) {
             return false;
         }
         return OrbitalWeaponSavedData.get(server).retire(server, actor.getUUID(), weaponId);

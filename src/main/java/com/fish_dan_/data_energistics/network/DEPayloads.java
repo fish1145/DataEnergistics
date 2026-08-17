@@ -6,12 +6,12 @@ import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPa
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewCancelPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewReleasePayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewRequestPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAuthorizationPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAuthorizationRevokePayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalEndpointPriorityPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalOwnershipTransferAcceptPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalOwnershipTransferRequestPayload;

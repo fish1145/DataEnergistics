@@ -12,20 +12,18 @@ import java.util.UUID;
  * authorization data; the weapon UUID is only a stable visual identity for client cache replacement.
  */
 public record OrbitalProjectionVisualSnapshot(
-                                               UUID weaponId,
-                                               ResourceLocation dimensionId,
-                                               BlockPos anchor,
-                                               int projectionY,
-                                               OrbitalWeaponLifecycleState lifecycleState,
-                                               int redeploymentTicksRemaining,
-                                               long animationTime,
-                                               long randomSeed) {
+                                              UUID weaponId,
+                                              ResourceLocation dimensionId,
+                                              BlockPos anchor,
+                                              int projectionY,
+                                              OrbitalWeaponLifecycleState lifecycleState,
+                                              int redeploymentTicksRemaining,
+                                              long animationTime,
+                                              long randomSeed) {
 
     public OrbitalProjectionVisualSnapshot {
         anchor = anchor.immutable();
-        if (redeploymentTicksRemaining < 0
-                || animationTime < 0L
-                || randomSeed < 0L) {
+        if (redeploymentTicksRemaining < 0 || animationTime < 0L || randomSeed < 0L) {
             throw new IllegalArgumentException("Orbital projection visual state is outside its bounded range");
         }
         if (lifecycleState == OrbitalWeaponLifecycleState.REDEPLOYING && redeploymentTicksRemaining <= 0) {

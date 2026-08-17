@@ -19,7 +19,8 @@ import java.util.UUID;
 public record OrbitalPrimaryAnchorPayload(
                                           UUID weaponId,
                                           ResourceLocation dimensionId,
-                                          BlockPos endpointPos) implements CustomPacketPayload {
+                                          BlockPos endpointPos)
+        implements CustomPacketPayload {
 
     private static final int HORIZONTAL_COORDINATE_LIMIT = 30_000_000;
     private static final int VERTICAL_COORDINATE_LIMIT = 2_000_000;
@@ -63,9 +64,7 @@ public record OrbitalPrimaryAnchorPayload(
                         payload.weaponId(),
                         new OrbitalEndpointLocation(payload.dimensionId(), payload.endpointPos()));
                 player.displayClientMessage(
-                        Component.translatable(selected
-                                ? "message.data_energistics.orbital.primary_anchor_updated"
-                                : "message.data_energistics.orbital.primary_anchor_rejected"),
+                        Component.translatable(selected ? "message.data_energistics.orbital.primary_anchor_updated" : "message.data_energistics.orbital.primary_anchor_rejected"),
                         true);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.warn(
@@ -81,8 +80,6 @@ public record OrbitalPrimaryAnchorPayload(
     }
 
     private static boolean bounded(BlockPos pos) {
-        return Math.abs((long) pos.getX()) <= HORIZONTAL_COORDINATE_LIMIT
-                && Math.abs((long) pos.getZ()) <= HORIZONTAL_COORDINATE_LIMIT
-                && Math.abs((long) pos.getY()) <= VERTICAL_COORDINATE_LIMIT;
+        return Math.abs((long) pos.getX()) <= HORIZONTAL_COORDINATE_LIMIT && Math.abs((long) pos.getZ()) <= HORIZONTAL_COORDINATE_LIMIT && Math.abs((long) pos.getY()) <= VERTICAL_COORDINATE_LIMIT;
     }
 }

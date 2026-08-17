@@ -15,13 +15,14 @@ import java.util.UUID;
 
 /** C2S tactical-map intent; the server rechecks weapon access, endpoint reachability and all viewport bounds. */
 public record OrbitalTacticalMapRequestPayload(
-                                                UUID weaponId,
-                                                UUID sessionToken,
-                                                ResourceLocation dimensionId,
-                                                int centerChunkX,
-                                                int centerChunkZ,
-                                                int radius,
-                                                long nonce) implements CustomPacketPayload {
+                                               UUID weaponId,
+                                               UUID sessionToken,
+                                               ResourceLocation dimensionId,
+                                               int centerChunkX,
+                                               int centerChunkZ,
+                                               int radius,
+                                               long nonce)
+        implements CustomPacketPayload {
 
     public static final Type<OrbitalTacticalMapRequestPayload> TYPE = new Type<>(
             Data_Energistics.id("orbital_tactical_map_request"));
@@ -30,9 +31,7 @@ public record OrbitalTacticalMapRequestPayload(
             OrbitalTacticalMapRequestPayload::new);
 
     public OrbitalTacticalMapRequestPayload {
-        if (radius < 0 || radius > 3 || nonce <= 0L
-                || Math.abs((long) centerChunkX) > 2_000_000L
-                || Math.abs((long) centerChunkZ) > 2_000_000L) {
+        if (radius < 0 || radius > 3 || nonce <= 0L || Math.abs((long) centerChunkX) > 2_000_000L || Math.abs((long) centerChunkZ) > 2_000_000L) {
             throw new IllegalArgumentException("Orbital tactical-map request is outside its bounded viewport");
         }
     }
@@ -69,14 +68,14 @@ public record OrbitalTacticalMapRequestPayload(
                 return;
             }
             OrbitalTacticalMapCoordinator.INSTANCE.request(
-                            player,
-                            payload.weaponId(),
-                            payload.sessionToken(),
-                            payload.dimensionId(),
-                            payload.centerChunkX(),
-                            payload.centerChunkZ(),
-                            payload.radius(),
-                            payload.nonce())
+                    player,
+                    payload.weaponId(),
+                    payload.sessionToken(),
+                    payload.dimensionId(),
+                    payload.centerChunkX(),
+                    payload.centerChunkZ(),
+                    payload.radius(),
+                    payload.nonce())
                     .ifPresent(snapshot -> PacketDistributor.sendToPlayer(
                             player,
                             new OrbitalTacticalMapResponsePayload(snapshot)));

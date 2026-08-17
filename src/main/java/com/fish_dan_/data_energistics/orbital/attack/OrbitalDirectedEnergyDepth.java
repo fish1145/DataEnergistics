@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
-import lombok.Getter;
 import net.minecraft.server.level.ServerLevel;
+
+import lombok.Getter;
 
 /**
  * Server-authoritative depth profiles for the spiral directed-energy scan.

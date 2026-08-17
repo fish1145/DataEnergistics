@@ -52,9 +52,7 @@ public record OrbitalRetirementConfirmPayload(UUID weaponId, UUID confirmationTo
             }
             player.displayClientMessage(
                     Component.translatable(
-                            retired
-                                    ? "message.data_energistics.orbital.retirement_completed"
-                                    : "message.data_energistics.orbital.retirement_rejected"),
+                            retired ? "message.data_energistics.orbital.retirement_completed" : "message.data_energistics.orbital.retirement_rejected"),
                     true);
         });
     }

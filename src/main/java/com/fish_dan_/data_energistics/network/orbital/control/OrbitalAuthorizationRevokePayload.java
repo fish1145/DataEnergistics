@@ -47,9 +47,7 @@ public record OrbitalAuthorizationRevokePayload(UUID weaponId, UUID playerId)
                         payload.weaponId(),
                         payload.playerId());
                 player.displayClientMessage(
-                        Component.translatable(revoked
-                                ? "message.data_energistics.orbital.authorization_revoked"
-                                : "message.data_energistics.orbital.authorization_rejected"),
+                        Component.translatable(revoked ? "message.data_energistics.orbital.authorization_revoked" : "message.data_energistics.orbital.authorization_rejected"),
                         true);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.warn(

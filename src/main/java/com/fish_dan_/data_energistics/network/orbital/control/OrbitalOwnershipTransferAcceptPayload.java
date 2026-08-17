@@ -47,9 +47,7 @@ public record OrbitalOwnershipTransferAcceptPayload(UUID transferId) implements 
             }
             player.displayClientMessage(
                     Component.translatable(
-                            accepted
-                                    ? "message.data_energistics.orbital.transfer_accepted"
-                                    : "message.data_energistics.orbital.transfer_accept_rejected"),
+                            accepted ? "message.data_energistics.orbital.transfer_accepted" : "message.data_energistics.orbital.transfer_accept_rejected"),
                     true);
         });
     }

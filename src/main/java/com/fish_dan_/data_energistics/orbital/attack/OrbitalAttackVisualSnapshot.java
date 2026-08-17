@@ -7,17 +7,17 @@ import java.util.UUID;
 
 /** Public, render-only attack state. It intentionally contains no owner, reserve or authorization information. */
 public record OrbitalAttackVisualSnapshot(
-                                           UUID attackId,
-                                           OrbitalAttackMode mode,
-                                           ResourceLocation dimensionId,
-                                           BlockPos target,
-                                           BlockPos effectPosition,
-                                           int effectRadius,
-                                           OrbitalAttackPhase phase,
-                                           long phaseAge,
-                                           long randomSeed,
-                                           long workCursor,
-                                           long totalWork) {
+                                          UUID attackId,
+                                          OrbitalAttackMode mode,
+                                          ResourceLocation dimensionId,
+                                          BlockPos target,
+                                          BlockPos effectPosition,
+                                          int effectRadius,
+                                          OrbitalAttackPhase phase,
+                                          long phaseAge,
+                                          long randomSeed,
+                                          long workCursor,
+                                          long totalWork) {
 
     public OrbitalAttackVisualSnapshot {
         target = target.immutable();

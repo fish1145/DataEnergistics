@@ -18,10 +18,12 @@ import java.util.UUID;
 /**
  * Server-owned preview and confirmation-hold sessions for orbital attacks.
  *
- * <p>A session contains only the target intent and the configuration revision that produced it. It does not debit
+ * <p>
+ * A session contains only the target intent and the configuration revision that produced it. It does not debit
  * reserves or mutate an attack record; the caller must pass the returned immutable preview to the authoritative attack
  * confirmation after the hold has completed. One player can have at most one session, and a session is scoped to the
- * {@link MinecraftServer} instance that created it.</p>
+ * {@link MinecraftServer} instance that created it.
+ * </p>
  */
 public final class OrbitalAttackPreviewSessions {
 
@@ -40,22 +42,24 @@ public final class OrbitalAttackPreviewSessions {
     /**
      * Starts or replaces the calling player's preview session.
      *
-     * <p>The caller is expected to have performed the server-side access, target-dimension and geometry checks before
+     * <p>
+     * The caller is expected to have performed the server-side access, target-dimension and geometry checks before
      * creating the preview. This boundary still rejects invalid revisions and directed-energy geometry so a session
-     * cannot carry an invalid confirmation intent.</p>
+     * cannot carry an invalid confirmation intent.
+     * </p>
      */
     public Optional<Preview> begin(
-                                MinecraftServer server,
-                                UUID playerId,
-                                OrbitalAttackMode mode,
-                                ResourceLocation dimensionId,
-                                BlockPos target,
-                                UUID weaponId,
-                                 int directedRadius,
-                                 @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                 long configurationRevision,
-                                 long stateRevision,
-                                 OrbitalAttackPreviewEstimate estimate) {
+                                   MinecraftServer server,
+                                   UUID playerId,
+                                   OrbitalAttackMode mode,
+                                   ResourceLocation dimensionId,
+                                   BlockPos target,
+                                   UUID weaponId,
+                                   int directedRadius,
+                                   @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                   long configurationRevision,
+                                   long stateRevision,
+                                   OrbitalAttackPreviewEstimate estimate) {
         requireServerThread(server);
         trackServer(server);
         if (configurationRevision < 0L || stateRevision < 0L) {
@@ -139,9 +143,9 @@ public final class OrbitalAttackPreviewSessions {
      * removed rather than left available for replay.
      */
     public Optional<Preview> release(
-                                  MinecraftServer server,
-                                  UUID playerId,
-                                  OrbitalAttackMode mode) {
+                                     MinecraftServer server,
+                                     UUID playerId,
+                                     OrbitalAttackMode mode) {
         requireServerThread(server);
         trackServer(server);
         if (!this.sessions.containsKey(playerId)) {
@@ -211,8 +215,7 @@ public final class OrbitalAttackPreviewSessions {
     }
 
     private boolean acceptsBeginAt(UUID playerId, long now) {
-        return !this.lastBeginAt.containsKey(playerId)
-                || now - this.lastBeginAt.getLong(playerId) >= MINIMUM_BEGIN_INTERVAL_TICKS;
+        return !this.lastBeginAt.containsKey(playerId) || now - this.lastBeginAt.getLong(playerId) >= MINIMUM_BEGIN_INTERVAL_TICKS;
     }
 
     private static long saturatingAdd(long value) {
@@ -230,28 +233,24 @@ public final class OrbitalAttackPreviewSessions {
 
     /** Immutable target intent captured by one preview session. */
     public record Preview(
-                         UUID playerId,
-                         UUID weaponId,
-                         OrbitalAttackMode mode,
-                         ResourceLocation dimensionId,
-                         BlockPos target,
-                         int directedRadius,
-                         @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                         UUID nonce,
-                         long configurationRevision,
-                         long stateRevision,
-                         OrbitalAttackPreviewEstimate estimate,
-                         long createdAt,
-                         long expiresAt,
-                         long holdStartedAt) {
+                          UUID playerId,
+                          UUID weaponId,
+                          OrbitalAttackMode mode,
+                          ResourceLocation dimensionId,
+                          BlockPos target,
+                          int directedRadius,
+                          @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                          UUID nonce,
+                          long configurationRevision,
+                          long stateRevision,
+                          OrbitalAttackPreviewEstimate estimate,
+                          long createdAt,
+                          long expiresAt,
+                          long holdStartedAt) {
 
         public Preview {
             target = target.immutable();
-            if (configurationRevision < 0L
-                    || stateRevision < 0L
-                    || createdAt < 0L
-                    || expiresAt <= createdAt
-                    || (holdStartedAt != HOLD_NOT_STARTED && holdStartedAt < createdAt)) {
+            if (configurationRevision < 0L || stateRevision < 0L || createdAt < 0L || expiresAt <= createdAt || (holdStartedAt != HOLD_NOT_STARTED && holdStartedAt < createdAt)) {
                 throw new IllegalArgumentException("Orbital preview timing or revision is invalid");
             }
             if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {

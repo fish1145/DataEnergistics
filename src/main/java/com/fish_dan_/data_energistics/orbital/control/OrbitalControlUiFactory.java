@@ -260,12 +260,12 @@ public final class OrbitalControlUiFactory {
     }
 
     private static Button actionButton(
-                                        String id,
-                                        String translationKey,
-                                        int left,
-                                        Player player,
-                                        BooleanSupplier sourceValid,
-                                        OrbitalAttackMode mode) {
+                                       String id,
+                                       String translationKey,
+                                       int left,
+                                       Player player,
+                                       BooleanSupplier sourceValid,
+                                       OrbitalAttackMode mode) {
         Button button = new Button();
         button.setId(id);
         button.setText(Component.translatable(translationKey));
