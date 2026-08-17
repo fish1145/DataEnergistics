@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Owns the server-level round-robin boundary that interleaves physical calls from independent AE Grids.
+ * Owns the server-level round-robin boundary that interleaves bounded provider passes from independent AE Grids.
  * <p>
- * Server-thread-confined scheduler that switches Grid after every real physical provider call.
+ * Server-thread-confined scheduler that switches Grid after every bounded participant pass.
  */
 public final class TrinityServerDispatchScheduler {
 
