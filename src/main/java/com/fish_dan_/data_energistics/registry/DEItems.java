@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.item.dataripper.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.decor.DollBlockItem;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.meteorite.DataMeteoriteCompassItem;
+import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.item.order.OrderPackageItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.PoweredAxeItem;
@@ -101,6 +102,9 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ORBITAL_CONTROL_CONSOLE = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_CONTROL_CONSOLE);
     public static final DeferredItem<BlockItem> ORBITAL_UPLINK_BEACON = ITEMS.registerSimpleBlockItem(DEBlocks.ORBITAL_UPLINK_BEACON);
+    public static final DeferredItem<OrbitalControlTerminalItem> ORBITAL_CONTROL_TERMINAL = ITEMS.register(
+            "orbital_control_terminal",
+            () -> new OrbitalControlTerminalItem(new Item.Properties()));
     public static final DeferredItem<BlockItem> ASTRONOMICAL_OBSERVATORY = ITEMS.registerSimpleBlockItem(DEBlocks.ASTRONOMICAL_OBSERVATORY);
     public static final DeferredItem<BlockItem> INTERFERENCE_ARRAY_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.INTERFERENCE_ARRAY_CORE);
     public static final DeferredItem<BlockItem> ASTRONOMICAL_MIRROR = ITEMS.registerSimpleBlockItem(DEBlocks.ASTRONOMICAL_MIRROR);

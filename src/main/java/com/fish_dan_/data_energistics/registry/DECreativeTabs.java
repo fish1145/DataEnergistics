@@ -69,6 +69,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_TELEPORT_ANCHOR);
                         output.accept(DEItems.ORBITAL_CONTROL_CONSOLE);
                         output.accept(DEItems.ORBITAL_UPLINK_BEACON);
+                        output.accept(DEItems.ORBITAL_CONTROL_TERMINAL);
                         output.accept(DEItems.ASTRONOMICAL_OBSERVATORY);
                         output.accept(DEItems.INTERFERENCE_ARRAY_CORE);
                         output.accept(DEItems.ASTRONOMICAL_MIRROR);
