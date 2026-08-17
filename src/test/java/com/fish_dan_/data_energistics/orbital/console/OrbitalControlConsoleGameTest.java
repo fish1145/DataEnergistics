@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -15,9 +16,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -26,6 +32,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import com.mojang.authlib.GameProfile;
 
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -97,6 +104,23 @@ public final class OrbitalControlConsoleGameTest {
                 "After placement, the player must retain both delegated access and their independently owned weapon");
 
         BlockPos firstAbsolutePos = helper.absolutePos(FIRST_CONSOLE);
+        owner.setPos(firstAbsolutePos.getX() + 0.5D, firstAbsolutePos.getY() + 0.5D, firstAbsolutePos.getZ() + 0.5D);
+        BlockHitResult hit = new BlockHitResult(
+                Vec3.atCenterOf(firstAbsolutePos),
+                Direction.UP,
+                firstAbsolutePos,
+                false);
+        InteractionResult openResult = level.getBlockState(firstAbsolutePos).useWithoutItem(level, owner, hit);
+        helper.assertValueEqual(
+                openResult,
+                InteractionResult.CONSUME,
+                "A bound console must open the same server-side LDLib2 control surface as the handheld terminal");
+        AbstractContainerMenu consoleMenu = owner.containerMenu;
+        helper.assertTrue(
+                consoleMenu != owner.inventoryMenu,
+                "Opening a bound console must replace the normal inventory menu");
+        helper.assertTrue(consoleMenu.stillValid(owner), "The console menu must remain valid near its bound block");
+        owner.doCloseContainer();
         helper.assertTrue(level.destroyBlock(firstAbsolutePos, false), "The first console must be removable from the world");
         helper.assertTrue(
                 data.weaponAt(firstLocation).isEmpty(),
@@ -184,5 +208,15 @@ public final class OrbitalControlConsoleGameTest {
 
         @Override
         public void displayClientMessage(Component chatComponent, boolean actionBar) {}
+
+        @Override
+        public OptionalInt openMenu(MenuProvider provider) {
+            AbstractContainerMenu menu = provider.createMenu(1, this.getInventory(), this);
+            if (menu == null) {
+                return OptionalInt.empty();
+            }
+            this.containerMenu = menu;
+            return OptionalInt.of(menu.containerId);
+        }
     }
 }

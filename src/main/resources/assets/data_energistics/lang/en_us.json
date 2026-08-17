@@ -676,6 +676,7 @@
 	"screen.data_energistics.orbital_control_terminal.role.operator": "Operator",
 	"screen.data_energistics.orbital_control_terminal.role.owner": "Owner",
 	"screen.data_energistics.orbital_control_terminal.title": "Orbital Control Terminal",
+	"screen.data_energistics.orbital_control_terminal.truncated": "Additional accessible weapons are hidden from this overview.",
 	"screen.data_energistics.orbital_control_terminal.weapon": "Weapon %s | Owner %s | Role %s | Endpoints %s | Celestial Energy %s | AE Energy %s",
 	"screen.data_energistics.compartment.aggregation_read_only": "Aggregate read-only",
 	"screen.data_energistics.compartment.config_to_buffer": "Configuration > Buffer",

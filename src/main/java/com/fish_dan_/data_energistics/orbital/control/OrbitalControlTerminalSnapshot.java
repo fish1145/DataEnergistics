@@ -23,7 +23,8 @@ import java.util.UUID;
  */
 public record OrbitalControlTerminalSnapshot(
                                              @Nullable UUID selectedWeaponId,
-                                             List<WeaponEntry> weapons) {
+                                             List<WeaponEntry> weapons,
+                                             boolean truncated) {
 
     /** Maximum number of entries kept in one synchronized terminal snapshot. */
     public static final int MAX_WEAPONS = 128;
@@ -31,7 +32,7 @@ public record OrbitalControlTerminalSnapshot(
     public OrbitalControlTerminalSnapshot {
         weapons = List.copyOf(weapons);
         if (weapons.size() > MAX_WEAPONS) {
-            throw new IllegalArgumentException("Orbital terminal snapshot contains too many weapons");
+            throw new IllegalArgumentException("Orbital terminal snapshot exceeds its bounded entry limit");
         }
         if (selectedWeaponId != null && weapons.stream().noneMatch(entry -> entry.weaponId().equals(selectedWeaponId))) {
             throw new IllegalArgumentException("Orbital terminal selection is not present in its weapon list");
@@ -46,13 +47,17 @@ public record OrbitalControlTerminalSnapshot(
      * @return stable weapon-ID ordered opening snapshot
      */
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
-        List<WeaponEntry> entries = OrbitalWeaponSavedData.get(server)
+        List<OrbitalWeaponRecord> accessibleWeapons = OrbitalWeaponSavedData.get(server)
                 .accessibleTo(playerId)
                 .stream()
+                .toList();
+        boolean truncated = accessibleWeapons.size() > MAX_WEAPONS;
+        List<WeaponEntry> entries = accessibleWeapons.stream()
+                .limit(MAX_WEAPONS)
                 .map(weapon -> WeaponEntry.from(weapon, playerId))
                 .toList();
         UUID selected = entries.isEmpty() ? null : entries.getFirst().weaponId();
-        return new OrbitalControlTerminalSnapshot(selected, entries);
+        return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
     }
 
     /**
@@ -78,6 +83,11 @@ public record OrbitalControlTerminalSnapshot(
                             Integer.toString(entry.endpointCount()),
                             Long.toString(entry.celestialEnergy()),
                             Long.toString(entry.aeEnergy())));
+        }
+        if (this.truncated) {
+            result = result
+                    .append(Component.literal("\n"))
+                    .append(Component.translatable("screen.data_energistics.orbital_control_terminal.truncated"));
         }
         return result;
     }
