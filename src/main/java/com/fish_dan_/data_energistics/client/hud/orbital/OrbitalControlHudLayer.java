@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.hud.orbital;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
 
 import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
@@ -22,12 +23,14 @@ import dev.vfyjxf.taffy.style.TaffyPosition;
 public final class OrbitalControlHudLayer implements ModularHudLayer {
 
     private static final int WIDTH = 360;
-    private static final int HEIGHT = 96;
+    private static final int HEIGHT = 176;
     private static final int TEXT_COLOR = 0xE8F4FF;
 
     private final ModularUI modularUI;
     private final Label statusLabel;
+    private final Label mapLabel;
     private Component displayedStatus = Component.empty();
+    private Component displayedMap = Component.empty();
 
     private OrbitalControlHudLayer() {
         UIElement root = new UIElement();
@@ -57,8 +60,25 @@ public final class OrbitalControlHudLayer implements ModularHudLayer {
                 .left(4)
                 .top(4)
                 .width(WIDTH - 8)
-                .height(HEIGHT - 8));
-        root.addChild(this.statusLabel);
+                .height(92));
+        this.mapLabel = new Label();
+        this.mapLabel.setId("orbital_control_hud_map");
+        this.mapLabel.setAllowHitTest(false);
+        this.mapLabel.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .fontSize(8)
+                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignVertical(Vertical.TOP)
+                .textColor(TEXT_COLOR)
+                .textShadow(true));
+        this.mapLabel.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(4)
+                .top(102)
+                .width(WIDTH - 8)
+                .height(68));
+        root.addChildren(this.statusLabel, this.mapLabel);
         this.modularUI = ModularUI.of(UI.of(root));
         this.modularUI.setTickWhileRending(true);
     }
@@ -78,6 +98,11 @@ public final class OrbitalControlHudLayer implements ModularHudLayer {
         if (!status.equals(this.displayedStatus)) {
             this.displayedStatus = status;
             this.statusLabel.setValue(status);
+        }
+        Component map = OrbitalTacticalMapClientState.summary();
+        if (!map.equals(this.displayedMap)) {
+            this.displayedMap = map;
+            this.mapLabel.setValue(map);
         }
         return this.modularUI;
     }

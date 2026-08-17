@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPr
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientTicker;
 import com.fish_dan_.data_energistics.client.render.orbital.OrbitalAttackVisualClientState;
 import com.fish_dan_.data_energistics.client.render.orbital.OrbitalProjectionVisualClientState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
@@ -21,6 +22,7 @@ final class ClientGameEventRegistrar {
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMouseButtonPre);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onKeyInput);
         NeoForge.EVENT_BUS.addListener(ClientTickHandler::onClientTickPost);
+        NeoForge.EVENT_BUS.addListener(OrbitalTacticalMapClientTicker::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMouseScroll);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenOpening);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenInitPost);

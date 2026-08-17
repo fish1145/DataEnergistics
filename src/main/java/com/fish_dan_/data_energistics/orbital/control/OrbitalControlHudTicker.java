@@ -11,6 +11,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,7 +23,7 @@ public final class OrbitalControlHudTicker {
     private static final long PUBLISH_INTERVAL = 5L;
 
     private final Map<UUID, PublishedState> publishedStates = new HashMap<>();
-    private MinecraftServer trackedServer;
+    private @Nullable MinecraftServer trackedServer;
 
     public OrbitalControlHudTicker() {}
 
@@ -43,7 +45,11 @@ public final class OrbitalControlHudTicker {
             if (!state.equals(previous)) {
                 PacketDistributor.sendToPlayer(
                         player,
-                        new OrbitalControlHudSnapshotPayload(gameTime, state.visible(), state.status()));
+                        new OrbitalControlHudSnapshotPayload(
+                                gameTime,
+                                state.visible(),
+                                state.status(),
+                                state.selectedWeaponId()));
             }
         }
         this.publishedStates.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
@@ -57,7 +63,7 @@ public final class OrbitalControlHudTicker {
         if (snapshot.selectedWeaponId() == null) {
             return PublishedState.HIDDEN;
         }
-        return new PublishedState(true, snapshot.toHudComponent());
+        return new PublishedState(true, snapshot.toHudComponent(), snapshot.selectedWeaponId());
     }
 
     private static boolean holdsTerminal(ServerPlayer player) {
@@ -68,8 +74,8 @@ public final class OrbitalControlHudTicker {
         return stack.is(DEItems.ORBITAL_CONTROL_TERMINAL.get());
     }
 
-    private record PublishedState(boolean visible, Component status) {
+    private record PublishedState(boolean visible, Component status, @Nullable UUID selectedWeaponId) {
 
-        private static final PublishedState HIDDEN = new PublishedState(false, Component.empty());
+        private static final PublishedState HIDDEN = new PublishedState(false, Component.empty(), null);
     }
 }

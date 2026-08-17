@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.map;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -27,10 +29,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Server-thread tactical-map coordinator. It never calls a chunk-loading API: a missing chunk becomes an UNKNOWN
- * tile, while loaded chunks expose only a single surface sample.
+ * tile, while loaded chunks expose a deterministic average surface height, biome color and public marker bits.
  */
 public final class OrbitalTacticalMapCoordinator {
 
@@ -80,7 +83,7 @@ public final class OrbitalTacticalMapCoordinator {
         long gameTime = server.overworld().getGameTime();
         ServerState state = this.serverStates.computeIfAbsent(server, ignored -> new ServerState());
         Session session = state.sessions.get(player.getUUID());
-        if (session == null || session.expiresAt < gameTime
+        if (session == null || session.expiresAt <= gameTime
                 || !session.weaponId.equals(weaponId) || !session.token.equals(sessionToken)) {
             if (!BOOTSTRAP_TOKEN.equals(sessionToken)) {
                 return Optional.empty();
@@ -107,6 +110,7 @@ public final class OrbitalTacticalMapCoordinator {
 
         int side = radius * 2 + 1;
         Set<Long> seenChunks = new HashSet<>(side * side);
+        Set<Long> publicAttackChunks = publicAttackChunks(level);
         ArrayList<OrbitalMapTile> tiles = new ArrayList<>(side * side);
         for (int offsetX = -radius; offsetX <= radius; offsetX++) {
             for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
@@ -116,12 +120,14 @@ public final class OrbitalTacticalMapCoordinator {
                 if (!seenChunks.add(chunkKey)) {
                     throw new IllegalStateException("Tactical-map viewport produced a duplicate chunk");
                 }
+                int markers = markerFlags(level, weapon, chunkX, chunkZ, publicAttackChunks);
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk == null) {
-                    tiles.add(OrbitalMapTile.unknown(chunkX, chunkZ));
+                    tiles.add(OrbitalMapTile.unknown(chunkX, chunkZ, markers));
                 } else {
-                    int surfaceY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, 8, 8);
-                    tiles.add(new OrbitalMapTile(chunkX, chunkZ, true, surfaceY));
+                    int surfaceY = averageSurfaceY(chunk);
+                    int biomeColor = biomeColor(level, chunk, surfaceY);
+                    tiles.add(new OrbitalMapTile(chunkX, chunkZ, true, surfaceY, biomeColor, markers));
                 }
             }
         }
@@ -150,6 +156,60 @@ public final class OrbitalTacticalMapCoordinator {
         int y = level.getMinBuildHeight();
         return level.getWorldBorder().isWithinBounds(new BlockPos((int) minX, y, (int) minZ))
                 && level.getWorldBorder().isWithinBounds(new BlockPos((int) maxX, y, (int) maxZ));
+    }
+
+    /** Samples sixteen fixed points so a loaded tile reports a stable mean rather than one noisy column. */
+    private static int averageSurfaceY(LevelChunk chunk) {
+        long sum = 0L;
+        for (int sampleX = 2; sampleX < 16; sampleX += 4) {
+            for (int sampleZ = 2; sampleZ < 16; sampleZ += 4) {
+                sum += chunk.getHeight(Heightmap.Types.WORLD_SURFACE, sampleX, sampleZ);
+            }
+        }
+        return (int) (sum / 16L);
+    }
+
+    /** Uses the biome's built-in foliage palette, which is deterministic and does not require client tint data. */
+    private static int biomeColor(ServerLevel level, LevelChunk chunk, int surfaceY) {
+        int worldX = chunk.getPos().getMinBlockX() + 8;
+        int worldZ = chunk.getPos().getMinBlockZ() + 8;
+        return level.getBiome(new BlockPos(worldX, surfaceY, worldZ)).value().getFoliageColor() & 0xFFFFFF;
+    }
+
+    /** Computes only public, chunk-local marker bits; this path never asks the chunk source to load terrain. */
+    private static int markerFlags(
+                                   ServerLevel level,
+                                   OrbitalWeaponRecord weapon,
+                                   int chunkX,
+                                   int chunkZ,
+                                   Set<Long> publicAttackChunks) {
+        int markers = 0;
+        for (var endpoint : weapon.endpoints().values()) {
+            OrbitalEndpointLocation location = endpoint.location();
+            if (!location.dimensionId().equals(level.dimension().location())
+                    || location.pos().getX() >> 4 != chunkX
+                    || location.pos().getZ() >> 4 != chunkZ) {
+                continue;
+            }
+            if (endpoint.kind() == OrbitalEndpointKind.UPLINK_BEACON) {
+                markers |= OrbitalMapTile.MARKER_UPLINK_BEACON;
+            }
+            if (location.equals(weapon.primaryAnchor())) {
+                markers |= OrbitalMapTile.MARKER_PRIMARY_ANCHOR;
+            }
+        }
+        if (publicAttackChunks.contains(ChunkPos.asLong(chunkX, chunkZ))) {
+            markers |= OrbitalMapTile.MARKER_ACTIVE_PUBLIC_ATTACK;
+        }
+        return markers;
+    }
+
+    private static Set<Long> publicAttackChunks(ServerLevel level) {
+        return OrbitalAttackSavedData.get(level.getServer())
+                .publicForDimension(level.dimension().location())
+                .stream()
+                .map(attack -> ChunkPos.asLong(new ChunkPos(attack.target()).x, new ChunkPos(attack.target()).z))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private static final class ServerState {

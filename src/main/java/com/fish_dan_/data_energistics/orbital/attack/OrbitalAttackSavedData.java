@@ -190,6 +190,17 @@ public final class OrbitalAttackSavedData extends SavedData {
                 .toList();
     }
 
+    /** Returns only publicly visible attacks in one dimension for tactical-map marker sampling. */
+    public List<OrbitalAttackRecord> publicForDimension(ResourceLocation dimensionId) {
+        return this.attacks.values().stream()
+                .filter(attack -> attack.dimensionId().equals(dimensionId))
+                .filter(attack -> attack.phase() == OrbitalAttackPhase.RESERVED_WARNING
+                        || attack.phase() == OrbitalAttackPhase.COMMITTED
+                        || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
+                .toList();
+    }
+
     /**
      * Builds the public render baseline for one dimension. No owner, reserve, exemption or delegated-role field is
      * included; clients only receive deterministic geometry and coarse progress.

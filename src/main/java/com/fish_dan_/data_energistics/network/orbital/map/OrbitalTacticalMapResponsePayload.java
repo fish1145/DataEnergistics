@@ -76,7 +76,9 @@ public record OrbitalTacticalMapResponsePayload(
             buffer.writeBoolean(tile.known());
             if (tile.known()) {
                 buffer.writeVarInt(tile.surfaceY());
+                buffer.writeVarInt(tile.biomeColor());
             }
+            buffer.writeVarInt(tile.markerFlags());
         }
     }
 
@@ -99,9 +101,16 @@ public record OrbitalTacticalMapResponsePayload(
             int chunkX = buffer.readVarInt();
             int chunkZ = buffer.readVarInt();
             boolean known = buffer.readBoolean();
+            int surfaceY = OrbitalMapTile.UNKNOWN_SURFACE;
+            int biomeColor = OrbitalMapTile.UNKNOWN_BIOME_COLOR;
+            if (known) {
+                surfaceY = buffer.readVarInt();
+                biomeColor = buffer.readVarInt();
+            }
+            int markerFlags = buffer.readVarInt();
             tiles.add(known
-                    ? new OrbitalMapTile(chunkX, chunkZ, true, buffer.readVarInt())
-                    : OrbitalMapTile.unknown(chunkX, chunkZ));
+                    ? new OrbitalMapTile(chunkX, chunkZ, true, surfaceY, biomeColor, markerFlags)
+                    : OrbitalMapTile.unknown(chunkX, chunkZ, markerFlags));
         }
         return List.copyOf(tiles);
     }
