@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.runtime;
 
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridge;
 import com.fish_dan_.data_energistics.client.gui.ldlib2.multiblock.LdlibStructurePreviewSceneBinder;
+import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.guideme.DataRipperReassemblerGuideRecipeBody;
 import com.fish_dan_.data_energistics.client.integration.Ae2WtLibClientCompat;
 import com.fish_dan_.data_energistics.client.meteorite.DataMeteoriteCompassClientCache;
@@ -12,6 +13,7 @@ import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalSt
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.scene.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalStateSyncPayload;
@@ -74,6 +76,11 @@ public final class ClientRuntimeBridge implements DataEnergisticsClientBridge {
     @Override
     public void cacheSyncedCompassResult(DataMeteoriteCompassResponsePayload payload) {
         DataMeteoriteCompassClientCache.cacheSyncedCompassResult(payload);
+    }
+
+    @Override
+    public void cacheOrbitalControlHud(OrbitalControlHudSnapshotPayload payload) {
+        OrbitalControlHudClientState.receive(payload);
     }
 
     @Override

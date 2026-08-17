@@ -127,6 +127,57 @@ public record OrbitalControlTerminalSnapshot(
         return result;
     }
 
+    /**
+     * Builds the compact status sent to the world HUD. Only the persisted selected weapon is included, keeping the
+     * server-to-client update bounded even when a player can access many delegated weapons.
+     */
+    public Component toHudComponent() {
+        if (this.selectedWeaponId == null) {
+            return Component.translatable("screen.data_energistics.orbital_control_hud.empty");
+        }
+        WeaponEntry selected = this.weapons.stream()
+                .filter(entry -> entry.weaponId().equals(this.selectedWeaponId))
+                .findFirst()
+                .orElse(null);
+        if (selected == null) {
+            return Component.translatable("screen.data_energistics.orbital_control_hud.empty");
+        }
+
+        MutableComponent result = Component.translatable(
+                "screen.data_energistics.orbital_control_hud.selected",
+                Component.literal(selected.weaponId().toString()),
+                selected.roleComponent(),
+                Long.toString(selected.celestialEnergy()),
+                Long.toString(selected.aeEnergy()));
+        if (selected.attacks().isEmpty()) {
+            return result
+                    .append(Component.literal("\n"))
+                    .append(Component.translatable("screen.data_energistics.orbital_control_hud.idle"));
+        }
+
+        int shown = 0;
+        for (AttackEntry attack : selected.attacks()) {
+            if (shown++ >= 8) {
+                result = result
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("screen.data_energistics.orbital_control_hud.more"));
+                break;
+            }
+            result = result
+                    .append(Component.literal("\n"))
+                    .append(Component.translatable(
+                            "screen.data_energistics.orbital_control_hud.attack",
+                            attack.modeComponent(),
+                            attack.phaseComponent(),
+                            Integer.toString(attack.target().getX()),
+                            Integer.toString(attack.target().getY()),
+                            Integer.toString(attack.target().getZ()),
+                            Integer.toString(attack.warningTicksRemaining()),
+                            Integer.toString(attack.cooldownTicksRemaining())));
+        }
+        return result;
+    }
+
     /** One accessible weapon and the resources needed by the opening overview. */
     public record WeaponEntry(
                               UUID weaponId,

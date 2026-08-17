@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPa
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
@@ -140,5 +141,9 @@ public final class DEPayloads {
                 DataMeteoriteCompassResponsePayload.TYPE,
                 DataMeteoriteCompassResponsePayload.STREAM_CODEC,
                 DataMeteoriteCompassResponsePayload::handle);
+        registrar.playToClient(
+                OrbitalControlHudSnapshotPayload.TYPE,
+                OrbitalControlHudSnapshotPayload.STREAM_CODEC,
+                OrbitalControlHudSnapshotPayload::handle);
     }
 }
