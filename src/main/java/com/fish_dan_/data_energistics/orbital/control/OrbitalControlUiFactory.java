@@ -15,9 +15,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
-import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -46,9 +47,13 @@ public final class OrbitalControlUiFactory {
      *
      * @param player         player owning the menu lifecycle
      * @param statusSupplier authoritative status supplier, invoked only on the logical server
+     * @param sourceValid    authoritative check that the terminal or console is still the active control source
      * @return a new LDLib2 modular UI instance
      */
-    public static ModularUI create(Player player, Supplier<Component> statusSupplier) {
+    public static ModularUI create(
+                                   Player player,
+                                   Supplier<Component> statusSupplier,
+                                   BooleanSupplier sourceValid) {
         boolean clientSide = player.level().isClientSide();
         UIElement root = new UIElement();
         root.setId("orbital_control_terminal_root");
@@ -103,49 +108,22 @@ public final class OrbitalControlUiFactory {
                 "orbital_control_terminal_kinetic",
                 "screen.data_energistics.orbital_control_terminal.action.kinetic",
                 8,
-                mode -> {
-                    if (player instanceof ServerPlayer serverPlayer) {
-                        OrbitalControlActionDispatcher.fireAtLookTarget(serverPlayer, mode)
-                                .ifPresentOrElse(
-                                        ignored -> {},
-                                        () -> serverPlayer.displayClientMessage(
-                                                Component.translatable(
-                                                        "message.data_energistics.orbital_control_terminal.action_rejected"),
-                                                true));
-                    }
-                },
+                player,
+                sourceValid,
                 OrbitalAttackMode.KINETIC);
         Button directed = actionButton(
                 "orbital_control_terminal_directed",
                 "screen.data_energistics.orbital_control_terminal.action.directed_energy",
                 8 + ACTION_WIDTH + ACTION_GAP,
-                mode -> {
-                    if (player instanceof ServerPlayer serverPlayer) {
-                        OrbitalControlActionDispatcher.fireAtLookTarget(serverPlayer, mode)
-                                .ifPresentOrElse(
-                                        ignored -> {},
-                                        () -> serverPlayer.displayClientMessage(
-                                                Component.translatable(
-                                                        "message.data_energistics.orbital_control_terminal.action_rejected"),
-                                                true));
-                    }
-                },
+                player,
+                sourceValid,
                 OrbitalAttackMode.DIRECTED_ENERGY);
         Button digital = actionButton(
                 "orbital_control_terminal_digital",
                 "screen.data_energistics.orbital_control_terminal.action.digital_annihilation",
                 8 + (ACTION_WIDTH + ACTION_GAP) * 2,
-                mode -> {
-                    if (player instanceof ServerPlayer serverPlayer) {
-                        OrbitalControlActionDispatcher.fireAtLookTarget(serverPlayer, mode)
-                                .ifPresentOrElse(
-                                        ignored -> {},
-                                        () -> serverPlayer.displayClientMessage(
-                                                Component.translatable(
-                                                        "message.data_energistics.orbital_control_terminal.action_rejected"),
-                                                true));
-                    }
-                },
+                player,
+                sourceValid,
                 OrbitalAttackMode.DIGITAL_ANNIHILATION);
         Button cancel = new Button();
         cancel.setId("orbital_control_terminal_cancel");
@@ -182,11 +160,12 @@ public final class OrbitalControlUiFactory {
     }
 
     private static Button actionButton(
-                                       String id,
-                                       String translationKey,
-                                       int left,
-                                       Consumer<OrbitalAttackMode> action,
-                                       OrbitalAttackMode mode) {
+                                        String id,
+                                        String translationKey,
+                                        int left,
+                                        Player player,
+                                        BooleanSupplier sourceValid,
+                                        OrbitalAttackMode mode) {
         Button button = new Button();
         button.setId(id);
         button.setText(Component.translatable(translationKey));
@@ -196,7 +175,16 @@ public final class OrbitalControlUiFactory {
                 .top(ACTION_TOP)
                 .width(ACTION_WIDTH)
                 .height(ACTION_HEIGHT));
-        button.setOnServerClick(event -> action.accept(mode));
+        button.addServerEventListener(UIEvents.MOUSE_DOWN, event -> {
+            if (player instanceof ServerPlayer serverPlayer && sourceValid.getAsBoolean()) {
+                OrbitalControlActionDispatcher.beginFireAtLookTarget(serverPlayer, mode, sourceValid);
+            }
+        });
+        button.addServerEventListener(UIEvents.MOUSE_UP, event -> {
+            if (player instanceof ServerPlayer serverPlayer) {
+                OrbitalControlActionDispatcher.releaseFireAtLookTarget(serverPlayer, mode, sourceValid);
+            }
+        });
         return button;
     }
 

@@ -96,7 +96,10 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
 
     @Override
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
-        return OrbitalControlUiFactory.create(holder.player, () -> snapshot(holder).toComponent());
+        return OrbitalControlUiFactory.create(
+                holder.player,
+                () -> snapshot(holder).toComponent(),
+                () -> stillValid(holder));
     }
 
     @Override
