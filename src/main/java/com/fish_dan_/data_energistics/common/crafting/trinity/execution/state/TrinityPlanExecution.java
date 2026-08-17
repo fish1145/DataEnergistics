@@ -157,7 +157,10 @@ public final class TrinityPlanExecution {
     private CraftingQuantityMode quantityMode;
     private long generation;
     private long durableRevision;
-    private Work currentWork;
+    /**
+     * Server-thread leases keyed by stage so independent stages can keep proposals in flight together.
+     */
+    private final LinkedHashMap<Integer, Work> leasedWorks = new LinkedHashMap<>();
     private boolean planning;
     private boolean failed;
     private String failureReason = "";
@@ -250,6 +253,9 @@ public final class TrinityPlanExecution {
                 }
             }
         }
+        if (restored.recomputeRestoredDependencies()) {
+            restored.markDurableMutation();
+        }
         restored.seedReserve.putAll(snapshot.seedReserve());
         boolean missingOutputProjection = restored.stages.values().stream()
                 .flatMap(stage -> stage.firings.stream())
@@ -302,7 +308,7 @@ public final class TrinityPlanExecution {
         if (this.budgetRetryAt >= 0L) {
             return Status.BUDGET_EXHAUSTED;
         }
-        if (this.currentWork != null || !this.readyQueue.isEmpty()) {
+        if (!this.leasedWorks.isEmpty() || !this.readyQueue.isEmpty()) {
             return Status.READY;
         }
         boolean waitingInput = false;
@@ -361,12 +367,26 @@ public final class TrinityPlanExecution {
     }
 
     /**
-     * Returns the current leased work, or dequeues one eligible stage without scanning unrelated stages.
+     * Returns the oldest leased work, or dequeues one eligible stage without scanning unrelated stages.
      *
      * @param currentTick current server tick used to activate due retries
      * @return current dispatch offer, if any
      */
     public Optional<Work> poll(long currentTick) {
+        return pollInternal(currentTick, false);
+    }
+
+    /**
+     * Dequeues another eligible stage while retaining existing leases for independent proposals.
+     *
+     * @param currentTick current server tick used to activate due retries
+     * @return an additional dispatch offer, if any
+     */
+    public Optional<Work> pollNext(long currentTick) {
+        return pollInternal(currentTick, true);
+    }
+
+    private Optional<Work> pollInternal(long currentTick, boolean skipLeased) {
         requireTick(currentTick);
         if (this.failed || this.planning || productionComplete()) {
             return Optional.empty();
@@ -376,8 +396,8 @@ public final class TrinityPlanExecution {
             this.budgetRetryAt = -1L;
             markDurableMutation();
         }
-        if (this.currentWork != null) {
-            return Optional.of(this.currentWork);
+        if (!skipLeased && !this.leasedWorks.isEmpty()) {
+            return Optional.of(this.leasedWorks.values().iterator().next());
         }
         if (this.budgetRetryAt >= 0L) {
             return Optional.empty();
@@ -389,9 +409,13 @@ public final class TrinityPlanExecution {
             if (!eligible(stage)) {
                 continue;
             }
-            this.currentWork = createWork(stage);
+            if (this.leasedWorks.containsKey(stage.index)) {
+                continue;
+            }
+            Work work = createWork(stage);
+            this.leasedWorks.put(stage.index, work);
             stage.leased = true;
-            return Optional.of(this.currentWork);
+            return Optional.of(work);
         }
         return Optional.empty();
     }
@@ -637,7 +661,7 @@ public final class TrinityPlanExecution {
      * @return true only when remaining work has no ready, retry, wait, planning, budget or in-flight path
      */
     public boolean deadlocked(boolean hasInFlight) {
-        if (hasInFlight || this.failed || this.planning || productionComplete() || this.currentWork != null ||
+        if (hasInFlight || this.failed || this.planning || productionComplete() || !this.leasedWorks.isEmpty() ||
                 !this.readyQueue.isEmpty() || this.budgetRetryAt >= 0L) {
             return false;
         }
@@ -665,7 +689,7 @@ public final class TrinityPlanExecution {
         this.failureReason = reason;
         this.planning = false;
         this.budgetRetryAt = -1L;
-        this.currentWork = null;
+        this.leasedWorks.clear();
         this.readyQueue.clear();
         this.queuedStages.clear();
         this.retryQueue.clear();
@@ -1322,7 +1346,7 @@ public final class TrinityPlanExecution {
     }
 
     private void rebuildTransientState(long currentTick) {
-        this.currentWork = null;
+        this.leasedWorks.clear();
         this.readyQueue.clear();
         this.queuedStages.clear();
         this.inputStageIndex.clear();
@@ -1354,6 +1378,44 @@ public final class TrinityPlanExecution {
                 enqueueIfEligible(requireStage(stageIndex));
             }
         }
+    }
+
+    /**
+     * Recomputes the artificial predecessor chain used by older plans while retaining explicit non-chain edges.
+     *
+     * <p>Persisted proposals and leases are transient, so restoring a job is the safe point to expose independent
+     * stages. Cycle stages remain ordered; stages with overlapping input/output footprints remain ordered as well.</p>
+     *
+     * @return whether at least one persisted dependency set changed
+     */
+    private boolean recomputeRestoredDependencies() {
+        ArrayList<ExecutionFootprint> previous = new ArrayList<>();
+        boolean changed = false;
+        for (Integer stageIndex : this.stageOrder) {
+            StageState stage = requireStage(stageIndex);
+            LinkedHashSet<Integer> original = new LinkedHashSet<>(stage.dependencies);
+            LinkedHashSet<Integer> recomputed = new LinkedHashSet<>();
+            for (ExecutionFootprint candidate : previous) {
+                if (stage.cycle || candidate.cycleStage() || candidate.conflictsWith(stage)) {
+                    recomputed.add(candidate.index());
+                }
+            }
+            if (original.size() != 1 || !original.contains(candidatePredecessor(stageIndex))) {
+                recomputed.addAll(original);
+            }
+            if (!original.equals(recomputed)) {
+                stage.dependencies.clear();
+                stage.dependencies.addAll(recomputed);
+                changed = true;
+            }
+            previous.add(ExecutionFootprint.from(stage));
+        }
+        return changed;
+    }
+
+    private int candidatePredecessor(int stageIndex) {
+        int position = this.stageOrder.indexOf(stageIndex);
+        return position <= 0 ? -1 : this.stageOrder.get(position - 1);
     }
 
     private Work createWork(StageState stage) {
@@ -1491,7 +1553,8 @@ public final class TrinityPlanExecution {
     }
 
     private StageState requireCurrentWork(Work work) {
-        if (this.currentWork == null || !this.currentWork.equals(work)) {
+        Work leased = work == null ? null : this.leasedWorks.get(work.stageIndex());
+        if (leased == null || !leased.equals(work)) {
             throw new IllegalStateException("A Trinity execution event referenced stale or unleased work");
         }
         StageState stage = requireStage(work.stageIndex());
@@ -1503,7 +1566,7 @@ public final class TrinityPlanExecution {
 
     private void clearCurrentWork(StageState stage) {
         stage.leased = false;
-        this.currentWork = null;
+        this.leasedWorks.remove(stage.index);
     }
 
     private void beginWait(StageState stage, WaitKind kind, Set<AEKey> keys, long retryAt) {
@@ -1668,6 +1731,62 @@ public final class TrinityPlanExecution {
     }
 
     private record RetryEntry(long retryAt, int stageIndex, long version, WaitKind waitKind) {}
+
+    private record ExecutionFootprint(
+                                      int index,
+                                      boolean cycleStage,
+                                      Set<AEKey> inputs,
+                                      Set<AEKey> outputs,
+                                      Set<TrinityPatternIdentity> patternIdentities) {
+
+        private static ExecutionFootprint from(StageState stage) {
+            LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(stage.inputKeys);
+            inputs.addAll(stage.requiredAtStart.keySet());
+            LinkedHashSet<AEKey> outputs = new LinkedHashSet<>();
+            LinkedHashSet<TrinityPatternIdentity> identities = new LinkedHashSet<>();
+            for (FiringState firing : stage.firings) {
+                outputs.addAll(firing.outputs.keySet());
+                identities.add(firing.patternIdentity);
+            }
+            return new ExecutionFootprint(
+                    stage.index,
+                    stage.cycle,
+                    Set.copyOf(inputs),
+                    Set.copyOf(outputs),
+                    Set.copyOf(identities));
+        }
+
+        private boolean conflictsWith(StageState stage) {
+            for (FiringState firing : stage.firings) {
+                if (this.patternIdentities.contains(firing.patternIdentity)) {
+                    return true;
+                }
+            }
+            return intersects(this.inputs, stage.inputKeys) ||
+                    intersects(this.inputs, stage.requiredAtStart.keySet()) ||
+                    intersects(this.outputs, stage.inputKeys) ||
+                    intersects(this.outputs, stage.requiredAtStart.keySet()) ||
+                    intersects(this.inputs, firingOutputKeys(stage)) ||
+                    intersects(this.outputs, firingOutputKeys(stage));
+        }
+
+        private static Set<AEKey> firingOutputKeys(StageState stage) {
+            LinkedHashSet<AEKey> outputs = new LinkedHashSet<>();
+            for (FiringState firing : stage.firings) {
+                outputs.addAll(firing.outputs.keySet());
+            }
+            return outputs;
+        }
+
+        private static boolean intersects(Set<AEKey> left, Set<AEKey> right) {
+            for (AEKey key : left) {
+                if (right.contains(key)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 
     private static final class FiringState {
 

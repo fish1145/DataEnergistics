@@ -257,17 +257,16 @@ final class TrinityDataCoreCpuLogic {
 
         int physicalAttempts;
         try {
+            int workPassLimit = currentJob.isTrinityPlan() ?
+                    dispatchBudget.providerQuantum() : 1;
             CraftingExecutionOutcome outcome = executeCrafting(
-                    1,
+                    workPassLimit,
                     craftingService,
                     energyService,
                     level,
                     dispatchWindow,
                     dispatchBudget);
             physicalAttempts = outcome.physicalAttempts();
-            if (physicalAttempts > 1) {
-                throw new IllegalStateException("A Trinity worker dispatch step attempted more than one provider call");
-            }
             this.operationTracker.recordTickUsage(currentTick, physicalAttempts);
         } finally {
             if (execution != null && execution.durableRevision() != durableRevision) {
@@ -521,7 +520,7 @@ final class TrinityDataCoreCpuLogic {
     }
 
     /**
-     * Advances one event-selected compact-plan work item without scanning unrelated stages.
+     * Advances independent compact-plan work items up to the current provider fairness quantum.
      */
     private CraftingExecutionOutcome executeTrinityCrafting(TrinityDataCoreExecutingCraftingJob currentJob,
                                                             int maxPatterns,
@@ -530,6 +529,44 @@ final class TrinityDataCoreCpuLogic {
                                                             Level level,
                                                             CraftingDispatchWindow dispatchWindow,
                                                             CraftingDispatchBudget dispatchBudget) {
+        int physicalAttempts = 0;
+        boolean dispatched = false;
+        int passes = 0;
+        while (passes < maxPatterns && !dispatchWindow.isExhausted() && this.job == currentJob) {
+            CraftingExecutionOutcome outcome = executeTrinityCraftingOne(
+                    currentJob,
+                    craftingService,
+                    energyService,
+                    level,
+                    dispatchWindow,
+                    dispatchBudget,
+                    passes > 0);
+            physicalAttempts = Math.addExact(physicalAttempts, outcome.physicalAttempts());
+            dispatched |= outcome.dispatched();
+            passes++;
+            if (outcome.proposalDeferred()) {
+                break;
+            }
+            if (outcome.proposalOutstanding()) {
+                continue;
+            }
+            if (outcome.physicalAttempts() == 0) {
+                break;
+            }
+        }
+        return new CraftingExecutionOutcome(physicalAttempts, dispatched);
+    }
+
+    /**
+     * Advances one event-selected compact-plan work item without scanning unrelated stages.
+     */
+    private CraftingExecutionOutcome executeTrinityCraftingOne(TrinityDataCoreExecutingCraftingJob currentJob,
+                                                               CraftingService craftingService,
+                                                               IEnergyService energyService,
+                                                               Level level,
+                                                               CraftingDispatchWindow dispatchWindow,
+                                                               CraftingDispatchBudget dispatchBudget,
+                                                               boolean skipLeased) {
         if (advanceTrinityCompletion(currentJob)) {
             return CraftingExecutionOutcome.NONE;
         }
@@ -541,7 +578,7 @@ final class TrinityDataCoreCpuLogic {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
         }
-        var workOffer = execution.poll(currentTick);
+        var workOffer = skipLeased ? execution.pollNext(currentTick) : execution.poll(currentTick);
         if (workOffer.isEmpty()) {
             if (execution.status() == TrinityPlanExecution.Status.FAILED) {
                 Data_Energistics.LOGGER.error(
@@ -585,6 +622,7 @@ final class TrinityDataCoreCpuLogic {
             return CraftingExecutionOutcome.NONE;
         }
         if (!(resolution instanceof TrinityPatternResolver.Matched(IPatternDetails pattern))) {
+            this.proposalCoordinator.cancel();
             execution.markPlanning(work);
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
@@ -706,7 +744,7 @@ final class TrinityDataCoreCpuLogic {
                     energyService,
                     level,
                     dispatchWindow,
-                    maxPatterns,
+                    1,
                     dispatchBudget,
                     commit -> {
                         borrowed.commitConsumed(selected.inputsPerCraft(), commit.count());
@@ -743,7 +781,10 @@ final class TrinityDataCoreCpuLogic {
             return new CraftingExecutionOutcome(outcome.physicalAttempts(), true);
         }
         if (outcome.proposalOutstanding()) {
-            return new CraftingExecutionOutcome(outcome.physicalAttempts(), false);
+            return new CraftingExecutionOutcome(outcome.physicalAttempts(), false, true, false);
+        }
+        if (outcome.proposalDeferred()) {
+            return new CraftingExecutionOutcome(outcome.physicalAttempts(), false, false, true);
         }
         if (dispatchWindow.isExhausted()) {
             execution.markBudgetExhausted(work, currentTick);
@@ -1187,7 +1228,6 @@ final class TrinityDataCoreCpuLogic {
         }
         if (asynchronousSelection) {
             maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
-            physicalCallLimit = 1;
         }
 
         int physicalAttempts = 0;
@@ -1205,7 +1245,7 @@ final class TrinityDataCoreCpuLogic {
                     this.capacityPlanner.plan(
                             capacityCapture,
                             BigInteger.valueOf(maximumCount),
-                            1,
+                            physicalCallLimit,
                             searchCursor);
             if (candidatePlan.slices().isEmpty()) {
                 break;
@@ -1452,9 +1492,17 @@ final class TrinityDataCoreCpuLogic {
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     if (result.dispatched()) {
-                        return settleProposal(
-                                asynchronousSelection,
-                                new ProviderDispatchOutcome(physicalAttempts, true));
+                        if (asynchronousSelection || physicalAttempts >= physicalCallLimit) {
+                            return settleProposal(
+                                    asynchronousSelection,
+                                    new ProviderDispatchOutcome(physicalAttempts, true));
+                        }
+                        maximumCount = Math.subtractExact(maximumCount, count);
+                        if (maximumCount <= 0L) {
+                            return settleProposal(
+                                    asynchronousSelection,
+                                    new ProviderDispatchOutcome(physicalAttempts, true));
+                        }
                     }
                 } finally {
                     inputTransaction.rollback();
@@ -1467,8 +1515,8 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private ProviderDispatchOutcome settleProposal(boolean consumedProposal, ProviderDispatchOutcome outcome) {
-        if (consumedProposal || outcome.dispatched()) {
-            this.proposalCoordinator.cancel();
+        if (consumedProposal) {
+            this.proposalCoordinator.releaseLast();
         }
         return outcome.withProposalOutstanding(this.proposalCoordinator.outstanding());
     }
@@ -2564,9 +2612,16 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    private record CraftingExecutionOutcome(int physicalAttempts, boolean dispatched) {
+    private record CraftingExecutionOutcome(int physicalAttempts,
+                                            boolean dispatched,
+                                            boolean proposalOutstanding,
+                                            boolean proposalDeferred) {
 
-        private static final CraftingExecutionOutcome NONE = new CraftingExecutionOutcome(0, false);
+        private static final CraftingExecutionOutcome NONE = new CraftingExecutionOutcome(0, false, false, false);
+
+        private CraftingExecutionOutcome(int physicalAttempts, boolean dispatched) {
+            this(physicalAttempts, dispatched, false, false);
+        }
 
         private CraftingExecutionOutcome {
             if (physicalAttempts < 0) {
@@ -2574,6 +2629,12 @@ final class TrinityDataCoreCpuLogic {
             }
             if (dispatched && physicalAttempts == 0) {
                 throw new IllegalArgumentException("Advanced crafting work must consume a physical attempt");
+            }
+            if (dispatched && (proposalOutstanding || proposalDeferred)) {
+                throw new IllegalArgumentException("A committed work item cannot retain proposal state");
+            }
+            if (proposalOutstanding && proposalDeferred) {
+                throw new IllegalArgumentException("A work item cannot be outstanding and deferred together");
             }
         }
     }

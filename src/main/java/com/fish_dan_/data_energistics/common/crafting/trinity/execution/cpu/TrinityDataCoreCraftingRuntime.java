@@ -406,7 +406,7 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     /**
-     * Skips stale or non-progressing workers and performs at most one real provider call.
+     * Skips stale or non-progressing workers and performs a bounded fair pass of provider calls.
      *
      * @param energyService   AE2 energy service shared by this runtime's Grid
      * @param craftingService AE2 crafting service used to resolve pattern providers

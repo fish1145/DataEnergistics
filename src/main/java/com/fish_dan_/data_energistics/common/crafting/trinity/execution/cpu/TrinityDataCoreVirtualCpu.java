@@ -127,7 +127,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     }
 
     /**
-     * Advances this worker until at most one real provider call has occurred.
+     * Advances this worker through a bounded fair pass of compact-plan work items.
      *
      * @param energyService   AE2 energy service
      * @param craftingService AE2 crafting service

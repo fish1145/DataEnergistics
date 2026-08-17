@@ -6,7 +6,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server;
 public interface CraftingDispatchParticipant extends CraftingDispatchCompletion {
 
     /**
-     * Skips invalid candidates as needed and performs at most one real provider call.
+     * Skips invalid candidates as needed and performs a bounded fair provider pass.
      *
      * @return immutable progress facts for scheduler admission
      */
