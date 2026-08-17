@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.registry.DEEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -34,7 +36,9 @@ import net.minecraft.world.phys.Vec3;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class DataNukePrimedEntity extends PrimedTnt {
@@ -46,6 +50,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private static final String TAG_ACTIVE = "DataNukeActive";
     private static final String TAG_WORK_TICKS = "DataNukeWorkTicks";
     private static final String TAG_EXPANSION_RADIUS = "DataNukeExpansionRadius";
+    private static final String TAG_ORBITAL_ATTACK_ID = "DataNukeOrbitalAttackId";
+    private static final String TAG_DAMAGE_EXEMPTIONS = "DataNukeDamageExemptions";
+    private static final String TAG_UUID = "UUID";
     private static final TicketType<UUID> CHUNK_TICKET_TYPE = TicketType.create(
             Data_Energistics.MODID + ":digital_annihilator",
             UUID::compareTo);
@@ -60,6 +67,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
     @Nullable
     private LivingEntity owner;
     @Nullable
+    private UUID orbitalAttackId;
+    private Set<UUID> damageExemptions = Set.of();
+    @Nullable
     private ChunkPos forcedChunk;
 
     public DataNukePrimedEntity(EntityType<? extends DataNukePrimedEntity> entityType, Level level) {
@@ -67,9 +77,15 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     public DataNukePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner) {
+        this(level, origin, owner, Set.of());
+    }
+
+    /** Creates a nuke with an immutable authorization exemption snapshot. */
+    public DataNukePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner, Set<UUID> damageExemptions) {
         super(DEEntities.DATA_NUKE_PRIMED.get(), level);
         this.origin = origin.immutable();
         this.owner = owner;
+        this.damageExemptions = Set.copyOf(damageExemptions);
         this.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
         double angle = level.random.nextDouble() * (Math.PI * 2.0D);
         this.setDeltaMovement(-Math.sin(angle) * 0.02D, 0.2D, -Math.cos(angle) * 0.02D);
@@ -78,6 +94,17 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.yo = this.getY();
         this.zo = this.getZ();
         this.setBlockState(DEBlocks.DATA_NUKE.get().defaultBlockState());
+    }
+
+    /** Creates the stationary fuse entity used when an orbital payload reaches its target. */
+    public static DataNukePrimedEntity createOrbitalPayload(Level level, BlockPos origin, UUID attackId,
+                                                            Set<UUID> damageExemptions) {
+        DataNukePrimedEntity entity = new DataNukePrimedEntity(level, origin, null, damageExemptions);
+        entity.orbitalAttackId = attackId;
+        entity.setNoGravity(true);
+        entity.setDeltaMovement(Vec3.ZERO);
+        entity.setFuse(80);
+        return entity;
     }
 
     @Override
@@ -151,6 +178,16 @@ public class DataNukePrimedEntity extends PrimedTnt {
         tag.putBoolean(TAG_ACTIVE, this.isActive());
         tag.putInt(TAG_WORK_TICKS, this.workTicks);
         tag.putInt(TAG_EXPANSION_RADIUS, this.expansionRadius);
+        if (this.orbitalAttackId != null) {
+            tag.putUUID(TAG_ORBITAL_ATTACK_ID, this.orbitalAttackId);
+        }
+        ListTag exemptionList = new ListTag();
+        this.damageExemptions.stream().sorted().forEach(uuid -> {
+            CompoundTag exemption = new CompoundTag();
+            exemption.putUUID(TAG_UUID, uuid);
+            exemptionList.add(exemption);
+        });
+        tag.put(TAG_DAMAGE_EXEMPTIONS, exemptionList);
     }
 
     @Override
@@ -164,6 +201,16 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.expansionRadius = Math.max(0, Math.min(
                 DataEnergisticsConfiguration.INSTANCE.dataNuke().maxRadius(),
                 tag.getInt(TAG_EXPANSION_RADIUS)));
+        this.orbitalAttackId = tag.hasUUID(TAG_ORBITAL_ATTACK_ID) ? tag.getUUID(TAG_ORBITAL_ATTACK_ID) : null;
+        ListTag exemptionList = tag.getList(TAG_DAMAGE_EXEMPTIONS, Tag.TAG_COMPOUND);
+        HashSet<UUID> exemptions = new HashSet<>();
+        for (int index = 0; index < exemptionList.size(); index++) {
+            CompoundTag exemption = exemptionList.getCompound(index);
+            if (exemption.hasUUID(TAG_UUID)) {
+                exemptions.add(exemption.getUUID(TAG_UUID));
+            }
+        }
+        this.damageExemptions = Set.copyOf(exemptions);
     }
 
     private void activate() {
@@ -340,6 +387,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
         if (entity == this || entity.isRemoved() || !entity.isAlive()) {
             return false;
         }
+        if (this.damageExemptions.contains(entity.getUUID())) {
+            return false;
+        }
         if (entity instanceof Player player && (player.isCreative() || player.isSpectator())) {
             return false;
         }
@@ -366,6 +416,17 @@ public class DataNukePrimedEntity extends PrimedTnt {
      */
     public boolean isActive() {
         return this.entityData.get(DATA_ACTIVE);
+    }
+
+    /** Returns the orbital attack identity that created this payload, if any. */
+    @Nullable
+    public UUID orbitalAttackId() {
+        return this.orbitalAttackId;
+    }
+
+    /** Returns the frozen UUID exemption snapshot used by the annihilation work. */
+    public Set<UUID> damageExemptions() {
+        return this.damageExemptions;
     }
 
     private void setActive(boolean active) {

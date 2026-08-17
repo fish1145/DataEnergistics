@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
+import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -18,6 +20,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
@@ -54,6 +58,8 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String CONFIGURATION_REVISION_TAG = "configuration_revision";
     private static final String WARNING_TICKS_TAG = "warning_ticks";
     private static final String WORK_CURSOR_TAG = "work_cursor";
+    private static final String PAYLOAD_ENTITY_ID_TAG = "payload_entity_id";
+    private static final String PAYLOAD_ARRIVED_TAG = "payload_arrived";
     private static final String IMPACT_APPLIED_TAG = "impact_applied";
     private static final String COOLDOWN_TICKS_TAG = "cooldown_ticks";
     private static final String COOLDOWN_DURATION_TAG = "cooldown_duration";
@@ -228,6 +234,73 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     /**
+     * Confirms a digital-annihilation payload after validating the loaded target chunk and freezing the authorization
+     * exemption snapshot. The target chunk is deliberately required to be loaded until the chunk-future governor is
+     * introduced; the attack loop never synchronously generates a chunk.
+     */
+    public Optional<OrbitalAttackRecord> tryConfirmDigitalAnnihilation(
+                                                                       MinecraftServer server,
+                                                                       UUID actorId,
+                                                                       UUID weaponId,
+                                                                       ResourceLocation dimensionId,
+                                                                       BlockPos target) {
+        requireServerThread(server);
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
+        if (foundWeapon.isEmpty()) {
+            return Optional.empty();
+        }
+        OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
+        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
+            return Optional.empty();
+        }
+        ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
+        if (targetLevel == null || !validDigitalTarget(targetLevel, target)) {
+            return Optional.empty();
+        }
+        if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
+            return Optional.empty();
+        }
+
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+        OrbitalAttackRecord warning = OrbitalAttackRecord.warning(
+                UUID.randomUUID(),
+                weaponId,
+                OrbitalAttackMode.DIGITAL_ANNIHILATION,
+                dimensionId,
+                target,
+                new OrbitalAttackGeometry.DigitalAnnihilation(),
+                DataEnergisticsConfiguration.INSTANCE.revision(),
+                settings.attackWarningTicks(),
+                cost,
+                weapon.damageExemptionSnapshot());
+        if (!weapons.tryDebitReserve(
+                server,
+                weaponId,
+                actorId,
+                cost.celestialEnergy(),
+                cost.aeEnergy())) {
+            return Optional.empty();
+        }
+        this.attacks.put(warning.attackId(), warning);
+        setDirty();
+        return Optional.of(warning);
+    }
+
+    /** Records the materialized fuse entity for a digital payload. */
+    public boolean markDigitalPayloadArrived(MinecraftServer server, UUID attackId, UUID nukeEntityId) {
+        requireServerThread(server);
+        OrbitalAttackRecord current = this.attacks.get(attackId);
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY) {
+            return false;
+        }
+        this.attacks.put(attackId, current.markDigitalPayloadArrived(nukeEntityId));
+        setDirty();
+        return true;
+    }
+
+    /**
      * Cancels only a still-visible warning and atomically refunds its frozen escrow to the weapon reserve.
      */
     public boolean cancelWarning(MinecraftServer server, UUID actorId, UUID attackId) {
@@ -317,6 +390,10 @@ public final class OrbitalAttackSavedData extends SavedData {
         tag.putLong(CONFIGURATION_REVISION_TAG, attack.configurationRevision());
         tag.putInt(WARNING_TICKS_TAG, attack.warningTicksRemaining());
         tag.putLong(WORK_CURSOR_TAG, attack.workCursor());
+        if (attack.payloadEntityId() != null) {
+            tag.putUUID(PAYLOAD_ENTITY_ID_TAG, attack.payloadEntityId());
+        }
+        tag.putBoolean(PAYLOAD_ARRIVED_TAG, attack.payloadArrived());
         tag.putBoolean(IMPACT_APPLIED_TAG, attack.impactApplied());
         tag.putInt(COOLDOWN_TICKS_TAG, attack.cooldownTicksRemaining());
         tag.putInt(COOLDOWN_DURATION_TAG, attack.cooldownDurationTicks());
@@ -352,9 +429,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                         tag.getInt(GEOMETRY_RADIUS_TAG),
                         OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG)),
                         tag.getLong(GEOMETRY_DAMAGE_TAG));
-                case DIGITAL_ANNIHILATION -> {
-                    return null;
-                }
+                case DIGITAL_ANNIHILATION -> geometry = new OrbitalAttackGeometry.DigitalAnnihilation();
                 default -> throw new IllegalArgumentException("Unsupported orbital attack mode");
             }
             List<UUID> exemptions = new ArrayList<>();
@@ -377,6 +452,8 @@ public final class OrbitalAttackSavedData extends SavedData {
                     tag.getLong(CONFIGURATION_REVISION_TAG),
                     tag.getInt(WARNING_TICKS_TAG),
                     tag.getLong(WORK_CURSOR_TAG),
+                    tag.hasUUID(PAYLOAD_ENTITY_ID_TAG) ? tag.getUUID(PAYLOAD_ENTITY_ID_TAG) : null,
+                    tag.getBoolean(PAYLOAD_ARRIVED_TAG),
                     tag.getBoolean(IMPACT_APPLIED_TAG),
                     tag.getInt(COOLDOWN_TICKS_TAG),
                     tag.getInt(COOLDOWN_DURATION_TAG),
@@ -410,7 +487,63 @@ public final class OrbitalAttackSavedData extends SavedData {
         switch (current.mode()) {
             case KINETIC -> tickKineticDelivery(level, current);
             case DIRECTED_ENERGY -> tickDirectedEnergyDelivery(level, current);
-            case DIGITAL_ANNIHILATION -> fault(current, "Digital annihilation delivery is not available yet");
+            case DIGITAL_ANNIHILATION -> tickDigitalAnnihilationDelivery(server, level, current);
+        }
+    }
+
+    private void tickDigitalAnnihilationDelivery(
+                                                 MinecraftServer server,
+                                                 ServerLevel level,
+                                                 OrbitalAttackRecord current) {
+        if (!(current.geometry() instanceof OrbitalAttackGeometry.DigitalAnnihilation)) {
+            fault(current, "Digital-annihilation attack has incompatible geometry");
+            return;
+        }
+        if (!validDigitalTarget(level, current.target())) {
+            return;
+        }
+
+        if (current.payloadEntityId() == null) {
+            OrbitalAnnihilatorProjectileEntity projectile = new OrbitalAnnihilatorProjectileEntity(
+                    level,
+                    current.attackId(),
+                    current.target(),
+                    current.damageExemptions());
+            if (!level.addFreshEntity(projectile)) {
+                fault(current, "Digital-annihilation payload could not be added to the target dimension");
+                return;
+            }
+            this.attacks.put(current.attackId(), current.withPayloadEntity(projectile.getUUID(), false));
+            setDirty();
+            return;
+        }
+
+        Entity payload = level.getEntity(current.payloadEntityId());
+        if (current.payloadArrived()) {
+            if (payload instanceof DataNukePrimedEntity nuke && current.attackId().equals(nuke.orbitalAttackId())) {
+                return;
+            }
+            if (payload == null) {
+                this.attacks.put(current.attackId(), current.cooldown(current.cooldownDurationTicks()));
+                setDirty();
+                return;
+            }
+            fault(current, "Digital-annihilation fuse entity was replaced unexpectedly");
+            return;
+        }
+
+        if (payload instanceof OrbitalAnnihilatorProjectileEntity projectile && current.attackId().equals(projectile.attackId())) {
+            return;
+        }
+        if (payload instanceof DataNukePrimedEntity nuke && current.attackId().equals(nuke.orbitalAttackId())) {
+            this.attacks.put(current.attackId(), current.markDigitalPayloadArrived(nuke.getUUID()));
+            setDirty();
+            return;
+        }
+        if (payload == null) {
+            fault(current, "Digital-annihilation payload entity disappeared before arrival");
+        } else {
+            fault(current, "Digital-annihilation payload entity was replaced unexpectedly");
         }
     }
 
@@ -506,6 +639,17 @@ public final class OrbitalAttackSavedData extends SavedData {
             return OrbitalKineticStrike.areTerrainChunksLoaded(level, target);
         }
         return OrbitalDirectedEnergyStrike.areTerrainChunksLoaded(level, target, radius);
+    }
+
+    private static boolean validDigitalTarget(ServerLevel level, BlockPos target) {
+        if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
+            return false;
+        }
+        if (!level.getWorldBorder().isWithinBounds(target)) {
+            return false;
+        }
+        ChunkPos chunk = new ChunkPos(target);
+        return level.hasChunk(chunk.x, chunk.z);
     }
 
     private static void requireServerThread(MinecraftServer server) {

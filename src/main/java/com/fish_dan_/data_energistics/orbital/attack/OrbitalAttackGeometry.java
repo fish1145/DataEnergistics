@@ -13,7 +13,9 @@ import java.util.Objects;
  * </p>
  */
 public sealed interface OrbitalAttackGeometry
-                                              permits OrbitalAttackGeometry.Kinetic, OrbitalAttackGeometry.DirectedEnergy {
+                                              permits OrbitalAttackGeometry.Kinetic,
+                                              OrbitalAttackGeometry.DirectedEnergy,
+                                              OrbitalAttackGeometry.DigitalAnnihilation {
 
     OrbitalAttackMode mode();
 
@@ -46,6 +48,15 @@ public sealed interface OrbitalAttackGeometry
 
         public int bottomY(ServerLevel level, int targetY) {
             return this.depth.bottomY(level, targetY);
+        }
+    }
+
+    /** Geometry for the fixed vertical digital-annihilation payload. */
+    record DigitalAnnihilation() implements OrbitalAttackGeometry {
+
+        @Override
+        public OrbitalAttackMode mode() {
+            return OrbitalAttackMode.DIGITAL_ANNIHILATION;
         }
     }
 }

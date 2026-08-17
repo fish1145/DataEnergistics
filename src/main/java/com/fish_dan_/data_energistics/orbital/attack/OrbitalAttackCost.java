@@ -43,4 +43,14 @@ public record OrbitalAttackCost(
                 Math.multiplyExact(settings.directedEnergyAeEnergyPerCoordinate(), scheduledCoordinates));
         return new OrbitalAttackCost(celestial, ae, settings.directedEnergyCooldownTicks());
     }
+
+    /**
+     * Reads the fixed digital-annihilation payload cost from one immutable configuration snapshot.
+     */
+    public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsSettings.OrbitalWeapon settings) {
+        return new OrbitalAttackCost(
+                settings.digitalAnnihilationCelestialEnergyCost(),
+                settings.digitalAnnihilationAeEnergyCost(),
+                settings.digitalAnnihilationCooldownTicks());
+    }
 }

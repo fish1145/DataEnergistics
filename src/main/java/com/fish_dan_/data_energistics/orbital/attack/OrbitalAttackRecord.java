@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -22,6 +24,8 @@ public record OrbitalAttackRecord(
                                   long configurationRevision,
                                   int warningTicksRemaining,
                                   long workCursor,
+                                  @Nullable UUID payloadEntityId,
+                                  boolean payloadArrived,
                                   boolean impactApplied,
                                   int cooldownTicksRemaining,
                                   int cooldownDurationTicks,
@@ -33,6 +37,9 @@ public record OrbitalAttackRecord(
         target = target.immutable();
         Objects.requireNonNull(geometry, "geometry");
         damageExemptions = Set.copyOf(damageExemptions);
+        if (payloadArrived && payloadEntityId == null) {
+            throw new IllegalArgumentException("A digital payload cannot arrive without an entity identity");
+        }
         if (geometry.mode() != mode) {
             throw new IllegalArgumentException("Orbital attack geometry does not match its mode");
         }
@@ -72,6 +79,8 @@ public record OrbitalAttackRecord(
                 configurationRevision,
                 warningTicks,
                 0L,
+                null,
+                false,
                 false,
                 0,
                 cost.cooldownTicks(),
@@ -92,6 +101,8 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 remaining,
                 this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 this.impactApplied,
                 0,
                 this.cooldownDurationTicks,
@@ -112,6 +123,8 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 this.impactApplied,
                 0,
                 this.cooldownDurationTicks,
@@ -132,6 +145,8 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 nextCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 this.impactApplied,
                 0,
                 this.cooldownDurationTicks,
@@ -152,6 +167,8 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 this.impactApplied,
                 remainingTicks,
                 this.cooldownDurationTicks,
@@ -176,6 +193,8 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 this.impactApplied,
                 0,
                 this.cooldownDurationTicks,
@@ -196,11 +215,41 @@ public record OrbitalAttackRecord(
                 this.configurationRevision,
                 0,
                 this.workCursor,
+                this.payloadEntityId,
+                this.payloadArrived,
                 true,
                 0,
                 this.cooldownDurationTicks,
                 this.celestialEscrow,
                 this.aeEscrow,
                 this.damageExemptions);
+    }
+
+    /** Records the UUID of the currently flying payload or materialized annihilator. */
+    public OrbitalAttackRecord withPayloadEntity(UUID entityId, boolean arrived) {
+        return new OrbitalAttackRecord(
+                this.attackId,
+                this.weaponId,
+                this.mode,
+                OrbitalAttackPhase.DELIVERY,
+                this.dimensionId,
+                this.target,
+                this.geometry,
+                this.configurationRevision,
+                0,
+                this.workCursor,
+                entityId,
+                arrived,
+                this.impactApplied,
+                0,
+                this.cooldownDurationTicks,
+                this.celestialEscrow,
+                this.aeEscrow,
+                this.damageExemptions);
+    }
+
+    /** Returns a delivery record after the orbital payload has materialized as the fuse entity. */
+    public OrbitalAttackRecord markDigitalPayloadArrived(UUID entityId) {
+        return withPayloadEntity(entityId, true);
     }
 }

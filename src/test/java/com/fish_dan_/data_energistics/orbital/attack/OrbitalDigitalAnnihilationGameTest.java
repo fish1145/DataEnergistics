@@ -1,0 +1,290 @@
+package com.fish_dan_.data_energistics.orbital.attack;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
+import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
+import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
+import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEItems;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
+
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.security.IActionSource;
+import appeng.blockentity.storage.DriveBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import com.mojang.authlib.GameProfile;
+
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class OrbitalDigitalAnnihilationGameTest {
+
+    private static final BlockPos CONTROL_CONSOLE = new BlockPos(2, 2, 2);
+    private static final BlockPos DRIVE = new BlockPos(3, 2, 2);
+    private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(4, 2, 2);
+    private static final BlockPos TARGET = new BlockPos(25, 20, 25);
+
+    private OrbitalDigitalAnnihilationGameTest() {}
+
+    @TestHolder("orbital_digital_annihilation_payload_descends_and_materializes_fuse")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    public static void payloadDescendsAndMaterializesFuse(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "digital-annihilation-owner");
+        DataEnergisticsSettings.OrbitalWeapon settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon();
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        level.getChunk(absoluteTarget.getX() >> 4, absoluteTarget.getZ() >> 4);
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<UUID> attackId = new AtomicReference<>();
+        AtomicReference<OrbitalEnergyReserve> reserveBefore = new AtomicReference<>();
+        AtomicReference<Double> payloadStartY = new AtomicReference<>();
+        AtomicReference<Zombie> victim = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The digital payload must use a real powered target-dimension endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, Math.multiplyExact(cost.celestialEnergy(), 2L));
+                    primeReserve(weapons, server, weaponId, cost);
+                    OrbitalEnergyReserve before = weapons.find(weaponId).orElseThrow().reserve();
+                    reserveBefore.set(before);
+                    OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            level.dimension().location(),
+                            absoluteTarget)
+                            .orElseThrow(() -> new IllegalStateException("A funded digital payload was rejected"));
+                    attackId.set(warning.attackId());
+                    OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
+                    helper.assertValueEqual(
+                            before.celestialEnergy() - after.celestialEnergy(),
+                            cost.celestialEnergy(),
+                            "Digital confirmation must escrow its configured Celestial Energy cost");
+                    helper.assertValueEqual(
+                            before.aeEnergy() - after.aeEnergy(),
+                            cost.aeEnergy(),
+                            "Digital confirmation must escrow its configured AE energy cost");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "The target must remain unchanged when the public warning begins");
+                    helper.assertTrue(
+                            level.destroyBlock(helper.absolutePos(CREATIVE_ENERGY_CELL), false),
+                            "The charging source must be removable before the payload delivery assertions");
+                    helper.assertTrue(
+                            level.destroyBlock(helper.absolutePos(CONTROL_CONSOLE), false),
+                            "The endpoint must be removable after confirmation without cancelling the payload");
+                })
+                .thenIdle(Math.max(1, settings.attackWarningTicks() / 2))
+                .thenExecute(() -> {
+                    OrbitalAttackRecord warning = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            warning.phase(),
+                            OrbitalAttackPhase.RESERVED_WARNING,
+                            "The digital payload must remain refundable during its warning");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "The target block must not be changed during the warning");
+                })
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            delivery.phase(),
+                            OrbitalAttackPhase.DELIVERY,
+                            "The warning must commit into a digital payload delivery");
+                    helper.assertTrue(
+                            delivery.payloadEntityId() != null,
+                            "A committed digital attack must persist its payload entity identity");
+                    Entity payload = level.getEntity(delivery.payloadEntityId());
+                    helper.assertTrue(
+                            payload instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The committed attack must spawn the dedicated orbital payload entity");
+                    payloadStartY.set(payload.getY());
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "The descending payload must not destroy blocks along its path");
+                })
+                .thenIdle(40)
+                .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    Entity payload = level.getEntity(delivery.payloadEntityId());
+                    helper.assertTrue(
+                            payload instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The payload must still exist halfway through its descent");
+                    helper.assertTrue(
+                            payload.getY() < payloadStartY.get(),
+                            "The payload must descend monotonically toward the captured target Y");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "Passing through a block must not cause early digital annihilation");
+                })
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            delivery.payloadArrived(),
+                            "The payload must report materialization after exactly 80 flight ticks");
+                    Entity nuke = level.getEntity(delivery.payloadEntityId());
+                    helper.assertTrue(
+                            nuke instanceof DataNukePrimedEntity,
+                            "Materialization must use the existing data-nuke fuse entity");
+                    DataNukePrimedEntity digitalNuke = (DataNukePrimedEntity) nuke;
+                    helper.assertTrue(
+                            digitalNuke.orbitalAttackId().equals(attackId.get()),
+                            "The fuse entity must retain its originating attack UUID");
+                    helper.assertTrue(
+                            digitalNuke.damageExemptions().contains(owner.getUUID()),
+                            "The fuse entity must retain the frozen owner exemption UUID");
+                    helper.assertTrue(
+                            digitalNuke.getFuse() <= 80 && digitalNuke.getFuse() >= 78,
+                            "The materialized fuse must begin with the configured 80-tick fuse");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "The target must remain unchanged until the fuse completes");
+                })
+                .thenExecute(() -> {
+                    Zombie spawned = helper.spawn(EntityType.ZOMBIE, TARGET.above());
+                    spawned.setNoAi(true);
+                    victim.set(spawned);
+                })
+                .thenIdle(90)
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            delivery.phase(),
+                            OrbitalAttackPhase.DELIVERY,
+                            "The attack must remain in delivery while its spawned annihilator is active");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) != null,
+                            "The spawned annihilator must remain tracked after the fuse activates");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) instanceof DataNukePrimedEntity nuke && nuke.isActive(),
+                            "The materialized fuse must transition into the existing active annihilation behavior");
+                    helper.assertFalse(victim.get().isAlive(), "The active annihilator must consume a non-exempt entity");
+                    OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
+                    helper.assertValueEqual(
+                            after.celestialEnergy(),
+                            reserveBefore.get().celestialEnergy() - cost.celestialEnergy(),
+                            "The committed digital attack must not charge the reserve a second time");
+                    helper.assertValueEqual(
+                            after.aeEnergy(),
+                            reserveBefore.get().aeEnergy() - cost.aeEnergy(),
+                            "The committed digital attack must not charge AE a second time");
+                })
+                .thenSucceed();
+    }
+
+    private static void installInfiniteCell(GameTestHelper helper) {
+        if (!(helper.getBlockEntity(DRIVE) instanceof DriveBlockEntity drive)) {
+            throw new IllegalStateException("The digital test drive has no block entity");
+        }
+        drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
+    }
+
+    private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
+        if (!(helper.getBlockEntity(CONTROL_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
+            throw new IllegalStateException("The digital test console has no block entity");
+        }
+        IGrid grid = console.getMainNode().getGrid();
+        if (grid == null || !console.getMainNode().isActive()) {
+            throw new IllegalStateException("The digital test AE grid is not active");
+        }
+        long inserted = grid.getStorageService().getInventory().insert(
+                CelestialEnergyKey.of(),
+                amount,
+                Actionable.MODULATE,
+                IActionSource.ofMachine(console));
+        if (inserted != amount) {
+            throw new IllegalStateException("The digital test could not seed Celestial Energy storage");
+        }
+    }
+
+    private static void primeReserve(
+                                     OrbitalWeaponSavedData weapons,
+                                     MinecraftServer server,
+                                     UUID weaponId,
+                                     OrbitalAttackCost cost) {
+        long requiredCelestialEnergy = cost.celestialEnergy();
+        long requiredAeEnergy = cost.aeEnergy();
+        for (int attempts = 0; attempts < 12_000; attempts++) {
+            OrbitalEnergyReserve reserve = weapons.find(weaponId).orElseThrow().reserve();
+            if (reserve.canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+                return;
+            }
+            weapons.chargeReserves(server);
+        }
+        throw new IllegalStateException("The real AE endpoint did not fund one digital payload");
+    }
+
+    private static void placeBlock(GameTestHelper helper, BlockPos relativePos, Block block, ServerPlayer placer) {
+        ServerLevel level = helper.getLevel();
+        BlockPos absolutePos = helper.absolutePos(relativePos);
+        BlockState state = block.defaultBlockState();
+        if (!level.setBlock(absolutePos, state, Block.UPDATE_ALL)) {
+            throw new IllegalStateException("Failed to place digital test block at " + absolutePos);
+        }
+        state.getBlock().setPlacedBy(level, absolutePos, state, placer, ItemStack.EMPTY);
+    }
+
+    private static ServerPlayer createPlayer(ServerLevel level, String name) {
+        return new TestServerPlayer(
+                level.getServer(),
+                level,
+                new GameProfile(UUID.randomUUID(), name),
+                ClientInformation.createDefault());
+    }
+
+    private static final class TestServerPlayer extends ServerPlayer {
+
+        private TestServerPlayer(
+                                 MinecraftServer server,
+                                 ServerLevel level,
+                                 GameProfile profile,
+                                 ClientInformation clientInformation) {
+            super(server, level, profile, clientInformation);
+        }
+
+        @Override
+        public void displayClientMessage(Component chatComponent, boolean actionBar) {}
+    }
+}
