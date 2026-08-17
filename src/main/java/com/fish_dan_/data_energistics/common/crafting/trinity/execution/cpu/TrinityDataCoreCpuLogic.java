@@ -680,6 +680,16 @@ final class TrinityDataCoreCpuLogic {
             return CraftingExecutionOutcome.NONE;
         }
         TrinityBorrowingTransaction borrowed = borrowing.orElseThrow();
+        long logicalOffer = Math.min(maximumLogicalFirings, selected.maximumCrafts());
+        if (logicalOffer <= 0L) {
+            borrowed.releaseUncommitted();
+            execution.deferDynamicInput(
+                    work,
+                    selected.observedKeys(),
+                    currentTick,
+                    settings.dynamicRetryMaxTicks);
+            return CraftingExecutionOutcome.NONE;
+        }
 
         ProviderDispatchOutcome outcome;
         try {
@@ -687,7 +697,7 @@ final class TrinityDataCoreCpuLogic {
                     currentJob,
                     pattern,
                     selected.extractionPattern(),
-                    Math.min(maximumLogicalFirings, selected.maximumCrafts()),
+                    logicalOffer,
                     work,
                     work.generation(),
                     false,
@@ -700,7 +710,7 @@ final class TrinityDataCoreCpuLogic {
                     dispatchBudget,
                     commit -> {
                         borrowed.commitConsumed(selected.inputsPerCraft(), commit.count());
-                        commitTrinityPatternPush(currentJob, execution, work, commit);
+                        commitTrinityPatternPush(currentJob, execution, work, logicalOffer, commit);
                     });
         } catch (DynamicCraftingOutputResolutionException exception) {
             this.proposalCoordinator.cancel();
@@ -2193,11 +2203,12 @@ final class TrinityDataCoreCpuLogic {
     private void commitTrinityPatternPush(TrinityDataCoreExecutingCraftingJob currentJob,
                                           TrinityPlanExecution execution,
                                           TrinityPlanExecution.Work work,
+                                          long logicalOffer,
                                           PreparedPatternCommit commit) {
         addWaiting(currentJob, commit.expectedOutputs());
         addWaiting(currentJob, commit.expectedContainerItems());
         currentJob.dynamicOutputs.register(commit.dynamicOutputs());
-        execution.recordAccepted(work, commit.count());
+        execution.recordAccepted(work, commit.count(), logicalOffer);
         if (!currentJob.timeTracker.hasPlanBaseline()) {
             for (GenericStack output : commit.expectedOutputs()) {
                 currentJob.timeTracker.addMaxItems(output.amount(), output.what().getType());

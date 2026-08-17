@@ -557,15 +557,26 @@ public final class TrinityPlanExecution {
     /**
      * Records the exact count accepted by a provider and advances only that firing cursor.
      *
-     * @param work          current leased work
-     * @param acceptedCount positive accepted logical firing count
+     * <p>For an unstarted cycle wave, {@code offeredLogicalFirings} is the seed-safe logical offer calculated before
+     * provider capacity slicing. It must not be replaced with {@code acceptedCount}: a provider may accept only a
+     * partial physical slice, but the established wave still has to retain its original logical size.</p>
+     *
+     * @param work                    current leased work
+     * @param acceptedCount           positive accepted logical firing count
+     * @param offeredLogicalFirings   logical offer that established an unstarted cycle wave
      */
-    public void recordAccepted(Work work, long acceptedCount) {
+    public void recordAccepted(Work work, long acceptedCount, long offeredLogicalFirings) {
         if (acceptedCount <= 0L) {
             throw new IllegalArgumentException("A Trinity provider acceptance must be positive");
         }
+        if (offeredLogicalFirings <= 0L) {
+            throw new IllegalArgumentException("A Trinity provider logical offer must be positive");
+        }
         StageState stage = requireCurrentWork(work);
-        if (acceptedCount > work.maximumLogicalFirings()) {
+        if (offeredLogicalFirings > work.maximumLogicalFirings()) {
+            throw new IllegalArgumentException("A Trinity logical offer exceeds the leased work bound");
+        }
+        if (acceptedCount > offeredLogicalFirings) {
             throw new IllegalArgumentException("A Trinity provider accepted more than the offered logical firing count");
         }
         FiringState firing = stage.firings.get(stage.currentFiring);
@@ -574,7 +585,12 @@ public final class TrinityPlanExecution {
             if (repeat.cursor != 0 || stage.currentFiring != 0) {
                 throw new IllegalStateException("A Trinity cycle wave must begin at its first stage and firing");
             }
-            repeat.waveCount = ceilDiv(acceptedCount, firing.plannedCount);
+            repeat.waveCount = Math.min(
+                    repeat.remainingRepetitions,
+                    ceilDiv(offeredLogicalFirings, firing.plannedCount));
+            if (repeat.waveCount <= 0L) {
+                throw new IllegalStateException("A Trinity cycle wave offer cannot establish an empty wave");
+            }
             firing.remainingCount = Math.multiplyExact(firing.plannedCount, repeat.waveCount);
             firing.initialized = true;
         }
