@@ -62,9 +62,11 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
 
-        Optional<OrbitalWeaponRecord> weapon = OrbitalWeaponSavedData.get(server)
-                .accessibleTo(player.getUUID())
+        OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
+        Optional<UUID> preferredWeaponId = weaponData.preferredWeaponId(player.getUUID());
+        Optional<OrbitalWeaponRecord> weapon = weaponData.accessibleTo(player.getUUID())
                 .stream()
+                .filter(candidate -> preferredWeaponId.map(id -> id.equals(candidate.weaponId())).orElse(true))
                 .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE))
                 .findFirst();
         if (weapon.isEmpty()) {
@@ -113,6 +115,18 @@ public final class OrbitalControlActionDispatcher {
                         mode.name()),
                 true));
         return result;
+    }
+
+    /**
+     * Advances the player's persisted server-side weapon selection. The UI sends only the direction; the server
+     * resolves the accessible UUID list and never trusts a client-supplied weapon identity.
+     */
+    public static Optional<UUID> cycleWeapon(ServerPlayer player, boolean forward) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return Optional.empty();
+        }
+        return OrbitalWeaponSavedData.get(server).selectNext(server, player.getUUID(), forward);
     }
 
     /**

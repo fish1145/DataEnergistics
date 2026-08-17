@@ -32,8 +32,9 @@ public final class OrbitalControlUiFactory {
 
     private static final String STATUS_SYNC_NAME = "orbital_control_terminal_status";
     private static final int UI_WIDTH = 320;
-    private static final int UI_HEIGHT = 260;
-    private static final int ACTION_TOP = 218;
+    private static final int UI_HEIGHT = 292;
+    private static final int SELECTOR_TOP = 198;
+    private static final int ACTION_TOP = 244;
     private static final int ACTION_HEIGHT = 22;
     private static final int ACTION_GAP = 4;
     private static final int ACTION_WIDTH = 74;
@@ -83,7 +84,20 @@ public final class OrbitalControlUiFactory {
                 .left(8)
                 .top(30)
                 .width(UI_WIDTH - 16)
-                .height(180));
+                .height(160));
+
+        Button previousWeapon = selectionButton(
+                "orbital_control_terminal_previous_weapon",
+                "screen.data_energistics.orbital_control_terminal.action.previous_weapon",
+                8,
+                player,
+                false);
+        Button nextWeapon = selectionButton(
+                "orbital_control_terminal_next_weapon",
+                "screen.data_energistics.orbital_control_terminal.action.next_weapon",
+                112,
+                player,
+                true);
 
         Button kinetic = actionButton(
                 "orbital_control_terminal_kinetic",
@@ -151,7 +165,7 @@ public final class OrbitalControlUiFactory {
                 }
             }
         });
-        root.addChildren(title, status, kinetic, directed, digital, cancel);
+        root.addChildren(title, status, previousWeapon, nextWeapon, kinetic, directed, digital, cancel);
 
         SyncValue<Component> statusSync = new SyncValue<>(STATUS_SYNC_NAME, Component.class, Component.empty());
         statusSync.setToSync(!clientSide);
@@ -183,6 +197,29 @@ public final class OrbitalControlUiFactory {
                 .width(ACTION_WIDTH)
                 .height(ACTION_HEIGHT));
         button.setOnServerClick(event -> action.accept(mode));
+        return button;
+    }
+
+    private static Button selectionButton(
+                                          String id,
+                                          String translationKey,
+                                          int left,
+                                          Player player,
+                                          boolean forward) {
+        Button button = new Button();
+        button.setId(id);
+        button.setText(Component.translatable(translationKey));
+        button.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(left)
+                .top(SELECTOR_TOP)
+                .width(96)
+                .height(ACTION_HEIGHT));
+        button.setOnServerClick(event -> {
+            if (player instanceof ServerPlayer serverPlayer) {
+                OrbitalControlActionDispatcher.cycleWeapon(serverPlayer, forward);
+            }
+        });
         return button;
     }
 }

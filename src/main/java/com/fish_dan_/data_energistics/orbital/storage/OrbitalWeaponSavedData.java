@@ -15,6 +15,8 @@ import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveCharging;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -43,6 +45,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String DATA_NAME = Data_Energistics.MODID + "_orbital_weapons";
+    private static final String LAST_SELECTED_WEAPONS_TAG = "last_selected_weapons";
+    private static final String PLAYER_ID_TAG = "player_id";
+    private static final String WEAPON_ID_TAG = "weapon_id";
     private static final Factory<OrbitalWeaponSavedData> FACTORY = new Factory<>(
             OrbitalWeaponSavedData::new,
             OrbitalWeaponSavedData::load);
@@ -52,6 +57,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private final Map<UUID, Set<UUID>> accessIndex = new HashMap<>();
     private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
     private final Set<UUID> reserveChargeFaults = new HashSet<>();
+    private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new HashMap<>();
 
     private OrbitalWeaponSavedData() {}
 
@@ -298,6 +304,53 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /**
+     * Returns the player's remembered weapon when it is still accessible, otherwise the first stable accessible ID.
+     */
+    public Optional<UUID> preferredWeaponId(UUID playerId) {
+        List<OrbitalWeaponRecord> accessible = accessibleTo(playerId);
+        UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
+        if (remembered != null && accessible.stream().anyMatch(weapon -> weapon.weaponId().equals(remembered))) {
+            return Optional.of(remembered);
+        }
+        return accessible.stream().map(OrbitalWeaponRecord::weaponId).findFirst();
+    }
+
+    /**
+     * Moves the player's server-side selection through the currently accessible weapons and persists the choice.
+     *
+     * @param forward {@code true} for the next weapon, {@code false} for the previous weapon
+     * @return the newly selected weapon, or empty when the player has no accessible weapon
+     */
+    public Optional<UUID> selectNext(MinecraftServer server, UUID playerId, boolean forward) {
+        requireServerThread(server);
+        List<UUID> accessible = accessibleTo(playerId).stream()
+                .map(OrbitalWeaponRecord::weaponId)
+                .toList();
+        if (accessible.isEmpty()) {
+            if (this.lastSelectedWeaponByPlayer.remove(playerId) != null) {
+                setDirty();
+            }
+            return Optional.empty();
+        }
+
+        UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
+        int currentIndex = accessible.indexOf(remembered);
+        if (currentIndex < 0) {
+            // The opening snapshot defaults to the first stable UUID even before a button is pressed.
+            // Treat that implicit choice as the current position so the first Next/Previous action moves.
+            currentIndex = 0;
+        }
+        int selectedIndex;
+        selectedIndex = Math.floorMod(currentIndex + (forward ? 1 : -1), accessible.size());
+        UUID selected = accessible.get(selectedIndex);
+        if (!selected.equals(remembered)) {
+            this.lastSelectedWeaponByPlayer.put(playerId, selected);
+            setDirty();
+        }
+        return Optional.of(selected);
+    }
+
+    /**
      * Adds or changes a delegated role after verifying the acting player against authoritative state.
      */
     public void authorize(
@@ -357,7 +410,18 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        return OrbitalWeaponNbtCodec.save(tag, this.weapons.values());
+        OrbitalWeaponNbtCodec.save(tag, this.weapons.values());
+        ListTag selections = new ListTag();
+        this.lastSelectedWeaponByPlayer.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    CompoundTag selection = new CompoundTag();
+                    selection.putUUID(PLAYER_ID_TAG, entry.getKey());
+                    selection.putUUID(WEAPON_ID_TAG, entry.getValue());
+                    selections.add(selection);
+                });
+        tag.put(LAST_SELECTED_WEAPONS_TAG, selections);
+        return tag;
     }
 
     private static OrbitalWeaponSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
@@ -375,6 +439,23 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 continue;
             }
             data.putRecord(data.filterConflictingEndpoints(weapon));
+        }
+        Tag selectionTag = tag.get(LAST_SELECTED_WEAPONS_TAG);
+        if (selectionTag instanceof ListTag selections) {
+            for (Tag rawSelection : selections) {
+                if (!(rawSelection instanceof CompoundTag selection)
+                        || !selection.hasUUID(PLAYER_ID_TAG)
+                        || !selection.hasUUID(WEAPON_ID_TAG)) {
+                    continue;
+                }
+                UUID playerId = selection.getUUID(PLAYER_ID_TAG);
+                UUID weaponId = selection.getUUID(WEAPON_ID_TAG);
+                OrbitalWeaponRecord weapon = data.weapons.get(weaponId);
+                if (weapon != null
+                        && (weapon.ownerId().equals(playerId) || weapon.delegatedRoles().containsKey(playerId))) {
+                    data.lastSelectedWeaponByPlayer.put(playerId, weaponId);
+                }
+            }
         }
         return data;
     }

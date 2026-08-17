@@ -55,7 +55,8 @@ public record OrbitalControlTerminalSnapshot(
      */
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        List<OrbitalWeaponRecord> accessibleWeapons = OrbitalWeaponSavedData.get(server)
+        OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
+        List<OrbitalWeaponRecord> accessibleWeapons = weaponData
                 .accessibleTo(playerId)
                 .stream()
                 .toList();
@@ -64,7 +65,13 @@ public record OrbitalControlTerminalSnapshot(
                 .limit(MAX_WEAPONS)
                 .map(weapon -> WeaponEntry.from(weapon, playerId, attacks.forWeapon(weapon.weaponId())))
                 .toList();
-        UUID selected = entries.isEmpty() ? null : entries.getFirst().weaponId();
+        UUID preferred = weaponData.preferredWeaponId(playerId).orElse(null);
+        UUID selected = null;
+        if (preferred != null && entries.stream().anyMatch(entry -> entry.weaponId().equals(preferred))) {
+            selected = preferred;
+        } else if (!entries.isEmpty()) {
+            selected = entries.getFirst().weaponId();
+        }
         return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
     }
 
@@ -81,6 +88,11 @@ public record OrbitalControlTerminalSnapshot(
                 "screen.data_energistics.orbital_control_terminal.available",
                 Integer.toString(this.weapons.size()));
         for (WeaponEntry entry : this.weapons) {
+            if (entry.weaponId().equals(this.selectedWeaponId)) {
+                result = result
+                        .append(Component.literal("\n"))
+                        .append(Component.translatable("screen.data_energistics.orbital_control_terminal.selected_marker"));
+            }
             result = result
                     .append(Component.literal("\n"))
                     .append(Component.translatable(
