@@ -1,12 +1,11 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
+import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
-import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -67,11 +66,7 @@ public final class OrbitalControlHudTicker {
     }
 
     private static boolean holdsTerminal(ServerPlayer player) {
-        return isTerminal(player.getMainHandItem()) || isTerminal(player.getOffhandItem());
-    }
-
-    private static boolean isTerminal(ItemStack stack) {
-        return stack.is(DEItems.ORBITAL_CONTROL_TERMINAL.get());
+        return OrbitalControlTerminalItem.isHeldBy(player);
     }
 
     private record PublishedState(boolean visible, Component status, @Nullable UUID selectedWeaponId) {

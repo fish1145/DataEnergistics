@@ -966,5 +966,22 @@
 	"commands.data_energistics.orbital.refund_success": "已退回故障轨道攻击 escrow：%s",
 	"commands.data_energistics.orbital.repair_success": "已重建轨道武器索引，移除记录：%s",
 	"commands.data_energistics.orbital.reconcile_success": "已重新校验轨道端点与区块票据",
-	"commands.data_energistics.orbital.command_failed": "轨道管理员操作失败，详情见服务端日志"
+	"commands.data_energistics.orbital.command_failed": "轨道管理员操作失败，详情见服务端日志",
+	"commands.data_energistics.orbital.player_required": "该轨道操作只能由在线玩家执行",
+	"commands.data_energistics.orbital.transfer_rejected": "轨道所有权转让请求被拒绝",
+	"commands.data_energistics.orbital.transfer_created": "已创建转让确认：凭据 %s，接收者 %s（60 秒内确认）",
+	"commands.data_energistics.orbital.transfer_received": "你收到轨道武器转让凭据：%s，原所有者 %s（使用 accept-transfer 确认）",
+	"commands.data_energistics.orbital.transfer_accept_rejected": "轨道所有权转让凭据无效、过期或状态已变化",
+	"commands.data_energistics.orbital.transfer_accepted": "已接受轨道所有权转让：%s",
+	"commands.data_energistics.orbital.retirement_confirmation_required": "请在 60 秒内使用确认凭据 %s 退役武器 %s",
+	"commands.data_energistics.orbital.retirement_rejected": "轨道武器退役被拒绝（必须休眠、零储备、无端点且无活动攻击）",
+	"commands.data_energistics.orbital.retirement_completed": "已受控退役轨道武器：%s",
+	"message.data_energistics.orbital.transfer_rejected": "轨道所有权转让请求被拒绝",
+	"message.data_energistics.orbital.transfer_created": "已创建转让凭据 %s；接收者 %s 必须在 60 秒内确认",
+	"message.data_energistics.orbital.transfer_received": "你收到轨道转让凭据 %s；原所有者 %s 请求转让",
+	"message.data_energistics.orbital.transfer_accept_rejected": "轨道转让凭据无效、过期或状态已变化",
+	"message.data_energistics.orbital.transfer_accepted": "已接受轨道所有权转让",
+	"message.data_energistics.orbital.retirement_confirmation_required": "请使用凭据 %s 二次确认退役武器 %s（60 秒内有效）",
+	"message.data_energistics.orbital.retirement_rejected": "轨道武器退役被拒绝",
+	"message.data_energistics.orbital.retirement_completed": "已受控退役轨道武器"
 }

@@ -78,7 +78,9 @@ public final class OrbitalDirectedEnergyStrike {
     }
 
     /**
-     * Processes one bounded slice and applies each column's entity damage when its top position is visited.
+     * Processes one bounded slice and applies the beam hit at the current descending Y position. The feet-Y filter in
+     * {@link #applyBeamDamage(ServerLevel, BlockPos, Set, float)} makes one entity receive one hit per disk column,
+     * when the beam reaches the entity's occupied level, instead of damaging every entity at the column top.
      */
     public static WorkSlice applyBudget(
                                         ServerLevel level,
@@ -128,14 +130,11 @@ public final class OrbitalDirectedEnergyStrike {
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
-            int yOffset = (int) (next % height);
             BlockPos position = positionAt(target, offsets, topY, height, next);
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
-            if (yOffset == 0) {
-                applyBeamDamage(level, position, bottomY, topY, exemptions, entityDamage);
-            }
+            applyBeamDamage(level, position, exemptions, entityDamage);
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
@@ -205,21 +204,22 @@ public final class OrbitalDirectedEnergyStrike {
     private static void applyBeamDamage(
                                         ServerLevel level,
                                         BlockPos column,
-                                        int bottomY,
-                                        int topY,
                                         Set<UUID> exemptions,
                                         float damage) {
         AABB beam = new AABB(
                 column.getX(),
-                bottomY,
+                column.getY(),
                 column.getZ(),
                 column.getX() + 1.0D,
-                topY + 1.0D,
+                column.getY() + 1.0D,
                 column.getZ() + 1.0D);
         for (LivingEntity entity : level.getEntities(
                 EntityTypeTest.forClass(LivingEntity.class),
                 beam,
                 LivingEntity::isAlive)) {
+            if (entity.blockPosition().getY() != column.getY()) {
+                continue;
+            }
             if (exemptions.contains(entity.getUUID())) {
                 continue;
             }

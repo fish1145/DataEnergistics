@@ -3,7 +3,9 @@ package com.fish_dan_.data_energistics.orbital.command;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
+import com.fish_dan_.data_energistics.orbital.storage.OrbitalOwnershipTransfer;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -11,12 +13,14 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.UuidArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.UUID;
+import java.util.Optional;
 
-/** Server-only recovery commands for operators; players never receive the administrator refund capability. */
+/** Server-side orbital commands: player lifecycle intents plus operator-only attack recovery. */
 public final class OrbitalAdminCommands {
 
     public OrbitalAdminCommands() {}
@@ -25,32 +29,169 @@ public final class OrbitalAdminCommands {
     public void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
                 Commands.literal("data_energistics")
-                        .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("orbital")
+                                .then(Commands.literal("transfer")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("recipient", UuidArgument.uuid())
+                                                        .executes(context -> requestTransfer(
+                                                                context.getSource(),
+                                                                UuidArgument.getUuid(context, "weapon"),
+                                                                UuidArgument.getUuid(context, "recipient"))))))
+                                .then(Commands.literal("accept-transfer")
+                                        .then(Commands.argument("transfer", UuidArgument.uuid())
+                                                .executes(context -> acceptTransfer(
+                                                        context.getSource(),
+                                                        UuidArgument.getUuid(context, "transfer")))))
+                                .then(Commands.literal("retire")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .executes(context -> beginRetirement(
+                                                        context.getSource(),
+                                                        UuidArgument.getUuid(context, "weapon")))))
+                                .then(Commands.literal("confirm-retire")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("confirmation", UuidArgument.uuid())
+                                                        .executes(context -> confirmRetirement(
+                                                                context.getSource(),
+                                                                UuidArgument.getUuid(context, "weapon"),
+                                                                UuidArgument.getUuid(context, "confirmation"))))))
                                 .then(Commands.literal("inspect")
+                                        .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("attack", UuidArgument.uuid())
                                                 .executes(context -> inspectAttack(
                                                         context.getSource(),
                                                         UuidArgument.getUuid(context, "attack")))))
                                 .then(Commands.literal("retry")
+                                        .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("attack", UuidArgument.uuid())
                                                 .executes(context -> retryAttack(
                                                         context.getSource(),
                                                         UuidArgument.getUuid(context, "attack")))))
                                 .then(Commands.literal("abort")
+                                        .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("attack", UuidArgument.uuid())
                                                 .executes(context -> abortAttack(
                                                         context.getSource(),
                                                         UuidArgument.getUuid(context, "attack")))))
                                 .then(Commands.literal("refund")
+                                        .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("attack", UuidArgument.uuid())
                                                 .executes(context -> refundAttack(
                                                         context.getSource(),
                                                         UuidArgument.getUuid(context, "attack")))))
                                 .then(Commands.literal("repair-owner-index")
+                                        .requires(source -> source.hasPermission(2))
                                         .executes(context -> repairOwnerIndex(context.getSource())))
                                 .then(Commands.literal("reconcile-endpoints")
+                                        .requires(source -> source.hasPermission(2))
                                         .executes(context -> reconcileEndpoints(context.getSource())))));
+    }
+
+    private static int requestTransfer(CommandSourceStack source, UUID weaponId, UUID recipientId) {
+        if (!(source.getEntity() instanceof ServerPlayer owner)) {
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.player_required"));
+            return 0;
+        }
+        try {
+            Optional<OrbitalOwnershipTransfer> offer = OrbitalOwnershipActionDispatcher.requestTransfer(
+                    owner,
+                    weaponId,
+                    recipientId);
+            if (offer.isEmpty()) {
+                source.sendFailure(Component.translatable("commands.data_energistics.orbital.transfer_rejected"));
+                return 0;
+            }
+            OrbitalOwnershipTransfer transfer = offer.orElseThrow();
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.transfer_created",
+                            transfer.transferId(),
+                            transfer.recipientId()),
+                    false);
+            MinecraftServer server = owner.getServer();
+            ServerPlayer recipient = server == null
+                    ? null
+                    : server.getPlayerList().getPlayer(transfer.recipientId());
+            if (recipient != null) {
+                recipient.displayClientMessage(
+                        Component.translatable(
+                                "commands.data_energistics.orbital.transfer_received",
+                                transfer.transferId(),
+                                transfer.currentOwnerId()),
+                        false);
+            }
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Orbital ownership transfer request failed", exception);
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.transfer_rejected"));
+            return 0;
+        }
+    }
+
+    private static int acceptTransfer(CommandSourceStack source, UUID transferId) {
+        if (!(source.getEntity() instanceof ServerPlayer recipient)) {
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.player_required"));
+            return 0;
+        }
+        try {
+            if (!OrbitalOwnershipActionDispatcher.acceptTransfer(recipient, transferId)) {
+                source.sendFailure(Component.translatable("commands.data_energistics.orbital.transfer_accept_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable("commands.data_energistics.orbital.transfer_accepted", transferId),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Orbital ownership transfer acceptance failed", exception);
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.transfer_accept_rejected"));
+            return 0;
+        }
+    }
+
+    private static int beginRetirement(CommandSourceStack source, UUID weaponId) {
+        if (!(source.getEntity() instanceof ServerPlayer owner)) {
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.player_required"));
+            return 0;
+        }
+        try {
+            Optional<UUID> token = OrbitalOwnershipActionDispatcher.beginRetirement(owner, weaponId);
+            if (token.isEmpty()) {
+                source.sendFailure(Component.translatable("commands.data_energistics.orbital.retirement_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.retirement_confirmation_required",
+                            weaponId,
+                            token.orElseThrow()),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Orbital retirement confirmation request failed", exception);
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.retirement_rejected"));
+            return 0;
+        }
+    }
+
+    private static int confirmRetirement(CommandSourceStack source, UUID weaponId, UUID token) {
+        if (!(source.getEntity() instanceof ServerPlayer owner)) {
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.player_required"));
+            return 0;
+        }
+        try {
+            if (!OrbitalOwnershipActionDispatcher.confirmRetirement(owner, weaponId, token)) {
+                source.sendFailure(Component.translatable("commands.data_energistics.orbital.retirement_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable("commands.data_energistics.orbital.retirement_completed", weaponId),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Orbital retirement confirmation failed", exception);
+            source.sendFailure(Component.translatable("commands.data_energistics.orbital.retirement_rejected"));
+            return 0;
+        }
     }
 
     private static int inspectAttack(CommandSourceStack source, UUID attackId) {

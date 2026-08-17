@@ -966,5 +966,22 @@
 	"commands.data_energistics.orbital.refund_success": "Faulted orbital attack escrow refunded: %s",
 	"commands.data_energistics.orbital.repair_success": "Orbital weapon indexes rebuilt; records removed: %s",
 	"commands.data_energistics.orbital.reconcile_success": "Orbital endpoint bindings and chunk tickets reconciled",
-	"commands.data_energistics.orbital.command_failed": "Orbital administrator operation failed; see the server log"
+	"commands.data_energistics.orbital.command_failed": "Orbital administrator operation failed; see the server log",
+	"commands.data_energistics.orbital.player_required": "This orbital action must be performed by an online player",
+	"commands.data_energistics.orbital.transfer_rejected": "The orbital ownership transfer was rejected",
+	"commands.data_energistics.orbital.transfer_created": "Transfer offer created: token %s, recipient %s (confirm within 60 seconds)",
+	"commands.data_energistics.orbital.transfer_received": "You received orbital transfer token %s from owner %s (use accept-transfer to confirm)",
+	"commands.data_energistics.orbital.transfer_accept_rejected": "The orbital transfer token is invalid, expired, or the state changed",
+	"commands.data_energistics.orbital.transfer_accepted": "Orbital ownership transfer accepted: %s",
+	"commands.data_energistics.orbital.retirement_confirmation_required": "Confirm retirement of weapon %s with token %s within 60 seconds",
+	"commands.data_energistics.orbital.retirement_rejected": "Orbital retirement rejected (weapon must be dormant, empty, unbound, and idle)",
+	"commands.data_energistics.orbital.retirement_completed": "Orbital weapon retired: %s",
+	"message.data_energistics.orbital.transfer_rejected": "The orbital ownership transfer was rejected",
+	"message.data_energistics.orbital.transfer_created": "Transfer token %s created; recipient %s must confirm within 60 seconds",
+	"message.data_energistics.orbital.transfer_received": "You received orbital transfer token %s from owner %s",
+	"message.data_energistics.orbital.transfer_accept_rejected": "The orbital transfer token is invalid, expired, or the state changed",
+	"message.data_energistics.orbital.transfer_accepted": "Orbital ownership transfer accepted",
+	"message.data_energistics.orbital.retirement_confirmation_required": "Confirm retirement of weapon %s with token %s within 60 seconds",
+	"message.data_energistics.orbital.retirement_rejected": "Orbital retirement rejected",
+	"message.data_energistics.orbital.retirement_completed": "Orbital weapon retired"
 }

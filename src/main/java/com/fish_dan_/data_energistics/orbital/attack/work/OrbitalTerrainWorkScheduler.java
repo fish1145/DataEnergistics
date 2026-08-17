@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.orbital.attack.work;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings;
 
-import net.minecraft.Util;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkResult;
@@ -24,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * Server-thread governor for future-backed kinetic and directed-energy terrain work.
@@ -244,11 +242,8 @@ public final class OrbitalTerrainWorkScheduler {
         this.pendingRequestCount++;
         this.pendingRequestsByDimension.merge(level.dimension(), 1, Integer::sum);
 
-        CompletableFuture<ChunkResult<ChunkAccess>> future = CompletableFuture
-                .supplyAsync(
-                        () -> level.getChunkSource().getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true),
-                        Util.backgroundExecutor())
-                .thenCompose(Function.identity());
+        CompletableFuture<ChunkResult<ChunkAccess>> future = level.getChunkSource()
+                .getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true);
         future.whenComplete((result, throwable) -> level.getServer().execute(() -> {
             TaskState currentTask = this.tasks.get(attackId);
             if (currentTask == null || currentTask.pendingRequest == null || currentTask.pendingRequest.requestId != requestId) {

@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
-import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -15,5 +14,6 @@ public final class OrbitalControlPreviewTicker {
     @SubscribeEvent
     public void onServerTickPost(ServerTickEvent.Post event) {
         OrbitalControlActionDispatcher.expirePreviews(event.getServer());
+        OrbitalOwnershipActionDispatcher.expire(event.getServer());
     }
 }
