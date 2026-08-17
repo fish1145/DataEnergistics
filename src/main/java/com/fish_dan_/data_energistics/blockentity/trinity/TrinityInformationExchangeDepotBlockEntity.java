@@ -57,6 +57,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
@@ -111,6 +112,8 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     private static final String STORAGE_MODE_TAG = "storage_mode";
     private static final int TRANSFER_KEYS_PER_TICK = 64;
     private static final long TRANSFER_NANOS_PER_TICK = 2_000_000L;
+    /** AE/t charged for each service the exchange depot can currently mount from its bound host. */
+    private static final double PASSIVE_AE_PER_MOUNTED_SERVICE = 1_000.0D;
 
     private final MEStorage networkStorage = new HatchStorage();
     private final IStorageProvider storageProvider = new HatchStorageProvider();
@@ -152,6 +155,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     private boolean transferWatcherConfigured;
     private boolean inputSnapshotDirty = true;
     private boolean outputSnapshotDirty = true;
+    private double appliedIdlePowerUsage = Double.NaN;
     /** Complete elapsed time of the most recently executed server tick for this depot. */
     private long lastServerTickNanos;
 
@@ -161,6 +165,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
                 .addService(IStorageWatcherNode.class, this.transferWatcherNode)
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
                 .setExposedOnSides(EnumSet.allOf(Direction.class))
                 .setVisualRepresentation(DEBlocks.TRINITY_INFORMATION_EXCHANGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
@@ -274,6 +279,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
         long tickStartedAtNanos = System.nanoTime();
         try {
+            updateIdlePowerUsage();
             finishGridBootReevaluation();
             updateActiveState();
             tickStorageTransfer();
@@ -455,6 +461,40 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         if (state.hasProperty(CompartmentBlock.ACTIVE) && state.getValue(CompartmentBlock.ACTIVE) != active) {
             this.level.setBlock(this.worldPosition, state.setValue(CompartmentBlock.ACTIVE, active), 3);
         }
+    }
+
+    /**
+     * Updates the AE2 node's passive draw from the services that the currently bound host can actually expose.
+     * The calculation deliberately does not depend on node activity, so an exhausted grid cannot oscillate between
+     * a zero-cost inactive state and an active published service set.
+     */
+    private void updateIdlePowerUsage() {
+        double nextIdlePowerUsage = computeIdlePowerUsage();
+        if (Double.compare(this.appliedIdlePowerUsage, nextIdlePowerUsage) == 0) {
+            return;
+        }
+        this.appliedIdlePowerUsage = nextIdlePowerUsage;
+        this.getMainNode().setIdlePowerUsage(nextIdlePowerUsage);
+    }
+
+    private double computeIdlePowerUsage() {
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host == null || !host.isStorageAvailable()) {
+            return 0.0D;
+        }
+        // Storage mode mounts IStorageProvider; input/output mode activates the equivalent transfer watcher service.
+        int mountedServiceCount = 1;
+        if (host.isCpuProviderAvailable()) {
+            mountedServiceCount++;
+        }
+        if (host.isPatternProviderAvailable()) {
+            mountedServiceCount++;
+        }
+        double aePerTick = PASSIVE_AE_PER_MOUNTED_SERVICE * mountedServiceCount;
+        if (!Double.isFinite(aePerTick) || aePerTick < 0.0D) {
+            return 0.0D;
+        }
+        return aePerTick;
     }
 
     private void finishGridBootReevaluation() {
