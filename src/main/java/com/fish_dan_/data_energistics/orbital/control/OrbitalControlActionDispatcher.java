@@ -234,6 +234,13 @@ public final class OrbitalControlActionDispatcher {
         return server != null && server.isSameThread() && PREVIEWS.cancel(server, player.getUUID());
     }
 
+    /** Expires abandoned previews from the server tick lifecycle. */
+    public static void expirePreviews(MinecraftServer server) {
+        if (server.isSameThread()) {
+            PREVIEWS.expire(server);
+        }
+    }
+
     /**
      * Advances the player's persisted server-side weapon selection. The UI sends only the direction; the server
      * resolves the accessible UUID list and never trusts a client-supplied weapon identity.
