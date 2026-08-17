@@ -983,5 +983,19 @@
 	"message.data_energistics.orbital.transfer_accepted": "Orbital ownership transfer accepted",
 	"message.data_energistics.orbital.retirement_confirmation_required": "Confirm retirement of weapon %s with token %s within 60 seconds",
 	"message.data_energistics.orbital.retirement_rejected": "Orbital retirement rejected",
-	"message.data_energistics.orbital.retirement_completed": "Orbital weapon retired"
+	"message.data_energistics.orbital.retirement_completed": "Orbital weapon retired",
+	"message.data_energistics.orbital.endpoint_priority_updated": "Orbital endpoint priority updated",
+	"message.data_energistics.orbital.endpoint_priority_rejected": "Endpoint priority was unchanged or the request was rejected",
+	"message.data_energistics.orbital.primary_anchor_updated": "Primary orbital anchor updated",
+	"message.data_energistics.orbital.primary_anchor_rejected": "The selected uplink beacon is unavailable or the request was rejected",
+	"message.data_energistics.orbital.authorization_updated": "Orbital access role updated",
+	"message.data_energistics.orbital.authorization_revoked": "Orbital access role revoked",
+	"message.data_energistics.orbital.authorization_rejected": "Orbital authorization change rejected",
+	"commands.data_energistics.orbital.endpoint_priority_updated": "Endpoint %s %s moved to priority %s",
+	"commands.data_energistics.orbital.endpoint_priority_rejected": "Endpoint priority was unchanged, unavailable, or unauthorized",
+	"commands.data_energistics.orbital.primary_anchor_updated": "Primary anchor selected at %s %s",
+	"commands.data_energistics.orbital.primary_anchor_rejected": "Primary anchor selection rejected; the endpoint must be an online bound uplink beacon",
+	"commands.data_energistics.orbital.authorization_updated": "Player %s now has orbital role %s",
+	"commands.data_energistics.orbital.authorization_revoked": "Revoked orbital access from player %s",
+	"commands.data_energistics.orbital.authorization_rejected": "Orbital authorization change rejected"
 }

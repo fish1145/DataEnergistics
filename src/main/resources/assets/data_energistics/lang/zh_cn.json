@@ -983,5 +983,19 @@
 	"message.data_energistics.orbital.transfer_accepted": "已接受轨道所有权转让",
 	"message.data_energistics.orbital.retirement_confirmation_required": "请使用凭据 %s 二次确认退役武器 %s（60 秒内有效）",
 	"message.data_energistics.orbital.retirement_rejected": "轨道武器退役被拒绝",
-	"message.data_energistics.orbital.retirement_completed": "已受控退役轨道武器"
+	"message.data_energistics.orbital.retirement_completed": "已受控退役轨道武器",
+	"message.data_energistics.orbital.endpoint_priority_updated": "已更新轨道端点优先级",
+	"message.data_energistics.orbital.endpoint_priority_rejected": "端点优先级未变化或请求被拒绝",
+	"message.data_energistics.orbital.primary_anchor_updated": "已更新轨道主投影锚点",
+	"message.data_energistics.orbital.primary_anchor_rejected": "所选上行信标不可用或请求被拒绝",
+	"message.data_energistics.orbital.authorization_updated": "已更新轨道访问角色",
+	"message.data_energistics.orbital.authorization_revoked": "已撤销轨道访问角色",
+	"message.data_energistics.orbital.authorization_rejected": "轨道授权修改被拒绝",
+	"commands.data_energistics.orbital.endpoint_priority_updated": "已将端点 %s %s 调整为优先级 %s",
+	"commands.data_energistics.orbital.endpoint_priority_rejected": "端点优先级未变化、端点不可用或没有权限",
+	"commands.data_energistics.orbital.primary_anchor_updated": "已选择主锚点：%s %s",
+	"commands.data_energistics.orbital.primary_anchor_rejected": "主锚点选择被拒绝；端点必须是在线且已绑定的上行信标",
+	"commands.data_energistics.orbital.authorization_updated": "已将玩家 %s 的轨道角色设为 %s",
+	"commands.data_energistics.orbital.authorization_revoked": "已撤销玩家 %s 的轨道访问权限",
+	"commands.data_energistics.orbital.authorization_rejected": "轨道授权修改被拒绝"
 }

@@ -4,21 +4,32 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalWeaponAdministrationDispatcher;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalOwnershipTransfer;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.UuidArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-import java.util.UUID;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 /** Server-side orbital commands: player lifecycle intents plus operator-only attack recovery. */
 public final class OrbitalAdminCommands {
@@ -54,6 +65,50 @@ public final class OrbitalAdminCommands {
                                                                 context.getSource(),
                                                                 UuidArgument.getUuid(context, "weapon"),
                                                                 UuidArgument.getUuid(context, "confirmation"))))))
+                                .then(Commands.literal("endpoint-priority")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("dimension", StringArgumentType.word())
+                                                        .then(Commands.argument("x", IntegerArgumentType.integer(-30_000_000, 30_000_000))
+                                                                .then(Commands.argument("y", IntegerArgumentType.integer(-2_000_000, 2_000_000))
+                                                                        .then(Commands.argument("z", IntegerArgumentType.integer(-30_000_000, 30_000_000))
+                                                                                .then(Commands.argument("priority", IntegerArgumentType.integer(0, 31))
+                                                                                        .executes(context -> setEndpointPriority(
+                                                                                                context.getSource(),
+                                                                                                UuidArgument.getUuid(context, "weapon"),
+                                                                                                StringArgumentType.getString(context, "dimension"),
+                                                                                                IntegerArgumentType.getInteger(context, "x"),
+                                                                                                IntegerArgumentType.getInteger(context, "y"),
+                                                                                                IntegerArgumentType.getInteger(context, "z"),
+                                                                                                IntegerArgumentType.getInteger(context, "priority"))))))))))
+                                .then(Commands.literal("primary-anchor")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("dimension", StringArgumentType.word())
+                                                        .then(Commands.argument("x", IntegerArgumentType.integer(-30_000_000, 30_000_000))
+                                                                .then(Commands.argument("y", IntegerArgumentType.integer(-2_000_000, 2_000_000))
+                                                                        .then(Commands.argument("z", IntegerArgumentType.integer(-30_000_000, 30_000_000))
+                                                                                .executes(context -> selectPrimaryAnchor(
+                                                                                        context.getSource(),
+                                                                                        UuidArgument.getUuid(context, "weapon"),
+                                                                                        StringArgumentType.getString(context, "dimension"),
+                                                                                        IntegerArgumentType.getInteger(context, "x"),
+                                                                                        IntegerArgumentType.getInteger(context, "y"),
+                                                                                        IntegerArgumentType.getInteger(context, "z")))))))))
+                                .then(Commands.literal("authorize")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("player", UuidArgument.uuid())
+                                                        .then(Commands.argument("role", StringArgumentType.word())
+                                                                .executes(context -> authorize(
+                                                                        context.getSource(),
+                                                                        UuidArgument.getUuid(context, "weapon"),
+                                                                        UuidArgument.getUuid(context, "player"),
+                                                                        StringArgumentType.getString(context, "role")))))))
+                                .then(Commands.literal("revoke")
+                                        .then(Commands.argument("weapon", UuidArgument.uuid())
+                                                .then(Commands.argument("player", UuidArgument.uuid())
+                                                        .executes(context -> revoke(
+                                                                context.getSource(),
+                                                                UuidArgument.getUuid(context, "weapon"),
+                                                                UuidArgument.getUuid(context, "player"))))))
                                 .then(Commands.literal("inspect")
                                         .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("attack", UuidArgument.uuid())
@@ -84,6 +139,164 @@ public final class OrbitalAdminCommands {
                                 .then(Commands.literal("reconcile-endpoints")
                                         .requires(source -> source.hasPermission(2))
                                         .executes(context -> reconcileEndpoints(context.getSource())))));
+    }
+
+    private static int setEndpointPriority(
+                                           CommandSourceStack source,
+                                           UUID weaponId,
+                                           String dimensionId,
+                                           int x,
+                                           int y,
+                                           int z,
+                                           int priority) {
+        ServerPlayer owner = playerSource(source);
+        if (owner == null) {
+            return 0;
+        }
+        try {
+            OrbitalEndpointLocation location = endpointLocation(dimensionId, x, y, z);
+            if (!OrbitalWeaponAdministrationDispatcher.setEndpointPriority(owner, weaponId, location, priority)) {
+                source.sendFailure(Component.translatable(
+                        "commands.data_energistics.orbital.endpoint_priority_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.endpoint_priority_updated",
+                            location.dimensionId(),
+                            location.pos().toShortString(),
+                            priority),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital endpoint priority command failed for weapon {}",
+                    weaponId,
+                    exception);
+            source.sendFailure(Component.translatable(
+                    "commands.data_energistics.orbital.endpoint_priority_rejected"));
+            return 0;
+        }
+    }
+
+    private static int selectPrimaryAnchor(
+                                           CommandSourceStack source,
+                                           UUID weaponId,
+                                           String dimensionId,
+                                           int x,
+                                           int y,
+                                           int z) {
+        ServerPlayer owner = playerSource(source);
+        if (owner == null) {
+            return 0;
+        }
+        try {
+            OrbitalEndpointLocation location = endpointLocation(dimensionId, x, y, z);
+            if (!OrbitalWeaponAdministrationDispatcher.selectPrimaryAnchor(owner, weaponId, location)) {
+                source.sendFailure(Component.translatable(
+                        "commands.data_energistics.orbital.primary_anchor_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.primary_anchor_updated",
+                            location.dimensionId(),
+                            location.pos().toShortString()),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital primary-anchor command failed for weapon {}",
+                    weaponId,
+                    exception);
+            source.sendFailure(Component.translatable(
+                    "commands.data_energistics.orbital.primary_anchor_rejected"));
+            return 0;
+        }
+    }
+
+    private static int authorize(
+                                 CommandSourceStack source,
+                                 UUID weaponId,
+                                 UUID playerId,
+                                 String roleName) {
+        ServerPlayer owner = playerSource(source);
+        if (owner == null) {
+            return 0;
+        }
+        try {
+            OrbitalAccessRole role = switch (roleName.toLowerCase(Locale.ROOT)) {
+                case "operator" -> OrbitalAccessRole.OPERATOR;
+                case "observer" -> OrbitalAccessRole.OBSERVER;
+                default -> throw new IllegalArgumentException("Unknown orbital role: " + roleName);
+            };
+            if (!OrbitalWeaponAdministrationDispatcher.authorize(owner, weaponId, playerId, role)) {
+                source.sendFailure(Component.translatable(
+                        "commands.data_energistics.orbital.authorization_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.authorization_updated",
+                            playerId,
+                            role.name()),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital authorization command failed for weapon {} and player {}",
+                    weaponId,
+                    playerId,
+                    exception);
+            source.sendFailure(Component.translatable(
+                    "commands.data_energistics.orbital.authorization_rejected"));
+            return 0;
+        }
+    }
+
+    private static int revoke(CommandSourceStack source, UUID weaponId, UUID playerId) {
+        ServerPlayer owner = playerSource(source);
+        if (owner == null) {
+            return 0;
+        }
+        try {
+            if (!OrbitalWeaponAdministrationDispatcher.revoke(owner, weaponId, playerId)) {
+                source.sendFailure(Component.translatable(
+                        "commands.data_energistics.orbital.authorization_rejected"));
+                return 0;
+            }
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            "commands.data_energistics.orbital.authorization_revoked",
+                            playerId),
+                    false);
+            return 1;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Orbital authorization-revoke command failed for weapon {} and player {}",
+                    weaponId,
+                    playerId,
+                    exception);
+            source.sendFailure(Component.translatable(
+                    "commands.data_energistics.orbital.authorization_rejected"));
+            return 0;
+        }
+    }
+
+    private static OrbitalEndpointLocation endpointLocation(
+                                                             String dimensionId,
+                                                             int x,
+                                                             int y,
+                                                             int z) {
+        return new OrbitalEndpointLocation(ResourceLocation.parse(dimensionId), new BlockPos(x, y, z));
+    }
+
+    private static @Nullable ServerPlayer playerSource(CommandSourceStack source) {
+        if (source.getEntity() instanceof ServerPlayer player) {
+            return player;
+        }
+        source.sendFailure(Component.translatable("commands.data_energistics.orbital.player_required"));
+        return null;
     }
 
     private static int requestTransfer(CommandSourceStack source, UUID weaponId, UUID recipientId) {

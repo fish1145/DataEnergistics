@@ -1,4 +1,4 @@
-/** C2S orbital fire-preview, ownership-transfer and controlled-retirement intents for the orbital control surface. */
+/** C2S orbital fire, endpoint, authorization, ownership and controlled-retirement control-surface intents. */
 @NullMarked
 package com.fish_dan_.data_energistics.network.orbital.control;
 
