@@ -454,16 +454,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
         Tag selectionTag = tag.get(LAST_SELECTED_WEAPONS_TAG);
         if (selectionTag instanceof ListTag selections) {
             for (Tag rawSelection : selections) {
-                if (!(rawSelection instanceof CompoundTag selection)
-                        || !selection.hasUUID(PLAYER_ID_TAG)
-                        || !selection.hasUUID(WEAPON_ID_TAG)) {
+                if (!(rawSelection instanceof CompoundTag selection) || !selection.hasUUID(PLAYER_ID_TAG) || !selection.hasUUID(WEAPON_ID_TAG)) {
                     continue;
                 }
                 UUID playerId = selection.getUUID(PLAYER_ID_TAG);
                 UUID weaponId = selection.getUUID(WEAPON_ID_TAG);
                 OrbitalWeaponRecord weapon = data.weapons.get(weaponId);
-                if (weapon != null
-                        && (weapon.ownerId().equals(playerId) || weapon.delegatedRoles().containsKey(playerId))) {
+                if (weapon != null && (weapon.ownerId().equals(playerId) || weapon.delegatedRoles().containsKey(playerId))) {
                     data.lastSelectedWeaponByPlayer.put(playerId, weaponId);
                 }
             }

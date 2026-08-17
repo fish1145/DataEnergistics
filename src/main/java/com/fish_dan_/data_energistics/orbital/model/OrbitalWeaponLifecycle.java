@@ -55,9 +55,7 @@ public record OrbitalWeaponLifecycle(
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
             case DEPLOYED -> reserve.hasZeroResource() ? reserveGrace(settings.reserveGraceTicks()) : this;
-            case RESERVE_GRACE -> thresholdReached
-                    ? deployed()
-                    : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
+            case RESERVE_GRACE -> thresholdReached ? deployed() : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
         };
     }
 

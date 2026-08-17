@@ -234,11 +234,8 @@ public record OrbitalControlTerminalSnapshot(
         }
 
         private Component lifecycleComponent() {
-            String key = "screen.data_energistics.orbital_control_terminal.lifecycle."
-                    + this.lifecycleState.name().toLowerCase(Locale.ROOT);
-            return this.lifecycleState == OrbitalWeaponLifecycleState.RESERVE_GRACE
-                    ? Component.translatable(key, Integer.toString(this.graceTicksRemaining))
-                    : Component.translatable(key);
+            String key = "screen.data_energistics.orbital_control_terminal.lifecycle." + this.lifecycleState.name().toLowerCase(Locale.ROOT);
+            return this.lifecycleState == OrbitalWeaponLifecycleState.RESERVE_GRACE ? Component.translatable(key, Integer.toString(this.graceTicksRemaining)) : Component.translatable(key);
         }
     }
 

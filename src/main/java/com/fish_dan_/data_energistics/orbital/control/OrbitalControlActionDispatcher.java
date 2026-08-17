@@ -183,8 +183,7 @@ public final class OrbitalControlActionDispatcher {
                     .accessibleTo(player.getUUID())
                     .stream()
                     .flatMap(weapon -> attacks.forWeapon(weapon.weaponId()).stream())
-                    .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED
-                            || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                    .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
                     .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
                     .map(attack -> attacks.emergencyAbort(server, player.getUUID(), attack.attackId()))
                     .filter(Boolean::booleanValue)

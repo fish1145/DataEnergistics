@@ -27,8 +27,8 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
 
-import java.util.OptionalInt;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)

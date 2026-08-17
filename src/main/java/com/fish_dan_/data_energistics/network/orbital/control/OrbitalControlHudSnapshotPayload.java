@@ -16,10 +16,9 @@ public record OrbitalControlHudSnapshotPayload(long revision, boolean visible, C
 
     public static final Type<OrbitalControlHudSnapshotPayload> TYPE = new Type<>(
             Data_Energistics.id("orbital_control_hud_snapshot"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalControlHudSnapshotPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(
-                    OrbitalControlHudSnapshotPayload::write,
-                    OrbitalControlHudSnapshotPayload::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalControlHudSnapshotPayload> STREAM_CODEC = CustomPacketPayload.codec(
+            OrbitalControlHudSnapshotPayload::write,
+            OrbitalControlHudSnapshotPayload::new);
 
     public OrbitalControlHudSnapshotPayload {
         if (revision < 0L) {

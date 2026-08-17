@@ -147,9 +147,7 @@ public final class OrbitalTerrainWorkScheduler {
         if (level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null) {
             return setReadiness(task, ChunkReadiness.READY);
         }
-        if (this.pendingRequestCount >= this.maxRequestsGlobal
-                || this.pendingRequestsByDimension.getOrDefault(level.dimension(), 0)
-                >= this.maxRequestsPerDimension) {
+        if (this.pendingRequestCount >= this.maxRequestsGlobal || this.pendingRequestsByDimension.getOrDefault(level.dimension(), 0) >= this.maxRequestsPerDimension) {
             return setReadiness(task, ChunkReadiness.WAITING_FOR_BUDGET);
         }
 
@@ -253,8 +251,7 @@ public final class OrbitalTerrainWorkScheduler {
                 .thenCompose(Function.identity());
         future.whenComplete((result, throwable) -> level.getServer().execute(() -> {
             TaskState currentTask = this.tasks.get(attackId);
-            if (currentTask == null || currentTask.pendingRequest == null
-                    || currentTask.pendingRequest.requestId != requestId) {
+            if (currentTask == null || currentTask.pendingRequest == null || currentTask.pendingRequest.requestId != requestId) {
                 return;
             }
             PendingRequest currentRequest = currentTask.pendingRequest;
@@ -265,10 +262,10 @@ public final class OrbitalTerrainWorkScheduler {
     }
 
     private boolean holdTicket(
-            ServerLevel level,
-            UUID attackId,
-            TaskState task,
-            ChunkPos chunk) {
+                               ServerLevel level,
+                               UUID attackId,
+                               TaskState task,
+                               ChunkPos chunk) {
         if (task.heldTickets.contains(chunk)) {
             if (!chunk.equals(task.mostRecentChunk)) {
                 task.heldTickets.remove(chunk);
@@ -354,8 +351,7 @@ public final class OrbitalTerrainWorkScheduler {
         }
         for (Map.Entry<UUID, TaskState> entry : this.tasks.entrySet()) {
             ServerLevel level = server.getLevel(entry.getValue().dimension);
-            while (level != null && this.heldTicketCount > this.maxTicketsGlobal
-                    && !entry.getValue().heldTickets.isEmpty()) {
+            while (level != null && this.heldTicketCount > this.maxTicketsGlobal && !entry.getValue().heldTickets.isEmpty()) {
                 releaseOldestTicket(level, entry.getKey(), entry.getValue());
             }
         }
