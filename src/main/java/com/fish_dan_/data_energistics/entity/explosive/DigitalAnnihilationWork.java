@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.entity.explosive;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.api.DataEnergisticsSettings.DataNuke;
 
-import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ChunkResult;
@@ -22,7 +21,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * Resumable, server-thread block work for one digital-annihilation fuse.
@@ -30,8 +28,8 @@ import java.util.function.Function;
  * <p>
  * The work walks one spherical shell in chunk order and persists its chunk and block cursors. A tick visits at
  * most {@link #BLOCKS_PER_TICK} candidate positions, so a large configured radius cannot turn one server tick into a
- * world-sized mutation burst. Missing chunks are requested through a future started off the server thread; the
- * callback only marks readiness by scheduling back onto the server thread.
+ * world-sized mutation burst. Missing chunk futures are created on the server thread; their completion callback only
+ * marks readiness by scheduling back onto that same server thread.
  * </p>
  */
 public final class DigitalAnnihilationWork {
@@ -359,11 +357,8 @@ public final class DigitalAnnihilationWork {
         this.pendingChunk = chunk;
         this.pendingChunkReady = false;
         this.pendingChunkFailed = false;
-        CompletableFuture<ChunkResult<ChunkAccess>> future = CompletableFuture
-                .supplyAsync(
-                        () -> level.getChunkSource().getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true),
-                        Util.backgroundExecutor())
-                .thenCompose(Function.identity());
+        CompletableFuture<ChunkResult<ChunkAccess>> future = level.getChunkSource()
+                .getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true);
         future.whenComplete((result, throwable) -> level.getServer().execute(() -> {
             if (this.released || !chunk.equals(this.pendingChunk)) {
                 return;
