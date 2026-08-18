@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.block.worldgen;
 
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
-import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
+import com.fish_dan_.data_energistics.integration.ae.useless.SomeUselessThingsCompat;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;

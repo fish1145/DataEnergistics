@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.ae2wtlib.Ae2WtLibCompat;
+import com.fish_dan_.data_energistics.integration.ae.ae2wtlib.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
 import net.minecraft.client.Minecraft;

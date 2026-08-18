@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.runtime;
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridge;
 import com.fish_dan_.data_energistics.client.gui.ldlib2.multiblock.LdlibStructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.integration.guideme.client.DataRipperReassemblerGuideRecipeBody;
-import com.fish_dan_.data_energistics.integration.ae2wtlib.client.Ae2WtLibClientCompat;
+import com.fish_dan_.data_energistics.integration.ae.ae2wtlib.client.Ae2WtLibClientCompat;
 import com.fish_dan_.data_energistics.client.meteorite.DataMeteoriteCompassClientCache;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesAckClientHandler;
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;

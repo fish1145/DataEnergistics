@@ -2,8 +2,8 @@ package com.fish_dan_.data_energistics.integration.tower;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyIntegration;
-import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
+import com.fish_dan_.data_energistics.integration.tower.modernindustrialization.ModernIndustrializationEnergyIntegration;
+import com.fish_dan_.data_energistics.integration.tower.modernindustrialization.ModernIndustrializationEnergyStorage;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
