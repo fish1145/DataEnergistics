@@ -489,11 +489,18 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      */
     public void writeRetainedWorkToTag(CompoundTag data, HolderLookup.Provider registries) {
         ensureNoActiveRefundTransaction();
+        TreeSet<Integer> retainedSlots = new TreeSet<>(this.queuedSlots);
+        retainedSlots.addAll(this.pendingOutputSlots);
+        if (retainedSlots.isEmpty() &&
+                this.patternRefundOutbox.isEmpty() &&
+                this.retainedRefundOutboxByHost.isEmpty()) {
+            clearCoreStateTags(data);
+            return;
+        }
+
         writeCurrentSchemaHeader(data);
         data.putUUID(CORE_ID_TAG, this.coreId);
         data.putInt(PATTERN_CAPACITY_TAG, this.patternCapacity);
-        TreeSet<Integer> retainedSlots = new TreeSet<>(this.queuedSlots);
-        retainedSlots.addAll(this.pendingOutputSlots);
         ListTag slotEntries = new ListTag();
         for (int slot : retainedSlots) {
             slotEntries.add(this.slots.get(slot).writeRetainedWorkToTag(registries));
@@ -987,6 +994,17 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private static void writeCurrentSchemaHeader(CompoundTag data) {
         data.putInt(VERSION_TAG, CURRENT_STATE_VERSION);
+        data.remove(LEGACY_PATTERNS_TAG);
+        data.remove(LEGACY_QUEUES_TAG);
+        data.remove(LEGACY_PENDING_OUTPUTS_TAG);
+    }
+
+    private static void clearCoreStateTags(CompoundTag data) {
+        data.remove(VERSION_TAG);
+        data.remove(CORE_ID_TAG);
+        data.remove(PATTERN_CAPACITY_TAG);
+        data.remove(SLOTS_TAG);
+        data.remove(REFUND_OUTBOX_TAG);
         data.remove(LEGACY_PATTERNS_TAG);
         data.remove(LEGACY_QUEUES_TAG);
         data.remove(LEGACY_PENDING_OUTPUTS_TAG);
