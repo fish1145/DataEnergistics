@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower.brandonscore;
+package com.fish_dan_.data_energistics.integration.tower.energy.brandonscore;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

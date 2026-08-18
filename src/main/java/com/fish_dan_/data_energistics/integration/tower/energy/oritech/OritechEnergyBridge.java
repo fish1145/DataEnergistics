@@ -1,7 +1,7 @@
-package com.fish_dan_.data_energistics.integration.tower;
+package com.fish_dan_.data_energistics.integration.tower.energy.oritech;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.integration.tower.oritech.OritechEnergyIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.oritech.OritechEnergyIntegration;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;

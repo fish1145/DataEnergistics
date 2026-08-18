@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower.appflux;
+package com.fish_dan_.data_energistics.integration.tower.energy.appflux;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 

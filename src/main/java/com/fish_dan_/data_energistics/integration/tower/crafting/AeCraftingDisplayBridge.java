@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower;
+package com.fish_dan_.data_energistics.integration.tower.crafting;
 
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 

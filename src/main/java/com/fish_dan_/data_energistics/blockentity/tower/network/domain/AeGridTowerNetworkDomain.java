@@ -42,7 +42,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandi
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

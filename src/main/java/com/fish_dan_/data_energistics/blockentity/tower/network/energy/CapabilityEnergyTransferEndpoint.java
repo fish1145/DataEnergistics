@@ -4,13 +4,13 @@ import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirect
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.tower.energy.VerifiedUnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.modernindustrialization.ModernIndustrializationEnergyStorage;
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyStorage;
+import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.mekanism.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.world.level.block.entity.BlockEntity;

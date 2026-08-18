@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower;
+package com.fish_dan_.data_energistics.integration.tower.energy.mekanism;
 
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;

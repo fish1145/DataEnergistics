@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
-import com.fish_dan_.data_energistics.integration.tower.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
 import net.minecraft.world.level.Level;
 

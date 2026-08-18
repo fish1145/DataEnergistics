@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccessException;
-import com.fish_dan_.data_energistics.integration.tower.modernindustrialization.ModernIndustrializationEnergyStorage;
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyStorage;
+import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.mekanism.MekanismEnergyAccess;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;

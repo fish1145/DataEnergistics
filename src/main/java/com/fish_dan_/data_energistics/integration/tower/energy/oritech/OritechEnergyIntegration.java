@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower.oritech;
+package com.fish_dan_.data_energistics.integration.tower.energy.oritech;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyStorage;

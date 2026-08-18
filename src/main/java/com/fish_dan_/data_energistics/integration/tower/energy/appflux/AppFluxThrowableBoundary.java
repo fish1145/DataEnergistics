@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower.appflux;
+package com.fish_dan_.data_energistics.integration.tower.energy.appflux;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;

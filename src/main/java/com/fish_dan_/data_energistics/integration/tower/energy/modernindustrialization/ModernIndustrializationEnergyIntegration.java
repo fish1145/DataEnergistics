@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower.modernindustrialization;
+package com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization;
 
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
 

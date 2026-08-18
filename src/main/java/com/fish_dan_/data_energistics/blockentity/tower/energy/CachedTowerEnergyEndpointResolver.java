@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.mekanism.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.oritech.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;

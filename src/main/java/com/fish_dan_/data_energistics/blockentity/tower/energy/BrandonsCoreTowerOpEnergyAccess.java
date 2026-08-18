@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration.tower;
+package com.fish_dan_.data_energistics.integration.tower.energy.neoecoae;
 
 import net.minecraft.world.level.block.entity.BlockEntity;
 
