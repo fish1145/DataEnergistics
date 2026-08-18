@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.integration.tower.energy.brandonscore;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

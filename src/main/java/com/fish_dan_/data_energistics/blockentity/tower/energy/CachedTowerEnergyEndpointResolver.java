@@ -2,27 +2,21 @@ package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.mekanism.MekanismEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.oritech.OritechEnergyBridge;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointContext;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import appeng.blockentity.networking.CableBusBlockEntity;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
@@ -33,10 +27,7 @@ import java.util.Set;
 public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpointResolver {
 
     private final TowerEnergyEndpointResolverContext context;
-    private final BrandonsCoreEnergyBridge brandonsCoreEnergyBridge;
-    private final ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge;
-    private final OritechEnergyBridge oritechEnergyBridge;
-    private final UnlimitedEnergyAccess unlimitedEnergyAccess;
+    private final TowerEnergyEndpointIntegrationRegistry integrations;
     private final ArrayList<TowerEnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
     private List<TowerEnergyEndpointCandidate> cachedTopologyEndpoints = List.of();
     private List<TowerEnergyEndpoint> cachedReceiveEnergyEndpoints = List.of();
@@ -45,24 +36,13 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
     private long directionSnapshotTick = Long.MIN_VALUE;
 
     /**
-     * Creates an endpoint resolver for one tower.
-     *
-     * @param context                             tower state and callbacks required for endpoint discovery
-     * @param brandonsCoreEnergyBridge            optional BrandonsCore OP capability bridge
-     * @param modernIndustrializationEnergyBridge optional Modern Industrialization EU capability bridge
-     * @param oritechEnergyBridge                 optional Oritech energy lookup bridge
-     * @param unlimitedEnergyAccess               rate-limit-free storage access used for capability checks
+     * Creates a resolver backed by one immutable endpoint integration registry.
      */
-    public CachedTowerEnergyEndpointResolver(TowerEnergyEndpointResolverContext context,
-                                             BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
-                                             ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge,
-                                             OritechEnergyBridge oritechEnergyBridge,
-                                             UnlimitedEnergyAccess unlimitedEnergyAccess) {
+    public CachedTowerEnergyEndpointResolver(
+                                             TowerEnergyEndpointResolverContext context,
+                                             TowerEnergyEndpointIntegrationRegistry integrations) {
         this.context = context;
-        this.brandonsCoreEnergyBridge = brandonsCoreEnergyBridge;
-        this.modernIndustrializationEnergyBridge = modernIndustrializationEnergyBridge;
-        this.oritechEnergyBridge = oritechEnergyBridge;
-        this.unlimitedEnergyAccess = unlimitedEnergyAccess;
+        this.integrations = integrations;
     }
 
     @Override
@@ -73,21 +53,7 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
             return null;
         }
 
-        IEnergyStorage storage = this.brandonsCoreEnergyBridge.findEnergyStorage(level, pos, side);
-        if (storage != null) {
-            return storage;
-        }
-
-        storage = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
-        if (storage != null) {
-            return storage;
-        }
-
-        storage = this.modernIndustrializationEnergyBridge.findEnergyStorage(level, pos, side);
-        if (storage != null || !ModFlags.isOritechEnergySupportLoaded()) {
-            return storage;
-        }
-        return this.oritechEnergyBridge.findEnergyStorage(level, pos, side);
+        return this.integrations.findEnergyStorage(level, pos, side);
     }
 
     @Override
@@ -200,7 +166,7 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
         }
 
         ArrayList<TowerEnergyEndpointCandidate> endpoints = new ArrayList<>();
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<IEnergyStorage> seenStorages = new ReferenceOpenHashSet<>();
         boolean collectAllSides = level.getBlockEntity(pos) instanceof CableBusBlockEntity;
         for (Direction direction : Direction.values()) {
             addEndpointCandidate(endpoints, seenStorages, pos, direction, collectAllSides);
@@ -221,8 +187,8 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
 
     private List<TowerEnergyEndpoint> resolveDirectionalEndpoints(List<TowerEnergyEndpointCandidate> candidates) {
         ArrayList<TowerEnergyEndpoint> endpoints = new ArrayList<>();
-        Set<BlockPos> selectedSources = new HashSet<>();
-        Set<BlockPos> selectedSinks = new HashSet<>();
+        Set<BlockPos> selectedSources = new ObjectOpenHashSet<>();
+        Set<BlockPos> selectedSinks = new ObjectOpenHashSet<>();
         for (TowerEnergyEndpointCandidate candidate : candidates) {
             TowerEnergyDirection direction;
             try {
@@ -262,28 +228,17 @@ public final class CachedTowerEnergyEndpointResolver implements TowerEnergyEndpo
 
     @Nullable
     private TowerEnergyDirection resolveTransferDirection(TowerEnergyEndpointCandidate candidate) {
-        IEnergyStorage storage = candidate.storage();
-        if (this.brandonsCoreEnergyBridge.supports(storage)) {
-            return TowerEnergyDirection.fromPermissions(
-                    this.brandonsCoreEnergyBridge.canExtract(storage),
-                    this.brandonsCoreEnergyBridge.canReceive(storage));
-        }
         Level level = this.context.level();
-        if (level != null && MekanismEnergyAccess.supports(
-                level, candidate.pos(), candidate.side(), storage)) {
-            return MekanismEnergyAccess.resolveTransferDirection(
-                    level, candidate.pos(), candidate.side(), storage);
+        if (level == null) {
+            return null;
         }
-        return TowerEnergyDirection.fromPermissions(
-                this.unlimitedEnergyAccess.canExtract(storage),
-                this.unlimitedEnergyAccess.canReceive(storage));
+        TowerEnergyEndpointContext endpointContext = new TowerEnergyEndpointContext(
+                level, candidate.pos(), candidate.side(), candidate.storage());
+        return this.integrations.resolve(endpointContext).direction(endpointContext);
     }
 
     private boolean canReceive(IEnergyStorage storage) {
-        if (this.brandonsCoreEnergyBridge.supports(storage)) {
-            return this.brandonsCoreEnergyBridge.canReceive(storage);
-        }
-        return this.unlimitedEnergyAccess.canReceive(storage);
+        return storage.canReceive();
     }
 
     private List<TowerEnergyEndpoint> filterByDirection(List<TowerEnergyEndpoint> endpoints, boolean forReceive) {
