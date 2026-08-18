@@ -1,0 +1,64 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "ae2:formation_plane"
+			},
+			"count": 49
+		},
+		{
+			"ingredient": {
+				"item": "ae2:annihilation_plane"
+			},
+			"count": 49
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:digisidian_memorize_ingot"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"item": "ae2:1k_crafting_storage"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:crafting_accelerator"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:spatial_cell_component_2"
+			},
+			"count": 2
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 424,
+			"#t": "ae2:f",
+			"id": "data_energistics:data_corrosion_liquid"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:me_digital_merged_storage_core_1k",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 1414
+	}
+}

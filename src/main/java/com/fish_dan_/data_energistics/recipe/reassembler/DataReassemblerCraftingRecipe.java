@@ -36,9 +36,7 @@ public final class DataReassemblerCraftingRecipe extends ShapedRecipe {
 
     @Override
     public NonNullList<ItemStack> getRemainingItems(CraftingInput input) {
-        NonNullList<ItemStack> remainders = this.wrapped.getRemainingItems(input);
-        RadixContainmentSphereCraftingRemainderHelper.applyDataReassemblerRemainder(input, remainders);
-        return remainders;
+        return this.wrapped.getRemainingItems(input);
     }
 
     @Override

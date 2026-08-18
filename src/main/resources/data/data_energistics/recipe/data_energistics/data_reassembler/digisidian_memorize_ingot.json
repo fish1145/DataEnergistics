@@ -9,22 +9,28 @@
 		},
 		{
 			"ingredient": {
-				"tag": "c:dusts/sky_stone"
+				"item": "minecraft:netherite_scrap"
 			},
-			"count": 16
+			"count": 6
 		},
 		{
 			"ingredient": {
-				"tag": "c:ingots/obsidian"
+				"tag": "c:dusts/obsidian"
 			},
-			"count": 4
+			"count": 9
+		},
+		{
+			"ingredient": {
+				"item": "ae2:fluix_crystal"
+			},
+			"count": 13
 		}
 	],
 	"fluid_inputs": [
 		{
-			"#": 1000,
+			"#": 424,
 			"#t": "ae2:f",
-			"id": "minecraft:lava"
+			"id": "data_energistics:data_corrosion_liquid"
 		}
 	],
 	"item_outputs": [

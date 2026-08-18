@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.registry.DEMenus;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
@@ -137,6 +138,14 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
 
     @Override
     protected void loadSettingsFromHost(IConfigManager cm) {}
+
+    @Override
+    protected int getQuickMovePriority(Slot slot) {
+        if (this.getSlotSemantic(slot) == SlotSemantics.UPGRADE) {
+            return 1;
+        }
+        return super.getQuickMovePriority(slot);
+    }
 
     private void syncFluid(FluidStack stack, int index) {
         String id = stack.isEmpty() ? "" : BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString();
