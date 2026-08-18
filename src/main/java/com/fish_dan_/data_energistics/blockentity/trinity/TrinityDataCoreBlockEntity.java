@@ -490,23 +490,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public int multiBlock$getMatchedBlockCount() {
-        return getMatchedBlockCount();
-    }
-
-    @Override
-    public int getMatchedBlockCount() {
-        return this.matchedPositions.size();
-    }
-
-    @Override
     public boolean isCpuStructureFormed() {
         return this.cpuStructureFormed;
-    }
-
-    @Override
-    public int getCpuStructureMatchedBlockCount() {
-        return this.cpuStructureMatchedBlockCount;
     }
 
     @Override
@@ -522,11 +507,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public boolean isCraftingStructureFormed() {
         return this.craftingStructureFormed;
-    }
-
-    @Override
-    public int getCraftingStructureMatchedBlockCount() {
-        return this.craftingStructureMatchedBlockCount;
     }
 
     @Override

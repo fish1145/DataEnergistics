@@ -19,13 +19,11 @@ import snownee.jade.api.config.IPluginConfig;
 public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
 
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock");
-    public static final ResourceLocation BLOCKS_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock.blocks");
     public static final ResourceLocation ROLE_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock.role");
     public static final ResourceLocation DEBUG_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock.debug");
     private static final String TAG_FORMED = "formed";
     private static final String TAG_ONLINE = "online";
     private static final String TAG_HEIGHT = "height";
-    private static final String TAG_MATCHED_BLOCK_COUNT = "matched_block_count";
     private static final String TAG_CONTROLLER = "controller";
     private static final String TAG_FAILURE_REASON = "failure_reason";
     private static final String TAG_FAILURE_X = "failure_x";
@@ -33,13 +31,11 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     private static final String TAG_FAILURE_Z = "failure_z";
     private static final String TAG_TRINITY_DATA_CORE = "trinity_data_core";
     private static final String TAG_CPU_STRUCTURE_FORMED = "cpu_structure_formed";
-    private static final String TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT = "cpu_structure_matched_block_count";
     private static final String TAG_CPU_FAILURE_REASON = "cpu_failure_reason";
     private static final String TAG_CPU_FAILURE_X = "cpu_failure_x";
     private static final String TAG_CPU_FAILURE_Y = "cpu_failure_y";
     private static final String TAG_CPU_FAILURE_Z = "cpu_failure_z";
     private static final String TAG_CRAFTING_STRUCTURE_FORMED = "crafting_structure_formed";
-    private static final String TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT = "crafting_structure_matched_block_count";
     private static final String TAG_CRAFTING_PATTERN_CORE_COUNT = "crafting_pattern_core_count";
     private static final String TAG_CRAFTING_PATTERN_CAPACITY = "crafting_pattern_capacity";
     private static final String TAG_CRAFTING_FAILURE_REASON = "crafting_failure_reason";
@@ -86,12 +82,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                     "jade.data_energistics.multiblock.height",
                     height));
         }
-        int matchedBlockCount = serverData.getInt(TAG_MATCHED_BLOCK_COUNT);
-        if (config.get(BLOCKS_ID) && matchedBlockCount > 0) {
-            tooltip.add(Component.translatable(
-                    "jade.data_energistics.multiblock.blocks",
-                    matchedBlockCount));
-        }
         if (config.get(ROLE_ID)) {
             tooltip.add(Component.translatable(
                     serverData.getBoolean(TAG_CONTROLLER) ? "jade.data_energistics.multiblock.role.controller" : "jade.data_energistics.multiblock.role.part"));
@@ -121,15 +111,9 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                 Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.yes" : "jade.data_energistics.no")));
         tooltip.add(Component.translatable(
                 serverData.getBoolean(TAG_CPU_STRUCTURE_FORMED) ? "jade.data_energistics.multiblock.cpu_structure.formed" : "jade.data_energistics.multiblock.cpu_structure.unformed"));
-        tooltip.add(Component.translatable(
-                "jade.data_energistics.multiblock.cpu_blocks",
-                serverData.getInt(TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT)));
         appendCpuFailureTooltip(tooltip, serverData);
         tooltip.add(Component.translatable(
                 serverData.getBoolean(TAG_CRAFTING_STRUCTURE_FORMED) ? "jade.data_energistics.multiblock.crafting_structure.formed" : "jade.data_energistics.multiblock.crafting_structure.unformed"));
-        tooltip.add(Component.translatable(
-                "jade.data_energistics.multiblock.crafting_blocks",
-                serverData.getInt(TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT)));
         tooltip.add(Component.translatable(
                 "jade.data_energistics.multiblock.crafting_pattern_cores",
                 serverData.getInt(TAG_CRAFTING_PATTERN_CORE_COUNT)));
@@ -204,7 +188,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         data.putBoolean(TAG_FORMED, multiBlock.multiBlock$isFormed());
         data.putBoolean(TAG_ONLINE, multiBlock.multiBlock$isOnline());
         data.putInt(TAG_HEIGHT, multiBlock.multiBlock$getHeight());
-        data.putInt(TAG_MATCHED_BLOCK_COUNT, multiBlock.multiBlock$getMatchedBlockCount());
         data.putBoolean(TAG_CONTROLLER, multiBlock.multiBlock$isController());
         String failureReason = multiBlock.multiBlock$getLastFailureReason();
         if (!failureReason.isBlank()) {
@@ -224,7 +207,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     private static void appendTrinityDataCoreServerData(CompoundTag data, TrinityDataCoreMenuHost host) {
         data.putBoolean(TAG_TRINITY_DATA_CORE, true);
         data.putBoolean(TAG_CPU_STRUCTURE_FORMED, host.isCpuStructureFormed());
-        data.putInt(TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT, host.getCpuStructureMatchedBlockCount());
         String cpuFailureReason = host.getCpuLastFailureReason();
         if (!cpuFailureReason.isBlank()) {
             data.putString(TAG_CPU_FAILURE_REASON, cpuFailureReason);
@@ -236,7 +218,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             data.putInt(TAG_CPU_FAILURE_Z, cpuFailurePosition.getZ());
         }
         data.putBoolean(TAG_CRAFTING_STRUCTURE_FORMED, host.isCraftingStructureFormed());
-        data.putInt(TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT, host.getCraftingStructureMatchedBlockCount());
         data.putInt(TAG_CRAFTING_PATTERN_CORE_COUNT, host.getCraftingPatternCoreCount());
         data.putInt(TAG_CRAFTING_PATTERN_CAPACITY, host.getCraftingPatternCapacity());
         String craftingFailureReason = host.getCraftingLastFailureReason();
