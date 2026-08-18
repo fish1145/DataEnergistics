@@ -67,6 +67,9 @@ public final class DollVariant {
         if (containsAny(style, "泳装", "swimsuit", "bathinguit", "bikini")) {
             return 4;
         }
+        if (containsAny(style, "初音", "hatsune", "miku")) {
+            return 5;
+        }
         return 0;
     }
 

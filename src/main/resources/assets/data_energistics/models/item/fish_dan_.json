@@ -24,6 +24,12 @@
 				"data_energistics:doll_variant": 4
 			},
 			"model": "data_energistics:item/fish_dan_4"
+		},
+		{
+			"predicate": {
+				"data_energistics:doll_variant": 5
+			},
+			"model": "data_energistics:item/fish_dan_5"
 		}
 	]
 }

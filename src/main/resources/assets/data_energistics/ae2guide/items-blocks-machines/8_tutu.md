@@ -23,7 +23,7 @@ Dolls can be placed as decorative blocks. When installing Curios, you can also e
     <RecipeFor id="data_energistics:fish_dan_" />
 </Row>
 
-Fish Dan Doll has a total of 5 appearances. The base doll is crafted through Data Reassembler, while the rest of the appearance is obtained by renaming the base doll.
+Fish Dan Doll has a total of 6 appearances. The base doll is crafted through Data Reassembler, while the rest of the appearance is obtained by renaming the base doll.
 
 <Row>
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="0" />
@@ -31,9 +31,10 @@ Fish Dan Doll has a total of 5 appearances. The base doll is crafted through Dat
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="2" />
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="3" />
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="4" />
+    <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="5" />
 </Row>
 
-From left to right: Fish Dan Doll, Fish_Dan_New Year Doll, Fish_Dan_Nun Doll, Fish_Dan_Kimono Doll, Fish_Dan_Swimsuit Doll.
+From left to right: Fish Dan Doll, Fish_Dan_New Year Doll, Fish_Dan_Nun Doll, Fish_Dan_Kimono Doll, Fish_Dan_Swimsuit Doll, Fish_Dan_Hatsune Doll.
 
 Change the base doll to the following name in the anvil to switch the corresponding appearance:
 
@@ -43,6 +44,7 @@ Change the base doll to the following name in the anvil to switch the correspond
 | Nun | Fish_Dan_Nun |
 | Kimono | Fish_Dan_Kimono |
 | Swimsuit | Fish_Dan_Swimsuit |
+| Hatsune | Fish_Dan_Hatsune |
 
 Rename it to `Fish_Dan_`, or use a name without one of the appearance keywords above, to restore the base appearance.
 
