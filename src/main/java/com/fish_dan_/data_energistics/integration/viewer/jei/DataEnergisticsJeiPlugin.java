@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataReso
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientRenderer;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.PatternEncodingGenericStackJeiHandler;
+import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataChargePressRecipeCategory;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataChargerRecipeCategory;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataRipperReassemblerRecipeCategory;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.RadixContainmentSphereCondenserCategory;
@@ -24,6 +25,7 @@ import com.fish_dan_.data_energistics.integration.viewer.jei.ui.OrderPackageJeiG
 import com.fish_dan_.data_energistics.integration.viewer.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiRecipe;
+import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.UniversalTerminalCombineRecipeView;
@@ -126,6 +128,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new RadixContainmentSphereCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
+                new DataChargePressRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 multiblockCategory);
     }
@@ -138,6 +141,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, RadixContainmentSphereCondenserCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.DATA_INTEGRATED_CHARGER.get(), DataChargePressRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
@@ -218,6 +222,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                     DataChargerRecipeCategory.RECIPE_TYPE,
                     level.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()),
                     RecipeHolder::value);
+            registration.addRecipes(
+                    DataChargePressRecipeCategory.RECIPE_TYPE,
+                    DataChargePressRecipeView.fromRecipeManager(level.getRecipeManager()));
         }
         registration.addIngredientInfo(
                 new ItemStack(DEItems.RADIX_CONTAINMENT_SPHERE.get()),

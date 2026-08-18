@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataReso
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackSerializer;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.PatternEncodingGenericStackEmiProvider;
+import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargePressEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargerEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataRipperReassemblerEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.RadixContainmentSphereEmiCondenserRecipe;
@@ -18,6 +19,7 @@ import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiPattern
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.OrderPackageEmiDragDropHandler;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.UniversalTerminalEmiExclusionArea;
 import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
+import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderRecipeTypeNames;
@@ -139,6 +141,13 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()),
                 DataChargerEmiRecipe::new,
                 registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()));
+        registry.addCategory(DataChargePressEmiRecipe.CATEGORY);
+        registry.addWorkstation(
+                DataChargePressEmiRecipe.CATEGORY,
+                EmiStack.of(DEBlocks.DATA_INTEGRATED_CHARGER.get()));
+        DataChargePressRecipeView.fromRecipeManager(registry.getRecipeManager()).stream()
+                .map(DataChargePressEmiRecipe::new)
+                .forEach(registry::addRecipe);
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
