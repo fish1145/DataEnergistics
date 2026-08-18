@@ -33,11 +33,6 @@ public interface MultiBlockStatusProvider {
     int multiBlock$getHeight();
 
     /**
-     * Returns the number of matched blocks in the current formed structure.
-     */
-    int multiBlock$getMatchedBlockCount();
-
-    /**
      * Returns the last unformed diagnostic message, or a blank string when no diagnostic is available.
      */
     String multiBlock$getLastFailureReason();

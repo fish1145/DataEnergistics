@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.extendedaeplus;
 
-import com.fish_dan_.data_energistics.integration.extendedaeplus.EaepPatternUploadScope;
+import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternUploadScope;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;

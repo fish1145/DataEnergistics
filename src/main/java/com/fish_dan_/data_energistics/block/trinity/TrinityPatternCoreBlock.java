@@ -4,10 +4,11 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreMetadata;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical.TrinityPatternCoreUi;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
-import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -24,8 +25,8 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.hooks.WrenchHook;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
+import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -33,7 +34,7 @@ import java.util.List;
 /**
  * Entity-backed variant used exclusively by the three Trinity pattern processing core blocks.
  */
-public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements EntityBlock {
+public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements EntityBlock, BlockUIMenuType.BlockUI {
 
     /**
      * Creates a P-core block whose fixed capacity is exposed through its inherited component metadata.
@@ -54,12 +55,34 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
     }
 
     @Override
+    public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
+        BlockEntity blockEntity = holder.player.level().getBlockEntity(holder.pos);
+        if (!(blockEntity instanceof TrinityPatternCoreBlockEntity patternCore) || !patternCore.isCoreStateReady()) {
+            throw new IllegalStateException("Native Trinity pattern core UI requires a ready pattern core at " + holder.pos);
+        }
+        return TrinityPatternCoreUi.create(patternCore, holder.player);
+    }
+
+    @Override
+    public boolean stillValid(BlockUIMenuType.BlockUIHolder holder) {
+        if (!BlockUIMenuType.BlockUI.super.stillValid(holder) ||
+                !(holder.player.level().getBlockEntity(holder.pos) instanceof TrinityPatternCoreBlockEntity patternCore) ||
+                !patternCore.isCoreStateReady()) {
+            return false;
+        }
+        return holder.player.distanceToSqr(
+                holder.pos.getX() + 0.5D,
+                holder.pos.getY() + 0.5D,
+                holder.pos.getZ() + 0.5D) <= 64.0D;
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
-            if (patternCore.isCoreStateReady()) {
-                MenuOpener.open(DEMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
-            }
+        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer &&
+                level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore &&
+                patternCore.isCoreStateReady()) {
+            BlockUIMenuType.openUI(serverPlayer, pos);
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
