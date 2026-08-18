@@ -355,17 +355,14 @@ final class TrinityDataCoreUiSync {
                 host.isOnline(),
                 structureStatus(
                         host.isStructureFormed(),
-                        host.getMatchedBlockCount(),
                         host.getLastFailureReason(),
                         host.getLastFailurePosition()),
                 structureStatus(
                         host.isCpuStructureFormed(),
-                        host.getCpuStructureMatchedBlockCount(),
                         host.getCpuLastFailureReason(),
                         host.getCpuLastFailurePosition()),
                 structureStatus(
                         host.isCraftingStructureFormed(),
-                        host.getCraftingStructureMatchedBlockCount(),
                         host.getCraftingLastFailureReason(),
                         host.getCraftingLastFailurePosition()),
                 crafting.busyCpuCount(),
@@ -381,12 +378,10 @@ final class TrinityDataCoreUiSync {
     }
 
     private static StructureStatus structureStatus(boolean formed,
-                                                   int matchedBlocks,
                                                    String failureReason,
                                                    @Nullable BlockPos failurePosition) {
         return new StructureStatus(
                 formed,
-                matchedBlocks,
                 failureReason,
                 failurePosition == null ? "" :
                         failurePosition.getX() + ", " + failurePosition.getY() + ", " + failurePosition.getZ());

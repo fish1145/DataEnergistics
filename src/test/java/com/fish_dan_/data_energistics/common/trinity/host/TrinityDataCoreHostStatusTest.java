@@ -82,13 +82,10 @@ final class TrinityDataCoreHostStatusTest {
     }
 
     @Test
-    void validationRejectsIncoherentCountsAndFailurePositions() {
+    void validationRejectsIncoherentFailurePositions() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new StructureStatus(false, -1, "", ""));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new StructureStatus(false, 0, "", "1, 2, 3"));
+                () -> new StructureStatus(false, "", "1, 2, 3"));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new TrinityDataCoreHostStatus(
@@ -109,9 +106,9 @@ final class TrinityDataCoreHostStatusTest {
         TrinityDataCoreHostStatus status = new TrinityDataCoreHostStatus(
                 Optional.of(HOST_ID),
                 true,
-                new StructureStatus(true, 72, "", ""),
-                new StructureStatus(true, 24, "CPU casing mismatch", "12, 64, -8"),
-                new StructureStatus(false, 18, "Crafting core missing", "13, 65, -8"),
+                new StructureStatus(true, "", ""),
+                new StructureStatus(true, "CPU casing mismatch", "12, 64, -8"),
+                new StructureStatus(false, "Crafting core missing", "13, 65, -8"),
                 3,
                 8,
                 2,

@@ -147,26 +147,21 @@ public record TrinityDataCoreHostStatus(Optional<UUID> hostId,
      * Snapshot of one independently formed multiblock section and its latest diagnostic.
      */
     public record StructureStatus(boolean formed,
-                                  int matchedBlocks,
                                   String failureReason,
                                   String failurePosition) {
 
         public static final Codec<StructureStatus> CODEC = RecordCodecBuilder.create(instance -> instance
                 .group(
                         Codec.BOOL.fieldOf("formed").forGetter(StructureStatus::formed),
-                        Codec.INT.fieldOf("matched_blocks").forGetter(StructureStatus::matchedBlocks),
                         Codec.STRING.fieldOf("failure_reason").forGetter(StructureStatus::failureReason),
                         Codec.STRING.fieldOf("failure_position").forGetter(StructureStatus::failurePosition))
                 .apply(instance, StructureStatus::new));
 
         public static final StreamCodec<RegistryFriendlyByteBuf, StructureStatus> STREAM_CODEC = StreamCodec.of(StructureStatus::encode, StructureStatus::decode);
 
-        public static final StructureStatus EMPTY = new StructureStatus(false, 0, "", "");
+        public static final StructureStatus EMPTY = new StructureStatus(false, "", "");
 
         public StructureStatus {
-            if (matchedBlocks < 0) {
-                throw new IllegalArgumentException("Matched block count must not be negative");
-            }
             if (failureReason == null) {
                 throw new NullPointerException("Structure failure reason must not be null");
             }
@@ -185,7 +180,6 @@ public record TrinityDataCoreHostStatus(Optional<UUID> hostId,
 
         private static void encode(RegistryFriendlyByteBuf buffer, StructureStatus value) {
             buffer.writeBoolean(value.formed);
-            buffer.writeVarInt(value.matchedBlocks);
             buffer.writeUtf(value.failureReason);
             buffer.writeUtf(value.failurePosition);
         }
@@ -193,7 +187,6 @@ public record TrinityDataCoreHostStatus(Optional<UUID> hostId,
         private static StructureStatus decode(RegistryFriendlyByteBuf buffer) {
             return new StructureStatus(
                     buffer.readBoolean(),
-                    buffer.readVarInt(),
                     buffer.readUtf(),
                     buffer.readUtf());
         }

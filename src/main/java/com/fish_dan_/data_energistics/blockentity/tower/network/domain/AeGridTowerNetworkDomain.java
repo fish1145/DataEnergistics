@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.grid.ControllerChannelCapacity;
 import com.fish_dan_.data_energistics.ae2.grid.TowerChannelCapacity;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
 import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridgeException;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
@@ -42,7 +43,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridCandi
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -99,7 +100,8 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
     private final Map<IGrid, TowerRuntimeKey> attachedOwners = new IdentityHashMap<>();
     private final Map<IGrid, Long> lastBridgeFailureLogTicks = new IdentityHashMap<>();
     private final CapabilityExposedTowerAeTargetResolver targetResolver = new CapabilityExposedTowerAeTargetResolver();
-    private final CapabilityTowerDomainEnergyResolver energyResolver = new CapabilityTowerDomainEnergyResolver();
+    private final TowerEnergyEndpointIntegrationRegistry energyIntegrations;
+    private final CapabilityTowerDomainEnergyResolver energyResolver;
     private final CompensatingTowerEnergyTransaction energyTransaction = new CompensatingTowerEnergyTransaction();
     private final SharedTowerEnergyPort energyPort;
     private final TowerChannelCapacity capacityCalculator = new ControllerChannelCapacity();
@@ -125,6 +127,8 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
      */
     public AeGridTowerNetworkDomain(IGrid grid) {
         this.grid = grid;
+        this.energyIntegrations = TowerEnergyEndpointIntegrationRegistry.createDefault();
+        this.energyResolver = new CapabilityTowerDomainEnergyResolver(this.energyIntegrations);
         this.energyPort = new SharedTowerEnergyPort(() -> this.grid.getPivot().getLevel().getGameTime());
     }
 
@@ -470,7 +474,7 @@ public final class AeGridTowerNetworkDomain implements TowerNetworkDomain, IGrid
                         routesByStorage,
                         orderedRouteGroups,
                         endpoint.storageIdentity(),
-                        new CapabilityEnergyTransferEndpoint(endpoint));
+                        new CapabilityEnergyTransferEndpoint(endpoint, this.energyIntegrations));
             }
         }
 

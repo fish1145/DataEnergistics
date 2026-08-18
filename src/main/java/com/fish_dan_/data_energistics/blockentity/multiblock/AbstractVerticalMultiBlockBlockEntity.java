@@ -76,11 +76,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     }
 
     @Override
-    public final int multiBlock$getMatchedBlockCount() {
-        return verticalMultiBlock$getRuntimeState().matchedPositions().size();
-    }
-
-    @Override
     public final String multiBlock$getLastFailureReason() {
         return "";
     }

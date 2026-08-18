@@ -1,60 +1,29 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.energy;
 
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointContext;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegration;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointId;
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess.EnergySnapshot;
-import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.modernindustrialization.ModernIndustrializationEnergyStorage;
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.MekanismEnergyAccess;
+import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-
 /**
- * Capability-backed transaction endpoint with long-width typed access and a public-API fallback.
+ * Capability-backed transaction endpoint dispatched through the registered Mod integration for its route.
  */
 public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransferEndpoint {
 
-    /**
-     * Resolved capability and loaded owner location.
-     */
     private final TowerDomainEnergyEndpoint endpoint;
+    private final TowerEnergyEndpointIntegrationRegistry integrations;
 
     /**
-     * Optional BrandonsCore long-width bridge.
+     * Creates an endpoint using a shared registry owned by the network domain.
      */
-    private final BrandonsCoreEnergyBridge brandonsCore = new BrandonsCoreEnergyBridge();
-
-    /**
-     * Verified typed direct access for standard and explicitly unlimited storages.
-     */
-    private final UnlimitedEnergyAccess unlimitedEnergy = new VerifiedUnlimitedEnergyAccess();
-
-    /**
-     * Stable BrandonsCore storage classification for this immutable topology route.
-     */
-    private final boolean brandonsCoreStorage;
-
-    /**
-     * Stable Applied Flux storage classification for this immutable topology route.
-     */
-    private final boolean appFluxStorage;
-
-    /**
-     * Creates an executable endpoint from one topology resolution.
-     *
-     * @param endpoint resolved capability endpoint
-     */
-    public CapabilityEnergyTransferEndpoint(TowerDomainEnergyEndpoint endpoint) {
+    public CapabilityEnergyTransferEndpoint(TowerDomainEnergyEndpoint endpoint,
+                                            TowerEnergyEndpointIntegrationRegistry integrations) {
         this.endpoint = endpoint;
-        this.brandonsCoreStorage = this.brandonsCore.supports(endpoint.storage());
-        this.appFluxStorage = ModFlags.isAppFluxEnergySupportLoaded() && AE2FluxIntegration.isNetworkEnergyStorage(endpoint.storage());
+        this.integrations = integrations;
     }
 
     @Override
@@ -65,77 +34,34 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     @Override
     public TowerEnergyEndpointSnapshot freeze() {
         requireLoaded();
-        IEnergyStorage storage = this.endpoint.storage();
+        TowerEnergyEndpointContext context = endpointContext();
         try {
-            if (this.appFluxStorage) {
-                return freezeAppFlux(storage);
+            TowerEnergyEndpointIntegration integration = integration(context);
+            if (integration.isBuffer()) {
+                long extractable = captureBudget(integration, context, Long.MAX_VALUE, false);
+                long receivable = captureBudget(integration, context, Long.MAX_VALUE, true);
+                return TowerEnergyEndpointSnapshot.buffer(endpoint(), extractable, receivable);
             }
-            long stored;
-            long capacity;
-            long extractable;
-            long receivable;
-            boolean canExtract;
-            boolean canReceive;
-            if (!this.brandonsCoreStorage && mekanismSupported(storage)) {
-                return MekanismEnergyAccess.freeze(
-                        this.endpoint.location().level(),
-                        this.endpoint.location().position(),
-                        endpoint().side(),
-                        storage,
-                        endpoint());
-            }
-            if (this.brandonsCoreStorage) {
-                stored = this.brandonsCore.stored(storage);
-                capacity = this.brandonsCore.capacity(storage);
-                canExtract = this.brandonsCore.canExtract(storage);
-                canReceive = this.brandonsCore.canReceive(storage);
-            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
-                EnergySnapshot snapshot = modernIndustrializationStorage.snapshot();
-                stored = snapshot.stored();
-                capacity = snapshot.capacity();
-                canExtract = modernIndustrializationStorage.canExtract();
-                canReceive = modernIndustrializationStorage.canReceive();
-            } else {
-                EnergySnapshot snapshot = this.unlimitedEnergy.snapshot(storage);
-                stored = snapshot.stored();
-                capacity = snapshot.capacity();
-                canExtract = this.unlimitedEnergy.canExtract(storage);
-                canReceive = this.unlimitedEnergy.canReceive(storage);
-            }
-            TowerEnergyDirection direction = TowerEnergyDirection.fromPermissions(canExtract, canReceive);
+
+            EnergySnapshot snapshot = integration.snapshot(context);
+            validateSnapshot(snapshot);
+            TowerEnergyDirection direction = integration.direction(context);
             if (direction == null) {
-                throw new TowerEnergyTransferException("Energy endpoint no longer permits transfer: " + description());
-            }
-            if (stored < 0 || capacity < stored) {
                 throw new TowerEnergyTransferException(
-                        "Energy endpoint returned invalid frozen state " + stored + "/" + capacity + ": " + description());
+                        "Energy endpoint no longer permits transfer: " + description());
             }
-            long free = capacity - stored;
-            extractable = canExtract ? captureBudget(storage, stored, false) : 0;
-            receivable = canReceive ? captureBudget(storage, free, true) : 0;
+
+            long free = snapshot.capacity() - snapshot.stored();
+            long extractable = direction.allowsExtract() ? captureBudget(integration, context, snapshot.stored(), false) : 0L;
+            long receivable = direction.allowsReceive() ? captureBudget(integration, context, free, true) : 0L;
             return new TowerEnergyEndpointSnapshot(
-                    endpoint(), stored, capacity, extractable, receivable, direction);
+                    endpoint(), snapshot.stored(), snapshot.capacity(), extractable, receivable, direction);
         } catch (TowerEnergyTransferException exception) {
             throw exception;
         } catch (Throwable exception) {
             ThrowableIsolation.rethrowIfFatal(exception);
             throw new TowerEnergyTransferException("Could not freeze energy endpoint " + description(), exception);
         }
-    }
-
-    /**
-     * Captures independent single-operation budgets for an Applied Flux network wrapper.
-     */
-    private TowerEnergyEndpointSnapshot freezeAppFlux(IEnergyStorage storage) {
-        boolean canExtract = storage.canExtract();
-        boolean canReceive = storage.canReceive();
-        if (!canExtract || !canReceive) {
-            throw new TowerEnergyTransferException(
-                    "Applied Flux network endpoint no longer permits bidirectional transfer: " + description());
-        }
-        long extractable = AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, Long.MAX_VALUE, true);
-        long receivable = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, Long.MAX_VALUE, true);
-        return TowerEnergyEndpointSnapshot.buffer(endpoint(), extractable, receivable);
     }
 
     @Override
@@ -145,7 +71,9 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
 
     @Override
     public long extractionQuantum() {
-        return transferQuantum();
+        TowerEnergyEndpointContext context = endpointContext();
+        long quantum = integration(context).extractionQuantum(context);
+        return requireQuantum("extraction", quantum);
     }
 
     @Override
@@ -156,31 +84,13 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
     @Override
     public long compensateExtraction(long amount) {
         validateAmount(amount);
-        if (amount == 0) {
-            return 0;
+        if (amount == 0L) {
+            return 0L;
         }
         requireLoaded();
-        IEnergyStorage storage = this.endpoint.storage();
+        TowerEnergyEndpointContext context = endpointContext();
         try {
-            long restored;
-            if (this.brandonsCoreStorage) {
-                restored = this.brandonsCore.canReceive(storage) ? this.brandonsCore.insert(storage, amount, false) : 0;
-            } else if (mekanismSupported(storage)) {
-                restored = MekanismEnergyAccess.compensateExtraction(
-                        this.endpoint.location().level(),
-                        this.endpoint.location().position(),
-                        storage,
-                        amount);
-            } else if (this.appFluxStorage) {
-                restored = AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, false);
-            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
-                restored = modernIndustrializationStorage.compensateExtraction(amount);
-            } else {
-                restored = this.unlimitedEnergy.rollbackExtraction(storage, amount);
-                if (restored == UnlimitedEnergyAccess.UNAVAILABLE) {
-                    restored = receiveThroughCapability(storage, amount, false);
-                }
-            }
+            long restored = integration(context).compensateExtraction(context, amount);
             return validateResult("compensate extraction", amount, restored);
         } catch (TowerEnergyTransferException exception) {
             throw exception;
@@ -198,7 +108,9 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
 
     @Override
     public long insertionQuantum() {
-        return transferQuantum();
+        TowerEnergyEndpointContext context = endpointContext();
+        long quantum = integration(context).insertionQuantum(context);
+        return requireQuantum("insertion", quantum);
     }
 
     @Override
@@ -208,18 +120,14 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
 
     @Override
     public void publishMutation() {
-        if (this.appFluxStorage) {
-            return;
-        }
         requireLoaded();
-        IEnergyStorage storage = this.endpoint.storage();
-        if (!this.brandonsCoreStorage) {
-            this.unlimitedEnergy.notifyStorageChanged(storage);
-        }
-        BlockEntity blockEntity = this.endpoint.location().level().getBlockEntity(
-                this.endpoint.location().position());
-        if (blockEntity != null) {
-            blockEntity.setChanged();
+        TowerEnergyEndpointContext context = endpointContext();
+        try {
+            integration(context).publishMutation(context);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            throw new TowerEnergyTransferException(
+                    "Could not publish mutation for " + description(), exception);
         }
     }
 
@@ -228,45 +136,16 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
         return this.endpoint.endpoint().dimensionId() + " " + this.endpoint.endpoint().pos() + " side=" + this.endpoint.endpoint().side() + " storage=" + this.endpoint.storage().getClass().getName();
     }
 
-    /**
-     * Selects the verified long-width path or a single bounded capability operation.
-     */
     private long transfer(long amount, boolean simulate, boolean inserting) {
         validateAmount(amount);
-        if (amount == 0) {
-            return 0;
+        if (amount == 0L) {
+            return 0L;
         }
         requireLoaded();
-        IEnergyStorage storage = this.endpoint.storage();
+        TowerEnergyEndpointContext context = endpointContext();
         try {
-            long transferred;
-            if (this.brandonsCoreStorage) {
-                transferred = inserting ? this.brandonsCore.insert(storage, amount, simulate) : this.brandonsCore.extract(storage, amount, simulate);
-            } else if (mekanismSupported(storage)) {
-                transferred = inserting ? MekanismEnergyAccess.insert(
-                        this.endpoint.location().level(),
-                        this.endpoint.location().position(),
-                        endpoint().side(),
-                        storage,
-                        amount,
-                        simulate) :
-                        MekanismEnergyAccess.extract(
-                                this.endpoint.location().level(),
-                                this.endpoint.location().position(),
-                                endpoint().side(),
-                                storage,
-                                amount,
-                                simulate);
-            } else if (this.appFluxStorage) {
-                transferred = inserting ? AE2FluxIntegration.insertEnergyIntoNetworkStorage(storage, amount, simulate) : AE2FluxIntegration.extractEnergyFromNetworkStorage(storage, amount, simulate);
-            } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
-                transferred = inserting ? modernIndustrializationStorage.insert(amount, simulate) : modernIndustrializationStorage.extract(amount, simulate);
-            } else {
-                transferred = inserting ? this.unlimitedEnergy.insert(storage, amount, simulate) : this.unlimitedEnergy.extract(storage, amount, simulate);
-                if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
-                    transferred = inserting ? receiveThroughCapability(storage, amount, simulate) : extractThroughCapability(storage, amount, simulate);
-                }
-            }
+            TowerEnergyEndpointIntegration integration = integration(context);
+            long transferred = inserting ? integration.insert(context, amount, simulate) : integration.extract(context, amount, simulate);
             return validateResult(inserting ? "insert" : "extract", amount, transferred);
         } catch (TowerEnergyTransferException exception) {
             throw exception;
@@ -277,109 +156,59 @@ public final class CapabilityEnergyTransferEndpoint implements TowerEnergyTransf
         }
     }
 
-    /**
-     * Captures one endpoint's maximum public or verified direct transfer commitment.
-     */
-    private long captureBudget(IEnergyStorage storage, long available, boolean inserting) {
-        if (available == 0) {
-            return 0;
+    private long captureBudget(TowerEnergyEndpointIntegration integration,
+                               TowerEnergyEndpointContext context,
+                               long available,
+                               boolean inserting) {
+        if (available <= 0L) {
+            return 0L;
         }
-        long transferred;
-        if (this.brandonsCoreStorage) {
-            transferred = inserting ? this.brandonsCore.insert(storage, available, true) : this.brandonsCore.extract(storage, available, true);
-        } else if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
-            transferred = inserting ? modernIndustrializationStorage.insert(available, true) : modernIndustrializationStorage.extract(available, true);
-        } else {
-            transferred = inserting ? this.unlimitedEnergy.insert(storage, available, true) : this.unlimitedEnergy.extract(storage, available, true);
-            if (transferred == UnlimitedEnergyAccess.UNAVAILABLE) {
-                long publicRequest = Math.min(available, Integer.MAX_VALUE);
-                transferred = inserting ? receiveThroughCapability(storage, publicRequest, true) : extractThroughCapability(storage, publicRequest, true);
-                return validateResult(inserting ? "capture insertion budget" : "capture extraction budget",
-                        publicRequest,
-                        transferred);
-            }
-        }
+        long transferred = inserting ? integration.insert(context, available, true) : integration.extract(context, available, true);
         return validateResult(inserting ? "capture insertion budget" : "capture extraction budget",
-                available,
-                transferred);
+                available, transferred);
     }
 
-    /**
-     * Uses one public capability call because unknown implementations expose only int-width state and capacity.
-     */
-    private static long receiveThroughCapability(IEnergyStorage storage, long amount, boolean simulate) {
-        if (!storage.canReceive()) {
-            return 0;
-        }
-        if (amount > Integer.MAX_VALUE) {
-            throw new TowerEnergyTransferException(
-                    "Int-width energy receiver cannot accept one long-width transaction of " + amount + " FE");
-        }
-        return storage.receiveEnergy((int) amount, simulate);
-    }
-
-    /**
-     * Uses one public capability call because unknown implementations expose only int-width state and capacity.
-     */
-    private static long extractThroughCapability(IEnergyStorage storage, long amount, boolean simulate) {
-        if (!storage.canExtract()) {
-            return 0;
-        }
-        if (amount > Integer.MAX_VALUE) {
-            throw new TowerEnergyTransferException(
-                    "Int-width energy source cannot provide one long-width transaction of " + amount + " FE");
-        }
-        return storage.extractEnergy((int) amount, simulate);
-    }
-
-    /**
-     * Checks whether the current route still has Mekanism long-width access.
-     */
-    private boolean mekanismSupported(IEnergyStorage storage) {
-        return MekanismEnergyAccess.supports(
+    private TowerEnergyEndpointContext endpointContext() {
+        return new TowerEnergyEndpointContext(
                 this.endpoint.location().level(),
                 this.endpoint.location().position(),
-                endpoint().side(),
-                storage);
+                this.endpoint.endpoint().side(),
+                this.endpoint.storage());
     }
 
-    /**
-     * Exposes a native conversion unit only when the integration provides an explicit contract for it.
-     */
-    private long transferQuantum() {
-        IEnergyStorage storage = this.endpoint.storage();
-        if (storage instanceof ModernIndustrializationEnergyStorage modernIndustrializationStorage) {
-            return modernIndustrializationStorage.transferQuantum();
-        }
-        if (!this.brandonsCoreStorage && mekanismSupported(storage)) {
-            return MekanismEnergyAccess.transferQuantum();
-        }
-        return 1L;
+    private TowerEnergyEndpointIntegration integration(TowerEnergyEndpointContext context) {
+        return this.integrations.resolve(context);
     }
 
-    /**
-     * Ensures no capability query can force-load an unloaded chunk.
-     */
     private void requireLoaded() {
         if (!this.endpoint.location().level().isLoaded(this.endpoint.location().position())) {
             throw new TowerEnergyTransferException("Energy endpoint chunk unloaded: " + description());
         }
     }
 
-    /**
-     * Rejects negative requests before invoking third-party code.
-     */
+    private static void validateSnapshot(EnergySnapshot snapshot) {
+        if (snapshot.stored() < 0L || snapshot.capacity() < snapshot.stored()) {
+            throw new TowerEnergyTransferException(
+                    "Energy endpoint returned invalid frozen state " + snapshot.stored() + "/" + snapshot.capacity());
+        }
+    }
+
+    private static long requireQuantum(String operation, long quantum) {
+        if (quantum <= 0L) {
+            throw new TowerEnergyTransferException(
+                    "Energy endpoint returned invalid " + operation + " quantum " + quantum);
+        }
+        return quantum;
+    }
+
     private static void validateAmount(long amount) {
-        if (amount < 0) {
+        if (amount < 0L) {
             throw new IllegalArgumentException("Tower energy transfer amount must not be negative");
         }
     }
 
-    /**
-     * Rejects invalid third-party transfer responses at the boundary.
-     */
     private static long validateResult(String operation, long requested, long actual) {
-        if (actual < 0 || actual > requested) {
+        if (actual < 0L || actual > requested) {
             throw new TowerEnergyTransferException(
                     "Energy endpoint returned invalid " + operation + " result " + actual + " for " + requested);
         }
