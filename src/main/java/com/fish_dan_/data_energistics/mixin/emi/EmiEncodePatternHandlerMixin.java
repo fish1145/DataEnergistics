@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.mixin.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.emi.transfer.EmiPatternTransferContextBridge;
+import com.fish_dan_.data_energistics.integration.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
-import com.fish_dan_.data_energistics.client.transfer.PatternEncodingViewerContext;
+import com.fish_dan_.data_energistics.integration.xei.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 

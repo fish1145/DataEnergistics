@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.guideme;
 
-import com.fish_dan_.data_energistics.client.guideme.GuideNavBarHierarchySupport;
+import com.fish_dan_.data_energistics.integration.guideme.client.GuideNavBarHierarchySupport;
 
 import guideme.internal.screen.GuideNavBar;
 import guideme.navigation.NavigationTree;

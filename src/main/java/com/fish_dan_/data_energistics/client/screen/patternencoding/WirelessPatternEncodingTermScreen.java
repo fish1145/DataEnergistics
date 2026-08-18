@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferen
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
-import com.fish_dan_.data_energistics.client.transfer.PatternProviderRecipeTypeNames;
+import com.fish_dan_.data_energistics.integration.xei.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.client.widget.PatternRecipeTypeToggleButton;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;

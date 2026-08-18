@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.emi;
 
-import com.fish_dan_.data_energistics.client.emi.EmiEncodePatternHandlerMultiblockTransferGuard;
+import com.fish_dan_.data_energistics.integration.emi.EmiEncodePatternHandlerMultiblockTransferGuard;
 
 import dev.emi.emi.api.recipe.EmiRecipe;
 import org.spongepowered.asm.mixin.Mixin;
