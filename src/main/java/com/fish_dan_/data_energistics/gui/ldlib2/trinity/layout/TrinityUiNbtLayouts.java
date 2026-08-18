@@ -24,6 +24,7 @@ import java.io.InputStream;
 public final class TrinityUiNbtLayouts {
 
     private static final String ROOT_PATH = "ui/trinity/";
+
     private TrinityUiNbtLayouts() {}
 
     /**
