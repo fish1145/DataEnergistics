@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.mixin.ae2ct;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.integration.ae2ct.TrinityCraftingTreeProjection;
+import com.fish_dan_.data_energistics.integration.ae.ae2ct.TrinityCraftingTreeProjection;
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
 
 import appeng.menu.me.crafting.CraftingPlanSummary;

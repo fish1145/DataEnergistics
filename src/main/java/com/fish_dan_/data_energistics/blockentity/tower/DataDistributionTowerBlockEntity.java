@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpoi
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpointResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyEndpointResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyTransferEngine;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBinding;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingKind;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBindingRuntimeSnapshot;
@@ -38,15 +39,10 @@ import com.fish_dan_.data_energistics.common.memorycard.MemoryCardSettingsHelper
 import com.fish_dan_.data_energistics.common.tick.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
-import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.VerifiedUnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
-import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.ModernIndustrializationEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
-import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
+import com.fish_dan_.data_energistics.integration.tower.crafting.AeCraftingDisplayBridge;
+import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.tower.energy.neoecoae.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorSelector;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
@@ -131,7 +127,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                                               TowerTargetDisplayResolverContext, TowerNetworkParticipant, IGridTickable {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new VerifiedUnlimitedEnergyAccess();
     private static final VersionedTowerBindingCodec TOWER_BINDING_PERSISTENCE = new VersionedTowerBindingCodec();
     /**
      * Selects the connector source captured when a player places a potentially compatible target.
@@ -170,6 +165,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final TowerLinkStateGraph linkGraph = new TowerLinkStateGraph();
     private final Map<BlockPos, TowerBinding> towerBindings = new LinkedHashMap<>();
     private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
+    private final TowerEnergyEndpointIntegrationRegistry energyIntegrations;
     private final TowerEnergyEndpointResolver energyEndpointResolver;
     private final TowerEnergyTransferEngine energyDistributor;
     private final TowerTargetSummaryResolver targetDisplayResolver;
@@ -242,18 +238,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.coverage = new TowerCoverageGeometry(blockPos);
-        BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
-        ModernIndustrializationEnergyBridge modernIndustrializationEnergyBridge = new ModernIndustrializationEnergyBridge();
-        OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
+        this.energyIntegrations = TowerEnergyEndpointIntegrationRegistry.createDefault();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
         this.energyEndpointResolver = new CachedTowerEnergyEndpointResolver(
                 this,
-                brandonsCoreEnergyBridge,
-                modernIndustrializationEnergyBridge,
-                oritechEnergyBridge,
-                UNLIMITED_ENERGY_ACCESS);
+                this.energyIntegrations);
         this.energyDistributor = new TowerEnergyTransferEngine(
-                this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
+                this, this.energyEndpointResolver, this.energyIntegrations);
         this.targetDisplayResolver = new TowerTargetSummaryResolver(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()

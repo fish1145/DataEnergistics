@@ -32,6 +32,7 @@ import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -278,9 +279,15 @@ public final class DEBlocks {
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64M = registerParallelCore("me_digital_merged_storage_core_64m", TrinityCoreTier.SIZE_64M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256M = registerParallelCore("me_digital_merged_storage_core_256m", TrinityCoreTier.SIZE_256M);
 
-    public static final DeferredBlock<TrinityPatternCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("me_digital_pattern_processing_core", 64);
-    public static final DeferredBlock<TrinityPatternCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("extended_me_digital_pattern_processing_core", 128);
-    public static final DeferredBlock<TrinityPatternCoreBlock> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("overlimit_me_digital_pattern_processing_core", 512);
+    public static final DeferredBlock<TrinityPatternCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore(
+            "me_digital_pattern_processing_core",
+            TrinityPatternCoreTier.STANDARD.patternCapacity());
+    public static final DeferredBlock<TrinityPatternCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore(
+            "extended_me_digital_pattern_processing_core",
+            TrinityPatternCoreTier.EXTENDED.patternCapacity());
+    public static final DeferredBlock<TrinityPatternCoreBlock> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore(
+            "overlimit_me_digital_pattern_processing_core",
+            TrinityPatternCoreTier.OVERLIMIT.patternCapacity());
 
     public static final DeferredBlock<CompartmentBlock> COMPOSITE_INPUT_WAREHOUSE = registerCompartment(
             "composite_input_warehouse",

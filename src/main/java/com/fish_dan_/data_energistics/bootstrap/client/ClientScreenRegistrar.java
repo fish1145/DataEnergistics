@@ -24,7 +24,6 @@ import com.fish_dan_.data_energistics.client.screen.terminal.UniversalMEStorageS
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.trinity.TrinityDataCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.trinity.TrinityInformationExchangeDepotScreen;
-import com.fish_dan_.data_energistics.client.screen.trinity.TrinityPatternCoreScreen;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -56,7 +55,6 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, DEMenus.DATA_SANCTUM_INTERFACE.get(), DataSanctumInterfaceScreen::new, "/screens/data_sanctum_interface.json");
         InitScreens.register(event, DEMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), DataSanctumLargeInterfaceScreen::new, "/screens/data_sanctum_large_interface.json");
         InitScreens.register(event, DEMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
-        InitScreens.register(event, DEMenus.TRINITY_PATTERN_CORE.get(), TrinityPatternCoreScreen::new, "/screens/trinity_pattern_core.json");
         InitScreens.register(event, DEMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
         InitScreens.register(event, DEMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
         InitScreens.register(event, DEMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), UniversalPatternEncodingTermScreen::new, "/screens/universal_pattern_encoding_terminal.json");

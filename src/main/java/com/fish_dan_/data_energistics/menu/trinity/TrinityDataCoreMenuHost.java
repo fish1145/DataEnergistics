@@ -47,19 +47,9 @@ public interface TrinityDataCoreMenuHost {
     boolean isStructureFormed();
 
     /**
-     * Returns how many blocks were matched in the current valid structure.
-     */
-    int getMatchedBlockCount();
-
-    /**
      * Reports whether the declared crafting CPU child structure is currently formed.
      */
     boolean isCpuStructureFormed();
-
-    /**
-     * Returns how many blocks were matched in the current valid crafting CPU child structure.
-     */
-    int getCpuStructureMatchedBlockCount();
 
     /**
      * Returns the last crafting CPU child structure validation error, or an empty string when no error is active.
@@ -76,11 +66,6 @@ public interface TrinityDataCoreMenuHost {
      * Reports whether the declared crafting child structure is currently formed.
      */
     boolean isCraftingStructureFormed();
-
-    /**
-     * Returns how many blocks were matched in the current valid crafting child structure.
-     */
-    int getCraftingStructureMatchedBlockCount();
 
     /**
      * Returns how many pattern processing cores are currently matched by the crafting child structure.

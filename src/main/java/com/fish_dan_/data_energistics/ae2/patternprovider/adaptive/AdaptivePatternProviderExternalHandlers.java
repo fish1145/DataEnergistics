@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
+import com.fish_dan_.data_energistics.integration.ae.appmek.AppMekCompat;
 
 import org.jspecify.annotations.Nullable;
 
