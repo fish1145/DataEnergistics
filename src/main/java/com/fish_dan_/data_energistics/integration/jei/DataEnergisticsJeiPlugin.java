@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.integration.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.integration.jei.ingredient.DataResourceJeiIngredientHelper;
@@ -86,6 +87,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerIngredients(IModIngredientRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         registration.register(
                 DataResourceJeiIngredient.TYPE,
                 DataResourceJeiIngredient.ALL_INGREDIENTS,
@@ -99,6 +103,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         TrinityMultiblockJeiCategory multiblockCategory = installTrinityMultiblockCategory(
                 new TrinityMultiblockJeiCategory(
                         registration.getJeiHelpers(),
@@ -113,6 +120,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, RadixContainmentSphereCondenserCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
@@ -124,6 +134,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         registration.addGuiContainerHandler(
                 DataRipperReassemblerScreen.class,
                 new PatternEncodingGenericStackJeiHandler<>());
@@ -137,6 +150,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         var transferHelper = registration.getTransferHelper();
         registration.addRecipeTransferHandler(
                 new MultiblockPatternJeiTransferHandler<>(
@@ -162,6 +178,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         registration.addRecipes(RadixContainmentSphereCondenserCategory.RECIPE_TYPE, List.of(RadixContainmentSphereCondenserRecipe.INSTANCE));
         registration.addRecipes(TrinityMultiblockJeiCategory.RECIPE_TYPE, List.of(MultiblockXeiRecipe.trinity()));
         registration.addRecipes(RecipeTypes.CRAFTING, buildUniversalTerminalRecipes());
@@ -256,6 +275,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         this.jeiRuntime = jeiRuntime;
         PatternProviderRecipeTypeNames.register(
                 RECIPE_TYPE_NAME_SOURCE_ID,
@@ -267,12 +289,22 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
+        if (!shouldRegisterJei()) {
+            return;
+        }
         XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
         PatternProviderRecipeTypeNames.unregister(RECIPE_TYPE_NAME_SOURCE_ID);
         JeiPatternTransferContextBridge.unregisterWorkstationSource();
         this.jeiRuntime = null;
         this.multiblockRefreshInProgress = false;
         releaseTrinityMultiblockCategory();
+    }
+
+    /**
+     * JEI is the fallback integration; EMI owns the viewer registrations when both mods are installed.
+     */
+    private static boolean shouldRegisterJei() {
+        return !ModFlags.isEmiLoaded();
     }
 
     private static List<Component> resolveRecipeTypeName(IRecipeManager recipeManager,
