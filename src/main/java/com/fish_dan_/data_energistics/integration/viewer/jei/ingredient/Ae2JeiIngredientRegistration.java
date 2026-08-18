@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceAe2JeiIngredientConverter;
 
 import tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverters;
 

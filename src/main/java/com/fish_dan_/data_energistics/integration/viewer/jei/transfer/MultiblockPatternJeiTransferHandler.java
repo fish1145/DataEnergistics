@@ -33,7 +33,7 @@ import java.util.Optional;
  * </p>
  */
 public final class MultiblockPatternJeiTransferHandler<T extends AbstractContainerMenu, R extends MultiblockRecipeViewSource>
-                                               implements IRecipeTransferHandler<T, R> {
+                                                      implements IRecipeTransferHandler<T, R> {
 
     private final Class<T> menuClass;
     private final MenuType<T> menuType;

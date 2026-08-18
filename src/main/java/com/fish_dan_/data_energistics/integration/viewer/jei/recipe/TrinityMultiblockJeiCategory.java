@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.recipe;
 
+import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
+import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiIngredient;
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
-import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.network.chat.Component;

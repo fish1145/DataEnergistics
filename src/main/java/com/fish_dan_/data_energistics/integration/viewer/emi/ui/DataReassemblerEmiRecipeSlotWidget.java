@@ -18,11 +18,11 @@ public final class DataReassemblerEmiRecipeSlotWidget extends EMIRecipeSlotWidge
     private final IngredientIO role;
 
     public DataReassemblerEmiRecipeSlotWidget(
-                                       IngredientIO role,
-                                       Supplier<EmiIngredient> ingredientProvider,
-                                       Supplier<Matrix4f> localToWorldSupplier,
-                                       BiPredicate<Float, Float> isMouseOver,
-                                       Supplier<Bounds> boundsProvider) {
+                                              IngredientIO role,
+                                              Supplier<EmiIngredient> ingredientProvider,
+                                              Supplier<Matrix4f> localToWorldSupplier,
+                                              BiPredicate<Float, Float> isMouseOver,
+                                              Supplier<Bounds> boundsProvider) {
         super(ingredientProvider, localToWorldSupplier, isMouseOver, boundsProvider);
         this.role = role;
     }

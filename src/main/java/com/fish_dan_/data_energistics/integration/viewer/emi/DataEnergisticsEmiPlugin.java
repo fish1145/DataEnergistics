@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.integration.viewer.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
-import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.PatternEncodingGenericStackEmiProvider;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackSerializer;
+import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.PatternEncodingGenericStackEmiProvider;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargerEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataRipperReassemblerEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.RadixContainmentSphereEmiCondenserRecipe;
@@ -16,11 +17,10 @@ import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiMultibl
 import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.OrderPackageEmiDragDropHandler;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.UniversalTerminalEmiExclusionArea;
+import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.UniversalTerminalCombineRecipeView;
-import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderRecipeTypeNames;
-import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.recipe.reassembler.RadixContainmentSphereCraftingRemainderHelper;

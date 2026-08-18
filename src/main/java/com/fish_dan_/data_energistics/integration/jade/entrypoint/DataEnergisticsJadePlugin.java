@@ -1,18 +1,5 @@
 package com.fish_dan_.data_energistics.integration.jade.entrypoint;
 
-import com.fish_dan_.data_energistics.integration.jade.machine.DataChargerJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.machine.DataExtractorJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.machine.DataMimeticFieldJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.machine.DataRipperReassemblerJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.machine.DataSolarPanelJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.machine.DataTeleportAnchorJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.multiblock.MultiBlockJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.network.NetworkStatusJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.sanctum.DataSanctumJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.storage.CompartmentJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.tower.DataDistributionTowerEnergyJadeProvider;
-import com.fish_dan_.data_energistics.integration.jade.tower.DataDistributionTowerJadeProvider;
-
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
@@ -37,6 +24,18 @@ import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotBlo
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataChargerJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataExtractorJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataMimeticFieldJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataRipperReassemblerJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataSolarPanelJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.machine.DataTeleportAnchorJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.multiblock.MultiBlockJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.network.NetworkStatusJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.sanctum.DataSanctumJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.storage.CompartmentJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.tower.DataDistributionTowerEnergyJadeProvider;
+import com.fish_dan_.data_energistics.integration.jade.tower.DataDistributionTowerJadeProvider;
 
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;

@@ -13,7 +13,7 @@ import mezz.jei.api.runtime.IClickableIngredient;
 import java.util.Optional;
 
 public final class PatternEncodingGenericStackJeiHandler<T extends AbstractContainerScreen<?>>
-                                                 implements IGuiContainerHandler<T> {
+                                                        implements IGuiContainerHandler<T> {
 
     @Override
     public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
