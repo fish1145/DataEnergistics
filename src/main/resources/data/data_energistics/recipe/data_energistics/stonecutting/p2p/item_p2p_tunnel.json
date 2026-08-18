@@ -1,0 +1,10 @@
+{
+	"type": "minecraft:stonecutting",
+	"ingredient": {
+		"item": "ae2:me_p2p_tunnel"
+	},
+	"result": {
+		"count": 1,
+		"id": "ae2:item_p2p_tunnel"
+	}
+}

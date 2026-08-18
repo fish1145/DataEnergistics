@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDE", "AFA"],
+	"key": {
+		"A": {
+			"item": "ae2:certus_quartz_dust"
+		},
+		"B": {
+			"item": "data_energistics:data_processor"
+		},
+		"C": {
+			"item": "ae2:64k_crafting_storage"
+		},
+		"D": {
+			"item": "data_energistics:me_digital_merged_storage_core_64k"
+		},
+		"E": {
+			"item": "data_energistics:data_storage_component_64k"
+		},
+		"F": {
+			"item": "ae2:crafting_accelerator"
+		}
+	},
+	"result": {
+		"id": "data_energistics:me_digital_merged_storage_core_256k",
+		"count": 1
+	}
+}

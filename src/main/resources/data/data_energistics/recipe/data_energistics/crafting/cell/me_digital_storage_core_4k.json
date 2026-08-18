@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDE", "AFA"],
+	"key": {
+		"A": {
+			"item": "ae2:certus_quartz_dust"
+		},
+		"B": {
+			"item": "data_energistics:data_processor"
+		},
+		"C": {
+			"item": "ae2:cell_component_1k"
+		},
+		"D": {
+			"item": "data_energistics:me_digital_storage_core_1k"
+		},
+		"E": {
+			"item": "data_energistics:data_storage_component_1k"
+		},
+		"F": {
+			"tag": "ae2:glass_cable"
+		}
+	},
+	"result": {
+		"id": "data_energistics:me_digital_storage_core_4k",
+		"count": 1
+	}
+}

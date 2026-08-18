@@ -1,0 +1,16 @@
+{
+	"neoforge:conditions": [
+		{
+			"type": "neoforge:mod_loaded",
+			"modid": "appliedcreate"
+		}
+	],
+	"type": "minecraft:stonecutting",
+	"ingredient": {
+		"item": "ae2:me_p2p_tunnel"
+	},
+	"result": {
+		"count": 1,
+		"id": "appliedcreate:stress_p2p_tunnel"
+	}
+}
