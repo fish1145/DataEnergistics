@@ -1,0 +1,30 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:wireless_receiver",
+				"count": 2
+			},
+			{
+				"item": "ae2:singularity"
+			},
+			{
+				"item": "ae2:spatial_cell_component_2"
+			},
+			{
+				"item": "data_energistics:data_crystal_cutting_knife"
+			},
+			{
+				"item": "data_energistics:data_framework"
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_distribution_connector"
+			}
+		]
+	}
+}

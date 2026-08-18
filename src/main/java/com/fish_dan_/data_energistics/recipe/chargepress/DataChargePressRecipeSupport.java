@@ -25,6 +25,8 @@ public final class DataChargePressRecipeSupport {
             Registries.ITEM, Data_Energistics.id("integrated_charger/inscriber_modules")));
     public static final Ingredient DATA_CHARGER_MODULES = Ingredient.of(TagKey.create(
             Registries.ITEM, Data_Energistics.id("integrated_charger/data_charger_modules")));
+    public static final Ingredient CRYSTAL_GROWTH_MODULES = Ingredient.of(TagKey.create(
+            Registries.ITEM, Data_Energistics.id("integrated_charger/crystal_growth_modules")));
     private static final Ingredient CIRCUIT_BOARD_RESULTS = Ingredient.of(TagKey.create(
             Registries.ITEM, Data_Energistics.id("charge_press/circuit_boards")));
     private static final Ingredient POWDER_RESULTS = Ingredient.of(TagKey.create(
@@ -74,11 +76,25 @@ public final class DataChargePressRecipeSupport {
     }
 
     public static GenericStack getFluidInput() {
-        return new GenericStack(AEFluidKey.of(DEFluids.DATA_CORROSION_LIQUID.get()), DATA_CORROSION_AMOUNT);
+        return getFluidInput(DATA_CORROSION_AMOUNT);
+    }
+
+    public static GenericStack getFluidInput(long amount) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException("Data corrosion fluid amount must be positive: " + amount);
+        }
+        return new GenericStack(AEFluidKey.of(DEFluids.DATA_CORROSION_LIQUID.get()), amount);
     }
 
     public static boolean matchesFluid(FluidStack fluid) {
-        return !fluid.isEmpty() && fluid.getAmount() >= DATA_CORROSION_AMOUNT &&
+        return matchesFluid(fluid, DATA_CORROSION_AMOUNT);
+    }
+
+    public static boolean matchesFluid(FluidStack fluid, int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Data corrosion fluid amount must be positive: " + amount);
+        }
+        return !fluid.isEmpty() && fluid.getAmount() >= amount &&
                 AEFluidKey.of(DEFluids.DATA_CORROSION_LIQUID.get()).equals(AEFluidKey.of(fluid));
     }
 

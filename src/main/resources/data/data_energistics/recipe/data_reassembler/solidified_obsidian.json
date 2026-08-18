@@ -1,0 +1,28 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "c:dusts/obsidian"
+			},
+			{
+				"item": "ae2:sky_dust",
+				"count": 2
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:lava",
+				"amount": 1525
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:solidified_obsidian",
+				"count": 3
+			}
+		]
+	}
+}

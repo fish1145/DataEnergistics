@@ -87,7 +87,7 @@
 	"button.data_energistics.condenser_output.header": "Matter Condenser Output",
 	"button.data_energistics.condenser_output.matter_balls": "Matter Balls",
 	"button.data_energistics.condenser_output.power": "Requires %s AE",
-	"button.data_energistics.condenser_output.radix_containment_sphere.detail": "Requires a 16K-ME Data Storage Component or higher; higher tiers buffer more AE",
+	"button.data_energistics.condenser_output.storage": "Requires a storage component with at least %s AE capacity; the component is not consumed",
 	"button.data_energistics.condenser_output.singularity": "Singularity",
 	"button.data_energistics.condenser_output.trash": "Trash",
 	"button.data_energistics.data_distribution_tower.connection_mode": "Connection Mode",
@@ -884,5 +884,9 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.scanning": "Scanning sources",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "Processing ME storage",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "Waiting for player",
-	"workstation.data_energistics.data_reassembler": "Data Reassembler"
+	"workstation.data_energistics.data_reassembler": "Data Reassembler",
+	"recipe.data_energistics.condenser_output": "Matter Condenser Output",
+	"recipe.data_energistics.condenser_output.any_matter": "Any item or fluid the condenser can void; this icon is not a searchable recipe input",
+	"tag.item.data_energistics.condenser.storage_components": "Matter Condenser Storage Components",
+	"tag.item.data_energistics.integrated_charger.crystal_growth_modules": "Crystal Growth Modules"
 }

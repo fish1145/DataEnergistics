@@ -1,0 +1,43 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_storage_component_256k",
+				"count": 3
+			},
+			{
+				"item": "ae2:spatial_cell_component_2",
+				"count": 12
+			},
+			{
+				"tag": "c:dusts/data_dust",
+				"count": 19
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 14
+			},
+			{
+				"item": "data_energistics:data_carrier"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 1000
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_storage_component_1m"
+			}
+		]
+	}
+}

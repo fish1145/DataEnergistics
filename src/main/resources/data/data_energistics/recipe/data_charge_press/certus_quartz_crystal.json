@@ -1,0 +1,18 @@
+{
+	"type": "data_energistics:data_charge_press",
+	"inputs": [
+		{
+			"item": "ae2:charged_certus_quartz_crystal",
+			"count": 16
+		},
+		{
+			"item": "ae2:certus_quartz_dust",
+			"count": 16
+		}
+	],
+	"fluid_amount": 250,
+	"result": {
+		"id": "ae2:certus_quartz_crystal",
+		"count": 72
+	}
+}

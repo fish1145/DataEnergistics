@@ -1,15 +1,17 @@
 package com.fish_dan_.data_energistics.mixin.core.condenser;
 
 import com.fish_dan_.data_energistics.accessor.condenser.CondenserBlockEntityAccessor;
-import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
-import com.fish_dan_.data_energistics.item.cell.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
+import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeCatalog;
 
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.blockentity.misc.CondenserBlockEntity;
 import appeng.util.inv.AppEngInternalInventory;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,93 +21,98 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.Objects;
+
 @Mixin(CondenserBlockEntity.class)
 public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityAccessor {
 
     @Unique
-    private static final String RADIX_CONTAINMENT_SPHERE_MODE_TAG = "dataEnergisticsRadixContainmentSphereMode";
-    @Unique
-    private static final String LEGACY_DATA_CAPTURE_BALL_MODE_TAG = "dataEnergisticsDataCaptureBallMode";
-    @Unique
-    private static final double DATA_ENERGISTICS_RADIX_CONTAINMENT_SPHERE_REQUIRED_POWER = 131_072.0D;
+    private static final String SELECTED_CONDENSER_RECIPE_TAG = "dataEnergisticsSelectedCondenserRecipe";
 
     @Shadow
     @Final
     private AppEngInternalInventory storageSlot;
 
     @Unique
-    private boolean dataEnergistics$radixContainmentSphereMode;
+    @Nullable
+    private ResourceLocation dataEnergistics$selectedCondenserRecipeId;
 
     @Inject(method = "getOutput", at = @At("HEAD"), cancellable = true)
-    private void dataEnergistics$replaceRadixContainmentSphereOutput(CallbackInfoReturnable<ItemStack> cir) {
-        if (!this.dataEnergistics$radixContainmentSphereMode) {
+    private void dataEnergistics$replaceCondenserOutput(CallbackInfoReturnable<ItemStack> cir) {
+        CondenserOutputRecipe recipe = this.dataEnergistics$getSelectedCondenserRecipe();
+        if (recipe == null) {
             return;
         }
 
-        if (!this.dataEnergistics$isValidRadixContainmentSphereStorageComponent(this.storageSlot.getStackInSlot(0))) {
+        if (!recipe.acceptsStorage(this.storageSlot.getStackInSlot(0))) {
             cir.setReturnValue(ItemStack.EMPTY);
             return;
         }
 
-        cir.setReturnValue(RadixContainmentSphereItem.createChargedStack());
+        cir.setReturnValue(recipe.getResult());
     }
 
     @Inject(method = "getRequiredPower", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$replaceRequiredPower(CallbackInfoReturnable<Double> cir) {
-        if (this.dataEnergistics$radixContainmentSphereMode) {
-            cir.setReturnValue(DATA_ENERGISTICS_RADIX_CONTAINMENT_SPHERE_REQUIRED_POWER);
+        CondenserOutputRecipe recipe = this.dataEnergistics$getSelectedCondenserRecipe();
+        if (this.dataEnergistics$selectedCondenserRecipeId != null) {
+            cir.setReturnValue(recipe == null ? 0.0D : recipe.getRequiredPower());
         }
     }
 
     @Inject(method = "getStorage", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$restrictStorageComponent(CallbackInfoReturnable<Double> cir) {
-        if (!this.dataEnergistics$radixContainmentSphereMode) {
+        CondenserOutputRecipe recipe = this.dataEnergistics$getSelectedCondenserRecipe();
+        if (this.dataEnergistics$selectedCondenserRecipeId == null) {
             return;
         }
 
-        cir.setReturnValue(this.dataEnergistics$getRadixContainmentSphereStorage(this.storageSlot.getStackInSlot(0)));
+        ItemStack storage = this.storageSlot.getStackInSlot(0);
+        cir.setReturnValue(recipe != null && recipe.acceptsStorage(storage) ? CondenserOutputRecipe.getStorageCapacity(storage) : 0.0D);
     }
 
     @Unique
-    private boolean dataEnergistics$isValidRadixContainmentSphereStorageComponent(ItemStack stack) {
-        return this.dataEnergistics$getRadixContainmentSphereStorage(stack) > 0.0D;
-    }
-
-    @Unique
-    private double dataEnergistics$getRadixContainmentSphereStorage(ItemStack stack) {
-        if (!(stack.getItem() instanceof DataStorageComponentItem component) || !component.isStorageComponent(stack)) {
-            return 0.0D;
+    @Nullable
+    private CondenserOutputRecipe dataEnergistics$getSelectedCondenserRecipe() {
+        if (this.dataEnergistics$selectedCondenserRecipeId == null) {
+            return null;
         }
-        double storage = (double) component.getBytes(stack) * CondenserBlockEntity.BYTE_MULTIPLIER;
-        return storage >= DATA_ENERGISTICS_RADIX_CONTAINMENT_SPHERE_REQUIRED_POWER ? storage : 0.0D;
+        CondenserBlockEntity condenser = (CondenserBlockEntity) (Object) this;
+        if (condenser.getLevel() == null) {
+            return null;
+        }
+        var holder = CondenserOutputRecipeCatalog.find(
+                condenser.getLevel(),
+                this.dataEnergistics$selectedCondenserRecipeId);
+        return holder == null ? null : holder.value();
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))
-    private void dataEnergistics$saveRadixContainmentSphereMode(CompoundTag data, Provider registries,
-                                                                CallbackInfo ci) {
-        data.remove(LEGACY_DATA_CAPTURE_BALL_MODE_TAG);
-        data.putBoolean(RADIX_CONTAINMENT_SPHERE_MODE_TAG, this.dataEnergistics$radixContainmentSphereMode);
+    private void dataEnergistics$saveSelectedCondenserRecipe(CompoundTag data, Provider registries, CallbackInfo ci) {
+        if (this.dataEnergistics$selectedCondenserRecipeId == null) {
+            data.remove(SELECTED_CONDENSER_RECIPE_TAG);
+        } else {
+            data.putString(SELECTED_CONDENSER_RECIPE_TAG, this.dataEnergistics$selectedCondenserRecipeId.toString());
+        }
     }
 
     @Inject(method = "loadTag", at = @At("TAIL"))
-    private void dataEnergistics$loadRadixContainmentSphereMode(CompoundTag data, Provider registries,
-                                                                CallbackInfo ci) {
-        String modeTag = data.contains(RADIX_CONTAINMENT_SPHERE_MODE_TAG) ? RADIX_CONTAINMENT_SPHERE_MODE_TAG : LEGACY_DATA_CAPTURE_BALL_MODE_TAG;
-        this.dataEnergistics$radixContainmentSphereMode = data.getBoolean(modeTag);
+    private void dataEnergistics$loadSelectedCondenserRecipe(CompoundTag data, Provider registries, CallbackInfo ci) {
+        this.dataEnergistics$selectedCondenserRecipeId = data.contains(SELECTED_CONDENSER_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(SELECTED_CONDENSER_RECIPE_TAG)) : null;
     }
 
     @Override
-    public boolean dataEnergistics$isRadixContainmentSphereMode() {
-        return this.dataEnergistics$radixContainmentSphereMode;
+    public @Nullable ResourceLocation dataEnergistics$getSelectedCondenserRecipeId() {
+        return this.dataEnergistics$selectedCondenserRecipeId;
     }
 
     @Override
-    public void dataEnergistics$setRadixContainmentSphereMode(boolean enabled) {
-        if (this.dataEnergistics$radixContainmentSphereMode == enabled) {
+    public void dataEnergistics$setSelectedCondenserRecipeId(@Nullable ResourceLocation recipeId) {
+        if (Objects.equals(this.dataEnergistics$selectedCondenserRecipeId, recipeId)) {
             return;
         }
 
-        this.dataEnergistics$radixContainmentSphereMode = enabled;
+        this.dataEnergistics$selectedCondenserRecipeId = recipeId;
         var condenser = (CondenserBlockEntity) (Object) this;
         condenser.setChanged();
     }

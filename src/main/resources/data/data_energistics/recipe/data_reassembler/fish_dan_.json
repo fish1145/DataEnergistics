@@ -1,0 +1,52 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "minecraft:cod",
+				"count": 24
+			},
+			{
+				"item": "minecraft:salmon",
+				"count": 24
+			},
+			{
+				"item": "minecraft:tropical_fish",
+				"count": 24
+			},
+			{
+				"item": "minecraft:pufferfish",
+				"count": 24
+			},
+			{
+				"item": "minecraft:egg",
+				"count": 16
+			},
+			{
+				"item": "data_energistics:data_carrier"
+			},
+			{
+				"tag": "c:ingots/digisidian_memorize",
+				"count": 14
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:water",
+				"amount": 1000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1600
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:fish_dan_"
+			}
+		]
+	}
+}

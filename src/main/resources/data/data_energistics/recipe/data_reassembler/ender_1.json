@@ -1,0 +1,18 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:ender_dust"
+			}
+		]
+	},
+	"outputs": {
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 250
+			}
+		]
+	}
+}

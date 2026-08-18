@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
@@ -123,8 +124,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         var recipe = view.holder().value();
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(recipe.getIngredient());
         builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(DataChargePressRecipeSupport.DATA_CHARGER_MODULES)
-                .addTooltipCallback((slotView, tooltip) -> {
+                .addIngredients(DataChargePressRecipeSupport.DATA_CHARGER_MODULES).addRichTooltipCallback((slotView, tooltip) -> {
                     tooltip.add(Component.translatable("recipe.data_energistics.data_charge_press.data_charger_module"));
                     tooltip.add(Component.translatable("recipe.data_energistics.data_charger.cost", recipe.getDataFlow(),
                             formatPower(recipe.getPower())));
@@ -137,8 +137,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         InscriberRecipe recipe = view.holder().value();
         if (DataChargePressRecipeSupport.hasCircuitBoardTemplate(recipe)) {
             builder.addSlot(RecipeIngredientRole.CATALYST, FIRST_INPUT_X, FIRST_INPUT_Y)
-                    .addIngredients(DataChargePressRecipeSupport.getTemplate(recipe))
-                    .addTooltipCallback((slotView, tooltip) -> tooltip.add(
+                    .addIngredients(DataChargePressRecipeSupport.getTemplate(recipe)).addRichTooltipCallback((slotView, tooltip) -> tooltip.add(
                             Component.translatable("recipe.data_energistics.data_charge_press.template")));
         }
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addItemStacks(withCount(recipe.getMiddleInput(),
@@ -152,15 +151,14 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     private static void setCustomRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.CustomView view) {
         var recipe = view.holder().value();
-        addCustomItemInputs(builder, recipe.getItemInputs());
+        addCustomItemInputs(builder, recipe.getInputs());
         addFluidInput(builder, recipe.getFluidInput());
-        addModuleCatalyst(builder, recipe.getCatalyst(), "recipe.data_energistics.data_charge_press.charger_module");
+        addModuleCatalyst(builder, recipe.getModule());
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
                 .addItemStack(recipe.getResult());
     }
 
-    private static void addCustomItemInputs(IRecipeLayoutBuilder builder,
-                                            List<com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient> inputs) {
+    private static void addCustomItemInputs(IRecipeLayoutBuilder builder, List<DataChargePressIngredient> inputs) {
         for (int index = 0; index < inputs.size(); index++) {
             var input = inputs.get(index);
             switch (index) {
@@ -186,8 +184,11 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module, String tooltipKey) {
         builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(module)
-                .addTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(tooltipKey)));
+                .addIngredients(module).addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(tooltipKey)));
+    }
+
+    private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module) {
+        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y).addIngredients(module);
     }
 
     private static void addFluidInput(IRecipeLayoutBuilder builder, GenericStack fluidInput) {

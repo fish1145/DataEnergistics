@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.integration.viewer.emi.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.Ingredient;
 
 import appeng.api.stacks.AEFluidKey;
 import appeng.recipes.handlers.InscriberProcessType;
@@ -15,7 +19,10 @@ import dev.emi.emi.api.recipe.BasicEmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.widget.TankWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
+
+import java.util.List;
 
 /** Unified EMI presentation for every operation supported by the data integrated charger. */
 public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
@@ -54,7 +61,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private final DataChargePressRecipeView view;
 
     public DataChargePressEmiRecipe(DataChargePressRecipeView view) {
-        super(CATEGORY, view.id(), WIDTH, HEIGHT);
+        super(CATEGORY, emiRecipeId(view), WIDTH, HEIGHT);
         this.view = view;
         if (view instanceof DataChargePressRecipeView.ChargerView chargerView) {
             this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.CHARGER_MODULES));
@@ -126,15 +133,15 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private void addCustomRecipe(DataChargePressRecipeView.CustomView view) {
         var recipe = view.holder().value();
-        this.catalysts.add(EmiIngredient.of(recipe.getCatalyst()));
-        recipe.getItemInputs().forEach(input -> this.inputs.add(EmiIngredient.of(input.ingredient(), input.count())));
+        this.catalysts.add(EmiIngredient.of(recipe.getModule()));
+        recipe.getInputs().forEach(input -> this.inputs.add(EmiIngredient.of(input.ingredient(), input.count())));
         if (recipe.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             this.inputs.add(EmiStack.of(fluidKey.getFluid(), recipe.getFluidInput().amount()));
         }
         this.outputs.add(EmiStack.of(recipe.getResult()));
     }
 
-    private void addOptionalInscriberIngredient(InscriberRecipe recipe, net.minecraft.world.item.crafting.Ingredient ingredient) {
+    private void addOptionalInscriberIngredient(InscriberRecipe recipe, Ingredient ingredient) {
         if (ingredient.isEmpty()) {
             return;
         }
@@ -208,17 +215,15 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private void addCustomWidgets(WidgetHolder widgets, DataChargePressRecipeView.CustomView view) {
         var recipe = view.holder().value();
-        addCustomItemWidgets(widgets, recipe.getItemInputs());
+        addCustomItemWidgets(widgets, recipe.getInputs());
         if (recipe.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, recipe.getFluidInput().amount());
         }
-        addModuleWidget(widgets, recipe.getCatalyst(),
-                "recipe.data_energistics.data_charge_press.charger_module");
+        addModuleWidget(widgets, recipe.getModule());
         widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, FIRST_INPUT_Y).drawBack(false).recipeContext(this);
     }
 
-    private static void addCustomItemWidgets(WidgetHolder widgets,
-                                             java.util.List<com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient> inputs) {
+    private static void addCustomItemWidgets(WidgetHolder widgets, List<DataChargePressIngredient> inputs) {
         for (int index = 0; index < inputs.size(); index++) {
             var input = inputs.get(index);
             switch (index) {
@@ -233,8 +238,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         }
     }
 
-    private void addOptionalInscriberWidget(WidgetHolder widgets, InscriberRecipe recipe,
-                                            net.minecraft.world.item.crafting.Ingredient ingredient, int x, int y) {
+    private void addOptionalInscriberWidget(WidgetHolder widgets, InscriberRecipe recipe, Ingredient ingredient,
+                                            int x, int y) {
         if (ingredient.isEmpty()) {
             return;
         }
@@ -244,18 +249,38 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         }
     }
 
-    private void addModuleWidget(WidgetHolder widgets, net.minecraft.world.item.crafting.Ingredient module,
-                                 String tooltipKey) {
+    private void addModuleWidget(WidgetHolder widgets, Ingredient module, String tooltipKey) {
         widgets.addSlot(EmiIngredient.of(module), MODULE_X, MODULE_Y)
                 .catalyst(true)
                 .drawBack(false)
                 .appendTooltip(Component.translatable(tooltipKey));
     }
 
+    private void addModuleWidget(WidgetHolder widgets, Ingredient module) {
+        widgets.addSlot(EmiIngredient.of(module), MODULE_X, MODULE_Y)
+                .catalyst(true)
+                .drawBack(false);
+    }
+
     private static void addFluidTank(WidgetHolder widgets, AEFluidKey fluidKey, long amount) {
         // TankWidget reserves a one-pixel inset. Its 18x18 bounds therefore fill the GUI's 16x16 slot content.
-        widgets.addTank(EmiStack.of(fluidKey.getFluid(), amount), FLUID_X - 1, FLUID_Y - 1,
-                18, 18, Math.toIntExact(amount)).drawBack(false);
+        widgets.add(new FluidAmountTankWidget(
+                EmiStack.of(fluidKey.getFluid(), amount),
+                FLUID_X - 1,
+                FLUID_Y - 1,
+                amount)).drawBack(false);
+    }
+
+    /**
+     * Non-custom entries re-present recipes owned by another recipe type. EMI requires slash-prefixed synthetic ids
+     * for those views so they do not collide with the source recipe identity.
+     */
+    private static ResourceLocation emiRecipeId(DataChargePressRecipeView view) {
+        ResourceLocation id = view.id();
+        if (view instanceof DataChargePressRecipeView.CustomView) {
+            return id;
+        }
+        return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "/" + id.getPath());
     }
 
     private static void addMachineBackground(WidgetHolder widgets) {
@@ -266,5 +291,22 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private static String formatPower(double power) {
         return Math.rint(power) == power ? Long.toString((long) power) : Double.toString(power);
+    }
+
+    private static final class FluidAmountTankWidget extends TankWidget {
+
+        private final String amountText;
+
+        private FluidAmountTankWidget(EmiIngredient stack, int x, int y, long amount) {
+            super(stack, x, y, 18, 18, Math.toIntExact(amount));
+            this.amountText = GenericStackDisplayHelper.formatCompactFluidAmount(amount);
+        }
+
+        @Override
+        public void drawOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+            super.drawOverlay(guiGraphics, mouseX, mouseY, delta);
+            var bounds = getBounds();
+            GenericStackDisplayHelper.renderSmallOverlay(guiGraphics, bounds.x(), bounds.y(), this.amountText);
+        }
     }
 }

@@ -1,0 +1,53 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_storage_component_16m",
+				"count": 3
+			},
+			{
+				"item": "ae2:spatial_cell_component_128",
+				"count": 8
+			},
+			{
+				"item": "minecraft:amethyst_block",
+				"count": 14
+			},
+			{
+				"item": "data_energistics:data_crystal_block",
+				"count": 6
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 15
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 24
+			},
+			{
+				"item": "data_energistics:data_carrier",
+				"count": 16
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 4500
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 37260
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_storage_component_64m"
+			}
+		]
+	}
+}

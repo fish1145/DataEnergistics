@@ -1,0 +1,42 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:time_core",
+				"count": 4
+			},
+			{
+				"item": "ae2:speed_card",
+				"count": 46
+			},
+			{
+				"item": "data_energistics:data_dust",
+				"count": 27
+			},
+			{
+				"item": "data_energistics:data_storage_component_256m",
+				"count": 4
+			},
+			{
+				"tag": "ae2:interface"
+			},
+			{
+				"item": "data_energistics:data_framework",
+				"count": 8
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 120400
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_ripper"
+			}
+		]
+	}
+}

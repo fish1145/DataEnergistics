@@ -6,8 +6,8 @@ import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereCondenserRecipe;
-import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereCondenserRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
+import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataReassemblerCraftingRecipeSerializer;
@@ -50,11 +50,11 @@ public final class DERecipes {
             return Data_Energistics.MODID + ":right_click";
         }
     });
-    public static final DeferredHolder<RecipeType<?>, RecipeType<RadixContainmentSphereCondenserRecipe>> RADIX_CONTAINMENT_SPHERE_CONDENSER_TYPE = RECIPE_TYPES.register("radix_containment_sphere_condenser", () -> new RecipeType<>() {
+    public static final DeferredHolder<RecipeType<?>, RecipeType<CondenserOutputRecipe>> CONDENSER_OUTPUT_TYPE = RECIPE_TYPES.register("condenser_output", () -> new RecipeType<>() {
 
         @Override
         public String toString() {
-            return Data_Energistics.MODID + ":radix_containment_sphere_condenser";
+            return Data_Energistics.MODID + ":condenser_output";
         }
     });
     public static final DeferredHolder<RecipeType<?>, RecipeType<DataChargerRecipe>> DATA_CHARGER_TYPE = RECIPE_TYPES.register("data_charger", () -> new RecipeType<>() {
@@ -75,8 +75,8 @@ public final class DERecipes {
     public static final DeferredHolder<RecipeSerializer<?>, DataRipperReassemblerRecipeSerializer> DATA_RIPPER_REASSEMBLER_SERIALIZER = RECIPE_SERIALIZERS.register("data_reassembler", DataRipperReassemblerRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, RadixContainmentSphereRightClickRecipeSerializer> RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_SERIALIZER = RECIPE_SERIALIZERS.register("right_click",
             RadixContainmentSphereRightClickRecipeSerializer::new);
-    public static final DeferredHolder<RecipeSerializer<?>, RadixContainmentSphereCondenserRecipeSerializer> RADIX_CONTAINMENT_SPHERE_CONDENSER_SERIALIZER = RECIPE_SERIALIZERS.register("radix_containment_sphere_condenser",
-            RadixContainmentSphereCondenserRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, CondenserOutputRecipeSerializer> CONDENSER_OUTPUT_SERIALIZER = RECIPE_SERIALIZERS.register("condenser_output",
+            CondenserOutputRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataChargerRecipeSerializer> DATA_CHARGER_SERIALIZER = RECIPE_SERIALIZERS.register("data_charger",
             DataChargerRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataChargePressRecipeSerializer> DATA_CHARGE_PRESS_SERIALIZER = RECIPE_SERIALIZERS.register("data_charge_press",
@@ -84,8 +84,6 @@ public final class DERecipes {
     public static final DeferredHolder<RecipeSerializer<?>, DataReassemblerCraftingRecipeSerializer> DATA_REASSEMBLER_CRAFTING_SERIALIZER = RECIPE_SERIALIZERS.register(
             "data_reassembler_crafting",
             DataReassemblerCraftingRecipeSerializer::new);
-    public static final DeferredHolder<RecipeSerializer<?>, RadixContainmentSphereRightClickRecipeSerializer> LEGACY_RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_SERIALIZER = RECIPE_SERIALIZERS.register("data_capture_ball_right_click",
-            RadixContainmentSphereRightClickRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<UniversalTerminalCombineRecipe>> UNIVERSAL_TERMINAL_COMBINE_SERIALIZER = RECIPE_SERIALIZERS.register(
             "universal_terminal_combine",
             () -> new SimpleCraftingRecipeSerializer<>(UniversalTerminalCombineRecipe::new));

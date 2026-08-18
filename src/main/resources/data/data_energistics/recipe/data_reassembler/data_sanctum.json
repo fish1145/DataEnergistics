@@ -1,0 +1,64 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_reassembler",
+				"count": 4
+			},
+			{
+				"tag": "data_energistics:interface"
+			},
+			{
+				"item": "data_energistics:data_framework",
+				"count": 23
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 48
+			},
+			{
+				"item": "data_energistics:budding_data_crystal_2",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_crystal_cluster",
+				"count": 24
+			},
+			{
+				"item": "data_energistics:data_storage_component_64m",
+				"count": 17
+			},
+			{
+				"tag": "c:ingots/digisidian_memorize",
+				"count": 41
+			},
+			{
+				"item": "data_energistics:time_core",
+				"count": 7
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 13250
+			},
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 14500
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 204700
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_sanctum"
+			}
+		]
+	}
+}

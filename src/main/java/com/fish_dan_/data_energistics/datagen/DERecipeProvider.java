@@ -16,11 +16,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.conditions.ModLoadedCondition;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
 import appeng.core.definitions.AEItems;
 import com.glodblock.github.appflux.common.AFSingletons;
 import org.apache.logging.log4j.Logger;
@@ -49,17 +46,17 @@ public class DERecipeProvider extends RecipeProvider {
 
         new IntegratedChargerBuilder()
                 .addItem(tag("c:gems/redstone"), 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(AFSingletons.CHARGED_REDSTONE, 20)
-                .save(cond, id(Data_Energistics.MODID + "/data_charge_press/appflux/redstone_crystal"));
+                .save(cond, id("data_charge_press/appflux/redstone_crystal"));
 
         new IntegratedChargerBuilder()
                 .addItem(Items.REDSTONE_BLOCK, 16)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 16)
                 .addItem(Items.GLOWSTONE_DUST, 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(AFSingletons.REDSTONE_CRYSTAL, 72)
-                .save(cond, id(Data_Energistics.MODID + "/data_charge_press/appflux/appflux_redstone_crystal"));
+                .save(cond, id("data_charge_press/appflux/appflux_redstone_crystal"));
     }
 
     private void buildExtendedAeRecipes(RecipeOutput output) {
@@ -68,9 +65,9 @@ public class DERecipeProvider extends RecipeProvider {
         new IntegratedChargerBuilder()
                 .addItem(tag("c:gems/entro"), 16)
                 .addItem(tag("c:dusts/entro"), 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("extendedae:entro_crystal"), 72)
-                .save(cond, id(Data_Energistics.MODID + "/data_charge_press/extendedae/eae_entro_crystal"));
+                .save(cond, id("data_charge_press/extendedae/eae_entro_crystal"));
     }
 
     private void buildNeoEcoAeRecipes(RecipeOutput output) {
@@ -79,16 +76,16 @@ public class DERecipeProvider extends RecipeProvider {
         new IntegratedChargerBuilder()
                 .addItem(AEItems.CERTUS_QUARTZ_CRYSTAL_CHARGED.asItem(), 32)
                 .addItem(item("neoecoae:energized_crystal_dust"), 32)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("neoecoae:energized_crystal"), 72)
-                .save(cond, id(Data_Energistics.MODID + "/data_charge_press/neoecoae/neoeco_energized_crystal"));
+                .save(cond, id("data_charge_press/neoecoae/neoeco_energized_crystal"));
 
         new IntegratedChargerBuilder()
                 .addItem(item("neoecoae:energized_crystal_dust"), 48)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 48)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("neoecoae:energized_fluix_crystal"), 72)
-                .save(cond, id(Data_Energistics.MODID + "/data_charge_press/neoecoae/neoeco_energized_fluix_crystal"));
+                .save(cond, id("data_charge_press/neoecoae/neoeco_energized_fluix_crystal"));
     }
 
     private static ResourceLocation id(String path) {
@@ -107,20 +104,14 @@ public class DERecipeProvider extends RecipeProvider {
         return Ingredient.of(TagKey.create(Registries.ITEM, ResourceLocation.parse(tagId)));
     }
 
-    private static Fluid fluid(String id) {
-        return BuiltInRegistries.FLUID.get(ResourceLocation.parse(id));
-    }
-
     private static class IntegratedChargerBuilder {
 
-        private static final Ingredient CRYSTAL_GROWTH_MODULE = Ingredient.of(item("ae2:not_so_mysterious_cube"));
-
-        private final List<DataChargePressIngredient> itemInputs = new ArrayList<>();
-        private GenericStack fluidInput;
+        private final List<DataChargePressIngredient> inputs = new ArrayList<>();
+        private int fluidAmount;
         private ItemStack itemOutput = ItemStack.EMPTY;
 
         IntegratedChargerBuilder addItem(Ingredient ingredient, int count) {
-            itemInputs.add(new DataChargePressIngredient(ingredient, count));
+            inputs.add(new DataChargePressIngredient(ingredient, count));
             return this;
         }
 
@@ -128,11 +119,11 @@ public class DERecipeProvider extends RecipeProvider {
             return addItem(Ingredient.of(item), count);
         }
 
-        IntegratedChargerBuilder addFluid(Fluid fluid, long amount) {
-            if (this.fluidInput != null) {
-                throw new IllegalStateException("Integrated charger recipes support one fluid input");
+        IntegratedChargerBuilder fluidAmount(int amount) {
+            if (this.fluidAmount != 0) {
+                throw new IllegalStateException("Integrated charger recipe fluid amount was already configured");
             }
-            this.fluidInput = new GenericStack(AEFluidKey.of(fluid), amount);
+            this.fluidAmount = amount;
             return this;
         }
 
@@ -146,15 +137,15 @@ public class DERecipeProvider extends RecipeProvider {
         }
 
         void save(RecipeOutput output, ResourceLocation id) {
-            if (this.itemInputs.size() < DataChargePressRecipe.MIN_ITEM_INPUT_COUNT ||
-                    this.itemInputs.size() > DataChargePressRecipe.MAX_ITEM_INPUT_COUNT || this.fluidInput == null ||
+            if (this.inputs.isEmpty() ||
+                    this.inputs.size() > DataChargePressRecipe.MAX_ITEM_INPUT_COUNT || this.fluidAmount <= 0 ||
+                    this.fluidAmount > DataChargePressRecipe.MAX_FLUID_AMOUNT ||
                     this.itemOutput.isEmpty()) {
                 throw new IllegalStateException("Invalid integrated charger crystal growth recipe: " + id);
             }
             var recipe = new DataChargePressRecipe(
-                    List.copyOf(itemInputs),
-                    this.fluidInput,
-                    CRYSTAL_GROWTH_MODULE,
+                    List.copyOf(inputs),
+                    this.fluidAmount,
                     this.itemOutput);
             output.accept(id, recipe, null);
         }

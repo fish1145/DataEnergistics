@@ -7,13 +7,13 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import java.util.List;
 
 /** Runtime inputs for a data charge press recipe. */
-public record DataChargePressRecipeInput(List<ItemStack> items, FluidStack fluid, ItemStack catalyst)
+public record DataChargePressRecipeInput(List<ItemStack> items, FluidStack fluid, ItemStack module)
         implements RecipeInput {
 
     public DataChargePressRecipeInput {
         items = List.copyOf(items);
         fluid = fluid.copy();
-        catalyst = catalyst.copy();
+        module = module.copy();
     }
 
     @Override

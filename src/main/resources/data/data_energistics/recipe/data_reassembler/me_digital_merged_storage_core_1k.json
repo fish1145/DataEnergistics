@@ -1,0 +1,51 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_framework",
+				"count": 4
+			},
+			{
+				"item": "ae2:formation_plane",
+				"count": 49
+			},
+			{
+				"item": "ae2:annihilation_plane",
+				"count": 49
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 2
+			},
+			{
+				"item": "ae2:1k_crafting_storage"
+			},
+			{
+				"item": "ae2:crafting_accelerator"
+			},
+			{
+				"item": "ae2:spatial_cell_component_2",
+				"count": 2
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 424
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1414
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_digital_merged_storage_core_1k"
+			}
+		]
+	}
+}

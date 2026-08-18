@@ -1,0 +1,33 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:matter_cannon"
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 18
+			},
+			{
+				"tag": "c:ingots/digisidian_memorize",
+				"count": 24
+			},
+			{
+				"item": "ae2:chest",
+				"count": 4
+			},
+			{
+				"item": "minecraft:wind_charge",
+				"count": 46
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_vacuum"
+			}
+		]
+	}
+}

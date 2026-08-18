@@ -92,7 +92,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int MACHINE_MODULE_SLOT = ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT;
     public static final int STORAGE_SLOTS = MACHINE_MODULE_SLOT + 1;
     public static final int ITEM_SLOT_CAPACITY = 512;
-    public static final int FLUID_CAPACITY = 51_200;
+    public static final int FLUID_CAPACITY = DataChargePressRecipe.MAX_FLUID_AMOUNT;
     public static final int MAX_SPEED_CARDS = 4;
     public static final int MAX_ENERGY_CARDS = 2;
     public static final int UPGRADE_SLOTS = 5;
@@ -119,9 +119,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final ResourceLocation DATA_CHARGER = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_charger");
     private static final ResourceLocation EXTENDED_DATA_CHARGER = ResourceLocation.fromNamespaceAndPath(
             "data_energistics", "extended_data_charger");
-    private static final ResourceLocation NOT_SO_MYSTERIOUS_CUBE = ResourceLocation.fromNamespaceAndPath(
-            "ae2", "not_so_mysterious_cube");
-
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
             DEBlocks.DATA_INTEGRATED_CHARGER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new IntegratedChargerItemInventory();
@@ -654,7 +651,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             List<DataChargePressRecipe.InputSlot> inputSlots = recipe.findMatchingInputSlots(inputs);
             ItemStack result = recipe.getResult();
             if (!inputSlots.isEmpty() && findOutputSlot(result) >= 0) {
-                return new DataChargePressOperation(result, (int) recipe.getFluidInput().amount(), inputSlots);
+                return new DataChargePressOperation(result, recipe.getFluidAmount(), inputSlots);
             }
         }
         return null;
@@ -1183,7 +1180,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         if (AE2_INSCRIBER.equals(id) || EXTENDED_AE_INSCRIBER.equals(id)) {
             return MachineMode.INSCRIBER;
         }
-        if (NOT_SO_MYSTERIOUS_CUBE.equals(id)) {
+        if (DataChargePressRecipeSupport.CRYSTAL_GROWTH_MODULES.test(stack)) {
             return MachineMode.CRYSTAL_GROWTH;
         }
         if (AE2_CHARGER.equals(id) || EXTENDED_AE_CHARGER.equals(id) || isDataChargerModule(stack)) {

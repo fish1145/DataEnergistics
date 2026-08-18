@@ -87,7 +87,7 @@
 	"button.data_energistics.condenser_output.header": "物质聚合器-输出",
 	"button.data_energistics.condenser_output.matter_balls": "物质球",
 	"button.data_energistics.condenser_output.power": "需要 %s AE",
-	"button.data_energistics.condenser_output.radix_containment_sphere.detail": "需要放入 16K-ME 数据流存储组件或更高级别；高阶组件可缓存更多 AE",
+	"button.data_energistics.condenser_output.storage": "需要容量至少为 %s AE 的存储组件；组件不会被消耗",
 	"button.data_energistics.condenser_output.singularity": "奇点",
 	"button.data_energistics.condenser_output.trash": "垃圾",
 	"button.data_energistics.data_distribution_tower.connection_mode": "连接模式",
@@ -884,5 +884,9 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.scanning": "扫描来源",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "处理 ME 存储",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "等待玩家上线",
-	"workstation.data_energistics.data_reassembler": "数据重组器"
+	"workstation.data_energistics.data_reassembler": "数据重组器",
+	"recipe.data_energistics.condenser_output": "物质聚合器输出",
+	"recipe.data_energistics.condenser_output.any_matter": "任意可被聚合器销毁的物品或流体；此图标不参与配方搜索",
+	"tag.item.data_energistics.condenser.storage_components": "物质聚合器存储组件",
+	"tag.item.data_energistics.integrated_charger.crystal_growth_modules": "晶体生长模块"
 }

@@ -3,10 +3,14 @@ package com.fish_dan_.data_energistics.mixin.core.condenser;
 import com.fish_dan_.data_energistics.accessor.condenser.CondenserBlockEntityAccessor;
 import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
+import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeCatalog;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.Level;
 
+import appeng.api.config.CondenserOutput;
 import appeng.api.config.Settings;
 import appeng.blockentity.misc.CondenserBlockEntity;
 import appeng.menu.AEBaseMenu;
@@ -32,7 +36,7 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
 
     @GuiSync(920)
     @Unique
-    public int dataEnergistics$condenserOutputMode = CondenserOutputMode.TRASH.ordinal();
+    public int dataEnergistics$condenserOutputMode = CondenserOutputMode.TRASH;
 
     protected CondenserMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
@@ -55,9 +59,19 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
             return;
         }
 
-        boolean radixContainmentSphereMode = ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$isRadixContainmentSphereMode();
+        CondenserBlockEntityAccessor accessor = (CondenserBlockEntityAccessor) this.condenser;
+        Level level = this.condenser.getLevel();
+        ResourceLocation selectedRecipeId = accessor.dataEnergistics$getSelectedCondenserRecipeId();
+        if (selectedRecipeId != null &&
+                (level == null || CondenserOutputRecipeCatalog.find(level, selectedRecipeId) == null)) {
+            accessor.dataEnergistics$setSelectedCondenserRecipeId(null);
+            this.condenser.getConfigManager().putSetting(Settings.CONDENSER_OUTPUT, CondenserOutput.TRASH);
+        }
         var output = this.condenser.getConfigManager().getSetting(Settings.CONDENSER_OUTPUT);
-        this.dataEnergistics$condenserOutputMode = CondenserOutputMode.fromState(output, radixContainmentSphereMode).ordinal();
+        this.dataEnergistics$condenserOutputMode = CondenserOutputMode.fromState(
+                output,
+                accessor.dataEnergistics$getSelectedCondenserRecipeId(),
+                level);
     }
 
     @Override
@@ -77,9 +91,23 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
 
     @Unique
     private void dataEnergistics$applyCondenserOutputMode(Integer ordinal) {
-        var mode = CondenserOutputMode.fromOrdinal(ordinal == null ? 0 : ordinal);
-        ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$setRadixContainmentSphereMode(mode.isRadixContainmentSphereMode());
-        this.condenser.getConfigManager().putSetting(Settings.CONDENSER_OUTPUT, mode.toVanillaOutput());
-        this.dataEnergistics$condenserOutputMode = mode.ordinal();
+        Level level = this.condenser.getLevel();
+        if (level == null) {
+            return;
+        }
+
+        var selection = CondenserOutputMode.resolve(level, ordinal);
+        var configManager = this.condenser.getConfigManager();
+        var previousOutput = configManager.getSetting(Settings.CONDENSER_OUTPUT);
+        ((CondenserBlockEntityAccessor) this.condenser)
+                .dataEnergistics$setSelectedCondenserRecipeId(selection.customRecipeId());
+        configManager.putSetting(Settings.CONDENSER_OUTPUT, selection.vanillaOutput());
+        if (previousOutput == selection.vanillaOutput()) {
+            this.condenser.addPower(0.0D);
+        }
+        this.dataEnergistics$condenserOutputMode = CondenserOutputMode.fromState(
+                selection.vanillaOutput(),
+                selection.customRecipeId(),
+                level);
     }
 }

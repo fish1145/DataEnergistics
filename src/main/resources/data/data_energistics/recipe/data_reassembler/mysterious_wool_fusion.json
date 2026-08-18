@@ -1,0 +1,77 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "minecraft:white_wool"
+			},
+			{
+				"item": "minecraft:light_gray_wool"
+			},
+			{
+				"item": "minecraft:gray_wool"
+			},
+			{
+				"item": "minecraft:black_wool"
+			},
+			{
+				"item": "minecraft:brown_wool"
+			},
+			{
+				"item": "minecraft:red_wool"
+			},
+			{
+				"item": "minecraft:orange_wool"
+			},
+			{
+				"item": "minecraft:yellow_wool"
+			},
+			{
+				"item": "minecraft:lime_wool"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:water",
+				"amount": 1000
+			},
+			{
+				"fluid": "minecraft:lava",
+				"amount": 1000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1200
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "ae2:mysterious_cube"
+			},
+			{
+				"id": "ae2:not_so_mysterious_cube"
+			},
+			{
+				"id": "ae2:quartz_fixture"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:water",
+				"amount": 5000
+			},
+			{
+				"fluid": "minecraft:lava",
+				"amount": 5000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 200
+		}
+	}
+}
