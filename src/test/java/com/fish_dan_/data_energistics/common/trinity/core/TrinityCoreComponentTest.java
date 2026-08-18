@@ -101,9 +101,9 @@ public final class TrinityCoreComponentTest {
     void craftingCoreProfileAggregatesOnlyPatternProcessingCores() {
         TrinityDataCoreCraftingCoreProfile.Builder builder = TrinityDataCoreCraftingCoreProfile.builder();
 
-        builder.add(TrinityCoreMetadata.patternProcessingCore(64));
-        builder.add(TrinityCoreMetadata.patternProcessingCore(128));
-        builder.add(TrinityCoreMetadata.patternProcessingCore(512));
+        builder.add(TrinityCoreMetadata.patternProcessingCore(TrinityPatternCoreTier.STANDARD.patternCapacity()));
+        builder.add(TrinityCoreMetadata.patternProcessingCore(TrinityPatternCoreTier.EXTENDED.patternCapacity()));
+        builder.add(TrinityCoreMetadata.patternProcessingCore(TrinityPatternCoreTier.OVERLIMIT.patternCapacity()));
         builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_256M));
         builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
 
@@ -111,7 +111,7 @@ public final class TrinityCoreComponentTest {
 
         assertTrue(profile.active());
         assertEquals(3, profile.patternCoreCount());
-        assertEquals(704, profile.patternCapacity());
+        assertEquals(792, profile.patternCapacity());
     }
 
     @Test

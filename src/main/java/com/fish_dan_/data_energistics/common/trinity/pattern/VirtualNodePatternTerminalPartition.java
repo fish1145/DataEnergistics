@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -18,14 +20,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /** Default live-inventory and virtual-grid-node implementation of {@link TrinityPatternTerminalPartition}. */
 public final class VirtualNodePatternTerminalPartition implements TrinityPatternTerminalPartition {
-
-    /** Supported physical capacities, kept explicit so an invalid structure cannot publish an accidental layout. */
-    private static final Set<Integer> SUPPORTED_CORE_CAPACITIES = Set.of(64, 128, 512);
 
     /** Mask reserving the low 32 bits of a terminal sort key for the stable global partition ordinal. */
     private static final long SORT_HOST_MASK = 0xFFFF_FFFF_0000_0000L;
@@ -330,7 +328,7 @@ public final class VirtualNodePatternTerminalPartition implements TrinityPattern
 
     private static void validateRange(TrinityPatternCatalog.CoreRange range) {
         TrinityPatternCatalog.CoreMount mount = range.mount();
-        if (!SUPPORTED_CORE_CAPACITIES.contains(mount.blockCapacity())) {
+        if (!TrinityPatternCoreTier.supportsPatternCapacity(mount.blockCapacity())) {
             throw new IllegalArgumentException("Unsupported Trinity terminal core capacity " + mount.blockCapacity() +
                     " at " + mount.position());
         }
