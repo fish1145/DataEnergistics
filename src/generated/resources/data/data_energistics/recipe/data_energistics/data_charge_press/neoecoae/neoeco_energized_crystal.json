@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "neoecoae"
+    }
+  ],
+  "type": "data_energistics:data_charge_press",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "item": "ae2:charged_certus_quartz_crystal"
+      },
+      "count": 32
+    },
+    {
+      "ingredient": {
+        "item": "neoecoae:energized_crystal_dust"
+      },
+      "count": 32
+    }
+  ],
+  "fluid_input": {
+    "#": 250,
+    "#t": "ae2:f",
+    "id": "data_energistics:data_corrosion_liquid"
+  },
+  "catalyst": {
+    "item": "ae2:not_so_mysterious_cube"
+  },
+  "result": {
+    "id": "neoecoae:energized_crystal",
+    "count": 72
+  }
+}

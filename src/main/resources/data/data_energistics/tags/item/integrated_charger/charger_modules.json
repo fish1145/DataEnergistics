@@ -1,0 +1,11 @@
+{
+	"values": [
+		"ae2:charger",
+		{
+			"id": "extendedae:ex_charger",
+			"required": false
+		},
+		"data_energistics:data_charger",
+		"data_energistics:extended_data_charger"
+	]
+}

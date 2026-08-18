@@ -1,0 +1,29 @@
+{
+	"type": "data_energistics:data_charge_press",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"tag": "c:dusts/data_dust"
+			},
+			"count": 32
+		},
+		{
+			"ingredient": {
+				"tag": "c:gems/data_crystal"
+			},
+			"count": 16
+		}
+	],
+	"fluid_input": {
+		"#": 350,
+		"#t": "ae2:f",
+		"id": "data_energistics:data_corrosion_liquid"
+	},
+	"catalyst": {
+		"item": "ae2:not_so_mysterious_cube"
+	},
+	"result": {
+		"id": "data_energistics:data_crystal",
+		"count": 72
+	}
+}

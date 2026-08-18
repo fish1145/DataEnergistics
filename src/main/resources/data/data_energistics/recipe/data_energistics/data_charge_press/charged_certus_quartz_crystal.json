@@ -1,0 +1,23 @@
+{
+	"type": "data_energistics:data_charge_press",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "ae2:certus_quartz_crystal"
+			},
+			"count": 64
+		}
+	],
+	"fluid_input": {
+		"#": 500,
+		"#t": "ae2:f",
+		"id": "data_energistics:data_corrosion_liquid"
+	},
+	"catalyst": {
+		"item": "ae2:not_so_mysterious_cube"
+	},
+	"result": {
+		"id": "ae2:charged_certus_quartz_crystal",
+		"count": 72
+	}
+}
