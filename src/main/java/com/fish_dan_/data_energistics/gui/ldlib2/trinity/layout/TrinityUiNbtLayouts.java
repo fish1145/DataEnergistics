@@ -24,8 +24,6 @@ import java.io.InputStream;
 public final class TrinityUiNbtLayouts {
 
     private static final String ROOT_PATH = "ui/trinity/";
-    private static final ResourceLocation TRINITY_STYLESHEET = Data_Energistics.id("lss/trinity_ui");
-
     private TrinityUiNbtLayouts() {}
 
     /**
@@ -62,14 +60,11 @@ public final class TrinityUiNbtLayouts {
                 throw new IllegalArgumentException("LDLib2 UI resource is missing its compound data payload");
             }
 
-            UITemplate template = UITemplate.CODEC
+            return UITemplate.CODEC
                     .parse(
                             Platform.getFrozenRegistry().createSerializationContext(NbtOps.INSTANCE),
                             wrapper.getCompound("data"))
                     .getOrThrow();
-            template.getStylesheets().clear();
-            template.getStylesheets().add(TRINITY_STYLESHEET);
-            return template;
         } catch (Exception failure) {
             String message = "Unable to load Trinity NBT layout '" + name + "' from " + location +
                     " (classpath " + classpathLocation + ", runtime " + runtimeSide() + ")";

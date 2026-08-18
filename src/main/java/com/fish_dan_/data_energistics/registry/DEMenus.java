@@ -15,7 +15,6 @@ import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWareh
 import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
@@ -40,7 +39,6 @@ import com.fish_dan_.data_energistics.menu.storage.OrderPackageMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
-import com.fish_dan_.data_energistics.menu.trinity.TrinityPatternCoreMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
@@ -166,11 +164,6 @@ public final class DEMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER = MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
             .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "adaptive_pattern_provider")));
-
-    public static final DeferredHolder<MenuType<?>, MenuType<TrinityPatternCoreMenu>> TRINITY_PATTERN_CORE = MENUS.register("trinity_pattern_core", () -> MenuTypeBuilder
-            .create(TrinityPatternCoreMenu::new, TrinityPatternCoreBlockEntity.class)
-            .withMenuTitle(host -> host.getBlockState().getBlock().getName())
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_pattern_core")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<TrinityInformationExchangeDepotMenu>> TRINITY_INFORMATION_EXCHANGE_DEPOT = MENUS.register("trinity_information_exchange_depot", () -> MenuTypeBuilder
             .create(TrinityInformationExchangeDepotMenu::new, TrinityInformationExchangeDepotMenuHost.class)

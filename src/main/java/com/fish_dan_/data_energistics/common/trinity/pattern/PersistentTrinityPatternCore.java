@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -36,9 +37,8 @@ import java.util.UUID;
  */
 public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
-    private static final Set<Integer> SUPPORTED_CAPACITIES = Set.of(64, 128, 512);
-    private static final int CURRENT_STATE_VERSION = 3;
-    private static final int LEGACY_V2_STATE_VERSION = 2;
+    private static final int CURRENT_STATE_VERSION = 4;
+    private static final int LEGACY_V3_STATE_VERSION = 3;
     private static final String AMOUNT_TAG = "amount";
     private static final String CORE_ID_TAG = "core_id";
     private static final String HOST_ID_TAG = "host_id";
@@ -63,7 +63,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
         CURRENT(false),
         CURRENT_UNVERSIONED(true),
-        LEGACY_V2(true);
+        LEGACY_V3(true);
 
         /**
          * Records whether the owning block entity must persist the canonical current schema after a successful load.
@@ -78,6 +78,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             return this.rewriteRequired;
         }
     }
+
+    /**
+     * Captures the persisted physical capacity and whether loading it requires a same-tier capacity migration.
+     */
+    private record PersistedCapacity(int value, boolean migrationRequired) {}
 
     private final int patternCapacity;
     private final PatternDecoder decoder;
@@ -542,12 +547,13 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             }
             return false;
         }
-        validatePersistedCapacity(data);
         PersistedSchema schema = readPersistedSchema(data);
+        PersistedCapacity persistedCapacity = validatePersistedCapacity(data, schema);
         UUID loadedId = data.getUUID(CORE_ID_TAG);
         boolean identityChanged = !this.coreId.equals(loadedId);
         Map<Integer, TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
-        RefundOutbox loadedOutbox = schema == PersistedSchema.LEGACY_V2 ? new RefundOutbox(List.of(), Map.of()) : readRefundOutbox(data, registries);
+        RefundOutbox loadedOutbox = readRefundOutbox(data, registries);
+        validatePersistedSlotBounds(loadedSlots, loadedOutbox, persistedCapacity.value());
 
         TreeSet<Integer> loadedOccupiedSlots = occupiedSlots(loadedSlots.values());
         TreeSet<Integer> changedPatternSlots = changedPatternSlots(loadedSlots, loadedOccupiedSlots);
@@ -642,7 +648,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
             }
         }
-        return schema.rewriteRequired();
+        return schema.rewriteRequired() || persistedCapacity.migrationRequired();
     }
 
     private TreeSet<Integer> changedPatternSlots(Map<Integer, TrinityPatternSlot> loadedSlots,
@@ -935,15 +941,47 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
     }
 
-    private void validatePersistedCapacity(CompoundTag data) {
+    private PersistedCapacity validatePersistedCapacity(CompoundTag data, PersistedSchema schema) {
         if (!data.contains(PATTERN_CAPACITY_TAG, Tag.TAG_INT)) {
             throw new IllegalArgumentException("Persisted Trinity pattern core state is missing its capacity");
         }
         int persistedCapacity = data.getInt(PATTERN_CAPACITY_TAG);
-        if (persistedCapacity != this.patternCapacity) {
+        if (persistedCapacity == this.patternCapacity) {
+            return new PersistedCapacity(persistedCapacity, false);
+        }
+        if (schema == PersistedSchema.LEGACY_V3 &&
+                TrinityPatternCoreTier.matchesLegacyCapacity(persistedCapacity, this.patternCapacity)) {
+            return new PersistedCapacity(persistedCapacity, true);
+        }
+        throw new IllegalArgumentException(
+                "Persisted Trinity pattern core capacity " + persistedCapacity +
+                        " does not match block capacity " + this.patternCapacity);
+    }
+
+    /**
+     * Ensures a migrated state preserves the old physical index range and leaves newly appended slots empty.
+     */
+    private static void validatePersistedSlotBounds(Map<Integer, TrinityPatternSlot> slots,
+                                                    RefundOutbox refundOutbox,
+                                                    int persistedCapacity) {
+        for (int slot : slots.keySet()) {
+            validatePersistedSlotBound(slot, persistedCapacity, "slot");
+        }
+        for (PatternRefundEntry entry : refundOutbox.patterns()) {
+            validatePersistedSlotBound(entry.slot(), persistedCapacity, "pattern refund");
+        }
+        for (List<RetainedRefundEntry> entries : refundOutbox.retainedByHost().values()) {
+            for (RetainedRefundEntry entry : entries) {
+                validatePersistedSlotBound(entry.slot(), persistedCapacity, "retained refund");
+            }
+        }
+    }
+
+    private static void validatePersistedSlotBound(int slot, int persistedCapacity, String stateKind) {
+        if (slot < 0 || slot >= persistedCapacity) {
             throw new IllegalArgumentException(
-                    "Persisted Trinity pattern core capacity " + persistedCapacity +
-                            " does not match block capacity " + this.patternCapacity);
+                    "Persisted Trinity " + stateKind + " slot " + slot +
+                            " is outside persisted capacity " + persistedCapacity);
         }
     }
 
@@ -961,13 +999,14 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 throw new IllegalArgumentException("Persisted Trinity pattern core state version must be an integer");
             }
             int version = data.getInt(VERSION_TAG);
-            if (version == LEGACY_V2_STATE_VERSION) {
-                if (containsLegacyV1Lists || data.contains(REFUND_OUTBOX_TAG)) {
+            if (version == LEGACY_V3_STATE_VERSION) {
+                if (containsLegacyV1Lists) {
                     throw new IllegalArgumentException(
-                            "Persisted V2 Trinity pattern core state mixes incompatible schema fields");
+                            "Persisted V3 Trinity pattern core state contains legacy V1 fields");
                 }
-                requirePersistedSlots(data, "V2");
-                return PersistedSchema.LEGACY_V2;
+                requirePersistedSlots(data, "V3");
+                requireRefundOutbox(data, "V3");
+                return PersistedSchema.LEGACY_V3;
             }
             if (version == CURRENT_STATE_VERSION) {
                 if (containsLegacyV1Lists) {
@@ -1133,9 +1172,9 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private static void validateCapacity(int patternCapacity) {
-        if (!SUPPORTED_CAPACITIES.contains(patternCapacity)) {
+        if (!TrinityPatternCoreTier.supportsPatternCapacity(patternCapacity)) {
             throw new IllegalArgumentException(
-                    "Trinity pattern core capacity must be one of " + SUPPORTED_CAPACITIES + ", got " + patternCapacity);
+                    "Unsupported Trinity pattern core capacity " + patternCapacity);
         }
     }
 

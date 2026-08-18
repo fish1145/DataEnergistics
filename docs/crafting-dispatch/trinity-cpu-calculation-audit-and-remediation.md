@@ -294,15 +294,15 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 身份；只有 revision、本地展示输入或显式刷新变化时才重建列表。为没有发布 AE2 crafting revision 的第三方展示变化保留
 100 tick 一次的一致性刷新，不再每 5 tick 全量扫描。
 
-### C-024：旧版 Pattern Core 缺少 refund outbox 后被永久拒绝
+### C-024：Pattern Core 容量对齐迁移与旧 V2 状态拒绝
 
-durable refund outbox 引入前的合法 V2 状态包含 `version=2`、core identity、容量和 `slots`，但没有
-`refund_outbox`。当前读取器把缺少 outbox 一律视为损坏，使旧世界中的核心进入 `REJECTED`；随后真实玩家拆除无法冻结
-掉落快照，方块也会拒绝移除。
+物理 Pattern Core 改为九列完整行后，三档真实容量从 `64/128/512` 调整为 `72/144/576`。V3 世界中的
+`pattern_capacity` 若继续按旧值严格比较，会让放置后的同档位核心进入 `REJECTED`；而把 V2 缺少
+`refund_outbox` 的状态继续静默补全，会保留已废弃的迁移语义。
 
-修复：Pattern Core 当前持久化 schema 显式标记为 V3。只有完整验证通过的 `version=2 + slots` 旧状态才原子迁移为空
-outbox，并在服务端标脏以便按 V3 重写；无版本且缺 outbox、V1 字段、schema 混用、未知版本或损坏 V3 继续 fail fast。
-迁移后的真实玩家拆除、独立样板掉落、保留工作重放和退款不复制由同一 GameTest 覆盖。
+修复：当前 schema 显式标记为 V4。完整验证通过的 V3 状态仅允许按同档位映射
+`64→72`、`128→144`、`512→576`；已有物理槽索引、样板、队列和 refund outbox 原样保留，新增槽位为空，
+并在服务端标脏以便按 V4 重写。V2、V1、schema 混用、未知版本、缺失 outbox 或不匹配容量继续 fail fast。
 
 ### C-025：完整增殖循环被展开，且中间余额可能越过 SCC 边界
 
@@ -350,7 +350,7 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 | C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
 | C-022 | 目标可达图缓存与确定性复杂度边界 | 已完成 | 大型图不使用墙钟截止，取消/图/variant/状态边界保持生效 |
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
-| C-024 | Pattern Core V2→V3 版本化迁移 | 已完成 | 原子迁移、损坏状态拒绝与真实玩家拆除/掉落/重放 GameTest |
+| C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
 | C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
 
 ## 5. 风险与控制
