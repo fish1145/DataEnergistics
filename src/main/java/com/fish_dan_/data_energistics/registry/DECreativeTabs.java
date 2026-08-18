@@ -71,6 +71,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE);
                         output.accept(DEItems.DATA_CHARGER);
                         output.accept(DEItems.EXTENDED_DATA_CHARGER);
+                        output.accept(DEItems.DATA_INTEGRATED_CHARGER);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_PART);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_UPGRADE);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER);
@@ -135,6 +136,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(DEItems.DATA_CIRCUIT_BOARD);
                         output.accept(DEItems.DATA_PROCESSOR);
+                        output.accept(DEItems.COMPLEXIFIED_BIOCHIPS);
                         output.accept(DEItems.DIGISIDIAN_MEMORIZE_INGOT);
                         output.accept(RadixContainmentSphereItem.createChargedStack());
                         output.accept(DEItems.MATTER_CONVERGING_CROSSBOW);

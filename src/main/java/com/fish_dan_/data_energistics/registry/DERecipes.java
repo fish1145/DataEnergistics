@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.UniversalTerminalCombineRecipe;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereCondenserRecipe;
@@ -62,6 +64,13 @@ public final class DERecipes {
             return Data_Energistics.MODID + ":data_charger";
         }
     });
+    public static final DeferredHolder<RecipeType<?>, RecipeType<DataChargePressRecipe>> DATA_CHARGE_PRESS_TYPE = RECIPE_TYPES.register("data_charge_press", () -> new RecipeType<>() {
+
+        @Override
+        public String toString() {
+            return Data_Energistics.MODID + ":data_charge_press";
+        }
+    });
     public static final DeferredHolder<RecipeSerializer<?>, TimeShiftRecipeSerializer> TIME_SHIFT_SERIALIZER = RECIPE_SERIALIZERS.register("time_shift", TimeShiftRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataRipperReassemblerRecipeSerializer> DATA_RIPPER_REASSEMBLER_SERIALIZER = RECIPE_SERIALIZERS.register("data_reassembler", DataRipperReassemblerRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, RadixContainmentSphereRightClickRecipeSerializer> RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_SERIALIZER = RECIPE_SERIALIZERS.register("right_click",
@@ -70,6 +79,8 @@ public final class DERecipes {
             RadixContainmentSphereCondenserRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataChargerRecipeSerializer> DATA_CHARGER_SERIALIZER = RECIPE_SERIALIZERS.register("data_charger",
             DataChargerRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, DataChargePressRecipeSerializer> DATA_CHARGE_PRESS_SERIALIZER = RECIPE_SERIALIZERS.register("data_charge_press",
+            DataChargePressRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataReassemblerCraftingRecipeSerializer> DATA_REASSEMBLER_CRAFTING_SERIALIZER = RECIPE_SERIALIZERS.register(
             "data_reassembler_crafting",
             DataReassemblerCraftingRecipeSerializer::new);

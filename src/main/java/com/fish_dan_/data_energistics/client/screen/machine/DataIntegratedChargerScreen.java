@@ -1,0 +1,153 @@
+package com.fish_dan_.data_energistics.client.screen.machine;
+
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
+import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.fluids.FluidStack;
+
+import appeng.api.config.Settings;
+import appeng.api.config.YesNo;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.StackWithBounds;
+import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ProgressBar;
+import appeng.client.gui.widgets.ServerSettingToggleButton;
+import appeng.core.localization.Tooltips;
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegratedChargerMenu>
+                                         implements GenericStackLookupScreen {
+
+    private final ServerSettingToggleButton<YesNo> autoExportButton;
+    private final OutputSideActionButton outputSidesButton;
+    private final ProgressBar progressBar;
+
+    public DataIntegratedChargerScreen(DataIntegratedChargerMenu menu, Inventory playerInventory, Component title,
+                                       ScreenStyle style) {
+        super(menu, playerInventory, title, style);
+        this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
+        this.addToLeftToolbar(this.autoExportButton);
+        this.outputSidesButton = new OutputSideActionButton(button -> openOutputConfig());
+        this.addToLeftToolbar(this.outputSidesButton);
+        this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
+        this.widgets.add("progressBar", this.progressBar);
+    }
+
+    private void openOutputConfig() {
+        if (this.menu.getHost() == null) {
+            return;
+        }
+
+        this.switchToScreen(new DataIntegratedChargerOutputSideScreen(
+                this,
+                this.menu,
+                this.menu.getHost()));
+    }
+
+    @Override
+    protected void updateBeforeRender() {
+        super.updateBeforeRender();
+        this.progressBar.visible = this.menu.getMaxProgress() > 0;
+        if (this.progressBar.visible) {
+            int percent = this.menu.getCurrentProgress() * 100 / Math.max(1, this.menu.getMaxProgress());
+            this.progressBar.setFullMsg(Component.literal(percent + "%"));
+        }
+        this.autoExportButton.set(this.menu.getAutoExport());
+        boolean autoExportEnabled = this.autoExportButton.getCurrentValue() == YesNo.YES;
+        this.outputSidesButton.setVisibility(autoExportEnabled);
+    }
+
+    @Override
+    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (this.menu.getCarried().isEmpty() && isFluidTankSlot(this.hoveredSlot)) {
+            List<Component> tooltip = new ArrayList<>();
+            if (getDisplayedFluid(this.hoveredSlot) == null) {
+                tooltip.add(Component.translatable("screen.data_energistics.data_integrated_charger.fluid.empty"));
+            } else {
+                tooltip.addAll(this.getTooltipFromContainerItem(this.hoveredSlot.getItem()));
+            }
+            tooltip.add(Component.literal(this.menu.fluidAmount + " mB / " + this.menu.getFluidCapacity() + " mB")
+                    .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+            this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
+            return;
+        }
+
+        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    }
+
+    @Override
+    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
+        GenericStack fluid = getDisplayedFluid(slot);
+        if (fluid != null) {
+            CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, slot.x, slot.y, fluid.what());
+            GenericStackDisplayHelper.renderSmallOverlay(
+                    guiGraphics,
+                    slot.x,
+                    slot.y,
+                    GenericStackDisplayHelper.formatCompactAmount(fluid));
+            return;
+        }
+
+        super.renderSlot(guiGraphics, slot);
+        if (slot.isActive() && slot.getItem().isEmpty() &&
+                this.menu.getSlotSemantic(slot) == DataIntegratedChargerMenu.MACHINE_MODULE) {
+            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
+                    .dest(slot.x, slot.y)
+                    .blit(guiGraphics);
+        }
+    }
+
+    @Override
+    public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
+        GenericStack fluid = getDisplayedFluid(this.hoveredSlot);
+        if (fluid == null) {
+            return null;
+        }
+        return new StackWithBounds(
+                fluid,
+                new Rect2i(this.leftPos + this.hoveredSlot.x, this.topPos + this.hoveredSlot.y, 16, 16));
+    }
+
+    private @Nullable GenericStack getDisplayedFluid(@Nullable Slot slot) {
+        if (!isFluidTankSlot(slot)) {
+            return null;
+        }
+
+        // The slot is backed by a ConfigMenuInventory and may expose an empty ItemStack for a
+        // fluid key. Use the synchronized menu fields as the source of truth, just like the
+        // reassembler screen does for all of its fluid slots.
+        if (this.menu.fluidId == null || this.menu.fluidId.isBlank() || this.menu.fluidAmount <= 0) {
+            return null;
+        }
+
+        var fluid = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(this.menu.fluidId)).orElse(null);
+        if (fluid == null) {
+            return null;
+        }
+
+        AEKey key = AEFluidKey.of(new FluidStack(fluid, this.menu.fluidAmount));
+        return key == null ? null : new GenericStack(key, this.menu.fluidAmount);
+    }
+
+    private boolean isFluidTankSlot(@Nullable Slot slot) {
+        return slot != null && this.menu.getSlotSemantic(slot) == DataIntegratedChargerMenu.FLUID_TANK;
+    }
+}

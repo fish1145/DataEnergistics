@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.decor.DollBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEntity;
@@ -96,6 +97,12 @@ public final class DEBlockEntities {
                     DataChargerBlockEntity::new,
                     DEBlocks.DATA_CHARGER.get(),
                     DEBlocks.EXTENDED_DATA_CHARGER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataIntegratedChargerBlockEntity>> DATA_INTEGRATED_CHARGER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_integrated_charger",
+            () -> BlockEntityType.Builder.of(
+                    DataIntegratedChargerBlockEntity::new,
+                    DEBlocks.DATA_INTEGRATED_CHARGER.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdaptivePatternProviderBlockEntity>> ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "adaptive_pattern_provider",

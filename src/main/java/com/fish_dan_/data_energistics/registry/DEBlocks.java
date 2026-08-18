@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
@@ -123,6 +124,12 @@ public final class DEBlocks {
     public static final DeferredBlock<Block> EXTENDED_DATA_CHARGER = BLOCKS.registerBlock(
             "extended_data_charger",
             DataChargerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
+
+    public static final DeferredBlock<Block> DATA_INTEGRATED_CHARGER = BLOCKS.registerBlock(
+            "data_integrated_charger",
+            DataIntegratedChargerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
 
