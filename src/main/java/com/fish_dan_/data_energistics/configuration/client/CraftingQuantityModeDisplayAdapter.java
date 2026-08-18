@@ -39,7 +39,7 @@ final class CraftingQuantityModeDisplayAdapter extends AbstractDisplayAdapter {
                 theme,
                 widgets,
                 restoreDefault -> widget.setValue(restoreDefault ?
-                        (CraftingQuantityMode) enumValue.getValueData().getDefaultValue() :
+                        enumValue.getValueData().getDefaultValue() :
                         enumValue.getActiveValue()));
     }
 
