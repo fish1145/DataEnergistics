@@ -1,0 +1,15 @@
+{
+	"replace": false,
+	"values": [
+		"data_energistics:data_storage_component_1k",
+		"data_energistics:data_storage_component_4k",
+		"data_energistics:data_storage_component_16k",
+		"data_energistics:data_storage_component_64k",
+		"data_energistics:data_storage_component_256k",
+		"data_energistics:data_storage_component_1m",
+		"data_energistics:data_storage_component_4m",
+		"data_energistics:data_storage_component_16m",
+		"data_energistics:data_storage_component_64m",
+		"data_energistics:data_storage_component_256m"
+	]
+}

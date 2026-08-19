@@ -12,9 +12,8 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
-import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
-import appeng.core.definitions.AEItems;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -22,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReassemblerRecipeInput> {
 
@@ -33,43 +33,96 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     public static final int KEY_OUTPUT_SLOTS = 1;
     public static final int FLUID_OUTPUT_SLOTS = 2;
     public static final int KEY_INPUT_SLOT_INDEX = ITEM_INPUT_SLOTS;
+    public static final long MAX_FLUID_AMOUNT = 51_200L;
+    public static final long MAX_RESOURCE_AMOUNT = 51_200_000L;
     private final NonNullList<DataRipperReassemblerIngredient> itemInputs;
     private final List<GenericStack> fluidInputs;
-    private final NonNullList<ItemStack> itemOutputs;
+    private final List<DataReassemblerItemOutput> itemOutputs;
     private final List<GenericStack> fluidOutputs;
     private final int processTicks;
     @Nullable
     private final GenericStack keyInput;
     @Nullable
     private final GenericStack keyOutput;
-    private final boolean assignQuantumFrequency;
 
     public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
                                        List<GenericStack> fluidInputs,
-                                       List<ItemStack> itemOutputs,
+                                       List<DataReassemblerItemOutput> itemOutputs,
                                        List<GenericStack> fluidOutputs,
                                        int processTicks,
                                        @Nullable GenericStack keyInput,
                                        @Nullable GenericStack keyOutput) {
-        this(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput, false);
+        validateRecipe(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput);
+        this.itemInputs = NonNullList.copyOf(itemInputs);
+        this.fluidInputs = List.copyOf(fluidInputs);
+        this.itemOutputs = List.copyOf(itemOutputs);
+        this.fluidOutputs = List.copyOf(fluidOutputs);
+        this.processTicks = processTicks;
+        this.keyInput = keyInput;
+        this.keyOutput = keyOutput;
     }
 
-    public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
+    private static void validateRecipe(List<DataRipperReassemblerIngredient> itemInputs,
                                        List<GenericStack> fluidInputs,
-                                       List<ItemStack> itemOutputs,
+                                       List<DataReassemblerItemOutput> itemOutputs,
                                        List<GenericStack> fluidOutputs,
                                        int processTicks,
                                        @Nullable GenericStack keyInput,
-                                       @Nullable GenericStack keyOutput,
-                                       boolean assignQuantumFrequency) {
-        this.itemInputs = NonNullList.copyOf(itemInputs);
-        this.fluidInputs = List.copyOf(fluidInputs);
-        this.itemOutputs = NonNullList.copyOf(itemOutputs);
-        this.fluidOutputs = List.copyOf(fluidOutputs);
-        this.processTicks = processTicks;
-        this.keyInput = keyInput != null && keyInput.amount() > 0 ? keyInput : null;
-        this.keyOutput = keyOutput != null && keyOutput.amount() > 0 ? keyOutput : null;
-        this.assignQuantumFrequency = assignQuantumFrequency;
+                                       @Nullable GenericStack keyOutput) {
+        Objects.requireNonNull(itemInputs, "itemInputs");
+        Objects.requireNonNull(fluidInputs, "fluidInputs");
+        Objects.requireNonNull(itemOutputs, "itemOutputs");
+        Objects.requireNonNull(fluidOutputs, "fluidOutputs");
+        if (itemInputs.size() > ITEM_INPUT_SLOTS) {
+            throw new IllegalArgumentException("Data reassembler supports at most " + ITEM_INPUT_SLOTS + " item inputs");
+        }
+        if (fluidInputs.size() > FLUID_INPUT_SLOTS) {
+            throw new IllegalArgumentException("Data reassembler supports at most " + FLUID_INPUT_SLOTS + " fluid inputs");
+        }
+        if (itemOutputs.size() > ITEM_OUTPUT_SLOTS) {
+            throw new IllegalArgumentException("Data reassembler supports at most " + ITEM_OUTPUT_SLOTS + " item outputs");
+        }
+        if (fluidOutputs.size() > FLUID_OUTPUT_SLOTS) {
+            throw new IllegalArgumentException("Data reassembler supports at most " + FLUID_OUTPUT_SLOTS + " fluid outputs");
+        }
+        itemInputs.forEach(input -> Objects.requireNonNull(input, "itemInput"));
+        itemOutputs.forEach(output -> Objects.requireNonNull(output, "itemOutput"));
+        validateFluids(fluidInputs, "input");
+        validateFluids(fluidOutputs, "output");
+        validateResource(keyInput, "input");
+        validateResource(keyOutput, "output");
+        if (itemInputs.isEmpty() && fluidInputs.isEmpty() && keyInput == null) {
+            throw new IllegalArgumentException("Data reassembler recipe must define at least one input");
+        }
+        if (itemOutputs.isEmpty() && fluidOutputs.isEmpty() && keyOutput == null) {
+            throw new IllegalArgumentException("Data reassembler recipe must define at least one output");
+        }
+        if (processTicks <= 0) {
+            throw new IllegalArgumentException("Data reassembler duration must be greater than 0: " + processTicks);
+        }
+    }
+
+    private static void validateFluids(List<GenericStack> fluids, String role) {
+        for (GenericStack fluid : fluids) {
+            Objects.requireNonNull(fluid, role + "Fluid");
+            if (!(fluid.what() instanceof AEFluidKey) || fluid.amount() <= 0L || fluid.amount() > MAX_FLUID_AMOUNT) {
+                throw new IllegalArgumentException(
+                        "Data reassembler fluid " + role + " must be a positive fluid stack within " +
+                                MAX_FLUID_AMOUNT + ": " + fluid);
+            }
+        }
+    }
+
+    private static void validateResource(@Nullable GenericStack resource, String role) {
+        if (resource == null) {
+            return;
+        }
+        if (resource.what() instanceof AEItemKey || resource.what() instanceof AEFluidKey ||
+                resource.amount() <= 0L || resource.amount() > MAX_RESOURCE_AMOUNT) {
+            throw new IllegalArgumentException(
+                    "Data reassembler resource " + role + " must be a positive custom resource within " +
+                            MAX_RESOURCE_AMOUNT + ": " + resource);
+        }
     }
 
     @Override
@@ -177,7 +230,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
-        return this.itemOutputs.isEmpty() ? ItemStack.EMPTY : this.itemOutputs.getFirst();
+        return this.itemOutputs.isEmpty() ? ItemStack.EMPTY : this.itemOutputs.getFirst().stack();
     }
 
     @Override
@@ -216,21 +269,18 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     }
 
     public NonNullList<ItemStack> getItemOutputs() {
+        NonNullList<ItemStack> outputs = NonNullList.create();
+        this.itemOutputs.stream().map(DataReassemblerItemOutput::stack).forEach(outputs::add);
+        return outputs;
+    }
+
+    public List<DataReassemblerItemOutput> getItemOutputDefinitions() {
         return this.itemOutputs;
     }
 
     public NonNullList<ItemStack> getCraftedItemOutputs() {
         NonNullList<ItemStack> outputs = NonNullList.create();
-        for (ItemStack output : this.itemOutputs) {
-            outputs.add(output.copy());
-        }
-
-        if (!outputs.isEmpty()) {
-            ItemStack result = outputs.getFirst();
-            if (this.assignQuantumFrequency && AEItems.QUANTUM_ENTANGLED_SINGULARITY.is(result) && result.getCount() > 1) {
-                QuantumBridgeBlockEntity.assignFrequency(result);
-            }
-        }
+        this.itemOutputs.stream().map(DataReassemblerItemOutput::createStack).forEach(outputs::add);
         return outputs;
     }
 
@@ -252,10 +302,6 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
         return this.keyOutput;
     }
 
-    public boolean assignsQuantumFrequency() {
-        return this.assignQuantumFrequency;
-    }
-
     private boolean matchesKeyInput(@Nullable GenericStack inputKey) {
         if (this.keyInput == null) {
             return true;
@@ -274,7 +320,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
         Map<AEFluidKey, Long> available = new HashMap<>();
         for (GenericStack fluid : inputFluids) {
-            if (fluid == null || !(fluid.what() instanceof AEFluidKey) || fluid.amount() <= 0) {
+            if (!(fluid.what() instanceof AEFluidKey) || fluid.amount() <= 0) {
                 continue;
             }
             available.merge((AEFluidKey) fluid.what(), fluid.amount(), Long::sum);

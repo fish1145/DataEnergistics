@@ -1,0 +1,13 @@
+{
+	"values": {
+		"data_energistics:amethyst_tuning_fork_wave": {
+			"frequency": 5
+		},
+		"data_energistics:data_tuning_fork_wave": {
+			"frequency": 10
+		},
+		"data_energistics:resonance_tuning_fork_wave": {
+			"frequency": 15
+		}
+	}
+}

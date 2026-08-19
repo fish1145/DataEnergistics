@@ -1,0 +1,41 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:inscriber"
+			},
+			{
+				"item": "ae2:charger"
+			},
+			{
+				"item": "data_energistics:solidified_obsidian",
+				"count": 18
+			},
+			{
+				"item": "data_energistics:data_framework"
+			},
+			{
+				"item": "data_energistics:data_storage_component_4k",
+				"count": 6
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 37
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 4000
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_integrated_charger"
+			}
+		]
+	}
+}

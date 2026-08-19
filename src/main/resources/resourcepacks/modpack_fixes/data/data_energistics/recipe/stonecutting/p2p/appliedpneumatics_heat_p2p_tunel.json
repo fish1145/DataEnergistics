@@ -1,0 +1,16 @@
+{
+	"neoforge:conditions": [
+		{
+			"type": "neoforge:mod_loaded",
+			"modid": "appliedpneumatics"
+		}
+	],
+	"type": "minecraft:stonecutting",
+	"ingredient": {
+		"item": "ae2:me_p2p_tunnel"
+	},
+	"result": {
+		"count": 1,
+		"id": "appliedpneumatics:heat_p2p_tunel"
+	}
+}

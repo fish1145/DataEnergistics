@@ -1,9 +1,8 @@
 package com.fish_dan_.data_energistics.datagen;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
-import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -17,11 +16,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.conditions.ModLoadedCondition;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
 import appeng.core.definitions.AEItems;
 import com.glodblock.github.appflux.common.AFSingletons;
 import org.apache.logging.log4j.Logger;
@@ -48,52 +44,48 @@ public class DERecipeProvider extends RecipeProvider {
     private void buildAppFluxRecipes(RecipeOutput output) {
         var cond = output.withConditions(new ModLoadedCondition("appflux"));
 
-        new Builder()
+        new IntegratedChargerBuilder()
                 .addItem(tag("c:gems/redstone"), 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(AFSingletons.CHARGED_REDSTONE, 20)
-                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/appflux/redstone_crystal"));
+                .save(cond, id("data_charge_press/appflux/redstone_crystal"));
 
-        new Builder()
+        new IntegratedChargerBuilder()
                 .addItem(Items.REDSTONE_BLOCK, 16)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 16)
                 .addItem(Items.GLOWSTONE_DUST, 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(AFSingletons.REDSTONE_CRYSTAL, 72)
-                .keyInput(dataFlowKey(2400))
-                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/appflux/appflux_redstone_crystal"));
+                .save(cond, id("data_charge_press/appflux/appflux_redstone_crystal"));
     }
 
     private void buildExtendedAeRecipes(RecipeOutput output) {
         var cond = output.withConditions(new ModLoadedCondition("extendedae"));
 
-        new Builder()
+        new IntegratedChargerBuilder()
                 .addItem(tag("c:gems/entro"), 16)
                 .addItem(tag("c:dusts/entro"), 16)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("extendedae:entro_crystal"), 72)
-                .keyInput(dataFlowKey(2400))
-                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/extendedae/eae_entro_crystal"));
+                .save(cond, id("data_charge_press/extendedae/eae_entro_crystal"));
     }
 
     private void buildNeoEcoAeRecipes(RecipeOutput output) {
         var cond = output.withConditions(new ModLoadedCondition("neoecoae"));
 
-        new Builder()
+        new IntegratedChargerBuilder()
                 .addItem(AEItems.CERTUS_QUARTZ_CRYSTAL_CHARGED.asItem(), 32)
                 .addItem(item("neoecoae:energized_crystal_dust"), 32)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("neoecoae:energized_crystal"), 72)
-                .keyInput(dataFlowKey(2400))
-                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/neoecoae/neoeco_energized_crystal"));
+                .save(cond, id("data_charge_press/neoecoae/neoeco_energized_crystal"));
 
-        new Builder()
+        new IntegratedChargerBuilder()
                 .addItem(item("neoecoae:energized_crystal_dust"), 48)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 48)
-                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
+                .fluidAmount(250)
                 .addOutput(item("neoecoae:energized_fluix_crystal"), 72)
-                .keyInput(dataFlowKey(2400))
-                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/neoecoae/neoeco_energized_fluix_crystal"));
+                .save(cond, id("data_charge_press/neoecoae/neoeco_energized_fluix_crystal"));
     }
 
     private static ResourceLocation id(String path) {
@@ -112,71 +104,49 @@ public class DERecipeProvider extends RecipeProvider {
         return Ingredient.of(TagKey.create(Registries.ITEM, ResourceLocation.parse(tagId)));
     }
 
-    private static Fluid fluid(String id) {
-        return BuiltInRegistries.FLUID.get(ResourceLocation.parse(id));
-    }
+    private static class IntegratedChargerBuilder {
 
-    private static GenericStack dataFlowKey(long amount) {
-        return new GenericStack(DataFlowKey.of(), amount);
-    }
+        private final List<DataChargePressIngredient> inputs = new ArrayList<>();
+        private int fluidAmount;
+        private ItemStack itemOutput = ItemStack.EMPTY;
 
-    private static class Builder {
-
-        private final List<DataRipperReassemblerIngredient> itemInputs = new ArrayList<>();
-        private final List<GenericStack> fluidInputs = new ArrayList<>();
-        private final List<ItemStack> itemOutputs = new ArrayList<>();
-        private final List<GenericStack> fluidOutputs = new ArrayList<>();
-        private int processTicks = DataRipperReassemblerRecipe.PROCESS_TICKS;
-        private GenericStack keyInput;
-        private GenericStack keyOutput;
-
-        Builder addItem(Ingredient ingredient, int count) {
-            itemInputs.add(new DataRipperReassemblerIngredient(ingredient, count));
+        IntegratedChargerBuilder addItem(Ingredient ingredient, int count) {
+            inputs.add(new DataChargePressIngredient(ingredient, count));
             return this;
         }
 
-        Builder addItem(Item item, int count) {
+        IntegratedChargerBuilder addItem(Item item, int count) {
             return addItem(Ingredient.of(item), count);
         }
 
-        Builder addFluid(Fluid fluid, long amount) {
-            fluidInputs.add(new GenericStack(AEFluidKey.of(fluid), amount));
+        IntegratedChargerBuilder fluidAmount(int amount) {
+            if (this.fluidAmount != 0) {
+                throw new IllegalStateException("Integrated charger recipe fluid amount was already configured");
+            }
+            this.fluidAmount = amount;
             return this;
         }
 
-        Builder addOutput(ItemStack stack) {
-            itemOutputs.add(stack);
+        IntegratedChargerBuilder addOutput(ItemStack stack) {
+            this.itemOutput = stack.copy();
             return this;
         }
 
-        Builder addOutput(Item item, int count) {
+        IntegratedChargerBuilder addOutput(Item item, int count) {
             return addOutput(new ItemStack(item, count));
         }
 
-        Builder keyInput(GenericStack key) {
-            this.keyInput = key;
-            return this;
-        }
-
-        Builder keyOutput(GenericStack key) {
-            this.keyOutput = key;
-            return this;
-        }
-
-        Builder processTicks(int ticks) {
-            this.processTicks = ticks;
-            return this;
-        }
-
         void save(RecipeOutput output, ResourceLocation id) {
-            var recipe = new DataRipperReassemblerRecipe(
-                    List.copyOf(itemInputs),
-                    List.copyOf(fluidInputs),
-                    List.copyOf(itemOutputs),
-                    List.copyOf(fluidOutputs),
-                    processTicks,
-                    keyInput,
-                    keyOutput);
+            if (this.inputs.isEmpty() ||
+                    this.inputs.size() > DataChargePressRecipe.MAX_ITEM_INPUT_COUNT || this.fluidAmount <= 0 ||
+                    this.fluidAmount > DataChargePressRecipe.MAX_FLUID_AMOUNT ||
+                    this.itemOutput.isEmpty()) {
+                throw new IllegalStateException("Invalid integrated charger crystal growth recipe: " + id);
+            }
+            var recipe = new DataChargePressRecipe(
+                    List.copyOf(inputs),
+                    this.fluidAmount,
+                    this.itemOutput);
             output.accept(id, recipe, null);
         }
     }

@@ -67,6 +67,8 @@
 		"core.world.FarmBlockMixin",
 		"core.world.InscriberBlockEntityMixin",
 		"core.world.ProjectileUtilMixin",
+		"core.world.SonicBoomMixin",
+		"core.world.VibrationSystemListenerMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
 		"extendedae.ExtendedInscriberThreadMixin",
 		"extendedaeplus.EaepPatternEncodingTermMenuMixin",

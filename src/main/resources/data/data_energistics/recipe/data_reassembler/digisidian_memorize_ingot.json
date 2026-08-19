@@ -1,0 +1,37 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "c:dusts/data_dust",
+				"count": 8
+			},
+			{
+				"item": "minecraft:netherite_scrap",
+				"count": 6
+			},
+			{
+				"tag": "c:dusts/obsidian",
+				"count": 9
+			},
+			{
+				"item": "ae2:fluix_crystal",
+				"count": 13
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 424
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:digisidian_memorize_ingot",
+				"count": 2
+			}
+		]
+	}
+}

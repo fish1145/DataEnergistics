@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core.condenser;
 
 import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.client.widget.CondenserOutputModeButton;
 import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.WidgetContainerAccessor;
 
@@ -45,7 +44,7 @@ public abstract class CondenserScreenMixin extends AEBaseScreen<CondenserMenu> {
             return;
         }
 
-        var mode = CondenserOutputMode.fromOrdinal(((CondenserMenuAccessor) this.menu).dataEnergistics$getCondenserOutputMode());
-        this.dataEnergistics$condenserModeButton.setMode(mode);
+        this.dataEnergistics$condenserModeButton.setModeIndex(
+                ((CondenserMenuAccessor) this.menu).dataEnergistics$getCondenserOutputMode());
     }
 }

@@ -1,0 +1,39 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "c:gems/data_crystal",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_storage_component_1k"
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 14
+			},
+			{
+				"item": "ae2:charger"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 200
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1000
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_charger"
+			}
+		]
+	}
+}

@@ -1,0 +1,49 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_storage_component_1m",
+				"count": 3
+			},
+			{
+				"item": "ae2:spatial_cell_component_16",
+				"count": 5
+			},
+			{
+				"tag": "c:gems/data_crystal",
+				"count": 13
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 9
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 14
+			},
+			{
+				"item": "data_energistics:data_carrier",
+				"count": 4
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 2500
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 15600
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_storage_component_4m"
+			}
+		]
+	}
+}

@@ -1,0 +1,123 @@
+package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
+
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
+import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
+import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.registry.DERecipes;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
+
+import appeng.recipes.AERecipeTypes;
+import appeng.recipes.handlers.ChargerRecipe;
+import appeng.recipes.handlers.InscriberRecipe;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/** One entry in the data integrated charger's unified recipe viewer category. */
+public sealed interface DataChargePressRecipeView permits DataChargePressRecipeView.ChargerView,
+                                                  DataChargePressRecipeView.InscriberView, DataChargePressRecipeView.CircuitBoardView,
+                                                  DataChargePressRecipeView.PowderView, DataChargePressRecipeView.DataChargerView,
+                                                  DataChargePressRecipeView.CustomView {
+
+    ResourceLocation id();
+
+    /**
+     * Builds the viewer entries from exactly the recipe families that the data integrated charger can execute.
+     * Circuit boards and powders have dedicated machine modes, so they must not be presented as normal inscriber
+     * operations.
+     */
+    static List<DataChargePressRecipeView> fromRecipeManager(RecipeManager recipeManager) {
+        List<DataChargePressRecipeView> views = new ArrayList<>();
+
+        recipeManager.getAllRecipesFor(AERecipeTypes.CHARGER).stream()
+                .map(ChargerView::new)
+                .forEach(views::add);
+
+        for (RecipeHolder<InscriberRecipe> holder : recipeManager.getAllRecipesFor(AERecipeTypes.INSCRIBER)) {
+            InscriberRecipe recipe = holder.value();
+            if (DataChargePressRecipeSupport.isCircuitBoardRecipe(recipe)) {
+                views.add(new CircuitBoardView(holder));
+            } else if (DataChargePressRecipeSupport.isPowderRecipe(recipe)) {
+                views.add(new PowderView(holder));
+            } else {
+                views.add(new InscriberView(holder));
+            }
+        }
+
+        recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()).stream()
+                .map(DataChargerView::new)
+                .forEach(views::add);
+        recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get()).stream()
+                .map(CustomView::new)
+                .forEach(views::add);
+
+        return views;
+    }
+
+    record ChargerView(RecipeHolder<ChargerRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id();
+        }
+    }
+
+    record InscriberView(RecipeHolder<InscriberRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id();
+        }
+    }
+
+    /** An inscriber powder recipe that runs while the machine module slot is empty. */
+    record PowderView(RecipeHolder<InscriberRecipe> holder) implements DataChargePressRecipeView {
+
+        public PowderView {
+            if (!DataChargePressRecipeSupport.isPowderRecipe(holder.value())) {
+                throw new IllegalArgumentException("Data charge press views require a powder inscriber recipe");
+            }
+        }
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id();
+        }
+    }
+
+    /** A data charger recipe performed by a data charger module. */
+    record DataChargerView(RecipeHolder<DataChargerRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id().withSuffix("/data_integrated_charger");
+        }
+    }
+
+    /** The fluid-backed, three-board form automatically derived from an inscriber JSON recipe. */
+    record CircuitBoardView(RecipeHolder<InscriberRecipe> holder) implements DataChargePressRecipeView {
+
+        public CircuitBoardView {
+            if (!DataChargePressRecipeSupport.isCircuitBoardRecipe(holder.value())) {
+                throw new IllegalArgumentException("Data charge press views require a circuit board inscriber recipe");
+            }
+        }
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id().withSuffix("/data_charge_press");
+        }
+    }
+
+    /** A data-driven fluid-backed operation performed by the data integrated charger. */
+    record CustomView(RecipeHolder<DataChargePressRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id();
+        }
+    }
+}

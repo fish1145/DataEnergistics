@@ -1,0 +1,10 @@
+{
+	"type": "data_energistics:condenser_output",
+	"result": {
+		"id": "data_energistics:radix_containment_sphere",
+		"components": {
+			"ae2:stored_energy": 1000.0
+		}
+	},
+	"power": 131072
+}

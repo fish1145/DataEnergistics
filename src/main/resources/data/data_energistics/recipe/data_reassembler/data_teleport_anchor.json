@@ -1,0 +1,49 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:terminal"
+			},
+			{
+				"item": "data_energistics:data_framework",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 28
+			},
+			{
+				"item": "ae2:wireless_access_point"
+			},
+			{
+				"item": "ae2:spatial_anchor"
+			},
+			{
+				"item": "ae2:quantum_entangled_singularity",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:data_crystal_cutting_knife"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 4250
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 83700
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_teleport_anchor"
+			}
+		]
+	}
+}

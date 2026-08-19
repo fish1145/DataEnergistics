@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "data_energistics:resonance_crystal_block"
+		}
+	],
+	"result": {
+		"id": "data_energistics:resonance_crystal",
+		"count": 4
+	}
+}

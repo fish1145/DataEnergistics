@@ -1,0 +1,22 @@
+{
+	"type": "data_energistics:data_charge_press",
+	"inputs": [
+		{
+			"item": "ae2:charged_certus_quartz_crystal",
+			"count": 16
+		},
+		{
+			"tag": "c:dusts/redstone",
+			"count": 16
+		},
+		{
+			"tag": "c:gems/quartz",
+			"count": 16
+		}
+	],
+	"fluid_amount": 50,
+	"result": {
+		"id": "ae2:fluix_crystal",
+		"count": 72
+	}
+}

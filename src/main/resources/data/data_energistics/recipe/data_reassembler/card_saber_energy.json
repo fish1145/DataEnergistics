@@ -1,0 +1,33 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:advanced_card"
+			},
+			{
+				"item": "ae2:wireless_receiver",
+				"count": 6
+			},
+			{
+				"item": "ae2:light_p2p_tunnel",
+				"count": 2
+			},
+			{
+				"item": "ae2:quartz_vibrant_glass",
+				"count": 4
+			},
+			{
+				"item": "ae2:light_detector",
+				"count": 46
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:card_saber_energy"
+			}
+		]
+	}
+}

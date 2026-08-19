@@ -23,7 +23,7 @@ item_ids:
     <RecipeFor id="data_energistics:fish_dan_" />
 </Row>
 
-Fish_Dan_ 玩偶共有 5 种外观。基础玩偶通过数据重组器制作，其余外观由基础玩偶改名获得。
+Fish_Dan_ 玩偶共有 6 种外观。基础玩偶通过数据重组器制作，其余外观由基础玩偶改名获得。
 
 <Row>
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="0" />
@@ -31,9 +31,10 @@ Fish_Dan_ 玩偶共有 5 种外观。基础玩偶通过数据重组器制作，�
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="2" />
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="3" />
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="4" />
+    <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="5" />
 </Row>
 
-从左到右依次为：Fish_Dan_ 玩偶、Fish_Dan_新年 玩偶、Fish_Dan_修女 玩偶、Fish_Dan_和服 玩偶、Fish_Dan_泳装 玩偶。
+从左到右依次为：Fish_Dan_ 玩偶、Fish_Dan_新年 玩偶、Fish_Dan_修女 玩偶、Fish_Dan_和服 玩偶、Fish_Dan_泳装 玩偶、Fish_Dan_初音 玩偶。
 
 在铁砧中将基础玩偶改成以下名称，即可切换对应外观：
 
@@ -43,6 +44,7 @@ Fish_Dan_ 玩偶共有 5 种外观。基础玩偶通过数据重组器制作，�
 | 修女 | Fish_Dan_修女 |
 | 和服 | Fish_Dan_和服 |
 | 泳装 | Fish_Dan_泳装 |
+| 初音 | Fish_Dan_初音 |
 
 改回 `Fish_Dan_` 或不包含上述外观关键词的名称，即会使用基础外观。
 

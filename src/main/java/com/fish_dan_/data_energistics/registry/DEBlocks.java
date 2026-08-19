@@ -2,11 +2,16 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
+import com.fish_dan_.data_energistics.block.ResonanceCrystalBlock;
+import com.fish_dan_.data_energistics.block.ResonanceCrystalClusterBlock;
+import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
+import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
@@ -31,6 +36,7 @@ import com.fish_dan_.data_energistics.block.worldgen.DataMysteriousCubeBlock;
 import com.fish_dan_.data_energistics.block.worldgen.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
@@ -166,6 +172,12 @@ public final class DEBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
 
+    public static final DeferredBlock<Block> DATA_INTEGRATED_CHARGER = BLOCKS.registerBlock(
+            "data_integrated_charger",
+            DataIntegratedChargerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
+
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",
             Block::new,
@@ -231,6 +243,62 @@ public final class DEBlocks {
             "data_crystal_block",
             Block::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<TuningForkBaseBlock> TUNING_FORK_BASE = BLOCKS.registerBlock(
+            "tuning_fork_base",
+            TuningForkBaseBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion()
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<TuningForkBlock> AMETHYST_TUNING_FORK = registerTuningFork(
+            "amethyst_tuning_fork",
+            TuningForkVariant.AMETHYST);
+    public static final DeferredBlock<TuningForkBlock> DATA_TUNING_FORK = registerTuningFork(
+            "data_tuning_fork",
+            TuningForkVariant.DATA);
+    public static final DeferredBlock<TuningForkBlock> RESONANCE_TUNING_FORK = registerTuningFork(
+            "resonance_tuning_fork",
+            TuningForkVariant.RESONANCE);
+
+    public static final DeferredBlock<ResonanceCrystalBlock> RESONANCE_CRYSTAL_BLOCK = BLOCKS.registerBlock(
+            "resonance_crystal_block",
+            ResonanceCrystalBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<ResonanceCrystalClusterBlock> SMALL_RESONANCE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "small_resonance_crystal_bud",
+            properties -> new ResonanceCrystalClusterBlock(
+                    3.0F,
+                    4.0F,
+                    properties,
+                    () -> DEBlocks.MEDIUM_RESONANCE_CRYSTAL_BUD.get()),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SMALL_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+    public static final DeferredBlock<ResonanceCrystalClusterBlock> MEDIUM_RESONANCE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "medium_resonance_crystal_bud",
+            properties -> new ResonanceCrystalClusterBlock(
+                    4.0F,
+                    3.0F,
+                    properties,
+                    () -> DEBlocks.LARGE_RESONANCE_CRYSTAL_BUD.get()),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.MEDIUM_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+    public static final DeferredBlock<ResonanceCrystalClusterBlock> LARGE_RESONANCE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "large_resonance_crystal_bud",
+            properties -> new ResonanceCrystalClusterBlock(
+                    5.0F,
+                    3.0F,
+                    properties,
+                    () -> DEBlocks.RESONANCE_CRYSTAL_CLUSTER.get()),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LARGE_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+    public static final DeferredBlock<ResonanceCrystalClusterBlock> RESONANCE_CRYSTAL_CLUSTER = BLOCKS.registerBlock(
+            "resonance_crystal_cluster",
+            properties -> new ResonanceCrystalClusterBlock(7.0F, 3.0F, properties, null),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_CLUSTER)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> DIGITAL_STORAGE_DEPOT = BLOCKS.registerBlock(
@@ -369,6 +437,15 @@ public final class DEBlocks {
                         .noOcclusion()
                         .isViewBlocking((state, blockGetter, pos) -> false)
                         .requiresCorrectToolForDrops());
+    }
+
+    private static DeferredBlock<TuningForkBlock> registerTuningFork(String id, TuningForkVariant variant) {
+        return BLOCKS.registerBlock(
+                id,
+                properties -> new TuningForkBlock(variant, properties),
+                BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
+                        .noOcclusion()
+                        .noLootTable());
     }
 
     private static DeferredBlock<TrinityCoreBlock> registerStorageCore(String id, TrinityCoreTier tier) {

@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"tag": "ae2:p2p"
+		}
+	],
+	"result": {
+		"id": "ae2:me_p2p_tunnel",
+		"count": 1
+	}
+}

@@ -1,0 +1,53 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:chest"
+			},
+			{
+				"item": "ae2:controller",
+				"count": 6
+			},
+			{
+				"item": "ae2:io_port",
+				"count": 2
+			},
+			{
+				"item": "ae2:spatial_io_port"
+			},
+			{
+				"item": "data_energistics:data_storage_component_16m"
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 147
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 47
+			},
+			{
+				"item": "data_energistics:data_sanctum_interface",
+				"count": 4
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 27000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 439
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:trinity_information_exchange_depot"
+			}
+		]
+	}
+}

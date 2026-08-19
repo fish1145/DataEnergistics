@@ -1,0 +1,30 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"ingredient": {
+					"type": "neoforge:components",
+					"items": ["ae2:quantum_entangled_singularity"],
+					"components": {},
+					"strict": true
+				},
+				"count": 2
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 100
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "ae2:quantum_entangled_singularity",
+				"count": 2,
+				"modifier": "data_energistics:assign_quantum_frequency"
+			}
+		]
+	}
+}

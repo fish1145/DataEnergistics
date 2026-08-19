@@ -1,0 +1,43 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_framework",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 12
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 2
+			},
+			{
+				"item": "ae2:cell_component_1k"
+			},
+			{
+				"item": "data_energistics:data_storage_component_1k"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 520
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1314
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_digital_storage_core_1k"
+			}
+		]
+	}
+}

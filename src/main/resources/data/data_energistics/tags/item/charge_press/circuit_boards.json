@@ -1,0 +1,61 @@
+{
+	"values": [
+		"ae2:printed_silicon",
+		"ae2:printed_logic_processor",
+		"ae2:printed_calculation_processor",
+		"ae2:printed_engineering_processor",
+		"data_energistics:data_circuit_board",
+		{
+			"id": "advanced_ae:printed_quantum_processor",
+			"required": false
+		},
+		{
+			"id": "appflux:printed_energy_processor",
+			"required": false
+		},
+		{
+			"id": "extendedae:concurrent_processor_print",
+			"required": false
+		},
+		{
+			"id": "megacells:printed_accumulation_processor",
+			"required": false
+		},
+		{
+			"id": "neoecoae:superconducting_processor_print",
+			"required": false
+		},
+		{
+			"id": "ae2lt:unoverloaded_circuit_board",
+			"required": false
+		},
+		{
+			"id": "ae2omnicells:complex_link_circuit_print",
+			"required": false
+		},
+		{
+			"id": "ae2omnicells:multidimensional_expansion_circuit_print",
+			"required": false
+		},
+		{
+			"id": "ae2omnicells:omni_link_circuit_print",
+			"required": false
+		},
+		{
+			"id": "appliedcreate:stress_circuit_board",
+			"required": false
+		},
+		{
+			"id": "appliedcreate:advanced_stress_circuit_board",
+			"required": false
+		},
+		{
+			"id": "ae2cs:simple_circuit_print",
+			"required": false
+		},
+		{
+			"id": "ae2cs:resonating_circuit_print",
+			"required": false
+		}
+	]
+}

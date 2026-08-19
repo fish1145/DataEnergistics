@@ -24,7 +24,7 @@ item_ids:
 
 <Row>
     <ItemImage id="data_energistics:ender_bucket" scale="3" />
-    <Recipe id="data_energistics:data_energistics/data_reassembler/ender" />
+    <Recipe id="data_energistics:data_reassembler/ender" />
 </Row>
 
 <GameScene zoom="6" background="transparent">

@@ -1,0 +1,9 @@
+{
+	"values": [
+		"ae2:inscriber",
+		{
+			"id": "extendedae:ex_inscriber",
+			"required": false
+		}
+	]
+}

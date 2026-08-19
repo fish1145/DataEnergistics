@@ -40,6 +40,7 @@ public final class DEUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), DEBlocks.DIGITAL_STORAGE_DEPOT.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DEBlocks.DATA_EXTRACTOR.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(), DEBlocks.DATA_INTEGRATED_CHARGER.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), DEBlocks.TRINITY_DATA_CORE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DEBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DEBlocks.DATA_MIMETIC_FIELD.get().asItem());
@@ -134,7 +135,11 @@ public final class DEUpgrades {
         Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.FUZZY_CARD, DEBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
         Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get(), 2, "block.data_energistics.data_reassembler");
-        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_RIPPER_REASSEMBLER.get(), 5, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_RIPPER_REASSEMBLER.get(), 4, "block.data_energistics.data_reassembler");
+        Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_INTEGRATED_CHARGER.get(), 4,
+                "block.data_energistics.data_integrated_charger");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEBlocks.DATA_INTEGRATED_CHARGER.get(), 2,
+                "block.data_energistics.data_integrated_charger");
         Upgrades.add(AEItems.SPEED_CARD, DEBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.ENERGY_CARD, DEBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.CAPACITY_CARD, DEBlocks.DIGITAL_STORAGE_DEPOT.get(), 4, "block.data_energistics.digital_storage_depot");

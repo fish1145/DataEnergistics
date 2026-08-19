@@ -1,0 +1,37 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:matter_cannon"
+			},
+			{
+				"item": "minecraft:tripwire_hook",
+				"count": 2
+			},
+			{
+				"item": "minecraft:string",
+				"count": 8
+			},
+			{
+				"item": "data_energistics:data_dust",
+				"count": 24
+			},
+			{
+				"item": "ae2:singularity",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 5
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:matter_converging_crossbow"
+			}
+		]
+	}
+}

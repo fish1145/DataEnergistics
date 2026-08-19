@@ -1,0 +1,27 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:tiny_tnt"
+			},
+			{
+				"item": "ae2:singularity"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 250
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "ae2:quantum_entangled_singularity",
+				"count": 4
+			}
+		]
+	}
+}

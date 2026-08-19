@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "data_energistics:block/large_resonance_crystal_bud"
+	}
+}

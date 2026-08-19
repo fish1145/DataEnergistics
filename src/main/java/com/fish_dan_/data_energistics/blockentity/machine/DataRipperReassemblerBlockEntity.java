@@ -104,15 +104,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int KEY_INPUT_SLOT = 0;
     public static final int KEY_OUTPUT_SLOT = 1;
     public static final int KEY_SLOT_COUNT = 2;
-    public static final int FLUID_INPUT_CAPACITY = 256_000;
-    public static final int FLUID_OUTPUT_CAPACITY = 256_000;
-    public static final long KEY_INPUT_CAPACITY = 25_600_000L;
-    public static final long KEY_OUTPUT_CAPACITY = 25_600_000L;
+    public static final int FLUID_INPUT_CAPACITY = 51_200;
+    public static final int FLUID_OUTPUT_CAPACITY = 51_200;
+    public static final long KEY_INPUT_CAPACITY = 51_200_000L;
+    public static final long KEY_OUTPUT_CAPACITY = 51_200_000L;
     public static final int MAX_PROGRESS = 200;
     public static final int UPGRADE_SLOTS = 5;
     public static final int BASE_PARALLEL = 1;
-    public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 8;
-    public static final int ITEM_SLOT_CAPACITY = 1_024;
+    public static final int MAX_ENERGY_CARDS = 2;
+    public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 16;
+    public static final int ITEM_SLOT_CAPACITY = 512;
     public static final double ENERGY_CAPACITY = 160_000.0D;
 
     private static final String STORAGE_TAG = "storage";
@@ -351,7 +352,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public static int computeParallel(int energyCardCount) {
-        int installedCards = Math.max(0, energyCardCount);
+        int installedCards = Math.min(MAX_ENERGY_CARDS, Math.max(0, energyCardCount));
         return installedCards == 0 ? BASE_PARALLEL : BASE_PARALLEL * installedCards * PARALLEL_MULTIPLIER_PER_ENERGY_CARD;
     }
 

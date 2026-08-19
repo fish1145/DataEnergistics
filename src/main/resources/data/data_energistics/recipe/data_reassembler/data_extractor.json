@@ -1,0 +1,40 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "c:ingots/obsidian",
+				"count": 12
+			},
+			{
+				"item": "ae2:spatial_io_port"
+			},
+			{
+				"item": "ae2:molecular_assembler",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_meteorite_compass"
+			},
+			{
+				"item": "ae2:energy_acceptor",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:data_framework",
+				"count": 8
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 35
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_extractor"
+			}
+		]
+	}
+}

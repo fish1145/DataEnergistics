@@ -111,7 +111,7 @@ Each Digital Storage Cell stores Data Flow, Echo, and Celestial Energy. The thre
   </Row>
 
   <Row>
-    <Recipe id="data_energistics:data_energistics/crafting/cell/digital_storage_cell_1k_1" />
+<Recipe id="data_energistics:crafting/cell/digital_storage_cell_1k_1" />
   </Row>
 </Column>
 
