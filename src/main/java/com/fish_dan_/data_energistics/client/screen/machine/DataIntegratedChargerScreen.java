@@ -3,13 +3,11 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -33,8 +31,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegratedChargerMenu>
-                                         implements GenericStackLookupScreen {
+public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegratedChargerMenu> {
 
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSidesButton;
@@ -116,14 +113,13 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
     }
 
     @Override
-    public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
-        GenericStack fluid = getDisplayedFluid(this.hoveredSlot);
-        if (fluid == null) {
+    public @Nullable StackWithBounds getStackUnderMouse(double mouseX, double mouseY) {
+        // This mutable tank slot is an input target. Do not let recipe viewers consume a follow-up fill click as a
+        // lookup for the fluid that was synced after the first transfer.
+        if (isFluidTankSlot(this.hoveredSlot)) {
             return null;
         }
-        return new StackWithBounds(
-                fluid,
-                new Rect2i(this.leftPos + this.hoveredSlot.x, this.topPos + this.hoveredSlot.y, 16, 16));
+        return super.getStackUnderMouse(mouseX, mouseY);
     }
 
     private @Nullable GenericStack getDisplayedFluid(@Nullable Slot slot) {
