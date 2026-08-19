@@ -70,7 +70,7 @@ public record OrbitalWeaponLifecycle(
         boolean thresholdReached = reserve.meetsDeploymentThreshold(settings);
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
-            case DEPLOYED -> reserve.hasZeroResource() ? reserveGrace(settings.reserveGraceTicks()) : this;
+            case DEPLOYED -> reserve.hasZeroResource() ? reserveGrace(settings.reserveGraceTicks) : this;
             case RESERVE_GRACE -> thresholdReached ? deployed() : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
             case REDEPLOYING -> this.redeploymentTicksRemaining <= 1 ? (thresholdReached ? deployed() : dormant()) : redeploying(this.redeploymentTicksRemaining - 1);
         };
@@ -79,7 +79,7 @@ public record OrbitalWeaponLifecycle(
     /** Immediately enters grace when an attack escrow consumes the last unit of either reserve. */
     public OrbitalWeaponLifecycle afterDebit(OrbitalEnergyReserve reserve, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         if (this.state == OrbitalWeaponLifecycleState.DEPLOYED && reserve.hasZeroResource()) {
-            return reserveGrace(settings.reserveGraceTicks());
+            return reserveGrace(settings.reserveGraceTicks);
         }
         return this;
     }

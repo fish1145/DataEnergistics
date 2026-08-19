@@ -427,7 +427,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalWeaponLifecycle lifecycle = current.lifecycle();
         if (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING) {
-            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());
+            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
         OrbitalWeaponRecord updated = current.withPrimaryAnchor(location).withLifecycle(lifecycle);
         this.weapons.put(weaponId, updated);
@@ -890,7 +890,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (fallback == null && oldAnchor != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
             lifecycle = OrbitalWeaponLifecycle.dormant();
         } else if (fallback != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
-            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks());
+            lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
         return weapon.withPrimaryAnchor(fallback).withLifecycle(lifecycle);
     }
@@ -1001,14 +1001,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                 OrbitalWeaponRecord weapon,
                                                 OrbitalEndpointLocation location) {
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        if (weapon.endpoints().size() >= settings.maxEndpointsPerWeapon()) {
+        if (weapon.endpoints().size() >= settings.maxEndpointsPerWeapon) {
             throw new OrbitalEndpointLimitException(
                     "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit");
         }
         long dimensionEndpointCount = weapon.endpoints().keySet().stream()
                 .filter(existing -> existing.dimensionId().equals(location.dimensionId()))
                 .count();
-        if (dimensionEndpointCount >= settings.maxEndpointsPerDimension()) {
+        if (dimensionEndpointCount >= settings.maxEndpointsPerDimension) {
             throw new OrbitalEndpointLimitException(
                     "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit in " + location.dimensionId());
         }

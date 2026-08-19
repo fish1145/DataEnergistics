@@ -888,46 +888,6 @@ public final class DataEnergisticsConfiguration {
             return this.aeEnergyChargePerTick;
         }
 
-        public int reserveGraceTicks() {
-            return this.reserveGraceTicks;
-        }
-
-        public double deploymentThreshold() {
-            return this.deploymentThreshold;
-        }
-
-        public int redeploymentTicks() {
-            return this.redeploymentTicks;
-        }
-
-        public int maxEndpointsPerWeapon() {
-            return this.maxEndpointsPerWeapon;
-        }
-
-        public int maxEndpointsPerDimension() {
-            return this.maxEndpointsPerDimension;
-        }
-
-        public boolean endpointChunkLoadingEnabled() {
-            return this.endpointChunkLoadingEnabled;
-        }
-
-        public int maxAttackChunkTicketsPerTask() {
-            return this.maxAttackChunkTicketsPerTask;
-        }
-
-        public int maxAttackChunkTicketsGlobal() {
-            return this.maxAttackChunkTicketsGlobal;
-        }
-
-        public int maxAttackChunkGenerationPerDimension() {
-            return this.maxAttackChunkGenerationPerDimension;
-        }
-
-        public int maxAttackChunkGenerationGlobal() {
-            return this.maxAttackChunkGenerationGlobal;
-        }
-
         public int maxAttackBlockMutationsPerTaskTick() {
             return this.maxAttackBlockMutationsPerTaskTick;
         }

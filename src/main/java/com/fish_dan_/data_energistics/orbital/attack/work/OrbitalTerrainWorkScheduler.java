@@ -60,10 +60,10 @@ public final class OrbitalTerrainWorkScheduler {
      */
     public void beginTick(MinecraftServer server, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         requireServerThread(server);
-        this.maxTicketsPerTask = settings.maxAttackChunkTicketsPerTask();
-        this.maxTicketsGlobal = settings.maxAttackChunkTicketsGlobal();
-        this.maxRequestsPerDimension = settings.maxAttackChunkGenerationPerDimension();
-        this.maxRequestsGlobal = settings.maxAttackChunkGenerationGlobal();
+        this.maxTicketsPerTask = settings.maxAttackChunkTicketsPerTask;
+        this.maxTicketsGlobal = settings.maxAttackChunkTicketsGlobal;
+        this.maxRequestsPerDimension = settings.maxAttackChunkGenerationPerDimension;
+        this.maxRequestsGlobal = settings.maxAttackChunkGenerationGlobal;
         this.maxMutationsPerTask = settings.maxAttackBlockMutationsPerTaskTick();
         this.remainingMutationBudget = settings.maxAttackBlockMutationsGlobalTick();
         this.mutationsReservedByTask.clear();

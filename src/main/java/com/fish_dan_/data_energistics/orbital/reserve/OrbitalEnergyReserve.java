@@ -27,7 +27,7 @@ public record OrbitalEnergyReserve(
      * The calculation uses a ceiling so a non-zero fractional threshold cannot deploy with a zero reserve.
      */
     public boolean meetsDeploymentThreshold(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity(), settings.deploymentThreshold()) && this.aeEnergy >= threshold(settings.aeEnergyCapacity(), settings.deploymentThreshold());
+        return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity(), settings.deploymentThreshold) && this.aeEnergy >= threshold(settings.aeEnergyCapacity(), settings.deploymentThreshold);
     }
 
     private static long threshold(long capacity, double fraction) {

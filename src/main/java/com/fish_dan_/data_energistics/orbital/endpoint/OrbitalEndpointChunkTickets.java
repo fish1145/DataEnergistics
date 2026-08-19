@@ -60,7 +60,7 @@ public final class OrbitalEndpointChunkTickets {
     public static void retain(ServerLevel level, OrbitalEndpointLocation location) {
         requireMatchingDimension(level, location);
         ChunkPos chunk = new ChunkPos(location.pos());
-        if (!DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled()) {
+        if (!DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled) {
             release(level, location);
             return;
         }
@@ -217,7 +217,7 @@ public final class OrbitalEndpointChunkTickets {
     }
 
     private static boolean chunkLoadingEnabled() {
-        return DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled();
+        return DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled;
     }
 
     private static void requireMatchingDimension(ServerLevel level, OrbitalEndpointLocation location) {
