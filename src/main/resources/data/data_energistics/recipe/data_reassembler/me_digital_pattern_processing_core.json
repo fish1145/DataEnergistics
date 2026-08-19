@@ -1,0 +1,44 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:pattern_provider",
+				"count": 4
+			},
+			{
+				"item": "ae2:capacity_card",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_framework",
+				"count": 6
+			},
+			{
+				"item": "data_energistics:solidified_obsidian",
+				"count": 12
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 27
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 1456
+			},
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 4865
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_digital_pattern_processing_core"
+			}
+		]
+	}
+}
