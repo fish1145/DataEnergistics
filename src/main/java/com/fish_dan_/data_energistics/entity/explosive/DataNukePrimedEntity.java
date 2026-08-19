@@ -522,7 +522,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     private void updateChunkTicket() {
-        if (!this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
+        if (this.orbitalAttackId != null
+                || !this.isAddedToLevel()
+                || this.isRemoved()
+                || !(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 

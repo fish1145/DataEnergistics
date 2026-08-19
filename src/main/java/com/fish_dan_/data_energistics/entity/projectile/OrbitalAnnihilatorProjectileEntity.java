@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
@@ -18,15 +17,11 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.TicketType;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-
-import org.jspecify.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -52,18 +47,11 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     private static final String TAG_WORK_INTERVAL = "WorkIntervalTicks";
     private static final String TAG_MAX_RADIUS = "MaxRadius";
     private static final String TAG_CENTER_RADIUS = "CenterEntityConsumeRadius";
-    private static final TicketType<UUID> CHUNK_TICKET_TYPE = TicketType.create(
-            Data_Energistics.MODID + ":orbital_annihilator",
-            UUID::compareTo);
-    private static final int CHUNK_TICKET_DISTANCE = 2;
-
     private UUID attackId = new UUID(0L, 0L);
     private BlockPos target = BlockPos.ZERO;
     private int flightTicks;
     private Set<UUID> damageExemptions = Set.of();
     private DigitalAnnihilationWork.Settings workSettings;
-    @Nullable
-    private ChunkPos forcedChunk;
 
     public OrbitalAnnihilatorProjectileEntity(EntityType<? extends OrbitalAnnihilatorProjectileEntity> entityType,
                                               Level level) {
@@ -133,8 +121,8 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
 
     @Override
     public boolean isAlwaysTicking() {
-        // The payload starts above the normal build-height sections; its ticket and server-authoritative flight must
-        // continue while the target chunk is being generated and before that section becomes normally visible.
+        // The shared orbital scheduler pins the target chunk; this keeps the above-build-height payload ticking inside
+        // that loaded chunk before its section becomes normally visible.
         return true;
     }
 
@@ -151,30 +139,6 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     @Override
     public boolean canChangeDimensions(Level oldLevel, Level newLevel) {
         return false;
-    }
-
-    @Override
-    public void onAddedToLevel() {
-        super.onAddedToLevel();
-        updateChunkTicket();
-    }
-
-    @Override
-    public void onRemovedFromLevel() {
-        removeChunkTicket();
-        super.onRemovedFromLevel();
-    }
-
-    @Override
-    public void remove(RemovalReason reason) {
-        removeChunkTicket();
-        super.remove(reason);
-    }
-
-    @Override
-    public void setPos(double x, double y, double z) {
-        super.setPos(x, y, z);
-        updateChunkTicket();
     }
 
     @Override
@@ -253,42 +217,4 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 settings.centerEntityConsumeRadius());
     }
 
-    private void updateChunkTicket() {
-        if (!this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        ChunkPos currentChunk = this.chunkPosition();
-        if (currentChunk.equals(this.forcedChunk)) {
-            return;
-        }
-        serverLevel.getChunkSource().addRegionTicket(
-                CHUNK_TICKET_TYPE,
-                currentChunk,
-                CHUNK_TICKET_DISTANCE,
-                this.getUUID(),
-                true);
-        if (this.forcedChunk != null) {
-            serverLevel.getChunkSource().removeRegionTicket(
-                    CHUNK_TICKET_TYPE,
-                    this.forcedChunk,
-                    CHUNK_TICKET_DISTANCE,
-                    this.getUUID(),
-                    true);
-        }
-        this.forcedChunk = currentChunk;
-    }
-
-    private void removeChunkTicket() {
-        if (this.forcedChunk == null || !(this.level() instanceof ServerLevel serverLevel)) {
-            this.forcedChunk = null;
-            return;
-        }
-        serverLevel.getChunkSource().removeRegionTicket(
-                CHUNK_TICKET_TYPE,
-                this.forcedChunk,
-                CHUNK_TICKET_DISTANCE,
-                this.getUUID(),
-                true);
-        this.forcedChunk = null;
-    }
 }

@@ -23,7 +23,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -81,10 +80,6 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String AE_ESCROW_TAG = "ae_escrow";
     private static final String EXEMPTIONS_TAG = "damage_exemptions";
     private static final String UUID_TAG = "uuid";
-    private static final TicketType<UUID> DIGITAL_RECOVERY_TICKET_TYPE = TicketType.create(
-            Data_Energistics.MODID + ":orbital_digital_recovery",
-            UUID::compareTo);
-    private static final int DIGITAL_RECOVERY_TICKET_DISTANCE = 2;
     private static final Factory<OrbitalAttackSavedData> FACTORY = new Factory<>(
             OrbitalAttackSavedData::new,
             OrbitalAttackSavedData::load);
@@ -92,7 +87,6 @@ public final class OrbitalAttackSavedData extends SavedData {
     private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
     private final Map<UUID, Long> phaseStartedAt = new HashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
-    private final Map<UUID, DigitalRecoveryTicket> digitalRecoveryTickets = new HashMap<>();
     private int roundRobinOffset;
 
     private OrbitalAttackSavedData() {}
@@ -140,7 +134,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         discardPayload(server, current);
         this.terrainWorkScheduler.release(server, attackId);
-        releaseDigitalRecoveryTicket(server, attackId);
         replaceAttack(server, current, current.retryAfterFault());
         setDirty();
         return true;
@@ -155,7 +148,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         discardPayload(server, current);
         this.terrainWorkScheduler.release(server, attackId);
-        releaseDigitalRecoveryTicket(server, attackId);
         replaceAttack(server, current, current.aborted());
         setDirty();
         return true;
@@ -175,7 +167,6 @@ public final class OrbitalAttackSavedData extends SavedData {
                 current.celestialEscrow(),
                 current.aeEscrow());
         this.terrainWorkScheduler.release(server, attackId);
-        releaseDigitalRecoveryTicket(server, attackId);
         this.attacks.remove(attackId);
         this.phaseStartedAt.remove(attackId);
         setDirty();
@@ -479,7 +470,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         this.terrainWorkScheduler.release(server, attackId);
-        releaseDigitalRecoveryTicket(server, attackId);
         replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
         setDirty();
         return true;
@@ -582,18 +572,11 @@ public final class OrbitalAttackSavedData extends SavedData {
             setDirty();
         }
         this.terrainWorkScheduler.beginTick(server, settings);
-        Set<UUID> liveTerrainAttacks = this.attacks.values().stream()
-                .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
-                .filter(attack -> hasActiveTerrainWork(server, attack))
-                .map(OrbitalAttackRecord::attackId)
-                .collect(Collectors.toUnmodifiableSet());
-        this.terrainWorkScheduler.releaseMissing(server, liveTerrainAttacks);
-        Set<UUID> liveDigitalDeliveries = this.attacks.values().stream()
-                .filter(attack -> attack.mode() == OrbitalAttackMode.DIGITAL_ANNIHILATION)
+        Set<UUID> liveSchedulerAttacks = this.attacks.values().stream()
                 .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
                 .map(OrbitalAttackRecord::attackId)
                 .collect(Collectors.toUnmodifiableSet());
-        releaseMissingDigitalRecoveryTickets(server, liveDigitalDeliveries);
+        this.terrainWorkScheduler.releaseMissing(server, liveSchedulerAttacks);
 
         List<OrbitalAttackRecord> snapshot = List.copyOf(this.attacks.values());
         if (snapshot.isEmpty()) {
@@ -805,6 +788,14 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!validDigitalTarget(level, current.target(), geometry.maxRadius())) {
             return;
         }
+        ChunkReadiness targetReadiness = this.terrainWorkScheduler.pinChunk(
+                level,
+                current.attackId(),
+                new ChunkPos(current.target()));
+        if (targetReadiness != ChunkReadiness.READY) {
+            handleTerrainBoundary(server, current, targetReadiness, "Digital-annihilation target chunk failed");
+            return;
+        }
 
         if (current.payloadEntityId() == null) {
             spawnDigitalProjectile(server, level, current, geometry);
@@ -814,7 +805,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         Entity payload = level.getEntity(current.payloadEntityId());
         if (current.payloadArrived()) {
             if (payload instanceof DataNukePrimedEntity nuke && current.attackId().equals(nuke.orbitalAttackId())) {
-                releaseDigitalRecoveryTicket(server, current.attackId());
                 if (nuke.isActive()) {
                     tickDigitalAnnihilationWork(server, level, current, nuke);
                 }
@@ -827,31 +817,20 @@ public final class OrbitalAttackSavedData extends SavedData {
             if (reconcileLoadedDigitalNuke(server, level, current)) {
                 return;
             }
-            if (level.getChunkSource().getChunkNow(new ChunkPos(current.target()).x, new ChunkPos(current.target()).z) == null) {
-                holdDigitalRecoveryTicket(level, current.attackId(), new ChunkPos(current.target()));
-                return;
-            }
             spawnDigitalFuse(server, level, current, geometry);
             return;
         }
 
         if (payload instanceof OrbitalAnnihilatorProjectileEntity projectile && current.attackId().equals(projectile.attackId())) {
-            releaseDigitalRecoveryTicket(server, current.attackId());
             return;
         }
         if (payload instanceof DataNukePrimedEntity nuke && current.attackId().equals(nuke.orbitalAttackId())) {
             this.attacks.put(current.attackId(), current.markDigitalPayloadArrived(nuke.getUUID()));
-            releaseDigitalRecoveryTicket(server, current.attackId());
             setDirty();
             return;
         }
         if (payload == null) {
             if (reconcileLoadedDigitalProjectile(server, level, current)) {
-                return;
-            }
-            ChunkPos targetChunk = new ChunkPos(current.target());
-            if (level.getChunkSource().getChunkNow(targetChunk.x, targetChunk.z) == null) {
-                holdDigitalRecoveryTicket(level, current.attackId(), targetChunk);
                 return;
             }
             spawnDigitalProjectile(server, level, current, geometry);
@@ -878,7 +857,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return;
         }
         this.attacks.put(current.attackId(), current.withPayloadEntity(projectile.getUUID(), false));
-        releaseDigitalRecoveryTicket(server, current.attackId());
         setDirty();
     }
 
@@ -901,7 +879,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return;
         }
         this.attacks.put(current.attackId(), current.markDigitalPayloadArrived(nuke.getUUID()));
-        releaseDigitalRecoveryTicket(server, current.attackId());
         setDirty();
     }
 
@@ -983,7 +960,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         this.attacks.put(current.attackId(), current.withPayloadEntity(matches.getFirst().getUUID(), false));
-        releaseDigitalRecoveryTicket(server, current.attackId());
         setDirty();
         return true;
     }
@@ -1008,7 +984,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         this.attacks.put(current.attackId(), current.markDigitalPayloadArrived(matches.getFirst().getUUID()));
-        releaseDigitalRecoveryTicket(server, current.attackId());
         setDirty();
         return true;
     }
@@ -1137,61 +1112,10 @@ public final class OrbitalAttackSavedData extends SavedData {
     public void releaseRuntimeResources(MinecraftServer server) {
         requireServerThread(server);
         this.terrainWorkScheduler.releaseAll(server);
-        releaseAllDigitalRecoveryTickets(server);
-    }
-
-    /** Holds the target chunk long enough to discover a persisted entity before rebuilding its payload. */
-    private void holdDigitalRecoveryTicket(ServerLevel level, UUID attackId, ChunkPos chunk) {
-        DigitalRecoveryTicket existing = this.digitalRecoveryTickets.get(attackId);
-        DigitalRecoveryTicket requested = new DigitalRecoveryTicket(level.dimension(), chunk);
-        if (requested.equals(existing)) {
-            return;
-        }
-        if (existing != null) {
-            releaseDigitalRecoveryTicket(level.getServer(), attackId);
-        }
-        level.getChunkSource().addRegionTicket(
-                DIGITAL_RECOVERY_TICKET_TYPE,
-                chunk,
-                DIGITAL_RECOVERY_TICKET_DISTANCE,
-                attackId,
-                true);
-        this.digitalRecoveryTickets.put(attackId, requested);
-    }
-
-    private void releaseDigitalRecoveryTicket(MinecraftServer server, UUID attackId) {
-        DigitalRecoveryTicket ticket = this.digitalRecoveryTickets.remove(attackId);
-        if (ticket == null) {
-            return;
-        }
-        ServerLevel level = server.getLevel(ticket.dimension());
-        if (level != null) {
-            level.getChunkSource().removeRegionTicket(
-                    DIGITAL_RECOVERY_TICKET_TYPE,
-                    ticket.chunk(),
-                    DIGITAL_RECOVERY_TICKET_DISTANCE,
-                    attackId,
-                    true);
-        }
-    }
-
-    private void releaseMissingDigitalRecoveryTickets(MinecraftServer server, Set<UUID> liveAttackIds) {
-        for (UUID attackId : Set.copyOf(this.digitalRecoveryTickets.keySet())) {
-            if (!liveAttackIds.contains(attackId)) {
-                releaseDigitalRecoveryTicket(server, attackId);
-            }
-        }
-    }
-
-    private void releaseAllDigitalRecoveryTickets(MinecraftServer server) {
-        for (UUID attackId : Set.copyOf(this.digitalRecoveryTickets.keySet())) {
-            releaseDigitalRecoveryTicket(server, attackId);
-        }
     }
 
     private void tickCooldown(MinecraftServer server, OrbitalAttackRecord current) {
         this.terrainWorkScheduler.release(server, current.attackId());
-        releaseDigitalRecoveryTicket(server, current.attackId());
         if (current.cooldownTicksRemaining() <= 1) {
             this.attacks.remove(current.attackId());
             this.phaseStartedAt.remove(current.attackId());
@@ -1203,7 +1127,6 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private void tickAborted(MinecraftServer server, OrbitalAttackRecord current) {
         this.terrainWorkScheduler.release(server, current.attackId());
-        releaseDigitalRecoveryTicket(server, current.attackId());
         replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
         setDirty();
     }
@@ -1226,7 +1149,6 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private void fault(MinecraftServer server, OrbitalAttackRecord current, String reason) {
         this.terrainWorkScheduler.release(server, current.attackId());
-        releaseDigitalRecoveryTicket(server, current.attackId());
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
         replaceAttack(server, current, current.faulted(reason));
         setDirty();
@@ -1235,24 +1157,6 @@ public final class OrbitalAttackSavedData extends SavedData {
     private boolean hasAttackForMode(UUID weaponId, OrbitalAttackMode mode) {
         return this.attacks.values().stream()
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
-    }
-
-    private static boolean hasActiveTerrainWork(MinecraftServer server, OrbitalAttackRecord attack) {
-        if (attack.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION) {
-            return true;
-        }
-        UUID payloadEntityId = attack.payloadEntityId();
-        if (!attack.payloadArrived() || payloadEntityId == null) {
-            return false;
-        }
-        ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, attack.dimensionId()));
-        if (level == null) {
-            return false;
-        }
-        Entity payload = level.getEntity(payloadEntityId);
-        return payload instanceof DataNukePrimedEntity nuke
-                && attack.attackId().equals(nuke.orbitalAttackId())
-                && nuke.isActive();
     }
 
     private boolean hasAttackCapacity(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -1336,8 +1240,6 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private record VisualEffect(BlockPos position, int radius, long totalWork) {}
-
-    private record DigitalRecoveryTicket(ResourceKey<Level> dimension, ChunkPos chunk) {}
 
     private static void requireServerThread(MinecraftServer server) {
         if (!server.isSameThread()) {

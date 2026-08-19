@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Server-thread governor for future-backed kinetic and directed-energy terrain work.
+ * Server-thread governor for future-backed orbital delivery and terrain work.
  *
  * <p>
  * Runtime futures and region tickets are deliberately not serialized. The attack record persists the deterministic
@@ -114,6 +114,22 @@ public final class OrbitalTerrainWorkScheduler {
      * ChunkReadiness#READY}.
      */
     public ChunkReadiness prepareChunk(ServerLevel level, UUID attackId, ChunkPos chunk) {
+        return prepareChunk(level, attackId, chunk, false);
+    }
+
+    /**
+     * Keeps one lifecycle chunk loaded for a delivery entity while sharing the same per-task and global ticket limits
+     * as terrain work. A pinned chunk is retained across task turns until the attack releases its scheduler state.
+     */
+    public ChunkReadiness pinChunk(ServerLevel level, UUID attackId, ChunkPos chunk) {
+        return prepareChunk(level, attackId, chunk, true);
+    }
+
+    private ChunkReadiness prepareChunk(
+                                        ServerLevel level,
+                                        UUID attackId,
+                                        ChunkPos chunk,
+                                        boolean pin) {
         requireOpenTick();
         requireServerThread(level.getServer());
         TaskState task = this.tasks.computeIfAbsent(attackId, ignored -> new TaskState(level.dimension()));
@@ -122,6 +138,9 @@ public final class OrbitalTerrainWorkScheduler {
         }
         if (task.failure != null) {
             return setReadiness(task, ChunkReadiness.FAULTED);
+        }
+        if (pin && task.pinnedTickets.contains(chunk)) {
+            return setReadiness(task, ChunkReadiness.READY);
         }
 
         PendingRequest pending = task.pendingRequest;
@@ -143,6 +162,9 @@ public final class OrbitalTerrainWorkScheduler {
             return setReadiness(task, ChunkReadiness.WAITING_FOR_BUDGET);
         }
         if (level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null) {
+            if (pin) {
+                task.pinnedTickets.add(chunk);
+            }
             return setReadiness(task, ChunkReadiness.READY);
         }
         if (this.pendingRequestCount >= this.maxRequestsGlobal || this.pendingRequestsByDimension.getOrDefault(level.dimension(), 0) >= this.maxRequestsPerDimension) {
@@ -184,6 +206,7 @@ public final class OrbitalTerrainWorkScheduler {
         if (level == null) {
             this.heldTicketCount -= task.heldTickets.size();
             task.heldTickets.clear();
+            task.pinnedTickets.clear();
             return;
         }
         for (ChunkPos chunk : Set.copyOf(task.heldTickets)) {
@@ -192,7 +215,7 @@ public final class OrbitalTerrainWorkScheduler {
     }
 
     /**
-     * Releases runtime resources whose persisted attack no longer owns an active terrain delivery.
+     * Releases runtime resources whose persisted attack no longer owns active scheduler work or a delivery lifecycle.
      */
     public void releaseMissing(MinecraftServer server, Set<UUID> liveAttackIds) {
         requireServerThread(server);
@@ -204,8 +227,8 @@ public final class OrbitalTerrainWorkScheduler {
     }
 
     /**
-     * Drops completed-chunk lookbehind tickets after one task's turn while retaining its newest or pending chunk. This
-     * prevents early tasks from monopolizing the global ticket pool across ticks.
+     * Drops completed-chunk lookbehind tickets after one task's turn while retaining pinned lifecycle chunks and the
+     * newest or pending work chunk. This prevents early tasks from monopolizing the global ticket pool across ticks.
      */
     public void endTaskTick(MinecraftServer server, UUID attackId) {
         requireServerThread(server);
@@ -214,8 +237,14 @@ public final class OrbitalTerrainWorkScheduler {
             return;
         }
         ServerLevel level = server.getLevel(task.dimension);
-        while (level != null && task.heldTickets.size() > 1) {
-            releaseOldestTicket(level, attackId, task);
+        int retainedTicketCount = task.pinnedTickets.size();
+        if (task.heldTickets.size() > task.pinnedTickets.size()) {
+            retainedTicketCount++;
+        }
+        while (level != null && task.heldTickets.size() > retainedTicketCount) {
+            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+                break;
+            }
         }
     }
 
@@ -270,10 +299,14 @@ public final class OrbitalTerrainWorkScheduler {
             return true;
         }
         while (task.heldTickets.size() >= this.maxTicketsPerTask) {
-            releaseOldestTicket(level, attackId, task);
+            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+                return false;
+            }
         }
         if (this.heldTicketCount >= this.maxTicketsGlobal && !task.heldTickets.isEmpty()) {
-            releaseOldestTicket(level, attackId, task);
+            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+                return false;
+            }
         }
         if (this.heldTicketCount >= this.maxTicketsGlobal) {
             return false;
@@ -298,9 +331,28 @@ public final class OrbitalTerrainWorkScheduler {
         releaseTicket(level, attackId, task, iterator.next());
     }
 
+    private boolean releaseOldestUnpinnedTicket(ServerLevel level, UUID attackId, TaskState task) {
+        ChunkPos oldestUnpinned = null;
+        for (ChunkPos chunk : task.heldTickets) {
+            if (!task.pinnedTickets.contains(chunk)) {
+                oldestUnpinned = chunk;
+                break;
+            }
+        }
+        if (oldestUnpinned == null) {
+            return false;
+        }
+        releaseTicket(level, attackId, task, oldestUnpinned);
+        return true;
+    }
+
     private void releaseTicket(ServerLevel level, UUID attackId, TaskState task, ChunkPos chunk) {
         if (!task.heldTickets.remove(chunk)) {
             return;
+        }
+        task.pinnedTickets.remove(chunk);
+        if (chunk.equals(task.mostRecentChunk)) {
+            task.mostRecentChunk = null;
         }
         level.getChunkSource().removeRegionTicket(
                 CHUNK_TICKET_TYPE,
@@ -335,6 +387,7 @@ public final class OrbitalTerrainWorkScheduler {
             if (level == null) {
                 this.heldTicketCount -= entry.getValue().heldTickets.size();
                 entry.getValue().heldTickets.clear();
+                entry.getValue().pinnedTickets.clear();
                 continue;
             }
             while (entry.getValue().heldTickets.size() > this.maxTicketsPerTask) {
@@ -383,6 +436,7 @@ public final class OrbitalTerrainWorkScheduler {
 
         private final ResourceKey<Level> dimension;
         private final Set<ChunkPos> heldTickets = new LinkedHashSet<>();
+        private final Set<ChunkPos> pinnedTickets = new LinkedHashSet<>();
         private long nextRequestId;
         @Nullable
         private ChunkPos mostRecentChunk;
