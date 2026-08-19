@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class DataNukePrimedEntity extends PrimedTnt {
 
@@ -301,6 +302,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
             if (!(level instanceof ServerLevel serverLevel)) {
                 return;
             }
+            if (this.orbitalAttackId != null) {
+                return;
+            }
             if (this.annihilationWork == null) {
                 this.annihilationWork = DigitalAnnihilationWork.create(
                         this.origin,
@@ -352,6 +356,54 @@ public class DataNukePrimedEntity extends PrimedTnt {
                     this.origin, this.level().dimension().location(), exception);
             this.discard();
         }
+    }
+
+    /**
+     * Advances an active orbital payload with the shared orbital scheduler's mutation and chunk allowance. Manual
+     * data nukes never call this entry point and retain their standalone work behavior.
+     */
+    public DigitalAnnihilationWork.TickResult tickOrbitalWork(
+                                                               int mutationBudget,
+                                                               Predicate<ChunkPos> chunkReady) {
+        if (this.orbitalAttackId == null) {
+            throw new IllegalStateException("A manual data nuke cannot use the orbital work scheduler");
+        }
+        if (!this.isActive()) {
+            throw new IllegalStateException("An orbital data nuke cannot start terrain work before its fuse activates");
+        }
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Orbital data nuke work requires a server level");
+        }
+        if (this.annihilationWork == null) {
+            this.annihilationWork = DigitalAnnihilationWork.create(
+                    this.origin,
+                    this.getUUID(),
+                    this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings());
+        }
+        DigitalAnnihilationWork.TickResult result = this.annihilationWork.tickBudgeted(
+                serverLevel,
+                mutationBudget,
+                chunkReady);
+        syncLegacyWorkFields();
+        consumeCenterEntities(serverLevel, this.annihilationWork.centerEntityConsumeRadius());
+        if (this.annihilationWork.expansionRadius() > 0) {
+            consumeExpandedEntities(serverLevel, this.annihilationWork.expansionRadius());
+        }
+        return result;
+    }
+
+    /** Returns the persisted block cursor owned by the active orbital work. */
+    public long orbitalWorkCursor() {
+        if (this.annihilationWork == null) {
+            return 0L;
+        }
+        return this.annihilationWork.blockCursor();
+    }
+
+    /** Returns the stable work failure reported by an active orbital payload, if present. */
+    @Nullable
+    public String orbitalWorkFailure() {
+        return this.annihilationWork == null ? null : this.annihilationWork.failure();
     }
 
     private int consumeCenterEntities(Level level, double radius) {

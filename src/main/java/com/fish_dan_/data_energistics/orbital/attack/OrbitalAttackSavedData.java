@@ -478,6 +478,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || !current.payloadArrived() || !nukeEntityId.equals(current.payloadEntityId())) {
             return false;
         }
+        this.terrainWorkScheduler.release(server, attackId);
         releaseDigitalRecoveryTicket(server, attackId);
         replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
         setDirty();
@@ -582,8 +583,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         this.terrainWorkScheduler.beginTick(server, settings);
         Set<UUID> liveTerrainAttacks = this.attacks.values().stream()
-                .filter(attack -> attack.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION)
                 .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
+                .filter(attack -> hasActiveTerrainWork(server, attack))
                 .map(OrbitalAttackRecord::attackId)
                 .collect(Collectors.toUnmodifiableSet());
         this.terrainWorkScheduler.releaseMissing(server, liveTerrainAttacks);
@@ -814,6 +815,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (current.payloadArrived()) {
             if (payload instanceof DataNukePrimedEntity nuke && current.attackId().equals(nuke.orbitalAttackId())) {
                 releaseDigitalRecoveryTicket(server, current.attackId());
+                if (nuke.isActive()) {
+                    tickDigitalAnnihilationWork(server, level, current, nuke);
+                }
                 return;
             }
             if (payload != null) {
@@ -899,6 +903,64 @@ public final class OrbitalAttackSavedData extends SavedData {
         this.attacks.put(current.attackId(), current.markDigitalPayloadArrived(nuke.getUUID()));
         releaseDigitalRecoveryTicket(server, current.attackId());
         setDirty();
+    }
+
+    /** Advances one active orbital fuse through the shared chunk and mutation governor. */
+    private void tickDigitalAnnihilationWork(
+                                             MinecraftServer server,
+                                             ServerLevel level,
+                                             OrbitalAttackRecord current,
+                                             DataNukePrimedEntity nuke) {
+        try {
+            int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
+            DigitalAnnihilationWork.TickResult result = nuke.tickOrbitalWork(
+                    mutationBudget,
+                    chunk -> this.terrainWorkScheduler.prepareChunk(level, current.attackId(), chunk) == ChunkReadiness.READY);
+            if (mutationBudget > 0) {
+                this.terrainWorkScheduler.settleMutationBudget(
+                        current.attackId(),
+                        mutationBudget,
+                        result.visitedBlocks());
+            }
+            ChunkReadiness readiness = this.terrainWorkScheduler.lastReadiness(current.attackId());
+            if (result.state() == DigitalAnnihilationWork.State.FAULTED || readiness == ChunkReadiness.FAULTED) {
+                String reason = nuke.orbitalWorkFailure();
+                nuke.discard();
+                markDigitalPayloadFaulted(server, current.attackId(), reason == null ? "work fault" : reason);
+                return;
+            }
+            if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
+                markDigitalPayloadCompleted(server, current.attackId(), nuke.getUUID());
+                nuke.discard();
+                return;
+            }
+
+            OrbitalAttackWorkState workState = switch (result.state()) {
+                case WAITING -> OrbitalAttackWorkState.WORKING;
+                case WAITING_FOR_CHUNK -> persistedWorkState(readiness);
+                case WORKING, SHELL_COMPLETED -> mutationBudget == 0
+                        ? OrbitalAttackWorkState.WAITING_FOR_BUDGET
+                        : OrbitalAttackWorkState.WORKING;
+                case FINISHED, FAULTED -> throw new IllegalStateException("Digital work state was handled before persistence");
+            };
+            updateAttack(
+                    server,
+                    current,
+                    current.withWork(nuke.orbitalWorkCursor(), workState));
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Orbital attack {} failed during digital annihilation at {}",
+                    current.attackId(),
+                    current.target(),
+                    exception);
+            nuke.discard();
+            markDigitalPayloadFaulted(
+                    server,
+                    current.attackId(),
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        } finally {
+            this.terrainWorkScheduler.endTaskTick(server, current.attackId());
+        }
     }
 
     private boolean reconcileLoadedDigitalProjectile(
@@ -1173,6 +1235,24 @@ public final class OrbitalAttackSavedData extends SavedData {
     private boolean hasAttackForMode(UUID weaponId, OrbitalAttackMode mode) {
         return this.attacks.values().stream()
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
+    }
+
+    private static boolean hasActiveTerrainWork(MinecraftServer server, OrbitalAttackRecord attack) {
+        if (attack.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION) {
+            return true;
+        }
+        UUID payloadEntityId = attack.payloadEntityId();
+        if (!attack.payloadArrived() || payloadEntityId == null) {
+            return false;
+        }
+        ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, attack.dimensionId()));
+        if (level == null) {
+            return false;
+        }
+        Entity payload = level.getEntity(payloadEntityId);
+        return payload instanceof DataNukePrimedEntity nuke
+                && attack.attackId().equals(nuke.orbitalAttackId())
+                && nuke.isActive();
     }
 
     private boolean hasAttackCapacity(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {

@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 
 /**
  * Resumable, server-thread block work for one digital-annihilation fuse.
@@ -205,6 +206,24 @@ public final class DigitalAnnihilationWork {
 
     /** Advances the shell work on the server thread and reports the boundary reached this tick. */
     public TickResult tick(ServerLevel level) {
+        return tick(level, BLOCKS_PER_TICK, null);
+    }
+
+    /**
+     * Advances orbital work with a caller-owned mutation allowance and asynchronous chunk gate. The caller retains
+     * responsibility for settling the returned visited-block count and for releasing its scheduler tickets.
+     */
+    public TickResult tickBudgeted(ServerLevel level, int blockBudget, Predicate<ChunkPos> chunkReady) {
+        if (blockBudget < 0) {
+            throw new IllegalArgumentException("Digital annihilation block budget must not be negative");
+        }
+        return tick(level, blockBudget, chunkReady);
+    }
+
+    private TickResult tick(
+                            ServerLevel level,
+                            int blockBudget,
+                            @Nullable Predicate<ChunkPos> chunkReady) {
         ensureServerThread(level);
         if (this.failure != null) {
             return new TickResult(State.FAULTED, 0, 0);
@@ -223,7 +242,7 @@ public final class DigitalAnnihilationWork {
             this.workTicks = 0;
             beginShell(level);
         }
-        return processShell(level);
+        return processShell(level, blockBudget, chunkReady);
     }
 
     /** Releases all work tickets and prevents a late future callback from resurrecting the work. */
@@ -289,11 +308,14 @@ public final class DigitalAnnihilationWork {
         }
     }
 
-    private TickResult processShell(ServerLevel level) {
+    private TickResult processShell(
+                                    ServerLevel level,
+                                    int blockBudget,
+                                    @Nullable Predicate<ChunkPos> chunkReady) {
         int visited = 0;
         int changed = 0;
-        while (visited < BLOCKS_PER_TICK) {
-            if (this.pendingChunk != null) {
+        while (visited < blockBudget) {
+            if (chunkReady == null && this.pendingChunk != null) {
                 if (!this.pendingChunkReady) {
                     return new TickResult(State.WAITING_FOR_CHUNK, visited, changed);
                 }
@@ -317,16 +339,25 @@ public final class DigitalAnnihilationWork {
             }
 
             ChunkPos current = new ChunkPos(this.currentChunkX, this.currentChunkZ);
-            LevelChunk chunk = level.getChunkSource().getChunkNow(this.currentChunkX, this.currentChunkZ);
-            if (chunk == null) {
-                requestChunk(level, current);
+            if (chunkReady != null && !chunkReady.test(current)) {
                 return new TickResult(State.WAITING_FOR_CHUNK, visited, changed);
             }
-            holdTicket(level, current);
+            LevelChunk chunk = level.getChunkSource().getChunkNow(this.currentChunkX, this.currentChunkZ);
+            if (chunk == null) {
+                if (chunkReady == null) {
+                    requestChunk(level, current);
+                }
+                return new TickResult(State.WAITING_FOR_CHUNK, visited, changed);
+            }
+            if (chunkReady == null) {
+                holdTicket(level, current);
+            }
 
             long candidateCount = bounds.candidateCount();
             if (this.blockCursor >= candidateCount) {
-                releaseTicket(level, current);
+                if (chunkReady == null) {
+                    releaseTicket(level, current);
+                }
                 if (advanceChunk(level)) {
                     return shellCompleted(visited, changed);
                 }
