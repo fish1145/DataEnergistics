@@ -36,6 +36,8 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
+import appeng.api.AECapabilities;
+import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
@@ -47,6 +49,8 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeInventory;
@@ -132,6 +136,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
+    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private int progress;
     private MachineMode processingMode = MachineMode.NONE;
@@ -1001,11 +1006,11 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean tryAutoExport() {
-        return exportItemOutputs(getAdjacentItemHandlers(this.outputSides));
+        return exportItemOutputs(this.outputSides);
     }
 
-    private boolean exportItemOutputs(List<IItemHandler> targets) {
-        if (targets.isEmpty()) {
+    private boolean exportItemOutputs(Set<Direction> sides) {
+        if (sides.isEmpty() || !initializeAdjacentCapabilityCaches()) {
             return false;
         }
         boolean changed = false;
@@ -1014,13 +1019,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             if (current.isEmpty()) {
                 continue;
             }
-            ItemStack remaining = current.copy();
-            for (IItemHandler target : targets) {
-                remaining = ItemHandlerHelper.insertItem(target, remaining, false);
-                if (remaining.isEmpty()) {
-                    break;
-                }
-            }
+            ItemStack remaining = insertIntoAdjacentTargets(current, sides);
             if (!ItemStack.matches(current, remaining)) {
                 this.storage.setItemDirect(slot, remaining);
                 changed = true;
@@ -1029,8 +1028,129 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return changed;
     }
 
-    private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
-        return initializeAdjacentCapabilityCaches() ? this.adjacentItemHandlers.getAll(outputSides) : List.of();
+    /**
+     * Routes one output stack to each enabled side, preferring AE's generic inventory contract when available.
+     *
+     * <p>
+     * AE interfaces and pattern providers expose both a generic inventory and an item-handler adapter. The adapter
+     * has to represent a partially accepted generic stack as a wrapped item stack, so using it for an AE target can
+     * leak that implementation detail into the machine's output slot. A generic insertion keeps the key and amount
+     * separate and therefore preserves the actual output resource.
+     * </p>
+     */
+    private ItemStack insertIntoAdjacentTargets(ItemStack stack, Set<Direction> sides) {
+        ItemStack remaining = stack.copy();
+        for (Direction side : sides) {
+            if (remaining.isEmpty()) {
+                break;
+            }
+
+            GenericStack genericStack = GenericStack.fromItemStack(remaining);
+            GenericInternalInventory genericInventory = this.adjacentGenericInventories.get(side);
+            if (genericInventory != null && genericStack != null &&
+                    genericInventory.isSupportedType(genericStack.what())) {
+                long originalAmount = genericStack.amount();
+                long inserted = insertIntoGenericInventory(genericInventory, genericStack.what(), originalAmount);
+                if (inserted > 0L) {
+                    remaining = copyWithGenericAmount(remaining, genericStack.what(), originalAmount - inserted);
+                }
+                // Do not fall through to this side's item-handler adapter. It may be the same inventory and would
+                // turn a legitimate partial generic remainder into a Wrapped Generic Stack.
+                continue;
+            }
+
+            IItemHandler itemHandler = this.adjacentItemHandlers.get(side);
+            if (itemHandler != null) {
+                remaining = insertIntoItemHandler(itemHandler, remaining);
+            }
+        }
+        return remaining;
+    }
+
+    private static long insertIntoGenericInventory(GenericInternalInventory inventory, AEKey what, long amount) {
+        if (amount <= 0L || !inventory.canInsert() || !inventory.isSupportedType(what)) {
+            return 0L;
+        }
+
+        long remaining = amount;
+        inventory.beginBatch();
+        try {
+            for (int slot = 0; slot < inventory.size() && remaining > 0L; slot++) {
+                if (!inventory.isAllowedIn(slot, what)) {
+                    continue;
+                }
+
+                long inserted = inventory.insert(slot, what, remaining, Actionable.MODULATE);
+                if (inserted < 0L || inserted > remaining) {
+                    throw new IllegalStateException("Adjacent generic inventory returned an invalid insertion amount");
+                }
+                remaining -= inserted;
+            }
+        } finally {
+            inventory.endBatch();
+        }
+        return amount - remaining;
+    }
+
+    /**
+     * Applies the item-handler contract in legal item-stack-sized chunks. Machine output slots intentionally support
+     * parallel results above an item's normal max stack size, while external item handlers are not required to accept
+     * such over-sized stacks in one call.
+     */
+    private static ItemStack insertIntoItemHandler(IItemHandler handler, ItemStack stack) {
+        GenericStack genericStack = GenericStack.fromItemStack(stack);
+        if (genericStack == null || genericStack.amount() <= 0L) {
+            return stack;
+        }
+
+        long remainingAmount = genericStack.amount();
+        long chunkSize = Math.max(1L, stack.getMaxStackSize());
+        while (remainingAmount > 0L) {
+            int requested = (int) Math.min(remainingAmount, Math.min(chunkSize, Integer.MAX_VALUE));
+            ItemStack request = copyWithGenericAmount(stack, genericStack.what(), requested);
+            ItemStack remainder = ItemHandlerHelper.insertItem(handler, request, false);
+            long returnedAmount = getReturnedAmount(remainder, genericStack.what());
+            if (returnedAmount < 0L || returnedAmount > requested) {
+                break;
+            }
+
+            long inserted = requested - returnedAmount;
+            if (inserted <= 0L) {
+                break;
+            }
+            remainingAmount -= inserted;
+        }
+
+        return copyWithGenericAmount(stack, genericStack.what(), remainingAmount);
+    }
+
+    private static long getReturnedAmount(ItemStack remainder, AEKey expectedKey) {
+        if (remainder.isEmpty()) {
+            return 0L;
+        }
+
+        GenericStack returned = GenericStack.fromItemStack(remainder);
+        if (returned == null || !expectedKey.equals(returned.what()) || returned.amount() < 0L) {
+            return -1L;
+        }
+        return returned.amount();
+    }
+
+    private static ItemStack copyWithGenericAmount(ItemStack original, AEKey what, long amount) {
+        if (amount <= 0L) {
+            return ItemStack.EMPTY;
+        }
+        if (amount > Integer.MAX_VALUE && !GenericStack.isWrapped(original)) {
+            throw new IllegalArgumentException("Item output amount exceeds the ItemStack integer range");
+        }
+
+        if (GenericStack.isWrapped(original)) {
+            return GenericStack.wrapInItemStack(what, amount);
+        }
+        if (what instanceof AEItemKey itemKey) {
+            return itemKey.toStack((int) amount);
+        }
+        return original.copyWithCount((int) amount);
     }
 
     private boolean initializeAdjacentCapabilityCaches() {
@@ -1040,6 +1160,8 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return false;
         }
+        this.adjacentGenericInventories = new AdjacentBlockCapabilityCache<>(
+                AECapabilities.GENERIC_INTERNAL_INV, serverLevel, this.worldPosition, () -> !this.isRemoved());
         this.adjacentItemHandlers = new AdjacentBlockCapabilityCache<>(
                 Capabilities.ItemHandler.BLOCK, serverLevel, this.worldPosition, () -> !this.isRemoved());
         return true;
