@@ -261,7 +261,7 @@ public final class OrbitalKineticAttackGameTest {
         long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
         long requiredAeEnergy = Math.max(
                 Math.multiplyExact(cost.aeEnergy(), 2L),
-                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold()));
+                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
             if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
@@ -277,7 +277,7 @@ public final class OrbitalKineticAttackGameTest {
                                                 OrbitalAttackCost cost) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), 2L),
-                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()));
+                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold));
     }
 
     private static long deploymentTarget(long capacity, double threshold) {

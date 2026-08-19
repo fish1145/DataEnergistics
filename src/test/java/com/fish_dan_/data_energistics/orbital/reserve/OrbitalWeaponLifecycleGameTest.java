@@ -63,7 +63,7 @@ public final class OrbitalWeaponLifecycleGameTest {
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         long deploymentCelestialEnergy = deploymentTarget(
                 settings.celestialEnergyCapacity(),
-                settings.deploymentThreshold());
+                settings.deploymentThreshold);
 
         helper.startSequence()
                 .thenIdle(40)
@@ -134,7 +134,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                                     maintained.reserve().aeEnergy()),
                             "The deployed reserve transaction must be able to consume the final stored units");
                     OrbitalWeaponRecord grace = weapons.find(weaponId).orElseThrow();
-                    OrbitalWeaponLifecycleState expectedGraceState = settings.reserveGraceTicks() == 0 ? OrbitalWeaponLifecycleState.DORMANT : OrbitalWeaponLifecycleState.RESERVE_GRACE;
+                    OrbitalWeaponLifecycleState expectedGraceState = settings.reserveGraceTicks == 0 ? OrbitalWeaponLifecycleState.DORMANT : OrbitalWeaponLifecycleState.RESERVE_GRACE;
                     helper.assertValueEqual(
                             grace.lifecycle().state(),
                             expectedGraceState,
@@ -143,7 +143,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                             weapons.tryDebitReserve(server, weaponId, owner.getUUID(), 1L, 1L),
                             "Reserve grace must reject every new attack debit");
 
-                    for (int tick = 0; tick < settings.reserveGraceTicks(); tick++) {
+                    for (int tick = 0; tick < settings.reserveGraceTicks; tick++) {
                         weapons.chargeReserves(server);
                     }
                     helper.assertValueEqual(
@@ -174,10 +174,10 @@ public final class OrbitalWeaponLifecycleGameTest {
                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         long requiredCalls = Math.max(
                 ceilingDivision(
-                        deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold()),
+                        deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold),
                         settings.celestialEnergyChargePerTick()),
                 ceilingDivision(
-                        deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold()),
+                        deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold),
                         settings.aeEnergyChargePerTick()));
         if (requiredCalls > Integer.MAX_VALUE - 2L) {
             throw new IllegalStateException("The configured deployment threshold is too slow for this GameTest");
