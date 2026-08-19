@@ -1,0 +1,13 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["AA ", "AA ", "   "],
+	"key": {
+		"A": {
+			"tag": "c:gems/resonance_crystal"
+		}
+	},
+	"result": {
+		"id": "data_energistics:resonance_crystal_block",
+		"count": 1
+	}
+}

@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDE", "FBF"],
+	"key": {
+		"A": {
+			"item": "data_energistics:digisidian_memorize_ingot"
+		},
+		"B": {
+			"item": "data_energistics:complexified_biochips"
+		},
+		"C": {
+			"item": "ae2:controller"
+		},
+		"D": {
+			"item": "data_energistics:data_reassembler"
+		},
+		"E": {
+			"item": "data_energistics:data_storage_component_64m"
+		},
+		"F": {
+			"item": "ae2:spatial_pylon"
+		}
+	},
+	"result": {
+		"id": "data_energistics:trinity_data_core",
+		"count": 1
+	}
+}

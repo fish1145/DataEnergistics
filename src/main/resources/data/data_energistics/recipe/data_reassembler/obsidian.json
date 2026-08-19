@@ -1,0 +1,29 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"fluids": [
+			{
+				"fluid": "minecraft:water",
+				"amount": 500
+			},
+			{
+				"fluid": "minecraft:lava",
+				"amount": 2000
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "minecraft:obsidian",
+				"count": 4
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:lava",
+				"amount": 250
+			}
+		]
+	}
+}

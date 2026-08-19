@@ -65,7 +65,7 @@
 
 - UI重做 by @QiuYe-123 in [#185](https://github.com/fish1145/DataEnergistics/pull/185)
 
- 
+
 ## Version [v3.0.3](https://github.com/fish1145/DataEnergistics/compare/v3.0.2-1.21...v3.0.3-1.21)
 ### Added
 

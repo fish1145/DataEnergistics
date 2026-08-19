@@ -1,0 +1,56 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "minecraft:cherry_leaves",
+				"count": 34
+			},
+			{
+				"item": "minecraft:oak_leaves",
+				"count": 34
+			},
+			{
+				"item": "minecraft:spruce_leaves",
+				"count": 34
+			},
+			{
+				"item": "minecraft:birch_leaves",
+				"count": 34
+			},
+			{
+				"item": "minecraft:mangrove_leaves",
+				"count": 34
+			},
+			{
+				"item": "minecraft:flowering_azalea_leaves",
+				"count": 34
+			},
+			{
+				"item": "data_energistics:mob_data_carrier"
+			},
+			{
+				"tag": "c:ingots/digisidian_memorize",
+				"count": 14
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "minecraft:water",
+				"amount": 1000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1800
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:qiuyeqaq2024"
+			}
+		]
+	}
+}

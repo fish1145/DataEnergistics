@@ -1,0 +1,8 @@
+{
+	"replace": false,
+	"values": [
+		"data_energistics:amethyst_tuning_fork_wave",
+		"data_energistics:data_tuning_fork_wave",
+		"data_energistics:resonance_tuning_fork_wave"
+	]
+}

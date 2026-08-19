@@ -1,0 +1,38 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "c:dusts/data_dust",
+				"count": 8
+			},
+			{
+				"item": "ae2:ender_dust",
+				"count": 2
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 250
+			},
+			{
+				"fluid": "minecraft:water",
+				"amount": 1000
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 1451
+		}
+	},
+	"outputs": {
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 750
+			}
+		]
+	}
+}

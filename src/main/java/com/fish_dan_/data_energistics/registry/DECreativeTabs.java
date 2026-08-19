@@ -71,6 +71,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE);
                         output.accept(DEItems.DATA_CHARGER);
                         output.accept(DEItems.EXTENDED_DATA_CHARGER);
+                        output.accept(DEItems.DATA_INTEGRATED_CHARGER);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_PART);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_UPGRADE);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER);
@@ -83,6 +84,17 @@ public final class DECreativeTabs {
                         output.accept(DEItems.ENDER_COHESION_METEORITE_2);
                         output.accept(DEItems.DATA_METEORITE_COMPASS);
                         output.accept(DEItems.DATA_CRYSTAL_BLOCK);
+                        output.accept(DEItems.TUNING_FORK_BASE);
+                        output.accept(DEItems.RESONANCE_DIGITALIZATION_CORE);
+                        output.accept(DEItems.AMETHYST_TUNING_FORK);
+                        output.accept(DEItems.DATA_TUNING_FORK);
+                        output.accept(DEItems.RESONANCE_TUNING_FORK);
+                        output.accept(DEItems.RESONANCE_CRYSTAL_BLOCK);
+                        output.accept(DEItems.SMALL_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.MEDIUM_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.LARGE_RESONANCE_CRYSTAL_BUD);
+                        output.accept(DEItems.RESONANCE_CRYSTAL_CLUSTER);
+                        output.accept(DEItems.RESONANCE_CRYSTAL);
                         output.accept(DEItems.DIGITAL_STORAGE_DEPOT);
                         output.accept(DEItems.BUDDING_DATA_CRYSTAL_0);
                         output.accept(DEItems.BUDDING_DATA_CRYSTAL_1);
@@ -124,6 +136,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(DEItems.DATA_CIRCUIT_BOARD);
                         output.accept(DEItems.DATA_PROCESSOR);
+                        output.accept(DEItems.COMPLEXIFIED_BIOCHIPS);
                         output.accept(DEItems.DIGISIDIAN_MEMORIZE_INGOT);
                         output.accept(RadixContainmentSphereItem.createChargedStack());
                         output.accept(DEItems.MATTER_CONVERGING_CROSSBOW);

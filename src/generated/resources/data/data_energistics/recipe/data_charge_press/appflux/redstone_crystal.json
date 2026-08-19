@@ -1,0 +1,20 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "appflux"
+    }
+  ],
+  "type": "data_energistics:data_charge_press",
+  "inputs": [
+    {
+      "tag": "c:gems/redstone",
+      "count": 16
+    }
+  ],
+  "fluid_amount": 250,
+  "result": {
+    "id": "appflux:charged_redstone",
+    "count": 20
+  }
+}

@@ -78,7 +78,7 @@ public abstract class TypedOutputSideScreen<C extends AEBaseMenu, P extends AEBa
         }
 
         for (RelativeSide relative : RelativeSide.values()) {
-            Direction side = host.getOrientation().getSide(relative);
+            Direction side = host.getOrientation().getSide(getGuiRelativeSide(relative));
             this.widgets.add(relative.name().toLowerCase(Locale.ROOT), this.buttons.get(side));
         }
 
@@ -110,6 +110,15 @@ public abstract class TypedOutputSideScreen<C extends AEBaseMenu, P extends AEBa
         for (Direction side : Direction.values()) {
             this.setter.set(this.selectedContentType, side, false);
         }
+    }
+
+    /** The side-selection screen is viewed from the machine front, opposite AE2's horizontal relative-side view. */
+    private static RelativeSide getGuiRelativeSide(RelativeSide relative) {
+        return switch (relative) {
+            case LEFT -> RelativeSide.RIGHT;
+            case RIGHT -> RelativeSide.LEFT;
+            default -> relative;
+        };
     }
 
     private static ItemLike getDisplayIcon(AEBaseBlockEntity host, Level level, Direction side) {

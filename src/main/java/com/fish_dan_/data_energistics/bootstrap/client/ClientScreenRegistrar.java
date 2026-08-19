@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataExtractorScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.DataIntegratedChargerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperScreen;
@@ -39,6 +40,8 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, DEMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, DEMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
         InitScreens.register(event, DEMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
+        InitScreens.register(event, DEMenus.DATA_INTEGRATED_CHARGER.get(), DataIntegratedChargerScreen::new,
+                "/screens/data_integrated_charger.json");
         event.register(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), TrinityInformationExchangeDepotScreen::new);
         event.register(DEMenus.TRINITY_DATA_CORE.get(), TrinityDataCoreScreen::new);
         InitScreens.register(event, DEMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");

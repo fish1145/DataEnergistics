@@ -1,0 +1,46 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_crystal_sword"
+			},
+			{
+				"item": "minecraft:end_rod",
+				"count": 4
+			},
+			{
+				"item": "data_energistics:data_crystal_cluster",
+				"count": 16
+			},
+			{
+				"item": "ae2:annihilation_core",
+				"count": 4
+			},
+			{
+				"item": "ae2:quartz_fiber",
+				"count": 4
+			},
+			{
+				"tag": "c:ingots/digisidian_memorize",
+				"count": 8
+			},
+			{
+				"item": "ae2:light_p2p_tunnel"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 1200
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_light_saber"
+			}
+		]
+	}
+}

@@ -1,0 +1,7 @@
+{
+	"parent": "data_energistics:block/fish_dan_0",
+	"textures": {
+		"1": "data_energistics:block/fufu/fish_dan_5",
+		"particle": "data_energistics:block/fufu/fish_dan_5"
+	}
+}

@@ -30,7 +30,7 @@ import java.util.EnumMap;
 public class DollBlock extends Block implements EntityBlock {
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
-    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 4);
+    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 5);
     private static final VoxelShape SHAPE = Block.box(3.3428D, 0.0D, 4.40219D, 12.6572D, 13.5D, 14.7D);
     private static final EnumMap<Direction, VoxelShape> SHAPES = createHorizontalFacingShapes(SHAPE);
     private final boolean hasVariants;

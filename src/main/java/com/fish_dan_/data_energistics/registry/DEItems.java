@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.block.TuningForkBlock;
+import com.fish_dan_.data_energistics.item.TuningForkBlockItem;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.cell.DataStorageComponentItem;
@@ -42,6 +44,7 @@ import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.SimpleTier;
+import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -103,6 +106,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SANCTUM_INTERFACE);
     public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);
     public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_DATA_CHARGER);
+    public static final DeferredItem<BlockItem> DATA_INTEGRATED_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_INTEGRATED_CHARGER);
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));
@@ -124,6 +128,21 @@ public final class DEItems {
             "data_meteorite_compass",
             () -> new DataMeteoriteCompassItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> TUNING_FORK_BASE = ITEMS.registerSimpleBlockItem(DEBlocks.TUNING_FORK_BASE);
+    public static final DeferredItem<TuningForkBlockItem> AMETHYST_TUNING_FORK = registerTuningFork(
+            "amethyst_tuning_fork",
+            DEBlocks.AMETHYST_TUNING_FORK);
+    public static final DeferredItem<TuningForkBlockItem> DATA_TUNING_FORK = registerTuningFork(
+            "data_tuning_fork",
+            DEBlocks.DATA_TUNING_FORK);
+    public static final DeferredItem<TuningForkBlockItem> RESONANCE_TUNING_FORK = registerTuningFork(
+            "resonance_tuning_fork",
+            DEBlocks.RESONANCE_TUNING_FORK);
+    public static final DeferredItem<BlockItem> RESONANCE_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(DEBlocks.RESONANCE_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> SMALL_RESONANCE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.SMALL_RESONANCE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> MEDIUM_RESONANCE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.MEDIUM_RESONANCE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> LARGE_RESONANCE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(DEBlocks.LARGE_RESONANCE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> RESONANCE_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(DEBlocks.RESONANCE_CRYSTAL_CLUSTER);
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
             () -> new DigitalStorageDepotBlockItem(DEBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
@@ -175,6 +194,10 @@ public final class DEItems {
             "universal_terminal",
             () -> new UniversalTerminalPartItem(new Item.Properties()));
     public static final DeferredItem<Item> DATA_CRYSTAL = ITEMS.registerSimpleItem("data_crystal");
+    public static final DeferredItem<Item> RESONANCE_CRYSTAL = ITEMS.registerSimpleItem("resonance_crystal");
+    public static final DeferredItem<Item> RESONANCE_DIGITALIZATION_CORE = ITEMS.register(
+            "resonance_digitalization_core",
+            () -> new Item(new Item.Properties().stacksTo(16)));
     public static final DeferredItem<PoweredSwordItem> DATA_CRYSTAL_SWORD = ITEMS.register(
             "data_crystal_sword",
             () -> new PoweredSwordItem(DATA_CRYSTAL_SWORD_TIER,
@@ -240,6 +263,7 @@ public final class DEItems {
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
     public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
     public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");
+    public static final DeferredItem<Item> COMPLEXIFIED_BIOCHIPS = ITEMS.registerSimpleItem("complexified_biochips");
     public static final DeferredItem<Item> DIGISIDIAN_MEMORIZE_INGOT = ITEMS.registerSimpleItem("digisidian_memorize_ingot");
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1K = ITEMS.register(
             "data_storage_component_1k",
@@ -309,6 +333,14 @@ public final class DEItems {
 
     private static DeferredItem<DigitalStorageCellItem> registerDigitalStorageCell(String id, double idleDrain, int bytes) {
         return ITEMS.register(id, () -> new DigitalStorageCellItem(new Item.Properties(), idleDrain, bytes));
+    }
+
+    private static DeferredItem<TuningForkBlockItem> registerTuningFork(
+                                                                        String id,
+                                                                        DeferredBlock<TuningForkBlock> block) {
+        return ITEMS.register(
+                id,
+                () -> new TuningForkBlockItem(block.get(), new Item.Properties().durability(block.get().getVariant().durability())));
     }
 
     private static DeferredItem<PortableDigitalStorageCellItem> registerPortableDigitalStorageCell(String id, StorageTier tier, int color) {

@@ -7,17 +7,19 @@ import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataReso
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackSerializer;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.PatternEncodingGenericStackEmiProvider;
+import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargePressEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargerEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataRipperReassemblerEmiRecipe;
-import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.RadixContainmentSphereEmiCondenserRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.RadixContainmentSphereRightClickEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.TimeShiftEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.TrinityMultiblockEmiRecipe;
+import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.condenser.CondenserOutputEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiMultiblockPatternTransferHandler;
 import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.OrderPackageEmiDragDropHandler;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.UniversalTerminalEmiExclusionArea;
 import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
+import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderRecipeTypeNames;
@@ -37,6 +39,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import appeng.api.integrations.emi.EmiStackConverters;
+import appeng.core.definitions.AEBlocks;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
@@ -126,6 +129,12 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                 .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
+        registry.addCategory(CondenserOutputEmiRecipe.CATEGORY);
+        registry.addWorkstation(CondenserOutputEmiRecipe.CATEGORY, EmiStack.of(AEBlocks.CONDENSER.asItem()));
+        registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
+                .getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
+                .map(CondenserOutputEmiRecipe::new)
+                .forEach(consumer));
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
         registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
@@ -139,6 +148,13 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()),
                 DataChargerEmiRecipe::new,
                 registry.getRecipeManager().getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()));
+        registry.addCategory(DataChargePressEmiRecipe.CATEGORY);
+        registry.addWorkstation(
+                DataChargePressEmiRecipe.CATEGORY,
+                EmiStack.of(DEBlocks.DATA_INTEGRATED_CHARGER.get()));
+        DataChargePressRecipeView.fromRecipeManager(registry.getRecipeManager()).stream()
+                .map(DataChargePressEmiRecipe::new)
+                .forEach(registry::addRecipe);
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
@@ -153,7 +169,6 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                                 "jei.data_energistics.data_reassembler.crafting_requirement",
                                 RadixContainmentSphereCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
                 null));
-        registry.addRecipe(new RadixContainmentSphereEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
                 DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),

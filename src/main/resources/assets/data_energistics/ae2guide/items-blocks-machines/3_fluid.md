@@ -24,7 +24,7 @@ When a living creature comes into contact with Ender Fluid, it will randomly tel
 
 <Row>
     <ItemImage id="data_energistics:ender_bucket" scale="3" />
-    <Recipe id="data_energistics:data_energistics/data_reassembler/ender" />
+    <Recipe id="data_energistics:data_reassembler/ender" />
 </Row>
 
 <GameScene zoom="6" background="transparent">

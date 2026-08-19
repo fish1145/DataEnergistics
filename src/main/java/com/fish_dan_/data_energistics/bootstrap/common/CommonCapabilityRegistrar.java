@@ -41,6 +41,10 @@ final class CommonCapabilityRegistrar {
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.TUNING_FORK_BASE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
@@ -51,6 +55,18 @@ final class CommonCapabilityRegistrar {
                 Capabilities.EnergyStorage.BLOCK,
                 DEBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
                 DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
