@@ -599,6 +599,13 @@ public final class OrbitalAttackSavedData extends SavedData {
         this.roundRobinOffset = (start + 1) % snapshot.size();
         for (int index = 0; index < snapshot.size(); index++) {
             OrbitalAttackRecord current = snapshot.get((start + index) % snapshot.size());
+            tickAttack(server, current);
+        }
+    }
+
+    /** Isolates one persisted attack so a failed worker cannot stop the remaining round-robin tasks. */
+    private void tickAttack(MinecraftServer server, OrbitalAttackRecord current) {
+        try {
             switch (current.phase()) {
                 case RESERVED_WARNING -> tickWarning(server, current);
                 case COMMITTED, DELIVERY -> tickDelivery(server, current);
@@ -608,6 +615,8 @@ public final class OrbitalAttackSavedData extends SavedData {
                     // A faulted attack is retained for administrator diagnostics and is never retried implicitly.
                 }
             }
+        } catch (RuntimeException exception) {
+            faultAfterWorkerException(server, current, exception);
         }
     }
 
@@ -936,17 +945,6 @@ public final class OrbitalAttackSavedData extends SavedData {
                     server,
                     current,
                     current.withWork(nuke.orbitalWorkCursor(), workState));
-        } catch (RuntimeException exception) {
-            LOGGER.error(
-                    "Orbital attack {} failed during digital annihilation at {}",
-                    current.attackId(),
-                    current.target(),
-                    exception);
-            nuke.discard();
-            markDigitalPayloadFaulted(
-                    server,
-                    current.attackId(),
-                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
         } finally {
             this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
@@ -1056,13 +1054,6 @@ public final class OrbitalAttackSavedData extends SavedData {
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
             updateAttack(server, current, updated);
-        } catch (RuntimeException exception) {
-            LOGGER.error(
-                    "Orbital attack {} failed during kinetic delivery at {}",
-                    current.attackId(),
-                    current.target(),
-                    exception);
-            fault(server, current, "Kinetic delivery failed");
         } finally {
             this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
@@ -1106,13 +1097,6 @@ public final class OrbitalAttackSavedData extends SavedData {
                 updated = updated.cooldown(current.cooldownDurationTicks());
             }
             updateAttack(server, current, updated);
-        } catch (RuntimeException exception) {
-            LOGGER.error(
-                    "Orbital attack {} failed during directed-energy delivery at {}",
-                    current.attackId(),
-                    current.target(),
-                    exception);
-            fault(server, current, "Directed-energy delivery failed");
         } finally {
             this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
@@ -1164,6 +1148,50 @@ public final class OrbitalAttackSavedData extends SavedData {
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
         replaceAttack(server, current, current.faulted(reason));
         setDirty();
+    }
+
+    private void faultAfterWorkerException(
+                                           MinecraftServer server,
+                                           OrbitalAttackRecord snapshot,
+                                           RuntimeException exception) {
+        OrbitalAttackRecord current = this.attacks.get(snapshot.attackId());
+        if (current == null) {
+            logWorkerException(snapshot, exception);
+            return;
+        }
+        try {
+            discardPayload(server, current);
+        } catch (RuntimeException cleanupException) {
+            exception.addSuppressed(cleanupException);
+        }
+        try {
+            this.terrainWorkScheduler.release(server, current.attackId());
+        } catch (RuntimeException cleanupException) {
+            exception.addSuppressed(cleanupException);
+        }
+        replaceAttack(server, current, current.faulted(workerFailureReason(exception)));
+        setDirty();
+        logWorkerException(current, exception);
+    }
+
+    private static void logWorkerException(OrbitalAttackRecord attack, RuntimeException exception) {
+        LOGGER.error(
+                "Orbital attack worker failed: weaponId={}, attackId={}, mode={}, dimension={}, target={}, cursor={}",
+                attack.weaponId(),
+                attack.attackId(),
+                attack.mode(),
+                attack.dimensionId(),
+                attack.target(),
+                attack.workCursor(),
+                exception);
+    }
+
+    private static String workerFailureReason(RuntimeException exception) {
+        String message = exception.getMessage();
+        String reason = message == null || message.isBlank()
+                ? exception.getClass().getSimpleName()
+                : exception.getClass().getSimpleName() + ": " + message.replace('\r', ' ').replace('\n', ' ');
+        return reason.length() <= MAX_FAULT_REASON_LENGTH ? reason : reason.substring(0, MAX_FAULT_REASON_LENGTH);
     }
 
     private boolean hasAttackForMode(UUID weaponId, OrbitalAttackMode mode) {
