@@ -159,6 +159,10 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return Optional.empty();
         }
+        DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
+        if (configuration.orbitalWeapon.isAttackModeDisabled(mode)) {
+            return Optional.empty();
+        }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
             try {
                 OrbitalDirectedEnergyStrike.validateRadius(directedRadius);
@@ -186,7 +190,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
-        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
+        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : configuration.explosives.dataNuke.maxRadius();
         if (!validTarget(targetLevel, target, boundaryRadius)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),
@@ -215,7 +219,6 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         try {
-            DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
             OrbitalAttackPreviewEstimate estimate = OrbitalAttackPreviewEstimate.capture(
                     configuration,
                     targetLevel,

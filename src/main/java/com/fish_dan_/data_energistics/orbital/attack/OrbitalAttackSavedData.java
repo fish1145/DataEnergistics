@@ -262,6 +262,11 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                            ResourceLocation dimensionId,
                                                            BlockPos target) {
         requireServerThread(server);
+        DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        if (settings.isAttackModeDisabled(OrbitalAttackMode.KINETIC)) {
+            return Optional.empty();
+        }
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
         if (foundWeapon.isEmpty()) {
@@ -272,7 +277,6 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
 
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -293,7 +297,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 dimensionId,
                 target,
                 new OrbitalAttackGeometry.Kinetic(),
-                DataEnergisticsConfiguration.INSTANCE.revision(),
+                configuration.revision(),
                 settings.attackWarningTicks(),
                 cost,
                 weapon.damageExemptionSnapshot());
@@ -322,6 +326,11 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                                   int radius,
                                                                   @Nullable OrbitalDirectedEnergyDepth depth) {
         requireServerThread(server);
+        DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        if (settings.isAttackModeDisabled(OrbitalAttackMode.DIRECTED_ENERGY)) {
+            return Optional.empty();
+        }
         if (depth == null) {
             return Optional.empty();
         }
@@ -334,7 +343,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
             return Optional.empty();
         }
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -369,7 +377,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 dimensionId,
                 target,
                 geometry,
-                DataEnergisticsConfiguration.INSTANCE.revision(),
+                configuration.revision(),
                 settings.attackWarningTicks(),
                 cost,
                 weapon.damageExemptionSnapshot());
@@ -397,6 +405,11 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                                        ResourceLocation dimensionId,
                                                                        BlockPos target) {
         requireServerThread(server);
+        DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        if (settings.isAttackModeDisabled(OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
+            return Optional.empty();
+        }
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
         if (foundWeapon.isEmpty()) {
@@ -406,8 +419,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
             return Optional.empty();
         }
-        DataEnergisticsConfiguration.DataNukeSchema dataNuke = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.DataNukeSchema dataNuke = configuration.explosives.dataNuke;
         if (!hasAttackCapacity(settings)) {
             return Optional.empty();
         }
@@ -430,7 +442,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                         dataNuke.workIntervalTicks(),
                         dataNuke.maxRadius(),
                         dataNuke.centerEntityConsumeRadius()),
-                DataEnergisticsConfiguration.INSTANCE.revision(),
+                configuration.revision(),
                 settings.attackWarningTicks(),
                 cost,
                 weapon.damageExemptionSnapshot());

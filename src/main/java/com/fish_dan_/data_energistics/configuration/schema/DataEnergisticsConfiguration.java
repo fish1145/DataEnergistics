@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.configuration.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -109,6 +110,9 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.maxAttackBlockMutationsPerTaskTick,
                 weaponSettings.maxAttackBlockMutationsGlobalTick,
                 weaponSettings.maxCommittedAttackTasks,
+                weaponSettings.kineticAttackEnabled,
+                weaponSettings.directedEnergyAttackEnabled,
+                weaponSettings.digitalAnnihilationAttackEnabled,
                 weaponSettings.kineticCelestialEnergyCost,
                 weaponSettings.kineticAeEnergyCost,
                 weaponSettings.attackWarningTicks,
@@ -784,6 +788,18 @@ public final class DataEnergisticsConfiguration {
         public int maxCommittedAttackTasks = 32;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new kinetic attack confirmations. Existing attacks continue.", "允许确认新的动能攻击。已开始的攻击继续执行。" })
+        public boolean kineticAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new directed-energy attack confirmations. Existing attacks continue.", "允许确认新的定向能攻击。已开始的攻击继续执行。" })
+        public boolean directedEnergyAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new digital-annihilation attack confirmations. Existing attacks continue.", "允许确认新的数位湮灭攻击。已开始的攻击继续执行。" })
+        public boolean digitalAnnihilationAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long kineticCelestialEnergyCost = 5_000_000L;
@@ -922,6 +938,15 @@ public final class DataEnergisticsConfiguration {
 
         public int maxCommittedAttackTasks() {
             return this.maxCommittedAttackTasks;
+        }
+
+        /** Returns whether the server currently rejects new confirmations for the requested attack mode. */
+        public boolean isAttackModeDisabled(OrbitalAttackMode mode) {
+            return switch (mode) {
+                case KINETIC -> !this.kineticAttackEnabled;
+                case DIRECTED_ENERGY -> !this.directedEnergyAttackEnabled;
+                case DIGITAL_ANNIHILATION -> !this.digitalAnnihilationAttackEnabled;
+            };
         }
 
         public long kineticCelestialEnergyCost() {
