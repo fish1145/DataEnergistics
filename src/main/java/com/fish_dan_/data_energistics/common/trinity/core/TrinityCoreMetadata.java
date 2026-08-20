@@ -13,21 +13,33 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final long byteCapacity;
     /** Pattern count contributed by pattern processing cores. */
     private final int patternCapacity;
+    /** Whether this metadata may satisfy storage, parallel-CPU, and pattern-processing predicates. */
+    private final boolean universal;
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
         this(
                 kind,
                 kind == TrinityCoreKind.PARALLEL_CPU ? 0 : capacityValue,
                 Math.multiplyExact(capacityValue, 524_288L),
-                patternCapacity);
+                patternCapacity,
+                false);
     }
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, long byteCapacity, int patternCapacity) {
+        this(kind, capacityValue, byteCapacity, patternCapacity, false);
+    }
+
+    private TrinityCoreMetadata(TrinityCoreKind kind,
+                                int capacityValue,
+                                long byteCapacity,
+                                int patternCapacity,
+                                boolean universal) {
         this.kind = kind;
-        validateCoreData(this.kind, capacityValue, byteCapacity, patternCapacity);
+        validateCoreData(this.kind, capacityValue, byteCapacity, patternCapacity, universal);
         this.capacityValue = capacityValue;
         this.byteCapacity = byteCapacity;
         this.patternCapacity = patternCapacity;
+        this.universal = universal;
     }
 
     /**
@@ -59,9 +71,30 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
         return new TrinityCoreMetadata(TrinityCoreKind.PATTERN_PROCESSING, 0, 0L, patternCapacity);
     }
 
+    /**
+     * Creates the lowest-tier universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
+     *
+     * <p>The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
+     * Domain-aware callers must use {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} and the corresponding
+     * capability overload.</p>
+     */
+    public static TrinityCoreMetadata emptyTrinityUnit() {
+        return new TrinityCoreMetadata(
+                TrinityCoreKind.STORAGE_TYPES,
+                TrinityCoreTier.SIZE_1K.capacityValue(),
+                TrinityCoreTier.SIZE_1K.byteCapacity(),
+                TrinityPatternCoreTier.STANDARD.patternCapacity(),
+                true);
+    }
+
     @Override
     public TrinityCoreKind kind() {
         return this.kind;
+    }
+
+    @Override
+    public boolean supportsKind(TrinityCoreKind requestedKind) {
+        return this.universal || this.kind == requestedKind;
     }
 
     @Override
@@ -80,10 +113,18 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     private static void validateCoreData(
-                                         TrinityCoreKind kind,
-                                         int capacityValue,
-                                         long byteCapacity,
-                                         int patternCapacity) {
+                                          TrinityCoreKind kind,
+                                          int capacityValue,
+                                          long byteCapacity,
+                                          int patternCapacity,
+                                          boolean universal) {
+        if (universal) {
+            if (kind != TrinityCoreKind.STORAGE_TYPES || capacityValue <= 0 || byteCapacity <= 0 || patternCapacity <= 0) {
+                throw new IllegalArgumentException(
+                        "Universal Trinity units require storage primary metadata and positive capacities for all domains");
+            }
+            return;
+        }
         switch (kind) {
             case STORAGE_TYPES -> {
                 if (capacityValue <= 0 || byteCapacity <= 0 || patternCapacity != 0) {

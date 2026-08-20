@@ -195,6 +195,7 @@ public final class DECreativeTabs {
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
         output.accept(DEItems.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
 
+        output.accept(DEItems.EMPTY_TRINITY_UNIT);
         output.accept(DEItems.ME_DIGITAL_PATTERN_PROCESSING_CORE);
         output.accept(DEItems.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
         output.accept(DEItems.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);

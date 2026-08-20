@@ -269,7 +269,8 @@
 				"data_energistics:me_digital_merged_storage_core_4m",
 				"data_energistics:me_digital_merged_storage_core_16m",
 				"data_energistics:me_digital_merged_storage_core_64m",
-				"data_energistics:me_digital_merged_storage_core_256m"
+				"data_energistics:me_digital_merged_storage_core_256m",
+				"data_energistics:empty_trinity_unit"
 			]
 		},
 		"E": {

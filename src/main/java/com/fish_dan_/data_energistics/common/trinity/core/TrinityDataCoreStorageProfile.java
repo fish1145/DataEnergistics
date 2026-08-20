@@ -47,10 +47,10 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
      * Reads a storage core's exact total stored amount capacity.
      */
     public static BigInteger amountCapacity(TrinityCoreComponent component) {
-        if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
+        if (!component.supportsKind(TrinityCoreKind.STORAGE_TYPES)) {
             throw new IllegalArgumentException("Only storage type cores contribute storage amount capacity");
         }
-        return BigInteger.valueOf(component.byteCapacity());
+        return BigInteger.valueOf(component.byteCapacity(TrinityCoreKind.STORAGE_TYPES));
     }
 
     /**
@@ -81,11 +81,13 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
          * Adds one storage core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
+            if (!component.supportsKind(TrinityCoreKind.STORAGE_TYPES)) {
                 return;
             }
             this.totalCapacity = this.totalCapacity.add(amountCapacity(component));
-            this.typeCapacity = Math.addExact(this.typeCapacity, component.capacityValue());
+            this.typeCapacity = Math.addExact(
+                    this.typeCapacity,
+                    component.capacityValue(TrinityCoreKind.STORAGE_TYPES));
             this.coreCount = Math.addExact(this.coreCount, 1);
         }
 

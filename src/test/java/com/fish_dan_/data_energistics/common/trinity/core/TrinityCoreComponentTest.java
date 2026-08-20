@@ -12,6 +12,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class TrinityCoreComponentTest {
 
     @Test
+    void emptyTrinityUnitExposesLowestTierAcrossAllCapabilityDomains() {
+        TrinityCoreMetadata unit = TrinityCoreMetadata.emptyTrinityUnit();
+
+        assertEquals(TrinityCoreKind.STORAGE_TYPES, unit.kind());
+        assertTrue(unit.supportsKind(TrinityCoreKind.STORAGE_TYPES));
+        assertTrue(unit.supportsKind(TrinityCoreKind.PARALLEL_CPU));
+        assertTrue(unit.supportsKind(TrinityCoreKind.PATTERN_PROCESSING));
+        assertEquals(1, unit.capacityValue(TrinityCoreKind.STORAGE_TYPES));
+        assertEquals(1_024L, unit.byteCapacity(TrinityCoreKind.STORAGE_TYPES));
+        assertEquals(1_024L, unit.byteCapacity(TrinityCoreKind.PARALLEL_CPU));
+        assertEquals(72, unit.patternCapacity(TrinityCoreKind.PATTERN_PROCESSING));
+    }
+
+    @Test
+    void capabilityProfilesAcceptEmptyTrinityUnitInTheirOwnDomains() {
+        TrinityCoreMetadata unit = TrinityCoreMetadata.emptyTrinityUnit();
+
+        TrinityDataCoreStorageProfile.Builder storageBuilder = TrinityDataCoreStorageProfile.builder(1);
+        storageBuilder.add(unit);
+        TrinityDataCoreStorageProfile storageProfile = storageBuilder.build();
+        assertEquals(1, storageProfile.typeCapacity());
+        assertEquals(BigInteger.valueOf(1_024L), storageProfile.totalCapacity());
+
+        TrinityDataCoreCpuCoreProfile.Builder cpuBuilder = TrinityDataCoreCpuCoreProfile.builder()
+                .actualRepeatCount(1);
+        cpuBuilder.add(unit);
+        TrinityDataCoreCpuCoreProfile cpuProfile = cpuBuilder.build();
+        assertEquals(1_024L, cpuProfile.storageBytes());
+        assertEquals(1, cpuProfile.filledCoreSlots());
+
+        TrinityDataCoreCraftingCoreProfile.Builder craftingBuilder = TrinityDataCoreCraftingCoreProfile.builder();
+        craftingBuilder.add(unit);
+        TrinityDataCoreCraftingCoreProfile craftingProfile = craftingBuilder.build();
+        assertEquals(72, craftingProfile.patternCapacity());
+        assertEquals(1, craftingProfile.patternCoreCount());
+    }
+
+    @Test
     void cpuCoreProfileAggregatesMergedStorageCoreCapacity() {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder();
         builder.actualRepeatCount(TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT);

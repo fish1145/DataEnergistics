@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "data_energistics:block/trinity_core/empty_trinity_unit"
+    }
+  }
+}
