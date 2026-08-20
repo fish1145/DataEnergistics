@@ -836,9 +836,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
 
     private static int patternCapacityFromState(BlockState state) {
         if (!(state.getBlock() instanceof TrinityCoreComponent component) ||
-                !component.supportsKind(TrinityCoreKind.PATTERN_PROCESSING)) {
+                component.kind() != TrinityCoreKind.PATTERN_PROCESSING) {
             throw new IllegalArgumentException("Trinity pattern core block entity requires a pattern processing block");
         }
-        return component.patternCapacity(TrinityCoreKind.PATTERN_PROCESSING);
+        return component.patternCapacity();
     }
 }

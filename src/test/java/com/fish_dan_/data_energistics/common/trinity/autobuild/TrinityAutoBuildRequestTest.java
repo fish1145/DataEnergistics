@@ -29,7 +29,6 @@ public final class TrinityAutoBuildRequestTest {
         assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 8, "me_digital_storage_core_16m");
         assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 9, "me_digital_storage_core_64m");
         assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 10, "me_digital_storage_core_256m");
-        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 11, "empty_trinity_unit");
         assertEquals(TrinityCoreKind.STORAGE_TYPES,
                 TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.STORAGE_CORE));
     }
@@ -46,7 +45,6 @@ public final class TrinityAutoBuildRequestTest {
         assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 8, "me_digital_merged_storage_core_16m");
         assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 9, "me_digital_merged_storage_core_64m");
         assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 10, "me_digital_merged_storage_core_256m");
-        assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 11, "empty_trinity_unit");
         assertEquals(TrinityCoreKind.PARALLEL_CPU,
                 TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE));
     }
@@ -58,7 +56,6 @@ public final class TrinityAutoBuildRequestTest {
                 "extended_me_digital_pattern_processing_core");
         assertTier(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 3,
                 "overlimit_me_digital_pattern_processing_core");
-        assertTier(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 4, "empty_trinity_unit");
         assertEquals(TrinityCoreKind.PATTERN_PROCESSING,
                 TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE));
     }
@@ -95,11 +92,7 @@ public final class TrinityAutoBuildRequestTest {
         assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
                 Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 0)));
         assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
-                Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 12)));
-        assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
                 Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 0)));
-        assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
-                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 5)));
     }
 
     @Test

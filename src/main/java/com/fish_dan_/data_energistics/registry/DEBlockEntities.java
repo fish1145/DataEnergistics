@@ -138,7 +138,6 @@ public final class DEBlockEntities {
             "trinity_pattern_core",
             () -> BlockEntityType.Builder.of(
                     TrinityPatternCoreBlockEntity::new,
-                    DEBlocks.EMPTY_TRINITY_UNIT.get(),
                     DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
                     DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
                     DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()).build(null));

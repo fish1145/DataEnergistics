@@ -5,7 +5,7 @@ package com.fish_dan_.data_energistics.common.trinity.core;
  */
 public final class TrinityCoreMetadata implements TrinityCoreComponent {
 
-    /** Capability category that future trinity structure scans will aggregate. */
+    /** Primary capability category used by ordinary cores and retained by placeholders for legacy callers. */
     private final TrinityCoreKind kind;
     /** Storage type count contributed by storage cores. */
     private final int capacityValue;
@@ -13,7 +13,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final long byteCapacity;
     /** Pattern count contributed by pattern processing cores. */
     private final int patternCapacity;
-    /** Whether this metadata may satisfy storage, parallel-CPU, and pattern-processing predicates. */
+    /** Whether this metadata is the zero-capacity placeholder accepted by every core predicate. */
     private final boolean universal;
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
@@ -72,18 +72,19 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     /**
-     * Creates the lowest-tier universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
+     * Creates the zero-capacity universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
      *
      * <p>The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
-     * Domain-aware callers must use {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} and the corresponding
-     * capability overload.</p>
+     * Domain-aware callers must distinguish structural compatibility through
+     * {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} from actual capacity through
+     * {@link TrinityCoreComponent#contributesToKind(TrinityCoreKind)}.</p>
      */
     public static TrinityCoreMetadata emptyTrinityUnit() {
         return new TrinityCoreMetadata(
                 TrinityCoreKind.STORAGE_TYPES,
-                TrinityCoreTier.SIZE_1K.capacityValue(),
-                TrinityCoreTier.SIZE_1K.byteCapacity(),
-                TrinityPatternCoreTier.STANDARD.patternCapacity(),
+                0,
+                0L,
+                0,
                 true);
     }
 
@@ -95,6 +96,11 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     @Override
     public boolean supportsKind(TrinityCoreKind requestedKind) {
         return this.universal || this.kind == requestedKind;
+    }
+
+    @Override
+    public boolean contributesToKind(TrinityCoreKind requestedKind) {
+        return !this.universal && this.kind == requestedKind;
     }
 
     @Override
@@ -119,9 +125,9 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
                                           int patternCapacity,
                                           boolean universal) {
         if (universal) {
-            if (kind != TrinityCoreKind.STORAGE_TYPES || capacityValue <= 0 || byteCapacity <= 0 || patternCapacity <= 0) {
+            if (kind != TrinityCoreKind.STORAGE_TYPES || capacityValue != 0 || byteCapacity != 0 || patternCapacity != 0) {
                 throw new IllegalArgumentException(
-                        "Universal Trinity units require storage primary metadata and positive capacities for all domains");
+                        "Universal Trinity units require storage primary metadata and zero capacities for all domains");
             }
             return;
         }

@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Entity-backed variant used by Trinity pattern processing cores and the universal empty Trinity unit.
+ * Entity-backed variant used exclusively by the three Trinity pattern processing core blocks.
  */
 public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements EntityBlock, BlockUIMenuType.BlockUI {
 
@@ -44,7 +44,7 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
      */
     public TrinityPatternCoreBlock(Properties properties, TrinityCoreMetadata metadata) {
         super(properties, metadata);
-        if (!metadata.supportsKind(TrinityCoreKind.PATTERN_PROCESSING)) {
+        if (metadata.kind() != TrinityCoreKind.PATTERN_PROCESSING) {
             throw new IllegalArgumentException("TrinityPatternCoreBlock requires pattern processing metadata");
         }
     }

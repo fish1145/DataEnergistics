@@ -42,10 +42,10 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     }
 
     /**
-     * Creates the lowest-tier universal unit accepted by all three Trinity core capability domains.
+     * Creates the zero-capacity universal unit accepted by all three Trinity core slot domains.
      */
-    public static TrinityPatternCoreBlock emptyTrinityUnit(Properties properties) {
-        return new TrinityPatternCoreBlock(properties, TrinityCoreMetadata.emptyTrinityUnit());
+    public static TrinityCoreBlock emptyTrinityUnit(Properties properties) {
+        return new TrinityCoreBlock(properties, TrinityCoreMetadata.emptyTrinityUnit());
     }
 
     @Override
@@ -56,6 +56,11 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     @Override
     public boolean supportsKind(TrinityCoreKind requestedKind) {
         return this.metadata.supportsKind(requestedKind);
+    }
+
+    @Override
+    public boolean contributesToKind(TrinityCoreKind requestedKind) {
+        return this.metadata.contributesToKind(requestedKind);
     }
 
     @Override

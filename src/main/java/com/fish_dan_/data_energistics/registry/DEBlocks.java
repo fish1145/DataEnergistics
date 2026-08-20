@@ -286,7 +286,7 @@ public final class DEBlocks {
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64M = registerParallelCore("me_digital_merged_storage_core_64m", TrinityCoreTier.SIZE_64M);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256M = registerParallelCore("me_digital_merged_storage_core_256m", TrinityCoreTier.SIZE_256M);
 
-    public static final DeferredBlock<TrinityPatternCoreBlock> EMPTY_TRINITY_UNIT = registerEmptyTrinityUnit();
+    public static final DeferredBlock<TrinityCoreBlock> EMPTY_TRINITY_UNIT = registerEmptyTrinityUnit();
     public static final DeferredBlock<TrinityPatternCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore(
             "me_digital_pattern_processing_core",
             TrinityPatternCoreTier.STANDARD.patternCapacity());
@@ -425,7 +425,7 @@ public final class DEBlocks {
                 trinityCoreProperties());
     }
 
-    private static DeferredBlock<TrinityPatternCoreBlock> registerEmptyTrinityUnit() {
+    private static DeferredBlock<TrinityCoreBlock> registerEmptyTrinityUnit() {
         return BLOCKS.registerBlock(
                 "empty_trinity_unit",
                 TrinityCoreBlock::emptyTrinityUnit,

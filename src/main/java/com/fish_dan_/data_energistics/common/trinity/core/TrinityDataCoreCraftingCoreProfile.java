@@ -50,13 +50,11 @@ public record TrinityDataCoreCraftingCoreProfile(int patternCoreCount, int patte
          * Adds one pattern processing core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            if (!component.supportsKind(TrinityCoreKind.PATTERN_PROCESSING)) {
+            if (!component.contributesToKind(TrinityCoreKind.PATTERN_PROCESSING)) {
                 return;
             }
             this.patternCoreCount = Math.addExact(this.patternCoreCount, 1);
-            this.patternCapacity = Math.addExact(
-                    this.patternCapacity,
-                    component.patternCapacity(TrinityCoreKind.PATTERN_PROCESSING));
+            this.patternCapacity = Math.addExact(this.patternCapacity, component.patternCapacity());
         }
 
         /**

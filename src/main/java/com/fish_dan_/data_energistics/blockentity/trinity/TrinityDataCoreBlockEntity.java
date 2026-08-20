@@ -2484,8 +2484,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             BlockState state = this.level.getBlockState(mount.position());
             if (blockEntity != mount.core() ||
                     !(state.getBlock() instanceof TrinityCoreComponent component) ||
-                    !component.supportsKind(TrinityCoreKind.PATTERN_PROCESSING) ||
-                    component.patternCapacity(TrinityCoreKind.PATTERN_PROCESSING) != mount.blockCapacity() ||
+                    !component.contributesToKind(TrinityCoreKind.PATTERN_PROCESSING) ||
+                    component.patternCapacity() != mount.blockCapacity() ||
                     mount.core().patternCapacity() != mount.blockCapacity() ||
                     !this.patternCatalog.isMountCurrent(layoutRevision, mount)) {
                 LOGGER.warn(
@@ -3237,7 +3237,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component &&
-                    component.supportsKind(TrinityCoreKind.STORAGE_TYPES)) {
+                    component.contributesToKind(TrinityCoreKind.STORAGE_TYPES)) {
                 builder.add(component);
             }
         }
@@ -3249,7 +3249,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component &&
-                    component.supportsKind(TrinityCoreKind.PATTERN_PROCESSING)) {
+                    component.contributesToKind(TrinityCoreKind.PATTERN_PROCESSING)) {
                 builder.add(component);
             }
         }
@@ -3261,7 +3261,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (!(state.getBlock() instanceof TrinityCoreComponent component) ||
-                    !component.supportsKind(TrinityCoreKind.PATTERN_PROCESSING)) {
+                    !component.contributesToKind(TrinityCoreKind.PATTERN_PROCESSING)) {
                 continue;
             }
             BlockEntity blockEntity = world.getBlockEntity(pos);
@@ -3281,10 +3281,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         "Trinity pattern processing core at " + pos +
                                 " is already mounted by another active host");
             }
-            mounts.add(new TrinityPatternCatalog.CoreMount(
-                    pos,
-                    component.patternCapacity(TrinityCoreKind.PATTERN_PROCESSING),
-                    patternCore));
+            mounts.add(new TrinityPatternCatalog.CoreMount(pos, component.patternCapacity(), patternCore));
         }
         return PatternCatalogScanResult.success(mounts);
     }
@@ -3304,7 +3301,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             }
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component &&
-                    component.supportsKind(TrinityCoreKind.PARALLEL_CPU)) {
+                    component.contributesToKind(TrinityCoreKind.PARALLEL_CPU)) {
                 builder.add(component);
             }
         }
