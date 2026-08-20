@@ -41,9 +41,26 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
         return new TrinityPatternCoreBlock(properties, TrinityCoreMetadata.patternProcessingCore(patternCapacity));
     }
 
+    /**
+     * Creates the zero-capacity universal unit accepted by all three Trinity core slot domains.
+     */
+    public static TrinityCoreBlock emptyTrinityUnit(Properties properties) {
+        return new TrinityCoreBlock(properties, TrinityCoreMetadata.emptyTrinityUnit());
+    }
+
     @Override
     public TrinityCoreKind kind() {
         return this.metadata.kind();
+    }
+
+    @Override
+    public boolean supportsKind(TrinityCoreKind requestedKind) {
+        return this.metadata.supportsKind(requestedKind);
+    }
+
+    @Override
+    public boolean contributesToKind(TrinityCoreKind requestedKind) {
+        return this.metadata.contributesToKind(requestedKind);
     }
 
     @Override

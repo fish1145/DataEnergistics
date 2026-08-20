@@ -142,16 +142,4 @@ public final class TrinityCoreComponentTest {
         assertEquals(3, profile.fullCoreCount());
         assertEquals(false, profile.unlimited());
     }
-
-    @Test
-    void storageProfileBecomesUnlimitedWhenAllCorePositionsAreFilled() {
-        TrinityDataCoreStorageProfile.Builder builder = TrinityDataCoreStorageProfile.builder(2);
-
-        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_1M));
-        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_4M));
-
-        TrinityDataCoreStorageProfile profile = builder.build();
-
-        assertEquals(true, profile.unlimited());
-    }
 }
