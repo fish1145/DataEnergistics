@@ -27,9 +27,11 @@ public final class TrinityAutoBuildBlockMap {
     /** Predicate category for the three pattern processing cores and universal empty unit used by crafting. */
     public static final String PATTERN_PROCESSING_CORE = "pattern_processing_core";
 
-    /** Universal structure candidate appended after historical selections so every existing one-based value stays stable. */
-    private static final ResourceLocation EMPTY_TRINITY_UNIT_ID =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "empty_trinity_unit");
+    /**
+     * Universal structure candidate appended after historical selections so every existing one-based value stays
+     * stable.
+     */
+    private static final ResourceLocation EMPTY_TRINITY_UNIT_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "empty_trinity_unit");
     /** Lowest positive replacement rank, leaving every ordinary selectable core above the universal unit. */
     private static final int EMPTY_TRINITY_UNIT_RANK = 1;
 

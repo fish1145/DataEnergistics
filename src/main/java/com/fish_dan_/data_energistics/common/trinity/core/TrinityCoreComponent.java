@@ -19,8 +19,10 @@ public interface TrinityCoreComponent {
     /**
      * Returns whether this component may occupy a core slot in the requested Trinity domain.
      *
-     * <p>Ordinary cores expose only their declared {@link #kind()}; a universal empty unit may expose all three
-     * domains while retaining a primary kind for legacy callers.</p>
+     * <p>
+     * Ordinary cores expose only their declared {@link #kind()}; a universal empty unit may expose all three
+     * domains while retaining a primary kind for legacy callers.
+     * </p>
      *
      * @param requestedKind capability domain being queried
      * @return whether this component is structurally valid for that domain
@@ -32,8 +34,10 @@ public interface TrinityCoreComponent {
     /**
      * Returns whether this component contributes capacity in the requested Trinity domain.
      *
-     * <p>Ordinary cores contribute to the domain they support. A universal empty unit is structurally valid in all
-     * three domains but deliberately contributes to none of them.</p>
+     * <p>
+     * Ordinary cores contribute to the domain they support. A universal empty unit is structurally valid in all
+     * three domains but deliberately contributes to none of them.
+     * </p>
      *
      * @param requestedKind capability domain being queried
      * @return whether this component contributes capacity to that domain

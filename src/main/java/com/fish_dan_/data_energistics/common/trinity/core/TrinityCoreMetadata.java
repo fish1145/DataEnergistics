@@ -74,10 +74,12 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     /**
      * Creates the zero-capacity universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
      *
-     * <p>The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
+     * <p>
+     * The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
      * Domain-aware callers must distinguish structural compatibility through
      * {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} from actual capacity through
-     * {@link TrinityCoreComponent#contributesToKind(TrinityCoreKind)}.</p>
+     * {@link TrinityCoreComponent#contributesToKind(TrinityCoreKind)}.
+     * </p>
      */
     public static TrinityCoreMetadata emptyTrinityUnit() {
         return new TrinityCoreMetadata(
@@ -119,11 +121,11 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     private static void validateCoreData(
-                                          TrinityCoreKind kind,
-                                          int capacityValue,
-                                          long byteCapacity,
-                                          int patternCapacity,
-                                          boolean universal) {
+                                         TrinityCoreKind kind,
+                                         int capacityValue,
+                                         long byteCapacity,
+                                         int patternCapacity,
+                                         boolean universal) {
         if (universal) {
             if (kind != TrinityCoreKind.STORAGE_TYPES || capacityValue != 0 || byteCapacity != 0 || patternCapacity != 0) {
                 throw new IllegalArgumentException(

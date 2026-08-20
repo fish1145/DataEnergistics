@@ -142,5 +142,4 @@ public final class TrinityCoreComponentTest {
         assertEquals(3, profile.fullCoreCount());
         assertEquals(false, profile.unlimited());
     }
-
 }
