@@ -136,6 +136,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(DEItems.DATA_CIRCUIT_BOARD);
                         output.accept(DEItems.DATA_PROCESSOR);
+                        output.accept(DEItems.FLUIX_AGGREGATE_CRYSTAL_PROCESSOR);
                         output.accept(DEItems.COMPLEXIFIED_BIOCHIPS);
                         output.accept(DEItems.DIGISIDIAN_MEMORIZE_INGOT);
                         output.accept(RadixContainmentSphereItem.createChargedStack());

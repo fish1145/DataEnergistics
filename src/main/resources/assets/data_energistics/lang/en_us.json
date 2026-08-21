@@ -450,6 +450,7 @@
 	"item.data_energistics.data_light_saber": "Data Light Saber",
 	"item.data_energistics.data_meteorite_compass": "Digitalized Meteorite Compass",
 	"item.data_energistics.data_processor": "Data Processor",
+	"item.data_energistics.fluix_aggregate_crystal_processor": "Fluix Aggregate Crystal Processor",
 	"item.data_energistics.complexified_biochips": "Complexified Biochips",
 	"item.data_energistics.data_ripper": "Data Ripper",
 	"item.data_energistics.data_ripper.tip.energy": "Acceleration consumes data flow from the network and pauses when it runs out",

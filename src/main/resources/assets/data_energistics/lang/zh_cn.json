@@ -450,6 +450,7 @@
 	"item.data_energistics.data_light_saber": "数据光剑",
 	"item.data_energistics.data_meteorite_compass": "数位化陨石罗盘",
 	"item.data_energistics.data_processor": "数据处理器",
+	"item.data_energistics.fluix_aggregate_crystal_processor": "福鲁伊集合晶体管",
 	"item.data_energistics.complexified_biochips": "复杂化生物芯片",
 	"item.data_energistics.data_ripper": "数据撕裂器",
 	"item.data_energistics.data_ripper.tip.energy": "加速会消耗网络中的数据流，耗尽后将暂停",
