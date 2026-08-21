@@ -17,15 +17,16 @@
 				"item": "ae2:spatial_io_port"
 			},
 			{
-				"item": "data_energistics:data_storage_component_16m"
+				"item": "data_energistics:fluix_aggregate_crystal_processor",
+				"count": 27
 			},
 			{
 				"item": "data_energistics:data_processor",
-				"count": 147
+				"count": 47
 			},
 			{
 				"item": "data_energistics:digisidian_memorize_ingot",
-				"count": 47
+				"count": 12
 			},
 			{
 				"item": "data_energistics:data_sanctum_interface",
@@ -35,12 +36,12 @@
 		"fluids": [
 			{
 				"fluid": "data_energistics:ender",
-				"amount": 27000
+				"amount": 17000
 			}
 		],
 		"resource": {
 			"key_type": "data_energistics:manifest_binary",
-			"amount": 439
+			"amount": 127
 		}
 	},
 	"outputs": {
