@@ -615,14 +615,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int templateSlot = -1;
-            if (DataChargePressRecipeSupport.hasCircuitBoardTemplate(recipe)) {
-                templateSlot = findInputSlot(inputs, DataChargePressRecipeSupport.getTemplate(recipe), -1);
-                if (templateSlot < 0) {
-                    continue;
-                }
-            }
-            int materialSlot = findInputSlot(inputs, recipe.getMiddleInput(), templateSlot);
+            int materialSlot = findInputSlot(inputs, recipe.getMiddleInput(), -1);
             ItemStack result = DataChargePressRecipeSupport.getTripleResult(recipe);
             if (materialSlot >= 0 && inputs.get(materialSlot).getCount() >=
                     DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT && findOutputSlot(result) >= 0) {
