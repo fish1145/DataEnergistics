@@ -33,6 +33,10 @@ public final class ModFlags {
         return isLoaded("curios");
     }
 
+    public static boolean isXaeroWorldMapLoaded() {
+        return isLoaded("xaeroworldmap") && isLoaded("xaerolib");
+    }
+
     public static boolean isAppliedCreateLoaded() {
         return isLoaded("appliedcreate");
     }

@@ -810,6 +810,7 @@
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.journeymap.open_hint": "Open JourneyMap's fullscreen map, then left-click the orbital target.",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.preview": "Open orbital fire-control preview",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.provider.builtin": "Built-in map",
+	"screen.data_energistics.orbital_control_terminal.fire_control.map.provider.xaero": "Xaero's World Map",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.refresh": "Refresh tactical map",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.select": "Select target",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.status": "No tactical-map snapshot yet. Refresh after selecting a weapon.",

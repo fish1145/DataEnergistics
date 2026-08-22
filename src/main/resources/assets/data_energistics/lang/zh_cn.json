@@ -810,6 +810,7 @@
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.journeymap.open_hint": "请打开 JourneyMap 全屏地图，然后左键选择轨道目标。",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.preview": "打开轨道火控预览",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.provider.builtin": "内置地图",
+	"screen.data_energistics.orbital_control_terminal.fire_control.map.provider.xaero": "Xaero 世界地图",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.refresh": "刷新战术地图",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.select": "选择目标",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.status": "还没有战术地图快照，请先选择武器并刷新。",

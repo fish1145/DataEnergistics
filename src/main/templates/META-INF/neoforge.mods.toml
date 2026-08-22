@@ -98,14 +98,14 @@ side = "CLIENT"
 [[dependencies.${ mod_id }]]
 modId = "xaeroworldmap"
 type = "optional"
-versionRange = "[1.40.2,)"
+versionRange = "[1.40.2,1.40.3)"
 ordering = "AFTER"
 side = "CLIENT"
 
 [[dependencies.${ mod_id }]]
 modId = "xaerolib"
 type = "optional"
-versionRange = "[${xaerolib_version},)"
+versionRange = "[${xaerolib_version},1.0.43)"
 ordering = "AFTER"
 side = "CLIENT"
 
