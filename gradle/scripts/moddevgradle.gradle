@@ -36,7 +36,6 @@ neoForge {
             ideName = "All Client"
 
             gameDirectory.set(file('run/all/client'))
-            systemProperty('neoforge.enableGameTest', 'false')
         }
 
         server {
@@ -56,7 +55,6 @@ neoForge {
             devLogin = true
 
             gameDirectory.set(file('run/login/client'))
-            systemProperty('neoforge.enableGameTest', 'false')
         }
 
         loginserver {
@@ -76,7 +74,6 @@ neoForge {
             ideName = "Clean Client"
 
             gameDirectory.set(file('run/clean/client'))
-            systemProperty('neoforge.enableGameTest', 'false')
         }
 
         cleanServer {

@@ -5,6 +5,7 @@ dependencies {
     testImplementation(libs.testframework)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    clientRuntimeOnly(libs.testframework)
 
     jarJar(api(forge.mdlib.get()))
     jarJar(api(libs.ojalgo.get()))
