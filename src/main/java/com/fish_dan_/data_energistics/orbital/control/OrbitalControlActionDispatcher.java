@@ -55,13 +55,13 @@ public final class OrbitalControlActionDispatcher {
      * Captures a server-side target preview. No reserve is debited until the matching release has held for the full
      * confirmation interval.
      */
-    public static Optional<OrbitalAttackPreviewSessions.Preview> beginFireAtLookTarget(
-                                                                                       ServerPlayer player,
-                                                                                       OrbitalAttackMode mode,
-                                                                                       BooleanSupplier sourceValid) {
+    public static void beginFireAtLookTarget(
+                                             ServerPlayer player,
+                                             OrbitalAttackMode mode,
+                                             BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
-            return Optional.empty();
+            return;
         }
         BlockPos target = blockTarget(player);
         if (target == null) {
@@ -69,11 +69,11 @@ public final class OrbitalControlActionDispatcher {
                     Component.translatable(
                             "message.data_energistics.orbital_control_terminal.no_block_target"),
                     true);
-            return Optional.empty();
+            return;
         }
         OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
         int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY ? DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.directedEnergyMinimumRadius : 0;
-        return beginFireAtTarget(
+        beginFireAtTarget(
                 player,
                 mode,
                 player.level().dimension().location(),
@@ -323,13 +323,13 @@ public final class OrbitalControlActionDispatcher {
     /**
      * Commits a previously captured target after the server-clock hold and configuration/state revision checks pass.
      */
-    public static Optional<OrbitalAttackRecord> releaseFireAtTarget(
-                                                                    ServerPlayer player,
-                                                                    OrbitalAttackMode mode,
-                                                                    BooleanSupplier sourceValid) {
+    public static void releaseFireAtTarget(
+                                           ServerPlayer player,
+                                           OrbitalAttackMode mode,
+                                           BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread()) {
-            return Optional.empty();
+            return;
         }
         Optional<OrbitalAttackPreviewSessions.Preview> released = PREVIEWS.release(server, player.getUUID(), mode);
         if (released.isEmpty()) {
@@ -338,20 +338,20 @@ public final class OrbitalControlActionDispatcher {
                         Component.translatable("message.data_energistics.orbital_control_terminal.hold_incomplete"),
                         true);
             }
-            return Optional.empty();
+            return;
         }
         OrbitalAttackPreviewSessions.Preview preview = released.orElseThrow();
         if (!sourceValid.getAsBoolean()) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.preview_expired"),
                     true);
-            return Optional.empty();
+            return;
         }
         if (DataEnergisticsConfiguration.INSTANCE.revision() != preview.configurationRevision()) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.configuration_changed"),
                     true);
-            return Optional.empty();
+            return;
         }
 
         OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
@@ -360,7 +360,7 @@ public final class OrbitalControlActionDispatcher {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.preview_expired"),
                     true);
-            return Optional.empty();
+            return;
         }
 
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
@@ -395,7 +395,7 @@ public final class OrbitalControlActionDispatcher {
                     player.getUUID(),
                     preview.target(),
                     exception);
-            return Optional.empty();
+            return;
         }
         result.ifPresent(ignored -> player.displayClientMessage(
                 Component.translatable(
@@ -407,7 +407,6 @@ public final class OrbitalControlActionDispatcher {
                     Component.translatable("message.data_energistics.orbital_control_terminal.action_rejected"),
                     true);
         }
-        return result;
     }
 
     /** Cancels a player's uncommitted target hold without touching weapon reserves. */

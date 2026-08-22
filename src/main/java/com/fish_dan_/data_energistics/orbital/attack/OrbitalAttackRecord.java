@@ -141,10 +141,6 @@ public record OrbitalAttackRecord(
                 this.damageExemptions);
     }
 
-    public OrbitalAttackRecord withWorkCursor(long nextCursor) {
-        return withWork(nextCursor, OrbitalAttackWorkState.WORKING);
-    }
-
     /** Updates the resumable cursor and its persisted scheduler boundary without altering frozen attack geometry. */
     public OrbitalAttackRecord withWork(long nextCursor, OrbitalAttackWorkState nextWorkState) {
         return new OrbitalAttackRecord(
