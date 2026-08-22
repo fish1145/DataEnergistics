@@ -561,6 +561,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         Map<Integer, TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
         RefundOutbox loadedOutbox = readRefundOutbox(data, registries);
         validatePersistedSlotBounds(loadedSlots, loadedOutbox, persistedCapacity.value());
+        InvalidPatternWorkMigration invalidPatternWorkMigration = migrateInvalidLoadedPatternWork(
+                loadedSlots,
+                loadedOutbox);
+        loadedOutbox = invalidPatternWorkMigration.outbox();
 
         TreeSet<Integer> loadedOccupiedSlots = occupiedSlots(loadedSlots.values());
         TreeSet<Integer> changedPatternSlots = changedPatternSlots(loadedSlots, loadedOccupiedSlots);
@@ -655,7 +659,9 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
             }
         }
-        return schema.rewriteRequired() || persistedCapacity.migrationRequired();
+        return schema.rewriteRequired() ||
+                persistedCapacity.migrationRequired() ||
+                invalidPatternWorkMigration.migrated();
     }
 
     private TreeSet<Integer> changedPatternSlots(Map<Integer, TrinityPatternSlot> loadedSlots,
@@ -673,6 +679,78 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         return changed;
     }
 
+    /**
+     * Moves work owned by semantically unavailable installed patterns into an isolated parsed refund outbox before
+     * any live core state is replaced.
+     */
+    private static InvalidPatternWorkMigration migrateInvalidLoadedPatternWork(
+            Map<Integer, TrinityPatternSlot> loadedSlots,
+            RefundOutbox loadedOutbox) {
+        ArrayList<InvalidPatternWorkCapture> captures = new ArrayList<>();
+        for (int slotIndex : new TreeSet<>(loadedSlots.keySet())) {
+            TrinityPatternSlot slot = loadedSlots.get(slotIndex);
+            if (!hasInvalidPatternWork(slot)) {
+                continue;
+            }
+            TrinityPatternSlot.WorkState work = slot.captureWorkState();
+            ArrayList<RetainedRefundOffer> offers = new ArrayList<>();
+            appendWorkRefundOffers(slotIndex, work, null, offers);
+            captures.add(new InvalidPatternWorkCapture(slot, offers));
+        }
+        if (captures.isEmpty()) {
+            return new InvalidPatternWorkMigration(loadedOutbox, false);
+        }
+
+        RefundOutbox migratedOutbox = new RefundOutbox(
+                loadedOutbox.patterns(),
+                loadedOutbox.retainedByHost());
+        for (InvalidPatternWorkCapture capture : captures) {
+            appendRetainedRefundEntries(migratedOutbox.retainedByHost(), capture.offers());
+        }
+        for (InvalidPatternWorkCapture capture : captures) {
+            capture.slot().clearRefundableWork(null);
+        }
+        return new InvalidPatternWorkMigration(migratedOutbox, true);
+    }
+
+    private static boolean hasInvalidPatternWork(TrinityPatternSlot slot) {
+        return !slot.pattern().isEmpty() &&
+                slot.decodedPattern() == null &&
+                (slot.hasQueuedWork() || slot.hasPendingOutputs());
+    }
+
+    /** Collects work in the same deterministic order used by ordinary retained-state refunds. */
+    private static void appendWorkRefundOffers(int slot,
+                                               TrinityPatternSlot.WorkState work,
+                                               @Nullable UUID hostFilter,
+                                               List<RetainedRefundOffer> destination) {
+        for (TrinityCraftingBatch batch : work.batches()) {
+            if (hostFilter != null && !hostFilter.equals(batch.route().hostId())) {
+                continue;
+            }
+            for (ItemStack input : batch.inputs()) {
+                if (input.isEmpty()) {
+                    continue;
+                }
+                for (TrinityItemAmount item : TrinityItemAmount.multiply(input, batch.count())) {
+                    destination.add(new RetainedRefundOffer(
+                            batch.route().hostId(),
+                            new RetainedRefundEntry(slot, item)));
+                }
+            }
+        }
+        for (Map.Entry<PatternRoute, List<TrinityItemAmount>> entry : work.pendingOutputs().entrySet()) {
+            if (hostFilter != null && !hostFilter.equals(entry.getKey().hostId())) {
+                continue;
+            }
+            for (TrinityItemAmount item : entry.getValue()) {
+                destination.add(new RetainedRefundOffer(
+                        entry.getKey().hostId(),
+                        new RetainedRefundEntry(slot, item)));
+            }
+        }
+    }
+
     private RefundState captureRefundState(@Nullable UUID routeHostId) {
         ArrayList<RetainedRefundOffer> offeredEntries = new ArrayList<>();
         appendRetainedOutboxOffers(routeHostId, offeredEntries);
@@ -681,26 +759,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         for (int slot = 0; slot < this.patternCapacity; slot++) {
             TrinityPatternSlot.WorkState captured = this.slots.get(slot).captureWorkState();
             capturedSlots.add(captured);
-            for (TrinityCraftingBatch batch : captured.batches()) {
-                if (routeHostId == null || routeHostId.equals(batch.route().hostId())) {
-                    for (ItemStack input : batch.inputs()) {
-                        if (!input.isEmpty()) {
-                            for (TrinityItemAmount item : TrinityItemAmount.multiply(input, batch.count())) {
-                                offeredEntries.add(new RetainedRefundOffer(
-                                        batch.route().hostId(), new RetainedRefundEntry(slot, item)));
-                            }
-                        }
-                    }
-                }
-            }
-            for (Map.Entry<PatternRoute, List<TrinityItemAmount>> entry : captured.pendingOutputs().entrySet()) {
-                if (routeHostId == null || routeHostId.equals(entry.getKey().hostId())) {
-                    for (TrinityItemAmount item : entry.getValue()) {
-                        offeredEntries.add(new RetainedRefundOffer(
-                                entry.getKey().hostId(), new RetainedRefundEntry(slot, item)));
-                    }
-                }
-            }
+            appendWorkRefundOffers(slot, captured, routeHostId, offeredEntries);
         }
         return new RefundState(
                 routeHostId,
@@ -759,11 +818,26 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
     }
 
-    private void appendRetainedRefundEntries(List<RetainedRefundOffer> offers) {
+    private static Map<UUID, ArrayList<RetainedRefundEntry>> copyRetainedRefundOutbox(
+            Map<UUID, ArrayList<RetainedRefundEntry>> source) {
+        TreeMap<UUID, ArrayList<RetainedRefundEntry>> copy = new TreeMap<>();
+        for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : source.entrySet()) {
+            copy.put(group.getKey(), new ArrayList<>(group.getValue()));
+        }
+        return copy;
+    }
+
+    private static void appendRetainedRefundEntries(
+            Map<UUID, ArrayList<RetainedRefundEntry>> outbox,
+            List<RetainedRefundOffer> offers) {
         for (RetainedRefundOffer offer : offers) {
-            this.retainedRefundOutboxByHost
-                    .computeIfAbsent(offer.hostId(), ignored -> new ArrayList<>())
-                    .add(offer.entry());
+            outbox.computeIfAbsent(offer.hostId(), ignored -> new ArrayList<>()).add(offer.entry());
+        }
+    }
+
+    private void appendRetainedRefundEntries(List<RetainedRefundOffer> offers) {
+        appendRetainedRefundEntries(this.retainedRefundOutboxByHost, offers);
+        for (RetainedRefundOffer offer : offers) {
             markPersistentChanged(offer.entry().slot());
         }
     }
@@ -1276,8 +1350,56 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
         TrinityPatternDefinition definition = this.slots.get(slot).requiredInstalledDefinition();
         boolean semanticChange = cached.rebind(definition, decoded);
-        if (semanticChange) {
+        boolean invalidWorkMigrated = migrateInvalidRuntimePatternWork(slot);
+        if (semanticChange || invalidWorkMigrated) {
             notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.RUNTIME_BINDING));
+        }
+    }
+
+    /**
+     * Atomically replaces one unavailable pattern slot's live work with a durable, host-scoped refund ledger.
+     */
+    private boolean migrateInvalidRuntimePatternWork(int slotIndex) {
+        TrinityPatternSlot slot = this.slots.get(slotIndex);
+        if (!hasInvalidPatternWork(slot)) {
+            return false;
+        }
+
+        TrinityPatternSlot.WorkState capturedWork = slot.captureWorkState();
+        ArrayList<RetainedRefundOffer> offers = new ArrayList<>();
+        appendWorkRefundOffers(slotIndex, capturedWork, null, offers);
+        Map<UUID, ArrayList<RetainedRefundEntry>> previousOutbox = this.retainedRefundOutboxByHost;
+        Map<UUID, ArrayList<RetainedRefundEntry>> migratedOutbox = copyRetainedRefundOutbox(previousOutbox);
+        appendRetainedRefundEntries(migratedOutbox, offers);
+
+        this.retainedRefundOutboxByHost = migratedOutbox;
+        try {
+            slot.clearRefundableWork(null);
+            return true;
+        } catch (RuntimeException exception) {
+            this.retainedRefundOutboxByHost = previousOutbox;
+            if (!slot.matchesWorkState(capturedWork)) {
+                try {
+                    slot.restoreWorkState(capturedWork);
+                } catch (RuntimeException rollbackFailure) {
+                    exception.addSuppressed(rollbackFailure);
+                    Data_Energistics.LOGGER.error(
+                            "Failed to restore invalid Trinity pattern slot {} in core {} after refund migration failed",
+                            slotIndex,
+                            this.coreId,
+                            rollbackFailure);
+                }
+            }
+            try {
+                rebuildWorkIndexes();
+            } catch (RuntimeException rollbackFailure) {
+                exception.addSuppressed(rollbackFailure);
+                Data_Energistics.LOGGER.error(
+                        "Failed to rebuild Trinity pattern core {} work indexes after refund migration failed",
+                        this.coreId,
+                        rollbackFailure);
+            }
+            throw exception;
         }
     }
 
@@ -1420,6 +1542,20 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     /**
+     * One detached invalid-pattern slot and the ordered refund entries derived from its work snapshot.
+     */
+    private record InvalidPatternWorkCapture(TrinityPatternSlot slot,
+                                             List<RetainedRefundOffer> offers) {
+
+        private InvalidPatternWorkCapture {
+            offers = List.copyOf(offers);
+        }
+    }
+
+    /** Result of normalizing semantically invalid loaded patterns before live state is replaced. */
+    private record InvalidPatternWorkMigration(RefundOutbox outbox, boolean migrated) {}
+
+    /**
      * Immutable private capture used to restore a core after a coordinated host refund aborts.
      */
     private record RefundState(@Nullable UUID routeHostId,
@@ -1494,11 +1630,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
         private RefundOutbox {
             patterns = new ArrayList<>(patterns);
-            TreeMap<UUID, ArrayList<RetainedRefundEntry>> copiedRetained = new TreeMap<>();
-            for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : retainedByHost.entrySet()) {
-                copiedRetained.put(group.getKey(), new ArrayList<>(group.getValue()));
-            }
-            retainedByHost = copiedRetained;
+            retainedByHost = copyRetainedRefundOutbox(retainedByHost);
         }
     }
 
