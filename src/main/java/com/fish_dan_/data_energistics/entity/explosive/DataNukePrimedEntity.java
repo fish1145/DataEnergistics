@@ -238,7 +238,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
         this.orbitalAttackId = tag.hasUUID(TAG_ORBITAL_ATTACK_ID) ? tag.getUUID(TAG_ORBITAL_ATTACK_ID) : null;
-        this.capturedWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL) && tag.contains(TAG_WORK_SETTINGS_RADIUS) && tag.contains(TAG_WORK_SETTINGS_CENTER) ? new DigitalAnnihilationWork.Settings(
+        this.capturedWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL) && tag.contains(TAG_WORK_SETTINGS_RADIUS) && tag.contains(TAG_WORK_SETTINGS_CENTER) ? DigitalAnnihilationWork.Settings.fromPersisted(
                 tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
                 tag.getInt(TAG_WORK_SETTINGS_RADIUS),
                 tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;

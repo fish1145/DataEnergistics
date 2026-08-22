@@ -165,7 +165,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         }
         this.target = NbtUtils.readBlockPos(tag, TAG_TARGET).orElse(BlockPos.ZERO).immutable();
         this.flightTicks = Math.clamp(tag.getInt(TAG_FLIGHT_TICKS), 0, FLIGHT_TICKS);
-        this.workSettings = tag.contains(TAG_WORK_INTERVAL) && tag.contains(TAG_MAX_RADIUS) && tag.contains(TAG_CENTER_RADIUS) ? new DigitalAnnihilationWork.Settings(
+        this.workSettings = tag.contains(TAG_WORK_INTERVAL) && tag.contains(TAG_MAX_RADIUS) && tag.contains(TAG_CENTER_RADIUS) ? DigitalAnnihilationWork.Settings.fromPersisted(
                 tag.getInt(TAG_WORK_INTERVAL),
                 tag.getInt(TAG_MAX_RADIUS),
                 tag.getDouble(TAG_CENTER_RADIUS)) : currentWorkSettings();

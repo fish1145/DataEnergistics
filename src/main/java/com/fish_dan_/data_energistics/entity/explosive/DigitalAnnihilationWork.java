@@ -173,7 +173,7 @@ public final class DigitalAnnihilationWork {
                                                   int legacyWorkTicks,
                                                   int legacyExpansionRadius,
                                                   CompoundTag state) {
-        Settings capturedSettings = state.contains(TAG_SETTINGS_INTERVAL) && state.contains(TAG_SETTINGS_RADIUS) && state.contains(TAG_SETTINGS_CENTER) ? new Settings(
+        Settings capturedSettings = state.contains(TAG_SETTINGS_INTERVAL) && state.contains(TAG_SETTINGS_RADIUS) && state.contains(TAG_SETTINGS_CENTER) ? Settings.fromPersisted(
                 state.getInt(TAG_SETTINGS_INTERVAL),
                 state.getInt(TAG_SETTINGS_RADIUS),
                 state.getDouble(TAG_SETTINGS_CENTER)) : settings;
@@ -526,10 +526,34 @@ public final class DigitalAnnihilationWork {
     /** Persisted cursor values; booleans distinguish absent legacy fields from an explicit zero. */
     public record Settings(int workIntervalTicks, int maxRadius, double centerEntityConsumeRadius) {
 
+        private static final int MAX_WORK_INTERVAL_TICKS = 1_200;
+        private static final int MAX_RADIUS = 8_192;
+        private static final double MAX_CENTER_ENTITY_CONSUME_RADIUS = 128.0D;
+
         public Settings {
-            if (workIntervalTicks < 1 || maxRadius < 1 || !Double.isFinite(centerEntityConsumeRadius) || centerEntityConsumeRadius < 0.0D) {
+            if (workIntervalTicks < 1
+                    || workIntervalTicks > MAX_WORK_INTERVAL_TICKS
+                    || maxRadius < 1
+                    || maxRadius > MAX_RADIUS
+                    || !Double.isFinite(centerEntityConsumeRadius)
+                    || centerEntityConsumeRadius < 0.0D
+                    || centerEntityConsumeRadius > MAX_CENTER_ENTITY_CONSUME_RADIUS) {
                 throw new IllegalArgumentException("Invalid digital annihilation work settings");
             }
+        }
+
+        /** Normalizes untrusted entity NBT once before it enters the strict runtime model. */
+        public static Settings fromPersisted(
+                                             int workIntervalTicks,
+                                             int maxRadius,
+                                             double centerEntityConsumeRadius) {
+            double normalizedCenterRadius = Double.isFinite(centerEntityConsumeRadius)
+                    ? Math.clamp(centerEntityConsumeRadius, 0.0D, MAX_CENTER_ENTITY_CONSUME_RADIUS)
+                    : 0.0D;
+            return new Settings(
+                    Math.clamp(workIntervalTicks, 1, MAX_WORK_INTERVAL_TICKS),
+                    Math.clamp(maxRadius, 1, MAX_RADIUS),
+                    normalizedCenterRadius);
         }
 
         private static Settings from(DataNukeSchema settings) {

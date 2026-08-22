@@ -8,6 +8,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -17,7 +18,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Verifies that a primed digital annihilator owns and releases its server chunk ticket.
+ * Verifies digital-annihilator chunk-ticket ownership and recovery of persisted world work.
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -28,6 +29,13 @@ public final class DataNukePrimedEntityGameTest {
     private static final int CROSS_CHUNK_OFFSET = 2 * 16;
     private static final int LONG_FUSE_TICKS = 1200;
     private static final String TAG_ACTIVE = "DataNukeActive";
+    private static final String TAG_WORK_STATE = "DataNukeWorkState";
+    private static final String TAG_WORK_SETTINGS_INTERVAL = "DataNukeWorkSettingsInterval";
+    private static final String TAG_WORK_SETTINGS_RADIUS = "DataNukeWorkSettingsRadius";
+    private static final String TAG_WORK_SETTINGS_CENTER = "DataNukeWorkSettingsCenter";
+    private static final String TAG_STATE_SETTINGS_INTERVAL = "SettingsInterval";
+    private static final String TAG_STATE_SETTINGS_RADIUS = "SettingsRadius";
+    private static final String TAG_STATE_SETTINGS_CENTER = "SettingsCenter";
 
     private DataNukePrimedEntityGameTest() {}
 
@@ -39,7 +47,7 @@ public final class DataNukePrimedEntityGameTest {
         BlockPos origin = distantOrigin(helper, 0);
         level.getChunkAt(origin);
 
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
 
         ChunkPos chunkPos = new ChunkPos(origin);
         helper.startSequence()
@@ -74,7 +82,7 @@ public final class DataNukePrimedEntityGameTest {
         level.getChunkAt(origin);
         level.getChunkAt(destination);
 
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
 
         ChunkPos originChunk = new ChunkPos(origin);
         ChunkPos destinationChunk = new ChunkPos(destination);
@@ -128,7 +136,7 @@ public final class DataNukePrimedEntityGameTest {
         BlockPos origin = distantOrigin(helper, 2);
         level.getChunkAt(origin);
 
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
         CompoundTag savedEntity = entity.saveWithoutId(new CompoundTag());
         savedEntity.putBoolean(TAG_ACTIVE, true);
         entity.load(savedEntity);
@@ -168,8 +176,8 @@ public final class DataNukePrimedEntityGameTest {
         BlockPos origin = distantOrigin(helper, 3);
         level.getChunkAt(origin);
 
-        DataNukePrimedEntity first = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
-        DataNukePrimedEntity second = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity first = createStationaryEntity(level, origin);
+        DataNukePrimedEntity second = createStationaryEntity(level, origin);
 
         ChunkPos chunkPos = new ChunkPos(origin);
         helper.startSequence()
@@ -201,6 +209,46 @@ public final class DataNukePrimedEntityGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("digital_annihilator_recovers_corrupt_work_settings_and_finishes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 200)
+    public static void recoversCorruptWorkSettingsAndFinishes(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos relativeOrigin = new BlockPos(2, 3, 2);
+        BlockPos relativeOutsideRecoveredRange = relativeOrigin.offset(2, 0, 0);
+        BlockPos origin = helper.absolutePos(relativeOrigin);
+        BlockPos outsideRecoveredRange = helper.absolutePos(relativeOutsideRecoveredRange);
+        level.getChunkAt(origin);
+        level.getChunkAt(outsideRecoveredRange);
+        helper.setBlock(relativeOrigin, Blocks.STONE);
+        helper.setBlock(relativeOutsideRecoveredRange, Blocks.STONE);
+
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
+        CompoundTag savedEntity = entity.saveWithoutId(new CompoundTag());
+        savedEntity.putBoolean(TAG_ACTIVE, true);
+        savedEntity.putInt(TAG_WORK_SETTINGS_INTERVAL, Integer.MIN_VALUE);
+        savedEntity.putInt(TAG_WORK_SETTINGS_RADIUS, Integer.MIN_VALUE);
+        savedEntity.putDouble(TAG_WORK_SETTINGS_CENTER, Double.NaN);
+        CompoundTag savedWork = new CompoundTag();
+        savedWork.putInt(TAG_STATE_SETTINGS_INTERVAL, Integer.MIN_VALUE);
+        savedWork.putInt(TAG_STATE_SETTINGS_RADIUS, Integer.MIN_VALUE);
+        savedWork.putDouble(TAG_STATE_SETTINGS_CENTER, Double.NaN);
+        savedEntity.put(TAG_WORK_STATE, savedWork);
+        entity.load(savedEntity);
+
+        helper.startSequence()
+                .thenExecute(() -> helper.assertTrue(
+                        level.addFreshEntity(entity),
+                        "The recovered digital annihilator must enter the test world"))
+                .thenWaitUntil(() -> helper.assertTrue(
+                        level.getBlockState(origin).isAir(),
+                        "The recovered entity must resume real server-ticked annihilation work"))
+                .thenExecute(() -> helper.assertTrue(
+                        level.getBlockState(outsideRecoveredRange).is(Blocks.STONE),
+                        "Recovered corrupt settings must not create an unbounded world effect"))
+                .thenSucceed();
+    }
+
     private static BlockPos distantOrigin(GameTestHelper helper, int isolationLane) {
         return helper.absolutePos(new BlockPos(2, 3, 2))
                 .offset(DISTANT_CHUNK_OFFSET, 0, TEST_ISOLATION_OFFSET * isolationLane);
@@ -210,11 +258,11 @@ public final class DataNukePrimedEntityGameTest {
         return level.getChunkSource().chunkMap.getDistanceManager().shouldForceTicks(chunkPos.toLong());
     }
 
-    private static DataNukePrimedEntity createStationaryEntity(ServerLevel level, BlockPos origin, int fuseTicks) {
+    private static DataNukePrimedEntity createStationaryEntity(ServerLevel level, BlockPos origin) {
         DataNukePrimedEntity entity = new DataNukePrimedEntity(level, origin, null);
         entity.setNoGravity(true);
         entity.setDeltaMovement(Vec3.ZERO);
-        entity.setFuse(fuseTicks);
+        entity.setFuse(LONG_FUSE_TICKS);
         return entity;
     }
 }
