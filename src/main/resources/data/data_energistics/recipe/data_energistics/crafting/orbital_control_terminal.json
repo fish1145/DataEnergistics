@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "AEA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_crystal"
+		},
+		"B": {
+			"item": "ae2:engineering_processor"
+		},
+		"C": {
+			"item": "ae2:fluix_crystal"
+		},
+		"D": {
+			"item": "data_energistics:universal_terminal"
+		},
+		"E": {
+			"item": "ae2:wireless_access_point"
+		}
+	},
+	"result": {
+		"id": "data_energistics:orbital_control_terminal",
+		"count": 1
+	}
+}
