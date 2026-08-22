@@ -12,8 +12,9 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
                                             boolean unlimited) {
 
     public static final BigInteger AMOUNT_PER_M = BigInteger.valueOf(1_048_576L);
-    /** Largest combined capacity that remains representable by the long-based finite storage boundary. */
-    private static final BigInteger MAX_FINITE_CAPACITY = BigInteger.valueOf(Long.MAX_VALUE);
+    /** Exact amount capacity contributed by the maximum supported storage-core tier. */
+    private static final BigInteger MAXIMUM_CORE_CAPACITY = BigInteger.valueOf(
+            TrinityCoreTier.SIZE_256M.byteCapacity());
     public static final TrinityDataCoreStorageProfile EMPTY = new TrinityDataCoreStorageProfile(BigInteger.ZERO, 0, 0, 0, false);
     public static final TrinityDataCoreStorageProfile UNLIMITED = new TrinityDataCoreStorageProfile(BigInteger.ZERO, Integer.MAX_VALUE, 0, 0, true);
 
@@ -92,10 +93,13 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
         }
 
         /**
-         * Builds the immutable storage profile.
+         * Builds the immutable storage profile, granting unlimited capacity only when every declared slot contains a
+         * maximum-tier storage core.
          */
         public TrinityDataCoreStorageProfile build() {
-            boolean unlimited = this.totalCapacity.compareTo(MAX_FINITE_CAPACITY) > 0;
+            boolean unlimited = this.fullCoreCount > 0 &&
+                    this.coreCount == this.fullCoreCount &&
+                    this.totalCapacity.equals(MAXIMUM_CORE_CAPACITY.multiply(BigInteger.valueOf(this.fullCoreCount)));
             return new TrinityDataCoreStorageProfile(
                     this.totalCapacity,
                     this.typeCapacity,
