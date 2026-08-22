@@ -117,15 +117,26 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 this.damageExemptions,
                 this.workSettings);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(serverLevel.getServer());
-        if (!serverLevel.addFreshEntity(nuke)) {
-            discardRejectedPayload(serverLevel, attacks, nuke, "fuse entity could not be added to the target dimension");
-            return;
-        }
-        if (!attacks.markDigitalPayloadArrived(
+        if (!attacks.tryBindDigitalPayloadFuse(
                 serverLevel.getServer(),
                 this.attackId,
+                this.getUUID(),
                 nuke.getUUID())) {
-            discardRejectedPayload(serverLevel, attacks, nuke, "attack state rejected the materialized fuse");
+            discardRejectedPayload(
+                    serverLevel,
+                    attacks,
+                    nuke,
+                    "attack state rejected the projectile-to-fuse handoff",
+                    false);
+            return;
+        }
+        if (!serverLevel.addFreshEntity(nuke)) {
+            discardRejectedPayload(
+                    serverLevel,
+                    attacks,
+                    nuke,
+                    "authorized fuse entity could not be added to the target dimension",
+                    true);
             return;
         }
         this.discard();
@@ -204,9 +215,10 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     }
 
     private void discardInvalidPersistedState(ServerLevel level, String reason) {
-        boolean attackFaulted = !INVALID_ATTACK_ID.equals(this.attackId) && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+        boolean attackFaulted = !INVALID_ATTACK_ID.equals(this.attackId) && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadEntityFaulted(
                 level.getServer(),
                 this.attackId,
+                this.getUUID(),
                 reason);
         Data_Energistics.LOGGER.error(
                 "Discarding invalid orbital annihilator projectile {}: {}; attackFaulted={}",
@@ -220,9 +232,14 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                                         ServerLevel level,
                                         OrbitalAttackSavedData attacks,
                                         DataNukePrimedEntity nuke,
-                                        String reason) {
+                                        String reason,
+                                        boolean faultRegisteredAttack) {
         nuke.discard();
-        boolean attackFaulted = attacks.markDigitalPayloadFaulted(level.getServer(), this.attackId, reason);
+        boolean attackFaulted = faultRegisteredAttack && attacks.markDigitalPayloadEntityFaulted(
+                level.getServer(),
+                this.attackId,
+                nuke.getUUID(),
+                reason);
         Data_Energistics.LOGGER.error(
                 "Discarding rejected orbital annihilator projectile {} for attack {} at {}: {}; attackFaulted={}",
                 this.getUUID(),

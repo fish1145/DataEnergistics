@@ -527,9 +527,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     private void discardInvalidPersistedState(ServerLevel level, String reason) {
-        boolean attackFaulted = this.orbitalAttackId != null && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+        boolean attackFaulted = this.orbitalAttackId != null && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadEntityFaulted(
                 level.getServer(),
                 this.orbitalAttackId,
+                this.getUUID(),
                 reason);
         LOGGER.error(
                 "Discarding invalid persisted data nuke {}: {}; attackFaulted={}",

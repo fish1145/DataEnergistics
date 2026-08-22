@@ -476,11 +476,15 @@ public final class OrbitalAttackSavedData extends SavedData {
         return Optional.of(warning);
     }
 
-    /** Records the materialized fuse entity for a digital payload. */
-    public boolean markDigitalPayloadArrived(MinecraftServer server, UUID attackId, UUID nukeEntityId) {
+    /** Atomically replaces the currently registered projectile identity with its authorized fuse identity. */
+    public boolean tryBindDigitalPayloadFuse(
+                                             MinecraftServer server,
+                                             UUID attackId,
+                                             UUID sourceProjectileId,
+                                             UUID nukeEntityId) {
         requireServerThread(server);
         OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY) {
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || current.payloadArrived() || !sourceProjectileId.equals(current.payloadEntityId())) {
             return false;
         }
         this.attacks.put(attackId, current.markDigitalPayloadArrived(nukeEntityId));
@@ -488,11 +492,15 @@ public final class OrbitalAttackSavedData extends SavedData {
         return true;
     }
 
-    /** Moves a digital delivery into FAULTED while retaining its diagnostics and escrow. */
-    public boolean markDigitalPayloadFaulted(MinecraftServer server, UUID attackId, String reason) {
+    /** Faults only the projectile or fuse entity currently registered as the digital payload owner. */
+    public boolean markDigitalPayloadEntityFaulted(
+                                                   MinecraftServer server,
+                                                   UUID attackId,
+                                                   UUID payloadEntityId,
+                                                   String reason) {
         requireServerThread(server);
         OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() == OrbitalAttackPhase.COOLDOWN || current.phase() == OrbitalAttackPhase.FAULTED) {
+        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || !payloadEntityId.equals(current.payloadEntityId())) {
             return false;
         }
         fault(server, current, "Digital annihilation payload failed: " + reason);
@@ -985,7 +993,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             if (result.state() == DigitalAnnihilationWork.State.FAULTED || readiness == ChunkReadiness.FAULTED) {
                 String reason = nuke.orbitalWorkFailure();
                 nuke.discard();
-                markDigitalPayloadFaulted(server, current.attackId(), reason == null ? "work fault" : reason);
+                fault(server, current, "Digital annihilation payload failed: " + (reason == null ? "work fault" : reason));
                 return;
             }
             if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
