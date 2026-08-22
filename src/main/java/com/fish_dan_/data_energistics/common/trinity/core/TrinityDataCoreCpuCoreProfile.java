@@ -111,10 +111,16 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     }
 
     /**
-     * Returns true when every core slot is filled and the repeated CPU section reaches its maximum height.
+     * Returns true when every core slot contains a maximum-tier merged core and the repeated CPU section reaches its
+     * maximum height.
      */
     public boolean fullCpu() {
-        return this.filledCoreSlots == this.fullCoreSlots && this.actualRepeatCount == this.maxRepeatCount;
+        long maximumStorageBytes = Math.multiplyExact(
+                this.fullCoreSlots,
+                TrinityCoreTier.SIZE_256M.byteCapacity());
+        return this.filledCoreSlots == this.fullCoreSlots &&
+                this.storageBytes == maximumStorageBytes &&
+                this.actualRepeatCount == this.maxRepeatCount;
     }
 
     /**

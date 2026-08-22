@@ -657,7 +657,7 @@ public final class TrinityPatternSlot {
      * @param recipeIdResolvers recipe identity registry
      * @param changeListener    typed owner callback
      * @param registries        item component registry access
-     * @return fully validated detached slot
+     * @return structurally validated detached slot whose installed runtime binding may be unavailable
      */
     public static TrinityPatternSlot readFromTag(CompoundTag data, TrinityPatternCore.PatternDecoder decoder,
                                                  TrinityPatternRecipeIdLookup recipeIdResolvers,
@@ -812,17 +812,18 @@ public final class TrinityPatternSlot {
         return definition;
     }
 
+    @Nullable
     private IMolecularAssemblerSupportedPattern validatePersistedDefinition(TrinityPatternDefinition definition) {
         IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(definition.pattern());
-        Optional<TrinityPatternRecipeIdResolution> resolution = decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
+        Optional<TrinityPatternRecipeIdResolution> resolution = decoded == null ? Optional.empty() :
+                this.recipeIdResolvers.resolve(decoded);
         if (resolution.isEmpty() || !resolution.get().equals(definition.resolution())) {
-            throw new IllegalArgumentException(
-                    "Trinity pattern definition " + definition.id() + " does not match its encoded recipe identity");
+            return null;
         }
         return decoded;
     }
 
-    private void bindValidatedInstalledPattern(IMolecularAssemblerSupportedPattern decoded) {
+    private void bindValidatedInstalledPattern(@Nullable IMolecularAssemblerSupportedPattern decoded) {
         this.decodedPattern = decoded;
     }
 
