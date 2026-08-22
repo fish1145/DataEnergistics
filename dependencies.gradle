@@ -41,6 +41,14 @@ dependencies {
 
     // FTB
     compileOnly(forge.ftbultimine)
+    compileOnly(forge.ftbchunks)
+
+    // Optional tactical-map integrations
+    compileOnly(forge.journeymap.api) {
+        transitive = false
+    }
+    compileOnly(forge.xaerolib)
+    compileOnly(forge.xaeros.world.map)
 
     // Energy integrations
     compileOnly(forge.brandonscore)
@@ -120,4 +128,8 @@ dependencies {
     //////////////////////////////////////////////////////
     // Runtime mods for dev testing with unclean client //
     //////////////////////////////////////////////////////
+    clientExtraLocalRuntime(forge.journeymap)
+    clientExtraLocalRuntime(forge.xaerolib)
+    clientExtraLocalRuntime(forge.xaeros.world.map)
+    clientExtraLocalRuntime(forge.ftbchunks)
 }

@@ -89,6 +89,34 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.${ mod_id }]]
+modId = "journeymap"
+type = "optional"
+versionRange = "[${journeymap_version},)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "xaeroworldmap"
+type = "optional"
+versionRange = "[1.40.2,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "xaerolib"
+type = "optional"
+versionRange = "[${xaerolib_version},)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "ftbchunks"
+type = "optional"
+versionRange = "[${ftbchunks_version},)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
 modId = "ae2cs"
 type = "optional"
 versionRange = "[0,)"

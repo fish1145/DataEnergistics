@@ -111,6 +111,17 @@ repositories {
         forRepository { maven { url = "https://maven.theillusivec4.top/" } }
         filter { includeGroup('top.theillusivec4.curios') }
     }
+    exclusiveContent { // JourneyMap API
+        forRepository { maven { url = "https://jm.gserv.me/repository/maven-public/" } }
+        filter {
+            includeGroup("info.journeymap")
+            includeGroup("mysticdrew")
+        }
+    }
+    exclusiveContent { // XaeroLib
+        forRepository { maven { url = "https://chocolateminecraft.com/maven" } }
+        filter { includeGroup("xaero.lib") }
+    }
     exclusiveContent { // Modrinth Maven
         forRepository { maven { url = "https://api.modrinth.com/maven" } }
         filter { includeGroup("maven.modrinth") }
