@@ -6,18 +6,7 @@ import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPa
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewCancelPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewReleasePayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAttackPreviewRequestPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAuthorizationPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalAuthorizationRevokePayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalEndpointPriorityPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalOwnershipTransferAcceptPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalOwnershipTransferRequestPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalPrimaryAnchorPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalRetirementConfirmPayload;
-import com.fish_dan_.data_energistics.network.orbital.control.OrbitalRetirementRequestPayload;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
 import com.fish_dan_.data_energistics.network.orbital.projection.OrbitalProjectionVisualsPayload;
@@ -160,50 +149,6 @@ public final class DEPayloads {
                 OrbitalControlHudSnapshotPayload.TYPE,
                 OrbitalControlHudSnapshotPayload.STREAM_CODEC,
                 OrbitalControlHudSnapshotPayload::handle);
-        registrar.playToServer(
-                OrbitalAttackPreviewRequestPayload.TYPE,
-                OrbitalAttackPreviewRequestPayload.STREAM_CODEC,
-                OrbitalAttackPreviewRequestPayload::handle);
-        registrar.playToServer(
-                OrbitalAttackPreviewReleasePayload.TYPE,
-                OrbitalAttackPreviewReleasePayload.STREAM_CODEC,
-                OrbitalAttackPreviewReleasePayload::handle);
-        registrar.playToServer(
-                OrbitalAttackPreviewCancelPayload.TYPE,
-                OrbitalAttackPreviewCancelPayload.STREAM_CODEC,
-                OrbitalAttackPreviewCancelPayload::handle);
-        registrar.playToServer(
-                OrbitalEndpointPriorityPayload.TYPE,
-                OrbitalEndpointPriorityPayload.STREAM_CODEC,
-                OrbitalEndpointPriorityPayload::handle);
-        registrar.playToServer(
-                OrbitalPrimaryAnchorPayload.TYPE,
-                OrbitalPrimaryAnchorPayload.STREAM_CODEC,
-                OrbitalPrimaryAnchorPayload::handle);
-        registrar.playToServer(
-                OrbitalAuthorizationPayload.TYPE,
-                OrbitalAuthorizationPayload.STREAM_CODEC,
-                OrbitalAuthorizationPayload::handle);
-        registrar.playToServer(
-                OrbitalAuthorizationRevokePayload.TYPE,
-                OrbitalAuthorizationRevokePayload.STREAM_CODEC,
-                OrbitalAuthorizationRevokePayload::handle);
-        registrar.playToServer(
-                OrbitalOwnershipTransferRequestPayload.TYPE,
-                OrbitalOwnershipTransferRequestPayload.STREAM_CODEC,
-                OrbitalOwnershipTransferRequestPayload::handle);
-        registrar.playToServer(
-                OrbitalOwnershipTransferAcceptPayload.TYPE,
-                OrbitalOwnershipTransferAcceptPayload.STREAM_CODEC,
-                OrbitalOwnershipTransferAcceptPayload::handle);
-        registrar.playToServer(
-                OrbitalRetirementRequestPayload.TYPE,
-                OrbitalRetirementRequestPayload.STREAM_CODEC,
-                OrbitalRetirementRequestPayload::handle);
-        registrar.playToServer(
-                OrbitalRetirementConfirmPayload.TYPE,
-                OrbitalRetirementConfirmPayload.STREAM_CODEC,
-                OrbitalRetirementConfirmPayload::handle);
         registrar.playToServer(
                 OrbitalTacticalMapRequestPayload.TYPE,
                 OrbitalTacticalMapRequestPayload.STREAM_CODEC,
