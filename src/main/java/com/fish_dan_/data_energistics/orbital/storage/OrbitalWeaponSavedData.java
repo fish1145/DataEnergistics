@@ -942,8 +942,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED) {
             return weapon.reserve();
         }
-        long celestialDebit = Math.min(weapon.reserve().celestialEnergy(), settings.celestialEnergyUpkeepPerTick());
-        long aeDebit = Math.min(weapon.reserve().aeEnergy(), settings.aeEnergyUpkeepPerTick());
+        long celestialDebit = Math.min(weapon.reserve().celestialEnergy(), settings.celestialEnergyUpkeepPerTick);
+        long aeDebit = Math.min(weapon.reserve().aeEnergy(), settings.aeEnergyUpkeepPerTick);
         if (celestialDebit == 0L && aeDebit == 0L) {
             return weapon.reserve();
         }

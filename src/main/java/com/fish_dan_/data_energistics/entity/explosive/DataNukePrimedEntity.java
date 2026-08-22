@@ -113,9 +113,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 attackId,
                 damageExemptions,
                 new DigitalAnnihilationWork.Settings(
-                        settings.workIntervalTicks(),
-                        settings.maxRadius(),
-                        settings.centerEntityConsumeRadius()));
+                        settings.workIntervalTicks,
+                        settings.maxRadius,
+                        settings.centerEntityConsumeRadius));
     }
 
     /** Creates an orbital fuse with the Data Nuke settings captured at attack confirmation. */
@@ -242,7 +242,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
                 tag.getInt(TAG_WORK_SETTINGS_RADIUS),
                 tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;
-        int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
+        int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius;
         this.expansionRadius = Math.max(0, Math.min(maximumRadius, tag.getInt(TAG_EXPANSION_RADIUS)));
         ListTag exemptionList = tag.getList(TAG_DAMAGE_EXEMPTIONS, Tag.TAG_COMPOUND);
         HashSet<UUID> exemptions = new HashSet<>();
@@ -512,9 +512,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private static DigitalAnnihilationWork.Settings currentWorkSettings() {
         DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         return new DigitalAnnihilationWork.Settings(
-                settings.workIntervalTicks(),
-                settings.maxRadius(),
-                settings.centerEntityConsumeRadius());
+                settings.workIntervalTicks,
+                settings.maxRadius,
+                settings.centerEntityConsumeRadius);
     }
 
     private void releaseAnnihilationWork() {

@@ -142,7 +142,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             level.destroyBlock(helper.absolutePos(CONTROL_CONSOLE), false),
                             "The endpoint must be removable after confirmation without cancelling the payload");
                 })
-                .thenIdle(Math.max(1, settings.attackWarningTicks() / 2))
+                .thenIdle(Math.max(1, settings.attackWarningTicks / 2))
                 .thenExecute(() -> {
                     OrbitalAttackRecord warning = attacks.find(attackId.get()).orElseThrow();
                     helper.assertValueEqual(
@@ -285,7 +285,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             OrbitalAttackPhase.RESERVED_WARNING,
                             "An unloaded target must enter the normal refundable warning phase");
                 })
-                .thenIdle(settings.attackWarningTicks())
+                .thenIdle(settings.attackWarningTicks)
                 .thenWaitUntil(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
                     helper.assertValueEqual(
@@ -351,7 +351,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             level.destroyBlock(helper.absolutePos(CONTROL_CONSOLE), false),
                             "The endpoint must be removed after confirmation without cancelling the payload");
                 })
-                .thenIdle(settings.attackWarningTicks())
+                .thenIdle(settings.attackWarningTicks)
                 .thenWaitUntil(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
                     helper.assertValueEqual(
@@ -610,10 +610,10 @@ public final class OrbitalDigitalAnnihilationGameTest {
                                      OrbitalAttackCost cost) {
         long requiredCelestialEnergy = Math.max(
                 cost.celestialEnergy(),
-                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
         long requiredAeEnergy = Math.max(
                 cost.aeEnergy(),
-                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
             if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
@@ -629,7 +629,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
                                                 OrbitalAttackCost cost) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), 2L),
-                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
     }
 
     private static long deploymentTarget(long capacity, double threshold) {

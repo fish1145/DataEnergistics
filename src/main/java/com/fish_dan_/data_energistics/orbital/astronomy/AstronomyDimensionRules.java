@@ -41,7 +41,7 @@ public final class AstronomyDimensionRules {
             return true;
         }
         long dayTick = Math.floorMod(level.getDayTime(), DAY_LENGTH_TICKS);
-        return dayTick >= settings.observationWindowStartTick() && dayTick < settings.observationWindowEndTick();
+        return dayTick >= settings.observationWindowStartTick && dayTick < settings.observationWindowEndTick;
     }
 
     /**
@@ -50,7 +50,7 @@ public final class AstronomyDimensionRules {
     public static long celestialEnergyPerTick(
                                               ServerLevel level,
                                               DataEnergisticsConfiguration.AstronomySchema settings) {
-        return celestialEnergyPerTick(level, settings, settings.lowTierCelestialEnergyPerTick());
+        return celestialEnergyPerTick(level, settings, settings.lowTierCelestialEnergyPerTick);
     }
 
     /**
@@ -65,8 +65,8 @@ public final class AstronomyDimensionRules {
         }
         ResourceLocation dimensionId = level.dimension().location();
         double dimensionMultiplier = settings.dimensionMultipliers()
-                .getOrDefault(dimensionId, settings.defaultDimensionMultiplier());
-        double weatherMultiplier = level.isRaining() ? settings.rainOutputMultiplier() : 1.0D;
+                .getOrDefault(dimensionId, settings.defaultDimensionMultiplier);
+        double weatherMultiplier = level.isRaining() ? settings.rainOutputMultiplier : 1.0D;
         double scaledOutput = baseOutput * dimensionMultiplier * weatherMultiplier;
         if (scaledOutput >= Long.MAX_VALUE) {
             return Long.MAX_VALUE;

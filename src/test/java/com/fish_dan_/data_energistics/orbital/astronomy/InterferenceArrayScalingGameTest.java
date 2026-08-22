@@ -370,7 +370,7 @@ public final class InterferenceArrayScalingGameTest {
                                             long expected,
                                             String stage) {
         long after = celestialReserve(data, weaponId);
-        long weatherAdjustedExpected = raining.get() ? (long) Math.floor(expected * DataEnergisticsConfiguration.INSTANCE.astronomy.rainOutputMultiplier()) : expected;
+        long weatherAdjustedExpected = raining.get() ? (long) Math.floor(expected * DataEnergisticsConfiguration.INSTANCE.astronomy.rainOutputMultiplier) : expected;
         helper.assertValueEqual(
                 after - checkpoint.get(),
                 weatherAdjustedExpected,

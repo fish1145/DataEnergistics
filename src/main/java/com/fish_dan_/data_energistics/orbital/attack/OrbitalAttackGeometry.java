@@ -66,13 +66,13 @@ public sealed interface OrbitalAttackGeometry
         /** Captures the mutable server configuration for one new preview or confirmed attack. */
         public static Kinetic fromSettings(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
             return new Kinetic(
-                    settings.kineticColumnRadius(),
-                    settings.kineticColumnDepth(),
-                    settings.kineticCraterRadius(),
-                    settings.kineticCraterDepth(),
-                    settings.kineticShockwaveRadius(),
-                    settings.kineticEntityDamage(),
-                    settings.kineticKnockbackStrength());
+                    settings.kineticColumnRadius,
+                    settings.kineticColumnDepth,
+                    settings.kineticCraterRadius,
+                    settings.kineticCraterDepth,
+                    settings.kineticShockwaveRadius,
+                    settings.kineticEntityDamage,
+                    settings.kineticKnockbackStrength);
         }
 
         /** Restores the exact geometry used by saves written before kinetic settings were persisted. */

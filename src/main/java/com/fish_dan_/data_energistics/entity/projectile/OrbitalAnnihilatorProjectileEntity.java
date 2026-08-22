@@ -212,8 +212,8 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     private static DigitalAnnihilationWork.Settings currentWorkSettings() {
         var settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         return new DigitalAnnihilationWork.Settings(
-                settings.workIntervalTicks(),
-                settings.maxRadius(),
-                settings.centerEntityConsumeRadius());
+                settings.workIntervalTicks,
+                settings.maxRadius,
+                settings.centerEntityConsumeRadius);
     }
 }

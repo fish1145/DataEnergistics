@@ -99,7 +99,7 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
                 grid,
                 IActionSource.ofMachine(this),
                 celestialEnergy,
-                settings.lowTierAeEnergyPerTick());
+                settings.lowTierAeEnergyPerTick);
         if (inserted < celestialEnergy) {
             if (inserted > 0L && !this.insertionMismatchLogged) {
                 Data_Energistics.LOGGER.warn(

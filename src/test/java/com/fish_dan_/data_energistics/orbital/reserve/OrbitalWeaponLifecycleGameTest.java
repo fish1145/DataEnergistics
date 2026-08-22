@@ -62,7 +62,7 @@ public final class OrbitalWeaponLifecycleGameTest {
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         long deploymentCelestialEnergy = deploymentTarget(
-                settings.celestialEnergyCapacity(),
+                settings.celestialEnergyCapacity,
                 settings.deploymentThreshold);
 
         helper.startSequence()
@@ -114,11 +114,11 @@ public final class OrbitalWeaponLifecycleGameTest {
                     OrbitalWeaponRecord maintained = weapons.find(weaponId).orElseThrow();
                     helper.assertValueEqual(
                             beforeMaintenance.celestialEnergy() - maintained.reserve().celestialEnergy(),
-                            Math.min(beforeMaintenance.celestialEnergy(), settings.celestialEnergyUpkeepPerTick()),
+                            Math.min(beforeMaintenance.celestialEnergy(), settings.celestialEnergyUpkeepPerTick),
                             "A deployed tick without input must consume configured Celestial Energy upkeep");
                     helper.assertValueEqual(
                             beforeMaintenance.aeEnergy() - maintained.reserve().aeEnergy(),
-                            Math.min(beforeMaintenance.aeEnergy(), settings.aeEnergyUpkeepPerTick()),
+                            Math.min(beforeMaintenance.aeEnergy(), settings.aeEnergyUpkeepPerTick),
                             "A deployed tick without input must consume configured AE upkeep");
                     helper.assertValueEqual(
                             maintained.lifecycle().state(),
@@ -174,11 +174,11 @@ public final class OrbitalWeaponLifecycleGameTest {
                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         long requiredCalls = Math.max(
                 ceilingDivision(
-                        deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold),
-                        settings.celestialEnergyChargePerTick()),
+                        deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold),
+                        settings.celestialEnergyChargePerTick),
                 ceilingDivision(
-                        deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold),
-                        settings.aeEnergyChargePerTick()));
+                        deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold),
+                        settings.aeEnergyChargePerTick));
         if (requiredCalls > Integer.MAX_VALUE - 2L) {
             throw new IllegalStateException("The configured deployment threshold is too slow for this GameTest");
         }

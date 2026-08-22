@@ -21,9 +21,9 @@ public record OrbitalAttackCost(
      */
     public static OrbitalAttackCost kinetic(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return new OrbitalAttackCost(
-                settings.kineticCelestialEnergyCost(),
-                settings.kineticAeEnergyCost(),
-                settings.kineticCooldownTicks());
+                settings.kineticCelestialEnergyCost,
+                settings.kineticAeEnergyCost,
+                settings.kineticCooldownTicks);
     }
 
     /**
@@ -36,12 +36,12 @@ public record OrbitalAttackCost(
             throw new IllegalArgumentException("A directed-energy scan must schedule at least one coordinate");
         }
         long celestial = Math.addExact(
-                settings.directedEnergyBaseCelestialEnergyCost(),
-                Math.multiplyExact(settings.directedEnergyCelestialEnergyPerCoordinate(), scheduledCoordinates));
+                settings.directedEnergyBaseCelestialEnergyCost,
+                Math.multiplyExact(settings.directedEnergyCelestialEnergyPerCoordinate, scheduledCoordinates));
         long ae = Math.addExact(
-                settings.directedEnergyBaseAeEnergyCost(),
-                Math.multiplyExact(settings.directedEnergyAeEnergyPerCoordinate(), scheduledCoordinates));
-        return new OrbitalAttackCost(celestial, ae, settings.directedEnergyCooldownTicks());
+                settings.directedEnergyBaseAeEnergyCost,
+                Math.multiplyExact(settings.directedEnergyAeEnergyPerCoordinate, scheduledCoordinates));
+        return new OrbitalAttackCost(celestial, ae, settings.directedEnergyCooldownTicks);
     }
 
     /**
@@ -49,8 +49,8 @@ public record OrbitalAttackCost(
      */
     public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
         return new OrbitalAttackCost(
-                settings.digitalAnnihilationCelestialEnergyCost(),
-                settings.digitalAnnihilationAeEnergyCost(),
-                settings.digitalAnnihilationCooldownTicks());
+                settings.digitalAnnihilationCelestialEnergyCost,
+                settings.digitalAnnihilationAeEnergyCost,
+                settings.digitalAnnihilationCooldownTicks);
     }
 }

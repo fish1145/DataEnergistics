@@ -47,10 +47,10 @@ public final class OrbitalReserveCharging {
         OrbitalEnergyReserve reserve = weapon.reserve().withinCapacity(settings);
         long celestialEnergyRequest = Math.min(
                 reserve.celestialEnergySpace(settings),
-                settings.celestialEnergyChargePerTick());
+                settings.celestialEnergyChargePerTick);
         long aeEnergyRequest = Math.min(
                 reserve.aeEnergySpace(settings),
-                settings.aeEnergyChargePerTick());
+                settings.aeEnergyChargePerTick);
         if (celestialEnergyRequest == 0L && aeEnergyRequest == 0L) {
             return weapon.withReserve(reserve);
         }

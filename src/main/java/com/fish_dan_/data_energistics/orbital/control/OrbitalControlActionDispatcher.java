@@ -160,7 +160,12 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
-        if (configuration.orbitalWeapon.isAttackModeDisabled(mode)) {
+        boolean attackEnabled = switch (mode) {
+            case KINETIC -> configuration.orbitalWeapon.kineticAttackEnabled;
+            case DIRECTED_ENERGY -> configuration.orbitalWeapon.directedEnergyAttackEnabled;
+            case DIGITAL_ANNIHILATION -> configuration.orbitalWeapon.digitalAnnihilationAttackEnabled;
+        };
+        if (!attackEnabled) {
             return Optional.empty();
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
@@ -193,7 +198,7 @@ public final class OrbitalControlActionDispatcher {
         int boundaryRadius = switch (mode) {
             case KINETIC -> OrbitalAttackGeometry.Kinetic.fromSettings(configuration.orbitalWeapon).maximumRadius();
             case DIRECTED_ENERGY -> directedRadius;
-            case DIGITAL_ANNIHILATION -> configuration.explosives.dataNuke.maxRadius();
+            case DIGITAL_ANNIHILATION -> configuration.explosives.dataNuke.maxRadius;
         };
         if (!validTarget(targetLevel, target, boundaryRadius)) {
             player.displayClientMessage(

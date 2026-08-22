@@ -64,8 +64,8 @@ public final class OrbitalTerrainWorkScheduler {
         this.maxTicketsGlobal = settings.maxAttackChunkTicketsGlobal;
         this.maxRequestsPerDimension = settings.maxAttackChunkGenerationPerDimension;
         this.maxRequestsGlobal = settings.maxAttackChunkGenerationGlobal;
-        this.maxMutationsPerTask = settings.maxAttackBlockMutationsPerTaskTick();
-        this.remainingMutationBudget = settings.maxAttackBlockMutationsGlobalTick();
+        this.maxMutationsPerTask = settings.maxAttackBlockMutationsPerTaskTick;
+        this.remainingMutationBudget = settings.maxAttackBlockMutationsGlobalTick;
         this.mutationsReservedByTask.clear();
         this.tickOpen = true;
         trimTicketsToLimits(server);

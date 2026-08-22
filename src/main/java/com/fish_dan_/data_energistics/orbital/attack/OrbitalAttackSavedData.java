@@ -250,7 +250,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     yield new VisualEffect(effectPosition, geometry.maxRadius(), Math.max(attack.workCursor(), 1L));
                 }
             };
-            long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ? Math.max(0L, settings.attackWarningTicks() - attack.warningTicksRemaining()) : Math.max(0L, gameTime - this.phaseStartedAt.getOrDefault(attack.attackId(), gameTime));
+            long phaseAge = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ? Math.max(0L, settings.attackWarningTicks - attack.warningTicksRemaining()) : Math.max(0L, gameTime - this.phaseStartedAt.getOrDefault(attack.attackId(), gameTime));
             long randomSeed = (attack.attackId().getMostSignificantBits() ^ attack.attackId().getLeastSignificantBits()) & Long.MAX_VALUE;
             visuals.add(new OrbitalAttackVisualSnapshot(
                     attack.attackId(),
@@ -283,7 +283,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
-        if (settings.isAttackModeDisabled(OrbitalAttackMode.KINETIC)) {
+        if (!settings.kineticAttackEnabled) {
             return Optional.empty();
         }
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
@@ -318,7 +318,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 target,
                 geometry,
                 configuration.revision(),
-                settings.attackWarningTicks(),
+                settings.attackWarningTicks,
                 cost,
                 weapon.damageExemptionSnapshot());
         if (!weapons.tryDebitReserve(
@@ -348,7 +348,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
-        if (settings.isAttackModeDisabled(OrbitalAttackMode.DIRECTED_ENERGY)) {
+        if (!settings.directedEnergyAttackEnabled) {
             return Optional.empty();
         }
         if (depth == null) {
@@ -369,7 +369,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
         OrbitalAttackGeometry.DirectedEnergy geometry;
         try {
-            geometry = new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage());
+            geometry = new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage);
         } catch (IllegalArgumentException exception) {
             return Optional.empty();
         }
@@ -398,7 +398,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 target,
                 geometry,
                 configuration.revision(),
-                settings.attackWarningTicks(),
+                settings.attackWarningTicks,
                 cost,
                 weapon.damageExemptionSnapshot());
         if (!weapons.tryDebitReserve(
@@ -427,7 +427,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
-        if (settings.isAttackModeDisabled(OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
+        if (!settings.digitalAnnihilationAttackEnabled) {
             return Optional.empty();
         }
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
@@ -444,7 +444,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || targetOutsideBounds(targetLevel, target, dataNuke.maxRadius())) {
+        if (targetLevel == null || targetOutsideBounds(targetLevel, target, dataNuke.maxRadius)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -459,11 +459,11 @@ public final class OrbitalAttackSavedData extends SavedData {
                 dimensionId,
                 target,
                 new OrbitalAttackGeometry.DigitalAnnihilation(
-                        dataNuke.workIntervalTicks(),
-                        dataNuke.maxRadius(),
-                        dataNuke.centerEntityConsumeRadius()),
+                        dataNuke.workIntervalTicks,
+                        dataNuke.maxRadius,
+                        dataNuke.centerEntityConsumeRadius),
                 configuration.revision(),
-                settings.attackWarningTicks(),
+                settings.attackWarningTicks,
                 cost,
                 weapon.damageExemptionSnapshot());
         if (!weapons.tryDebitReserve(
@@ -753,9 +753,9 @@ public final class OrbitalAttackSavedData extends SavedData {
                 case DIGITAL_ANNIHILATION -> {
                     DataEnergisticsConfiguration.DataNukeSchema fallback = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
                     geometry = new OrbitalAttackGeometry.DigitalAnnihilation(
-                            tag.contains(DIGITAL_WORK_INTERVAL_TAG) ? tag.getInt(DIGITAL_WORK_INTERVAL_TAG) : fallback.workIntervalTicks(),
-                            tag.contains(DIGITAL_MAX_RADIUS_TAG) ? tag.getInt(DIGITAL_MAX_RADIUS_TAG) : fallback.maxRadius(),
-                            tag.contains(DIGITAL_CENTER_RADIUS_TAG) ? tag.getDouble(DIGITAL_CENTER_RADIUS_TAG) : fallback.centerEntityConsumeRadius());
+                            tag.contains(DIGITAL_WORK_INTERVAL_TAG) ? tag.getInt(DIGITAL_WORK_INTERVAL_TAG) : fallback.workIntervalTicks,
+                            tag.contains(DIGITAL_MAX_RADIUS_TAG) ? tag.getInt(DIGITAL_MAX_RADIUS_TAG) : fallback.maxRadius,
+                            tag.contains(DIGITAL_CENTER_RADIUS_TAG) ? tag.getDouble(DIGITAL_CENTER_RADIUS_TAG) : fallback.centerEntityConsumeRadius);
                 }
                 default -> throw new IllegalArgumentException("Unsupported orbital attack mode");
             }
@@ -1270,7 +1270,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         long occupiedTasks = this.attacks.values().stream()
                 .filter(OrbitalAttackSavedData::occupiesWorkSlot)
                 .count();
-        return occupiedTasks >= settings.maxCommittedAttackTasks();
+        return occupiedTasks >= settings.maxCommittedAttackTasks;
     }
 
     private static boolean occupiesWorkSlot(OrbitalAttackRecord attack) {

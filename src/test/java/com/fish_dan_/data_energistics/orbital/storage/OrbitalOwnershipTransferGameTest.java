@@ -263,10 +263,10 @@ public final class OrbitalOwnershipTransferGameTest {
                                       int attackCount) {
         long requiredCelestialEnergy = Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), attackCount),
-                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
         long requiredAeEnergy = Math.max(
                 Math.multiplyExact(cost.aeEnergy(), attackCount),
-                deploymentTarget(settings.aeEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
             if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
@@ -283,7 +283,7 @@ public final class OrbitalOwnershipTransferGameTest {
                                                  int attackCount) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), attackCount),
-                deploymentTarget(settings.celestialEnergyCapacity(), settings.deploymentThreshold));
+                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
     }
 
     private static void launchRequiredTestDigitalAttack(

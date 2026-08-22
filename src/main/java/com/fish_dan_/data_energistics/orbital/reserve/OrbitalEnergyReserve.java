@@ -27,7 +27,7 @@ public record OrbitalEnergyReserve(
      * The calculation uses a ceiling so a non-zero fractional threshold cannot deploy with a zero reserve.
      */
     public boolean meetsDeploymentThreshold(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity(), settings.deploymentThreshold) && this.aeEnergy >= threshold(settings.aeEnergyCapacity(), settings.deploymentThreshold);
+        return this.celestialEnergy >= threshold(settings.celestialEnergyCapacity, settings.deploymentThreshold) && this.aeEnergy >= threshold(settings.aeEnergyCapacity, settings.deploymentThreshold);
     }
 
     private static long threshold(long capacity, double fraction) {
@@ -46,14 +46,14 @@ public record OrbitalEnergyReserve(
      * Returns the remaining Celestial Energy capacity after applying the current configuration.
      */
     public long celestialEnergySpace(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        return settings.celestialEnergyCapacity() - Math.min(this.celestialEnergy, settings.celestialEnergyCapacity());
+        return settings.celestialEnergyCapacity - Math.min(this.celestialEnergy, settings.celestialEnergyCapacity);
     }
 
     /**
      * Returns the remaining AE energy capacity after applying the current configuration.
      */
     public long aeEnergySpace(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        return settings.aeEnergyCapacity() - Math.min(this.aeEnergy, settings.aeEnergyCapacity());
+        return settings.aeEnergyCapacity - Math.min(this.aeEnergy, settings.aeEnergyCapacity);
     }
 
     /**
@@ -67,14 +67,14 @@ public record OrbitalEnergyReserve(
             throw new IllegalArgumentException("Transferred orbital energy must not be negative");
         }
 
-        long normalizedCelestialEnergy = Math.min(this.celestialEnergy, settings.celestialEnergyCapacity());
-        long normalizedAeEnergy = Math.min(this.aeEnergy, settings.aeEnergyCapacity());
+        long normalizedCelestialEnergy = Math.min(this.celestialEnergy, settings.celestialEnergyCapacity);
+        long normalizedAeEnergy = Math.min(this.aeEnergy, settings.aeEnergyCapacity);
         long acceptedCelestialEnergy = Math.min(
                 transferredCelestialEnergy,
-                settings.celestialEnergyCapacity() - normalizedCelestialEnergy);
+                settings.celestialEnergyCapacity - normalizedCelestialEnergy);
         long acceptedAeEnergy = Math.min(
                 transferredAeEnergy,
-                settings.aeEnergyCapacity() - normalizedAeEnergy);
+                settings.aeEnergyCapacity - normalizedAeEnergy);
         long updatedCelestialEnergy = normalizedCelestialEnergy + acceptedCelestialEnergy;
         long updatedAeEnergy = normalizedAeEnergy + acceptedAeEnergy;
         if (updatedCelestialEnergy == this.celestialEnergy && updatedAeEnergy == this.aeEnergy) {

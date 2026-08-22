@@ -66,7 +66,7 @@ public record OrbitalAttackPreviewEstimate(
                 scheduledBlocks = OrbitalKineticStrike.totalWork(level, target, geometry);
                 workingTicks = divideRoundingUp(
                         scheduledBlocks,
-                        settings.maxAttackBlockMutationsPerTaskTick());
+                        settings.maxAttackBlockMutationsPerTaskTick);
                 effectRadius = geometry.maximumRadius();
             }
             case DIRECTED_ENERGY -> {
@@ -76,13 +76,13 @@ public record OrbitalAttackPreviewEstimate(
                 OrbitalAttackGeometry.DirectedEnergy geometry = new OrbitalAttackGeometry.DirectedEnergy(
                         directedRadius,
                         directedDepth,
-                        settings.directedEnergyEntityDamage());
+                        settings.directedEnergyEntityDamage);
                 scheduledCoordinates = OrbitalDirectedEnergyStrike.scheduledCoordinateCount(directedRadius);
                 cost = OrbitalAttackCost.directedEnergy(settings, scheduledCoordinates);
                 scheduledBlocks = OrbitalDirectedEnergyStrike.totalWork(level, target, geometry);
                 workingTicks = divideRoundingUp(
                         scheduledBlocks,
-                        settings.maxAttackBlockMutationsPerTaskTick());
+                        settings.maxAttackBlockMutationsPerTaskTick);
                 effectRadius = directedRadius;
             }
             case DIGITAL_ANNIHILATION -> {
@@ -97,13 +97,13 @@ public record OrbitalAttackPreviewEstimate(
                                 OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS,
                                 DataNukePrimedEntity.DEFAULT_FUSE_TICKS),
                         work.minimumTicks());
-                effectRadius = configuration.explosives.dataNuke.maxRadius();
+                effectRadius = configuration.explosives.dataNuke.maxRadius;
             }
             default -> throw new IllegalStateException("Unsupported orbital attack mode " + mode);
         }
 
         ChunkEstimate chunks = countChunks(level, target, effectRadius);
-        long minimumExecutionTicks = Math.addExact(settings.attackWarningTicks(), workingTicks);
+        long minimumExecutionTicks = Math.addExact(settings.attackWarningTicks, workingTicks);
         return new OrbitalAttackPreviewEstimate(
                 cost,
                 reserve.celestialEnergy(),

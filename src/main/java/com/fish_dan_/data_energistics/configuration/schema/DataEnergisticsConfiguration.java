@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.configuration.schema;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -434,17 +433,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable.DecimalRange(min = 0.0, max = 128.0)
         public double centerEntityConsumeRadius = 4.0D;
 
-        public int workIntervalTicks() {
-            return this.workIntervalTicks;
-        }
-
-        public int maxRadius() {
-            return this.maxRadius;
-        }
-
-        public double centerEntityConsumeRadius() {
-            return this.centerEntityConsumeRadius;
-        }
     }
 
     public static final class SolarPanelSchema {
@@ -615,78 +603,7 @@ public final class DataEnergisticsConfiguration {
         @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
         public double[] dimensionMultiplierValues = { 1.0D, 2.0D, 0.0D };
 
-        public long lowTierCelestialEnergyPerTick() {
-            return this.lowTierCelestialEnergyPerTick;
-        }
-
-        public long lowTierAeEnergyPerTick() {
-            return this.lowTierAeEnergyPerTick;
-        }
-
-        public long highTierMirrorCelestialEnergyPerTick1To4() {
-            return this.highTierMirrorCelestialEnergyPerTick1To4;
-        }
-
-        public long highTierMirrorCelestialEnergyPerTick5To8() {
-            return this.highTierMirrorCelestialEnergyPerTick5To8;
-        }
-
-        public long highTierMirrorCelestialEnergyPerTick9To12() {
-            return this.highTierMirrorCelestialEnergyPerTick9To12;
-        }
-
-        public long highTierMirrorCelestialEnergyPerTick13To16() {
-            return this.highTierMirrorCelestialEnergyPerTick13To16;
-        }
-
-        public long highTierCoreAeEnergyPerTick() {
-            return this.highTierCoreAeEnergyPerTick;
-        }
-
-        public long highTierMirrorAeEnergyPerTick() {
-            return this.highTierMirrorAeEnergyPerTick;
-        }
-
-        public int highTierMinimumMirrors() {
-            return this.highTierMinimumMirrors;
-        }
-
-        public int highTierMaximumMirrors() {
-            return this.highTierMaximumMirrors;
-        }
-
-        public int highTierMirrorHorizontalRange() {
-            return this.highTierMirrorHorizontalRange;
-        }
-
-        public int highTierMirrorVerticalRange() {
-            return this.highTierMirrorVerticalRange;
-        }
-
-        public int highTierWaveguidePathLength() {
-            return this.highTierWaveguidePathLength;
-        }
-
-        public double rainOutputMultiplier() {
-            return this.rainOutputMultiplier;
-        }
-
-        public int observationWindowStartTick() {
-            return this.observationWindowStartTick;
-        }
-
-        public int observationWindowEndTick() {
-            return this.observationWindowEndTick;
-        }
-
-        public double defaultDimensionMultiplier() {
-            return this.defaultDimensionMultiplier;
-        }
-
         public Map<ResourceLocation, Double> dimensionMultipliers() {
-            if (this.dimensionIds == null || this.dimensionMultiplierValues == null) {
-                return Map.of();
-            }
             LinkedHashMap<ResourceLocation, Double> result = new LinkedHashMap<>();
             int count = Math.min(this.dimensionIds.length, this.dimensionMultiplierValues.length);
             for (int index = 0; index < count; index++) {
@@ -907,130 +824,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int digitalAnnihilationCooldownTicks = 72_000;
 
-        public long celestialEnergyCapacity() {
-            return this.celestialEnergyCapacity;
-        }
-
-        public long aeEnergyCapacity() {
-            return this.aeEnergyCapacity;
-        }
-
-        public long celestialEnergyUpkeepPerTick() {
-            return this.celestialEnergyUpkeepPerTick;
-        }
-
-        public long aeEnergyUpkeepPerTick() {
-            return this.aeEnergyUpkeepPerTick;
-        }
-
-        public long celestialEnergyChargePerTick() {
-            return this.celestialEnergyChargePerTick;
-        }
-
-        public long aeEnergyChargePerTick() {
-            return this.aeEnergyChargePerTick;
-        }
-
-        public int maxAttackBlockMutationsPerTaskTick() {
-            return this.maxAttackBlockMutationsPerTaskTick;
-        }
-
-        public int maxAttackBlockMutationsGlobalTick() {
-            return this.maxAttackBlockMutationsGlobalTick;
-        }
-
-        public int maxCommittedAttackTasks() {
-            return this.maxCommittedAttackTasks;
-        }
-
-        /** Returns whether the server currently rejects new confirmations for the requested attack mode. */
-        public boolean isAttackModeDisabled(OrbitalAttackMode mode) {
-            return switch (mode) {
-                case KINETIC -> !this.kineticAttackEnabled;
-                case DIRECTED_ENERGY -> !this.directedEnergyAttackEnabled;
-                case DIGITAL_ANNIHILATION -> !this.digitalAnnihilationAttackEnabled;
-            };
-        }
-
-        public long kineticCelestialEnergyCost() {
-            return this.kineticCelestialEnergyCost;
-        }
-
-        public long kineticAeEnergyCost() {
-            return this.kineticAeEnergyCost;
-        }
-
-        public int kineticColumnRadius() {
-            return this.kineticColumnRadius;
-        }
-
-        public int kineticColumnDepth() {
-            return this.kineticColumnDepth;
-        }
-
-        public int kineticCraterRadius() {
-            return this.kineticCraterRadius;
-        }
-
-        public int kineticCraterDepth() {
-            return this.kineticCraterDepth;
-        }
-
-        public int kineticShockwaveRadius() {
-            return this.kineticShockwaveRadius;
-        }
-
-        public long kineticEntityDamage() {
-            return this.kineticEntityDamage;
-        }
-
-        public double kineticKnockbackStrength() {
-            return this.kineticKnockbackStrength;
-        }
-
-        public int attackWarningTicks() {
-            return this.attackWarningTicks;
-        }
-
-        public int kineticCooldownTicks() {
-            return this.kineticCooldownTicks;
-        }
-
-        public long directedEnergyBaseCelestialEnergyCost() {
-            return this.directedEnergyBaseCelestialEnergyCost;
-        }
-
-        public long directedEnergyBaseAeEnergyCost() {
-            return this.directedEnergyBaseAeEnergyCost;
-        }
-
-        public long directedEnergyCelestialEnergyPerCoordinate() {
-            return this.directedEnergyCelestialEnergyPerCoordinate;
-        }
-
-        public long directedEnergyAeEnergyPerCoordinate() {
-            return this.directedEnergyAeEnergyPerCoordinate;
-        }
-
-        public int directedEnergyCooldownTicks() {
-            return this.directedEnergyCooldownTicks;
-        }
-
-        public long directedEnergyEntityDamage() {
-            return this.directedEnergyEntityDamage;
-        }
-
-        public long digitalAnnihilationCelestialEnergyCost() {
-            return this.digitalAnnihilationCelestialEnergyCost;
-        }
-
-        public long digitalAnnihilationAeEnergyCost() {
-            return this.digitalAnnihilationAeEnergyCost;
-        }
-
-        public int digitalAnnihilationCooldownTicks() {
-            return this.digitalAnnihilationCooldownTicks;
-        }
     }
 
     public static final class TrinityCraftingSchema {

@@ -134,7 +134,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
             this.nextStructureScan = gameTime + STRUCTURE_SCAN_INTERVAL_TICKS;
         }
         int mirrorCount = this.claimedMirrors.size();
-        if (mirrorCount < settings.highTierMinimumMirrors() ||
+        if (mirrorCount < settings.highTierMinimumMirrors ||
                 !AstronomyDimensionRules.isObservable(serverLevel) ||
                 !AstronomyDimensionRules.isObservationWindowOpen(serverLevel, settings) ||
                 serverLevel.isThundering()) {
@@ -182,7 +182,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         List<BlockPos> candidates = InterferenceArrayPattern.findConnectedMirrors(level, this.worldPosition, settings);
         LinkedHashSet<BlockPos> nextClaims = new LinkedHashSet<>();
         for (BlockPos mirrorPos : candidates) {
-            if (nextClaims.size() >= settings.highTierMaximumMirrors()) {
+            if (nextClaims.size() >= settings.highTierMaximumMirrors) {
                 break;
             }
             if (level.getBlockEntity(mirrorPos) instanceof AstronomicalMirrorBlockEntity mirror &&
@@ -213,13 +213,13 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         for (int mirror = 1; mirror <= mirrorCount; mirror++) {
             long mirrorOutput;
             if (mirror <= 4) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick1To4();
+                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick1To4;
             } else if (mirror <= 8) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick5To8();
+                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick5To8;
             } else if (mirror <= 12) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick9To12();
+                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick9To12;
             } else {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick13To16();
+                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick13To16;
             }
             output = saturatedAdd(output, mirrorOutput);
         }
@@ -227,8 +227,8 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
     }
 
     private static long requiredAeEnergy(DataEnergisticsConfiguration.AstronomySchema settings, int mirrorCount) {
-        long mirrorCost = saturatedMultiply(settings.highTierMirrorAeEnergyPerTick(), mirrorCount);
-        return saturatedAdd(settings.highTierCoreAeEnergyPerTick(), mirrorCost);
+        long mirrorCost = saturatedMultiply(settings.highTierMirrorAeEnergyPerTick, mirrorCount);
+        return saturatedAdd(settings.highTierCoreAeEnergyPerTick, mirrorCost);
     }
 
     private static long saturatedAdd(long left, long right) {

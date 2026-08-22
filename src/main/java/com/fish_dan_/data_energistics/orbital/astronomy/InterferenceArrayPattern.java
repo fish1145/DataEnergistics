@@ -83,7 +83,7 @@ public final class InterferenceArrayPattern {
         }
 
         Map<BlockPos, Integer> mirrorDistances = new HashMap<>();
-        int maximumLength = settings.highTierWaveguidePathLength();
+        int maximumLength = settings.highTierWaveguidePathLength;
         while (!pending.isEmpty()) {
             WaveguideStep step = pending.remove();
             for (Direction direction : Direction.values()) {
@@ -121,9 +121,9 @@ public final class InterferenceArrayPattern {
         int deltaX = mirrorCenter.getX() - corePos.getX();
         int deltaZ = mirrorCenter.getZ() - corePos.getZ();
         long horizontalDistanceSquared = (long) deltaX * deltaX + (long) deltaZ * deltaZ;
-        long maximumHorizontalDistance = settings.highTierMirrorHorizontalRange();
+        long maximumHorizontalDistance = settings.highTierMirrorHorizontalRange;
         if (horizontalDistanceSquared > maximumHorizontalDistance * maximumHorizontalDistance ||
-                Math.abs(mirrorCenter.getY() - corePos.getY()) > settings.highTierMirrorVerticalRange()) {
+                Math.abs(mirrorCenter.getY() - corePos.getY()) > settings.highTierMirrorVerticalRange) {
             return false;
         }
 

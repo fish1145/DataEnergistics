@@ -558,9 +558,9 @@ public final class DigitalAnnihilationWork {
 
         private static Settings from(DataNukeSchema settings) {
             return new Settings(
-                    settings.workIntervalTicks(),
-                    settings.maxRadius(),
-                    settings.centerEntityConsumeRadius());
+                    settings.workIntervalTicks,
+                    settings.maxRadius,
+                    settings.centerEntityConsumeRadius);
         }
     }
 
