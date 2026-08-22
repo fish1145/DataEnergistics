@@ -684,8 +684,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      * any live core state is replaced.
      */
     private static InvalidPatternWorkMigration migrateInvalidLoadedPatternWork(
-            Map<Integer, TrinityPatternSlot> loadedSlots,
-            RefundOutbox loadedOutbox) {
+                                                                               Map<Integer, TrinityPatternSlot> loadedSlots,
+                                                                               RefundOutbox loadedOutbox) {
         ArrayList<InvalidPatternWorkCapture> captures = new ArrayList<>();
         for (int slotIndex : new TreeSet<>(loadedSlots.keySet())) {
             TrinityPatternSlot slot = loadedSlots.get(slotIndex);
@@ -819,7 +819,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private static Map<UUID, ArrayList<RetainedRefundEntry>> copyRetainedRefundOutbox(
-            Map<UUID, ArrayList<RetainedRefundEntry>> source) {
+                                                                                      Map<UUID, ArrayList<RetainedRefundEntry>> source) {
         TreeMap<UUID, ArrayList<RetainedRefundEntry>> copy = new TreeMap<>();
         for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : source.entrySet()) {
             copy.put(group.getKey(), new ArrayList<>(group.getValue()));
@@ -828,8 +828,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private static void appendRetainedRefundEntries(
-            Map<UUID, ArrayList<RetainedRefundEntry>> outbox,
-            List<RetainedRefundOffer> offers) {
+                                                    Map<UUID, ArrayList<RetainedRefundEntry>> outbox,
+                                                    List<RetainedRefundOffer> offers) {
         for (RetainedRefundOffer offer : offers) {
             outbox.computeIfAbsent(offer.hostId(), ignored -> new ArrayList<>()).add(offer.entry());
         }
