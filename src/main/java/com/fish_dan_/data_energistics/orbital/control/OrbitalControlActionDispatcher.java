@@ -47,7 +47,6 @@ public final class OrbitalControlActionDispatcher {
 
     private static final double TARGET_DISTANCE = 256.0D;
     private static final float TARGET_TICK_DELTA = 1.0F;
-    private static final int DIRECTED_RADIUS = OrbitalDirectedEnergyStrike.MIN_RADIUS;
     private static final OrbitalAttackPreviewSessions PREVIEWS = new OrbitalAttackPreviewSessions();
 
     private OrbitalControlActionDispatcher() {}
@@ -73,7 +72,9 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
-        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : 0;
+        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY
+                ? DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.directedEnergyMinimumRadius
+                : 0;
         return beginFireAtTarget(
                 player,
                 mode,
@@ -170,8 +171,10 @@ public final class OrbitalControlActionDispatcher {
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
             try {
-                OrbitalDirectedEnergyStrike.validateRadius(directedRadius);
-            } catch (IllegalArgumentException exception) {
+                OrbitalDirectedEnergyStrike.validateRadius(
+                        directedRadius,
+                        configuration.orbitalWeapon);
+            } catch (IllegalArgumentException | IllegalStateException exception) {
                 return Optional.empty();
             }
             if (directedDepth == null) {

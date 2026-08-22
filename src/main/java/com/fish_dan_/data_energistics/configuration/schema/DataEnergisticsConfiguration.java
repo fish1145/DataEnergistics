@@ -124,6 +124,12 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.kineticAeEnergyCost,
                 weaponSettings.attackWarningTicks,
                 weaponSettings.kineticCooldownTicks,
+                weaponSettings.directedEnergyMinimumRadius,
+                weaponSettings.directedEnergyMaximumRadius,
+                weaponSettings.directedEnergyRadiusStep,
+                weaponSettings.directedEnergyShallowDepth,
+                weaponSettings.directedEnergyMediumDepth,
+                weaponSettings.directedEnergyDeepDepth,
                 weaponSettings.directedEnergyBaseCelestialEnergyCost,
                 weaponSettings.directedEnergyBaseAeEnergyCost,
                 weaponSettings.directedEnergyCelestialEnergyPerCoordinate,
@@ -778,6 +784,36 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Kinetic strike cooldown after its effect completes.", "动能攻击效果完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int kineticCooldownTicks = 6_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Minimum selectable directed-energy scan radius.", "定向能扫描可选的最小半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyMinimumRadius = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MIN_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum selectable directed-energy scan radius.", "定向能扫描可选的最大半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyMaximumRadius = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MAX_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius increment measured from the configured directed-energy minimum.", "从定向能最小半径开始计算的半径步进。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyRadiusStep = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_RADIUS_STEP;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the shallow directed-energy profile.", "定向能浅层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyShallowDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_SHALLOW_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the medium directed-energy profile.", "定向能中层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyMediumDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MEDIUM_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the deep directed-energy profile.", "定向能深层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyDeepDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_DEEP_DEPTH;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Fixed Celestial Energy base escrow for one directed-energy scan.", "一次定向能扫描固定预留的星体能量基础费用。" })

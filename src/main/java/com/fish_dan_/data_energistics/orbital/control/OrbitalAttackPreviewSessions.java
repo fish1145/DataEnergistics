@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
@@ -66,7 +67,9 @@ public final class OrbitalAttackPreviewSessions {
             throw new IllegalArgumentException("Orbital preview revisions must not be negative");
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
-            OrbitalDirectedEnergyStrike.validateRadius(directedRadius);
+            OrbitalDirectedEnergyStrike.validateRadius(
+                    directedRadius,
+                    DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
             if (directedDepth == null) {
                 return Optional.empty();
             }
@@ -254,7 +257,7 @@ public final class OrbitalAttackPreviewSessions {
                 throw new IllegalArgumentException("Orbital preview timing or revision is invalid");
             }
             if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
-                OrbitalDirectedEnergyStrike.validateRadius(directedRadius);
+                OrbitalDirectedEnergyStrike.validateSupportedRadius(directedRadius);
                 if (directedDepth == null) {
                     throw new IllegalArgumentException("Directed-energy preview depth must be present");
                 }

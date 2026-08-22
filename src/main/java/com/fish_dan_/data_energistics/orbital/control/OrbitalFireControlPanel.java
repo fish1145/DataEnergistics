@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.orbital.control;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
@@ -70,6 +71,8 @@ final class OrbitalFireControlPanel {
                             BooleanSupplier sourceValid,
                             boolean clientSide) {
         ClientPanelState state = new ClientPanelState();
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         RPCEmitter previewEmitter = previewEmitter(rpcRoot, player, sourceValid);
         RPCEmitter startHoldEmitter = startHoldEmitter(rpcRoot, player, sourceValid);
         RPCEmitter releaseEmitter = releaseEmitter(rpcRoot, player, sourceValid);
@@ -167,9 +170,9 @@ final class OrbitalFireControlPanel {
 
         TextField radius = integerField(
                 "orbital_fire_control_radius",
-                OrbitalDirectedEnergyStrike.MIN_RADIUS,
-                OrbitalDirectedEnergyStrike.MIN_RADIUS,
-                OrbitalDirectedEnergyStrike.MAX_RADIUS,
+                settings.directedEnergyMinimumRadius,
+                settings.directedEnergyMinimumRadius,
+                settings.directedEnergyMaximumRadius,
                 54,
                 62,
                 70);
@@ -465,7 +468,9 @@ final class OrbitalFireControlPanel {
         int depthCode = NO_DEPTH;
         if (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
             directedRadius = Integer.parseInt(radius.getRawText());
-            OrbitalDirectedEnergyStrike.validateRadius(directedRadius);
+            OrbitalDirectedEnergyStrike.validateRadius(
+                    directedRadius,
+                    DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
             depthCode = state.depth().wireCode();
         }
         return new TargetDraft(

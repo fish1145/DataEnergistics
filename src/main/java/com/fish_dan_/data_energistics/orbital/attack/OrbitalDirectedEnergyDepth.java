@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
-import net.minecraft.server.level.ServerLevel;
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import lombok.Getter;
 
@@ -14,31 +14,28 @@ import lombok.Getter;
  */
 public enum OrbitalDirectedEnergyDepth {
 
-    DEPTH_32(0, 32, false),
-    DEPTH_128(1, 128, false),
-    DEPTH_512(2, 512, false),
-    THROUGH(3, 0, true);
+    DEPTH_32(0, false),
+    DEPTH_128(1, false),
+    DEPTH_512(2, false),
+    THROUGH(3, true);
 
     private final int wireCode;
-    private final int depth;
     @Getter
     private final boolean through;
 
-    OrbitalDirectedEnergyDepth(int wireCode, int depth, boolean through) {
+    OrbitalDirectedEnergyDepth(int wireCode, boolean through) {
         this.wireCode = wireCode;
-        this.depth = depth;
         this.through = through;
     }
 
-    /**
-     * Returns the inclusive bottom Y coordinate for a target in one level.
-     */
-    public int bottomY(ServerLevel level, int targetY) {
-        return this.through ? level.getMinBuildHeight() : Math.max(level.getMinBuildHeight(), targetY - this.depth);
-    }
-
-    public int configuredDepth() {
-        return this.depth;
+    /** Resolves this stable wire profile to the current server value before geometry is frozen. */
+    public int configuredDepth(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        return switch (this) {
+            case DEPTH_32 -> settings.directedEnergyShallowDepth;
+            case DEPTH_128 -> settings.directedEnergyMediumDepth;
+            case DEPTH_512 -> settings.directedEnergyDeepDepth;
+            case THROUGH -> 0;
+        };
     }
 
     /** Returns the stable network code without exposing enum declaration order. */

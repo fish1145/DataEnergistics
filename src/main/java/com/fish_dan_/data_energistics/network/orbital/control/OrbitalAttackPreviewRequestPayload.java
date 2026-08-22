@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalAttackPreviewSessions;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
@@ -52,9 +53,7 @@ public record OrbitalAttackPreviewRequestPayload(
             if (directedDepth == null) {
                 throw new IllegalArgumentException("Directed-energy preview depth is required");
             }
-            if (directedRadius < 16 || directedRadius > 256 || directedRadius % 16 != 0) {
-                throw new IllegalArgumentException("Directed-energy preview radius is outside the supported grid");
-            }
+            OrbitalDirectedEnergyStrike.validateSupportedRadius(directedRadius);
         } else if (directedRadius != 0 || directedDepth != null) {
             throw new IllegalArgumentException("Non-directed preview cannot carry directed geometry");
         }

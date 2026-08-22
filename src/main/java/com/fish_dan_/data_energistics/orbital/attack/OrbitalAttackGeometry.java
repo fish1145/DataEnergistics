@@ -125,16 +125,62 @@ public sealed interface OrbitalAttackGeometry
         }
     }
 
-    /** Geometry for one spiral directed-energy scan. */
-    record DirectedEnergy(int radius, OrbitalDirectedEnergyDepth depth, long entityDamage) implements OrbitalAttackGeometry {
+    /** Geometry and depth value frozen for one spiral directed-energy scan. */
+    record DirectedEnergy(
+                          int radius,
+                          OrbitalDirectedEnergyDepth depth,
+                          int depthBlocks,
+                          long entityDamage) implements OrbitalAttackGeometry {
+
+        public static final int DEFAULT_MIN_RADIUS = 16;
+        public static final int DEFAULT_MAX_RADIUS = 256;
+        public static final int DEFAULT_RADIUS_STEP = 16;
+        public static final int DEFAULT_SHALLOW_DEPTH = 32;
+        public static final int DEFAULT_MEDIUM_DEPTH = 128;
+        public static final int DEFAULT_DEEP_DEPTH = 512;
+        public static final int MAX_SUPPORTED_RADIUS = 256;
+        public static final int MAX_SUPPORTED_DEPTH = 8_192;
 
         public DirectedEnergy {
-            if (radius < OrbitalDirectedEnergyStrike.MIN_RADIUS || radius > OrbitalDirectedEnergyStrike.MAX_RADIUS || radius % OrbitalDirectedEnergyStrike.RADIUS_STEP != 0) {
-                throw new IllegalArgumentException("Directed-energy radius must be a 16-grid value from 16 to 256");
+            OrbitalDirectedEnergyStrike.validateSupportedRadius(radius);
+            if (depth == OrbitalDirectedEnergyDepth.THROUGH) {
+                if (depthBlocks != 0) {
+                    throw new IllegalArgumentException("Through-world directed energy cannot have a finite depth");
+                }
+            } else if (depthBlocks < 1 || depthBlocks > MAX_SUPPORTED_DEPTH) {
+                throw new IllegalArgumentException("Directed-energy depth is outside the supported range");
             }
             if (entityDamage <= 0L || entityDamage > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Directed-energy entity damage is outside the supported range");
             }
+        }
+
+        /** Captures the selected server-configured depth profile for a newly confirmed scan. */
+        public static DirectedEnergy fromSettings(
+                                                  int radius,
+                                                  OrbitalDirectedEnergyDepth depth,
+                                                  DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            return new DirectedEnergy(
+                    radius,
+                    depth,
+                    depth.configuredDepth(settings),
+                    settings.directedEnergyEntityDamage);
+        }
+
+        /** Normalizes numeric NBT values without consulting mutable live configuration. */
+        public static DirectedEnergy fromPersisted(
+                                                   int radius,
+                                                   OrbitalDirectedEnergyDepth depth,
+                                                   int depthBlocks,
+                                                   long entityDamage) {
+            int normalizedDepth = depth == OrbitalDirectedEnergyDepth.THROUGH
+                    ? 0
+                    : Math.clamp(depthBlocks, 1, MAX_SUPPORTED_DEPTH);
+            return new DirectedEnergy(
+                    Math.clamp(radius, 1, MAX_SUPPORTED_RADIUS),
+                    depth,
+                    normalizedDepth,
+                    Math.clamp(entityDamage, 1L, Integer.MAX_VALUE));
         }
 
         @Override
@@ -143,7 +189,9 @@ public sealed interface OrbitalAttackGeometry
         }
 
         public int bottomY(ServerLevel level, int targetY) {
-            return this.depth.bottomY(level, targetY);
+            return this.depth == OrbitalDirectedEnergyDepth.THROUGH
+                    ? level.getMinBuildHeight()
+                    : (int) Math.max(level.getMinBuildHeight(), (long) targetY - this.depthBlocks);
         }
     }
 

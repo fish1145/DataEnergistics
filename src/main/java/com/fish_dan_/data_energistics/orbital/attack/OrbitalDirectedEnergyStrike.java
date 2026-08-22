@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
+import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,11 +14,10 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -30,12 +31,9 @@ import java.util.function.Predicate;
  */
 public final class OrbitalDirectedEnergyStrike {
 
-    public static final int MIN_RADIUS = 16;
-    public static final int MAX_RADIUS = 256;
-    public static final int RADIUS_STEP = 16;
-    public static final int MUTATION_BUDGET_PER_TICK = 8_192;
-
-    private static final Map<Integer, List<Offset>> DISK_OFFSETS = new ConcurrentHashMap<>();
+    private static final int MAX_CACHED_RADII = 16;
+    private static final LinkedHashMap<Integer, List<Offset>> DISK_OFFSETS =
+            new LinkedHashMap<>(MAX_CACHED_RADII, 0.75F, true);
 
     private OrbitalDirectedEnergyStrike() {}
 
@@ -53,7 +51,7 @@ public final class OrbitalDirectedEnergyStrike {
         int bottomY = geometry.bottomY(level, target.getY());
         int topY = level.getMaxBuildHeight() - 1;
         int height = Math.max(0, topY - bottomY + 1);
-        if (height <= 0) {
+        if (height == 0) {
             throw new IllegalArgumentException("Directed-energy geometry has no vertical work range");
         }
         return Math.multiplyExact(scheduledCoordinateCount(geometry.radius()), height);
@@ -70,7 +68,7 @@ public final class OrbitalDirectedEnergyStrike {
         int topY = level.getMaxBuildHeight() - 1;
         int height = Math.max(0, topY - bottomY + 1);
         long total = Math.multiplyExact((long) offsets.size(), height);
-        if (height <= 0 || cursor < 0L || cursor > total) {
+        if (height == 0 || cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Directed-energy work cursor is outside its geometry");
         }
         long positionCursor = cursor == total ? total - 1L : cursor;
@@ -78,30 +76,9 @@ public final class OrbitalDirectedEnergyStrike {
     }
 
     /**
-     * Processes one bounded slice and applies the beam hit at the current descending Y position. The feet-Y filter in
-     * {@link #applyBeamDamage(ServerLevel, BlockPos, Set, float)} makes one entity receive one hit per disk column,
-     * when the beam reaches the entity's occupied level, instead of damaging every entity at the column top.
-     */
-    public static WorkSlice applyBudget(
-                                        ServerLevel level,
-                                        BlockPos target,
-                                        OrbitalAttackGeometry.DirectedEnergy geometry,
-                                        long cursor,
-                                        Set<UUID> exemptions,
-                                        float entityDamage) {
-        return applyBudget(
-                level,
-                target,
-                geometry,
-                cursor,
-                exemptions,
-                entityDamage,
-                MUTATION_BUDGET_PER_TICK,
-                chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
-    }
-
-    /**
      * Processes a caller-governed slice and stops before accessing the first disk column whose FULL chunk is pending.
+     * The feet-Y filter makes one entity receive one captured-damage hit per disk column when the beam reaches its
+     * occupied level, instead of damaging every entity at the column top.
      */
     public static WorkSlice applyBudget(
                                         ServerLevel level,
@@ -109,14 +86,13 @@ public final class OrbitalDirectedEnergyStrike {
                                         OrbitalAttackGeometry.DirectedEnergy geometry,
                                         long cursor,
                                         Set<UUID> exemptions,
-                                        float entityDamage,
                                         int mutationBudget,
                                         Predicate<ChunkPos> chunkReady) {
         List<Offset> offsets = offsetsFor(geometry.radius());
         int bottomY = geometry.bottomY(level, target.getY());
         int topY = level.getMaxBuildHeight() - 1;
         int height = Math.max(0, topY - bottomY + 1);
-        if (height <= 0) {
+        if (height == 0) {
             throw new IllegalArgumentException("Directed-energy geometry has no vertical work range");
         }
         long total = Math.multiplyExact((long) offsets.size(), height);
@@ -134,7 +110,7 @@ public final class OrbitalDirectedEnergyStrike {
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
-            applyBeamDamage(level, position, exemptions, entityDamage);
+            applyBeamDamage(level, position, exemptions, (float) geometry.entityDamage());
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
@@ -160,15 +136,44 @@ public final class OrbitalDirectedEnergyStrike {
         return target.offset(offset.x(), y - target.getY(), offset.z());
     }
 
-    public static void validateRadius(int radius) {
-        if (radius < MIN_RADIUS || radius > MAX_RADIUS || radius % RADIUS_STEP != 0) {
-            throw new IllegalArgumentException("Directed-energy radius must be a 16-grid value from 16 to 256");
+    /** Validates a player-selected radius against the current server grid. */
+    public static void validateRadius(
+                                      int radius,
+                                      DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        int minimum = settings.directedEnergyMinimumRadius;
+        int maximum = settings.directedEnergyMaximumRadius;
+        int step = settings.directedEnergyRadiusStep;
+        if (minimum < 1
+                || maximum > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS
+                || minimum > maximum
+                || step < 1
+                || step > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS) {
+            throw new IllegalStateException("Invalid directed-energy radius configuration");
+        }
+        if (radius < minimum || radius > maximum || Math.floorMod(radius - minimum, step) != 0) {
+            throw new IllegalArgumentException("Directed-energy radius is outside the configured server grid");
         }
     }
 
-    private static List<Offset> offsetsFor(int radius) {
-        validateRadius(radius);
-        return DISK_OFFSETS.computeIfAbsent(radius, OrbitalDirectedEnergyStrike::buildOffsets);
+    /** Validates the immutable protocol and persisted-geometry safety envelope. */
+    public static void validateSupportedRadius(int radius) {
+        if (radius < 1 || radius > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS) {
+            throw new IllegalArgumentException("Directed-energy radius is outside the supported range");
+        }
+    }
+
+    private static synchronized List<Offset> offsetsFor(int radius) {
+        validateSupportedRadius(radius);
+        List<Offset> cached = DISK_OFFSETS.get(radius);
+        if (cached != null) {
+            return cached;
+        }
+        List<Offset> offsets = buildOffsets(radius);
+        DISK_OFFSETS.put(radius, offsets);
+        if (DISK_OFFSETS.size() > MAX_CACHED_RADII) {
+            DISK_OFFSETS.remove(DISK_OFFSETS.keySet().iterator().next());
+        }
+        return offsets;
     }
 
     private static List<Offset> buildOffsets(int radius) {

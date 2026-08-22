@@ -60,6 +60,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String TARGET_TAG = "target";
     private static final String GEOMETRY_RADIUS_TAG = "geometry_radius";
     private static final String GEOMETRY_DEPTH_TAG = "geometry_depth";
+    private static final String GEOMETRY_DEPTH_BLOCKS_TAG = "geometry_depth_blocks";
     private static final String GEOMETRY_DAMAGE_TAG = "geometry_damage";
     private static final String KINETIC_COLUMN_RADIUS_TAG = "kinetic_column_radius";
     private static final String KINETIC_COLUMN_DEPTH_TAG = "kinetic_column_depth";
@@ -369,8 +370,9 @@ public final class OrbitalAttackSavedData extends SavedData {
 
         OrbitalAttackGeometry.DirectedEnergy geometry;
         try {
-            geometry = new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage);
-        } catch (IllegalArgumentException exception) {
+            OrbitalDirectedEnergyStrike.validateRadius(radius, settings);
+            geometry = OrbitalAttackGeometry.DirectedEnergy.fromSettings(radius, depth, settings);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
             return Optional.empty();
         }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
@@ -696,6 +698,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             case OrbitalAttackGeometry.DirectedEnergy directedEnergy -> {
                 tag.putInt(GEOMETRY_RADIUS_TAG, directedEnergy.radius());
                 tag.putString(GEOMETRY_DEPTH_TAG, directedEnergy.depth().name());
+                tag.putInt(GEOMETRY_DEPTH_BLOCKS_TAG, directedEnergy.depthBlocks());
                 tag.putLong(GEOMETRY_DAMAGE_TAG, directedEnergy.entityDamage());
             }
             case OrbitalAttackGeometry.DigitalAnnihilation digital -> {
@@ -746,10 +749,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackGeometry geometry;
             switch (mode) {
                 case KINETIC -> geometry = readKineticGeometry(tag);
-                case DIRECTED_ENERGY -> geometry = new OrbitalAttackGeometry.DirectedEnergy(
-                        tag.getInt(GEOMETRY_RADIUS_TAG),
-                        OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG)),
-                        tag.getLong(GEOMETRY_DAMAGE_TAG));
+                case DIRECTED_ENERGY -> geometry = readDirectedEnergyGeometry(tag);
                 case DIGITAL_ANNIHILATION -> {
                     DataEnergisticsConfiguration.DataNukeSchema fallback = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
                     geometry = new OrbitalAttackGeometry.DigitalAnnihilation(
@@ -823,6 +823,21 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG),
                 tag.getLong(KINETIC_ENTITY_DAMAGE_TAG),
                 tag.getDouble(KINETIC_KNOCKBACK_STRENGTH_TAG));
+    }
+
+    private static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
+        if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT)
+                || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING)
+                || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT)
+                || !tag.contains(GEOMETRY_DAMAGE_TAG, Tag.TAG_LONG)) {
+            throw new IllegalArgumentException("Incomplete persisted directed-energy geometry");
+        }
+        OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG));
+        return OrbitalAttackGeometry.DirectedEnergy.fromPersisted(
+                tag.getInt(GEOMETRY_RADIUS_TAG),
+                depth,
+                tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG),
+                tag.getLong(GEOMETRY_DAMAGE_TAG));
     }
 
     @Nullable
@@ -1131,10 +1146,8 @@ public final class OrbitalAttackSavedData extends SavedData {
                                             MinecraftServer server,
                                             ServerLevel level,
                                             OrbitalAttackRecord current) {
-        if (!(current.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry)) {
-            fault(server, current, "Directed-energy attack has incompatible geometry");
-            return;
-        }
+        OrbitalAttackGeometry.DirectedEnergy geometry =
+                (OrbitalAttackGeometry.DirectedEnergy) current.geometry();
         try {
             int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
             if (mutationBudget <= 0) {
@@ -1148,7 +1161,6 @@ public final class OrbitalAttackSavedData extends SavedData {
                     geometry,
                     current.workCursor(),
                     current.damageExemptions(),
-                    (float) geometry.entityDamage(),
                     mutationBudget,
                     chunk -> this.terrainWorkScheduler.prepareChunk(level, current.attackId(), chunk) == ChunkReadiness.READY);
             int visited = Math.toIntExact(slice.nextCursor() - previousCursor);

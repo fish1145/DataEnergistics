@@ -49,6 +49,12 @@ public final class OrbitalDirectedEnergyGameTest {
     private static final BlockPos DRIVE = new BlockPos(3, 2, 2);
     private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(4, 2, 2);
     private static final BlockPos TARGET = new BlockPos(25, 20, 25);
+    private static final BlockPos SNAPSHOT_RADIUS_INSIDE = TARGET.offset(2, 0, 0);
+    private static final BlockPos SNAPSHOT_RADIUS_OUTSIDE = TARGET.offset(3, 0, 0);
+    private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(2);
+    private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(4);
+    private static final BlockPos SNAPSHOT_INNER_VICTIM = TARGET.offset(0, 0, 1);
+    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(0, 0, 3);
 
     private OrbitalDirectedEnergyGameTest() {}
 
@@ -62,7 +68,7 @@ public final class OrbitalDirectedEnergyGameTest {
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "directed-energy-owner");
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        int radius = OrbitalDirectedEnergyStrike.MIN_RADIUS;
+        int radius = settings.directedEnergyMinimumRadius;
         OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
         long coordinateCount = OrbitalDirectedEnergyStrike.scheduledCoordinateCount(radius);
         OrbitalAttackCost cost = OrbitalAttackCost.directedEnergy(settings, coordinateCount);
@@ -102,10 +108,6 @@ public final class OrbitalDirectedEnergyGameTest {
                             .orElseThrow(() -> new IllegalStateException("A funded directed-energy scan was rejected"));
                     attackId.set(warning.attackId());
                     assertDebited(helper, weapons, weaponId, reserveBefore, cost);
-                    helper.assertValueEqual(
-                            warning.geometry(),
-                            new OrbitalAttackGeometry.DirectedEnergy(radius, depth, settings.directedEnergyEntityDamage),
-                            "The warning must persist the selected directed-energy geometry");
                     helper.assertTrue(
                             level.destroyBlock(helper.absolutePos(CREATIVE_ENERGY_CELL), false),
                             "The charging source must be removable before the warning is observed");
@@ -153,6 +155,131 @@ public final class OrbitalDirectedEnergyGameTest {
                                 depth)
                                 .isEmpty(),
                         "A directed-energy mode in cooldown must reject another funded scan"))
+                .thenSucceed();
+    }
+
+    @TestHolder("orbital_directed_energy_uses_configured_radius_and_confirmed_depth")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", batch = "orbital_directed_geometry_snapshot", timeoutTicks = 500)
+    public static void usesConfiguredRadiusAndConfirmedDepth(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "directed-energy-snapshot-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DirectedConfigurationSnapshot original = DirectedConfigurationSnapshot.capture(settings);
+        DirectedConfigurationSnapshot confirmed = new DirectedConfigurationSnapshot(
+                1,
+                1,
+                2,
+                6,
+                2,
+                2,
+                original.mediumDepth(),
+                original.deepDepth(),
+                500L);
+        DirectedConfigurationSnapshot changedLive = new DirectedConfigurationSnapshot(
+                1,
+                1,
+                4,
+                8,
+                4,
+                6,
+                original.mediumDepth(),
+                original.deepDepth(),
+                1L);
+        int radius = confirmed.minimumRadius();
+        OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
+        OrbitalAttackCost cost = OrbitalAttackCost.directedEnergy(
+                settings,
+                OrbitalDirectedEnergyStrike.scheduledCoordinateCount(radius));
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        BlockPos absoluteRadiusInside = helper.absolutePos(SNAPSHOT_RADIUS_INSIDE);
+        BlockPos absoluteRadiusOutside = helper.absolutePos(SNAPSHOT_RADIUS_OUTSIDE);
+        BlockPos absoluteDepthInside = helper.absolutePos(SNAPSHOT_DEPTH_INSIDE);
+        BlockPos absoluteDepthOutside = helper.absolutePos(SNAPSHOT_DEPTH_OUTSIDE);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_RADIUS_INSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_RADIUS_OUTSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_DEPTH_INSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_DEPTH_OUTSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_INNER_VICTIM.below(), Blocks.STONE);
+        helper.setBlock(SNAPSHOT_OUTER_VICTIM.below(), Blocks.STONE);
+        loadTerrainChunks(level, absoluteTarget, changedLive.maximumRadius());
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<Zombie> innerVictim = new AtomicReference<>();
+        AtomicReference<Zombie> outerVictim = new AtomicReference<>();
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The directed-energy snapshot test must use a real powered target-dimension endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    Zombie inner = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_INNER_VICTIM);
+                    inner.setNoAi(true);
+                    innerVictim.set(inner);
+                    Zombie outer = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_OUTER_VICTIM);
+                    outer.setNoAi(true);
+                    outerVictim.set(outer);
+                })
+                .thenExecute(() -> {
+                    try {
+                        confirmed.applyTo(settings);
+                        attacks.tryConfirmDirectedEnergy(
+                                server,
+                                owner.getUUID(),
+                                weaponId,
+                                level.dimension().location(),
+                                absoluteTarget,
+                                radius,
+                                depth)
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "A configured small-radius directed-energy scan was rejected"));
+                        changedLive.applyTo(settings);
+                    } catch (RuntimeException exception) {
+                        original.applyTo(settings);
+                        throw exception;
+                    }
+                })
+                .thenIdle(20)
+                .thenExecute(() -> original.applyTo(settings))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).isAir(),
+                            "The configured small-radius scan must clear its real target column");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteRadiusInside).isAir(),
+                            "The configured scan must clear a real column on its captured radius");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteDepthInside).isAir(),
+                            "The shallow profile must clear through its captured depth");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteRadiusOutside).is(Blocks.STONE),
+                            "The scan must preserve a column outside its selected radius");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteDepthOutside).is(Blocks.STONE),
+                            "A later live depth change must not deepen an already confirmed scan");
+                    helper.assertFalse(
+                            innerVictim.get().isAlive(),
+                            "The captured beam damage must affect a real in-radius entity");
+                    helper.assertTrue(
+                            outerVictim.get().isAlive(),
+                            "The selected radius must leave a real out-of-radius entity unharmed");
+                })
+                .thenExecute(() -> {
+                    innerVictim.get().discard();
+                    outerVictim.get().discard();
+                })
                 .thenSucceed();
     }
 
@@ -262,6 +389,44 @@ public final class OrbitalDirectedEnergyGameTest {
                 level,
                 new GameProfile(UUID.randomUUID(), name),
                 ClientInformation.createDefault());
+    }
+
+    private record DirectedConfigurationSnapshot(
+                                                 int attackWarningTicks,
+                                                 int cooldownTicks,
+                                                 int minimumRadius,
+                                                 int maximumRadius,
+                                                 int radiusStep,
+                                                 int shallowDepth,
+                                                 int mediumDepth,
+                                                 int deepDepth,
+                                                 long entityDamage) {
+
+        private static DirectedConfigurationSnapshot capture(
+                                                               DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            return new DirectedConfigurationSnapshot(
+                    settings.attackWarningTicks,
+                    settings.directedEnergyCooldownTicks,
+                    settings.directedEnergyMinimumRadius,
+                    settings.directedEnergyMaximumRadius,
+                    settings.directedEnergyRadiusStep,
+                    settings.directedEnergyShallowDepth,
+                    settings.directedEnergyMediumDepth,
+                    settings.directedEnergyDeepDepth,
+                    settings.directedEnergyEntityDamage);
+        }
+
+        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            settings.attackWarningTicks = this.attackWarningTicks;
+            settings.directedEnergyCooldownTicks = this.cooldownTicks;
+            settings.directedEnergyMinimumRadius = this.minimumRadius;
+            settings.directedEnergyMaximumRadius = this.maximumRadius;
+            settings.directedEnergyRadiusStep = this.radiusStep;
+            settings.directedEnergyShallowDepth = this.shallowDepth;
+            settings.directedEnergyMediumDepth = this.mediumDepth;
+            settings.directedEnergyDeepDepth = this.deepDepth;
+            settings.directedEnergyEntityDamage = this.entityDamage;
+        }
     }
 
     private static final class TestServerPlayer extends ServerPlayer {
