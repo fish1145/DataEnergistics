@@ -11,7 +11,6 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
@@ -36,6 +35,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -204,7 +204,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         int projectionY = level.getMaxBuildHeight() + 320;
         return this.weapons.values().stream()
                 .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
-                .filter(weapon -> weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT)
+                .filter(weapon -> weapon.lifecycle().hasProjection())
                 .filter(weapon -> weapon.primaryAnchor() != null && weapon.primaryAnchor().dimensionId().equals(dimensionId))
                 .map(weapon -> projectionSnapshot(level, gameTime, projectionY, weapon))
                 .flatMap(Optional::stream)
@@ -426,7 +426,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalWeaponLifecycle lifecycle = current.lifecycle();
-        if (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING) {
+        if (lifecycle.hasProjection()) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
         OrbitalWeaponRecord updated = current.withPrimaryAnchor(location).withLifecycle(lifecycle);
@@ -580,7 +580,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.TRANSFER_OWNERSHIP)) {
             throw new SecurityException("Player " + actorId + " cannot transfer orbital weapon " + weaponId);
         }
-        if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() == OrbitalWeaponLifecycleState.REDEPLOYING || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(weaponId)) {
+        if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().isRedeploying() || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(weaponId)) {
             return Optional.empty();
         }
         this.ownershipTransfers.values().removeIf(offer -> offer.weaponId().equals(weaponId));
@@ -607,7 +607,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
         OrbitalWeaponRecord current = this.weapons.get(offer.weaponId());
-        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() == OrbitalWeaponLifecycleState.REDEPLOYING || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(offer.weaponId())) {
+        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().isRedeploying() || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(offer.weaponId())) {
             this.ownershipTransfers.remove(transferId);
             setDirty();
             return false;
@@ -648,7 +648,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.RETIRE)) {
             throw new SecurityException("Player " + actorId + " cannot retire orbital weapon " + weaponId);
         }
-        if (current.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT || !current.reserve().equals(OrbitalEnergyReserve.empty()) || !current.endpoints().isEmpty() || OrbitalAttackSavedData.get(server).hasRetirementBlockingState(weaponId)) {
+        if (current.lifecycle().hasProjection() || !current.reserve().equals(OrbitalEnergyReserve.empty()) || !current.endpoints().isEmpty() || OrbitalAttackSavedData.get(server).hasRetirementBlockingState(weaponId)) {
             return false;
         }
         removeAccessIndex(current);
@@ -882,15 +882,15 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
         OrbitalEndpointLocation fallback = findOnlineBeacon(server, weapon);
         OrbitalEndpointLocation oldAnchor = weapon.primaryAnchor();
-        boolean sameAnchor = fallback == oldAnchor || (fallback != null && fallback.equals(oldAnchor));
-        if (sameAnchor && !(fallback == null && (weapon.lifecycle().state() == OrbitalWeaponLifecycleState.DEPLOYED || weapon.lifecycle().state() == OrbitalWeaponLifecycleState.REDEPLOYING))) {
+        boolean sameAnchor = Objects.equals(fallback, oldAnchor);
+        if (sameAnchor) {
             return weapon;
         }
 
         OrbitalWeaponLifecycle lifecycle = weapon.lifecycle();
-        if (fallback == null && oldAnchor != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
+        if (fallback == null && lifecycle.hasProjection()) {
             lifecycle = OrbitalWeaponLifecycle.dormant();
-        } else if (fallback != null && (lifecycle.state() == OrbitalWeaponLifecycleState.DEPLOYED || lifecycle.state() == OrbitalWeaponLifecycleState.REDEPLOYING)) {
+        } else if (fallback != null && lifecycle.hasProjection()) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
         return weapon.withPrimaryAnchor(fallback).withLifecycle(lifecycle);
@@ -903,7 +903,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 .filter(endpoint -> endpoint.kind() == OrbitalEndpointKind.UPLINK_BEACON)
                 .sorted(ENDPOINT_PRIORITY_ORDER)
                 .filter(endpoint -> OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), endpoint))
-                .map(endpoint -> endpoint.location())
+                .map(OrbitalEndpointRecord::location)
                 .findFirst()
                 .orElse(null);
     }
@@ -939,7 +939,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private static OrbitalEnergyReserve applyDeploymentMaintenance(
                                                                    OrbitalWeaponRecord weapon,
                                                                    DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        if (weapon.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED) {
+        if (!weapon.lifecycle().requiresMaintenance()) {
             return weapon.reserve();
         }
         long celestialDebit = Math.min(weapon.reserve().celestialEnergy(), settings.celestialEnergyUpkeepPerTick);

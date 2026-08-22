@@ -16,26 +16,26 @@ public record OrbitalWeaponLifecycle(
                                      int graceTicksRemaining,
                                      int redeploymentTicksRemaining) {
 
-    /** Compatibility constructor for records created before the redeployment countdown was persisted. */
-    public OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState state, int graceTicksRemaining) {
-        this(state, graceTicksRemaining, 0);
-    }
-
     public OrbitalWeaponLifecycle {
         if (graceTicksRemaining < 0 || redeploymentTicksRemaining < 0) {
             throw new IllegalArgumentException("Orbital lifecycle state is invalid");
         }
-        if (state != OrbitalWeaponLifecycleState.RESERVE_GRACE && graceTicksRemaining != 0) {
-            throw new IllegalArgumentException("Only reserve grace may carry a grace countdown");
-        }
-        if (state != OrbitalWeaponLifecycleState.REDEPLOYING && redeploymentTicksRemaining != 0) {
-            throw new IllegalArgumentException("Only redeployment may carry a rebuild countdown");
-        }
-        if (state == OrbitalWeaponLifecycleState.RESERVE_GRACE && graceTicksRemaining == 0) {
-            throw new IllegalArgumentException("Reserve grace must have at least one remaining tick");
-        }
-        if (state == OrbitalWeaponLifecycleState.REDEPLOYING && redeploymentTicksRemaining == 0) {
-            throw new IllegalArgumentException("Redeployment must have at least one remaining tick");
+        switch (state) {
+            case DORMANT, DEPLOYED -> {
+                if (graceTicksRemaining != 0 || redeploymentTicksRemaining != 0) {
+                    throw new IllegalArgumentException("Stable lifecycle state cannot carry a countdown");
+                }
+            }
+            case RESERVE_GRACE -> {
+                if (graceTicksRemaining == 0 || redeploymentTicksRemaining != 0) {
+                    throw new IllegalArgumentException("Reserve grace has invalid countdowns");
+                }
+            }
+            case REDEPLOYING -> {
+                if (redeploymentTicksRemaining == 0) {
+                    throw new IllegalArgumentException("Redeployment must have at least one remaining tick");
+                }
+            }
         }
     }
 
@@ -55,9 +55,43 @@ public record OrbitalWeaponLifecycle(
         return redeploymentTicks <= 0 ? dormant() : new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.REDEPLOYING, 0, redeploymentTicks);
     }
 
+    private static OrbitalWeaponLifecycle redeployingWithGrace(
+                                                                int redeploymentTicks,
+                                                                int graceTicks) {
+        if (redeploymentTicks <= 0) {
+            return dormant();
+        }
+        return graceTicks <= 0
+                ? redeploying(redeploymentTicks)
+                : new OrbitalWeaponLifecycle(
+                        OrbitalWeaponLifecycleState.REDEPLOYING,
+                        graceTicks,
+                        redeploymentTicks);
+    }
+
     /** Returns whether this record may confirm a new attack. */
     public boolean allowsNewAttacks() {
         return this.state == OrbitalWeaponLifecycleState.DEPLOYED;
+    }
+
+    /** Returns whether a primary projection still exists and therefore requires an anchor and maintenance. */
+    public boolean hasProjection() {
+        return this.state != OrbitalWeaponLifecycleState.DORMANT;
+    }
+
+    /** Returns whether an anchor teardown/rebuild countdown is active. */
+    public boolean isRedeploying() {
+        return this.state == OrbitalWeaponLifecycleState.REDEPLOYING;
+    }
+
+    /** Returns whether this projection is consuming its frozen reserve-grace countdown. */
+    public boolean hasReserveGrace() {
+        return this.graceTicksRemaining > 0;
+    }
+
+    /** Returns whether the still-present projection must pay both configured upkeep resources. */
+    public boolean requiresMaintenance() {
+        return hasProjection();
     }
 
     /**
@@ -71,9 +105,33 @@ public record OrbitalWeaponLifecycle(
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
             case DEPLOYED -> reserve.hasZeroResource() ? reserveGrace(settings.reserveGraceTicks) : this;
-            case RESERVE_GRACE -> thresholdReached ? deployed() : (this.graceTicksRemaining <= 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
-            case REDEPLOYING -> this.redeploymentTicksRemaining <= 1 ? (thresholdReached ? deployed() : dormant()) : redeploying(this.redeploymentTicksRemaining - 1);
+            case RESERVE_GRACE -> thresholdReached ? deployed() : (this.graceTicksRemaining == 1 ? dormant() : reserveGrace(this.graceTicksRemaining - 1));
+            case REDEPLOYING -> reconcileRedeployment(reserve, thresholdReached, settings.reserveGraceTicks);
         };
+    }
+
+    private OrbitalWeaponLifecycle reconcileRedeployment(
+                                                         OrbitalEnergyReserve reserve,
+                                                         boolean thresholdReached,
+                                                         int configuredGraceTicks) {
+        if (hasReserveGrace()) {
+            if (thresholdReached) {
+                return redeploying(this.redeploymentTicksRemaining);
+            }
+            return this.graceTicksRemaining == 1
+                    ? dormant()
+                    : redeployingWithGrace(
+                            this.redeploymentTicksRemaining,
+                            this.graceTicksRemaining - 1);
+        }
+        if (reserve.hasZeroResource()) {
+            return configuredGraceTicks <= 0
+                    ? dormant()
+                    : redeployingWithGrace(this.redeploymentTicksRemaining, configuredGraceTicks);
+        }
+        return this.redeploymentTicksRemaining == 1
+                ? deployed()
+                : redeploying(this.redeploymentTicksRemaining - 1);
     }
 
     /** Immediately enters grace when an attack escrow consumes the last unit of either reserve. */
@@ -86,9 +144,9 @@ public record OrbitalWeaponLifecycle(
 
     /** Starts a server-authoritative teardown/rebuild window after the primary anchor changes. */
     public OrbitalWeaponLifecycle beginRedeployment(int redeploymentTicks) {
-        if (redeploymentTicks <= 0) {
+        if (redeploymentTicks <= 0 || !hasProjection()) {
             return this;
         }
-        return redeploying(redeploymentTicks);
+        return redeployingWithGrace(redeploymentTicks, this.graceTicksRemaining);
     }
 }

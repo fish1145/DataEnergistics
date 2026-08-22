@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -11,6 +13,8 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.AfterBatch;
+import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -20,6 +24,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -42,8 +47,31 @@ public final class OrbitalWeaponLifecycleGameTest {
     private static final BlockPos CONTROL_CONSOLE = new BlockPos(1, 2, 2);
     private static final BlockPos DRIVE = new BlockPos(2, 2, 2);
     private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(3, 2, 2);
+    private static final BlockPos FIRST_BEACON = new BlockPos(4, 2, 2);
+    private static final BlockPos SECOND_BEACON = new BlockPos(5, 2, 2);
+    private static final BlockPos EARLY_TARGET = new BlockPos(25, 20, 25);
+    private static final BlockPos FINAL_TARGET = new BlockPos(35, 20, 25);
+    private static final String REDEPLOYMENT_BATCH = "orbital_redeployment_reserve_grace";
+    private static LifecycleConfigurationSnapshot originalConfiguration =
+            LifecycleConfigurationSnapshot.capture(
+                    DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
 
     private OrbitalWeaponLifecycleGameTest() {}
+
+    @BeforeBatch(batch = REDEPLOYMENT_BATCH)
+    public static void configureRedeploymentScenario(ServerLevel level) {
+        requireServerThread(level);
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        originalConfiguration = LifecycleConfigurationSnapshot.capture(settings);
+        LifecycleConfigurationSnapshot.testConfiguration().applyTo(settings);
+    }
+
+    @AfterBatch(batch = REDEPLOYMENT_BATCH)
+    public static void restoreRedeploymentConfiguration(ServerLevel level) {
+        requireServerThread(level);
+        originalConfiguration.applyTo(DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+    }
 
     @TestHolder("orbital_weapon_lifecycle_deploys_drains_sleeps_and_redeploys")
     @EmptyTemplate("5")
@@ -167,6 +195,95 @@ public final class OrbitalWeaponLifecycleGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_weapon_redeployment_keeps_maintenance_and_reserve_grace")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", batch = REDEPLOYMENT_BATCH, timeoutTicks = 500)
+    public static void redeploymentKeepsMaintenanceAndReserveGrace(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "orbital-redeployment-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        placeBlock(helper, FIRST_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner);
+        placeBlock(helper, SECOND_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(EARLY_TARGET, Blocks.STONE);
+        helper.setBlock(FINAL_TARGET, Blocks.STONE);
+        BlockPos absoluteEarlyTarget = helper.absolutePos(EARLY_TARGET);
+        BlockPos absoluteFinalTarget = helper.absolutePos(FINAL_TARGET);
+        level.getChunkAt(absoluteEarlyTarget);
+        level.getChunkAt(absoluteFinalTarget);
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        OrbitalEndpointLocation firstBeacon = new OrbitalEndpointLocation(
+                level.dimension().location(),
+                helper.absolutePos(FIRST_BEACON));
+        OrbitalEndpointLocation secondBeacon = new OrbitalEndpointLocation(
+                level.dimension().location(),
+                helper.absolutePos(SECOND_BEACON));
+
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The redeployment scenario must use real powered orbital endpoints"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, 1_000L);
+                    chargeUntilDeployed(weapons, server, weaponId, settings);
+                })
+                .thenIdle(5)
+                .thenExecute(() -> {
+                    OrbitalEndpointLocation currentAnchor =
+                            weapons.find(weaponId).orElseThrow().primaryAnchor();
+                    OrbitalEndpointLocation replacement =
+                            firstBeacon.equals(currentAnchor) ? secondBeacon : firstBeacon;
+                    if (!weapons.selectPrimaryAnchor(
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            replacement)) {
+                        throw new IllegalStateException("The second real uplink beacon could not become primary");
+                    }
+                    removeInfiniteCell(helper);
+                })
+                .thenIdle(12)
+                .thenExecute(() -> {
+                    installInfiniteCell(helper);
+                    insertCelestialEnergy(helper, 1_000L);
+                })
+                .thenIdle(9)
+                .thenExecute(() -> attacks.tryConfirmKinetic(
+                        server,
+                        owner.getUUID(),
+                        weaponId,
+                        level.dimension().location(),
+                        absoluteEarlyTarget))
+                .thenIdle(3)
+                .thenExecute(() -> helper.assertTrue(
+                        level.getBlockState(absoluteEarlyTarget).is(Blocks.STONE),
+                        "Reserve recovery must continue the paused rebuild instead of firing immediately"))
+                .thenIdle(3)
+                .thenExecute(() -> attacks.tryConfirmKinetic(
+                        server,
+                        owner.getUUID(),
+                        weaponId,
+                        level.dimension().location(),
+                        absoluteFinalTarget)
+                        .orElseThrow(() -> new IllegalStateException(
+                                "The rebuilt weapon could not launch its real kinetic strike")))
+                .thenWaitUntil(() -> helper.assertTrue(
+                        level.getBlockState(absoluteFinalTarget).isAir(),
+                        "Completing the resumed rebuild must enable a real kinetic world effect"))
+                .thenIdle(3)
+                .thenSucceed();
+    }
+
     private static void chargeUntilDeployed(
                                             OrbitalWeaponSavedData weapons,
                                             MinecraftServer server,
@@ -206,6 +323,13 @@ public final class OrbitalWeaponLifecycleGameTest {
         drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
     }
 
+    private static void removeInfiniteCell(GameTestHelper helper) {
+        if (!(helper.getBlockEntity(DRIVE) instanceof DriveBlockEntity drive)) {
+            throw new IllegalStateException("The lifecycle test drive has no block entity");
+        }
+        drive.getInternalInventory().setItemDirect(0, ItemStack.EMPTY);
+    }
+
     private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
         if (!(helper.getBlockEntity(CONTROL_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
             throw new IllegalStateException("The lifecycle test console has no block entity");
@@ -240,6 +364,107 @@ public final class OrbitalWeaponLifecycleGameTest {
                 level,
                 new GameProfile(UUID.randomUUID(), name),
                 ClientInformation.createDefault());
+    }
+
+    private static void requireServerThread(ServerLevel level) {
+        if (!level.getServer().isSameThread()) {
+            throw new IllegalStateException("Lifecycle GameTest batch hooks must run on the server thread");
+        }
+    }
+
+    private record LifecycleConfigurationSnapshot(
+                                                  long celestialCapacity,
+                                                  long aeCapacity,
+                                                  long celestialUpkeep,
+                                                  long aeUpkeep,
+                                                  long celestialCharge,
+                                                  long aeCharge,
+                                                  int reserveGraceTicks,
+                                                  double deploymentThreshold,
+                                                  int redeploymentTicks,
+                                                  int warningTicks,
+                                                  long kineticCelestialCost,
+                                                  long kineticAeCost,
+                                                  int kineticCooldownTicks,
+                                                  int columnRadius,
+                                                  int columnDepth,
+                                                  int craterRadius,
+                                                  int craterDepth,
+                                                  int shockwaveRadius,
+                                                  long entityDamage,
+                                                  double knockbackStrength) {
+
+        private static LifecycleConfigurationSnapshot capture(
+                                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            return new LifecycleConfigurationSnapshot(
+                    settings.celestialEnergyCapacity,
+                    settings.aeEnergyCapacity,
+                    settings.celestialEnergyUpkeepPerTick,
+                    settings.aeEnergyUpkeepPerTick,
+                    settings.celestialEnergyChargePerTick,
+                    settings.aeEnergyChargePerTick,
+                    settings.reserveGraceTicks,
+                    settings.deploymentThreshold,
+                    settings.redeploymentTicks,
+                    settings.attackWarningTicks,
+                    settings.kineticCelestialEnergyCost,
+                    settings.kineticAeEnergyCost,
+                    settings.kineticCooldownTicks,
+                    settings.kineticColumnRadius,
+                    settings.kineticColumnDepth,
+                    settings.kineticCraterRadius,
+                    settings.kineticCraterDepth,
+                    settings.kineticShockwaveRadius,
+                    settings.kineticEntityDamage,
+                    settings.kineticKnockbackStrength);
+        }
+
+        private static LifecycleConfigurationSnapshot testConfiguration() {
+            return new LifecycleConfigurationSnapshot(
+                    100L,
+                    100L,
+                    10L,
+                    10L,
+                    100L,
+                    100L,
+                    30,
+                    0.10D,
+                    20,
+                    1,
+                    1L,
+                    1L,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    2,
+                    500L,
+                    1.0D);
+        }
+
+        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            settings.celestialEnergyCapacity = this.celestialCapacity;
+            settings.aeEnergyCapacity = this.aeCapacity;
+            settings.celestialEnergyUpkeepPerTick = this.celestialUpkeep;
+            settings.aeEnergyUpkeepPerTick = this.aeUpkeep;
+            settings.celestialEnergyChargePerTick = this.celestialCharge;
+            settings.aeEnergyChargePerTick = this.aeCharge;
+            settings.reserveGraceTicks = this.reserveGraceTicks;
+            settings.deploymentThreshold = this.deploymentThreshold;
+            settings.redeploymentTicks = this.redeploymentTicks;
+            settings.attackWarningTicks = this.warningTicks;
+            settings.kineticCelestialEnergyCost = this.kineticCelestialCost;
+            settings.kineticAeEnergyCost = this.kineticAeCost;
+            settings.kineticCooldownTicks = this.kineticCooldownTicks;
+            settings.kineticColumnRadius = this.columnRadius;
+            settings.kineticColumnDepth = this.columnDepth;
+            settings.kineticCraterRadius = this.craterRadius;
+            settings.kineticCraterDepth = this.craterDepth;
+            settings.kineticShockwaveRadius = this.shockwaveRadius;
+            settings.kineticEntityDamage = this.entityDamage;
+            settings.kineticKnockbackStrength = this.knockbackStrength;
+        }
     }
 
     private static final class TestServerPlayer extends ServerPlayer {

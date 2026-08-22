@@ -35,8 +35,7 @@ final class OrbitalWeaponNbtCodec {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
-    private static final int SCHEMA_VERSION = 4;
+    private static final int SCHEMA_VERSION = 5;
     private static final String WEAPONS_TAG = "weapons";
     private static final String WEAPON_ID_TAG = "weapon_id";
     private static final String OWNER_ID_TAG = "owner_id";
@@ -81,11 +80,10 @@ final class OrbitalWeaponNbtCodec {
             return List.of();
         }
         int schemaVersion = tag.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion < OLDEST_SUPPORTED_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
+        if (schemaVersion != SCHEMA_VERSION) {
             LOGGER.warn(
-                    "Ignoring orbital weapon SavedData schema version {}; supported range is {}-{}",
+                    "Ignoring orbital weapon SavedData schema version {}; required version is {}",
                     schemaVersion,
-                    OLDEST_SUPPORTED_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return List.of();
         }
@@ -98,7 +96,7 @@ final class OrbitalWeaponNbtCodec {
         ArrayList<OrbitalWeaponRecord> weapons = new ArrayList<>();
         for (Tag weaponTag : weaponList) {
             if (weaponTag instanceof CompoundTag weaponEntry) {
-                OrbitalWeaponRecord weapon = readWeapon(weaponEntry, schemaVersion);
+                OrbitalWeaponRecord weapon = readWeapon(weaponEntry);
                 if (weapon != null) {
                     weapons.add(weapon);
                 }
@@ -158,7 +156,7 @@ final class OrbitalWeaponNbtCodec {
         return endpointTag;
     }
 
-    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag, int schemaVersion) {
+    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag) {
         UUID weaponId = readUuid(weaponTag, WEAPON_ID_TAG, "weapon id");
         UUID ownerId = readUuid(weaponTag, OWNER_ID_TAG, "owner id");
         if (weaponId == null || ownerId == null) {
@@ -167,35 +165,56 @@ final class OrbitalWeaponNbtCodec {
 
         LinkedHashMap<UUID, OrbitalAccessRole> roles = new LinkedHashMap<>();
         Tag rolesTag = weaponTag.get(DELEGATED_ROLES_TAG);
-        if (rolesTag instanceof ListTag roleList) {
-            readRoles(weaponId, ownerId, roleList, roles);
+        if (!(rolesTag instanceof ListTag roleList)) {
+            LOGGER.warn("Ignoring orbital weapon {} with missing delegated roles", weaponId);
+            return null;
         }
+        readRoles(weaponId, ownerId, roleList, roles);
 
         LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints = new LinkedHashMap<>();
         Tag endpointsTag = weaponTag.get(ENDPOINTS_TAG);
-        if (endpointsTag instanceof ListTag endpointList) {
-            readEndpoints(weaponId, endpointList, endpoints);
+        if (!(endpointsTag instanceof ListTag endpointList)) {
+            LOGGER.warn("Ignoring orbital weapon {} with missing endpoints", weaponId);
+            return null;
         }
-        OrbitalEnergyReserve reserve = schemaVersion >= 2 ? readReserve(weaponId, weaponTag) : OrbitalEnergyReserve.empty();
-        OrbitalWeaponLifecycle lifecycle = schemaVersion >= 3 ? readLifecycle(weaponId, weaponTag) : OrbitalWeaponLifecycle.dormant();
-        OrbitalEndpointLocation primaryAnchor = schemaVersion >= 4 ? readPrimaryAnchor(weaponId, weaponTag, endpoints) : null;
-        return new OrbitalWeaponRecord(weaponId, ownerId, roles, endpoints, reserve, lifecycle, primaryAnchor);
+        readEndpoints(weaponId, endpointList, endpoints);
+        OrbitalEnergyReserve reserve = readReserve(weaponId, weaponTag);
+        OrbitalWeaponLifecycle lifecycle = readLifecycle(weaponId, weaponTag);
+        if (reserve == null || lifecycle == null) {
+            return null;
+        }
+        OrbitalEndpointLocation primaryAnchor = readPrimaryAnchor(weaponId, weaponTag, endpoints);
+        try {
+            return new OrbitalWeaponRecord(
+                    weaponId,
+                    ownerId,
+                    roles,
+                    endpoints,
+                    reserve,
+                    lifecycle,
+                    primaryAnchor);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Ignoring invalid orbital weapon {}", weaponId, exception);
+            return null;
+        }
     }
 
-    private static OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
+    private static @Nullable OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
+        if (!weaponTag.contains(LIFECYCLE_STATE_TAG, Tag.TAG_STRING)
+                || !weaponTag.contains(GRACE_TICKS_TAG, Tag.TAG_INT)
+                || !weaponTag.contains(REDEPLOY_TICKS_TAG, Tag.TAG_INT)) {
+            LOGGER.warn("Ignoring orbital weapon {} with missing lifecycle fields", weaponId);
+            return null;
+        }
         try {
             OrbitalWeaponLifecycleState state = OrbitalWeaponLifecycleState.valueOf(weaponTag.getString(LIFECYCLE_STATE_TAG));
-            int graceTicks = Math.max(0, weaponTag.getInt(GRACE_TICKS_TAG));
-            int redeploymentTicks = Math.max(0, weaponTag.getInt(REDEPLOY_TICKS_TAG));
-            return switch (state) {
-                case DORMANT -> OrbitalWeaponLifecycle.dormant();
-                case DEPLOYED -> OrbitalWeaponLifecycle.deployed();
-                case RESERVE_GRACE -> OrbitalWeaponLifecycle.reserveGrace(graceTicks);
-                case REDEPLOYING -> OrbitalWeaponLifecycle.redeploying(redeploymentTicks);
-            };
+            return new OrbitalWeaponLifecycle(
+                    state,
+                    weaponTag.getInt(GRACE_TICKS_TAG),
+                    weaponTag.getInt(REDEPLOY_TICKS_TAG));
         } catch (IllegalArgumentException exception) {
-            LOGGER.warn("Resetting invalid lifecycle state on orbital weapon {}", weaponId);
-            return OrbitalWeaponLifecycle.dormant();
+            LOGGER.warn("Ignoring invalid lifecycle state on orbital weapon {}", weaponId);
+            return null;
         }
     }
 
@@ -219,23 +238,22 @@ final class OrbitalWeaponNbtCodec {
         return location;
     }
 
-    private static OrbitalEnergyReserve readReserve(UUID weaponId, CompoundTag weaponTag) {
+    private static @Nullable OrbitalEnergyReserve readReserve(UUID weaponId, CompoundTag weaponTag) {
         Tag rawReserve = weaponTag.get(RESERVE_TAG);
         if (!(rawReserve instanceof CompoundTag reserveTag)) {
-            LOGGER.warn("Resetting missing or invalid reserve on orbital weapon {}", weaponId);
-            return OrbitalEnergyReserve.empty();
+            LOGGER.warn("Ignoring orbital weapon {} with missing reserve", weaponId);
+            return null;
+        }
+        if (!reserveTag.contains(CELESTIAL_ENERGY_TAG, Tag.TAG_LONG)
+                || !reserveTag.contains(AE_ENERGY_TAG, Tag.TAG_LONG)
+                || reserveTag.getLong(CELESTIAL_ENERGY_TAG) < 0L
+                || reserveTag.getLong(AE_ENERGY_TAG) < 0L) {
+            LOGGER.warn("Ignoring orbital weapon {} with invalid reserve values", weaponId);
+            return null;
         }
         return new OrbitalEnergyReserve(
-                readReserveAmount(weaponId, reserveTag, CELESTIAL_ENERGY_TAG),
-                readReserveAmount(weaponId, reserveTag, AE_ENERGY_TAG));
-    }
-
-    private static long readReserveAmount(UUID weaponId, CompoundTag reserveTag, String key) {
-        if (!reserveTag.contains(key, Tag.TAG_LONG) || reserveTag.getLong(key) < 0L) {
-            LOGGER.warn("Resetting invalid reserve field '{}' on orbital weapon {}", key, weaponId);
-            return 0L;
-        }
-        return reserveTag.getLong(key);
+                reserveTag.getLong(CELESTIAL_ENERGY_TAG),
+                reserveTag.getLong(AE_ENERGY_TAG));
     }
 
     private static void readRoles(

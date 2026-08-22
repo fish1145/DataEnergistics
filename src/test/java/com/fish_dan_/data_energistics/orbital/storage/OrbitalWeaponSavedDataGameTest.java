@@ -90,11 +90,14 @@ public final class OrbitalWeaponSavedDataGameTest {
         helper.succeed();
     }
 
-    @TestHolder("orbital_weapon_lifecycle_round_trips_and_migrates_legacy_records")
+    @TestHolder("orbital_weapon_lifecycle_round_trips_current_redeployment_grace")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void roundTripsLifecycleAndMigratesLegacyRecords(GameTestHelper helper) {
-        OrbitalWeaponLifecycle grace = OrbitalWeaponLifecycle.reserveGrace(37);
+    public static void roundTripsCurrentRedeploymentGrace(GameTestHelper helper) {
+        OrbitalWeaponLifecycle grace = new OrbitalWeaponLifecycle(
+                OrbitalWeaponLifecycleState.REDEPLOYING,
+                17,
+                37);
         OrbitalWeaponRecord source = new OrbitalWeaponRecord(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -115,12 +118,6 @@ public final class OrbitalWeaponSavedDataGameTest {
                 source.reserve(),
                 "Adding lifecycle persistence must not alter the independent reserve values");
 
-        saved.putInt("schema_version", 2);
-        OrbitalWeaponRecord migrated = OrbitalWeaponNbtCodec.load(saved).getFirst();
-        helper.assertValueEqual(
-                migrated.lifecycle().state(),
-                OrbitalWeaponLifecycleState.DORMANT,
-                "A pre-lifecycle weapon record must migrate to the safe dormant state");
         helper.succeed();
     }
 
