@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Client cache for the latest public orbital visual baseline; renderer code can consume it without server access. */
 public final class OrbitalAttackVisualClientState {
@@ -21,7 +21,8 @@ public final class OrbitalAttackVisualClientState {
     private static ResourceLocation pendingDimension = Level.OVERWORLD.location();
     private static int pendingBatchCount;
     private static int pendingTotalCount;
-    private static final Map<Integer, List<OrbitalAttackVisualSnapshot>> pendingBatches = new HashMap<>();
+    private static final Int2ObjectOpenHashMap<List<OrbitalAttackVisualSnapshot>> pendingBatches =
+            new Int2ObjectOpenHashMap<>();
 
     private OrbitalAttackVisualClientState() {}
 
@@ -46,11 +47,10 @@ public final class OrbitalAttackVisualClientState {
         }
         ArrayList<OrbitalAttackVisualSnapshot> complete = new ArrayList<>(pendingTotalCount);
         for (int index = 0; index < pendingBatchCount; index++) {
-            List<OrbitalAttackVisualSnapshot> batch = pendingBatches.get(index);
-            if (batch == null) {
+            if (!pendingBatches.containsKey(index)) {
                 return;
             }
-            complete.addAll(batch);
+            complete.addAll(pendingBatches.get(index));
         }
         if (complete.size() != pendingTotalCount) {
             return;

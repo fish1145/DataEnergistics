@@ -12,10 +12,10 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.Map;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -29,7 +29,7 @@ import java.util.function.Predicate;
  */
 public final class OrbitalKineticStrike {
 
-    private static final Map<Integer, DiskGeometry> DISK_GEOMETRIES = new ConcurrentHashMap<>();
+    private static final Int2ObjectOpenHashMap<DiskGeometry> DISK_GEOMETRIES = new Int2ObjectOpenHashMap<>();
 
     private OrbitalKineticStrike() {}
 
@@ -213,7 +213,7 @@ public final class OrbitalKineticStrike {
         return target.offset(offset.x(), y - target.getY(), offset.z());
     }
 
-    private static DiskGeometry disk(int radius) {
+    private static synchronized DiskGeometry disk(int radius) {
         return DISK_GEOMETRIES.computeIfAbsent(radius, DiskGeometry::create);
     }
 

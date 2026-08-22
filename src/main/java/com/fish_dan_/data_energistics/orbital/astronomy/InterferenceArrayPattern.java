@@ -7,13 +7,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
@@ -82,7 +82,7 @@ public final class InterferenceArrayPattern {
             visitedWaveguides.add(port);
         }
 
-        Map<BlockPos, Integer> mirrorDistances = new HashMap<>();
+        Object2IntOpenHashMap<BlockPos> mirrorDistances = new Object2IntOpenHashMap<>();
         int maximumLength = settings.highTierWaveguidePathLength;
         while (!pending.isEmpty()) {
             WaveguideStep step = pending.remove();
@@ -90,7 +90,7 @@ public final class InterferenceArrayPattern {
                 BlockPos adjacent = step.position().relative(direction);
                 if (level.getBlockState(adjacent).is(DEBlocks.ASTRONOMICAL_MIRROR.get()) &&
                         isValidMirror(level, corePos, adjacent, settings)) {
-                    mirrorDistances.merge(adjacent.immutable(), step.distance(), Math::min);
+                    mirrorDistances.mergeInt(adjacent.immutable(), step.distance(), Math::min);
                 }
                 if (step.distance() >= maximumLength ||
                         !level.getBlockState(adjacent).is(DEBlocks.CELESTIAL_WAVEGUIDE.get())) {
@@ -104,7 +104,8 @@ public final class InterferenceArrayPattern {
         }
 
         List<BlockPos> mirrors = new ArrayList<>(mirrorDistances.keySet());
-        mirrors.sort(Comparator.comparingInt((BlockPos pos) -> mirrorDistances.get(pos)).thenComparing(POSITION_ORDER));
+        mirrors.sort(Comparator.comparingInt((BlockPos pos) -> mirrorDistances.getInt(pos))
+                .thenComparing(POSITION_ORDER));
         return List.copyOf(mirrors);
     }
 

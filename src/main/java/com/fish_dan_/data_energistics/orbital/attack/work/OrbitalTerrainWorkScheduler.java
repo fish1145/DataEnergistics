@@ -13,9 +13,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -42,8 +42,9 @@ public final class OrbitalTerrainWorkScheduler {
     private static final int CHUNK_TICKET_DISTANCE = 2;
 
     private final Map<UUID, TaskState> tasks = new LinkedHashMap<>();
-    private final Map<ResourceKey<Level>, Integer> pendingRequestsByDimension = new HashMap<>();
-    private final Map<UUID, Integer> mutationsReservedByTask = new HashMap<>();
+    private final Object2IntOpenHashMap<ResourceKey<Level>> pendingRequestsByDimension =
+            new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<UUID> mutationsReservedByTask = new Object2IntOpenHashMap<>();
 
     private int maxTicketsPerTask;
     private int maxTicketsGlobal;
@@ -76,7 +77,7 @@ public final class OrbitalTerrainWorkScheduler {
      */
     public int reserveMutationBudget(UUID attackId) {
         requireOpenTick();
-        int alreadyReserved = this.mutationsReservedByTask.getOrDefault(attackId, 0);
+        int alreadyReserved = this.mutationsReservedByTask.getInt(attackId);
         int taskRemaining = Math.max(0, this.maxMutationsPerTask - alreadyReserved);
         int granted = Math.min(taskRemaining, this.remainingMutationBudget);
         if (granted > 0) {
@@ -94,14 +95,14 @@ public final class OrbitalTerrainWorkScheduler {
         if (visited < 0 || visited > granted) {
             throw new IllegalArgumentException("Invalid orbital terrain mutation settlement");
         }
-        int reserved = this.mutationsReservedByTask.getOrDefault(attackId, 0);
+        int reserved = this.mutationsReservedByTask.getInt(attackId);
         if (granted > reserved) {
             throw new IllegalStateException("Orbital terrain task settled more mutations than it reserved");
         }
         int unused = granted - visited;
         int retained = reserved - unused;
         if (retained == 0) {
-            this.mutationsReservedByTask.remove(attackId);
+            this.mutationsReservedByTask.removeInt(attackId);
         } else {
             this.mutationsReservedByTask.put(attackId, retained);
         }
@@ -167,7 +168,7 @@ public final class OrbitalTerrainWorkScheduler {
             }
             return setReadiness(task, ChunkReadiness.READY);
         }
-        if (this.pendingRequestCount >= this.maxRequestsGlobal || this.pendingRequestsByDimension.getOrDefault(level.dimension(), 0) >= this.maxRequestsPerDimension) {
+        if (this.pendingRequestCount >= this.maxRequestsGlobal || this.pendingRequestsByDimension.getInt(level.dimension()) >= this.maxRequestsPerDimension) {
             return setReadiness(task, ChunkReadiness.WAITING_FOR_BUDGET);
         }
 
@@ -268,7 +269,7 @@ public final class OrbitalTerrainWorkScheduler {
         long requestId = ++task.nextRequestId;
         task.pendingRequest = new PendingRequest(chunk, requestId);
         this.pendingRequestCount++;
-        this.pendingRequestsByDimension.merge(level.dimension(), 1, Integer::sum);
+        this.pendingRequestsByDimension.addTo(level.dimension(), 1);
 
         CompletableFuture<ChunkResult<ChunkAccess>> future = level.getChunkSource()
                 .getChunkFuture(chunk.x, chunk.z, ChunkStatus.FULL, true);
@@ -370,12 +371,12 @@ public final class OrbitalTerrainWorkScheduler {
         }
         pending.permitHeld = false;
         this.pendingRequestCount--;
-        int remaining = this.pendingRequestsByDimension.getOrDefault(task.dimension, 0) - 1;
+        int remaining = this.pendingRequestsByDimension.getInt(task.dimension) - 1;
         if (remaining < 0 || this.pendingRequestCount < 0) {
             throw new IllegalStateException("Orbital chunk-request permit accounting became negative");
         }
         if (remaining == 0) {
-            this.pendingRequestsByDimension.remove(task.dimension);
+            this.pendingRequestsByDimension.removeInt(task.dimension);
         } else {
             this.pendingRequestsByDimension.put(task.dimension, remaining);
         }

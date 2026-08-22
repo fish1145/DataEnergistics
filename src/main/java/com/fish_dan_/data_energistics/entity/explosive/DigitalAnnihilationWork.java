@@ -15,6 +15,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import org.jspecify.annotations.Nullable;
@@ -303,8 +304,16 @@ public final class DigitalAnnihilationWork {
         this.pendingChunk = null;
         this.pendingChunkReady = false;
         this.pendingChunkFailed = false;
-        for (long packedChunk : this.heldTickets.toLongArray()) {
-            releaseTicket(level, new ChunkPos(packedChunk));
+        LongIterator ticketIterator = this.heldTickets.iterator();
+        while (ticketIterator.hasNext()) {
+            ChunkPos chunk = new ChunkPos(ticketIterator.nextLong());
+            level.getChunkSource().removeRegionTicket(
+                    CHUNK_TICKET_TYPE,
+                    chunk,
+                    CHUNK_TICKET_DISTANCE,
+                    this.ticketOwner,
+                    true);
+            ticketIterator.remove();
         }
     }
 

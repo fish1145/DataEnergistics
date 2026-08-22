@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisual
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Client cache for complete, dimension-scoped primary projection baselines. */
 public final class OrbitalProjectionVisualClientState {
@@ -21,7 +21,8 @@ public final class OrbitalProjectionVisualClientState {
     private static ResourceLocation pendingDimension = Level.OVERWORLD.location();
     private static int pendingBatchCount;
     private static int pendingTotalCount;
-    private static final Map<Integer, List<OrbitalProjectionVisualSnapshot>> pendingBatches = new HashMap<>();
+    private static final Int2ObjectOpenHashMap<List<OrbitalProjectionVisualSnapshot>> pendingBatches =
+            new Int2ObjectOpenHashMap<>();
 
     private OrbitalProjectionVisualClientState() {}
 
@@ -47,11 +48,10 @@ public final class OrbitalProjectionVisualClientState {
 
         ArrayList<OrbitalProjectionVisualSnapshot> complete = new ArrayList<>(pendingTotalCount);
         for (int index = 0; index < pendingBatchCount; index++) {
-            List<OrbitalProjectionVisualSnapshot> batch = pendingBatches.get(index);
-            if (batch == null) {
+            if (!pendingBatches.containsKey(index)) {
                 return;
             }
-            complete.addAll(batch);
+            complete.addAll(pendingBatches.get(index));
         }
         if (complete.size() != pendingTotalCount) {
             return;

@@ -29,12 +29,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
 
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +93,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackSavedData::load);
 
     private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
-    private final Map<UUID, Long> phaseStartedAt = new HashMap<>();
+    private final Object2LongOpenHashMap<UUID> phaseStartedAt = new Object2LongOpenHashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
     private int roundRobinOffset;
 
@@ -183,7 +183,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 current.aeEscrow());
         this.terrainWorkScheduler.release(server, attackId);
         this.attacks.remove(attackId);
-        this.phaseStartedAt.remove(attackId);
+        this.phaseStartedAt.removeLong(attackId);
         setDirty();
         return true;
     }
@@ -547,7 +547,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         this.attacks.remove(attackId);
-        this.phaseStartedAt.remove(attackId);
+        this.phaseStartedAt.removeLong(attackId);
         try {
             weapons.refundWarningReserve(
                     server,
@@ -1178,7 +1178,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         this.terrainWorkScheduler.release(server, current.attackId());
         if (current.cooldownTicksRemaining() <= 1) {
             this.attacks.remove(current.attackId());
-            this.phaseStartedAt.remove(current.attackId());
+            this.phaseStartedAt.removeLong(current.attackId());
         } else {
             this.attacks.put(current.attackId(), current.withCooldownTicks(current.cooldownTicksRemaining() - 1));
         }

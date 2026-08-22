@@ -13,8 +13,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -32,7 +33,8 @@ import java.util.function.Predicate;
 public final class OrbitalDirectedEnergyStrike {
 
     private static final int MAX_CACHED_RADII = 16;
-    private static final LinkedHashMap<Integer, List<Offset>> DISK_OFFSETS = new LinkedHashMap<>(MAX_CACHED_RADII, 0.75F, true);
+    private static final Int2ObjectLinkedOpenHashMap<List<Offset>> DISK_OFFSETS =
+            new Int2ObjectLinkedOpenHashMap<>(MAX_CACHED_RADII);
 
     private OrbitalDirectedEnergyStrike() {}
 
@@ -159,14 +161,10 @@ public final class OrbitalDirectedEnergyStrike {
 
     private static synchronized List<Offset> offsetsFor(int radius) {
         validateSupportedRadius(radius);
-        List<Offset> cached = DISK_OFFSETS.get(radius);
-        if (cached != null) {
-            return cached;
-        }
-        List<Offset> offsets = buildOffsets(radius);
-        DISK_OFFSETS.put(radius, offsets);
+        List<Offset> offsets = DISK_OFFSETS.computeIfAbsent(radius, OrbitalDirectedEnergyStrike::buildOffsets);
+        DISK_OFFSETS.getAndMoveToLast(radius);
         if (DISK_OFFSETS.size() > MAX_CACHED_RADII) {
-            DISK_OFFSETS.remove(DISK_OFFSETS.keySet().iterator().next());
+            DISK_OFFSETS.removeFirst();
         }
         return offsets;
     }
