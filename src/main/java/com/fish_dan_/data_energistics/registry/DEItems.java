@@ -177,6 +177,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
     public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
+    public static final DeferredItem<BlockItem> EMPTY_TRINITY_UNIT = ITEMS.registerSimpleBlockItem(DEBlocks.EMPTY_TRINITY_UNIT);
     public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);

@@ -15,16 +15,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Maps generic auto-build predicate categories to explicit, one-based tiered Trinity core registrations.
+ * Maps generic auto-build predicate categories to explicit, one-based tiered Trinity core registrations and the
+ * universal lowest-rank fallback accepted by every category.
  */
 public final class TrinityAutoBuildBlockMap {
 
-    /** Predicate category for the ten storage cores used by the main structure. */
+    /** Predicate category for the ten storage cores and universal empty unit used by the main structure. */
     public static final String STORAGE_CORE = "storage_core";
-    /** Predicate category for the ten merged storage cores used by the CPU child structure. */
+    /** Predicate category for the ten merged storage cores and universal empty unit used by the CPU child structure. */
     public static final String PARALLEL_CPU_CORE = "parallel_cpu_core";
-    /** Predicate category for the three pattern processing cores used by the crafting child structure. */
+    /** Predicate category for the three pattern processing cores and universal empty unit used by crafting. */
     public static final String PATTERN_PROCESSING_CORE = "pattern_processing_core";
+
+    /**
+     * Universal structure candidate appended after historical selections so every existing one-based value stays
+     * stable.
+     */
+    private static final ResourceLocation EMPTY_TRINITY_UNIT_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "empty_trinity_unit");
+    /** Lowest positive replacement rank, leaving every ordinary selectable core above the universal unit. */
+    private static final int EMPTY_TRINITY_UNIT_RANK = 1;
 
     /** Stable category presentation order shared by the auto-build request UI and payload diagnostics. */
     private static final List<String> CATEGORY_ORDER = List.of(
@@ -45,7 +54,8 @@ public final class TrinityAutoBuildBlockMap {
                     tier("me_digital_storage_core_4m", TrinityCoreKind.STORAGE_TYPES),
                     tier("me_digital_storage_core_16m", TrinityCoreKind.STORAGE_TYPES),
                     tier("me_digital_storage_core_64m", TrinityCoreKind.STORAGE_TYPES),
-                    tier("me_digital_storage_core_256m", TrinityCoreKind.STORAGE_TYPES)),
+                    tier("me_digital_storage_core_256m", TrinityCoreKind.STORAGE_TYPES),
+                    emptyTier(TrinityCoreKind.STORAGE_TYPES)),
             PARALLEL_CPU_CORE,
             List.of(
                     tier("me_digital_merged_storage_core_1k", TrinityCoreKind.PARALLEL_CPU),
@@ -57,12 +67,14 @@ public final class TrinityAutoBuildBlockMap {
                     tier("me_digital_merged_storage_core_4m", TrinityCoreKind.PARALLEL_CPU),
                     tier("me_digital_merged_storage_core_16m", TrinityCoreKind.PARALLEL_CPU),
                     tier("me_digital_merged_storage_core_64m", TrinityCoreKind.PARALLEL_CPU),
-                    tier("me_digital_merged_storage_core_256m", TrinityCoreKind.PARALLEL_CPU)),
+                    tier("me_digital_merged_storage_core_256m", TrinityCoreKind.PARALLEL_CPU),
+                    emptyTier(TrinityCoreKind.PARALLEL_CPU)),
             PATTERN_PROCESSING_CORE,
             List.of(
                     tier("me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING),
                     tier("extended_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING),
-                    tier("overlimit_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING)));
+                    tier("overlimit_me_digital_pattern_processing_core", TrinityCoreKind.PATTERN_PROCESSING),
+                    emptyTier(TrinityCoreKind.PATTERN_PROCESSING)));
 
     private TrinityAutoBuildBlockMap() {}
 
@@ -149,8 +161,9 @@ public final class TrinityAutoBuildBlockMap {
      * {@code MultiBlockAutoBuild}.
      *
      * <p>
-     * Each affected MDLib predicate accepts every tier in one category. The returned map therefore maps every one of
-     * those candidates to the one selected block, which lets the atomic builder reject incomplete or mixed tiers.
+     * Each affected MDLib predicate accepts every tier in one category plus the universal empty unit. The returned map
+     * therefore maps every one of those candidates to the selected block, which lets the atomic builder reject
+     * incomplete or mixed tiers without changing the historical one-based selection values.
      * </p>
      *
      * @param structureIndex structure selector being built
@@ -192,13 +205,19 @@ public final class TrinityAutoBuildBlockMap {
         LinkedHashMap<Block, Integer> ranks = new LinkedHashMap<>();
         List<TierDefinition> tiers = CATEGORIES.get(category);
         for (int index = 0; index < tiers.size(); index++) {
-            ranks.put(resolveTierBlock(tiers.get(index)), index + 1);
+            TierDefinition tier = tiers.get(index);
+            int rank = EMPTY_TRINITY_UNIT_ID.equals(tier.blockId()) ? EMPTY_TRINITY_UNIT_RANK : index + 2;
+            ranks.put(resolveTierBlock(tier), rank);
         }
         return Map.copyOf(ranks);
     }
 
     private static TierDefinition tier(String blockPath, TrinityCoreKind coreKind) {
         return new TierDefinition(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, blockPath), coreKind);
+    }
+
+    private static TierDefinition emptyTier(TrinityCoreKind coreKind) {
+        return new TierDefinition(EMPTY_TRINITY_UNIT_ID, coreKind);
     }
 
     private static TierDefinition tierDefinition(String category, int tierIndex) {
@@ -238,7 +257,7 @@ public final class TrinityAutoBuildBlockMap {
         if (!tier.blockId().equals(BuiltInRegistries.BLOCK.getKey(block))) {
             throw new IllegalStateException("Trinity auto-build tier is not registered: " + tier.blockId());
         }
-        if (!(block instanceof TrinityCoreComponent component) || component.kind() != tier.coreKind()) {
+        if (!(block instanceof TrinityCoreComponent component) || !component.supportsKind(tier.coreKind())) {
             throw new IllegalStateException("Trinity auto-build tier " + tier.blockId() + " does not provide " +
                     tier.coreKind());
         }

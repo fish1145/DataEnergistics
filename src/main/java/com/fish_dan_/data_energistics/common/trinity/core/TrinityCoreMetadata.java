@@ -5,7 +5,7 @@ package com.fish_dan_.data_energistics.common.trinity.core;
  */
 public final class TrinityCoreMetadata implements TrinityCoreComponent {
 
-    /** Capability category that future trinity structure scans will aggregate. */
+    /** Primary capability category used by ordinary cores and retained by placeholders for legacy callers. */
     private final TrinityCoreKind kind;
     /** Storage type count contributed by storage cores. */
     private final int capacityValue;
@@ -13,21 +13,33 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final long byteCapacity;
     /** Pattern count contributed by pattern processing cores. */
     private final int patternCapacity;
+    /** Whether this metadata is the zero-capacity placeholder accepted by every core predicate. */
+    private final boolean universal;
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
         this(
                 kind,
                 kind == TrinityCoreKind.PARALLEL_CPU ? 0 : capacityValue,
                 Math.multiplyExact(capacityValue, 524_288L),
-                patternCapacity);
+                patternCapacity,
+                false);
     }
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, long byteCapacity, int patternCapacity) {
+        this(kind, capacityValue, byteCapacity, patternCapacity, false);
+    }
+
+    private TrinityCoreMetadata(TrinityCoreKind kind,
+                                int capacityValue,
+                                long byteCapacity,
+                                int patternCapacity,
+                                boolean universal) {
         this.kind = kind;
-        validateCoreData(this.kind, capacityValue, byteCapacity, patternCapacity);
+        validateCoreData(this.kind, capacityValue, byteCapacity, patternCapacity, universal);
         this.capacityValue = capacityValue;
         this.byteCapacity = byteCapacity;
         this.patternCapacity = patternCapacity;
+        this.universal = universal;
     }
 
     /**
@@ -59,9 +71,38 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
         return new TrinityCoreMetadata(TrinityCoreKind.PATTERN_PROCESSING, 0, 0L, patternCapacity);
     }
 
+    /**
+     * Creates the zero-capacity universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
+     *
+     * <p>
+     * The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
+     * Domain-aware callers must distinguish structural compatibility through
+     * {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} from actual capacity through
+     * {@link TrinityCoreComponent#contributesToKind(TrinityCoreKind)}.
+     * </p>
+     */
+    public static TrinityCoreMetadata emptyTrinityUnit() {
+        return new TrinityCoreMetadata(
+                TrinityCoreKind.STORAGE_TYPES,
+                0,
+                0L,
+                0,
+                true);
+    }
+
     @Override
     public TrinityCoreKind kind() {
         return this.kind;
+    }
+
+    @Override
+    public boolean supportsKind(TrinityCoreKind requestedKind) {
+        return this.universal || this.kind == requestedKind;
+    }
+
+    @Override
+    public boolean contributesToKind(TrinityCoreKind requestedKind) {
+        return !this.universal && this.kind == requestedKind;
     }
 
     @Override
@@ -83,7 +124,15 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
                                          TrinityCoreKind kind,
                                          int capacityValue,
                                          long byteCapacity,
-                                         int patternCapacity) {
+                                         int patternCapacity,
+                                         boolean universal) {
+        if (universal) {
+            if (kind != TrinityCoreKind.STORAGE_TYPES || capacityValue != 0 || byteCapacity != 0 || patternCapacity != 0) {
+                throw new IllegalArgumentException(
+                        "Universal Trinity units require storage primary metadata and zero capacities for all domains");
+            }
+            return;
+        }
         switch (kind) {
             case STORAGE_TYPES -> {
                 if (capacityValue <= 0 || byteCapacity <= 0 || patternCapacity != 0) {

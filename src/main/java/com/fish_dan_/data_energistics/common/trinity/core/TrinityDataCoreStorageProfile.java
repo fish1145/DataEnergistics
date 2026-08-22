@@ -12,6 +12,9 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
                                             boolean unlimited) {
 
     public static final BigInteger AMOUNT_PER_M = BigInteger.valueOf(1_048_576L);
+    /** Exact amount capacity contributed by the maximum supported storage-core tier. */
+    private static final BigInteger MAXIMUM_CORE_CAPACITY = BigInteger.valueOf(
+            TrinityCoreTier.SIZE_256M.byteCapacity());
     public static final TrinityDataCoreStorageProfile EMPTY = new TrinityDataCoreStorageProfile(BigInteger.ZERO, 0, 0, 0, false);
     public static final TrinityDataCoreStorageProfile UNLIMITED = new TrinityDataCoreStorageProfile(BigInteger.ZERO, Integer.MAX_VALUE, 0, 0, true);
 
@@ -47,7 +50,7 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
      * Reads a storage core's exact total stored amount capacity.
      */
     public static BigInteger amountCapacity(TrinityCoreComponent component) {
-        if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
+        if (!component.contributesToKind(TrinityCoreKind.STORAGE_TYPES)) {
             throw new IllegalArgumentException("Only storage type cores contribute storage amount capacity");
         }
         return BigInteger.valueOf(component.byteCapacity());
@@ -81,7 +84,7 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
          * Adds one storage core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
+            if (!component.contributesToKind(TrinityCoreKind.STORAGE_TYPES)) {
                 return;
             }
             this.totalCapacity = this.totalCapacity.add(amountCapacity(component));
@@ -90,10 +93,13 @@ public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
         }
 
         /**
-         * Builds the immutable storage profile.
+         * Builds the immutable storage profile, granting unlimited capacity only when every declared slot contains a
+         * maximum-tier storage core.
          */
         public TrinityDataCoreStorageProfile build() {
-            boolean unlimited = this.fullCoreCount > 0 && this.coreCount >= this.fullCoreCount;
+            boolean unlimited = this.fullCoreCount > 0 &&
+                    this.coreCount == this.fullCoreCount &&
+                    this.totalCapacity.equals(MAXIMUM_CORE_CAPACITY.multiply(BigInteger.valueOf(this.fullCoreCount)));
             return new TrinityDataCoreStorageProfile(
                     this.totalCapacity,
                     this.typeCapacity,

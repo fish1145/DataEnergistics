@@ -88,7 +88,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
      * Reads a merged storage core's exact AE2 crafting storage capacity.
      */
     public static long craftingStorageBytes(TrinityCoreComponent component) {
-        if (component.kind() != TrinityCoreKind.PARALLEL_CPU) {
+        if (!component.contributesToKind(TrinityCoreKind.PARALLEL_CPU)) {
             throw new IllegalArgumentException("Only merged storage CPU cores contribute crafting storage bytes");
         }
         return component.byteCapacity();
@@ -111,10 +111,16 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     }
 
     /**
-     * Returns true when every core slot is filled and the repeated CPU section reaches its maximum height.
+     * Returns true when every core slot contains a maximum-tier merged core and the repeated CPU section reaches its
+     * maximum height.
      */
     public boolean fullCpu() {
-        return this.filledCoreSlots == this.fullCoreSlots && this.actualRepeatCount == this.maxRepeatCount;
+        long maximumStorageBytes = Math.multiplyExact(
+                this.fullCoreSlots,
+                TrinityCoreTier.SIZE_256M.byteCapacity());
+        return this.filledCoreSlots == this.fullCoreSlots &&
+                this.storageBytes == maximumStorageBytes &&
+                this.actualRepeatCount == this.maxRepeatCount;
     }
 
     /**
@@ -155,7 +161,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
          * Adds one merged storage core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            if (component.kind() != TrinityCoreKind.PARALLEL_CPU) {
+            if (!component.contributesToKind(TrinityCoreKind.PARALLEL_CPU)) {
                 return;
             }
             this.storageBytes = Math.addExact(this.storageBytes, craftingStorageBytes(component));

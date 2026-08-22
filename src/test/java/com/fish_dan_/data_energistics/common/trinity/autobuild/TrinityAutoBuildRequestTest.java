@@ -92,11 +92,7 @@ public final class TrinityAutoBuildRequestTest {
         assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
                 Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 0)));
         assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
-                Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 11)));
-        assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
                 Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 0)));
-        assertThrows(IllegalArgumentException.class, () -> new TrinityAutoBuildOptions(true, 1,
-                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 4)));
     }
 
     @Test
