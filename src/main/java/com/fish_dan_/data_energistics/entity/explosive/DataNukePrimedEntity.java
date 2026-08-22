@@ -52,6 +52,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private static final String TAG_WORK_TICKS = "DataNukeWorkTicks";
     private static final String TAG_EXPANSION_RADIUS = "DataNukeExpansionRadius";
     private static final String TAG_WORK_STATE = "DataNukeWorkState";
+    private static final String TAG_ORBITAL_PAYLOAD = "DataNukeOrbitalPayload";
     private static final String TAG_ORBITAL_ATTACK_ID = "DataNukeOrbitalAttackId";
     private static final String TAG_DAMAGE_EXEMPTIONS = "DataNukeDamageExemptions";
     private static final String TAG_WORK_SETTINGS_INTERVAL = "DataNukeWorkSettingsInterval";
@@ -76,6 +77,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private Set<UUID> damageExemptions = Set.of();
     @Nullable
     private Settings capturedWorkSettings;
+    private @Nullable String persistedStateFailure;
     @Nullable
     private ChunkPos forcedChunk;
 
@@ -153,6 +155,11 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
     @Override
     public void tick() {
+        String loadFailure = this.persistedStateFailure;
+        if (loadFailure != null && this.level() instanceof ServerLevel serverLevel) {
+            discardInvalidPersistedState(serverLevel, loadFailure);
+            return;
+        }
         if (this.isActive()) {
             tickActive();
             return;
@@ -200,6 +207,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         if (this.orbitalAttackId != null) {
             tag.putUUID(TAG_ORBITAL_ATTACK_ID, this.orbitalAttackId);
         }
+        tag.putBoolean(TAG_ORBITAL_PAYLOAD, this.orbitalAttackId != null);
         if (this.capturedWorkSettings != null) {
             tag.putInt(TAG_WORK_SETTINGS_INTERVAL, this.capturedWorkSettings.workIntervalTicks());
             tag.putInt(TAG_WORK_SETTINGS_RADIUS, this.capturedWorkSettings.maxRadius());
@@ -222,32 +230,78 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
-        this.orbitalAttackId = tag.hasUUID(TAG_ORBITAL_ATTACK_ID) ? tag.getUUID(TAG_ORBITAL_ATTACK_ID) : null;
-        this.capturedWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL) && tag.contains(TAG_WORK_SETTINGS_RADIUS) && tag.contains(TAG_WORK_SETTINGS_CENTER) ? DigitalAnnihilationWork.Settings.fromPersisted(
-                tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
-                tag.getInt(TAG_WORK_SETTINGS_RADIUS),
-                tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;
+        boolean orbitalMarkerPresent = tag.contains(TAG_ORBITAL_PAYLOAD, Tag.TAG_BYTE);
+        boolean orbitalMarker = orbitalMarkerPresent && tag.getBoolean(TAG_ORBITAL_PAYLOAD);
+        boolean attackIdPresent = tag.hasUUID(TAG_ORBITAL_ATTACK_ID);
+        boolean orbitalPayload = orbitalMarker || attackIdPresent;
+        this.orbitalAttackId = attackIdPresent ? tag.getUUID(TAG_ORBITAL_ATTACK_ID) : null;
+        if (orbitalPayload && (!orbitalMarkerPresent || !orbitalMarker || !attackIdPresent)) {
+            invalidatePersistedState("incomplete orbital payload identity");
+        }
+
+        boolean completeWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL, Tag.TAG_INT)
+                && tag.contains(TAG_WORK_SETTINGS_RADIUS, Tag.TAG_INT)
+                && tag.contains(TAG_WORK_SETTINGS_CENTER, Tag.TAG_DOUBLE);
+        this.capturedWorkSettings = completeWorkSettings
+                ? DigitalAnnihilationWork.Settings.fromPersisted(
+                        tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
+                        tag.getInt(TAG_WORK_SETTINGS_RADIUS),
+                        tag.getDouble(TAG_WORK_SETTINGS_CENTER))
+                : null;
+        if (orbitalPayload && !completeWorkSettings) {
+            invalidatePersistedState("missing orbital payload settings");
+        }
+
         int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius;
         this.expansionRadius = Math.max(0, Math.min(maximumRadius, tag.getInt(TAG_EXPANSION_RADIUS)));
-        ListTag exemptionList = tag.getList(TAG_DAMAGE_EXEMPTIONS, Tag.TAG_COMPOUND);
         HashSet<UUID> exemptions = new HashSet<>();
-        for (int index = 0; index < exemptionList.size(); index++) {
-            CompoundTag exemption = exemptionList.getCompound(index);
-            if (exemption.hasUUID(TAG_UUID)) {
-                exemptions.add(exemption.getUUID(TAG_UUID));
+        Tag rawExemptions = tag.get(TAG_DAMAGE_EXEMPTIONS);
+        if (rawExemptions instanceof ListTag exemptionList) {
+            for (Tag rawExemption : exemptionList) {
+                if (!(rawExemption instanceof CompoundTag exemption)
+                        || !exemption.hasUUID(TAG_UUID)
+                        || !exemptions.add(exemption.getUUID(TAG_UUID))) {
+                    if (orbitalPayload) {
+                        invalidatePersistedState("invalid orbital exemption entry");
+                    }
+                    break;
+                }
             }
+        } else if (orbitalPayload) {
+            invalidatePersistedState("missing orbital exemption list");
         }
         this.damageExemptions = Set.copyOf(exemptions);
-        if (this.isActive()) {
-            CompoundTag workTag = tag.getCompound(TAG_WORK_STATE);
-            this.annihilationWork = DigitalAnnihilationWork.restore(
-                    this.origin,
-                    this.getUUID(),
-                    this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings(),
-                    this.workTicks,
-                    this.expansionRadius,
-                    workTag);
+
+        if (!this.isActive() || this.persistedStateFailure != null) {
+            return;
+        }
+        try {
+            if (orbitalPayload) {
+                Tag rawWorkState = tag.get(TAG_WORK_STATE);
+                if (!(rawWorkState instanceof CompoundTag workTag)
+                        || this.capturedWorkSettings == null) {
+                    invalidatePersistedState("missing orbital annihilation work state");
+                    return;
+                }
+                this.annihilationWork = DigitalAnnihilationWork.restoreOrbital(
+                        this.origin,
+                        this.getUUID(),
+                        this.capturedWorkSettings,
+                        workTag);
+            } else {
+                this.annihilationWork = DigitalAnnihilationWork.restoreManual(
+                        this.origin,
+                        this.getUUID(),
+                        this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings(),
+                        this.workTicks,
+                        this.expansionRadius,
+                        tag.getCompound(TAG_WORK_STATE));
+            }
             syncLegacyWorkFields();
+        } catch (IllegalArgumentException exception) {
+            invalidatePersistedState(exception.getMessage() == null
+                    ? "invalid persisted annihilation work"
+                    : exception.getMessage());
         }
     }
 
@@ -353,6 +407,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
     public DigitalAnnihilationWork.TickResult tickOrbitalWork(
                                                               int mutationBudget,
                                                               Predicate<ChunkPos> chunkReady) {
+        if (this.persistedStateFailure != null) {
+            throw new IllegalStateException(this.persistedStateFailure);
+        }
         if (this.orbitalAttackId == null) {
             throw new IllegalStateException("A manual data nuke cannot use the orbital work scheduler");
         }
@@ -394,17 +451,17 @@ public class DataNukePrimedEntity extends PrimedTnt {
         return this.annihilationWork == null ? null : this.annihilationWork.failure();
     }
 
-    private int consumeCenterEntities(Level level, double radius) {
-        return consumeEntities(level, radius);
+    private void consumeCenterEntities(Level level, double radius) {
+        consumeEntities(level, radius);
     }
 
-    private int consumeExpandedEntities(Level level, int radius) {
-        return consumeEntities(level, radius);
+    private void consumeExpandedEntities(Level level, int radius) {
+        consumeEntities(level, radius);
     }
 
-    private int consumeEntities(Level level, double radius) {
+    private void consumeEntities(Level level, double radius) {
         if (radius <= 0.0D) {
-            return 0;
+            return;
         }
 
         double centerX = getCenterX();
@@ -421,19 +478,16 @@ public class DataNukePrimedEntity extends PrimedTnt {
         List<Entity> entities = level.getEntities(this, bounds,
                 entity -> isConsumableEntity(entity) && distanceToCenterSqr(entity, centerX, centerY, centerZ) <= radiusSqr);
         if (entities.isEmpty()) {
-            return 0;
+            return;
         }
 
-        int consumed = 0;
         for (Entity entity : entities) {
             if (entity instanceof ServerPlayer player) {
                 player.hurt(player.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
             } else {
                 entity.discard();
             }
-            consumed++;
         }
-        return consumed;
     }
 
     private boolean isConsumableEntity(Entity entity) {
@@ -446,10 +500,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         if (entity instanceof Player player && (player.isCreative() || player.isSpectator())) {
             return false;
         }
-        if (entity instanceof ServerPlayer player && player.hasPermissions(2)) {
-            return false;
-        }
-        return true;
+        return !(entity instanceof ServerPlayer player) || !player.hasPermissions(2);
     }
 
     private double getCenterX() {
@@ -500,6 +551,26 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 settings.workIntervalTicks,
                 settings.maxRadius,
                 settings.centerEntityConsumeRadius);
+    }
+
+    private void invalidatePersistedState(String reason) {
+        if (this.persistedStateFailure == null) {
+            this.persistedStateFailure = reason;
+        }
+    }
+
+    private void discardInvalidPersistedState(ServerLevel level, String reason) {
+        boolean attackFaulted = this.orbitalAttackId != null
+                && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+                        level.getServer(),
+                        this.orbitalAttackId,
+                        reason);
+        LOGGER.error(
+                "Discarding invalid persisted data nuke {}: {}; attackFaulted={}",
+                this.getUUID(),
+                reason,
+                attackFaulted);
+        this.discard();
     }
 
     private void releaseAnnihilationWork() {

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
@@ -23,6 +24,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +42,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
 
     public static final int FLIGHT_TICKS = 80;
     private static final int START_HEIGHT_OFFSET = 256;
+    private static final UUID INVALID_ATTACK_ID = new UUID(0L, 0L);
     private static final String TAG_ATTACK_ID = "OrbitalAttackId";
     private static final String TAG_TARGET = "Target";
     private static final String TAG_FLIGHT_TICKS = "FlightTicks";
@@ -47,11 +51,12 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     private static final String TAG_WORK_INTERVAL = "WorkIntervalTicks";
     private static final String TAG_MAX_RADIUS = "MaxRadius";
     private static final String TAG_CENTER_RADIUS = "CenterEntityConsumeRadius";
-    private UUID attackId = new UUID(0L, 0L);
+    private UUID attackId = INVALID_ATTACK_ID;
     private BlockPos target = BlockPos.ZERO;
     private int flightTicks;
     private Set<UUID> damageExemptions = Set.of();
     private DigitalAnnihilationWork.Settings workSettings;
+    private @Nullable String persistedStateFailure;
 
     public OrbitalAnnihilatorProjectileEntity(EntityType<? extends OrbitalAnnihilatorProjectileEntity> entityType,
                                               Level level) {
@@ -90,6 +95,11 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
+        String loadFailure = this.persistedStateFailure;
+        if (loadFailure != null) {
+            discardInvalidPersistedState(serverLevel, loadFailure);
+            return;
+        }
 
         int nextFlightTicks = Math.min(FLIGHT_TICKS, this.flightTicks + 1);
         double progress = (double) nextFlightTicks / (double) FLIGHT_TICKS;
@@ -112,11 +122,6 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 this.attackId,
                 nuke.getUUID());
         this.discard();
-    }
-
-    @Override
-    public boolean isPickable() {
-        return false;
     }
 
     @Override
@@ -160,24 +165,57 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
-        if (tag.hasUUID(TAG_ATTACK_ID)) {
-            this.attackId = tag.getUUID(TAG_ATTACK_ID);
+        if (!tag.hasUUID(TAG_ATTACK_ID)
+                || !tag.contains(TAG_TARGET, Tag.TAG_INT_ARRAY)
+                || !tag.contains(TAG_FLIGHT_TICKS, Tag.TAG_INT)
+                || !tag.contains(TAG_WORK_INTERVAL, Tag.TAG_INT)
+                || !tag.contains(TAG_MAX_RADIUS, Tag.TAG_INT)
+                || !tag.contains(TAG_CENTER_RADIUS, Tag.TAG_DOUBLE)
+                || !tag.contains(TAG_EXEMPTIONS, Tag.TAG_LIST)) {
+            this.persistedStateFailure = "missing required projectile fields";
+            return;
         }
-        this.target = NbtUtils.readBlockPos(tag, TAG_TARGET).orElse(BlockPos.ZERO).immutable();
+        BlockPos persistedTarget = NbtUtils.readBlockPos(tag, TAG_TARGET).orElse(null);
+        if (persistedTarget == null) {
+            this.persistedStateFailure = "invalid projectile target";
+            return;
+        }
+        this.attackId = tag.getUUID(TAG_ATTACK_ID);
+        this.target = persistedTarget.immutable();
         this.flightTicks = Math.clamp(tag.getInt(TAG_FLIGHT_TICKS), 0, FLIGHT_TICKS);
-        this.workSettings = tag.contains(TAG_WORK_INTERVAL) && tag.contains(TAG_MAX_RADIUS) && tag.contains(TAG_CENTER_RADIUS) ? DigitalAnnihilationWork.Settings.fromPersisted(
+        this.workSettings = DigitalAnnihilationWork.Settings.fromPersisted(
                 tag.getInt(TAG_WORK_INTERVAL),
                 tag.getInt(TAG_MAX_RADIUS),
-                tag.getDouble(TAG_CENTER_RADIUS)) : currentWorkSettings();
-        ListTag exemptionList = tag.getList(TAG_EXEMPTIONS, Tag.TAG_COMPOUND);
+                tag.getDouble(TAG_CENTER_RADIUS));
+        Tag rawExemptions = tag.get(TAG_EXEMPTIONS);
+        if (!(rawExemptions instanceof ListTag exemptionList)) {
+            this.persistedStateFailure = "invalid projectile exemptions";
+            return;
+        }
         HashSet<UUID> exemptions = new HashSet<>();
-        for (int index = 0; index < exemptionList.size(); index++) {
-            CompoundTag exemption = exemptionList.getCompound(index);
-            if (exemption.hasUUID(TAG_UUID)) {
-                exemptions.add(exemption.getUUID(TAG_UUID));
+        for (Tag rawExemption : exemptionList) {
+            if (!(rawExemption instanceof CompoundTag exemption)
+                    || !exemption.hasUUID(TAG_UUID)
+                    || !exemptions.add(exemption.getUUID(TAG_UUID))) {
+                this.persistedStateFailure = "invalid projectile exemption entry";
+                return;
             }
         }
         this.damageExemptions = Set.copyOf(exemptions);
+    }
+
+    private void discardInvalidPersistedState(ServerLevel level, String reason) {
+        boolean attackFaulted = !INVALID_ATTACK_ID.equals(this.attackId)
+                && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+                        level.getServer(),
+                        this.attackId,
+                        reason);
+        Data_Energistics.LOGGER.error(
+                "Discarding invalid orbital annihilator projectile {}: {}; attackFaulted={}",
+                this.getUUID(),
+                reason,
+                attackFaulted);
+        this.discard();
     }
 
     @Override
@@ -195,14 +233,6 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
 
     public int flightTicks() {
         return this.flightTicks;
-    }
-
-    public Set<UUID> damageExemptions() {
-        return this.damageExemptions;
-    }
-
-    public DigitalAnnihilationWork.Settings workSettings() {
-        return this.workSettings;
     }
 
     public static double startY(ServerLevel level) {

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ChunkResult;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
@@ -149,14 +150,14 @@ public final class DigitalAnnihilationWork {
                 0L);
     }
 
-    /** Restores work using an immutable settings snapshot, with no live-config lookup. */
-    public static DigitalAnnihilationWork restore(
-                                                  BlockPos origin,
-                                                  UUID ticketOwner,
-                                                  Settings settings,
-                                                  int legacyWorkTicks,
-                                                  int legacyExpansionRadius,
-                                                  CompoundTag state) {
+    /** Restores a manual nuke, including the released pre-orbital top-level progress fields. */
+    public static DigitalAnnihilationWork restoreManual(
+                                                        BlockPos origin,
+                                                        UUID ticketOwner,
+                                                        Settings settings,
+                                                        int legacyWorkTicks,
+                                                        int legacyExpansionRadius,
+                                                        CompoundTag state) {
         Settings capturedSettings = state.contains(TAG_SETTINGS_INTERVAL) && state.contains(TAG_SETTINGS_RADIUS) && state.contains(TAG_SETTINGS_CENTER) ? Settings.fromPersisted(
                 state.getInt(TAG_SETTINGS_INTERVAL),
                 state.getInt(TAG_SETTINGS_RADIUS),
@@ -167,6 +168,44 @@ public final class DigitalAnnihilationWork {
                 capturedSettings,
                 state.contains(TAG_WORK_TICKS) ? state.getInt(TAG_WORK_TICKS) : legacyWorkTicks,
                 state.contains(TAG_EXPANSION_RADIUS) ? state.getInt(TAG_EXPANSION_RADIUS) : legacyExpansionRadius,
+                state.getInt(TAG_SHELL_RADIUS),
+                state.getBoolean(TAG_SHELL_ACTIVE),
+                state.getInt(TAG_CHUNK_X),
+                state.getInt(TAG_CHUNK_Z),
+                state.getLong(TAG_BLOCK_CURSOR));
+    }
+
+    /** Restores the complete current-format state required by an orbital payload. */
+    public static DigitalAnnihilationWork restoreOrbital(
+                                                         BlockPos origin,
+                                                         UUID ticketOwner,
+                                                         Settings settings,
+                                                         CompoundTag state) {
+        if (!state.contains(TAG_WORK_TICKS, Tag.TAG_INT)
+                || !state.contains(TAG_EXPANSION_RADIUS, Tag.TAG_INT)
+                || !state.contains(TAG_SHELL_RADIUS, Tag.TAG_INT)
+                || !state.contains(TAG_SHELL_ACTIVE, Tag.TAG_BYTE)
+                || !state.contains(TAG_CHUNK_X, Tag.TAG_INT)
+                || !state.contains(TAG_CHUNK_Z, Tag.TAG_INT)
+                || !state.contains(TAG_BLOCK_CURSOR, Tag.TAG_LONG)
+                || !state.contains(TAG_SETTINGS_INTERVAL, Tag.TAG_INT)
+                || !state.contains(TAG_SETTINGS_RADIUS, Tag.TAG_INT)
+                || !state.contains(TAG_SETTINGS_CENTER, Tag.TAG_DOUBLE)) {
+            throw new IllegalArgumentException("Incomplete persisted orbital annihilation work");
+        }
+        Settings persistedSettings = Settings.fromPersisted(
+                state.getInt(TAG_SETTINGS_INTERVAL),
+                state.getInt(TAG_SETTINGS_RADIUS),
+                state.getDouble(TAG_SETTINGS_CENTER));
+        if (!persistedSettings.equals(settings)) {
+            throw new IllegalArgumentException("Orbital annihilation work settings disagree with its payload");
+        }
+        return new DigitalAnnihilationWork(
+                origin,
+                ticketOwner,
+                persistedSettings,
+                state.getInt(TAG_WORK_TICKS),
+                state.getInt(TAG_EXPANSION_RADIUS),
                 state.getInt(TAG_SHELL_RADIUS),
                 state.getBoolean(TAG_SHELL_ACTIVE),
                 state.getInt(TAG_CHUNK_X),
