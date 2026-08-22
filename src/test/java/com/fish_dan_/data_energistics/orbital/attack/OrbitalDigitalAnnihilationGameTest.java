@@ -373,6 +373,75 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_digital_annihilation_keeps_confirmed_world_effect_after_config_reload")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    public static void keepsConfirmedWorldEffectAfterConfigReload(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "digital-config-snapshot-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+        BlockPos relativeOutsideSnapshot = TARGET.offset(3, 0, 0);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        BlockPos absoluteOutsideSnapshot = helper.absolutePos(relativeOutsideSnapshot);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        helper.setBlock(relativeOutsideSnapshot, Blocks.STONE);
+        level.getChunkAt(absoluteTarget);
+        level.getChunkAt(absoluteOutsideSnapshot);
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The configuration-snapshot attack must use a real powered target-dimension endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    var liveSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
+                    int originalWorkInterval = liveSettings.workIntervalTicks;
+                    int originalMaxRadius = liveSettings.maxRadius;
+                    double originalCenterRadius = liveSettings.centerEntityConsumeRadius;
+                    try {
+                        liveSettings.workIntervalTicks = 1;
+                        liveSettings.maxRadius = 1;
+                        liveSettings.centerEntityConsumeRadius = 0.0D;
+                        attacks.tryConfirmDigitalAnnihilation(
+                                server,
+                                owner.getUUID(),
+                                weaponId,
+                                level.dimension().location(),
+                                absoluteTarget)
+                                .orElseThrow(() -> new IllegalStateException("The funded configuration-snapshot attack was rejected"));
+                    } finally {
+                        liveSettings.workIntervalTicks = originalWorkInterval;
+                        liveSettings.maxRadius = originalMaxRadius;
+                        liveSettings.centerEntityConsumeRadius = originalCenterRadius;
+                    }
+                })
+                .thenWaitUntil(() -> helper.assertTrue(
+                        level.getBlockState(absoluteTarget).isAir(),
+                        "The confirmed orbital payload must traverse warning, delivery, fuse and shared terrain work"))
+                .thenExecute(() -> {
+                    try {
+                        helper.assertTrue(
+                                level.getBlockState(absoluteOutsideSnapshot).is(Blocks.STONE),
+                                "Reloaded settings must not expand the confirmed orbital world effect");
+                    } finally {
+                        OrbitalControlActionDispatcher.cancelOrAbortFirst(owner);
+                    }
+                })
+                .thenSucceed();
+    }
+
     private static void installInfiniteCell(GameTestHelper helper) {
         if (!(helper.getBlockEntity(DRIVE) instanceof DriveBlockEntity drive)) {
             throw new IllegalStateException("The digital test drive has no block entity");

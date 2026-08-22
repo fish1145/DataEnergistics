@@ -276,7 +276,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setNoGravity(true);
         this.setDeltaMovement(Vec3.ZERO);
         this.setPos(this.origin.getX() + 0.5D, this.origin.getY(), this.origin.getZ() + 0.5D);
-        this.annihilationWork = DigitalAnnihilationWork.create(this.origin, this.getUUID(), currentWorkSettings());
+        this.annihilationWork = DigitalAnnihilationWork.create(
+                this.origin,
+                this.getUUID(),
+                this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings());
         syncLegacyWorkFields();
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return;
