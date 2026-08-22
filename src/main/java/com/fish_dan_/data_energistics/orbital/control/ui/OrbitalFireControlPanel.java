@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.orbital.control;
+package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
@@ -8,6 +8,8 @@ import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequ
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
 import net.minecraft.network.chat.Component;

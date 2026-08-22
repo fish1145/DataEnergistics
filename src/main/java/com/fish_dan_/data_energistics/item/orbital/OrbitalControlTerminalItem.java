@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.item.orbital;
 
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlUiFactory;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.server.MinecraftServer;

@@ -1,6 +1,7 @@
-package com.fish_dan_.data_energistics.orbital.control;
+package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;

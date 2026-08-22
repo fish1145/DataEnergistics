@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.block.orbital;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlUiFactory;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
