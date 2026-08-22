@@ -114,7 +114,7 @@ public final class InterferenceArrayGameTest {
                 .thenWaitUntil(() -> helper.assertTrue(
                         isCoreProducing(helper),
                         "Restoring the waveguide must recover the existing array"))
-                .thenExecute(() -> helper.setBlock(helper.absolutePos(SKY_BLOCKER), Blocks.STONE))
+                .thenExecute(() -> helper.setBlock(SKY_BLOCKER, Blocks.STONE))
                 .thenWaitUntil(() -> helper.assertFalse(
                         isCoreProducing(helper),
                         "Blocking one mirror's 3x3 sky aperture must stop the four-mirror minimum array"))
