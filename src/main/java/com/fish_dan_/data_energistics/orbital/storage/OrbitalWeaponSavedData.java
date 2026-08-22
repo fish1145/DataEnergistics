@@ -579,7 +579,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.TRANSFER_OWNERSHIP)) {
             throw new SecurityException("Player " + actorId + " cannot transfer orbital weapon " + weaponId);
         }
-        if (recipientId.equals(current.ownerId()) || server.getPlayerList().getPlayer(recipientId) == null || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
+        if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
             return Optional.empty();
         }
         this.ownershipTransfers.values().removeIf(offer -> offer.weaponId().equals(weaponId));
@@ -606,7 +606,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
         OrbitalWeaponRecord current = this.weapons.get(offer.weaponId());
-        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(offer.weaponId())) {
+        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(offer.weaponId())) {
             this.ownershipTransfers.remove(transferId);
             setDirty();
             return false;
@@ -995,6 +995,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 location,
                 kind,
                 weapon.nextEndpointPriority());
+    }
+
+    private static boolean transferParticipantOffline(
+                                                      MinecraftServer server,
+                                                      UUID ownerId,
+                                                      UUID recipientId) {
+        return server.getPlayerList().getPlayer(ownerId) == null
+                || server.getPlayerList().getPlayer(recipientId) == null;
     }
 
     private static void requireEndpointCapacity(
