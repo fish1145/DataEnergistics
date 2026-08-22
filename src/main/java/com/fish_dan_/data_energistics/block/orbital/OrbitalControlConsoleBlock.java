@@ -64,7 +64,6 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
         builder.add(FACING);
     }
 
-    @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
@@ -77,7 +76,7 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
 
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+        return rotate(state, mirror.getRotation(state.getValue(FACING)));
     }
 
     @Override

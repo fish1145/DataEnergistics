@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -23,16 +25,19 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import appeng.core.definitions.AEItems;
 import appeng.items.misc.PaintBallItem;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 final class ClientTickHandler {
 
     private ClientTickHandler() {}
 
-    static void onClientTickPost(ClientTickEvent.Post event) {
+    static void onClientTickPost(ClientTickEvent.Post ignoredEvent) {
         Minecraft minecraft = Minecraft.getInstance();
         XeiLayoutRefreshQueue.drain();
         OrbitalMapSelectionClientSession.tick();
-        if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
+        ClientLevel level = minecraft.level;
+        LocalPlayer player = minecraft.player;
+        if (minecraft.isPaused() || level == null || player == null) {
             return;
         }
 
@@ -46,17 +51,19 @@ final class ClientTickHandler {
             ClientInputHandler.toggleOrbitalHud();
         }
 
-        if ((minecraft.player.tickCount & 1) != 0) {
+        if ((player.tickCount & 1) != 0) {
             return;
         }
 
-        spawnRadixLossParticles(minecraft);
-        spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
-        spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
+        spawnRadixLossParticles(level);
+        spawnMatterConvergingCrossbowParticles(level, player, InteractionHand.MAIN_HAND);
+        spawnMatterConvergingCrossbowParticles(level, player, InteractionHand.OFF_HAND);
     }
 
-    private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {
-        var player = minecraft.player;
+    private static void spawnMatterConvergingCrossbowParticles(
+                                                               ClientLevel level,
+                                                               LocalPlayer player,
+                                                               InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!stack.is(DEItems.MATTER_CONVERGING_CROSSBOW.get())) {
             return;
@@ -96,23 +103,19 @@ final class ClientTickHandler {
         DustParticleOptions particle = new DustParticleOptions(rgb, 0.85F);
         if (ammo.is(AEItems.SINGULARITY.asItem())) {
             Vec3 singularityBase = base.add(up.scale(-0.05D));
-            minecraft.level.addParticle(particle,
+            level.addParticle(particle,
                     singularityBase.x, singularityBase.y, singularityBase.z,
                     velocity.x, velocity.y, velocity.z);
-            minecraft.level.addParticle(ParticleTypes.DRAGON_BREATH,
+            level.addParticle(ParticleTypes.DRAGON_BREATH,
                     singularityBase.x, singularityBase.y, singularityBase.z,
                     velocity.x * 0.2D, velocity.y * 0.2D, velocity.z * 0.2D);
             return;
         }
-        minecraft.level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
+        level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
     }
 
-    private static void spawnRadixLossParticles(Minecraft minecraft) {
-        if (minecraft.level == null) {
-            return;
-        }
-
-        for (Entity entity : minecraft.level.entitiesForRendering()) {
+    private static void spawnRadixLossParticles(ClientLevel level) {
+        for (Entity entity : level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(DEMobEffects.RADIX_LOSS) || livingEntity.isInvisible()) {
                 continue;
             }
@@ -125,7 +128,7 @@ final class ClientTickHandler {
             double xSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
             double ySpeed = 0.015D + livingEntity.getRandom().nextDouble() * 0.02D;
             double zSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
-            minecraft.level.addParticle(DEParticles.RADIX_LOSS.get(), x, y, z, xSpeed, ySpeed, zSpeed);
+            level.addParticle(DEParticles.RADIX_LOSS.get(), x, y, z, xSpeed, ySpeed, zSpeed);
         }
     }
 
@@ -134,7 +137,7 @@ final class ClientTickHandler {
         return isRight ? 1.0D : -1.0D;
     }
 
-    private static Integer getMatterBallParticleColor(ItemStack ammo) {
+    private static @Nullable Integer getMatterBallParticleColor(ItemStack ammo) {
         Item item = ammo.getItem();
         if (item instanceof PaintBallItem paintBallItem) {
             return paintBallItem.getColor().mediumVariant;
