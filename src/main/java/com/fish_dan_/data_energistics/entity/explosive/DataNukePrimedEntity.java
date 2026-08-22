@@ -239,15 +239,11 @@ public class DataNukePrimedEntity extends PrimedTnt {
             invalidatePersistedState("incomplete orbital payload identity");
         }
 
-        boolean completeWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL, Tag.TAG_INT)
-                && tag.contains(TAG_WORK_SETTINGS_RADIUS, Tag.TAG_INT)
-                && tag.contains(TAG_WORK_SETTINGS_CENTER, Tag.TAG_DOUBLE);
-        this.capturedWorkSettings = completeWorkSettings
-                ? DigitalAnnihilationWork.Settings.fromPersisted(
-                        tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
-                        tag.getInt(TAG_WORK_SETTINGS_RADIUS),
-                        tag.getDouble(TAG_WORK_SETTINGS_CENTER))
-                : null;
+        boolean completeWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL, Tag.TAG_INT) && tag.contains(TAG_WORK_SETTINGS_RADIUS, Tag.TAG_INT) && tag.contains(TAG_WORK_SETTINGS_CENTER, Tag.TAG_DOUBLE);
+        this.capturedWorkSettings = completeWorkSettings ? DigitalAnnihilationWork.Settings.fromPersisted(
+                tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
+                tag.getInt(TAG_WORK_SETTINGS_RADIUS),
+                tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;
         if (orbitalPayload && !completeWorkSettings) {
             invalidatePersistedState("missing orbital payload settings");
         }
@@ -258,9 +254,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         Tag rawExemptions = tag.get(TAG_DAMAGE_EXEMPTIONS);
         if (rawExemptions instanceof ListTag exemptionList) {
             for (Tag rawExemption : exemptionList) {
-                if (!(rawExemption instanceof CompoundTag exemption)
-                        || !exemption.hasUUID(TAG_UUID)
-                        || !exemptions.add(exemption.getUUID(TAG_UUID))) {
+                if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(TAG_UUID) || !exemptions.add(exemption.getUUID(TAG_UUID))) {
                     if (orbitalPayload) {
                         invalidatePersistedState("invalid orbital exemption entry");
                     }
@@ -278,8 +272,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         try {
             if (orbitalPayload) {
                 Tag rawWorkState = tag.get(TAG_WORK_STATE);
-                if (!(rawWorkState instanceof CompoundTag workTag)
-                        || this.capturedWorkSettings == null) {
+                if (!(rawWorkState instanceof CompoundTag workTag) || this.capturedWorkSettings == null) {
                     invalidatePersistedState("missing orbital annihilation work state");
                     return;
                 }
@@ -299,9 +292,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
             }
             syncLegacyWorkFields();
         } catch (IllegalArgumentException exception) {
-            invalidatePersistedState(exception.getMessage() == null
-                    ? "invalid persisted annihilation work"
-                    : exception.getMessage());
+            invalidatePersistedState(exception.getMessage() == null ? "invalid persisted annihilation work" : exception.getMessage());
         }
     }
 
@@ -536,11 +527,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     private void discardInvalidPersistedState(ServerLevel level, String reason) {
-        boolean attackFaulted = this.orbitalAttackId != null
-                && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
-                        level.getServer(),
-                        this.orbitalAttackId,
-                        reason);
+        boolean attackFaulted = this.orbitalAttackId != null && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+                level.getServer(),
+                this.orbitalAttackId,
+                reason);
         LOGGER.error(
                 "Discarding invalid persisted data nuke {}: {}; attackFaulted={}",
                 this.getUUID(),

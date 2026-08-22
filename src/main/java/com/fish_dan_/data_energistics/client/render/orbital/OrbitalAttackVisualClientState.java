@@ -21,8 +21,7 @@ public final class OrbitalAttackVisualClientState {
     private static ResourceLocation pendingDimension = Level.OVERWORLD.location();
     private static int pendingBatchCount;
     private static int pendingTotalCount;
-    private static final Int2ObjectOpenHashMap<List<OrbitalAttackVisualSnapshot>> pendingBatches =
-            new Int2ObjectOpenHashMap<>();
+    private static final Int2ObjectOpenHashMap<List<OrbitalAttackVisualSnapshot>> pendingBatches = new Int2ObjectOpenHashMap<>();
 
     private OrbitalAttackVisualClientState() {}
 

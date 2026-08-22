@@ -623,8 +623,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private static OrbitalAttackSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         OrbitalAttackSavedData data = new OrbitalAttackSavedData();
-        if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)
-                || tag.getInt(SCHEMA_VERSION_TAG) != SCHEMA_VERSION) {
+        if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT) || tag.getInt(SCHEMA_VERSION_TAG) != SCHEMA_VERSION) {
             LOGGER.warn("Ignoring orbital attack SavedData with an unsupported schema");
             return data;
         }
@@ -764,29 +763,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private static boolean hasCurrentAttackFields(CompoundTag tag) {
-        return tag.hasUUID(ATTACK_ID_TAG)
-                && tag.hasUUID(WEAPON_ID_TAG)
-                && tag.contains(MODE_TAG, Tag.TAG_STRING)
-                && tag.contains(PHASE_TAG, Tag.TAG_STRING)
-                && tag.contains(PHASE_STARTED_AT_TAG, Tag.TAG_LONG)
-                && tag.getLong(PHASE_STARTED_AT_TAG) >= 0L
-                && tag.contains(DIMENSION_TAG, Tag.TAG_STRING)
-                && tag.contains(TARGET_TAG, Tag.TAG_INT_ARRAY)
-                && tag.contains(CONFIGURATION_REVISION_TAG, Tag.TAG_LONG)
-                && tag.contains(WARNING_TICKS_TAG, Tag.TAG_INT)
-                && tag.contains(WORK_CURSOR_TAG, Tag.TAG_LONG)
-                && tag.contains(WORK_STATE_TAG, Tag.TAG_STRING)
-                && (!tag.contains(FAULT_REASON_TAG)
-                    || tag.contains(FAULT_REASON_TAG, Tag.TAG_STRING))
-                && (!tag.contains(PAYLOAD_ENTITY_ID_TAG)
-                    || tag.hasUUID(PAYLOAD_ENTITY_ID_TAG))
-                && tag.contains(PAYLOAD_ARRIVED_TAG, Tag.TAG_BYTE)
-                && tag.contains(IMPACT_APPLIED_TAG, Tag.TAG_BYTE)
-                && tag.contains(COOLDOWN_TICKS_TAG, Tag.TAG_INT)
-                && tag.contains(COOLDOWN_DURATION_TAG, Tag.TAG_INT)
-                && tag.contains(CELESTIAL_ESCROW_TAG, Tag.TAG_LONG)
-                && tag.contains(AE_ESCROW_TAG, Tag.TAG_LONG)
-                && tag.contains(EXEMPTIONS_TAG, Tag.TAG_LIST);
+        return tag.hasUUID(ATTACK_ID_TAG) && tag.hasUUID(WEAPON_ID_TAG) && tag.contains(MODE_TAG, Tag.TAG_STRING) && tag.contains(PHASE_TAG, Tag.TAG_STRING) && tag.contains(PHASE_STARTED_AT_TAG, Tag.TAG_LONG) && tag.getLong(PHASE_STARTED_AT_TAG) >= 0L && tag.contains(DIMENSION_TAG, Tag.TAG_STRING) && tag.contains(TARGET_TAG, Tag.TAG_INT_ARRAY) && tag.contains(CONFIGURATION_REVISION_TAG, Tag.TAG_LONG) && tag.contains(WARNING_TICKS_TAG, Tag.TAG_INT) && tag.contains(WORK_CURSOR_TAG, Tag.TAG_LONG) && tag.contains(WORK_STATE_TAG, Tag.TAG_STRING) && (!tag.contains(FAULT_REASON_TAG) || tag.contains(FAULT_REASON_TAG, Tag.TAG_STRING)) && (!tag.contains(PAYLOAD_ENTITY_ID_TAG) || tag.hasUUID(PAYLOAD_ENTITY_ID_TAG)) && tag.contains(PAYLOAD_ARRIVED_TAG, Tag.TAG_BYTE) && tag.contains(IMPACT_APPLIED_TAG, Tag.TAG_BYTE) && tag.contains(COOLDOWN_TICKS_TAG, Tag.TAG_INT) && tag.contains(COOLDOWN_DURATION_TAG, Tag.TAG_INT) && tag.contains(CELESTIAL_ESCROW_TAG, Tag.TAG_LONG) && tag.contains(AE_ESCROW_TAG, Tag.TAG_LONG) && tag.contains(EXEMPTIONS_TAG, Tag.TAG_LIST);
     }
 
     private static @Nullable Set<UUID> readDamageExemptions(CompoundTag tag) {
@@ -796,9 +773,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         HashSet<UUID> exemptions = new HashSet<>();
         for (Tag rawExemption : exemptionList) {
-            if (!(rawExemption instanceof CompoundTag exemption)
-                    || !exemption.hasUUID(UUID_TAG)
-                    || !exemptions.add(exemption.getUUID(UUID_TAG))) {
+            if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(UUID_TAG) || !exemptions.add(exemption.getUUID(UUID_TAG))) {
                 return null;
             }
         }
@@ -833,17 +808,14 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private static OrbitalAttackGeometry.DigitalAnnihilation readDigitalAnnihilationGeometry(
-                                                                                              CompoundTag tag) {
-        if (!tag.contains(DIGITAL_WORK_INTERVAL_TAG, Tag.TAG_INT)
-                || !tag.contains(DIGITAL_MAX_RADIUS_TAG, Tag.TAG_INT)
-                || !tag.contains(DIGITAL_CENTER_RADIUS_TAG, Tag.TAG_DOUBLE)) {
+                                                                                             CompoundTag tag) {
+        if (!tag.contains(DIGITAL_WORK_INTERVAL_TAG, Tag.TAG_INT) || !tag.contains(DIGITAL_MAX_RADIUS_TAG, Tag.TAG_INT) || !tag.contains(DIGITAL_CENTER_RADIUS_TAG, Tag.TAG_DOUBLE)) {
             throw new IllegalArgumentException("Incomplete persisted digital-annihilation geometry");
         }
-        DigitalAnnihilationWork.Settings persistedSettings =
-                DigitalAnnihilationWork.Settings.fromPersisted(
-                        tag.getInt(DIGITAL_WORK_INTERVAL_TAG),
-                        tag.getInt(DIGITAL_MAX_RADIUS_TAG),
-                        tag.getDouble(DIGITAL_CENTER_RADIUS_TAG));
+        DigitalAnnihilationWork.Settings persistedSettings = DigitalAnnihilationWork.Settings.fromPersisted(
+                tag.getInt(DIGITAL_WORK_INTERVAL_TAG),
+                tag.getInt(DIGITAL_MAX_RADIUS_TAG),
+                tag.getDouble(DIGITAL_CENTER_RADIUS_TAG));
         return new OrbitalAttackGeometry.DigitalAnnihilation(
                 persistedSettings.workIntervalTicks(),
                 persistedSettings.maxRadius(),

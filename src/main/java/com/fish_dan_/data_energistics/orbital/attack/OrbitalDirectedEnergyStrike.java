@@ -33,8 +33,7 @@ import java.util.function.Predicate;
 public final class OrbitalDirectedEnergyStrike {
 
     private static final int MAX_CACHED_RADII = 16;
-    private static final Int2ObjectLinkedOpenHashMap<List<Offset>> DISK_OFFSETS =
-            new Int2ObjectLinkedOpenHashMap<>(MAX_CACHED_RADII);
+    private static final Int2ObjectLinkedOpenHashMap<List<Offset>> DISK_OFFSETS = new Int2ObjectLinkedOpenHashMap<>(MAX_CACHED_RADII);
 
     private OrbitalDirectedEnergyStrike() {}
 

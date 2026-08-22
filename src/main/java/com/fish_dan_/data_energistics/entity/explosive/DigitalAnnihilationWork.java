@@ -181,16 +181,7 @@ public final class DigitalAnnihilationWork {
                                                          UUID ticketOwner,
                                                          Settings settings,
                                                          CompoundTag state) {
-        if (!state.contains(TAG_WORK_TICKS, Tag.TAG_INT)
-                || !state.contains(TAG_EXPANSION_RADIUS, Tag.TAG_INT)
-                || !state.contains(TAG_SHELL_RADIUS, Tag.TAG_INT)
-                || !state.contains(TAG_SHELL_ACTIVE, Tag.TAG_BYTE)
-                || !state.contains(TAG_CHUNK_X, Tag.TAG_INT)
-                || !state.contains(TAG_CHUNK_Z, Tag.TAG_INT)
-                || !state.contains(TAG_BLOCK_CURSOR, Tag.TAG_LONG)
-                || !state.contains(TAG_SETTINGS_INTERVAL, Tag.TAG_INT)
-                || !state.contains(TAG_SETTINGS_RADIUS, Tag.TAG_INT)
-                || !state.contains(TAG_SETTINGS_CENTER, Tag.TAG_DOUBLE)) {
+        if (!state.contains(TAG_WORK_TICKS, Tag.TAG_INT) || !state.contains(TAG_EXPANSION_RADIUS, Tag.TAG_INT) || !state.contains(TAG_SHELL_RADIUS, Tag.TAG_INT) || !state.contains(TAG_SHELL_ACTIVE, Tag.TAG_BYTE) || !state.contains(TAG_CHUNK_X, Tag.TAG_INT) || !state.contains(TAG_CHUNK_Z, Tag.TAG_INT) || !state.contains(TAG_BLOCK_CURSOR, Tag.TAG_LONG) || !state.contains(TAG_SETTINGS_INTERVAL, Tag.TAG_INT) || !state.contains(TAG_SETTINGS_RADIUS, Tag.TAG_INT) || !state.contains(TAG_SETTINGS_CENTER, Tag.TAG_DOUBLE)) {
             throw new IllegalArgumentException("Incomplete persisted orbital annihilation work");
         }
         Settings persistedSettings = Settings.fromPersisted(

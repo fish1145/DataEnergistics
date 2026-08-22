@@ -42,8 +42,7 @@ public final class OrbitalTerrainWorkScheduler {
     private static final int CHUNK_TICKET_DISTANCE = 2;
 
     private final Map<UUID, TaskState> tasks = new LinkedHashMap<>();
-    private final Object2IntOpenHashMap<ResourceKey<Level>> pendingRequestsByDimension =
-            new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<ResourceKey<Level>> pendingRequestsByDimension = new Object2IntOpenHashMap<>();
     private final Object2IntOpenHashMap<UUID> mutationsReservedByTask = new Object2IntOpenHashMap<>();
 
     private int maxTicketsPerTask;

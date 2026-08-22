@@ -52,17 +52,15 @@ public final class OrbitalWeaponLifecycleGameTest {
     private static final BlockPos EARLY_TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos FINAL_TARGET = new BlockPos(35, 20, 25);
     private static final String REDEPLOYMENT_BATCH = "orbital_redeployment_reserve_grace";
-    private static LifecycleConfigurationSnapshot originalConfiguration =
-            LifecycleConfigurationSnapshot.capture(
-                    DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+    private static LifecycleConfigurationSnapshot originalConfiguration = LifecycleConfigurationSnapshot.capture(
+            DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
 
     private OrbitalWeaponLifecycleGameTest() {}
 
     @BeforeBatch(batch = REDEPLOYMENT_BATCH)
     public static void configureRedeploymentScenario(ServerLevel level) {
         requireServerThread(level);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         originalConfiguration = LifecycleConfigurationSnapshot.capture(settings);
         LifecycleConfigurationSnapshot.testConfiguration().applyTo(settings);
     }
@@ -204,8 +202,7 @@ public final class OrbitalWeaponLifecycleGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "orbital-redeployment-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
         placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
@@ -239,10 +236,8 @@ public final class OrbitalWeaponLifecycleGameTest {
                 })
                 .thenIdle(5)
                 .thenExecute(() -> {
-                    OrbitalEndpointLocation currentAnchor =
-                            weapons.find(weaponId).orElseThrow().primaryAnchor();
-                    OrbitalEndpointLocation replacement =
-                            firstBeacon.equals(currentAnchor) ? secondBeacon : firstBeacon;
+                    OrbitalEndpointLocation currentAnchor = weapons.find(weaponId).orElseThrow().primaryAnchor();
+                    OrbitalEndpointLocation replacement = firstBeacon.equals(currentAnchor) ? secondBeacon : firstBeacon;
                     if (!weapons.selectPrimaryAnchor(
                             server,
                             owner.getUUID(),
@@ -395,7 +390,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                                                   double knockbackStrength) {
 
         private static LifecycleConfigurationSnapshot capture(
-                                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
             return new LifecycleConfigurationSnapshot(
                     settings.celestialEnergyCapacity,
                     settings.aeEnergyCapacity,

@@ -56,17 +56,15 @@ public record OrbitalWeaponLifecycle(
     }
 
     private static OrbitalWeaponLifecycle redeployingWithGrace(
-                                                                int redeploymentTicks,
-                                                                int graceTicks) {
+                                                               int redeploymentTicks,
+                                                               int graceTicks) {
         if (redeploymentTicks <= 0) {
             return dormant();
         }
-        return graceTicks <= 0
-                ? redeploying(redeploymentTicks)
-                : new OrbitalWeaponLifecycle(
-                        OrbitalWeaponLifecycleState.REDEPLOYING,
-                        graceTicks,
-                        redeploymentTicks);
+        return graceTicks <= 0 ? redeploying(redeploymentTicks) : new OrbitalWeaponLifecycle(
+                OrbitalWeaponLifecycleState.REDEPLOYING,
+                graceTicks,
+                redeploymentTicks);
     }
 
     /** Returns whether this record may confirm a new attack. */
@@ -118,20 +116,14 @@ public record OrbitalWeaponLifecycle(
             if (thresholdReached) {
                 return redeploying(this.redeploymentTicksRemaining);
             }
-            return this.graceTicksRemaining == 1
-                    ? dormant()
-                    : redeployingWithGrace(
-                            this.redeploymentTicksRemaining,
-                            this.graceTicksRemaining - 1);
+            return this.graceTicksRemaining == 1 ? dormant() : redeployingWithGrace(
+                    this.redeploymentTicksRemaining,
+                    this.graceTicksRemaining - 1);
         }
         if (reserve.hasZeroResource()) {
-            return configuredGraceTicks <= 0
-                    ? dormant()
-                    : redeployingWithGrace(this.redeploymentTicksRemaining, configuredGraceTicks);
+            return configuredGraceTicks <= 0 ? dormant() : redeployingWithGrace(this.redeploymentTicksRemaining, configuredGraceTicks);
         }
-        return this.redeploymentTicksRemaining == 1
-                ? deployed()
-                : redeploying(this.redeploymentTicksRemaining - 1);
+        return this.redeploymentTicksRemaining == 1 ? deployed() : redeploying(this.redeploymentTicksRemaining - 1);
     }
 
     /** Immediately enters grace when an attack escrow consumes the last unit of either reserve. */

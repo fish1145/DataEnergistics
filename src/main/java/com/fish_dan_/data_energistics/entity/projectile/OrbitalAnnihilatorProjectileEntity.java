@@ -172,13 +172,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
-        if (!tag.hasUUID(TAG_ATTACK_ID)
-                || !tag.contains(TAG_TARGET, Tag.TAG_INT_ARRAY)
-                || !tag.contains(TAG_FLIGHT_TICKS, Tag.TAG_INT)
-                || !tag.contains(TAG_WORK_INTERVAL, Tag.TAG_INT)
-                || !tag.contains(TAG_MAX_RADIUS, Tag.TAG_INT)
-                || !tag.contains(TAG_CENTER_RADIUS, Tag.TAG_DOUBLE)
-                || !tag.contains(TAG_EXEMPTIONS, Tag.TAG_LIST)) {
+        if (!tag.hasUUID(TAG_ATTACK_ID) || !tag.contains(TAG_TARGET, Tag.TAG_INT_ARRAY) || !tag.contains(TAG_FLIGHT_TICKS, Tag.TAG_INT) || !tag.contains(TAG_WORK_INTERVAL, Tag.TAG_INT) || !tag.contains(TAG_MAX_RADIUS, Tag.TAG_INT) || !tag.contains(TAG_CENTER_RADIUS, Tag.TAG_DOUBLE) || !tag.contains(TAG_EXEMPTIONS, Tag.TAG_LIST)) {
             this.persistedStateFailure = "missing required projectile fields";
             return;
         }
@@ -201,9 +195,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         }
         HashSet<UUID> exemptions = new HashSet<>();
         for (Tag rawExemption : exemptionList) {
-            if (!(rawExemption instanceof CompoundTag exemption)
-                    || !exemption.hasUUID(TAG_UUID)
-                    || !exemptions.add(exemption.getUUID(TAG_UUID))) {
+            if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(TAG_UUID) || !exemptions.add(exemption.getUUID(TAG_UUID))) {
                 this.persistedStateFailure = "invalid projectile exemption entry";
                 return;
             }
@@ -212,11 +204,10 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
     }
 
     private void discardInvalidPersistedState(ServerLevel level, String reason) {
-        boolean attackFaulted = !INVALID_ATTACK_ID.equals(this.attackId)
-                && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
-                        level.getServer(),
-                        this.attackId,
-                        reason);
+        boolean attackFaulted = !INVALID_ATTACK_ID.equals(this.attackId) && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadFaulted(
+                level.getServer(),
+                this.attackId,
+                reason);
         Data_Energistics.LOGGER.error(
                 "Discarding invalid orbital annihilator projectile {}: {}; attackFaulted={}",
                 this.getUUID(),

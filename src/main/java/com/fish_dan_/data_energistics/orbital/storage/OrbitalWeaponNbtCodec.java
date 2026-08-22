@@ -200,9 +200,7 @@ final class OrbitalWeaponNbtCodec {
     }
 
     private static @Nullable OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
-        if (!weaponTag.contains(LIFECYCLE_STATE_TAG, Tag.TAG_STRING)
-                || !weaponTag.contains(GRACE_TICKS_TAG, Tag.TAG_INT)
-                || !weaponTag.contains(REDEPLOY_TICKS_TAG, Tag.TAG_INT)) {
+        if (!weaponTag.contains(LIFECYCLE_STATE_TAG, Tag.TAG_STRING) || !weaponTag.contains(GRACE_TICKS_TAG, Tag.TAG_INT) || !weaponTag.contains(REDEPLOY_TICKS_TAG, Tag.TAG_INT)) {
             LOGGER.warn("Ignoring orbital weapon {} with missing lifecycle fields", weaponId);
             return null;
         }
@@ -244,10 +242,7 @@ final class OrbitalWeaponNbtCodec {
             LOGGER.warn("Ignoring orbital weapon {} with missing reserve", weaponId);
             return null;
         }
-        if (!reserveTag.contains(CELESTIAL_ENERGY_TAG, Tag.TAG_LONG)
-                || !reserveTag.contains(AE_ENERGY_TAG, Tag.TAG_LONG)
-                || reserveTag.getLong(CELESTIAL_ENERGY_TAG) < 0L
-                || reserveTag.getLong(AE_ENERGY_TAG) < 0L) {
+        if (!reserveTag.contains(CELESTIAL_ENERGY_TAG, Tag.TAG_LONG) || !reserveTag.contains(AE_ENERGY_TAG, Tag.TAG_LONG) || reserveTag.getLong(CELESTIAL_ENERGY_TAG) < 0L || reserveTag.getLong(AE_ENERGY_TAG) < 0L) {
             LOGGER.warn("Ignoring orbital weapon {} with invalid reserve values", weaponId);
             return null;
         }
