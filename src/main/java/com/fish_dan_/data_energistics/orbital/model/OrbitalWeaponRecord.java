@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,27 +29,6 @@ public record OrbitalWeaponRecord(
                                   OrbitalEnergyReserve reserve,
                                   OrbitalWeaponLifecycle lifecycle,
                                   @Nullable OrbitalEndpointLocation primaryAnchor) {
-
-    /** Compatibility constructor for records written before lifecycle state was persisted. */
-    public OrbitalWeaponRecord(
-                               UUID weaponId,
-                               UUID ownerId,
-                               Map<UUID, OrbitalAccessRole> delegatedRoles,
-                               Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
-                               OrbitalEnergyReserve reserve) {
-        this(weaponId, ownerId, delegatedRoles, endpoints, reserve, OrbitalWeaponLifecycle.dormant(), null);
-    }
-
-    /** Compatibility constructor for records created before the primary anchor was persisted. */
-    public OrbitalWeaponRecord(
-                               UUID weaponId,
-                               UUID ownerId,
-                               Map<UUID, OrbitalAccessRole> delegatedRoles,
-                               Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
-                               OrbitalEnergyReserve reserve,
-                               OrbitalWeaponLifecycle lifecycle) {
-        this(weaponId, ownerId, delegatedRoles, endpoints, reserve, lifecycle, null);
-    }
 
     public OrbitalWeaponRecord {
         delegatedRoles = Map.copyOf(delegatedRoles);
@@ -73,7 +53,14 @@ public record OrbitalWeaponRecord(
      * Creates an unshared weapon record with a stable weapon identity.
      */
     public static OrbitalWeaponRecord create(UUID weaponId, UUID ownerId) {
-        return new OrbitalWeaponRecord(weaponId, ownerId, Map.of(), Map.of(), OrbitalEnergyReserve.empty());
+        return new OrbitalWeaponRecord(
+                weaponId,
+                ownerId,
+                Map.of(),
+                Map.of(),
+                OrbitalEnergyReserve.empty(),
+                OrbitalWeaponLifecycle.dormant(),
+                null);
     }
 
     /**
@@ -226,7 +213,7 @@ public record OrbitalWeaponRecord(
 
     /** Returns a new record with the owner-selected uplink beacon as the projection anchor. */
     public OrbitalWeaponRecord withPrimaryAnchor(@Nullable OrbitalEndpointLocation primaryAnchor) {
-        if (this.primaryAnchor == primaryAnchor || (this.primaryAnchor != null && this.primaryAnchor.equals(primaryAnchor))) {
+        if (Objects.equals(this.primaryAnchor, primaryAnchor)) {
             return this;
         }
         return new OrbitalWeaponRecord(

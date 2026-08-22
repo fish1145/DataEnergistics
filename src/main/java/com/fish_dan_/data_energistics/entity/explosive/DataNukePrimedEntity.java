@@ -103,21 +103,6 @@ public class DataNukePrimedEntity extends PrimedTnt {
         this.setBlockState(DEBlocks.DATA_NUKE.get().defaultBlockState());
     }
 
-    /** Creates the stationary fuse entity used when an orbital payload reaches its target. */
-    public static DataNukePrimedEntity createOrbitalPayload(Level level, BlockPos origin, UUID attackId,
-                                                            Set<UUID> damageExemptions) {
-        DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-        return createOrbitalPayload(
-                level,
-                origin,
-                attackId,
-                damageExemptions,
-                new DigitalAnnihilationWork.Settings(
-                        settings.workIntervalTicks,
-                        settings.maxRadius,
-                        settings.centerEntityConsumeRadius));
-    }
-
     /** Creates an orbital fuse with the Data Nuke settings captured at attack confirmation. */
     public static DataNukePrimedEntity createOrbitalPayload(
                                                             Level level,

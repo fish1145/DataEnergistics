@@ -282,7 +282,7 @@ public final class OrbitalControlUiFactory {
         });
         button.addServerEventListener(UIEvents.MOUSE_UP, event -> {
             if (player instanceof ServerPlayer serverPlayer) {
-                OrbitalControlActionDispatcher.releaseFireAtLookTarget(serverPlayer, mode, sourceValid);
+                OrbitalControlActionDispatcher.releaseFireAtTarget(serverPlayer, mode, sourceValid);
             }
         });
         return button;

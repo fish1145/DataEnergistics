@@ -101,7 +101,8 @@ public final class OrbitalWeaponSavedDataGameTest {
                 Map.of(),
                 Map.of(),
                 new OrbitalEnergyReserve(12_345L, 67_890L),
-                grace);
+                grace,
+                null);
 
         CompoundTag saved = OrbitalWeaponNbtCodec.save(new CompoundTag(), List.of(source));
         OrbitalWeaponRecord restored = OrbitalWeaponNbtCodec.load(saved).getFirst();

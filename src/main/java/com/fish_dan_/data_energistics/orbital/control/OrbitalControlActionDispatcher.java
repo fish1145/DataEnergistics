@@ -86,7 +86,7 @@ public final class OrbitalControlActionDispatcher {
                 sourceValid);
     }
 
-    /** Captures a map-selected target and immediately starts the legacy one-gesture confirmation hold. */
+    /** Captures a map-selected target and immediately starts its confirmation hold. */
     public static Optional<OrbitalAttackPreviewSessions.Preview> beginFireAtTarget(
                                                                                    ServerPlayer player,
                                                                                    OrbitalAttackMode mode,
@@ -408,14 +408,6 @@ public final class OrbitalControlActionDispatcher {
                     true);
         }
         return result;
-    }
-
-    /** Compatibility name retained for the handheld look-target buttons. */
-    public static Optional<OrbitalAttackRecord> releaseFireAtLookTarget(
-                                                                        ServerPlayer player,
-                                                                        OrbitalAttackMode mode,
-                                                                        BooleanSupplier sourceValid) {
-        return releaseFireAtTarget(player, mode, sourceValid);
     }
 
     /** Cancels a player's uncommitted target hold without touching weapon reserves. */

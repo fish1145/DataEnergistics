@@ -149,23 +149,6 @@ public final class DigitalAnnihilationWork {
                 0L);
     }
 
-    /** Restores work from the entity's persisted state, accepting legacy radius/tick fields. */
-    public static DigitalAnnihilationWork restore(
-                                                  BlockPos origin,
-                                                  UUID ticketOwner,
-                                                  DataNukeSchema settings,
-                                                  int legacyWorkTicks,
-                                                  int legacyExpansionRadius,
-                                                  CompoundTag state) {
-        return restore(
-                origin,
-                ticketOwner,
-                Settings.from(settings),
-                legacyWorkTicks,
-                legacyExpansionRadius,
-                state);
-    }
-
     /** Restores work using an immutable settings snapshot, with no live-config lookup. */
     public static DigitalAnnihilationWork restore(
                                                   BlockPos origin,

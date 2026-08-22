@@ -37,11 +37,6 @@ public record OrbitalControlHudSnapshotPayload(
         }
     }
 
-    /** Compatibility constructor for callers that only publish text and visibility. */
-    public OrbitalControlHudSnapshotPayload(long revision, boolean visible, Component status) {
-        this(revision, visible, status, null);
-    }
-
     private OrbitalControlHudSnapshotPayload(RegistryFriendlyByteBuf buffer) {
         this(
                 buffer.readVarLong(),

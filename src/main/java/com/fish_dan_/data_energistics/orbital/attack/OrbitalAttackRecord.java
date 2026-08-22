@@ -36,93 +36,6 @@ public record OrbitalAttackRecord(
                                   long aeEscrow,
                                   Set<UUID> damageExemptions) {
 
-    /** Compatibility constructor for records written before the persisted work state was introduced. */
-    public OrbitalAttackRecord(
-                               UUID attackId,
-                               UUID weaponId,
-                               OrbitalAttackMode mode,
-                               OrbitalAttackPhase phase,
-                               ResourceLocation dimensionId,
-                               BlockPos target,
-                               OrbitalAttackGeometry geometry,
-                               long configurationRevision,
-                               int warningTicksRemaining,
-                               long workCursor,
-                               @Nullable UUID payloadEntityId,
-                               boolean payloadArrived,
-                               boolean impactApplied,
-                               int cooldownTicksRemaining,
-                               int cooldownDurationTicks,
-                               long celestialEscrow,
-                               long aeEscrow,
-                               Set<UUID> damageExemptions) {
-        this(
-                attackId,
-                weaponId,
-                mode,
-                phase,
-                dimensionId,
-                target,
-                geometry,
-                configurationRevision,
-                warningTicksRemaining,
-                workCursor,
-                OrbitalAttackWorkState.INACTIVE,
-                null,
-                payloadEntityId,
-                payloadArrived,
-                impactApplied,
-                cooldownTicksRemaining,
-                cooldownDurationTicks,
-                celestialEscrow,
-                aeEscrow,
-                damageExemptions);
-    }
-
-    /** Compatibility constructor for records written before fault diagnostics were persisted. */
-    public OrbitalAttackRecord(
-                               UUID attackId,
-                               UUID weaponId,
-                               OrbitalAttackMode mode,
-                               OrbitalAttackPhase phase,
-                               ResourceLocation dimensionId,
-                               BlockPos target,
-                               OrbitalAttackGeometry geometry,
-                               long configurationRevision,
-                               int warningTicksRemaining,
-                               long workCursor,
-                               OrbitalAttackWorkState workState,
-                               @Nullable UUID payloadEntityId,
-                               boolean payloadArrived,
-                               boolean impactApplied,
-                               int cooldownTicksRemaining,
-                               int cooldownDurationTicks,
-                               long celestialEscrow,
-                               long aeEscrow,
-                               Set<UUID> damageExemptions) {
-        this(
-                attackId,
-                weaponId,
-                mode,
-                phase,
-                dimensionId,
-                target,
-                geometry,
-                configurationRevision,
-                warningTicksRemaining,
-                workCursor,
-                workState,
-                null,
-                payloadEntityId,
-                payloadArrived,
-                impactApplied,
-                cooldownTicksRemaining,
-                cooldownDurationTicks,
-                celestialEscrow,
-                aeEscrow,
-                damageExemptions);
-    }
-
     public OrbitalAttackRecord {
         target = target.immutable();
         damageExemptions = Set.copyOf(damageExemptions);
@@ -135,10 +48,10 @@ public record OrbitalAttackRecord(
         if (configurationRevision < 0L || warningTicksRemaining < 0 || workCursor < 0L || cooldownTicksRemaining < 0 || cooldownDurationTicks <= 0 || celestialEscrow < 0L || aeEscrow < 0L) {
             throw new IllegalArgumentException("Orbital attack state must not contain negative values");
         }
-        if (phase == OrbitalAttackPhase.RESERVED_WARNING && warningTicksRemaining <= 0) {
+        if (phase == OrbitalAttackPhase.RESERVED_WARNING && warningTicksRemaining == 0) {
             throw new IllegalArgumentException("A warning attack must have remaining warning ticks");
         }
-        if (phase == OrbitalAttackPhase.COOLDOWN && cooldownTicksRemaining <= 0) {
+        if (phase == OrbitalAttackPhase.COOLDOWN && cooldownTicksRemaining == 0) {
             throw new IllegalArgumentException("A cooldown attack must have remaining cooldown ticks");
         }
     }
