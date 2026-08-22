@@ -63,6 +63,7 @@ dependencies {
 
     // UI framework
     compileOnly(forge.ldlib)
+    testCompileOnly(forge.ldlib)
 
     // WAILA-likes
     compileOnly(forge.jade)

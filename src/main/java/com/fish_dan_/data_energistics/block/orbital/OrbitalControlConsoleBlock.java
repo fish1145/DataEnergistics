@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
@@ -14,6 +15,7 @@ import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -94,12 +96,25 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
         return BlockUIMenuType.openUI(serverPlayer, pos) ? InteractionResult.sidedSuccess(false) : InteractionResult.FAIL;
     }
 
+    /** Reopens a console after map selection only when the untrusted return route is still locally valid. */
+    public static boolean openFromMap(ServerPlayer player, ResourceLocation dimensionId, BlockPos pos) {
+        Level level = player.level();
+        if (!level.dimension().location().equals(dimensionId) ||
+                player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) > 64.0D ||
+                !(level.getBlockState(pos).getBlock() instanceof OrbitalControlConsoleBlock) ||
+                !canView(level, pos, player)) {
+            return false;
+        }
+        return BlockUIMenuType.openUI(player, pos);
+    }
+
     @Override
     public ModularUI createUI(BlockUIMenuType.BlockUIHolder holder) {
         return OrbitalControlUiFactory.create(
                 holder.player,
                 () -> snapshot(holder),
-                () -> stillValid(holder));
+                () -> stillValid(holder),
+                new OrbitalControlUiSource.Console(holder.player.level().dimension().location(), holder.pos));
     }
 
     @Override

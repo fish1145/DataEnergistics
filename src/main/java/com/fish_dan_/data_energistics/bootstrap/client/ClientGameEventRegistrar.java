@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPreferencesAccess;
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
@@ -38,6 +39,7 @@ final class ClientGameEventRegistrar {
             PatternEncodingPreferenceSession.clearForMenu(event.getPlayer().containerMenu);
         }
         PatternUploadSucceededClientHandler.clear();
+        OrbitalMapSelectionClientSession.clear();
         OrbitalTacticalMapClientState.clear();
         OrbitalAttackVisualClientState.clear();
         OrbitalProjectionVisualClientState.clear();

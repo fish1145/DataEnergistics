@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
+import com.fish_dan_.data_energistics.client.map.orbital.compatibility.TacticalMapAdapter;
+import com.fish_dan_.data_energistics.client.map.orbital.compatibility.TacticalMapAdapters;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
@@ -13,6 +16,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -44,13 +48,12 @@ import java.util.function.Function;
 final class OrbitalFireControlPanel {
 
     static final int WIDTH = 412;
-    static final int HEIGHT = 304;
+    static final int HEIGHT = 328;
 
-    private static final int NO_DEPTH = -1;
     private static final int FIELD_HEIGHT = 18;
     private static final int BUTTON_HEIGHT = 22;
-    private static final int TARGET_CARD_HEIGHT = 112;
-    private static final int LOWER_TOP = 120;
+    private static final int TARGET_CARD_HEIGHT = 136;
+    private static final int LOWER_TOP = 144;
     private static final int MAP_CARD_WIDTH = 154;
     private static final int PREVIEW_CARD_LEFT = 162;
     private static final int PREVIEW_CARD_WIDTH = WIDTH - PREVIEW_CARD_LEFT;
@@ -66,6 +69,7 @@ final class OrbitalFireControlPanel {
                        UIElement rpcRoot,
                        Player player,
                        BooleanSupplier sourceValid,
+                       OrbitalControlUiSource source,
                        boolean clientSide) {
         ClientPanelState state = new ClientPanelState();
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
@@ -197,11 +201,28 @@ final class OrbitalFireControlPanel {
             depth.setActive(directed && state.operable());
         });
 
+        List<TacticalMapAdapter> mapAdapters = TacticalMapAdapters.available();
+        Selector<TacticalMapAdapter> mapProvider = selector(
+                "orbital_fire_control_map_provider",
+                8,
+                82,
+                190,
+                mapAdapters,
+                mapAdapters.getFirst(),
+                OrbitalFireControlPanel::mapProviderName);
+        Button selectOnMap = OrbitalControlUiTheme.button(
+                "orbital_fire_control_select_on_map",
+                Component.translatable(PREFIX + "map.select"),
+                206,
+                82,
+                198,
+                BUTTON_HEIGHT,
+                Tone.PANEL);
         Button refreshPreview = OrbitalControlUiTheme.button(
                 "orbital_fire_control_preview",
                 Component.translatable(PREFIX + "preview"),
                 8,
-                82,
+                106,
                 190,
                 BUTTON_HEIGHT,
                 Tone.ACCENT);
@@ -209,28 +230,64 @@ final class OrbitalFireControlPanel {
                 "orbital_fire_control_confirm",
                 Component.translatable(PREFIX + "confirm"),
                 206,
-                82,
+                106,
                 198,
                 BUTTON_HEIGHT,
                 Tone.DANGER);
+
+        selectOnMap.setOnClick(event -> {
+            if (!clientSide || !state.operable()) {
+                return;
+            }
+            TacticalMapAdapter adapter = mapProvider.getValue();
+            if (adapter == null) {
+                return;
+            }
+            try {
+                OrbitalFireControlDraft draft = readDraft(
+                        state,
+                        dimension,
+                        targetX,
+                        targetZ,
+                        targetYValue,
+                        radius);
+                cancelClientHold(state, cancelHoldEmitter);
+                UUID sessionToken = OrbitalMapSelectionClientSession.begin(
+                        adapter.id(),
+                        state.selectedWeaponId(),
+                        draft,
+                        source);
+                TacticalMapAdapter.SelectionStart selectionStart = TacticalMapAdapters.start(
+                        adapter,
+                        Minecraft.getInstance(),
+                        sessionToken);
+                if (selectionStart == TacticalMapAdapter.SelectionStart.EMBEDDED) {
+                    OrbitalMapSelectionClientSession.cancel();
+                    requestMap(state, dimension, targetX, targetZ);
+                } else if (selectionStart == TacticalMapAdapter.SelectionStart.FAILED) {
+                    OrbitalMapSelectionClientSession.cancel();
+                    if (Minecraft.getInstance().player != null) {
+                        Minecraft.getInstance().player.displayClientMessage(
+                                Component.translatable(PREFIX + "map.failed"),
+                                true);
+                    }
+                }
+            } catch (IllegalArgumentException ignored) {
+                OrbitalMapSelectionClientSession.cancel();
+                cancelClientHold(state, cancelHoldEmitter);
+            }
+        });
 
         refreshPreview.setOnClick(event -> {
             if (!clientSide || !state.operable()) {
                 return;
             }
             try {
-                TargetDraft draft = readDraft(state, dimension, targetX, targetZ, targetYValue, radius);
-                cancelClientHold(state, cancelHoldEmitter);
-                state.previewRequested(draft);
-                previewEmitter.send(
-                        draft.mode().wireCode(),
-                        draft.dimension(),
-                        draft.targetX(),
-                        draft.targetZ(),
-                        draft.targetYMode().wireCode(),
-                        draft.targetYValue(),
-                        draft.directedRadius(),
-                        draft.depthCode());
+                requestPreview(
+                        state,
+                        readDraft(state, dimension, targetX, targetZ, targetYValue, radius),
+                        previewEmitter,
+                        cancelHoldEmitter);
             } catch (IllegalArgumentException ignored) {
                 cancelClientHold(state, cancelHoldEmitter);
             }
@@ -283,6 +340,8 @@ final class OrbitalFireControlPanel {
                 radius,
                 depthLabel,
                 depth,
+                mapProvider,
+                selectOnMap,
                 refreshPreview,
                 confirm);
 
@@ -369,7 +428,7 @@ final class OrbitalFireControlPanel {
         previewCard.addChildren(mapRefresh, mapStatus, previewTitle, preview);
 
         root.addChildren(targetCard, mapCard, previewCard);
-        ObjectArrayList<UIElement> interactive = new ObjectArrayList<>(11 + mapCells.size());
+        ObjectArrayList<UIElement> interactive = new ObjectArrayList<>(13 + mapCells.size());
         interactive.addAll(List.of(
                 dimension,
                 mode,
@@ -379,6 +438,8 @@ final class OrbitalFireControlPanel {
                 targetYValue,
                 radius,
                 depth,
+                mapProvider,
+                selectOnMap,
                 refreshPreview,
                 confirm,
                 mapRefresh));
@@ -386,6 +447,22 @@ final class OrbitalFireControlPanel {
         root.addEventListener(UIEvents.TICK, event -> {
             if (!clientSide) {
                 return;
+            }
+            OrbitalFireControlDraft mapDraft = state.operable() ?
+                    OrbitalMapSelectionClientSession.takePending(state.selectedWeaponId()) : null;
+            if (mapDraft != null) {
+                applyDraft(
+                        state,
+                        mapDraft,
+                        dimension,
+                        mode,
+                        targetX,
+                        targetZ,
+                        targetYMode,
+                        targetYValue,
+                        radius,
+                        depth);
+                requestPreview(state, mapDraft, previewEmitter, cancelHoldEmitter);
             }
             if (state.previewDraftChanged(() -> readDraft(
                     state,
@@ -481,7 +558,8 @@ final class OrbitalFireControlPanel {
                                 targetYMode,
                                 (Integer) arguments[5],
                                 (Integer) arguments[6],
-                                depthCode == NO_DEPTH ? null : OrbitalDirectedEnergyDepth.fromWireCode(depthCode),
+                                depthCode == OrbitalFireControlDraft.NO_DIRECTED_DEPTH ? null :
+                                        OrbitalDirectedEnergyDepth.fromWireCode(depthCode),
                                 sourceValid);
                     });
                     return null;
@@ -567,19 +645,19 @@ final class OrbitalFireControlPanel {
         }
     }
 
-    private static TargetDraft readDraft(
-                                         ClientPanelState state,
-                                         TextField dimension,
-                                         TextField targetX,
-                                         TextField targetZ,
-                                         TextField targetY,
-                                         TextField radius) {
+    private static OrbitalFireControlDraft readDraft(
+                                                     ClientPanelState state,
+                                                     TextField dimension,
+                                                     TextField targetX,
+                                                     TextField targetZ,
+                                                     TextField targetY,
+                                                     TextField radius) {
         if (dimension.isError() || targetX.isError() || targetZ.isError() || targetY.isError() ||
                 (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY && radius.isError())) {
             throw new IllegalArgumentException("Orbital target form contains an invalid value");
         }
         int directedRadius = 0;
-        int depthCode = NO_DEPTH;
+        int depthCode = OrbitalFireControlDraft.NO_DIRECTED_DEPTH;
         if (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
             directedRadius = Integer.parseInt(radius.getRawText());
             OrbitalDirectedEnergyStrike.validateRadius(
@@ -587,7 +665,7 @@ final class OrbitalFireControlPanel {
                     DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
             depthCode = state.depth().wireCode();
         }
-        return new TargetDraft(
+        return new OrbitalFireControlDraft(
                 state.mode(),
                 dimension.getRawText(),
                 Integer.parseInt(targetX.getRawText()),
@@ -596,6 +674,55 @@ final class OrbitalFireControlPanel {
                 Integer.parseInt(targetY.getRawText()),
                 directedRadius,
                 depthCode);
+    }
+
+    private static void requestPreview(
+                                       ClientPanelState state,
+                                       OrbitalFireControlDraft draft,
+                                       RPCEmitter previewEmitter,
+                                       RPCEmitter cancelHoldEmitter) {
+        cancelClientHold(state, cancelHoldEmitter);
+        state.previewRequested(draft);
+        previewEmitter.send(
+                draft.mode().wireCode(),
+                draft.dimension(),
+                draft.targetX(),
+                draft.targetZ(),
+                draft.targetYMode().wireCode(),
+                draft.targetYValue(),
+                draft.directedRadius(),
+                draft.depthCode());
+    }
+
+    private static void applyDraft(
+                                   ClientPanelState state,
+                                   OrbitalFireControlDraft draft,
+                                   TextField dimension,
+                                   Selector<OrbitalAttackMode> mode,
+                                   TextField targetX,
+                                   TextField targetZ,
+                                   Selector<OrbitalTargetYMode> targetYMode,
+                                   TextField targetY,
+                                   TextField radius,
+                                   Selector<OrbitalDirectedEnergyDepth> depth) {
+        state.selectMode(draft.mode());
+        mode.setSelected(draft.mode(), false);
+        dimension.setText(draft.dimension(), false);
+        targetX.setText(Integer.toString(draft.targetX()), false);
+        targetZ.setText(Integer.toString(draft.targetZ()), false);
+        state.selectTargetYMode(draft.targetYMode());
+        targetYMode.setSelected(draft.targetYMode(), false);
+        targetY.setText(Integer.toString(draft.targetYValue()), false);
+
+        boolean directed = draft.mode() == OrbitalAttackMode.DIRECTED_ENERGY;
+        if (directed) {
+            radius.setText(Integer.toString(draft.directedRadius()), false);
+            OrbitalDirectedEnergyDepth selectedDepth = OrbitalDirectedEnergyDepth.fromWireCode(draft.depthCode());
+            state.selectDepth(selectedDepth);
+            depth.setSelected(selectedDepth, false);
+        }
+        radius.setActive(directed && state.operable());
+        depth.setActive(directed && state.operable());
     }
 
     private static void releaseClientHold(
@@ -772,6 +899,10 @@ final class OrbitalFireControlPanel {
         });
     }
 
+    private static Component mapProviderName(@Nullable TacticalMapAdapter adapter) {
+        return adapter == null ? Component.empty() : adapter.displayName();
+    }
+
     private static Component modeName(@Nullable OrbitalAttackMode mode) {
         return mode == null ? Component.empty() : OrbitalControlPresentation.modeName(mode);
     }
@@ -787,16 +918,6 @@ final class OrbitalFireControlPanel {
             case THROUGH -> "screen.data_energistics.orbital_control_terminal.depth.through";
         });
     }
-
-    record TargetDraft(
-                       OrbitalAttackMode mode,
-                       String dimension,
-                       int targetX,
-                       int targetZ,
-                       OrbitalTargetYMode targetYMode,
-                       int targetYValue,
-                       int directedRadius,
-                       int depthCode) {}
 
     record HoldRequest(int modeCode, UUID nonce) {}
 
@@ -874,7 +995,7 @@ final class OrbitalFireControlPanel {
         private OrbitalTargetYMode targetYMode = OrbitalTargetYMode.SURFACE_OFFSET;
         private OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
         private @Nullable UUID selectedWeaponId;
-        private @Nullable TargetDraft previewedDraft;
+        private @Nullable OrbitalFireControlDraft previewedDraft;
         private @Nullable UUID previewNonce;
         private @Nullable HoldRequest hold;
         private long renderedMapRevision = Long.MIN_VALUE;
@@ -927,7 +1048,7 @@ final class OrbitalFireControlPanel {
             this.depth = depth;
         }
 
-        private void previewRequested(TargetDraft draft) {
+        private void previewRequested(OrbitalFireControlDraft draft) {
             this.previewedDraft = draft;
             this.previewNonce = null;
             this.hold = null;
@@ -940,7 +1061,7 @@ final class OrbitalFireControlPanel {
             }
         }
 
-        private HoldRequest beginHold(TargetDraft draft) {
+        private HoldRequest beginHold(OrbitalFireControlDraft draft) {
             if (this.previewNonce == null || !draft.equals(this.previewedDraft)) {
                 throw new IllegalArgumentException("Orbital confirmation has no matching target preview");
             }
@@ -990,6 +1111,6 @@ final class OrbitalFireControlPanel {
     @FunctionalInterface
     private interface DraftSupplier {
 
-        TargetDraft get();
+        OrbitalFireControlDraft get();
     }
 }

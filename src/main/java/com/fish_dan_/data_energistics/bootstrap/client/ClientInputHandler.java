@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
@@ -163,6 +164,7 @@ final class ClientInputHandler {
 
     static void requestOrbitalControl(Minecraft minecraft) {
         if (minecraft.screen == null && minecraft.player != null) {
+            OrbitalMapSelectionClientSession.cancel();
             PacketDistributor.sendToServer(OrbitalControlOpenPayload.INSTANCE);
         }
     }

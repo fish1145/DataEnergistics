@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.console;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.orbital.OrbitalControlConsoleBlock;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
@@ -20,6 +21,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -121,6 +123,34 @@ public final class OrbitalControlConsoleGameTest {
                 "Opening a bound console must replace the normal inventory menu");
         helper.assertTrue(consoleMenu.stillValid(owner), "The console menu must remain valid near its bound block");
         owner.doCloseContainer();
+
+        helper.assertTrue(
+                OrbitalControlConsoleBlock.openFromMap(owner, level.dimension().location(), firstAbsolutePos),
+                "Returning from a fullscreen map must reopen the same nearby bound console without a terminal");
+        AbstractContainerMenu mapReturnMenu = owner.containerMenu;
+        helper.assertTrue(
+                mapReturnMenu != owner.inventoryMenu && mapReturnMenu.stillValid(owner),
+                "A validated map return must restore a live LDLib2 console menu");
+        owner.doCloseContainer();
+
+        helper.assertFalse(
+                OrbitalControlConsoleBlock.openFromMap(owner, Level.NETHER.location(), firstAbsolutePos),
+                "A client-supplied map return dimension must not redirect the console lookup");
+        owner.setPos(firstAbsolutePos.getX() + 16.5D, firstAbsolutePos.getY() + 0.5D, firstAbsolutePos.getZ() + 0.5D);
+        helper.assertFalse(
+                OrbitalControlConsoleBlock.openFromMap(owner, level.dimension().location(), firstAbsolutePos),
+                "A map return must not reopen a console after the player moves out of interaction range");
+        delegatedPlayer.setPos(
+                firstAbsolutePos.getX() + 0.5D,
+                firstAbsolutePos.getY() + 0.5D,
+                firstAbsolutePos.getZ() + 0.5D);
+        helper.assertFalse(
+                OrbitalControlConsoleBlock.openFromMap(
+                        delegatedPlayer,
+                        level.dimension().location(),
+                        firstAbsolutePos),
+                "A nearby player without access to the bound weapon must not reuse another player's map return route");
+
         helper.assertTrue(level.destroyBlock(firstAbsolutePos, false), "The first console must be removable from the world");
         helper.assertTrue(
                 data.weaponAt(firstLocation).isEmpty(),

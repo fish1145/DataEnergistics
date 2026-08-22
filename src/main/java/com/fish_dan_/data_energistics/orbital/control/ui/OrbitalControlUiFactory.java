@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
+import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
@@ -26,7 +27,7 @@ public final class OrbitalControlUiFactory {
     private static final String PREVIEW_SYNC_NAME = "orbital_control_preview";
     private static final String PREVIEW_NONCE_SYNC_NAME = "orbital_control_preview_nonce";
     private static final int UI_WIDTH = 540;
-    private static final int UI_HEIGHT = 360;
+    private static final int UI_HEIGHT = 384;
     private static final int HEADER_HEIGHT = 34;
     private static final int SIDEBAR_LEFT = 8;
     private static final int SIDEBAR_TOP = 42;
@@ -42,7 +43,8 @@ public final class OrbitalControlUiFactory {
     public static ModularUI create(
                                    Player player,
                                    Supplier<OrbitalControlTerminalSnapshot> snapshotSupplier,
-                                   BooleanSupplier sourceValid) {
+                                   BooleanSupplier sourceValid,
+                                   OrbitalControlUiSource source) {
         OrbitalControlUiSyncAccessors.init();
         boolean clientSide = player.level().isClientSide();
         OrbitalControlTerminalSnapshot initialSnapshot = clientSide ?
@@ -166,6 +168,7 @@ public final class OrbitalControlUiFactory {
                 root,
                 player,
                 sourceValid,
+                source,
                 clientSide);
         OrbitalControlUiTheme.place(
                 fireControl.root(),
@@ -173,7 +176,9 @@ public final class OrbitalControlUiFactory {
                 CONTENT_TOP,
                 OrbitalFireControlPanel.WIDTH,
                 OrbitalFireControlPanel.HEIGHT);
-        fireControl.root().setDisplay(false);
+        boolean returningFromMap = clientSide && OrbitalMapSelectionClientSession.hasPending();
+        overview.root().setDisplay(!returningFromMap);
+        fireControl.root().setDisplay(returningFromMap);
 
         overviewTab.setOnClick(event -> {
             if (clientSide) {

@@ -45,7 +45,8 @@ public final class OrbitalControlPlayerMenu {
             return OrbitalControlUiFactory.create(
                     menuPlayer,
                     this::snapshot,
-                    () -> isStillValid(menuPlayer));
+                    () -> isStillValid(menuPlayer),
+                    OrbitalControlUiSource.TERMINAL);
         }
 
         @Override

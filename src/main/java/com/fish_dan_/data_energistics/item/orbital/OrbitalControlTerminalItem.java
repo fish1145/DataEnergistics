@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.item.orbital;
 
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,7 +53,8 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
         return OrbitalControlUiFactory.create(
                 holder.player,
                 () -> snapshot(holder),
-                () -> stillValid(holder));
+                () -> stillValid(holder),
+                OrbitalControlUiSource.TERMINAL);
     }
 
     @Override
