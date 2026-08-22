@@ -116,11 +116,18 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 this.attackId,
                 this.damageExemptions,
                 this.workSettings);
-        serverLevel.addFreshEntity(nuke);
-        OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadArrived(
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(serverLevel.getServer());
+        if (!serverLevel.addFreshEntity(nuke)) {
+            discardRejectedPayload(serverLevel, attacks, nuke, "fuse entity could not be added to the target dimension");
+            return;
+        }
+        if (!attacks.markDigitalPayloadArrived(
                 serverLevel.getServer(),
                 this.attackId,
-                nuke.getUUID());
+                nuke.getUUID())) {
+            discardRejectedPayload(serverLevel, attacks, nuke, "attack state rejected the materialized fuse");
+            return;
+        }
         this.discard();
     }
 
@@ -213,6 +220,23 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
         Data_Energistics.LOGGER.error(
                 "Discarding invalid orbital annihilator projectile {}: {}; attackFaulted={}",
                 this.getUUID(),
+                reason,
+                attackFaulted);
+        this.discard();
+    }
+
+    private void discardRejectedPayload(
+                                        ServerLevel level,
+                                        OrbitalAttackSavedData attacks,
+                                        DataNukePrimedEntity nuke,
+                                        String reason) {
+        nuke.discard();
+        boolean attackFaulted = attacks.markDigitalPayloadFaulted(level.getServer(), this.attackId, reason);
+        Data_Energistics.LOGGER.error(
+                "Discarding rejected orbital annihilator projectile {} for attack {} at {}: {}; attackFaulted={}",
+                this.getUUID(),
+                this.attackId,
+                this.target,
                 reason,
                 attackFaulted);
         this.discard();

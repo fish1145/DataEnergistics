@@ -30,6 +30,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -42,6 +43,7 @@ import appeng.blockentity.storage.DriveBlockEntity;
 import appeng.core.definitions.AEBlocks;
 import com.mojang.authlib.GameProfile;
 
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -554,6 +556,44 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         level.getBlockState(absoluteTarget).isAir(),
                         "The retried attack must complete real delivery, fuse and terrain work after the border recovers"))
                 .thenExecute(() -> OrbitalControlActionDispatcher.cancelOrAbortFirst(owner))
+                .thenSucceed();
+    }
+
+    @TestHolder("orbital_digital_annihilation_rejects_orphan_payload_before_world_mutation")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", batch = "orbital_orphan_payload", timeoutTicks = 400)
+    public static void rejectsOrphanPayloadBeforeWorldMutation(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        helper.setBlock(TARGET, Blocks.STONE);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        level.getChunkAt(absoluteTarget);
+        AABB targetArea = new AABB(absoluteTarget).inflate(2.0D);
+        OrbitalAnnihilatorProjectileEntity projectile = new OrbitalAnnihilatorProjectileEntity(
+                level,
+                UUID.randomUUID(),
+                absoluteTarget,
+                Set.of(),
+                1,
+                1,
+                0.0D);
+        if (!level.addFreshEntity(projectile)) {
+            throw new IllegalStateException("The orphan-payload test could not add its real orbital projectile");
+        }
+
+        helper.startSequence()
+                .thenIdle(OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + 1)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            level.getEntitiesOfClass(DataNukePrimedEntity.class, targetArea).isEmpty(),
+                            "An untracked orbital projectile must not leave a materialized fuse in the world");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "Rejecting an untracked payload must leave its target unchanged");
+                })
+                .thenIdle(DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 40)
+                .thenExecute(() -> helper.assertTrue(
+                        level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                        "An untracked payload must not cause delayed terrain damage after its full fuse window"))
                 .thenSucceed();
     }
 

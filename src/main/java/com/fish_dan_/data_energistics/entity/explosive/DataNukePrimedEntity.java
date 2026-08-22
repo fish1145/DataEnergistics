@@ -355,32 +355,14 @@ public class DataNukePrimedEntity extends PrimedTnt {
             }
             DigitalAnnihilationWork.TickResult result = this.annihilationWork.tick(serverLevel);
             syncLegacyWorkFields();
-            if (this.orbitalAttackId != null && (result.state() == DigitalAnnihilationWork.State.SHELL_COMPLETED || serverLevel.getGameTime() % 20L == 0L)) {
-                OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalWorkProgress(
-                        serverLevel.getServer(),
-                        this.orbitalAttackId,
-                        this.annihilationWork.blockCursor());
-            }
             consumeCenterEntities(level, this.annihilationWork.centerEntityConsumeRadius());
             if (this.annihilationWork.expansionRadius() > 0) {
                 consumeExpandedEntities(level, this.annihilationWork.expansionRadius());
             }
             if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
-                if (this.orbitalAttackId != null) {
-                    OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadCompleted(
-                            serverLevel.getServer(),
-                            this.orbitalAttackId,
-                            this.getUUID());
-                }
                 LOGGER.info("Data nuke finished at {} in dimension {}.", this.origin, level.dimension().location());
                 this.discard();
             } else if (result.state() == DigitalAnnihilationWork.State.FAULTED) {
-                if (this.orbitalAttackId != null) {
-                    OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadFaulted(
-                            serverLevel.getServer(),
-                            this.orbitalAttackId,
-                            this.annihilationWork.failure() == null ? "work fault" : this.annihilationWork.failure());
-                }
                 LOGGER.error("Data nuke work failed at {} in dimension {}: {}",
                         this.origin,
                         level.dimension().location(),
@@ -388,12 +370,6 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 this.discard();
             }
         } catch (RuntimeException exception) {
-            if (this.orbitalAttackId != null && this.level() instanceof ServerLevel serverLevel) {
-                OrbitalAttackSavedData.get(serverLevel.getServer()).markDigitalPayloadFaulted(
-                        serverLevel.getServer(),
-                        this.orbitalAttackId,
-                        exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
-            }
             LOGGER.error("Data nuke failed at {} in dimension {} and will be discarded.",
                     this.origin, this.level().dimension().location(), exception);
             this.discard();

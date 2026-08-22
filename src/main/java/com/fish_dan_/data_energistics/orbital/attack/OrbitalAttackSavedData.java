@@ -495,35 +495,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         return true;
     }
 
-    /**
-     * Completes a materialized digital annihilation only after its resumable fuse reports that every shell finished.
-     * This marker prevents a naturally discarded fuse from being mistaken for a lost entity and silently restarting
-     * the effect after a later tick or server restart.
-     */
-    public boolean markDigitalPayloadCompleted(MinecraftServer server, UUID attackId, UUID nukeEntityId) {
-        requireServerThread(server);
-        OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || !current.payloadArrived() || !nukeEntityId.equals(current.payloadEntityId())) {
-            return false;
-        }
-        this.terrainWorkScheduler.release(server, attackId);
-        replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
-        setDirty();
-        return true;
-    }
-
-    /** Persists a coarse digital work cursor without changing the attack phase. */
-    public boolean markDigitalWorkProgress(MinecraftServer server, UUID attackId, long workCursor) {
-        requireServerThread(server);
-        OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null || current.mode() != OrbitalAttackMode.DIGITAL_ANNIHILATION || current.phase() != OrbitalAttackPhase.DELIVERY || workCursor < 0L) {
-            return false;
-        }
-        this.attacks.put(attackId, current.withWorkCursor(workCursor));
-        setDirty();
-        return true;
-    }
-
     /** Moves a digital delivery into FAULTED while retaining its diagnostics and escrow. */
     public boolean markDigitalPayloadFaulted(MinecraftServer server, UUID attackId, String reason) {
         requireServerThread(server);
@@ -1053,7 +1024,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 return;
             }
             if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
-                markDigitalPayloadCompleted(server, current.attackId(), nuke.getUUID());
+                completeDigitalPayload(server, current);
                 nuke.discard();
                 return;
             }
@@ -1071,6 +1042,13 @@ public final class OrbitalAttackSavedData extends SavedData {
         } finally {
             this.terrainWorkScheduler.endTaskTick(server, current.attackId());
         }
+    }
+
+    /** Completes the scheduler-owned payload after its resumable terrain work has finished. */
+    private void completeDigitalPayload(MinecraftServer server, OrbitalAttackRecord current) {
+        this.terrainWorkScheduler.release(server, current.attackId());
+        replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
+        setDirty();
     }
 
     private boolean reconcileLoadedDigitalProjectile(
