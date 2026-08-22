@@ -807,6 +807,8 @@
 	"screen.data_energistics.orbital_control_terminal.fire_control.dimension": "维度",
 	"screen.data_energistics.orbital_control_terminal.fire_control.hint": "地表加偏移不会加载未知地形；未加载目标请改用绝对 Y。预览不会预留能量。",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.failed": "所选地图提供者无法进入轨道选点模式。",
+	"screen.data_energistics.orbital_control_terminal.fire_control.map.journeymap.open_hint": "请打开 JourneyMap 全屏地图，然后左键选择轨道目标。",
+	"screen.data_energistics.orbital_control_terminal.fire_control.map.preview": "打开轨道火控预览",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.provider.builtin": "内置地图",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.refresh": "刷新战术地图",
 	"screen.data_energistics.orbital_control_terminal.fire_control.map.select": "选择目标",
