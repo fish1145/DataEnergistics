@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalKineticStrike;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -73,7 +73,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
-        int radius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius();
+        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY ? DIRECTED_RADIUS : 0;
         return beginFireAtTarget(
                 player,
                 mode,
@@ -82,7 +82,7 @@ public final class OrbitalControlActionDispatcher {
                 target.getZ(),
                 OrbitalTargetYMode.ABSOLUTE,
                 target.getY(),
-                mode == OrbitalAttackMode.DIRECTED_ENERGY ? radius : 0,
+                directedRadius,
                 depth,
                 sourceValid);
     }
@@ -190,7 +190,11 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
-        int boundaryRadius = mode == OrbitalAttackMode.KINETIC ? OrbitalKineticStrike.SHOCKWAVE_RADIUS : mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : configuration.explosives.dataNuke.maxRadius();
+        int boundaryRadius = switch (mode) {
+            case KINETIC -> OrbitalAttackGeometry.Kinetic.fromSettings(configuration.orbitalWeapon).maximumRadius();
+            case DIRECTED_ENERGY -> directedRadius;
+            case DIGITAL_ANNIHILATION -> configuration.explosives.dataNuke.maxRadius();
+        };
         if (!validTarget(targetLevel, target, boundaryRadius)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),

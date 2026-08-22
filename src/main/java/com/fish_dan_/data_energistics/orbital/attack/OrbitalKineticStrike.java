@@ -12,10 +12,10 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -23,51 +23,49 @@ import java.util.function.Predicate;
  *
  * <p>
  * The column and shallow impact crater are enumerated without allocating a complete world-sized block list. A
- * persisted cursor lets the attack scheduler process at most {@link #MUTATION_BUDGET_PER_TICK} positions per server
- * tick and resume the same geometry after a restart.
+ * persisted cursor lets the attack scheduler process a caller-budgeted number of positions per server tick and resume
+ * the same captured geometry after a restart.
  * </p>
  */
 public final class OrbitalKineticStrike {
 
-    public static final int COLUMN_RADIUS = 8;
-    public static final int COLUMN_DEPTH = 192;
-    public static final int CRATER_RADIUS = 24;
-    public static final int CRATER_DEPTH = 16;
-    public static final int SHOCKWAVE_RADIUS = 64;
-    public static final int MUTATION_BUDGET_PER_TICK = 8_192;
-
-    private static final List<Offset> COLUMN_OFFSETS = offsets(COLUMN_RADIUS);
-    private static final List<Offset> CRATER_OFFSETS = offsets(CRATER_RADIUS);
+    private static final Map<Integer, DiskGeometry> DISK_GEOMETRIES = new ConcurrentHashMap<>();
 
     private OrbitalKineticStrike() {}
 
     /**
      * Returns the total deterministic position count for a target in the supplied world.
      */
-    public static long totalWork(ServerLevel level, BlockPos target) {
-        return segmentSize(columnHeight(level, target), COLUMN_OFFSETS.size()) + segmentSize(craterHeight(level, target), CRATER_OFFSETS.size());
+    public static long totalWork(
+                                 ServerLevel level,
+                                 BlockPos target,
+                                 OrbitalAttackGeometry.Kinetic geometry) {
+        DiskGeometry column = disk(geometry.columnRadius());
+        DiskGeometry crater = disk(geometry.craterRadius());
+        return totalWork(level, target, geometry, column, crater);
     }
 
     /** Returns the exact server geometry position represented by a persisted public work cursor. */
-    public static BlockPos workPosition(ServerLevel level, BlockPos target, long cursor) {
-        long total = totalWork(level, target);
+    public static BlockPos workPosition(
+                                        ServerLevel level,
+                                        BlockPos target,
+                                        OrbitalAttackGeometry.Kinetic geometry,
+                                        long cursor) {
+        DiskGeometry column = disk(geometry.columnRadius());
+        DiskGeometry crater = disk(geometry.craterRadius());
+        long total = totalWork(level, target, geometry, column, crater);
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Kinetic strike cursor is outside its geometry");
         }
-        return total == 0L ? target.immutable() : positionAt(level, target, cursor == total ? total - 1L : cursor);
-    }
-
-    /**
-     * Processes one bounded slice and returns the next cursor. Positions that are already air still consume a cursor
-     * slot so that the persisted geometry remains deterministic and does not depend on prior attacks.
-     */
-    public static WorkSlice applyBudget(ServerLevel level, BlockPos target, long cursor) {
-        return applyBudget(
-                level,
-                target,
-                cursor,
-                MUTATION_BUDGET_PER_TICK,
-                chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
+        return total == 0L
+                ? target.immutable()
+                : positionAt(
+                        level,
+                        target,
+                        geometry,
+                        column,
+                        crater,
+                        cursor == total ? total - 1L : cursor);
     }
 
     /**
@@ -77,10 +75,13 @@ public final class OrbitalKineticStrike {
     public static WorkSlice applyBudget(
                                         ServerLevel level,
                                         BlockPos target,
+                                        OrbitalAttackGeometry.Kinetic geometry,
                                         long cursor,
                                         int mutationBudget,
                                         Predicate<ChunkPos> chunkReady) {
-        long total = totalWork(level, target);
+        DiskGeometry column = disk(geometry.columnRadius());
+        DiskGeometry crater = disk(geometry.craterRadius());
+        long total = totalWork(level, target, geometry, column, crater);
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Kinetic strike cursor is outside its geometry");
         }
@@ -90,7 +91,7 @@ public final class OrbitalKineticStrike {
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
-            BlockPos position = positionAt(level, target, next);
+            BlockPos position = positionAt(level, target, geometry, column, crater, next);
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
@@ -109,9 +110,13 @@ public final class OrbitalKineticStrike {
     /**
      * Applies the instantaneous impact damage and knockback on the commit tick before budgeted terrain work.
      */
-    public static void applyImpactDamage(ServerLevel level, BlockPos target, Set<UUID> exemptions) {
+    public static void applyImpactDamage(
+                                         ServerLevel level,
+                                         BlockPos target,
+                                         OrbitalAttackGeometry.Kinetic geometry,
+                                         Set<UUID> exemptions) {
         Vec3 center = Vec3.atCenterOf(target);
-        AABB area = new AABB(center, center).inflate(SHOCKWAVE_RADIUS);
+        AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius());
         for (LivingEntity entity : level.getEntities(
                 EntityTypeTest.forClass(LivingEntity.class),
                 area,
@@ -126,14 +131,14 @@ public final class OrbitalKineticStrike {
                 continue;
             }
             Vec3 direction = entity.position().subtract(center);
-            if (direction.lengthSqr() > (long) SHOCKWAVE_RADIUS * SHOCKWAVE_RADIUS) {
+            if (direction.lengthSqr() > (long) geometry.shockwaveRadius() * geometry.shockwaveRadius()) {
                 continue;
             }
-            entity.hurt(level.damageSources().generic(), 500.0F);
+            entity.hurt(level.damageSources().generic(), (float) geometry.entityDamage());
             if (direction.lengthSqr() < 1.0E-6D) {
                 direction = new Vec3(1.0D, 0.0D, 0.0D);
             }
-            entity.knockback(4.0D, -direction.x, -direction.z);
+            entity.knockback(geometry.knockbackStrength(), -direction.x, -direction.z);
             entity.hurtMarked = true;
         }
     }
@@ -142,61 +147,121 @@ public final class OrbitalKineticStrike {
         return Math.multiplyExact((long) Math.max(height, 0), offsetCount);
     }
 
-    private static int columnHeight(ServerLevel level, BlockPos target) {
+    private static int columnHeight(
+                                    ServerLevel level,
+                                    BlockPos target,
+                                    OrbitalAttackGeometry.Kinetic geometry) {
         int top = level.getMaxBuildHeight() - 1;
-        int bottom = Math.max(level.getMinBuildHeight(), target.getY() - COLUMN_DEPTH);
+        int bottom = (int) Math.max(
+                level.getMinBuildHeight(),
+                (long) target.getY() - geometry.columnDepth());
         return Math.max(0, top - bottom + 1);
     }
 
-    private static int craterHeight(ServerLevel level, BlockPos target) {
+    private static int craterHeight(
+                                    ServerLevel level,
+                                    BlockPos target,
+                                    OrbitalAttackGeometry.Kinetic geometry) {
         int top = target.getY() - 1;
-        int bottom = Math.max(level.getMinBuildHeight(), target.getY() - CRATER_DEPTH);
+        int bottom = (int) Math.max(
+                level.getMinBuildHeight(),
+                (long) target.getY() - geometry.craterDepth());
         return Math.max(0, top - bottom + 1);
     }
 
-    private static BlockPos positionAt(ServerLevel level, BlockPos target, long index) {
-        long columnCount = segmentSize(columnHeight(level, target), COLUMN_OFFSETS.size());
+    private static long totalWork(
+                                  ServerLevel level,
+                                  BlockPos target,
+                                  OrbitalAttackGeometry.Kinetic geometry,
+                                  DiskGeometry column,
+                                  DiskGeometry crater) {
+        return Math.addExact(
+                segmentSize(columnHeight(level, target, geometry), column.coordinateCount()),
+                segmentSize(craterHeight(level, target, geometry), crater.coordinateCount()));
+    }
+
+    private static BlockPos positionAt(
+                                       ServerLevel level,
+                                       BlockPos target,
+                                       OrbitalAttackGeometry.Kinetic geometry,
+                                       DiskGeometry column,
+                                       DiskGeometry crater,
+                                       long index) {
+        long columnCount = segmentSize(
+                columnHeight(level, target, geometry),
+                column.coordinateCount());
         if (index < columnCount) {
             return segmentPosition(
                     target,
                     index,
-                    COLUMN_OFFSETS,
-                    level.getMaxBuildHeight() - 1,
-                    COLUMN_OFFSETS.size());
+                    column,
+                    level.getMaxBuildHeight() - 1);
         }
         return segmentPosition(
                 target,
                 index - columnCount,
-                CRATER_OFFSETS,
-                target.getY() - 1,
-                CRATER_OFFSETS.size());
+                crater,
+                target.getY() - 1);
     }
 
     private static BlockPos segmentPosition(
                                             BlockPos target,
                                             long index,
-                                            List<Offset> offsets,
-                                            int topY,
-                                            int offsetCount) {
-        int offsetIndex = (int) (index % offsetCount);
-        int y = topY - (int) (index / offsetCount);
-        Offset offset = offsets.get(offsetIndex);
+                                            DiskGeometry disk,
+                                            int topY) {
+        int offsetIndex = (int) (index % disk.coordinateCount());
+        int y = topY - (int) (index / disk.coordinateCount());
+        Offset offset = disk.offsetAt(offsetIndex);
         return target.offset(offset.x(), y - target.getY(), offset.z());
     }
 
-    private static List<Offset> offsets(int radius) {
-        ArrayList<Offset> result = new ArrayList<>();
-        for (int x = -radius; x <= radius; x++) {
-            for (int z = -radius; z <= radius; z++) {
-                if ((long) x * x + (long) z * z <= (long) radius * radius) {
-                    result.add(new Offset(x, z));
-                }
-            }
-        }
-        return List.copyOf(result);
+    private static DiskGeometry disk(int radius) {
+        return DISK_GEOMETRIES.computeIfAbsent(radius, DiskGeometry::create);
     }
 
     private record Offset(int x, int z) {}
+
+    /**
+     * Compact deterministic disk index. Its row table preserves the old x-then-z circle enumeration without caching
+     * every block offset for every configured radius.
+     */
+    private record DiskGeometry(int radius, int[] rowStarts) {
+
+        private static DiskGeometry create(int radius) {
+            int[] rowStarts = new int[Math.addExact(Math.multiplyExact(radius, 2), 2)];
+            long radiusSquared = (long) radius * radius;
+            for (int row = 0; row <= radius * 2; row++) {
+                int x = row - radius;
+                int zLimit = (int) Math.floor(Math.sqrt(radiusSquared - (long) x * x));
+                rowStarts[row + 1] = Math.addExact(rowStarts[row], Math.addExact(zLimit * 2, 1));
+            }
+            return new DiskGeometry(radius, rowStarts);
+        }
+
+        private int coordinateCount() {
+            return this.rowStarts[this.rowStarts.length - 1];
+        }
+
+        private Offset offsetAt(int index) {
+            if (index < 0 || index >= coordinateCount()) {
+                throw new IllegalArgumentException("Kinetic disk offset is outside its geometry");
+            }
+            int low = 0;
+            int high = this.rowStarts.length - 2;
+            while (low < high) {
+                int middle = (low + high + 1) >>> 1;
+                if (this.rowStarts[middle] <= index) {
+                    low = middle;
+                } else {
+                    high = middle - 1;
+                }
+            }
+            int x = low - this.radius;
+            int zLimit = (this.rowStarts[low + 1] - this.rowStarts[low] - 1) / 2;
+            int z = -zLimit + index - this.rowStarts[low];
+            return new Offset(x, z);
+        }
+    }
 
     /**
      * Result of one bounded geometry slice.

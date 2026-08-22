@@ -61,12 +61,13 @@ public record OrbitalAttackPreviewEstimate(
         int effectRadius;
         switch (mode) {
             case KINETIC -> {
+                OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
                 cost = OrbitalAttackCost.kinetic(settings);
-                scheduledBlocks = OrbitalKineticStrike.totalWork(level, target);
+                scheduledBlocks = OrbitalKineticStrike.totalWork(level, target, geometry);
                 workingTicks = divideRoundingUp(
                         scheduledBlocks,
                         settings.maxAttackBlockMutationsPerTaskTick());
-                effectRadius = OrbitalKineticStrike.SHOCKWAVE_RADIUS;
+                effectRadius = geometry.maximumRadius();
             }
             case DIRECTED_ENERGY -> {
                 if (directedDepth == null) {

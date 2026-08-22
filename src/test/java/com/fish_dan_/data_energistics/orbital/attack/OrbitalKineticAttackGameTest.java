@@ -48,6 +48,13 @@ public final class OrbitalKineticAttackGameTest {
     private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(4, 2, 2);
     private static final BlockPos TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos VICTIM = TARGET.offset(10, 0, 0);
+    private static final BlockPos SNAPSHOT_COLUMN_OUTSIDE = TARGET.offset(4, 0, 0);
+    private static final BlockPos SNAPSHOT_CRATER_INSIDE = TARGET.offset(2, -1, 0);
+    private static final BlockPos SNAPSHOT_CRATER_OUTSIDE = TARGET.offset(4, -1, 0);
+    private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(2);
+    private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(4);
+    private static final BlockPos SNAPSHOT_INNER_VICTIM = TARGET.offset(3, 0, 0);
+    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(8, 0, 0);
 
     private OrbitalKineticAttackGameTest() {}
 
@@ -62,6 +69,7 @@ public final class OrbitalKineticAttackGameTest {
         ServerPlayer owner = createPlayer(level, "kinetic-owner");
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
+        OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
         placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
@@ -69,7 +77,7 @@ public final class OrbitalKineticAttackGameTest {
         installInfiniteCell(helper);
         helper.setBlock(TARGET, Blocks.STONE);
         helper.setBlock(VICTIM.below(), Blocks.STONE);
-        loadTerrainChunks(level, helper.absolutePos(TARGET));
+        loadTerrainChunks(level, helper.absolutePos(TARGET), geometry.terrainRadius());
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<UUID> firstAttackId = new AtomicReference<>();
@@ -227,6 +235,130 @@ public final class OrbitalKineticAttackGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_kinetic_attack_keeps_confirmed_geometry_after_live_config_changes")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", batch = "orbital_kinetic_geometry_snapshot", timeoutTicks = 400)
+    public static void keepsConfirmedGeometryAfterLiveConfigChanges(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "kinetic-snapshot-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
+                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
+        KineticConfigurationSnapshot original = KineticConfigurationSnapshot.capture(settings);
+        KineticConfigurationSnapshot confirmed = new KineticConfigurationSnapshot(
+                1,
+                1,
+                1,
+                2,
+                2,
+                2,
+                4,
+                500L,
+                2.0D);
+        KineticConfigurationSnapshot changedLive = new KineticConfigurationSnapshot(
+                1,
+                1,
+                6,
+                6,
+                6,
+                6,
+                10,
+                1L,
+                0.0D);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        BlockPos absoluteColumnOutside = helper.absolutePos(SNAPSHOT_COLUMN_OUTSIDE);
+        BlockPos absoluteCraterInside = helper.absolutePos(SNAPSHOT_CRATER_INSIDE);
+        BlockPos absoluteCraterOutside = helper.absolutePos(SNAPSHOT_CRATER_OUTSIDE);
+        BlockPos absoluteDepthInside = helper.absolutePos(SNAPSHOT_DEPTH_INSIDE);
+        BlockPos absoluteDepthOutside = helper.absolutePos(SNAPSHOT_DEPTH_OUTSIDE);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_COLUMN_OUTSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_CRATER_INSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_CRATER_OUTSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_DEPTH_INSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_DEPTH_OUTSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_INNER_VICTIM.below(), Blocks.STONE);
+        helper.setBlock(SNAPSHOT_OUTER_VICTIM.below(), Blocks.STONE);
+        loadTerrainChunks(level, absoluteTarget, changedLive.geometry().terrainRadius());
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<Zombie> innerVictim = new AtomicReference<>();
+        AtomicReference<Zombie> outerVictim = new AtomicReference<>();
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The kinetic snapshot test must use a real powered target-dimension endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    Zombie inner = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_INNER_VICTIM);
+                    inner.setNoAi(true);
+                    innerVictim.set(inner);
+                    Zombie outer = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_OUTER_VICTIM);
+                    outer.setNoAi(true);
+                    outerVictim.set(outer);
+                })
+                .thenExecute(() -> {
+                    try {
+                        confirmed.applyTo(settings);
+                        attacks.tryConfirmKinetic(
+                                server,
+                                owner.getUUID(),
+                                weaponId,
+                                level.dimension().location(),
+                                absoluteTarget)
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "A funded kinetic snapshot attack was rejected"));
+                        changedLive.applyTo(settings);
+                    } catch (RuntimeException exception) {
+                        original.applyTo(settings);
+                        throw exception;
+                    }
+                })
+                .thenIdle(20)
+                .thenExecute(() -> original.applyTo(settings))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).isAir(),
+                            "The confirmed kinetic column must remove its real target");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteDepthInside).isAir(),
+                            "The confirmed kinetic column must reach its captured depth");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteCraterInside).isAir(),
+                            "The confirmed kinetic crater must remove its in-range marker");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteColumnOutside).is(Blocks.STONE),
+                            "A later, wider live column must not expand an already confirmed attack");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteDepthOutside).is(Blocks.STONE),
+                            "A later, deeper live column must not deepen an already confirmed attack");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteCraterOutside).is(Blocks.STONE),
+                            "A later, wider live crater must not expand an already confirmed attack");
+                    helper.assertFalse(
+                            innerVictim.get().isAlive(),
+                            "The captured shockwave damage must affect a real in-range entity");
+                    helper.assertTrue(
+                            outerVictim.get().isAlive(),
+                            "A later, wider live shockwave must not affect an out-of-snapshot entity");
+                })
+                .thenExecute(() -> {
+                    innerVictim.get().discard();
+                    outerVictim.get().discard();
+                })
+                .thenSucceed();
+    }
+
     private static void installInfiniteCell(GameTestHelper helper) {
         if (!(helper.getBlockEntity(DRIVE) instanceof DriveBlockEntity drive)) {
             throw new IllegalStateException("The kinetic test drive has no block entity");
@@ -301,8 +433,7 @@ public final class OrbitalKineticAttackGameTest {
                 "Kinetic confirmation must escrow its configured AE energy cost");
     }
 
-    private static void loadTerrainChunks(ServerLevel level, BlockPos target) {
-        int radius = OrbitalKineticStrike.CRATER_RADIUS;
+    private static void loadTerrainChunks(ServerLevel level, BlockPos target, int radius) {
         int minChunkX = Math.floorDiv(target.getX() - radius, 16);
         int maxChunkX = Math.floorDiv(target.getX() + radius, 16);
         int minChunkZ = Math.floorDiv(target.getZ() - radius, 16);
@@ -334,6 +465,55 @@ public final class OrbitalKineticAttackGameTest {
                 level,
                 new GameProfile(UUID.randomUUID(), name),
                 ClientInformation.createDefault());
+    }
+
+    private record KineticConfigurationSnapshot(
+                                                int attackWarningTicks,
+                                                int cooldownTicks,
+                                                int columnRadius,
+                                                int columnDepth,
+                                                int craterRadius,
+                                                int craterDepth,
+                                                int shockwaveRadius,
+                                                long entityDamage,
+                                                double knockbackStrength) {
+
+        private static KineticConfigurationSnapshot capture(
+                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            return new KineticConfigurationSnapshot(
+                    settings.attackWarningTicks,
+                    settings.kineticCooldownTicks,
+                    settings.kineticColumnRadius,
+                    settings.kineticColumnDepth,
+                    settings.kineticCraterRadius,
+                    settings.kineticCraterDepth,
+                    settings.kineticShockwaveRadius,
+                    settings.kineticEntityDamage,
+                    settings.kineticKnockbackStrength);
+        }
+
+        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+            settings.attackWarningTicks = this.attackWarningTicks;
+            settings.kineticCooldownTicks = this.cooldownTicks;
+            settings.kineticColumnRadius = this.columnRadius;
+            settings.kineticColumnDepth = this.columnDepth;
+            settings.kineticCraterRadius = this.craterRadius;
+            settings.kineticCraterDepth = this.craterDepth;
+            settings.kineticShockwaveRadius = this.shockwaveRadius;
+            settings.kineticEntityDamage = this.entityDamage;
+            settings.kineticKnockbackStrength = this.knockbackStrength;
+        }
+
+        private OrbitalAttackGeometry.Kinetic geometry() {
+            return new OrbitalAttackGeometry.Kinetic(
+                    this.columnRadius,
+                    this.columnDepth,
+                    this.craterRadius,
+                    this.craterDepth,
+                    this.shockwaveRadius,
+                    this.entityDamage,
+                    this.knockbackStrength);
+        }
     }
 
     private static final class TestServerPlayer extends ServerPlayer {

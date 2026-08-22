@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.configuration.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 
 import net.minecraft.resources.ResourceLocation;
@@ -113,6 +114,13 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.kineticAttackEnabled,
                 weaponSettings.directedEnergyAttackEnabled,
                 weaponSettings.digitalAnnihilationAttackEnabled,
+                weaponSettings.kineticColumnRadius,
+                weaponSettings.kineticColumnDepth,
+                weaponSettings.kineticCraterRadius,
+                weaponSettings.kineticCraterDepth,
+                weaponSettings.kineticShockwaveRadius,
+                weaponSettings.kineticEntityDamage,
+                weaponSettings.kineticKnockbackStrength,
                 weaponSettings.kineticCelestialEnergyCost,
                 weaponSettings.kineticAeEnergyCost,
                 weaponSettings.attackWarningTicks,
@@ -800,6 +808,41 @@ public final class DataEnergisticsConfiguration {
         public boolean digitalAnnihilationAttackEnabled = true;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the kinetic strike's vertical clearing column.", "动能攻击垂直清除柱的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_RADIUS)
+        public int kineticColumnRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_COLUMN_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Blocks cleared below the kinetic target by its vertical column.", "动能攻击垂直清除柱向目标下方延伸的深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_DEPTH)
+        public int kineticColumnDepth = OrbitalAttackGeometry.Kinetic.DEFAULT_COLUMN_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the shallow crater below a kinetic impact.", "动能攻击命中点下方浅陨坑的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_RADIUS)
+        public int kineticCraterRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Depth of the shallow crater below a kinetic impact.", "动能攻击命中点下方浅陨坑的深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_DEPTH)
+        public int kineticCraterDepth = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the instantaneous kinetic impact shockwave.", "动能攻击瞬时冲击波的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_SHOCKWAVE_RADIUS)
+        public int kineticShockwaveRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_SHOCKWAVE_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Damage dealt to a non-exempt living entity inside the kinetic shockwave.", "动能冲击波对范围内非豁免生物造成的伤害。" })
+        @Configurable.Range(min = 1L, max = Integer.MAX_VALUE)
+        public long kineticEntityDamage = OrbitalAttackGeometry.Kinetic.DEFAULT_ENTITY_DAMAGE;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Horizontal knockback strength applied by the kinetic shockwave.", "动能冲击波施加的水平击退强度。" })
+        @Configurable.DecimalRange(min = 0.0D, max = OrbitalAttackGeometry.Kinetic.MAX_KNOCKBACK_STRENGTH)
+        public double kineticKnockbackStrength = OrbitalAttackGeometry.Kinetic.DEFAULT_KNOCKBACK_STRENGTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long kineticCelestialEnergyCost = 5_000_000L;
@@ -915,6 +958,34 @@ public final class DataEnergisticsConfiguration {
 
         public long kineticAeEnergyCost() {
             return this.kineticAeEnergyCost;
+        }
+
+        public int kineticColumnRadius() {
+            return this.kineticColumnRadius;
+        }
+
+        public int kineticColumnDepth() {
+            return this.kineticColumnDepth;
+        }
+
+        public int kineticCraterRadius() {
+            return this.kineticCraterRadius;
+        }
+
+        public int kineticCraterDepth() {
+            return this.kineticCraterDepth;
+        }
+
+        public int kineticShockwaveRadius() {
+            return this.kineticShockwaveRadius;
+        }
+
+        public long kineticEntityDamage() {
+            return this.kineticEntityDamage;
+        }
+
+        public double kineticKnockbackStrength() {
+            return this.kineticKnockbackStrength;
         }
 
         public int attackWarningTicks() {
